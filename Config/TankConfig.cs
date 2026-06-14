@@ -1,4 +1,5 @@
 using System;
+using Olympus.Data;
 
 namespace Olympus.Config;
 
@@ -7,6 +8,12 @@ namespace Olympus.Config;
 /// </summary>
 public sealed class TankConfig
 {
+    public TankConfig()
+    {
+        PaladinAoEMinTargetsOverride = 2;
+        WarriorAoEMinTargetsOverride = 2;
+    }
+
     /// <summary>
     /// Enable automatic mitigation cooldown usage.
     /// </summary>
@@ -117,6 +124,59 @@ public sealed class TankConfig
         set => _aoEMinTargets = Math.Clamp(value, 2, 8);
     }
 
+    /// <summary>
+    /// Paladin-specific AoE breakeven override. Null inherits <see cref="AoEMinTargets"/>.
+    /// </summary>
+    private int? _paladinAoEMinTargetsOverride;
+    public int? PaladinAoEMinTargetsOverride
+    {
+        get => _paladinAoEMinTargetsOverride;
+        set => _paladinAoEMinTargetsOverride = value.HasValue ? Math.Clamp(value.Value, 2, 8) : null;
+    }
+
+    /// <summary>
+    /// Warrior-specific AoE breakeven override. Null inherits <see cref="AoEMinTargets"/>.
+    /// </summary>
+    private int? _warriorAoEMinTargetsOverride;
+    public int? WarriorAoEMinTargetsOverride
+    {
+        get => _warriorAoEMinTargetsOverride;
+        set => _warriorAoEMinTargetsOverride = value.HasValue ? Math.Clamp(value.Value, 2, 8) : null;
+    }
+
+    /// <summary>
+    /// Dark Knight-specific AoE breakeven override. Null inherits <see cref="AoEMinTargets"/>.
+    /// </summary>
+    private int? _darkKnightAoEMinTargetsOverride;
+    public int? DarkKnightAoEMinTargetsOverride
+    {
+        get => _darkKnightAoEMinTargetsOverride;
+        set => _darkKnightAoEMinTargetsOverride = value.HasValue ? Math.Clamp(value.Value, 2, 8) : null;
+    }
+
+    /// <summary>
+    /// Gunbreaker-specific AoE breakeven override. Null inherits <see cref="AoEMinTargets"/>.
+    /// </summary>
+    private int? _gunbreakerAoEMinTargetsOverride;
+    public int? GunbreakerAoEMinTargetsOverride
+    {
+        get => _gunbreakerAoEMinTargetsOverride;
+        set => _gunbreakerAoEMinTargetsOverride = value.HasValue ? Math.Clamp(value.Value, 2, 8) : null;
+    }
+
+    /// <summary>
+    /// Resolves the effective AoE min-target threshold for a tank job.
+    /// </summary>
+    public int GetEffectiveAoEMinTargets(uint jobId) =>
+        jobId switch
+        {
+            JobRegistry.Paladin or JobRegistry.Gladiator => PaladinAoEMinTargetsOverride ?? AoEMinTargets,
+            JobRegistry.Warrior or JobRegistry.Marauder => WarriorAoEMinTargetsOverride ?? AoEMinTargets,
+            JobRegistry.DarkKnight => DarkKnightAoEMinTargetsOverride ?? AoEMinTargets,
+            JobRegistry.Gunbreaker => GunbreakerAoEMinTargetsOverride ?? AoEMinTargets,
+            _ => AoEMinTargets,
+        };
+
     #region Paladin
 
     /// <summary>
@@ -143,6 +203,17 @@ public sealed class TankConfig
     /// Use Intervene (gap closer).
     /// </summary>
     public bool EnableIntervene { get; set; } = true;
+
+    /// <summary>
+    /// Skip refreshing DoTs on targets about to die (RSR-style time-to-kill check).
+    /// Disabled by default to preserve existing behavior.
+    /// </summary>
+    public bool EnableTimeToKillCheck { get; set; } = false;
+
+    /// <summary>
+    /// Minimum estimated seconds-to-kill below which DoTs are not refreshed.
+    /// </summary>
+    public float TimeToKillThresholdSeconds { get; set; } = 8f;
 
     /// <summary>
     /// Use Sentinel / Guardian (major mitigation).

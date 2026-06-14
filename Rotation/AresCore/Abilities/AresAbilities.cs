@@ -82,12 +82,14 @@ public static class AresAbilities
     {
         Action = WARActions.InnerChaos,
         Toggle = cfg => cfg.Tank.EnableDamage,
+        ProcBuff = WARActions.StatusIds.NascentChaos,
     };
 
     public static readonly AbilityBehavior ChaoticCyclone = new()
     {
         Action = WARActions.ChaoticCyclone,
         Toggle = cfg => cfg.Tank.EnableAoEDamage,
+        ProcBuff = WARActions.StatusIds.NascentChaos,
     };
 
     // --- Primal chain ---
@@ -96,12 +98,14 @@ public static class AresAbilities
     {
         Action = WARActions.PrimalRend,
         Toggle = cfg => cfg.Tank.EnablePrimalRend,
+        ProcBuff = WARActions.StatusIds.PrimalRendReady,
     };
 
     public static readonly AbilityBehavior PrimalRuination = new()
     {
         Action = WARActions.PrimalRuination,
         Toggle = cfg => cfg.Tank.EnablePrimalRuination,
+        ProcBuff = WARActions.StatusIds.PrimalRuinationReady,
     };
 
     public static readonly AbilityBehavior PrimalWrath = new()

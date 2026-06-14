@@ -82,6 +82,10 @@ public sealed class AresContext : IAresContext
     public bool HasPrimalRendReady { get; }
     public bool HasPrimalRuinationReady { get; }
     public bool HasWrathful { get; }
+    public bool InnerChaosReady { get; }
+    public bool ChaoticCycloneReady { get; }
+    public bool PrimalWrathReady { get; }
+    public bool PrimalRuinationReady { get; }
     public bool HasActiveMitigation { get; }
     public bool HasHolmgang { get; }
     public bool HasVengeance { get; }
@@ -191,6 +195,16 @@ public sealed class AresContext : IAresContext
         HasPrimalRendReady = statusHelper.HasPrimalRendReady(player);
         HasPrimalRuinationReady = statusHelper.HasPrimalRuinationReady(player);
         HasWrathful = statusHelper.HasWrathful(player);
+
+        var level = player.Level;
+        InnerChaosReady = level >= WARActions.InnerChaos.MinLevel &&
+                          WARActions.IsInnerChaosReady(actionService);
+        ChaoticCycloneReady = level >= WARActions.ChaoticCyclone.MinLevel &&
+                              WARActions.IsChaoticCycloneReady(actionService);
+        PrimalWrathReady = level >= WARActions.PrimalWrath.MinLevel &&
+                           WARActions.IsPrimalWrathReady(actionService);
+        PrimalRuinationReady = level >= WARActions.PrimalRuination.MinLevel &&
+                               WARActions.IsPrimalRuinationReady(actionService);
 
         // Defensive checks
         HasActiveMitigation = statusHelper.HasActiveMitigation(player);

@@ -1,4 +1,5 @@
 using Olympus.Models.Action;
+using Olympus.Services.Action;
 
 namespace Olympus.Data;
 
@@ -773,6 +774,34 @@ public static class WARActions
             return Bloodwhetting;
         return RawIntuition;
     }
+
+    /// <summary>
+    /// Whether Inner Chaos occupies the Fell Cleave slot (RSR InnerChaosPvEeady).
+    /// Base slot: Fell Cleave (3549) → Inner Chaos (16465).
+    /// </summary>
+    public static bool IsInnerChaosReady(IActionService actionService)
+        => actionService.GetAdjustedActionId(FellCleave.ActionId) == InnerChaos.ActionId;
+
+    /// <summary>
+    /// Whether Chaotic Cyclone occupies the Decimate slot (RSR ChaoticCyclonePvEReady).
+    /// Base slot: Decimate (3550) → Chaotic Cyclone (16463).
+    /// </summary>
+    public static bool IsChaoticCycloneReady(IActionService actionService)
+        => actionService.GetAdjustedActionId(Decimate.ActionId) == ChaoticCyclone.ActionId;
+
+    /// <summary>
+    /// Whether Primal Wrath occupies the Inner Release slot (RSR PrimalWrathPvEReady).
+    /// Base slot: Inner Release (7389) → Primal Wrath (36924).
+    /// </summary>
+    public static bool IsPrimalWrathReady(IActionService actionService)
+        => actionService.GetAdjustedActionId(InnerRelease.ActionId) == PrimalWrath.ActionId;
+
+    /// <summary>
+    /// Whether Primal Ruination occupies the Primal Rend slot (RSR PrimalRuinationPvEReady).
+    /// Base slot: Primal Rend (25753) → Primal Ruination (36925).
+    /// </summary>
+    public static bool IsPrimalRuinationReady(IActionService actionService)
+        => actionService.GetAdjustedActionId(PrimalRend.ActionId) == PrimalRuination.ActionId;
 
     /// <summary>
     /// Gets the best single-target combo finisher for the player's level and buff status.

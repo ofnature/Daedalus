@@ -69,6 +69,26 @@ public interface IAresContext : ITankRotationContext
     /// </summary>
     bool HasWrathful { get; }
 
+    /// <summary>
+    /// Whether Inner Chaos is the current Fell Cleave slot replacement (RSR InnerChaosPvEeady).
+    /// </summary>
+    bool InnerChaosReady { get; }
+
+    /// <summary>
+    /// Whether Chaotic Cyclone is the current Decimate slot replacement (RSR ChaoticCyclonePvEReady).
+    /// </summary>
+    bool ChaoticCycloneReady { get; }
+
+    /// <summary>
+    /// Whether Primal Wrath is the current Inner Release slot replacement (RSR PrimalWrathPvEReady).
+    /// </summary>
+    bool PrimalWrathReady { get; }
+
+    /// <summary>
+    /// Whether Primal Ruination is the current Primal Rend slot replacement (RSR PrimalRuinationPvEReady).
+    /// </summary>
+    bool PrimalRuinationReady { get; }
+
     #endregion
 
     #region Defensive State
