@@ -99,12 +99,22 @@ public interface INikeContext : IMeleeDpsRotationContext
     bool HasOgiNamikiriReady { get; }
 
     /// <summary>
-    /// Whether Kaeshi: Namikiri is ready (after Ogi Namikiri).
+    /// Whether Kaeshi: Namikiri ready buff is active (status 2960 — debug).
     /// </summary>
     bool HasKaeshiNamikiriReady { get; }
 
     /// <summary>
-    /// Whether Tsubame-gaeshi is ready (after Iaijutsu).
+    /// Whether Kaeshi: Namikiri is the current Ogi Namikiri slot replacement (RSR KaeshiNamikiriReady).
+    /// </summary>
+    bool KaeshiNamikiriReady { get; }
+
+    /// <summary>
+    /// Whether a Kaeshi variant occupies the Tsubame-gaeshi slot (RSR TsubamegaeshiActionReady).
+    /// </summary>
+    bool TsubameGaeshiActionReady { get; }
+
+    /// <summary>
+    /// Whether Tsubame-gaeshi ready buff is active (status 4216 — debug).
     /// </summary>
     bool HasTsubameGaeshiReady { get; }
 
@@ -132,7 +142,7 @@ public interface INikeContext : IMeleeDpsRotationContext
     #region Iaijutsu State
 
     /// <summary>
-    /// The last Iaijutsu used (for Kaeshi selection).
+    /// Last Iaijutsu type for training/debug display only (rotation uses slot probes).
     /// </summary>
     SAMActions.IaijutsuType LastIaijutsu { get; }
 

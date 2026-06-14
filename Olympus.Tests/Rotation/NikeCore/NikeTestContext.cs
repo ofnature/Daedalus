@@ -49,7 +49,9 @@ public static class NikeTestContext
         int meikyoStacks = 0,
         bool hasOgiNamikiriReady = false,
         bool hasKaeshiNamikiriReady = false,
+        bool kaeshiNamikiriReady = false,
         bool hasTsubameGaeshiReady = false,
+        bool tsubameGaeshiActionReady = false,
         bool hasZanshinReady = false,
         bool hasHiganbanaOnTarget = false,
         float higanbanaRemaining = 0f,
@@ -107,7 +109,9 @@ public static class NikeTestContext
         mock.Setup(x => x.MeikyoStacks).Returns(meikyoStacks);
         mock.Setup(x => x.HasOgiNamikiriReady).Returns(hasOgiNamikiriReady);
         mock.Setup(x => x.HasKaeshiNamikiriReady).Returns(hasKaeshiNamikiriReady);
+        mock.Setup(x => x.KaeshiNamikiriReady).Returns(kaeshiNamikiriReady);
         mock.Setup(x => x.HasTsubameGaeshiReady).Returns(hasTsubameGaeshiReady);
+        mock.Setup(x => x.TsubameGaeshiActionReady).Returns(tsubameGaeshiActionReady);
         mock.Setup(x => x.HasZanshinReady).Returns(hasZanshinReady);
         mock.Setup(x => x.HasTrueNorth).Returns(false);
 

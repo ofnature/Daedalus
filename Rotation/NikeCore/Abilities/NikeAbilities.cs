@@ -31,15 +31,58 @@ public static class NikeAbilities
     public static readonly AbilityBehavior TenkaGoken = new() { Action = SAMActions.TenkaGoken, Toggle = cfg => cfg.Samurai.EnableIaijutsu };
     public static readonly AbilityBehavior MidareSetsugekka = new() { Action = SAMActions.MidareSetsugekka, Toggle = cfg => cfg.Samurai.EnableIaijutsu };
 
+    // --- Tendo (Lv.100) Kaeshi — slot resolution only; burst logic Phase C ---
+    public static readonly AbilityBehavior TendoKaeshiGoken = new()
+    {
+        Action = SAMActions.TendoKaeshiGoken,
+        Toggle = cfg => cfg.Samurai.EnableTsubamegaeshi,
+        ProcBuff = SAMActions.StatusIds.TsubameGaeshiReady,
+    };
+    public static readonly AbilityBehavior TendoKaeshiSetsugekka = new()
+    {
+        Action = SAMActions.TendoKaeshiSetsugekka,
+        Toggle = cfg => cfg.Samurai.EnableTsubamegaeshi,
+        ProcBuff = SAMActions.StatusIds.TsubameGaeshiReady,
+    };
+
     // --- Tsubame-gaeshi ---
-    public static readonly AbilityBehavior KaeshiHiganbana = new() { Action = SAMActions.KaeshiHiganbana, Toggle = cfg => cfg.Samurai.EnableTsubamegaeshi };
-    public static readonly AbilityBehavior KaeshiGoken = new() { Action = SAMActions.KaeshiGoken, Toggle = cfg => cfg.Samurai.EnableTsubamegaeshi };
-    public static readonly AbilityBehavior KaeshiSetsugekka = new() { Action = SAMActions.KaeshiSetsugekka, Toggle = cfg => cfg.Samurai.EnableTsubamegaeshi };
+    public static readonly AbilityBehavior KaeshiHiganbana = new()
+    {
+        Action = SAMActions.KaeshiHiganbana,
+        Toggle = cfg => cfg.Samurai.EnableTsubamegaeshi,
+        ProcBuff = SAMActions.StatusIds.TsubameGaeshiReady,
+    };
+    public static readonly AbilityBehavior KaeshiGoken = new()
+    {
+        Action = SAMActions.KaeshiGoken,
+        Toggle = cfg => cfg.Samurai.EnableTsubamegaeshi,
+        ProcBuff = SAMActions.StatusIds.TsubameGaeshiReady,
+    };
+    public static readonly AbilityBehavior KaeshiSetsugekka = new()
+    {
+        Action = SAMActions.KaeshiSetsugekka,
+        Toggle = cfg => cfg.Samurai.EnableTsubamegaeshi,
+        ProcBuff = SAMActions.StatusIds.TsubameGaeshiReady,
+    };
 
     // --- Ogi Namikiri / Kaeshi: Namikiri / Zanshin ---
-    public static readonly AbilityBehavior OgiNamikiri = new() { Action = SAMActions.OgiNamikiri, Toggle = cfg => cfg.Samurai.EnableOgiNamikiri };
-    public static readonly AbilityBehavior KaeshiNamikiri = new() { Action = SAMActions.KaeshiNamikiri };
-    public static readonly AbilityBehavior Zanshin = new() { Action = SAMActions.Zanshin, Toggle = cfg => cfg.Samurai.EnableZanshin };
+    public static readonly AbilityBehavior OgiNamikiri = new()
+    {
+        Action = SAMActions.OgiNamikiri,
+        Toggle = cfg => cfg.Samurai.EnableOgiNamikiri,
+        ProcBuff = SAMActions.StatusIds.OgiNamikiriReady,
+    };
+    public static readonly AbilityBehavior KaeshiNamikiri = new()
+    {
+        Action = SAMActions.KaeshiNamikiri,
+        ProcBuff = SAMActions.StatusIds.KaeshiNamikiriReady,
+    };
+    public static readonly AbilityBehavior Zanshin = new()
+    {
+        Action = SAMActions.Zanshin,
+        Toggle = cfg => cfg.Samurai.EnableZanshin,
+        ProcBuff = SAMActions.StatusIds.ZanshinReady,
+    };
 
     // --- Kenki spenders ---
     public static readonly AbilityBehavior Shinten = new() { Action = SAMActions.Shinten, Toggle = cfg => cfg.Samurai.EnableShinten };

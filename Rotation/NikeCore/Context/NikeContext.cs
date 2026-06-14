@@ -89,7 +89,9 @@ public sealed class NikeContext : INikeContext
     public int MeikyoStacks { get; }
     public bool HasOgiNamikiriReady { get; }
     public bool HasKaeshiNamikiriReady { get; }
+    public bool KaeshiNamikiriReady { get; }
     public bool HasTsubameGaeshiReady { get; }
+    public bool TsubameGaeshiActionReady { get; }
     public bool HasZanshinReady { get; }
 
     // DoT
@@ -213,7 +215,13 @@ public sealed class NikeContext : INikeContext
         HasTsubameGaeshiReady = statusHelper.HasTsubameGaeshiReady(player);
         HasZanshinReady = statusHelper.HasZanshinReady(player);
 
-        // Iaijutsu tracking
+        var level = player.Level;
+        KaeshiNamikiriReady = level >= SAMActions.KaeshiNamikiri.MinLevel &&
+                              SAMActions.IsKaeshiNamikiriReady(actionService);
+        TsubameGaeshiActionReady = level >= SAMActions.TsubameGaeshi.MinLevel &&
+                                   SAMActions.IsTsubameGaeshiActionReady(actionService);
+
+        // Iaijutsu tracking (training/debug only)
         LastIaijutsu = lastIaijutsu;
 
         // Calculate party health metrics

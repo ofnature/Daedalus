@@ -102,7 +102,6 @@ public sealed class BuffModule : INikeModule
         if (player.Level < SAMActions.Zanshin.MinLevel) return;
         if (!context.HasZanshinReady) return;
         if (context.Kenki < 50) return;
-        if (!context.ActionService.IsActionReady(SAMActions.Zanshin.ActionId)) return;
 
         scheduler.PushOgcd(NikeAbilities.Zanshin, target.GameObjectId, priority: 1,
             onDispatched: _ =>

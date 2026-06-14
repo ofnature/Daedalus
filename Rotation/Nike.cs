@@ -77,9 +77,6 @@ public sealed class Nike : BaseMeleeDpsRotation<INikeContext, INikeModule>
     private SAMActions.SenType _sen;
     private int _meditation;
 
-    // Track last Iaijutsu for Kaeshi
-    private SAMActions.IaijutsuType _lastIaijutsu = SAMActions.IaijutsuType.None;
-
     // Scheduler
     private readonly RotationScheduler _scheduler;
 
@@ -148,11 +145,6 @@ public sealed class Nike : BaseMeleeDpsRotation<INikeContext, INikeModule>
 
         // Sort by priority
         _modules.Sort((a, b) => a.Priority.CompareTo(b.Priority));
-
-        // Subscribe to track Iaijutsu usage for Kaeshi selection. This is the reason Nike
-        // implements IDisposable — the subscription must be removed when the rotation is unloaded.
-        // See Dispose() for the corresponding unsubscription and a full explanation.
-        combatEventService.OnAbilityUsed += OnAbilityUsed;
     }
 
     #region Abstract Implementation
@@ -257,7 +249,7 @@ public sealed class Nike : BaseMeleeDpsRotation<INikeContext, INikeModule>
             isAtRear: IsAtRear,
             isAtFlank: IsAtFlank,
             targetHasPositionalImmunity: TargetHasPositionalImmunity,
-            lastIaijutsu: _lastIaijutsu,
+            lastIaijutsu: SAMActions.IaijutsuType.None,
             timelineService: _timelineService,
             partyCoordinationService: _partyCoordinationService,
             trainingService: _trainingService,
@@ -299,56 +291,6 @@ public sealed class Nike : BaseMeleeDpsRotation<INikeContext, INikeModule>
 
         if (ActionService.CanExecuteGcd)
             _scheduler.DispatchGcd(context);
-    }
-
-    #endregion
-
-    #region Iaijutsu Tracking
-
-    private void OnAbilityUsed(uint sourceId, uint actionId)
-    {
-        // Only track our own actions
-        var localPlayer = ObjectTable.LocalPlayer;
-        if (localPlayer == null || sourceId != localPlayer.EntityId)
-            return;
-
-        // Track Iaijutsu for Kaeshi selection
-        _lastIaijutsu = actionId switch
-        {
-            7489 => SAMActions.IaijutsuType.Higanbana,      // Higanbana
-            7488 => SAMActions.IaijutsuType.TenkaGoken,     // Tenka Goken
-            7487 => SAMActions.IaijutsuType.MidareSetsugekka, // Midare Setsugekka
-            // Kaeshi actions reset the last Iaijutsu
-            16484 or 16485 or 16486 => SAMActions.IaijutsuType.None,
-            _ => _lastIaijutsu
-        };
-    }
-
-    #endregion
-
-    #region IDisposable
-
-    /// <summary>
-    /// Unsubscribes from <see cref="ICombatEventService.OnAbilityUsed"/> to prevent memory leaks.
-    ///
-    /// Nike is the only rotation that implements <see cref="IDisposable"/> because it is the only
-    /// rotation that subscribes to a combat event for state tracking. All other rotations derive their
-    /// state from per-frame game API reads; Samurai requires the additional event subscription to
-    /// track <see cref="_lastIaijutsu"/> across frames, because the game does not expose a queryable
-    /// "last Iaijutsu used" field — the information is only available at the moment the action fires.
-    ///
-    /// <see cref="RotationManager.Dispose"/> and <see cref="RotationFactory"/> both call
-    /// <c>IDisposable.Dispose()</c> on any rotation that implements it, so this cleanup runs
-    /// correctly on job-switch and plugin-unload.
-    /// </summary>
-    protected override void Dispose(bool disposing)
-    {
-        if (disposing)
-        {
-            // Unsubscribe the Iaijutsu-tracking handler to avoid a dangling reference to this instance.
-            CombatEventService.OnAbilityUsed -= OnAbilityUsed;
-        }
-        base.Dispose(disposing);
     }
 
     #endregion

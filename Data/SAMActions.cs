@@ -1,4 +1,5 @@
 using Olympus.Models.Action;
+using Olympus.Services.Action;
 
 namespace Olympus.Data;
 
@@ -994,6 +995,108 @@ public static class SAMActions
         var g = (sen & SenType.Getsu) != 0 ? "G" : "-";
         var k = (sen & SenType.Ka) != 0 ? "K" : "-";
         return $"[{s}{g}{k}]";
+    }
+
+    #endregion
+
+    #region Slot Probes (RSR parity)
+
+    /// <summary>
+    /// Whether Higanbana occupies the Iaijutsu slot (RSR HiganbanaReady).
+    /// Base slot: Iaijutsu (7867) → Higanbana (7489).
+    /// </summary>
+    public static bool IsHiganbanaReady(IActionService actionService)
+        => actionService.GetAdjustedActionId(Iaijutsu.ActionId) == Higanbana.ActionId;
+
+    /// <summary>
+    /// Whether Tenka Goken occupies the Iaijutsu slot (RSR TenkaGokenReady).
+    /// Base slot: Iaijutsu (7867) → Tenka Goken (7488).
+    /// </summary>
+    public static bool IsTenkaGokenReady(IActionService actionService)
+        => actionService.GetAdjustedActionId(Iaijutsu.ActionId) == TenkaGoken.ActionId;
+
+    /// <summary>
+    /// Whether Midare Setsugekka occupies the Iaijutsu slot (RSR MidareSetsugekkaReady).
+    /// Base slot: Iaijutsu (7867) → Midare Setsugekka (7487).
+    /// </summary>
+    public static bool IsMidareSetsugekkaReady(IActionService actionService)
+        => actionService.GetAdjustedActionId(Iaijutsu.ActionId) == MidareSetsugekka.ActionId;
+
+    /// <summary>
+    /// Whether Tendo Goken occupies the Iaijutsu slot (RSR TendoGokenReady).
+    /// Base slot: Iaijutsu (7867) → Tendo Goken (36965).
+    /// </summary>
+    public static bool IsTendoGokenReady(IActionService actionService)
+        => actionService.GetAdjustedActionId(Iaijutsu.ActionId) == TendoGoken.ActionId;
+
+    /// <summary>
+    /// Whether Tendo Setsugekka occupies the Iaijutsu slot (RSR TendoSetsugekkaReady).
+    /// Base slot: Iaijutsu (7867) → Tendo Setsugekka (36966).
+    /// </summary>
+    public static bool IsTendoSetsugekkaReady(IActionService actionService)
+        => actionService.GetAdjustedActionId(Iaijutsu.ActionId) == TendoSetsugekka.ActionId;
+
+    /// <summary>
+    /// Whether any Kaeshi occupies the Tsubame-gaeshi slot (RSR TsubamegaeshiActionReady).
+    /// Base slot: Tsubame-gaeshi (16483) → Kaeshi variant.
+    /// </summary>
+    public static bool IsTsubameGaeshiActionReady(IActionService actionService)
+        => actionService.GetAdjustedActionId(TsubameGaeshi.ActionId) != TsubameGaeshi.ActionId;
+
+    /// <summary>
+    /// Whether Kaeshi: Goken occupies the Tsubame-gaeshi slot (RSR KaeshiGokenReady).
+    /// </summary>
+    public static bool IsKaeshiGokenReady(IActionService actionService)
+        => actionService.GetAdjustedActionId(TsubameGaeshi.ActionId) == KaeshiGoken.ActionId;
+
+    /// <summary>
+    /// Whether Kaeshi: Setsugekka occupies the Tsubame-gaeshi slot (RSR KaeshiSetsugekkaReady).
+    /// </summary>
+    public static bool IsKaeshiSetsugekkaReady(IActionService actionService)
+        => actionService.GetAdjustedActionId(TsubameGaeshi.ActionId) == KaeshiSetsugekka.ActionId;
+
+    /// <summary>
+    /// Whether Kaeshi: Higanbana occupies the Tsubame-gaeshi slot.
+    /// </summary>
+    public static bool IsKaeshiHiganbanaReady(IActionService actionService)
+        => actionService.GetAdjustedActionId(TsubameGaeshi.ActionId) == KaeshiHiganbana.ActionId;
+
+    /// <summary>
+    /// Whether Tendo Kaeshi Goken occupies the Tsubame-gaeshi slot (RSR TendoKaeshiGokenReady).
+    /// </summary>
+    public static bool IsTendoKaeshiGokenReady(IActionService actionService)
+        => actionService.GetAdjustedActionId(TsubameGaeshi.ActionId) == TendoKaeshiGoken.ActionId;
+
+    /// <summary>
+    /// Whether Tendo Kaeshi Setsugekka occupies the Tsubame-gaeshi slot (RSR TendoKaeshiSetsugekkaReady).
+    /// </summary>
+    public static bool IsTendoKaeshiSetsugekkaReady(IActionService actionService)
+        => actionService.GetAdjustedActionId(TsubameGaeshi.ActionId) == TendoKaeshiSetsugekka.ActionId;
+
+    /// <summary>
+    /// Whether Kaeshi: Namikiri occupies the Ogi Namikiri slot (RSR KaeshiNamikiriReady).
+    /// Base slot: Ogi Namikiri (25781) → Kaeshi: Namikiri (25782).
+    /// </summary>
+    public static bool IsKaeshiNamikiriReady(IActionService actionService)
+        => actionService.GetAdjustedActionId(OgiNamikiri.ActionId) == KaeshiNamikiri.ActionId;
+
+    /// <summary>
+    /// Resolves the current Tsubame-gaeshi slot replacement action, if any.
+    /// </summary>
+    public static ActionDefinition? GetTsubameKaeshiAction(IActionService actionService)
+    {
+        if (!IsTsubameGaeshiActionReady(actionService))
+            return null;
+
+        return actionService.GetAdjustedActionId(TsubameGaeshi.ActionId) switch
+        {
+            var id when id == KaeshiHiganbana.ActionId => KaeshiHiganbana,
+            var id when id == KaeshiGoken.ActionId => KaeshiGoken,
+            var id when id == KaeshiSetsugekka.ActionId => KaeshiSetsugekka,
+            var id when id == TendoKaeshiGoken.ActionId => TendoKaeshiGoken,
+            var id when id == TendoKaeshiSetsugekka.ActionId => TendoKaeshiSetsugekka,
+            _ => null,
+        };
     }
 
     #endregion
