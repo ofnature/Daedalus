@@ -219,6 +219,12 @@ public sealed class SamuraiSection
             ConfigUIHelpers.BeginIndent();
 
             ConfigUIHelpers.Toggle(
+                Loc.T(LocalizedStrings.Samurai.EnablePositionalMovement, "Enable Positional Movement"),
+                () => config.Samurai.EnablePositionalMovement,
+                v => config.Samurai.EnablePositionalMovement = v,
+                Loc.T(LocalizedStrings.Samurai.EnablePositionalMovementDesc, "Use vNav to reposition before Gekko/Kasha"), save);
+
+            ConfigUIHelpers.Toggle(
                 Loc.T(LocalizedStrings.Samurai.EnforcePositionals, "Enforce Positionals"),
                 () => config.Samurai.EnforcePositionals,
                 v => config.Samurai.EnforcePositionals = v,

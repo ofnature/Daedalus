@@ -23,6 +23,7 @@ using Olympus.Services.Scholar;
 using Olympus.Services.Cache;
 using Olympus.Services.Tank;
 using Olympus.Services.Positional;
+using Olympus.Services.Positional.Navigation;
 using Olympus.Services.Analytics;
 using Olympus.Services.FFLogs;
 using Olympus.Services.Training;
@@ -83,6 +84,10 @@ public sealed class Plugin : IDalamudPlugin
 
     // Melee DPS services
     private readonly PositionalService positionalService;
+    private readonly VNavService vNavService;
+    private readonly BossModSafetyService bossModSafetyService;
+    private readonly PositionalMovementService positionalMovementService;
+    private readonly SamuraiPositionalAnticipationProvider samuraiPositionalAnticipationProvider;
 
     // Burst window tracking for DPS rotations
     private readonly BurstWindowService burstWindowService;
@@ -241,6 +246,10 @@ public sealed class Plugin : IDalamudPlugin
 
         // Melee DPS services
         this.positionalService = new PositionalService();
+        this.vNavService = new VNavService(pluginInterface, log);
+        this.bossModSafetyService = new BossModSafetyService(pluginInterface, log);
+        this.positionalMovementService = new PositionalMovementService(vNavService, bossModSafetyService);
+        this.samuraiPositionalAnticipationProvider = new SamuraiPositionalAnticipationProvider();
 
         // Party coordination service (multi-Olympus IPC)
         if (configuration.PartyCoordination.EnablePartyCoordination)
@@ -512,6 +521,10 @@ public sealed class Plugin : IDalamudPlugin
         container.Register<ITankCooldownService, TankCooldownService>(tankCooldownService);
         // Melee DPS services
         container.Register<IPositionalService, PositionalService>(positionalService);
+        container.Register<IVNavService, VNavService>(vNavService);
+        container.Register<IBossModSafetyService, BossModSafetyService>(bossModSafetyService);
+        container.Register<IPositionalMovementService, PositionalMovementService>(positionalMovementService);
+        container.Register(samuraiPositionalAnticipationProvider);
 
         // DPS burst window service
         container.Register<IBurstWindowService, BurstWindowService>(burstWindowService);

@@ -1,4 +1,5 @@
 using Dalamud.Game.ClientState.Objects.SubKinds;
+using Dalamud.Game.ClientState.Objects.Types;
 using Dalamud.Game.ClientState.Party;
 using Dalamud.Plugin.Services;
 using Olympus.Data;
@@ -7,6 +8,7 @@ using Olympus.Services;
 using Olympus.Services.Action;
 using Olympus.Services.Debuff;
 using Olympus.Services.Positional;
+using Olympus.Services.Positional.Navigation;
 using Olympus.Services.Prediction;
 using Olympus.Services.Stats;
 using Olympus.Services.Targeting;
@@ -31,6 +33,11 @@ public abstract class BaseMeleeDpsRotation<TContext, TModule> : BaseRotation<TCo
     /// Optional service for computing optimal directional AoE facing.
     /// </summary>
     protected readonly ISmartAoEService? SmartAoEService;
+
+    /// <summary>
+    /// Optional service for coordinating anticipatory vNav positional movement.
+    /// </summary>
+    protected readonly IPositionalMovementService? PositionalMovementService;
 
     #endregion
 
@@ -76,6 +83,11 @@ public abstract class BaseMeleeDpsRotation<TContext, TModule> : BaseRotation<TCo
     /// </summary>
     public PositionalSnapshot Positionals { get; private set; }
 
+    /// <summary>
+    /// Current enemy target used for positional queries and movement.
+    /// </summary>
+    protected IBattleChara? PositionalTarget { get; private set; }
+
     #endregion
 
     #region Debug State
@@ -108,6 +120,7 @@ public abstract class BaseMeleeDpsRotation<TContext, TModule> : BaseRotation<TCo
         IBurstWindowService? burstWindowService = null,
         IErrorMetricsService? errorMetrics = null,
         ISmartAoEService? smartAoEService = null,
+        IPositionalMovementService? positionalMovementService = null,
         Olympus.Services.Consumables.ITinctureDispatcher? tinctureDispatcher = null,
         Olympus.Services.Pull.IPullIntentService? pullIntentService = null)
         : base(
@@ -131,6 +144,7 @@ public abstract class BaseMeleeDpsRotation<TContext, TModule> : BaseRotation<TCo
     {
         PositionalService = positionalService;
         SmartAoEService = smartAoEService;
+        PositionalMovementService = positionalMovementService;
     }
 
     #endregion
@@ -193,12 +207,15 @@ public abstract class BaseMeleeDpsRotation<TContext, TModule> : BaseRotation<TCo
 
         if (target == null)
         {
+            PositionalTarget = null;
             IsAtRear = false;
             IsAtFlank = false;
             TargetHasPositionalImmunity = false;
             Positionals = new PositionalSnapshot { HasTarget = false };
             return;
         }
+
+        PositionalTarget = target;
 
         // Check positional using the service
         var positional = PositionalService.GetPositional(player, target);
@@ -224,11 +241,64 @@ public abstract class BaseMeleeDpsRotation<TContext, TModule> : BaseRotation<TCo
     /// </summary>
     protected virtual PositionalType? GetNextRequiredPositional() => null;
 
+    /// <summary>
+    /// Job-specific anticipation provider for vNav positional movement. Default null (disabled).
+    /// </summary>
+    protected virtual IPositionalAnticipationProvider? GetPositionalAnticipationProvider() => null;
+
+    /// <summary>
+    /// Whether anticipatory vNav positional movement is enabled for this job.
+    /// </summary>
+    protected virtual bool IsPositionalMovementEnabled() => false;
+
+    /// <summary>
+    /// Builds anticipation inputs shared by all melee jobs. Override to add job-specific fields.
+    /// </summary>
+    protected virtual PositionalAnticipationContext CreatePositionalAnticipationContext(IPlayerCharacter player)
+    {
+        return new PositionalAnticipationContext(
+            LastComboAction,
+            player.Level,
+            HasStatusEffect(player, 1250),
+            TargetHasPositionalImmunity,
+            IsAtRear,
+            IsAtFlank);
+    }
+
     private static bool HasStatusEffect(Dalamud.Game.ClientState.Objects.Types.IBattleChara player, uint statusId)
     {
         foreach (var s in player.StatusList)
             if (s.StatusId == statusId) return true;
         return false;
+    }
+
+    /// <summary>
+    /// Queues or skips anticipatory vNav reposition when a job provider predicts a finisher.
+    /// </summary>
+    protected virtual void UpdatePositionalMovement(IPlayerCharacter player, bool inCombat)
+    {
+        if (PositionalMovementService == null)
+            return;
+
+        PositionalMovementTarget? movementTarget = PositionalTarget is { } positionalTarget
+            ? new PositionalMovementTarget(
+                positionalTarget.Position,
+                positionalTarget.HitboxRadius,
+                positionalTarget.Rotation,
+                TargetHasPositionalImmunity)
+            : null;
+
+        var request = new PositionalMovementUpdateRequest(
+            AnticipationProvider: GetPositionalAnticipationProvider(),
+            AnticipationContext: CreatePositionalAnticipationContext(player),
+            PlayerPosition: player.Position,
+            PlayerHitboxRadius: player.HitboxRadius,
+            Target: movementTarget,
+            ActionService: ActionService,
+            InCombat: inCombat,
+            EnableMovement: IsPositionalMovementEnabled());
+
+        PositionalMovementService.Update(in request);
     }
 
     #endregion
@@ -248,6 +318,9 @@ public abstract class BaseMeleeDpsRotation<TContext, TModule> : BaseRotation<TCo
 
         // Update positional state
         UpdatePositionalState(player);
+
+        // Anticipatory vNav reposition (job-specific provider)
+        UpdatePositionalMovement(player, inCombat);
 
         // Update burst window tracking (pass current target for raid debuff detection)
         BurstWindowService?.Update(player, TargetingService.GetUserEnemyTarget(), inCombat);

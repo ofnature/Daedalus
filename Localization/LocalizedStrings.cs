@@ -1397,6 +1397,8 @@ public static class LocalizedStrings
         public const string EnableBurstPooling = "config.job.sam.enable_burst_pooling";
         public const string EnableBurstPoolingDesc = "config.job.sam.enable_burst_pooling_desc";
         public const string PositionalSection = "config.job.sam.positional_section";
+        public const string EnablePositionalMovement = "config.job.sam.enable_positional_movement";
+        public const string EnablePositionalMovementDesc = "config.job.sam.enable_positional_movement_desc";
         public const string EnforcePositionals = "config.job.sam.enforce_positionals";
         public const string EnforcePositionalsDesc = "config.job.sam.enforce_positionals_desc";
         public const string AllowPositionalLoss = "config.job.sam.allow_positional_loss";

@@ -17,6 +17,7 @@ using Olympus.Services.Action;
 using Olympus.Services.Debuff;
 using Olympus.Services.Party;
 using Olympus.Services.Positional;
+using Olympus.Services.Positional.Navigation;
 using Olympus.Services.Prediction;
 using Olympus.Services.Stats;
 using Olympus.Services.Targeting;
@@ -80,6 +81,8 @@ public sealed class Nike : BaseMeleeDpsRotation<INikeContext, INikeModule>
     // Scheduler
     private readonly RotationScheduler _scheduler;
 
+    private readonly SamuraiPositionalAnticipationProvider _positionalAnticipationProvider;
+
     public Nike(
         IPluginLog log,
         IActionTracker actionTracker,
@@ -95,7 +98,9 @@ public sealed class Nike : BaseMeleeDpsRotation<INikeContext, INikeModule>
         IPlayerStatsService playerStatsService,
         IDebuffDetectionService debuffDetectionService,
         IPositionalService positionalService,
+        SamuraiPositionalAnticipationProvider samuraiPositionalAnticipationProvider,
         IJobGauges jobGauges,
+        IPositionalMovementService? positionalMovementService = null,
         ITimelineService? timelineService = null,
         IPartyCoordinationService? partyCoordinationService = null,
         ITrainingService? trainingService = null,
@@ -120,9 +125,11 @@ public sealed class Nike : BaseMeleeDpsRotation<INikeContext, INikeModule>
             positionalService,
             burstWindowService,
             errorMetrics,
+            positionalMovementService: positionalMovementService,
             tinctureDispatcher: tinctureDispatcher,
             pullIntentService: pullIntentService)
     {
+        _positionalAnticipationProvider = samuraiPositionalAnticipationProvider;
         _timelineService = timelineService;
         _partyCoordinationService = partyCoordinationService;
         _trainingService = trainingService;
@@ -173,6 +180,46 @@ public sealed class Nike : BaseMeleeDpsRotation<INikeContext, INikeModule>
     /// <inheritdoc />
     protected override int DetermineComboStep(uint comboAction, float comboTimer)
         => ComputeComboStep(comboAction, comboTimer);
+
+    /// <inheritdoc />
+    protected override IPositionalAnticipationProvider? GetPositionalAnticipationProvider()
+        => _positionalAnticipationProvider;
+
+    /// <inheritdoc />
+    protected override bool IsPositionalMovementEnabled()
+        => Configuration.Samurai.EnablePositionalMovement;
+
+    /// <inheritdoc />
+    protected override PositionalAnticipationContext CreatePositionalAnticipationContext(IPlayerCharacter player)
+    {
+        var hasGetsu = (_sen & SAMActions.SenType.Getsu) != 0;
+        var hasKa = (_sen & SAMActions.SenType.Ka) != 0;
+        var hasSetsu = (_sen & SAMActions.SenType.Setsu) != 0;
+
+        return new PositionalAnticipationContext(
+            LastComboAction,
+            player.Level,
+            HasStatusEffect(player, 1250),
+            TargetHasPositionalImmunity,
+            IsAtRear,
+            IsAtFlank,
+            HasMeikyoShisui: _statusHelper.HasMeikyoShisui(player),
+            HasGetsuSen: hasGetsu,
+            HasKaSen: hasKa,
+            HasSetsuSen: hasSetsu,
+            SuppressMeikyoAnticipation: !Configuration.Samurai.EnableMeikyoShisui,
+            HasFugetsu: _statusHelper.HasFugetsu(player),
+            FugetsuRemainingSeconds: _statusHelper.GetFugetsuRemaining(player),
+            HasFuka: _statusHelper.HasFuka(player),
+            FukaRemainingSeconds: _statusHelper.GetFukaRemaining(player));
+    }
+
+    private static bool HasStatusEffect(Dalamud.Game.ClientState.Objects.Types.IBattleChara player, uint statusId)
+    {
+        foreach (var s in player.StatusList)
+            if (s.StatusId == statusId) return true;
+        return false;
+    }
 
     internal static int ComputeComboStep(uint comboAction, float comboTimer)
     {

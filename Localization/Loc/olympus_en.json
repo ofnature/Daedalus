@@ -927,6 +927,8 @@
   "config.job.sam.enable_burst_pooling": "Enable Burst Pooling",
   "config.job.sam.enable_burst_pooling_desc": "Hold Kenki spenders for party burst windows",
   "config.job.sam.positional_section": "Positionals",
+  "config.job.sam.enable_positional_movement": "Enable Positional Movement",
+  "config.job.sam.enable_positional_movement_desc": "Use vNav to reposition before Gekko/Kasha",
   "config.job.sam.enforce_positionals": "Enforce Positionals",
   "config.job.sam.enforce_positionals_desc": "Only use positional actions when in correct position",
   "config.job.sam.allow_positional_loss": "Allow Positional Loss",
