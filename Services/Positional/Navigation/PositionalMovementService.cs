@@ -135,12 +135,17 @@ public sealed class PositionalMovementService : IPositionalMovementService
 
     private void SetSkipped(string? reason)
     {
-        if (_vNav.IsPathRunning)
-            _vNav.Stop();
+        StopOwnedPathIfActive();
 
         State = new PositionalMovementState(
             PositionalMovementPhase.Skipped,
             SkipReason: reason);
+    }
+
+    private void StopOwnedPathIfActive()
+    {
+        if (State.Phase == PositionalMovementPhase.Moving && _vNav.IsPathRunning)
+            _vNav.Stop();
     }
 
     private static bool IsAlreadyCorrect(PositionalType required, in PositionalAnticipationContext context)

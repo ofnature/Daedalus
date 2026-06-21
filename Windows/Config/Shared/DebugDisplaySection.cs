@@ -56,6 +56,22 @@ public sealed class DebugDisplaySection
             ConfigUIHelpers.EndIndent();
         }
 
+        if (ConfigUIHelpers.SectionHeader(Loc.T(LocalizedStrings.Debug.DamageTabLabel, "Damage Tab")))
+        {
+            ConfigUIHelpers.BeginIndent();
+            DrawToggle("SpellStatus", Loc.T(LocalizedStrings.Debug.SpellStatus, "Spell Status"));
+            DrawToggle("DpsRotationState", Loc.T(LocalizedStrings.Debug.DpsRotationState, "Rotation State"));
+            ConfigUIHelpers.EndIndent();
+        }
+
+        if (ConfigUIHelpers.SectionHeader(Loc.T(LocalizedStrings.Debug.MitigationTabLabel, "Mitigation Tab")))
+        {
+            ConfigUIHelpers.BeginIndent();
+            DrawToggle("SpellStatus", Loc.T(LocalizedStrings.Debug.SpellStatus, "Spell Status"));
+            DrawToggle("MitigationState", Loc.T(LocalizedStrings.Debug.MitigationState, "Mitigation State"));
+            ConfigUIHelpers.EndIndent();
+        }
+
         if (ConfigUIHelpers.SectionHeader(Loc.T(LocalizedStrings.Debug.OverhealTabLabel, "Overheal Tab")))
         {
             ConfigUIHelpers.BeginIndent();

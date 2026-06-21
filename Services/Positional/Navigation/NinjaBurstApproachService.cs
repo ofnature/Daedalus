@@ -196,12 +196,18 @@ public sealed class NinjaBurstApproachService
 
     private void SetSkipped(string? reason, bool stopPath = true)
     {
-        if (stopPath && _vNav.IsPathRunning)
-            _vNav.Stop();
+        if (stopPath)
+            StopOwnedPathIfActive();
 
         State = new PositionalMovementState(
             PositionalMovementPhase.Skipped,
             SkipReason: reason);
+    }
+
+    private void StopOwnedPathIfActive()
+    {
+        if (State.Phase == PositionalMovementPhase.Moving && _vNav.IsPathRunning)
+            _vNav.Stop();
     }
 }
 

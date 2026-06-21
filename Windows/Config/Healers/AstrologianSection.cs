@@ -117,6 +117,11 @@ public sealed class AstrologianSection
             ConfigUIHelpers.Toggle(Loc.T(LocalizedStrings.Astrologian.EnableEarthlyStar, "Enable Earthly Star"), () => config.Astrologian.EnableEarthlyStar, v => config.Astrologian.EnableEarthlyStar = v,
                 null, save, actionId: ASTActions.EarthlyStar.ActionId);
 
+            ConfigUIHelpers.Toggle("Pre-Pull Earthly Star", () => config.Astrologian.PrePullEarthlyStar,
+                v => config.Astrologian.PrePullEarthlyStar = v, null, save);
+            ConfigUIHelpers.Toggle("Pre-Pull Astral Draw", () => config.Astrologian.PrePullAstralDraw,
+                v => config.Astrologian.PrePullAstralDraw = v, null, save);
+
             ConfigUIHelpers.BeginDisabledGroup(!config.Astrologian.EnableEarthlyStar);
 
             var placementNames = Enum.GetNames<EarthlyStarPlacementStrategy>();
@@ -260,6 +265,42 @@ public sealed class AstrologianSection
 
             ConfigUIHelpers.BeginDisabledGroup(!config.Astrologian.EnableCards);
 
+            config.Astrologian.CardTankSupportThreshold = ConfigUIHelpers.ThresholdSlider(
+                "Bole / Tank Card HP Threshold",
+                config.Astrologian.CardTankSupportThreshold, 50f, 95f,
+                "Main tank always eligible; others need HP at or below this.", save,
+                v => config.Astrologian.CardTankSupportThreshold = v);
+
+            config.Astrologian.CardHealingThreshold = ConfigUIHelpers.ThresholdSlider(
+                "Healing Card HP Threshold",
+                config.Astrologian.CardHealingThreshold, 50f, 95f,
+                "Arrow, Ewer, and Spire target allies at or below this HP (Spire also checks MP).", save,
+                v => config.Astrologian.CardHealingThreshold = v);
+
+            ConfigUIHelpers.Toggle("Dump Cards When Idle", () => config.Astrologian.DumpCardsWhenIdle,
+                v => config.Astrologian.DumpCardsWhenIdle = v,
+                "Play cards outside burst windows so you keep casting instead of sitting on them.", save);
+
+            ConfigUIHelpers.Toggle("Hold DPS Cards for Divination", () => config.Astrologian.CardsUnderDivinationOnly,
+                v => config.Astrologian.CardsUnderDivinationOnly = v,
+                "Balance/Spear/Lord wait for Divination unless dump mode or drift timer applies.", save);
+
+            ConfigUIHelpers.Toggle("Divination on Burst Only", () => config.Astrologian.DivinationOnBurst,
+                v => config.Astrologian.DivinationOnBurst = v,
+                "Align Divination with burst window instead of using on cooldown.", save);
+
+            config.Astrologian.ExpireCardsBeforeDrawSeconds = ConfigUIHelpers.FloatSlider(
+                "Expire Cards Before Draw (sec)",
+                config.Astrologian.ExpireCardsBeforeDrawSeconds, 1f, 10f, "%.0f",
+                "Force-play remaining cards when draw is about to come off cooldown.", save,
+                v => config.Astrologian.ExpireCardsBeforeDrawSeconds = v);
+
+            ConfigUIHelpers.Toggle("Healing Lockout During Burst States", () => config.Astrologian.EnableHealingLockout,
+                v => config.Astrologian.EnableHealingLockout = v,
+                "Pause routine heals during Divining, Macrocosmos, or mature Earthly Star.", save);
+
+            ConfigUIHelpers.Spacing();
+
             var strategyNames = Enum.GetNames<CardPlayStrategy>();
             var currentStrategy = (int)config.Astrologian.CardStrategy;
             ImGui.SetNextItemWidth(150);
@@ -305,7 +346,8 @@ public sealed class AstrologianSection
             ConfigUIHelpers.Toggle(Loc.T(LocalizedStrings.Astrologian.EnableDivination, "Enable Divination"), () => config.Astrologian.EnableDivination, v => config.Astrologian.EnableDivination = v,
                 null, save, actionId: ASTActions.Divination.ActionId);
 
-            ConfigUIHelpers.Toggle(Loc.T(LocalizedStrings.Astrologian.EnableAstrodyne, "Enable Astrodyne"), () => config.Astrologian.EnableAstrodyne, v => config.Astrologian.EnableAstrodyne = v, null, save,
+            ConfigUIHelpers.Toggle(Loc.T(LocalizedStrings.Astrologian.EnableAstrodyne, "Enable Astrodyne"), () => config.Astrologian.EnableAstrodyne, v => config.Astrologian.EnableAstrodyne = v,
+                "Removed in Dawntrail — disabled by default.", save,
                 actionId: ASTActions.Astrodyne.ActionId);
 
             if (config.Astrologian.EnableAstrodyne)
@@ -352,6 +394,10 @@ public sealed class AstrologianSection
                 null, save, actionId: ASTActions.Lightspeed.ActionId);
 
             ConfigUIHelpers.BeginDisabledGroup(!config.Astrologian.EnableLightspeed);
+
+            ConfigUIHelpers.Toggle("Lightspeed During Burst", () => config.Astrologian.LightspeedDuringBurst,
+                v => config.Astrologian.LightspeedDuringBurst = v,
+                "Also use Lightspeed during Divination/burst windows.", save);
 
             var strategyNames = Enum.GetNames<LightspeedUsageStrategy>();
             var currentStrategy = (int)config.Astrologian.LightspeedStrategy;

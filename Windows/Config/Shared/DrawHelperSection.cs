@@ -104,6 +104,30 @@ public sealed class DrawHelperSection
             ColorPicker("Flank", dh.PositionalFlankColor, v => { dh.PositionalFlankColor = v; save(); });
         }
 
+        ImGui.Spacing();
+
+        // Astrologian card range
+        ImGui.Separator();
+        ImGui.Text(Loc.T(LocalizedStrings.DrawHelper.AstCardRangeHeader, "Astrologian Card Range"));
+        var showAstCards = dh.ShowAstCardRange;
+        if (ImGui.Checkbox(Loc.T(LocalizedStrings.DrawHelper.ShowAstCardRange, "Show card range (30y on self)"), ref showAstCards))
+        {
+            dh.ShowAstCardRange = showAstCards;
+            save();
+        }
+        if (ImGui.IsItemHovered())
+        {
+            ImGui.SetTooltip(Loc.T(LocalizedStrings.DrawHelper.AstCardRangeDesc,
+                "Draws a 30y ring on you for Balance/Spear and support cards. Green/red markers on allies in/out of range."));
+        }
+        if (dh.ShowAstCardRange)
+        {
+            ColorPicker("Range Ring", dh.AstCardRangeColor, v => { dh.AstCardRangeColor = v; save(); });
+            ColorPicker("Range Fill", dh.AstCardRangeFillColor, v => { dh.AstCardRangeFillColor = v; save(); });
+            ColorPicker("Ally In Range", dh.AstCardAllyInRangeColor, v => { dh.AstCardAllyInRangeColor = v; save(); });
+            ColorPicker("Ally Out of Range", dh.AstCardAllyOutOfRangeColor, v => { dh.AstCardAllyOutOfRangeColor = v; save(); });
+        }
+
     }
 
     private static void ColorPicker(string label, uint currentColor, Action<uint> setter)

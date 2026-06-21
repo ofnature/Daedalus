@@ -19,11 +19,26 @@ public static class SpellChecklistRegistry
     /// Returns the checklist groups for the given job ID, or an empty array for
     /// unrecognised or base-class jobs.
     /// </summary>
+    /// <summary>Maps base classes to their advanced job for checklist / spell status lookups.</summary>
+    public static uint NormalizeJobId(uint jobId) => jobId switch
+    {
+        JobRegistry.Conjurer    => JobRegistry.WhiteMage,
+        JobRegistry.Arcanist    => JobRegistry.Scholar,
+        JobRegistry.Gladiator   => JobRegistry.Paladin,
+        JobRegistry.Marauder    => JobRegistry.Warrior,
+        JobRegistry.Pugilist    => JobRegistry.Monk,
+        JobRegistry.Lancer      => JobRegistry.Dragoon,
+        JobRegistry.Rogue       => JobRegistry.Ninja,
+        JobRegistry.Archer      => JobRegistry.Bard,
+        JobRegistry.Thaumaturge => JobRegistry.BlackMage,
+        _ when JobRegistry.IsWhiteMage(jobId) => JobRegistry.WhiteMage,
+        _ when JobRegistry.IsScholar(jobId)   => JobRegistry.Scholar,
+        _ => jobId,
+    };
+
     public static ChecklistGroup[] GetChecklist(uint jobId)
     {
-        if (JobRegistry.IsWhiteMage(jobId)) jobId = JobRegistry.WhiteMage;
-        if (JobRegistry.IsScholar(jobId))   jobId = JobRegistry.Scholar;
-        if (jobId == JobRegistry.Thaumaturge) jobId = JobRegistry.BlackMage;
+        jobId = NormalizeJobId(jobId);
 
         return jobId switch
         {

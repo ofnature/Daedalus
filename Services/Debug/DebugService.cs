@@ -4,6 +4,7 @@ using System.Linq;
 using Dalamud.Game.ClientState.Objects.SubKinds;
 using Dalamud.Game.ClientState.Objects.Types;
 using Dalamud.Plugin.Services;
+using Olympus.Data;
 using Olympus.Models;
 using Olympus.Rotation;
 using Olympus.Rotation.ApolloCore.Context;
@@ -449,11 +450,12 @@ public sealed class DebugService
     }
 
     /// <summary>
-    /// Gets real-time status of all WHM spells.
+    /// Gets real-time spell status for a role debug tab (Healing/Damage/Mitigation).
     /// </summary>
-    public SpellStatusSnapshot GetSpellStatus(byte playerLevel)
+    public SpellStatusSnapshot GetSpellStatus(byte playerLevel, RoleDebugTab tab)
     {
-        return _spellStatusService.GetSnapshot(playerLevel);
+        var jobId = SpellChecklistRegistry.NormalizeJobId(GetJobId());
+        return _spellStatusService.GetSnapshot(jobId, playerLevel, tab);
     }
 
     // ========== Tank Debug States ==========

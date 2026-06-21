@@ -35,4 +35,11 @@ public sealed class DrawHelperConfig
     public bool ShowPositionals { get; set; } = false;
     public uint PositionalRearColor { get; set; } = 0x5000FF00u; // green
     public uint PositionalFlankColor { get; set; } = 0x50CFCF51u; // cyan
+
+    // Astrologian card range (30y on player — Balance, Spear, Bole, etc.)
+    public bool ShowAstCardRange { get; set; } = false;
+    public uint AstCardRangeColor { get; set; } = 0xC0D4A017u; // gold ring
+    public uint AstCardRangeFillColor { get; set; } = 0x30D4A017u;
+    public uint AstCardAllyInRangeColor { get; set; } = 0xC000FF00u;
+    public uint AstCardAllyOutOfRangeColor { get; set; } = 0xC00000FFu;
 }

@@ -156,7 +156,7 @@ public sealed class DebugRecentHeal
     public string ActionName { get; init; } = "";
     public string TargetName { get; init; } = "";
     public int Amount { get; init; }
-    public float SecondsAgo => (float)(DateTime.Now - Timestamp).TotalSeconds;
+    public float SecondsAgo => (float)Math.Max(0, (DateTime.UtcNow - Timestamp).TotalSeconds);
 }
 
 /// <summary>
@@ -248,6 +248,6 @@ public sealed class DebugOverhealEvent
     public string TargetName { get; init; } = "";
     public int HealAmount { get; init; }
     public int OverhealAmount { get; init; }
-    public float SecondsAgo => (float)(DateTime.Now - Timestamp).TotalSeconds;
+    public float SecondsAgo => (float)Math.Max(0, (DateTime.UtcNow - Timestamp).TotalSeconds);
     public float OverhealPercent => HealAmount > 0 ? (float)OverhealAmount / HealAmount * 100f : 0f;
 }

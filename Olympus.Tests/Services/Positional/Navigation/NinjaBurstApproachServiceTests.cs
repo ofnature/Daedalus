@@ -100,6 +100,18 @@ public class NinjaBurstApproachServiceTests
     }
 
     [Fact]
+    public void Update_WhenNotInCombat_DoesNotStopUserVNavPath()
+    {
+        var service = CreateService();
+        _vNav.Setup(x => x.IsPathRunning).Returns(true);
+
+        service.Update(CreateRequest(alreadyInMelee: false, inCombat: false));
+
+        Assert.Equal(PositionalMovementPhase.Skipped, service.State.Phase);
+        _vNav.Verify(x => x.Stop(), Times.Never);
+    }
+
+    [Fact]
     public void Update_WhenTargetNullButPathRunning_KeepsMoving()
     {
         var service = CreateService();
@@ -162,10 +174,11 @@ public class NinjaBurstApproachServiceTests
         bool alreadyInMelee,
         bool positionalPathActive = false,
         bool burstPrepActive = true,
-        PositionalMovementTarget? target = null)
+        PositionalMovementTarget? target = null,
+        bool inCombat = true)
         => new(
             Enabled: true,
-            InCombat: true,
+            InCombat: inCombat,
             BurstPrepActive: burstPrepActive,
             AlreadyInMeleeRange: alreadyInMelee,
             PositionalPathActive: positionalPathActive,

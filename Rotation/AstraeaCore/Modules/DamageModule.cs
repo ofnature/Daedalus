@@ -3,8 +3,10 @@ using Olympus.Data;
 using Olympus.Models.Action;
 using Olympus.Rotation.AstraeaCore.Abilities;
 using Olympus.Rotation.AstraeaCore.Context;
+using Olympus.Rotation.AstraeaCore.Helpers;
 using Olympus.Rotation.Common.Helpers;
 using Olympus.Rotation.Common.Modules;
+using Olympus.Services;
 using Olympus.Rotation.Common.Scheduling;
 using Olympus.Services.Training;
 
@@ -15,6 +17,12 @@ namespace Olympus.Rotation.AstraeaCore.Modules;
 /// </summary>
 public sealed class DamageModule : BaseDamageModule<IAstraeaContext>, IAstraeaModule
 {
+    private readonly IBurstWindowService? _burstWindowService;
+
+    public DamageModule(IBurstWindowService? burstWindowService = null)
+    {
+        _burstWindowService = burstWindowService;
+    }
     protected override bool IsDamageEnabled(IAstraeaContext context) => context.Configuration.Astrologian.EnableSingleTargetDamage;
     protected override bool IsDoTEnabled(IAstraeaContext context) => context.Configuration.Astrologian.EnableDot;
     protected override bool IsAoEDamageEnabled(IAstraeaContext context) => context.Configuration.Astrologian.EnableAoEDamage;
@@ -36,6 +44,7 @@ public sealed class DamageModule : BaseDamageModule<IAstraeaContext>, IAstraeaMo
     public new void CollectCandidates(IAstraeaContext context, RotationScheduler scheduler, bool isMoving)
     {
         if (!context.InCombat) return;
+        if (AstraeaCardHelper.HasAstlock(context)) { SetDpsState(context, "Paused (Collective Unconscious)"); return; }
         if (context.TargetingService.IsDamageTargetingPaused()) { SetDpsState(context, "Paused (no target)"); return; }
         if (context.Configuration.Targeting.SuppressDamageOnForcedMovement
             && PlayerSafetyHelper.IsForcedMovementActive(context.Player))
@@ -86,6 +95,7 @@ public sealed class DamageModule : BaseDamageModule<IAstraeaContext>, IAstraeaMo
 
         if (!config.EnableMinorArcana) return;
         if (!context.CardService.HasLord) return;
+        if (!AstraeaCardHelper.ShouldPlayLord(context, _burstWindowService)) return;
         if (player.Level < ASTActions.LordOfCrowns.MinLevel) return;
 
         var target = context.TargetingService.FindEnemy(

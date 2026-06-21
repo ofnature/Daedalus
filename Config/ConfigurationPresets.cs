@@ -1,3 +1,5 @@
+using Olympus.Services.Content;
+
 namespace Olympus.Config;
 
 /// <summary>
@@ -99,10 +101,10 @@ public static class ConfigurationPresets
         {
             // Content-type presets (existing)
             case ConfigurationPreset.Raid:
-                ApplyRaidPreset(config);
+                ApplyDutyProfile(config, EffectiveDutyProfile.Raid);
                 break;
             case ConfigurationPreset.Dungeon:
-                ApplyDungeonPreset(config);
+                ApplyDutyProfile(config, EffectiveDutyProfile.Dungeon);
                 break;
             case ConfigurationPreset.Casual:
                 ApplyCasualPreset(config);
@@ -126,10 +128,33 @@ public static class ConfigurationPresets
     }
 
     /// <summary>
+    /// Applies duty-appropriate tuning for auto-detected content. Does not change spell toggles or targeting.
+    /// </summary>
+    public static void ApplyDutyProfile(Configuration config, EffectiveDutyProfile profile, JobRole? currentRole = null)
+    {
+        switch (profile)
+        {
+            case EffectiveDutyProfile.Dungeon:
+                ApplyDungeonDutyProfile(config);
+                break;
+            case EffectiveDutyProfile.Trial:
+                ApplyTrialDutyProfile(config);
+                break;
+            case EffectiveDutyProfile.Raid:
+                ApplyRaidDutyProfile(config);
+                break;
+            case EffectiveDutyProfile.HighEndRaid:
+                ApplyRaidDutyProfile(config);
+                ApplyProactivePreset(config, currentRole);
+                break;
+        }
+    }
+
+    /// <summary>
     /// Raid preset: Balanced healing/DPS for 8-player content.
     /// Co-healer aware, proactive cooldowns, moderate thresholds.
     /// </summary>
-    private static void ApplyRaidPreset(Configuration config)
+    public static void ApplyRaidDutyProfile(Configuration config)
     {
         // Core behavior - balanced
         config.Damage.DpsPriority = DpsPriorityMode.Balanced;
@@ -174,10 +199,19 @@ public static class ConfigurationPresets
     }
 
     /// <summary>
+    /// Trial preset: Raid-like tuning with lighter preemptive healing for shorter fights.
+    /// </summary>
+    public static void ApplyTrialDutyProfile(Configuration config)
+    {
+        ApplyRaidDutyProfile(config);
+        config.Healing.EnablePreemptiveHealing = false;
+    }
+
+    /// <summary>
     /// Dungeon preset: Aggressive DPS for 4-player content.
     /// Solo healer mode, reactive healing, lower AoE thresholds.
     /// </summary>
-    private static void ApplyDungeonPreset(Configuration config)
+    public static void ApplyDungeonDutyProfile(Configuration config)
     {
         // Core behavior - aggressive DPS
         config.Damage.DpsPriority = DpsPriorityMode.DpsFirst;
@@ -212,13 +246,38 @@ public static class ConfigurationPresets
         config.Scholar.AetherflowReserve = 0;
         config.Scholar.EnableEnergyDrain = true;
 
-        // Astrologian - DPS cards, use Minor Arcana freely
+        // Astrologian - DPS cards on cooldown, no raid burst hold in small content
         config.Astrologian.CardStrategy = CardPlayStrategy.DpsFocused;
         config.Astrologian.MinorArcanaStrategy = MinorArcanaUsageStrategy.OnCooldown;
+        config.Astrologian.DivinationOnBurst = false;
+        config.Astrologian.CardsUnderDivinationOnly = false;
+        config.Astrologian.AoEDamageMinTargets = 2;
+        config.Astrologian.AoEHealMinTargets = 2;
+        config.Astrologian.EarthlyStarMinTargets = 2;
 
         // Sage - no Addersgall reserve, maximize throughput
         config.Sage.AddersgallReserve = 0;
         config.Sage.PreventAddersgallCap = true;
+
+        // DPS - lower AoE threshold and no burst pooling delay in dungeons
+        ApplyDungeonDpsBurstSettings(config);
+    }
+
+    private static void ApplyDungeonDpsBurstSettings(Configuration config)
+    {
+        config.Dragoon.EnableBurstPooling = false;
+        config.Monk.EnableBurstPooling = false;
+        config.Ninja.EnableBurstPooling = false;
+        config.Samurai.EnableBurstPooling = false;
+        config.Reaper.EnableBurstPooling = false;
+        config.Viper.EnableBurstPooling = false;
+        config.Bard.EnableBurstPooling = false;
+        config.Machinist.EnableBurstPooling = false;
+        config.Dancer.EnableBurstPooling = false;
+        config.BlackMage.EnableBurstPooling = false;
+        config.Summoner.EnableBurstPooling = false;
+        config.RedMage.EnableBurstPooling = false;
+        config.Pictomancer.EnableBurstPooling = false;
     }
 
     /// <summary>

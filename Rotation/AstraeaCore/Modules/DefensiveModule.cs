@@ -163,7 +163,8 @@ public sealed class DefensiveModule : BaseDefensiveModule<IAstraeaContext>, IAst
 
         if (!config.EnableSunSign) return;
         if (player.Level < ASTActions.SunSign.MinLevel) return;
-        if (!context.HasNeutralSect) return;
+        if (!context.StatusHelper.HasSuntouched(player)) return;
+        if (!context.StatusHelper.WillSuntouchedExpireWithinGcds(player, 3)) return;
         if (!context.ActionService.IsActionReady(ASTActions.SunSign.ActionId)) return;
 
         int membersInRange = 0;

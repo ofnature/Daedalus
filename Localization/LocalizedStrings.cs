@@ -151,6 +151,11 @@ public static class LocalizedStrings
         public const string StartOnAutoAttackDesc = "config.general.start_on_auto_attack_desc";
         public const string StartOnPartyInCombat = "config.general.start_on_party_in_combat";
         public const string StartOnPartyInCombatDesc = "config.general.start_on_party_in_combat_desc";
+        public const string AutoDutyHeader = "config.general.auto_duty_header";
+        public const string EnableAutoDutyConfig = "config.general.enable_auto_duty_config";
+        public const string EnableAutoDutyConfigDesc = "config.general.enable_auto_duty_config_desc";
+        public const string AutoDutyDetectedNone = "config.general.auto_duty_detected_none";
+        public const string AutoDutyDetectedProfile = "config.general.auto_duty_detected_profile";
     }
 
     /// <summary>Keys for window behavior settings.</summary>
@@ -185,6 +190,9 @@ public static class LocalizedStrings
         public const string RangedRangeAutoDetect = "DrawHelper.RangedRangeAutoDetect";
         public const string PositionalsHeader = "DrawHelper.PositionalsHeader";
         public const string ShowPositionals = "DrawHelper.ShowPositionals";
+        public const string AstCardRangeHeader = "DrawHelper.AstCardRangeHeader";
+        public const string ShowAstCardRange = "DrawHelper.ShowAstCardRange";
+        public const string AstCardRangeDesc = "DrawHelper.AstCardRangeDesc";
     }
 
     /// <summary>Keys for targeting settings section.</summary>
@@ -2595,6 +2603,8 @@ public static class LocalizedStrings
         public const string TabOverview = "debug.tab.overview";
         public const string TabWhyStuck = "debug.tab.why_stuck";
         public const string TabHealing = "debug.tab.healing";
+        public const string TabDamage = "debug.tab.damage";
+        public const string TabMitigation = "debug.tab.mitigation";
         public const string TabOverheal = "debug.tab.overheal";
         public const string TabActions = "debug.tab.actions";
         public const string TabPerformance = "debug.tab.performance";
@@ -2613,6 +2623,8 @@ public static class LocalizedStrings
         public const string OverviewTabLabel = "debug.visibility.overview_tab";
         public const string WhyStuckTabLabel = "debug.visibility.why_stuck_tab";
         public const string HealingTabLabel = "debug.visibility.healing_tab";
+        public const string DamageTabLabel = "debug.visibility.damage_tab";
+        public const string MitigationTabLabel = "debug.visibility.mitigation_tab";
         public const string OverhealTabLabel = "debug.visibility.overheal_tab";
         public const string ActionsTabLabel = "debug.visibility.actions_tab";
         public const string PerformanceTabLabel = "debug.visibility.performance_tab";
@@ -2625,6 +2637,8 @@ public static class LocalizedStrings
         public const string DpsDetails = "debug.section.dps_details";
         public const string ResourcesSection = "debug.section.resources";
         public const string SpellStatus = "debug.section.spell_status";
+        public const string DpsRotationState = "debug.section.dps_rotation_state";
+        public const string MitigationState = "debug.section.mitigation_state";
         public const string SpellSelection = "debug.section.spell_selection";
         public const string HpPrediction = "debug.section.hp_prediction";
         public const string AoEHealing = "debug.section.aoe_healing";
@@ -3424,6 +3438,8 @@ public static class LocalizedStrings
         public const string NoRotation = "ui.overlay.no_rotation";
         public const string StatusActive = "ui.overlay.status_active";
         public const string StatusInactive = "ui.overlay.status_inactive";
+        public const string DutyDetected = "ui.overlay.duty_detected";
+        public const string DutyProfile = "ui.overlay.duty_profile";
         public const string NextActionLabel = "ui.overlay.next_action";
         public const string NoAction = "ui.overlay.no_action";
         public const string HpLabel = "ui.overlay.hp_label";

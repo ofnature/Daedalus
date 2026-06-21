@@ -4,6 +4,7 @@ using System.Numerics;
 using Dalamud.Bindings.ImGui;
 using Olympus.Config;
 using Olympus.Localization;
+using Olympus.Services.Content;
 using Olympus.Services.Targeting;
 
 namespace Olympus.Windows.Config.Shared;
@@ -15,6 +16,7 @@ public sealed class GeneralSection
 {
     private readonly Configuration config;
     private readonly Action save;
+    private readonly IDutyContentService? dutyContentService;
 
     private string[] GetStrategyNames() =>
     [
@@ -49,14 +51,16 @@ public sealed class GeneralSection
         Loc.T(LocalizedStrings.RoleActions.SurecastModeAuto, "Use on Cooldown")
     ];
 
-    public GeneralSection(Configuration config, Action save)
+    public GeneralSection(Configuration config, Action save, IDutyContentService? dutyContentService = null)
     {
         this.config = config;
         this.save = save;
+        this.dutyContentService = dutyContentService;
     }
 
     public void DrawGeneral()
     {
+        DrawAutoDutySection();
         DrawCombatBehaviorSection();
         DrawModifierKeysSection();
         DrawResurrectionSection();
@@ -185,6 +189,35 @@ public sealed class GeneralSection
         ImGui.TextDisabled(Loc.T(LocalizedStrings.Targeting.MovementToleranceDesc, "Delay after stopping before casting. Lower = faster, higher = safer."));
 
         ConfigUIHelpers.EndIndent();
+    }
+
+    private void DrawAutoDutySection()
+    {
+        if (ConfigUIHelpers.SectionHeader(Loc.T(LocalizedStrings.General.AutoDutyHeader, "Auto Duty Config")))
+        {
+            ConfigUIHelpers.BeginIndent();
+
+            var autoDuty = config.EnableAutoDutyConfig;
+            if (ImGui.Checkbox(Loc.T(LocalizedStrings.General.EnableAutoDutyConfig, "Auto-adjust for dungeon / trial / raid"), ref autoDuty))
+            {
+                config.EnableAutoDutyConfig = autoDuty;
+                save();
+            }
+
+            ImGui.TextDisabled(Loc.T(LocalizedStrings.General.EnableAutoDutyConfigDesc,
+                "Detects duty type from zone data and applies appropriate tuning at runtime. Your saved settings are not modified."));
+
+            if (config.EnableAutoDutyConfig && dutyContentService != null)
+            {
+                var profile = dutyContentService.EffectiveProfile;
+                var label = profile == EffectiveDutyProfile.None
+                    ? Loc.TFormat(LocalizedStrings.General.AutoDutyDetectedNone, "Detected: {0} (no overlay)", dutyContentService.DutyLabel)
+                    : Loc.TFormat(LocalizedStrings.General.AutoDutyDetectedProfile, "Detected: {0} → {1} profile", dutyContentService.DutyLabel, profile);
+                ImGui.TextDisabled(label);
+            }
+
+            ConfigUIHelpers.EndIndent();
+        }
     }
 
     private void DrawCombatBehaviorSection()

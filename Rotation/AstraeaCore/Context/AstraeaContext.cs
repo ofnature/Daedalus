@@ -42,6 +42,7 @@ public sealed class AstraeaContext : BaseHealerContext, IAstraeaContext
     private bool? _hasLightspeed;
     private bool? _hasNeutralSect;
     private bool? _hasDivining;
+    private bool? _hasDivination;
     private bool? _hasHoroscope;
     private bool? _hasHoroscopeHelios;
     private bool? _hasMacrocosmos;
@@ -54,6 +55,12 @@ public sealed class AstraeaContext : BaseHealerContext, IAstraeaContext
     private bool? _hasCard;
     private bool? _hasBalance;
     private bool? _hasSpear;
+    private bool? _hasTheBalance;
+    private bool? _hasTheSpear;
+    private bool? _hasTheBole;
+    private bool? _hasTheArrow;
+    private bool? _hasTheEwer;
+    private bool? _hasTheSpire;
     private int? _sealCount;
     private int? _uniqueSealCount;
     private int? _balanceCount;
@@ -63,6 +70,7 @@ public sealed class AstraeaContext : BaseHealerContext, IAstraeaContext
     public bool HasLightspeed => _hasLightspeed ??= StatusHelper.HasLightspeed(Player);
     public bool HasNeutralSect => _hasNeutralSect ??= StatusHelper.HasNeutralSect(Player);
     public bool HasDivining => _hasDivining ??= StatusHelper.HasDivining(Player);
+    public bool HasDivination => _hasDivination ??= StatusHelper.HasDivination(Player);
     public bool HasHoroscope => _hasHoroscope ??= StatusHelper.HasHoroscope(Player);
     public bool HasHoroscopeHelios => _hasHoroscopeHelios ??= StatusHelper.HasHoroscopeHelios(Player);
     public bool HasMacrocosmos => _hasMacrocosmos ??= StatusHelper.HasMacrocosmos(Player);
@@ -75,6 +83,12 @@ public sealed class AstraeaContext : BaseHealerContext, IAstraeaContext
     public bool HasCard => _hasCard ??= CardService.HasCard;
     public bool HasBalance => _hasBalance ??= CardService.HasBalance;
     public bool HasSpear => _hasSpear ??= CardService.HasSpear;
+    public bool HasTheBalance => _hasTheBalance ??= CardService.HasTheBalance;
+    public bool HasTheSpear => _hasTheSpear ??= CardService.HasTheSpear;
+    public bool HasTheBole => _hasTheBole ??= CardService.HasTheBole;
+    public bool HasTheArrow => _hasTheArrow ??= CardService.HasTheArrow;
+    public bool HasTheEwer => _hasTheEwer ??= CardService.HasTheEwer;
+    public bool HasTheSpire => _hasTheSpire ??= CardService.HasTheSpire;
     public bool HasMinorArcana => MinorArcana != Data.ASTActions.CardType.None;
     public int SealCount => _sealCount ??= CardService.SealCount;
     public int UniqueSealCount => _uniqueSealCount ??= CardService.UniqueSealCount;

@@ -28,10 +28,18 @@ public sealed class DebugConfig
         ["QuickStats"] = true,
 
         // Healing tab
+        ["SpellStatus"] = true,
+        ["SpellSelection"] = true,
         ["HpPrediction"] = true,
         ["AoEHealing"] = true,
         ["RecentHeals"] = true,
         ["ShadowHp"] = true,
+
+        // Damage tab
+        ["DpsRotationState"] = true,
+
+        // Mitigation tab
+        ["MitigationState"] = true,
 
         // Overheal tab
         ["OverhealSummary"] = true,

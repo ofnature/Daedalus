@@ -3,14 +3,18 @@ using System.Collections.Generic;
 using System.Numerics;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Game.ClientState.Objects.Enums;
+using Dalamud.Game.ClientState.Objects.SubKinds;
 using Dalamud.Game.ClientState.Objects.Types;
+using Dalamud.Game.ClientState.Party;
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Windowing;
 using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Common.Component.BGCollision;
 using Olympus.Config;
+using Olympus.Data;
 using Olympus.Rotation;
 using Olympus.Rotation.Common;
+using Olympus.Rotation.Common.Helpers;
 using Olympus.Services.Drawing;
 using Olympus.Services.Positional;
 using Olympus.Services.Targeting;
@@ -31,6 +35,7 @@ public sealed class DrawCanvas : Window
     private readonly IGameGui _gameGui;
     private readonly IPositionalService _positionalService;
     private readonly RotationManager _rotationManager;
+    private readonly IPartyList _partyList;
 
     // AoE test mode state
     private Vector3 _simPlayerPos;
@@ -70,7 +75,8 @@ public sealed class DrawCanvas : Window
         ITargetManager targetManager,
         IGameGui gameGui,
         IPositionalService positionalService,
-        RotationManager rotationManager)
+        RotationManager rotationManager,
+        IPartyList partyList)
         : base("##OlympusDrawCanvas",
             ImGuiWindowFlags.NoInputs
             | ImGuiWindowFlags.NoTitleBar
@@ -89,6 +95,7 @@ public sealed class DrawCanvas : Window
         _gameGui = gameGui;
         _positionalService = positionalService;
         _rotationManager = rotationManager;
+        _partyList = partyList;
 
         IsOpen = true;
         RespectCloseHotkey = false;
@@ -123,6 +130,9 @@ public sealed class DrawCanvas : Window
             {
                 if (Config.ShowEnemyHitboxes)
                     DrawEnemyHitboxes(player);
+
+                if (Config.ShowAstCardRange && JobRegistry.IsAstrologian(player.ClassJob.RowId))
+                    DrawAstCardRange(player);
 
                 var target = _targetManager.Target;
                 if (target != null)
@@ -485,6 +495,51 @@ public sealed class DrawCanvas : Window
         else
         {
             _drawing.DrawCircle(ringCenter, totalRadius, Config.RangedRangeOutOfRangeColor);
+        }
+    }
+
+    private void DrawAstCardRange(IPlayerCharacter player)
+    {
+        var range = ASTActions.TheBalance.Range;
+        var rangeSquared = range * range;
+        var center = SnapToFloor(player.Position);
+
+        _drawing.DrawCircleFilled(center, range, Config.AstCardRangeFillColor);
+        _drawing.DrawCircle(center, range, Config.AstCardRangeColor);
+
+        foreach (var ally in GetCardRangeAllies(player))
+        {
+            var distSquared = Vector3.DistanceSquared(player.Position, ally.Position);
+            var inRange = distSquared <= rangeSquared;
+            var markerColor = inRange ? Config.AstCardAllyInRangeColor : Config.AstCardAllyOutOfRangeColor;
+            var markerRadius = MathF.Max(0.4f, ally.HitboxRadius * 0.5f);
+            _drawing.DrawCircle(SnapToFloor(ally.Position), markerRadius, markerColor);
+        }
+    }
+
+    private IEnumerable<IBattleChara> GetCardRangeAllies(IPlayerCharacter player)
+    {
+        if (_partyList.Length > 0)
+        {
+            foreach (var member in _partyList)
+            {
+                if (member.GameObject is not IBattleChara battleChara)
+                    continue;
+                if (battleChara.EntityId == player.EntityId || battleChara.IsDead)
+                    continue;
+                yield return battleChara;
+            }
+
+            yield break;
+        }
+
+        foreach (var obj in _objectTable)
+        {
+            if (!BasePartyHelper.IsValidTrustNpc(obj, out var npc, includeDead: false))
+                continue;
+            if (npc!.EntityId == player.EntityId)
+                continue;
+            yield return npc;
         }
     }
 

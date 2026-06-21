@@ -24,6 +24,12 @@ public interface IAstraeaContext : IHealerRotationContext
     bool HasCard { get; }
     bool HasBalance { get; }
     bool HasSpear { get; }
+    bool HasTheBalance { get; }
+    bool HasTheSpear { get; }
+    bool HasTheBole { get; }
+    bool HasTheArrow { get; }
+    bool HasTheEwer { get; }
+    bool HasTheSpire { get; }
     bool HasMinorArcana { get; }
     int SealCount { get; }
     int UniqueSealCount { get; }
@@ -41,6 +47,7 @@ public interface IAstraeaContext : IHealerRotationContext
     bool HasLightspeed { get; }
     bool HasNeutralSect { get; }
     bool HasDivining { get; }
+    bool HasDivination { get; }
     bool HasHoroscope { get; }
     bool HasHoroscopeHelios { get; }
     bool HasMacrocosmos { get; }

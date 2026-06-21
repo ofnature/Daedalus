@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using Olympus.Rotation.AstraeaCore.Context;
+using Olympus.Rotation.AstraeaCore.Helpers;
 using Olympus.Rotation.AstraeaCore.Modules.Healing;
 using Olympus.Rotation.Common.Scheduling;
 
@@ -47,6 +48,12 @@ public sealed class HealingModule : IAstraeaModule
         context.HealingCoordination.Clear();
         if (!context.InCombat) return;
         if (!context.Configuration.EnableHealing) return;
+        if (AstraeaCardHelper.HasAstlock(context)) return;
+        if (AstraeaCardHelper.HasHealingLockout(context))
+        {
+            context.Debug.PlanningState = "Healing lockout (Divining/Macro/Star)";
+            return;
+        }
 
         foreach (var handler in _handlers)
             handler.CollectCandidates(context, scheduler, isMoving);

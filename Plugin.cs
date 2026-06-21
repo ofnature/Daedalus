@@ -150,6 +150,8 @@ public sealed class Plugin : IDalamudPlugin
     // Pull-intent state machine + consumable services (tincture automation)
     private readonly Olympus.Services.Pull.PullIntentService pullIntentService;
     private readonly Olympus.Services.Content.HighEndContentService highEndContentService;
+    private readonly Olympus.Services.Content.DutyContentService dutyContentService;
+    private readonly Olympus.Services.Content.DutyConfigurationService dutyConfigurationService;
     private readonly Olympus.Services.Consumables.DalamudInventoryProbe inventoryProbe;
     private readonly Olympus.Services.Consumables.DalamudTinctureCooldownProbe tinctureCooldownProbe;
     private readonly Olympus.Services.Consumables.ConsumableService consumableService;
@@ -342,6 +344,13 @@ public sealed class Plugin : IDalamudPlugin
         this.highEndContentService = new Olympus.Services.Content.HighEndContentService(dataManager);
         this.highEndContentService.OnTerritoryChanged((ushort)clientState.TerritoryType);
 
+        this.dutyContentService = new Olympus.Services.Content.DutyContentService(dataManager);
+        this.dutyConfigurationService = new Olympus.Services.Content.DutyConfigurationService(configuration, dutyContentService);
+        this.dutyContentService.OnTerritoryChanged(
+            (ushort)clientState.TerritoryType,
+            highEndContentService.IsHighEndZone,
+            partyList.Length);
+
         // Inventory and tincture-cooldown probes (production-side wrappers).
         this.inventoryProbe = new Olympus.Services.Consumables.DalamudInventoryProbe(errorMetricsService);
         this.tinctureCooldownProbe = new Olympus.Services.Consumables.DalamudTinctureCooldownProbe(errorMetricsService);
@@ -392,9 +401,9 @@ public sealed class Plugin : IDalamudPlugin
             dataManager);
 
         this.drawingService = new DrawingService(pluginInterface, configuration.DrawHelper, gameGui, log);
-        this.drawCanvas = new DrawCanvas(drawingService, configuration, objectTable, clientState, targetManager, gameGui, positionalService, rotationManager);
+        this.drawCanvas = new DrawCanvas(drawingService, configuration, objectTable, clientState, targetManager, gameGui, positionalService, rotationManager, partyList);
         this.updateCheckerService = new UpdateCheckerService(PluginVersion, notificationManager, log);
-        this.configWindow = new ConfigWindow(configuration, SaveConfiguration, updateCheckerService, textureProvider);
+        this.configWindow = new ConfigWindow(configuration, SaveConfiguration, updateCheckerService, textureProvider, dutyContentService);
         this.mainWindow = new MainWindow(configuration, SaveConfiguration, OpenConfigUI, OpenDebugUI, OpenAnalyticsUI, OpenTrainingUI, OpenChangelogUI, OpenOverlayUI, PluginVersion, rotationManager, textureProvider);
         var smartAoETab = new SmartAoETab(aoeTracker, drawCanvas, objectTable);
         this.debugWindow = new DebugWindow(debugService, configuration, timelineService, smartAoETab);
@@ -403,7 +412,7 @@ public sealed class Plugin : IDalamudPlugin
         this.trainingWindow = new TrainingWindow(trainingService, configuration, decisionValidationService, spacedRepetitionService);
         this.changelogWindow = new ChangelogWindow();
         this.hintOverlay = new HintOverlay(realTimeCoachingService, configuration.Training);
-        this.overlayWindow = new OverlayWindow(configuration, SaveConfiguration, rotationManager, partyList, this.timelineService);
+        this.overlayWindow = new OverlayWindow(configuration, SaveConfiguration, rotationManager, partyList, this.timelineService, dutyContentService);
         this.actionFeedWindow = new ActionFeedWindow(configuration, SaveConfiguration, actionService, textureProvider);
 
         // Telemetry service for anonymous usage tracking
@@ -483,6 +492,8 @@ public sealed class Plugin : IDalamudPlugin
     private void OnTerritoryChanged(ushort zoneId)
     {
         highEndContentService.OnTerritoryChanged(zoneId);
+        dutyContentService.OnTerritoryChanged(zoneId, highEndContentService.IsHighEndZone, partyList.Length);
+        dutyConfigurationService.Refresh();
         consumableService.OnTerritoryChanged();
         timelineService.LoadForZone(zoneId);
         combatEventService.Clear();
@@ -506,8 +517,10 @@ public sealed class Plugin : IDalamudPlugin
         container.Register<IPartyList>(partyList);
         container.Register<IJobGauges>(jobGauges);
 
-        // Core services (register both interface and concrete where interface exists)
-        container.Register(configuration);
+        // Rotations consume the duty-aware snapshot; UI and persistence use the saved configuration.
+        container.Register(dutyConfigurationService.RotationConfiguration);
+        container.Register<Olympus.Services.Content.IDutyContentService, Olympus.Services.Content.DutyContentService>(dutyContentService);
+        container.Register<Olympus.Services.Content.IDutyConfigurationService, Olympus.Services.Content.DutyConfigurationService>(dutyConfigurationService);
         container.Register<IActionTracker, ActionTracker>(actionTracker);
         container.Register(actionService);
         container.Register<ICombatEventService, CombatEventService>(combatEventService);
@@ -570,6 +583,7 @@ public sealed class Plugin : IDalamudPlugin
         configuration.Analytics.AnalyticsWindowVisible = analyticsWindow.IsOpen;
         configuration.Training.TrainingWindowVisible = trainingWindow.IsOpen;
         configuration.Overlay.IsVisible = overlayWindow.IsOpen;
+        dutyConfigurationService.Refresh();
         pluginInterface.SavePluginConfig(configuration);
     }
 

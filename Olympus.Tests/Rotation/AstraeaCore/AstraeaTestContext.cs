@@ -318,6 +318,16 @@ public static class AstraeaTestContext
         mock.Setup(x => x.UniqueSealCount).Returns(uniqueSealCount);
         mock.Setup(x => x.HasBalance).Returns(hasCard && currentCard == ASTActions.CardType.TheBalance);
         mock.Setup(x => x.HasSpear).Returns(hasCard && currentCard == ASTActions.CardType.TheSpear);
+        mock.Setup(x => x.HasTheBalance).Returns(hasCard && currentCard == ASTActions.CardType.TheBalance);
+        mock.Setup(x => x.HasTheSpear).Returns(hasCard && currentCard == ASTActions.CardType.TheSpear);
+        mock.Setup(x => x.HasTheBole).Returns(false);
+        mock.Setup(x => x.HasTheArrow).Returns(false);
+        mock.Setup(x => x.HasTheEwer).Returns(false);
+        mock.Setup(x => x.HasTheSpire).Returns(false);
+        mock.Setup(x => x.CanAstralDraw).Returns(true);
+        mock.Setup(x => x.CanUmbralDraw).Returns(true);
+        mock.Setup(x => x.GetDrawCooldownRemaining()).Returns(60f);
+        mock.Setup(x => x.GetDivinationCooldownRemaining()).Returns(120f);
         mock.Setup(x => x.HasLord).Returns(hasLord);
         mock.Setup(x => x.HasLady).Returns(hasLady);
         mock.Setup(x => x.HasMinorArcana).Returns(hasLord || hasLady);

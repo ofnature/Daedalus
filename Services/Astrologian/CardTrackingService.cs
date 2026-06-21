@@ -5,6 +5,7 @@ using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Game;
 using Olympus.Data;
 using DalamudCardType = Dalamud.Game.ClientState.JobGauge.Enums.CardType;
+using DalamudDrawType = Dalamud.Game.ClientState.JobGauge.Enums.DrawType;
 
 namespace Olympus.Services.Astrologian;
 
@@ -67,6 +68,19 @@ public sealed class CardTrackingService : ICardTrackingService
     /// </summary>
     public bool HasLord => MinorArcanaCard == ASTActions.CardType.Lord;
     public bool HasLady => MinorArcanaCard == ASTActions.CardType.Lady;
+
+    public bool HasTheBalance => GetHasCardType(DalamudCardType.Balance);
+    public bool HasTheSpear => GetHasCardType(DalamudCardType.Spear);
+    public bool HasTheBole => GetHasCardType(DalamudCardType.Bole);
+    public bool HasTheArrow => GetHasCardType(DalamudCardType.Arrow);
+    public bool HasTheEwer => GetHasCardType(DalamudCardType.Ewer);
+    public bool HasTheSpire => GetHasCardType(DalamudCardType.Spire);
+
+    /// <summary>Astral draw is the next valid draw and won't overdraw umbral cards.</summary>
+    public bool CanAstralDraw => CanDraw(DalamudDrawType.Astral, DalamudCardType.Spear);
+
+    /// <summary>Umbral draw is the next valid draw and won't overdraw astral cards.</summary>
+    public bool CanUmbralDraw => CanDraw(DalamudDrawType.Umbral, DalamudCardType.Balance);
 
     /// <summary>
     /// Gets the number of seals currently collected (0-3).
@@ -335,6 +349,25 @@ public sealed class CardTrackingService : ICardTrackingService
         }
     }
 
+    private bool CanDraw(DalamudDrawType expectedDraw, DalamudCardType blockingCard)
+    {
+        try
+        {
+            if (Gauge.ActiveDraw != expectedDraw)
+                return false;
+
+            var cards = Gauge.DrawnCards;
+            if (cards == null || cards.Length == 0)
+                return true;
+
+            return !cards.Contains(blockingCard);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
     /// <summary>
     /// Gets the Minor Arcana card from the job gauge.
     /// </summary>
@@ -517,6 +550,15 @@ public interface ICardTrackingService
     /// Gets whether we have Lady of Crowns.
     /// </summary>
     bool HasLady { get; }
+
+    bool HasTheBalance { get; }
+    bool HasTheSpear { get; }
+    bool HasTheBole { get; }
+    bool HasTheArrow { get; }
+    bool HasTheEwer { get; }
+    bool HasTheSpire { get; }
+    bool CanAstralDraw { get; }
+    bool CanUmbralDraw { get; }
 
     /// <summary>
     /// Gets the number of seals currently collected.

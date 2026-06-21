@@ -72,7 +72,8 @@ public abstract class BaseHealerRotation<TContext, TModule> : BaseRotation<TCont
         IPartyCoordinationService? partyCoordinationService = null,
         IErrorMetricsService? errorMetrics = null,
         Olympus.Services.Consumables.ITinctureDispatcher? tinctureDispatcher = null,
-        Olympus.Services.Pull.IPullIntentService? pullIntentService = null)
+        Olympus.Services.Pull.IPullIntentService? pullIntentService = null,
+        IBurstWindowService? burstWindowService = null)
         : base(
             log,
             actionTracker,
@@ -89,7 +90,8 @@ public abstract class BaseHealerRotation<TContext, TModule> : BaseRotation<TCont
             debuffDetectionService,
             errorMetrics,
             tinctureDispatcher: tinctureDispatcher,
-            pullIntentService: pullIntentService)
+            pullIntentService: pullIntentService,
+            burstWindowService: burstWindowService)
     {
         HealingSpellSelector = healingSpellSelector;
         CooldownPlanner = cooldownPlanner;

@@ -145,11 +145,7 @@ public abstract class BasePartyHelper
     /// </summary>
     public static bool IsTankRole(IBattleChara chara)
     {
-        if (chara is IPlayerCharacter pc)
-        {
-            return TankJobIds.Contains(pc.ClassJob.RowId);
-        }
-        return false;
+        return TankJobIds.Contains(chara.ClassJob.RowId);
     }
 
     /// <summary>
@@ -157,11 +153,7 @@ public abstract class BasePartyHelper
     /// </summary>
     public static bool IsHealerRole(IBattleChara chara)
     {
-        if (chara is IPlayerCharacter pc)
-        {
-            return HealerJobIds.Contains(pc.ClassJob.RowId);
-        }
-        return false;
+        return HealerJobIds.Contains(chara.ClassJob.RowId);
     }
 
     /// <summary>
@@ -169,11 +161,7 @@ public abstract class BasePartyHelper
     /// </summary>
     public static bool IsMeleeDps(IBattleChara chara)
     {
-        if (chara is IPlayerCharacter pc)
-        {
-            return MeleeDpsJobIds.Contains(pc.ClassJob.RowId);
-        }
-        return false;
+        return MeleeDpsJobIds.Contains(chara.ClassJob.RowId);
     }
 
     /// <summary>
@@ -181,11 +169,7 @@ public abstract class BasePartyHelper
     /// </summary>
     public static bool IsRangedPhysicalDps(IBattleChara chara)
     {
-        if (chara is IPlayerCharacter pc)
-        {
-            return RangedPhysicalDpsJobIds.Contains(pc.ClassJob.RowId);
-        }
-        return false;
+        return RangedPhysicalDpsJobIds.Contains(chara.ClassJob.RowId);
     }
 
     /// <summary>
@@ -193,11 +177,7 @@ public abstract class BasePartyHelper
     /// </summary>
     public static bool IsCasterDps(IBattleChara chara)
     {
-        if (chara is IPlayerCharacter pc)
-        {
-            return CasterDpsJobIds.Contains(pc.ClassJob.RowId);
-        }
-        return false;
+        return CasterDpsJobIds.Contains(chara.ClassJob.RowId);
     }
 
     /// <summary>
@@ -213,20 +193,15 @@ public abstract class BasePartyHelper
     #region Tank Finding
 
     /// <summary>
-    /// Finds the tank in the party.
+    /// Finds the tank in the party (ClassJob on players/trust; use override for trust aggro fallback).
     /// </summary>
     public virtual IBattleChara? FindTankInParty(IPlayerCharacter player)
     {
-        foreach (var member in GetAllPartyMembers(player))
-        {
-            if (member.EntityId == player.EntityId)
-                continue;
-            if (member.IsDead)
-                continue;
-            if (IsTankRole(member))
-                return member;
-        }
-        return null;
+        return TrustPartyRoleHelper.FindTankInParty(
+            player,
+            GetAllPartyMembers(player),
+            ObjectTable,
+            PartyList);
     }
 
     #endregion

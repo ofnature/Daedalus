@@ -52,7 +52,11 @@ public static class AstraeaAbilities
     public static readonly AbilityBehavior BeneficII = new() { Action = ASTActions.BeneficII };
 
     // --- Buffs ---
-    public static readonly AbilityBehavior LucidDreaming = new() { Action = RoleActions.LucidDreaming };
+    public static readonly AbilityBehavior LucidDreaming = new()
+    {
+        Action = RoleActions.LucidDreaming,
+        Toggle = cfg => cfg.HealerShared.EnableLucidDreaming,
+    };
     public static readonly AbilityBehavior LightspeedBuff = new() { Action = ASTActions.Lightspeed };
 
     // --- Defensive ---

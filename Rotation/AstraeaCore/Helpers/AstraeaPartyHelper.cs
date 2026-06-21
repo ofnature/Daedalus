@@ -6,6 +6,7 @@ using Dalamud.Game.ClientState.Party;
 using Dalamud.Plugin.Services;
 using Olympus.Config;
 using Olympus.Data;
+using Olympus.Models.Action;
 using Olympus.Rotation.Common.Helpers;
 using Olympus.Services.Prediction;
 
@@ -62,181 +63,232 @@ public class AstraeaPartyHelper : HealerPartyHelper
 
     #endregion
 
-    #region Card Targeting (DPS-Focused)
+    #region Card Targeting
+
+    /// <inheritdoc />
+    public override IBattleChara? FindTankInParty(IPlayerCharacter player) =>
+        TrustPartyRoleHelper.FindTankInParty(
+            player,
+            GetAllPartyMembers(player),
+            ObjectTable,
+            PartyList,
+            _statusHelper.HasTankStance);
 
     /// <summary>
     /// Finds the best target for The Balance card (melee DPS buff).
-    /// Prioritizes: melee DPS > ranged DPS > tank > trust NPC > self.
     /// </summary>
     public IBattleChara? FindBalanceTarget(IPlayerCharacter player)
     {
         IBattleChara? bestMelee = null;
         IBattleChara? bestRanged = null;
-        IBattleChara? bestTank = null;
-        IBattleChara? bestTrustNpc = null;
 
         foreach (var member in GetAllPartyMembers(player))
         {
-            if (member.IsDead)
-                continue;
-            if (member.EntityId == player.EntityId)
-                continue;
-            if (Vector3.DistanceSquared(player.Position, member.Position) > ASTActions.TheBalance.RangeSquared)
-                continue;
-            if (_statusHelper.HasAnyCardBuff(member))
+            if (!IsEligibleCardTarget(player, member, ASTActions.TheBalance.RangeSquared, ASTActions.TheBalanceStatusId))
                 continue;
 
-            if (IsMeleeDps(member))
-            {
-                if (bestMelee == null)
-                    bestMelee = member;
-            }
-            else if (IsRangedPhysicalDps(member) || IsCasterDps(member))
-            {
-                if (bestRanged == null)
-                    bestRanged = member;
-            }
-            else if (IsTankRole(member))
-            {
-                if (bestTank == null)
-                    bestTank = member;
-            }
-            else if (member is IBattleNpc)
-            {
-                // Trust NPCs don't have ClassJob, so role detection fails
-                // Skip trust NPCs with tank stance, prefer DPS trust NPCs
-                if (!_statusHelper.HasTankStance(member) && bestTrustNpc == null)
-                    bestTrustNpc = member;
-            }
+            if (TrustPartyRoleHelper.IsMeleeDps(member, PartyList))
+                bestMelee ??= member;
+            else if (TrustPartyRoleHelper.IsRangedOrCasterDps(member, PartyList))
+                bestRanged ??= member;
         }
 
-        // Prefer melee > ranged > tank > trust NPC (non-tank) > self
-        if (bestMelee != null) return bestMelee;
-        if (bestRanged != null) return bestRanged;
-        if (bestTank != null) return bestTank;
-        if (bestTrustNpc != null) return bestTrustNpc;
-
-        // Final fallback to self - playing card on self is better than wasting it
-        return player;
+        return bestMelee ?? bestRanged;
     }
 
     /// <summary>
     /// Finds the best target for The Spear card (ranged DPS buff).
-    /// Prioritizes: ranged DPS > melee DPS > tank > trust NPC > self.
     /// </summary>
     public IBattleChara? FindSpearTarget(IPlayerCharacter player)
     {
         IBattleChara? bestRanged = null;
         IBattleChara? bestMelee = null;
-        IBattleChara? bestTank = null;
-        IBattleChara? bestTrustNpc = null;
 
         foreach (var member in GetAllPartyMembers(player))
         {
-            if (member.IsDead)
-                continue;
-            if (member.EntityId == player.EntityId)
-                continue;
-            if (Vector3.DistanceSquared(player.Position, member.Position) > ASTActions.TheSpear.RangeSquared)
-                continue;
-            if (_statusHelper.HasAnyCardBuff(member))
+            if (!IsEligibleCardTarget(player, member, ASTActions.TheSpear.RangeSquared, ASTActions.TheSpearStatusId))
                 continue;
 
-            if (IsRangedPhysicalDps(member) || IsCasterDps(member))
-            {
-                if (bestRanged == null)
-                    bestRanged = member;
-            }
-            else if (IsMeleeDps(member))
-            {
-                if (bestMelee == null)
-                    bestMelee = member;
-            }
-            else if (IsTankRole(member))
-            {
-                if (bestTank == null)
-                    bestTank = member;
-            }
-            else if (member is IBattleNpc)
-            {
-                // Trust NPCs don't have ClassJob, so role detection fails
-                // Skip trust NPCs with tank stance, prefer DPS trust NPCs
-                if (!_statusHelper.HasTankStance(member) && bestTrustNpc == null)
-                    bestTrustNpc = member;
-            }
+            if (TrustPartyRoleHelper.IsRangedOrCasterDps(member, PartyList))
+                bestRanged ??= member;
+            else if (TrustPartyRoleHelper.IsMeleeDps(member, PartyList))
+                bestMelee ??= member;
         }
 
-        // Prefer ranged > melee > tank > trust NPC (non-tank) > self
-        if (bestRanged != null) return bestRanged;
-        if (bestMelee != null) return bestMelee;
-        if (bestTank != null) return bestTank;
-        if (bestTrustNpc != null) return bestTrustNpc;
-
-        // Final fallback to self - playing card on self is better than wasting it
-        return player;
+        return bestRanged ?? bestMelee;
     }
 
     /// <summary>
-    /// Finds the best target for Lord of Crowns card (AoE damage buff).
-    /// Prioritizes: DPS > tank > trust NPC > self.
+    /// Finds target for The Bole: main tank, or injured ally below tank-support threshold.
     /// </summary>
-    public IBattleChara? FindLordTarget(IPlayerCharacter player)
+    public IBattleChara? FindBoleTarget(IPlayerCharacter player, float hpThreshold)
     {
-        IBattleChara? bestDps = null;
-        IBattleChara? bestTank = null;
-        IBattleChara? bestTrustNpc = null;
+        var tank = FindTankInParty(player);
+        if (tank != null
+            && !tank.IsDead
+            && Vector3.DistanceSquared(player.Position, tank.Position) <= ASTActions.TheBole.RangeSquared
+            && !HasCardBuff(tank, ASTActions.TheBoleStatusId))
+        {
+            return tank;
+        }
+
+        IBattleChara? bestInjured = null;
+        var lowestHp = 1f;
 
         foreach (var member in GetAllPartyMembers(player))
         {
-            if (member.IsDead)
-                continue;
-            if (member.EntityId == player.EntityId)
-                continue;
-            if (Vector3.DistanceSquared(player.Position, member.Position) > ASTActions.PlayIII.RangeSquared)
-                continue;
-            if (_statusHelper.HasAnyCardBuff(member))
-                continue;
+            if (member.IsDead) continue;
+            if (Vector3.DistanceSquared(player.Position, member.Position) > ASTActions.TheBole.RangeSquared) continue;
+            if (HasCardBuff(member, ASTActions.TheBoleStatusId)) continue;
 
-            if (IsDpsRole(member))
+            var hp = GetHpPercent(member);
+            if (hp <= hpThreshold && hp < lowestHp)
             {
-                if (bestDps == null)
-                    bestDps = member;
-            }
-            else if (IsTankRole(member))
-            {
-                if (bestTank == null)
-                    bestTank = member;
-            }
-            else if (member is IBattleNpc)
-            {
-                // Trust NPCs don't have ClassJob, so role detection fails
-                // Skip trust NPCs with tank stance, prefer DPS trust NPCs
-                if (!_statusHelper.HasTankStance(member) && bestTrustNpc == null)
-                    bestTrustNpc = member;
+                lowestHp = hp;
+                bestInjured = member;
             }
         }
 
-        // Prefer DPS > tank > trust NPC (non-tank) > self
-        if (bestDps != null) return bestDps;
-        if (bestTank != null) return bestTank;
-        if (bestTrustNpc != null) return bestTrustNpc;
-
-        // Final fallback to self - playing card on self is better than wasting it
-        return player;
+        return bestInjured ?? tank ?? player;
     }
 
     /// <summary>
-    /// Gets the appropriate card target based on the current card type.
+    /// Finds lowest-HP ally below threshold for healing-support cards (Arrow, Ewer).
     /// </summary>
-    public IBattleChara? FindCardTarget(IPlayerCharacter player, ASTActions.CardType cardType)
+    public IBattleChara? FindHealingCardTarget(IPlayerCharacter player, float hpThreshold, ushort statusId)
     {
-        return cardType switch
+        IBattleChara? best = null;
+        var lowestHp = 1f;
+
+        foreach (var member in GetAllPartyMembers(player))
         {
-            ASTActions.CardType.TheBalance => FindBalanceTarget(player),
-            ASTActions.CardType.TheSpear => FindSpearTarget(player),
-            ASTActions.CardType.Lord => FindLordTarget(player),
-            _ => null
+            if (member.IsDead) continue;
+            if (Vector3.DistanceSquared(player.Position, member.Position) > ASTActions.TheArrow.RangeSquared) continue;
+            if (HasCardBuff(member, statusId)) continue;
+
+            var hp = GetHpPercent(member);
+            if (hp <= hpThreshold && hp < lowestHp)
+            {
+                lowestHp = hp;
+                best = member;
+            }
+        }
+
+        return best;
+    }
+
+    /// <summary>
+    /// Finds target for The Spire: lowest MP ally below threshold, else lowest HP below threshold.
+    /// </summary>
+    public IBattleChara? FindSpireTarget(IPlayerCharacter player, float hpThreshold)
+    {
+        IBattleChara? bestMp = null;
+        var lowestMp = 1f;
+
+        foreach (var member in GetAllPartyMembers(player))
+        {
+            if (member.IsDead) continue;
+            if (Vector3.DistanceSquared(player.Position, member.Position) > ASTActions.TheSpire.RangeSquared) continue;
+            if (HasCardBuff(member, ASTActions.TheSpireStatusId)) continue;
+
+            if (member is IPlayerCharacter pc && pc.MaxMp > 0)
+            {
+                var mpRatio = (float)pc.CurrentMp / pc.MaxMp;
+                if (mpRatio <= hpThreshold && mpRatio < lowestMp)
+                {
+                    lowestMp = mpRatio;
+                    bestMp = member;
+                }
+            }
+        }
+
+        if (bestMp != null) return bestMp;
+        return FindHealingCardTarget(player, hpThreshold, ASTActions.TheSpireStatusId) ?? player;
+    }
+
+    /// <summary>
+    /// Resolves play target for a specific card action.
+    /// </summary>
+    public IBattleChara? ResolveCardTarget(IPlayerCharacter player, ActionDefinition action, AstrologianConfig config)
+    {
+        return action.ActionId switch
+        {
+            var id when id == ASTActions.TheBalance.ActionId => FindBalanceTarget(player),
+            var id when id == ASTActions.TheSpear.ActionId => FindSpearTarget(player),
+            var id when id == ASTActions.TheBole.ActionId => FindBoleTarget(player, config.CardTankSupportThreshold),
+            var id when id == ASTActions.TheArrow.ActionId => FindHealingCardTarget(player, config.CardHealingThreshold, ASTActions.TheArrowStatusId),
+            var id when id == ASTActions.TheEwer.ActionId => FindHealingCardTarget(player, config.CardHealingThreshold, ASTActions.TheEwerStatusId),
+            var id when id == ASTActions.TheSpire.ActionId => FindSpireTarget(player, config.CardHealingThreshold),
+            _ => null,
         };
+    }
+
+    /// <summary>
+    /// True when a support card has a valid injured target (not dump fallback).
+    /// </summary>
+    public bool HasValidSupportTarget(IPlayerCharacter player, ActionDefinition action, AstrologianConfig config)
+    {
+        return action.ActionId switch
+        {
+            var id when id == ASTActions.TheBole.ActionId =>
+                FindBoleTarget(player, config.CardTankSupportThreshold) is { } bole
+                && (TrustPartyRoleHelper.IsTank(bole, PartyList, _statusHelper.HasTankStance)
+                    || GetHpPercent(bole) <= config.CardTankSupportThreshold),
+
+            var id when id == ASTActions.TheArrow.ActionId =>
+                FindHealingCardTarget(player, config.CardHealingThreshold, ASTActions.TheArrowStatusId) != null,
+
+            var id when id == ASTActions.TheEwer.ActionId =>
+                FindHealingCardTarget(player, config.CardHealingThreshold, ASTActions.TheEwerStatusId) != null,
+
+            var id when id == ASTActions.TheSpire.ActionId => HasSpireTarget(player, config.CardHealingThreshold),
+
+            _ => true,
+        };
+    }
+
+    private bool HasSpireTarget(IPlayerCharacter player, float threshold)
+    {
+        foreach (var member in GetAllPartyMembers(player))
+        {
+            if (member.IsDead) continue;
+            if (Vector3.DistanceSquared(player.Position, member.Position) > ASTActions.TheSpire.RangeSquared) continue;
+            if (HasCardBuff(member, ASTActions.TheSpireStatusId)) continue;
+
+            if (member is IPlayerCharacter pc && pc.MaxMp > 0)
+            {
+                if ((float)pc.CurrentMp / pc.MaxMp <= threshold) return true;
+            }
+
+            if (GetHpPercent(member) <= threshold) return true;
+        }
+
+        return false;
+    }
+
+    private static bool HasCardBuff(IBattleChara member, ushort statusId)
+    {
+        if (member.StatusList == null) return false;
+        foreach (var status in member.StatusList)
+        {
+            if (status.StatusId == statusId) return true;
+        }
+        return false;
+    }
+
+    private bool IsEligibleCardTarget(
+        IPlayerCharacter player,
+        IBattleChara member,
+        float rangeSquared,
+        ushort buffStatusId)
+    {
+        if (member.IsDead) return false;
+        if (member.EntityId == player.EntityId) return false;
+        if (Vector3.DistanceSquared(player.Position, member.Position) > rangeSquared) return false;
+        if (HasCardBuff(member, buffStatusId)) return false;
+        if (TrustPartyRoleHelper.IsHealer(member, PartyList)) return false;
+        if (TrustPartyRoleHelper.IsTank(member, PartyList, _statusHelper.HasTankStance)) return false;
+        return true;
     }
 
     #endregion

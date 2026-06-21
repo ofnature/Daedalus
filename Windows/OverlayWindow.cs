@@ -7,6 +7,7 @@ using Olympus.Data;
 using Olympus.Localization;
 using Olympus.Rotation;
 using Olympus.Rotation.Common;
+using Olympus.Services.Content;
 using Olympus.Timeline;
 using Olympus.Timeline.Models;
 
@@ -19,6 +20,7 @@ public sealed class OverlayWindow : Window
     private readonly RotationManager _rotationManager;
     private readonly IPartyList _partyList;
     private readonly ITimelineService? _timelineService;
+    private readonly IDutyContentService? _dutyContentService;
 
     private static readonly Vector4 ActiveColor    = new(0.4f, 0.9f, 0.4f, 1f);
     private static readonly Vector4 InactiveColor  = new(0.5f, 0.5f, 0.5f, 1f);
@@ -36,7 +38,13 @@ public sealed class OverlayWindow : Window
     private static readonly Vector4 TankBusterLabelColor    = new(0.5f, 0.8f, 1.0f, 1f);
     private static readonly Vector4 PhaseLabelColor         = new(0.7f, 0.9f, 0.5f, 1f);
 
-    public OverlayWindow(Configuration configuration, Action saveConfiguration, RotationManager rotationManager, IPartyList partyList, ITimelineService? timelineService = null)
+    public OverlayWindow(
+        Configuration configuration,
+        Action saveConfiguration,
+        RotationManager rotationManager,
+        IPartyList partyList,
+        ITimelineService? timelineService = null,
+        IDutyContentService? dutyContentService = null)
         : base(
             "##OlympusOverlay",
             ImGuiWindowFlags.NoTitleBar
@@ -53,6 +61,7 @@ public sealed class OverlayWindow : Window
         _rotationManager = rotationManager;
         _partyList = partyList;
         _timelineService = timelineService;
+        _dutyContentService = dutyContentService;
 
         Position = new Vector2(configuration.Overlay.X, configuration.Overlay.Y);
         PositionCondition = ImGuiCond.FirstUseEver;
@@ -111,6 +120,15 @@ public sealed class OverlayWindow : Window
             _saveConfiguration();
         }
         ImGui.PopStyleColor();
+
+        if (_configuration.EnableAutoDutyConfig && _dutyContentService != null)
+        {
+            var profile = _dutyContentService.EffectiveProfile;
+            var text = profile == EffectiveDutyProfile.None
+                ? Loc.TFormat(LocalizedStrings.Overlay.DutyDetected, "Duty: {0}", _dutyContentService.DutyLabel)
+                : Loc.TFormat(LocalizedStrings.Overlay.DutyProfile, "Duty: {0} ({1})", _dutyContentService.DutyLabel, profile);
+            ImGui.TextDisabled(text);
+        }
     }
 
     private void DrawNextAction(DebugState state)

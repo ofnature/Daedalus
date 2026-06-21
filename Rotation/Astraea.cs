@@ -100,7 +100,8 @@ public sealed class Astraea : BaseHealerRotation<IAstraeaContext, IAstraeaModule
         ITrainingService? trainingService = null,
         IErrorMetricsService? errorMetrics = null,
         Olympus.Services.Consumables.ITinctureDispatcher? tinctureDispatcher = null,
-        Olympus.Services.Pull.IPullIntentService? pullIntentService = null)
+        Olympus.Services.Pull.IPullIntentService? pullIntentService = null,
+        IBurstWindowService? burstWindowService = null)
         : base(
             log,
             actionTracker,
@@ -121,13 +122,16 @@ public sealed class Astraea : BaseHealerRotation<IAstraeaContext, IAstraeaModule
             partyCoordinationService,
             errorMetrics,
             tinctureDispatcher,
-            pullIntentService)
+            pullIntentService,
+            burstWindowService)
     {
         // Store timeline service
         _timelineService = timelineService;
 
         // Store training service
         _trainingService = trainingService;
+
+        PrePullModule?.Register(new AstraeaPrePullCandidate());
 
         // Initialize Astrologian-specific services
         _cardService = new CardTrackingService(jobGauges);
@@ -143,12 +147,12 @@ public sealed class Astraea : BaseHealerRotation<IAstraeaContext, IAstraeaModule
         // Initialize modules (ordered by priority - lower = executed first)
         _modules = new List<IAstraeaModule>
         {
-            new CardModule(),           // Priority 3 - Cards should be played immediately
-            new ResurrectionModule(),   // Priority 5 - Dead members are useless
-            new HealingModule(),        // Priority 10 - Keep party alive
-            new DefensiveModule(),      // Priority 20 - Mitigation (Neutral Sect, etc.)
-            new BuffModule(),           // Priority 30 - Buffs (Lightspeed, Lucid)
-            new DamageModule(),         // Priority 50 - DPS when safe
+            new CardModule(burstWindowService),
+            new ResurrectionModule(),
+            new HealingModule(),
+            new DefensiveModule(),
+            new BuffModule(burstWindowService),
+            new DamageModule(burstWindowService),
         };
 
         _modules.Sort((a, b) => a.Priority.CompareTo(b.Priority));
@@ -181,8 +185,8 @@ public sealed class Astraea : BaseHealerRotation<IAstraeaContext, IAstraeaModule
     /// <inheritdoc />
     protected override void UpdateJobSpecificServices(IPlayerCharacter player, bool inCombat)
     {
-        // Call base healer service updates
         base.UpdateJobSpecificServices(player, inCombat);
+        BurstWindowService?.Update(player, TargetingService.GetUserEnemyTarget(), inCombat);
 
         // Update Earthly Star tracking
         _earthlyStarService.Update();
@@ -245,8 +249,8 @@ public sealed class Astraea : BaseHealerRotation<IAstraeaContext, IAstraeaModule
     /// <summary>
     /// Fully scheduler-driven execution. All modules push candidates and the scheduler
     /// dispatches the highest-priority candidate from each queue. Push priorities preserve
-    /// legacy ordering: Card (0-10), Resurrection (1-2), Healing (5-80), Defensive (75-130),
-    /// Buff (195-250), Damage (285-330).
+    /// legacy ordering: Card (0-10), Resurrection (1-2), Lucid (1 when low MP), Healing (5-80),
+    /// Defensive (75-130), Buff/Lightspeed (195), Damage (285-330).
     /// </summary>
     protected override void ExecuteModules(IAstraeaContext context, bool isMoving, bool inCombat)
     {

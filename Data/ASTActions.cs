@@ -1134,12 +1134,20 @@ public static class ASTActions
     /// <summary>
     /// Lady of Crowns buff status ID.
     /// </summary>
-    public const ushort LadyOfCrownsStatusId = 3890;
+    public const ushort LadyOfCrownsStatusId = 0;
+
+    public const ushort TheBoleStatusId = 3890;
+    public const ushort TheArrowStatusId = 3888;
+    public const ushort TheEwerStatusId = 3891;
+    public const ushort TheSpireStatusId = 3892;
 
     /// <summary>
     /// Sun Sign buff status ID.
     /// </summary>
     public const ushort SunSignStatusId = 3896;
+
+    /// <summary>Neutral Sect follow-up proc required for Sun Sign.</summary>
+    public const ushort SuntouchedStatusId = 3895;
 
     #endregion
 

@@ -47,6 +47,40 @@ public sealed class AstraeaStatusHelper : BaseStatusHelper
     }
 
     /// <summary>
+    /// Checks if Divination party damage buff is active.
+    /// </summary>
+    public bool HasDivination(IPlayerCharacter player)
+    {
+        return HasStatus(player, ASTActions.DivinationStatusId);
+    }
+
+    /// <summary>
+    /// Checks if Suntouched (Neutral Sect follow-up) is active.
+    /// </summary>
+    public bool HasSuntouched(IPlayerCharacter player)
+    {
+        return HasStatus(player, ASTActions.SuntouchedStatusId);
+    }
+
+    /// <summary>
+    /// Checks if Collective Unconscious channel/bubble is active.
+    /// </summary>
+    public static bool HasCollectiveUnconscious(IPlayerCharacter player)
+    {
+        return HasStatus(player, ASTActions.CollectiveUnconsciousStatusId);
+    }
+
+    /// <summary>
+    /// Checks if Suntouched will expire within the given GCD count (approx 2.5s per GCD).
+    /// </summary>
+    public bool WillSuntouchedExpireWithinGcds(IPlayerCharacter player, int gcdCount)
+    {
+        if (!HasSuntouched(player)) return false;
+        var remaining = GetStatusRemaining(player, ASTActions.SuntouchedStatusId);
+        return remaining <= gcdCount * 2.5f;
+    }
+
+    /// <summary>
     /// Checks if the player has Horoscope buff (can detonate for heal).
     /// </summary>
     public bool HasHoroscope(IPlayerCharacter player)
@@ -163,6 +197,10 @@ public sealed class AstraeaStatusHelper : BaseStatusHelper
         {
             if (status.StatusId is ASTActions.TheBalanceStatusId or
                 ASTActions.TheSpearStatusId or
+                ASTActions.TheBoleStatusId or
+                ASTActions.TheArrowStatusId or
+                ASTActions.TheEwerStatusId or
+                ASTActions.TheSpireStatusId or
                 ASTActions.LordOfCrownsStatusId)
             {
                 return true;

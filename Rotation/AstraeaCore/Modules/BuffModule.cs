@@ -8,6 +8,7 @@ using Olympus.Rotation.AstraeaCore.Helpers;
 using Olympus.Rotation.Common.Modules;
 using Olympus.Rotation.Common.RoleActionHelpers;
 using Olympus.Rotation.Common.Scheduling;
+using Olympus.Services;
 using Olympus.Services.Training;
 
 namespace Olympus.Rotation.AstraeaCore.Modules;
@@ -17,6 +18,13 @@ namespace Olympus.Rotation.AstraeaCore.Modules;
 /// </summary>
 public sealed class BuffModule : BaseBuffModule<IAstraeaContext>, IAstraeaModule
 {
+    private readonly IBurstWindowService? _burstWindowService;
+
+    public BuffModule(IBurstWindowService? burstWindowService = null)
+    {
+        _burstWindowService = burstWindowService;
+    }
+
     public override string Name => "Buff";
 
     private static readonly string[] _lightspeedAlternatives =
@@ -73,6 +81,10 @@ public sealed class BuffModule : BaseBuffModule<IAstraeaContext>, IAstraeaModule
             LightspeedUsageStrategy.SaveForRaise => false,
             _ => false
         };
+
+        if (!shouldUse && AstraeaCardHelper.ShouldUseLightspeedBurst(context, _burstWindowService))
+            shouldUse = true;
+
         if (!shouldUse) return;
 
         var capturedIsMoving = isMoving;
@@ -130,7 +142,7 @@ public sealed class BuffModule : BaseBuffModule<IAstraeaContext>, IAstraeaModule
         RoleActionPushers.TryPushLucidDreaming(
             context, scheduler, AstraeaAbilities.LucidDreaming,
             mpThresholdPct: context.Configuration.HealerShared.LucidDreamingThreshold,
-            priority: 200,
+            priority: 1,
             onDispatched: _ =>
             {
                 SetPlannedAction(context, RoleActions.LucidDreaming.Name);

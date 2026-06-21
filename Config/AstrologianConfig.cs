@@ -303,6 +303,72 @@ public sealed class AstrologianConfig
     public CardPlayStrategy CardStrategy { get; set; } = CardPlayStrategy.DpsFocused;
 
     /// <summary>
+    /// HP threshold for tank-support cards (The Bole). Targets main tank, or an injured ally below this HP.
+    /// </summary>
+    private float _cardTankSupportThreshold = 0.80f;
+    public float CardTankSupportThreshold
+    {
+        get => _cardTankSupportThreshold;
+        set => _cardTankSupportThreshold = Math.Clamp(value, 0f, 1f);
+    }
+
+    /// <summary>
+    /// HP threshold for healing-support cards (The Arrow, The Ewer, The Spire).
+    /// </summary>
+    private float _cardHealingThreshold = 0.80f;
+    public float CardHealingThreshold
+    {
+        get => _cardHealingThreshold;
+        set => _cardHealingThreshold = Math.Clamp(value, 0f, 1f);
+    }
+
+    /// <summary>
+    /// Play held cards outside burst windows to avoid idle time (always-be-casting).
+    /// Support cards still prefer valid targets; falls back to tank/self when enabled.
+    /// </summary>
+    public bool DumpCardsWhenIdle { get; set; } = true;
+
+    /// <summary>
+    /// Hold Balance/Spear/Lord for Divination unless drift timer expires or dump mode is on.
+    /// </summary>
+    public bool CardsUnderDivinationOnly { get; set; } = true;
+
+    /// <summary>
+    /// Use Divination during burst windows instead of on cooldown.
+    /// </summary>
+    public bool DivinationOnBurst { get; set; } = true;
+
+    /// <summary>
+    /// Seconds before draw comes off cooldown to force-play remaining cards.
+    /// </summary>
+    private float _expireCardsBeforeDrawSeconds = 3f;
+    public float ExpireCardsBeforeDrawSeconds
+    {
+        get => _expireCardsBeforeDrawSeconds;
+        set => _expireCardsBeforeDrawSeconds = Math.Clamp(value, 1f, 10f);
+    }
+
+    /// <summary>
+    /// Skip routine ST healing while Divining, Macrocosmos, or mature Earthly Star is active.
+    /// </summary>
+    public bool EnableHealingLockout { get; set; } = true;
+
+    /// <summary>
+    /// Use Lightspeed during burst / post-Divination windows (in addition to strategy).
+    /// </summary>
+    public bool LightspeedDuringBurst { get; set; } = true;
+
+    /// <summary>
+    /// Use Astral Draw during pre-pull when pull intent is detected.
+    /// </summary>
+    public bool PrePullAstralDraw { get; set; } = true;
+
+    /// <summary>
+    /// Place Earthly Star during pre-pull when pull intent is detected.
+    /// </summary>
+    public bool PrePullEarthlyStar { get; set; } = true;
+
+    /// <summary>
     /// Whether to use Minor Arcana.
     /// </summary>
     public bool EnableMinorArcana { get; set; } = true;
@@ -310,7 +376,7 @@ public sealed class AstrologianConfig
     /// <summary>
     /// Minor Arcana usage strategy.
     /// </summary>
-    public MinorArcanaUsageStrategy MinorArcanaStrategy { get; set; } = MinorArcanaUsageStrategy.EmergencyOnly;
+    public MinorArcanaUsageStrategy MinorArcanaStrategy { get; set; } = MinorArcanaUsageStrategy.OnCooldown;
 
     /// <summary>
     /// HP threshold for Lady of Crowns (Minor Arcana heal).
@@ -328,9 +394,9 @@ public sealed class AstrologianConfig
     public bool EnableDivination { get; set; } = true;
 
     /// <summary>
-    /// Whether to use Astrodyne automatically.
+    /// Whether to use Astrodyne automatically. Seal system removed in Dawntrail — kept for future use.
     /// </summary>
-    public bool EnableAstrodyne { get; set; } = true;
+    public bool EnableAstrodyne { get; set; } = false;
 
     /// <summary>
     /// Minimum unique seals for Astrodyne (1-3).

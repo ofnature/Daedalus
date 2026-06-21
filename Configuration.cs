@@ -39,6 +39,12 @@ public sealed class Configuration : IPluginConfiguration
     public string LanguageOverride { get; set; } = string.Empty;
 
     /// <summary>
+    /// When true, automatically applies dungeon/raid/trial tuning based on the current zone.
+    /// Does not modify saved settings; rotations use a runtime overlay snapshot.
+    /// </summary>
+    public bool EnableAutoDutyConfig { get; set; } = true;
+
+    /// <summary>
     /// The currently active configuration preset.
     /// Set to Custom when user modifies individual settings after applying a preset.
     /// </summary>

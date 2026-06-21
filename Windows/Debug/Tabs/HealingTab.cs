@@ -6,6 +6,7 @@ using Dalamud.Bindings.ImGui;
 using Olympus.Localization;
 using Olympus.Services.Debug;
 using Olympus.Services.Healing;
+using Olympus.Windows.Debug;
 
 namespace Olympus.Windows.Debug.Tabs;
 
@@ -19,7 +20,7 @@ public static class HealingTab
         // Spell Status Section (comprehensive spell list with ready/cooldown status)
         if (IsSectionVisible(config, "SpellStatus"))
         {
-            DrawSpellStatus(debugService);
+            RoleDebugTabHelpers.DrawSpellStatus(debugService, RoleDebugTab.Healing);
             ImGui.Spacing();
         }
 
@@ -57,116 +58,6 @@ public static class HealingTab
             DrawShadowHpTracking(snapshot);
         }
     }
-
-    private static void DrawSpellStatus(DebugService debugService)
-    {
-        var playerLevel = debugService.GetPlayerLevel();
-        if (playerLevel == 0)
-        {
-            ImGui.TextColored(DebugColors.Dim, Loc.T(LocalizedStrings.Debug.NotLoggedIn, "Not logged in"));
-            return;
-        }
-
-        var snapshot = debugService.GetSpellStatus(playerLevel);
-
-        ImGui.Text(Loc.T(LocalizedStrings.Debug.SpellStatus, "Spell Status"));
-        ImGui.SameLine();
-        ImGui.TextColored(DebugColors.Dim, Loc.TFormat(LocalizedStrings.Debug.LevelFormat, "(Lv{0})", snapshot.PlayerLevel));
-        ImGui.Separator();
-
-        // Group spells by category
-        var groups = snapshot.Spells
-            .GroupBy(s => s.Category)
-            .OrderBy(g => (int)g.Key);
-
-        foreach (var group in groups)
-        {
-            var categoryName = GetCategoryDisplayName(group.Key);
-            var readyCount = group.Count(s => s.IsReady);
-            var totalCount = group.Count();
-
-            if (ImGui.CollapsingHeader($"{categoryName} ({readyCount}/{totalCount})##{group.Key}"))
-            {
-                DrawSpellGroup(group.ToList());
-            }
-        }
-    }
-
-    private static void DrawSpellGroup(List<SpellStatusEntry> spells)
-    {
-        if (ImGui.BeginTable("SpellStatusTable", 4,
-            ImGuiTableFlags.BordersInnerV | ImGuiTableFlags.RowBg | ImGuiTableFlags.SizingStretchProp))
-        {
-            ImGui.TableSetupColumn("Spell", ImGuiTableColumnFlags.WidthFixed, 140);
-            ImGui.TableSetupColumn("Lv", ImGuiTableColumnFlags.WidthFixed, 30);
-            ImGui.TableSetupColumn("Ready", ImGuiTableColumnFlags.WidthFixed, 50);
-            ImGui.TableSetupColumn("Cooldown", ImGuiTableColumnFlags.WidthStretch);
-            ImGui.TableHeadersRow();
-
-            foreach (var spell in spells)
-            {
-                ImGui.TableNextRow();
-
-                // Spell name
-                ImGui.TableNextColumn();
-                var nameColor = spell.IsLevelSynced
-                    ? (spell.IsReady ? DebugColors.Success : DebugColors.Dim)
-                    : DebugColors.Failure;
-                ImGui.TextColored(nameColor, spell.Name);
-
-                // Level
-                ImGui.TableNextColumn();
-                var lvColor = spell.IsLevelSynced ? DebugColors.Dim : DebugColors.Failure;
-                ImGui.TextColored(lvColor, spell.MinLevel.ToString());
-
-                // Ready status
-                ImGui.TableNextColumn();
-                if (spell.IsReady)
-                {
-                    ImGui.TextColored(DebugColors.Success, "OK");
-                }
-                else if (!spell.IsLevelSynced)
-                {
-                    ImGui.TextColored(DebugColors.Failure, "Sync");
-                }
-                else
-                {
-                    ImGui.TextColored(DebugColors.Warning, "CD");
-                }
-
-                // Cooldown
-                ImGui.TableNextColumn();
-                if (!spell.IsGCD && spell.CooldownRemaining > 0)
-                {
-                    ImGui.TextColored(DebugColors.Warning, $"{spell.CooldownRemaining:F1}s");
-                }
-                else if (!spell.IsReady && spell.NotReadyReason != null)
-                {
-                    ImGui.TextColored(DebugColors.Dim, spell.NotReadyReason);
-                }
-                else
-                {
-                    ImGui.TextColored(DebugColors.Dim, "-");
-                }
-            }
-
-            ImGui.EndTable();
-        }
-    }
-
-    private static string GetCategoryDisplayName(SpellCategory category) => category switch
-    {
-        SpellCategory.GcdHealSingle => Loc.T(LocalizedStrings.Debug.GcdHealsSingle, "GCD Heals (Single)"),
-        SpellCategory.GcdHealAoE => Loc.T(LocalizedStrings.Debug.GcdHealsAoE, "GCD Heals (AoE)"),
-        SpellCategory.GcdHealHoT => Loc.T(LocalizedStrings.Debug.GcdHealsHoT, "GCD Heals (HoT)"),
-        SpellCategory.OgcdHealSingle => Loc.T(LocalizedStrings.Debug.OgcdHealsSingle, "oGCD Heals (Single)"),
-        SpellCategory.OgcdHealAoE => Loc.T(LocalizedStrings.Debug.OgcdHealsAoE, "oGCD Heals (AoE)"),
-        SpellCategory.GcdDamageSingle => Loc.T(LocalizedStrings.Debug.GcdDamageSingle, "GCD Damage (Single)"),
-        SpellCategory.GcdDamageAoE => Loc.T(LocalizedStrings.Debug.GcdDamageAoE, "GCD Damage (AoE)"),
-        SpellCategory.GcdDoT => Loc.T(LocalizedStrings.Debug.GcdDoT, "GCD DoT"),
-        SpellCategory.Utility => Loc.T(LocalizedStrings.Debug.Utility, "Utility"),
-        _ => category.ToString()
-    };
 
     private static void DrawSpellSelection(DebugService debugService)
     {

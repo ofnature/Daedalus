@@ -95,6 +95,33 @@ public class PositionalMovementServiceTests
     }
 
     [Fact]
+    public void Update_WhenNotInCombat_DoesNotStopUserVNavPath()
+    {
+        var service = CreateService();
+        _vNav.Setup(x => x.IsPathRunning).Returns(true);
+
+        service.Update(CreateRequest() with { InCombat = false });
+
+        Assert.Equal(PositionalMovementPhase.Skipped, service.State.Phase);
+        _vNav.Verify(x => x.Stop(), Times.Never);
+    }
+
+    [Fact]
+    public void Update_WhenLeavingCombat_StopsOwnedVNavPath()
+    {
+        var service = CreateService();
+        _anticipation.Next = new PositionalAnticipation(PositionalType.Rear, 7481, PositionalAnticipationReason.ComboSetup);
+        service.Update(CreateRequest());
+        Assert.Equal(PositionalMovementPhase.Moving, service.State.Phase);
+
+        _vNav.Setup(x => x.IsPathRunning).Returns(true);
+        service.Update(CreateRequest() with { InCombat = false });
+
+        _vNav.Verify(x => x.Stop(), Times.Once);
+        Assert.Equal(PositionalMovementPhase.Skipped, service.State.Phase);
+    }
+
+    [Fact]
     public void Update_WhenTelegraphAppears_AbortsRunningPath()
     {
         var service = CreateService();

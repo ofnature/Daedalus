@@ -114,6 +114,22 @@ public sealed class DebugWindow : Window
                 ImGui.EndTabItem();
             }
 
+            var showDamageTab = activeJobId == 0
+                || SpellStatusRegistry.HasActionsForTab(activeJobId, RoleDebugTab.Damage);
+            if (showDamageTab && ImGui.BeginTabItem(Loc.T(LocalizedStrings.Debug.TabDamage, "Damage")))
+            {
+                DamageTab.Draw(snapshot, _configuration, _debugService);
+                ImGui.EndTabItem();
+            }
+
+            var showMitigationTab = activeJobId == 0
+                || SpellStatusRegistry.HasActionsForTab(activeJobId, RoleDebugTab.Mitigation);
+            if (showMitigationTab && ImGui.BeginTabItem(Loc.T(LocalizedStrings.Debug.TabMitigation, "Mitigation")))
+            {
+                MitigationTab.Draw(snapshot, _configuration, _debugService);
+                ImGui.EndTabItem();
+            }
+
             if (ImGui.BeginTabItem(Loc.T(LocalizedStrings.Debug.TabActions, "Actions")))
             {
                 ActionsTab.Draw(snapshot, _configuration, _debugService);
