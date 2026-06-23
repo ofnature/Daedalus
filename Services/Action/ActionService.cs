@@ -59,6 +59,11 @@ public sealed unsafe class ActionService : IActionService
     // Guard so modules can't spam UseAction every frame while GcdRemaining stays at 0
     // after a successful submit but before recast group 57 activates.
     private bool _gcdSubmittedThisCycle;
+    // Latches the one-time queue-window release of the submit guard per GCD cycle. Without it the
+    // still-active (near-complete) outgoing recast keeps re-satisfying HasCompletedSubmittedRecast
+    // every frame, re-clearing the guard and letting ExecuteGcd re-submit the same GCD every frame
+    // for the whole ~0.5s queue window (observed as melee skill spam, e.g. 17x Spinning Edge).
+    private bool _queueWindowReleasedThisCycle;
     private bool _recastGroupWasActive;
     private bool _gcdRecastSeenSinceSubmit;
     private float _peakRecastElapsedSinceSubmit;
@@ -202,17 +207,24 @@ public sealed unsafe class ActionService : IActionService
                 _peakRecastTotalSinceSubmit = recastDetail->Total;
         }
 
-        // Current GCD far enough along — release the guard so the queue window can submit the next GCD.
-        if (_gcdSubmittedThisCycle && recastActive && HasCompletedSubmittedRecast())
+        // Current GCD far enough along — release the guard ONCE so the queue window can submit the
+        // next GCD. The per-cycle latch is critical: after a release+submit resets the peak trackers,
+        // the next frame repopulates them from the still-active (~99% complete) outgoing recast, which
+        // would otherwise re-satisfy the 85% threshold and re-clear the guard every frame.
+        if (_gcdSubmittedThisCycle && recastActive && !_queueWindowReleasedThisCycle
+            && HasCompletedSubmittedRecast())
+        {
             _gcdSubmittedThisCycle = false;
+            _queueWindowReleasedThisCycle = true;
+        }
 
-        // Clear the submit guard once per GCD cycle when group 57 finishes a real roll.
-        // Ignore brief recast blips from rejected UseAction calls (common spam source).
+        // Recast group 57 rolled over: the queued GCD has begun its own recast (or the queue emptied).
+        // Re-arm the per-cycle release latch and reset the peak trackers. The submit guard intentionally
+        // carries the "next GCD already queued" state into the new cycle; it is released again at ~85%,
+        // or recovered by the stale-guard timeouts below if the queued action never committed.
         if (_recastGroupWasActive && !recastActive)
         {
-            if (ShouldClearGcdSubmitGuard())
-                _gcdSubmittedThisCycle = false;
-
+            _queueWindowReleasedThisCycle = false;
             _peakRecastElapsedSinceSubmit = 0;
             _peakRecastTotalSinceSubmit = 0;
             _gcdRecastSeenSinceSubmit = false;
@@ -678,9 +690,6 @@ public sealed unsafe class ActionService : IActionService
         => _gcdRecastSeenSinceSubmit
            && _peakRecastTotalSinceSubmit > 0f
            && _peakRecastElapsedSinceSubmit >= _peakRecastTotalSinceSubmit * MinRecastCompletionRatio;
-
-    private bool ShouldClearGcdSubmitGuard()
-        => _gcdSubmittedThisCycle && HasCompletedSubmittedRecast();
 
     private void RaiseActionExecuted(ActionDefinition action)
     {
