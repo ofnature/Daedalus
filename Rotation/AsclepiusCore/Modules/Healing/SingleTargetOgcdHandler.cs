@@ -71,7 +71,14 @@ public sealed class SingleTargetOgcdHandler : IHealingHandler
         if (target == null) { context.Debug.DruocholeState = "No target"; return; }
 
         var hpPercent = GetHpPercent(target);
-        if (!CanSpendAddersgall(context, target, hpPercent))
+
+        var addersgall = context.AddersgallService;
+        var dumpCeiling = addersgall.IsAtMax ? HardCapDumpThreshold : AddersgallDumpThreshold;
+        var capDump = config.PreventAddersgallCap
+                      && addersgall.ShouldPreventCap(config.AddersgallCapPreventWindow)
+                      && hpPercent <= dumpCeiling;
+
+        if (!CanSpendAddersgall(context, target, hpPercent) && !capDump)
         {
             context.Debug.DruocholeState = $"Reserved ({config.AddersgallReserve})";
             return;
@@ -88,12 +95,6 @@ public sealed class SingleTargetOgcdHandler : IHealingHandler
         // on a topped-off ally (ceiling > 1.0); while merely about to cap we still have headroom, so
         // only dump onto a clearly injured ally. This self-limits to ~once per regen cycle: spending
         // leaves the cap, the timer restarts, and ShouldPreventCap only re-triggers near the next cap.
-        var addersgall = context.AddersgallService;
-        var dumpCeiling = addersgall.IsAtMax ? HardCapDumpThreshold : AddersgallDumpThreshold;
-        var capDump = config.PreventAddersgallCap
-                      && addersgall.ShouldPreventCap(config.AddersgallCapPreventWindow)
-                      && hpPercent <= dumpCeiling;
-
         if (hpPercent > threshold && !capDump)
         {
             context.Debug.DruocholeState = $"{hpPercent:P0} > {threshold:P0}";

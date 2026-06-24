@@ -18,6 +18,11 @@ public interface IPartyHelper : ISpikeTargetSource
     IEnumerable<IBattleChara> GetAllPartyMembers(IPlayerCharacter player, bool includeDead = false);
 
     /// <summary>
+    /// Live party size including the player (Trust NPCs count when PartyList is empty).
+    /// </summary>
+    int GetPartySize(IPlayerCharacter player, bool includeDead = true);
+
+    /// <summary>
     /// Finds the tank in the party.
     /// </summary>
     IBattleChara? FindTankInParty(IPlayerCharacter player);

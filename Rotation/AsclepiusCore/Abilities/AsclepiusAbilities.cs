@@ -1,4 +1,6 @@
 using Olympus.Data;
+using Olympus.Rotation.AsclepiusCore.Context;
+using Olympus.Rotation.AsclepiusCore.Helpers;
 using Olympus.Rotation.Common.Scheduling;
 
 namespace Olympus.Rotation.AsclepiusCore.Abilities;
@@ -80,9 +82,32 @@ public static class AsclepiusAbilities
     public static readonly AbilityBehavior EukrasianDosis = new() { Action = SGEActions.EukrasianDosis };
     public static readonly AbilityBehavior EukrasianDosisII = new() { Action = SGEActions.EukrasianDosisII };
     public static readonly AbilityBehavior EukrasianDosisIII = new() { Action = SGEActions.EukrasianDosisIII };
-    public static readonly AbilityBehavior Phlegma = new() { Action = SGEActions.Phlegma };
-    public static readonly AbilityBehavior PhlegmaII = new() { Action = SGEActions.PhlegmaII };
-    public static readonly AbilityBehavior PhlegmaIII = new() { Action = SGEActions.PhlegmaIII };
+    private static readonly ChargeHoldPolicy PhlegmaBurstHold = ChargeHoldPolicy.HoldOneForBurst(
+        ctx => ctx is IAsclepiusContext sge && AsclepiusPhlegmaHelper.IsBurstWindowActive(sge));
+
+    public static readonly AbilityBehavior Phlegma = new()
+    {
+        Action = SGEActions.Phlegma,
+        Toggle = cfg => cfg.Sage.EnablePhlegma,
+        ChargeSource = SGEActions.Phlegma.ActionId,
+        ChargeHold = PhlegmaBurstHold,
+    };
+
+    public static readonly AbilityBehavior PhlegmaII = new()
+    {
+        Action = SGEActions.PhlegmaII,
+        Toggle = cfg => cfg.Sage.EnablePhlegma,
+        ChargeSource = SGEActions.PhlegmaII.ActionId,
+        ChargeHold = PhlegmaBurstHold,
+    };
+
+    public static readonly AbilityBehavior PhlegmaIII = new()
+    {
+        Action = SGEActions.PhlegmaIII,
+        Toggle = cfg => cfg.Sage.EnablePhlegma,
+        ChargeSource = SGEActions.PhlegmaIII.ActionId,
+        ChargeHold = PhlegmaBurstHold,
+    };
     public static readonly AbilityBehavior Toxikon = new() { Action = SGEActions.Toxikon };
     public static readonly AbilityBehavior ToxikonII = new() { Action = SGEActions.ToxikonII };
     public static readonly AbilityBehavior Psyche = new() { Action = SGEActions.Psyche };

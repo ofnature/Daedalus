@@ -96,13 +96,10 @@ public sealed class AstrologianSection
 
             ConfigUIHelpers.Spacing();
             ConfigUIHelpers.SectionLabel(Loc.T(LocalizedStrings.Astrologian.AoESettings, "AoE Settings:"));
+            ConfigUIHelpers.InfoTooltip("AoE min injured count is under WHM → Healing (shared). Auto-adjust: 2 in dungeons/trust, 3 in raids.");
 
             config.Astrologian.AoEHealThreshold = ConfigUIHelpers.ThresholdSlider(Loc.T(LocalizedStrings.Astrologian.AoEHpThreshold, "AoE HP Threshold"),
                 config.Astrologian.AoEHealThreshold, 50f, 90f, null, save, v => config.Astrologian.AoEHealThreshold = v);
-
-            config.Astrologian.AoEHealMinTargets = ConfigUIHelpers.IntSlider(Loc.T(LocalizedStrings.Astrologian.AoEMinTargets, "AoE Min Targets"),
-                config.Astrologian.AoEHealMinTargets, 1, 8,
-                Loc.T(LocalizedStrings.Astrologian.AoEMinTargetsDesc, "Minimum party members below threshold for AoE heals."), save, v => config.Astrologian.AoEHealMinTargets = v);
 
             ConfigUIHelpers.EndIndent();
         }

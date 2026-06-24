@@ -130,7 +130,9 @@ public sealed class BuffModule : IApolloModule
             var (mind, det, wd) = context.PlayerStatsService.GetHealingStats(player.Level);
             var medicaHealAmount = WHMActions.Medica.EstimateHealAmount(mind, det, wd, player.Level);
             var (injuredCount, _, _, _) = context.PartyHelper.CountPartyMembersNeedingAoEHeal(player, medicaHealAmount);
-            if (injuredCount >= config.Healing.AoEHealMinTargets)
+            var minTargets = AoEHealTargetHelper.GetEffectiveMinTargets(
+                config.Healing, context.PartyHelper.GetPartySize(player));
+            if (injuredCount >= minTargets)
             {
                 shouldUseThinAir = true;
                 usageReason = $"For AoE Heal ({chargeInfo})";
@@ -538,7 +540,9 @@ public sealed class BuffModule : IApolloModule
             var (mind, det, wd) = context.PlayerStatsService.GetHealingStats(player.Level);
             var healAmount = WHMActions.Medica.EstimateHealAmount(mind, det, wd, player.Level);
             var (injuredCount, _, _, _) = context.PartyHelper.CountPartyMembersNeedingAoEHeal(player, healAmount);
-            if (injuredCount >= config.Healing.AoEHealMinTargets) return true;
+            var minTargets = AoEHealTargetHelper.GetEffectiveMinTargets(
+                config.Healing, context.PartyHelper.GetPartySize(player));
+            if (injuredCount >= minTargets) return true;
         }
 
         if (config.EnableHealing && player.Level >= WHMActions.CureII.MinLevel)

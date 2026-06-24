@@ -5,6 +5,7 @@ using Olympus.Models.Action;
 using Olympus.Rotation.ApolloCore.Helpers;
 using Olympus.Rotation.AthenaCore.Abilities;
 using Olympus.Rotation.AthenaCore.Context;
+using Olympus.Rotation.Common.Helpers;
 using Olympus.Rotation.Common.Scheduling;
 using Olympus.Services.Training;
 
@@ -112,7 +113,9 @@ public sealed class RecitationHandler : IHealingHandler
         var player = context.Player;
 
         var (avgHp, _, injuredCount) = context.PartyHelper.CalculatePartyHealthMetrics(player);
-        return avgHp <= config.AoEHealThreshold && injuredCount >= config.AoEHealMinTargets;
+        var minTargets = AoEHealTargetHelper.GetEffectiveMinTargets(
+            context.Configuration.Healing, context.PartyHelper.GetPartySize(player));
+        return avgHp <= config.AoEHealThreshold && injuredCount >= minTargets;
     }
 
     private static bool ShouldUseSingleTargetHeal(IAthenaContext context)
@@ -138,6 +141,8 @@ public sealed class RecitationHandler : IHealingHandler
         var raidwideImminent = TimelineHelper.IsRaidwideImminent(
             context.TimelineService, context.BossMechanicDetector, context.Configuration, out _);
 
-        return (avgHp <= config.AoEHealThreshold && count >= config.AoEHealMinTargets) || raidwideImminent;
+        var minTargets = AoEHealTargetHelper.GetEffectiveMinTargets(
+            context.Configuration.Healing, context.PartyHelper.GetPartySize(player));
+        return (avgHp <= config.AoEHealThreshold && count >= minTargets) || raidwideImminent;
     }
 }

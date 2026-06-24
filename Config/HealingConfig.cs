@@ -337,6 +337,8 @@ public sealed class HealingConfig
     /// <summary>
     /// Minimum number of party members below threshold to trigger AoE healing.
     /// Default 3 means use AoE heal when 3+ party members need healing.
+    /// When <see cref="AutoAdjustAoEHealMinTargetsByPartySize"/> is enabled, dungeon/trust
+    /// parties (≤4) use 2 and raid parties (≥8) use 3 regardless of this value.
     /// Valid range: 1 to 8.
     /// </summary>
     private int _aoEHealMinTargets = 3;
@@ -345,6 +347,12 @@ public sealed class HealingConfig
         get => _aoEHealMinTargets;
         set => _aoEHealMinTargets = Math.Clamp(value, 1, 8);
     }
+
+    /// <summary>
+    /// When true, minimum AoE heal targets follow party size (2 for ≤4 members, 3 for ≥8).
+    /// Manual <see cref="AoEHealMinTargets"/> applies when auto-adjust is off or party size is 5–7.
+    /// </summary>
+    public bool AutoAdjustAoEHealMinTargetsByPartySize { get; set; } = true;
 
     /// <summary>
     /// HP percentage threshold for counting a party member as needing AoE healing.

@@ -5,6 +5,7 @@ using Olympus.Models.Action;
 using Olympus.Rotation.ApolloCore.Helpers;
 using Olympus.Rotation.AstraeaCore.Abilities;
 using Olympus.Rotation.AstraeaCore.Context;
+using Olympus.Rotation.Common.Helpers;
 using Olympus.Rotation.Common.Scheduling;
 using Olympus.Services.Training;
 
@@ -39,7 +40,9 @@ public sealed class CelestialOppositionHandler : IHealingHandler
         var raidwideImminent = TimelineHelper.IsRaidwideImminent(
             context.TimelineService, context.BossMechanicDetector, context.Configuration, out _);
 
-        var shouldUse = (avgHp <= config.AoEHealThreshold && count >= config.AoEHealMinTargets) || raidwideImminent;
+        var minTargets = AoEHealTargetHelper.GetEffectiveMinTargets(
+            context.Configuration.Healing, context.PartyHelper.GetPartySize(player));
+        var shouldUse = (avgHp <= config.AoEHealThreshold && count >= minTargets) || raidwideImminent;
         if (!shouldUse) return;
 
         var action = ASTActions.CelestialOpposition;

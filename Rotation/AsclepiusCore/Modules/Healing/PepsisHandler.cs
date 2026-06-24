@@ -4,6 +4,7 @@ using Olympus.Data;
 using Olympus.Rotation.AsclepiusCore.Abilities;
 using Olympus.Rotation.AsclepiusCore.Context;
 using Olympus.Rotation.AsclepiusCore.Helpers;
+using Olympus.Rotation.Common.Helpers;
 using Olympus.Rotation.Common.Scheduling;
 using Olympus.Services.Training;
 
@@ -40,7 +41,9 @@ public sealed class PepsisHandler : IHealingHandler
             }
         }
 
-        if (shieldedCount < config.AoEHealMinTargets) { context.Debug.PepsisState = $"{shieldedCount} shielded"; return; }
+        var minTargets = AoEHealTargetHelper.GetEffectiveMinTargets(
+            context.Configuration.Healing, context.PartyHelper.GetPartySize(player));
+        if (shieldedCount < minTargets) { context.Debug.PepsisState = $"{shieldedCount} shielded"; return; }
 
         var (avgHp, _, _) = context.PartyHelper.CalculatePartyHealthMetrics(player);
         if (avgHp > config.PepsisThreshold) { context.Debug.PepsisState = $"Avg HP {avgHp:P0}"; return; }

@@ -47,13 +47,20 @@ public class ShieldHealingHandlerSchedulerTests
                 It.IsAny<ulong>()))
             .Returns(true);
 
+        var targetingService = MockBuilders.CreateMockTargetingService();
+        targetingService.Setup(x => x.GetBestStatusRemainingFromSourceOnAnyEnemy(
+                It.IsAny<uint[]>(), It.IsAny<uint>(), It.IsAny<float>(), It.IsAny<Dalamud.Game.ClientState.Objects.SubKinds.IPlayerCharacter>()))
+            .Returns(25f);
+
         var context = AsclepiusTestContext.Create(
             config: config,
             partyHelper: partyHelper,
             actionService: actionService,
+            targetingService: targetingService,
             level: 100,
             canExecuteGcd: true,
-            hasEukrasia: false);
+            hasEukrasia: false,
+            adderstingStacks: 0);
 
         var scheduler = SchedulerFactory.CreateForTest(actionService);
 
@@ -100,5 +107,37 @@ public class ShieldHealingHandlerSchedulerTests
             It.IsAny<ulong>()), Times.Never);
         Assert.Empty(scheduler.InspectGcdQueue());
         Assert.Empty(scheduler.InspectOgcdQueue());
+    }
+
+    [Fact]
+    public void CollectCandidates_AdderstingCapped_DoesNotDirectDispatchEukrasia()
+    {
+        var config = AsclepiusTestContext.CreateDefaultSageConfiguration();
+        config.Sage.EnableEukrasianPrognosis = true;
+        config.Sage.EukrasianShieldsForMitigation = false;
+        config.Sage.AoEHealThreshold = 0.85f;
+
+        var partyHelper = MockBuilders.CreateMockPartyHelper();
+        partyHelper.Setup(p => p.CalculatePartyHealthMetrics(It.IsAny<Dalamud.Game.ClientState.Objects.SubKinds.IPlayerCharacter>()))
+            .Returns((avgHpPercent: 0.45f, lowestHpPercent: 0.45f, injuredCount: 4));
+
+        var actionService = MockBuilders.CreateMockActionService(canExecuteGcd: true);
+
+        var context = AsclepiusTestContext.Create(
+            config: config,
+            partyHelper: partyHelper,
+            actionService: actionService,
+            level: 100,
+            canExecuteGcd: true,
+            hasEukrasia: false,
+            adderstingStacks: 3);
+
+        var scheduler = SchedulerFactory.CreateForTest(actionService);
+
+        _handler.CollectCandidates(context, scheduler, isMoving: false);
+
+        actionService.Verify(x => x.ExecuteOgcd(
+            It.Is<ActionDefinition>(a => a.ActionId == SGEActions.Eukrasia.ActionId),
+            It.IsAny<ulong>()), Times.Never);
     }
 }

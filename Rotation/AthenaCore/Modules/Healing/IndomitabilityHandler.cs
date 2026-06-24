@@ -4,6 +4,7 @@ using Olympus.Data;
 using Olympus.Models.Action;
 using Olympus.Rotation.AthenaCore.Abilities;
 using Olympus.Rotation.AthenaCore.Context;
+using Olympus.Rotation.Common.Helpers;
 using Olympus.Rotation.Common.Scheduling;
 using Olympus.Services.Training;
 
@@ -34,7 +35,9 @@ public sealed class IndomitabilityHandler : IHealingHandler
         if (!hasRecitation && context.AetherflowService.CurrentStacks <= config.AetherflowReserve) return;
 
         var (avgHp, _, injuredCount) = context.PartyHelper.CalculatePartyHealthMetrics(player);
-        if (avgHp > config.AoEHealThreshold || injuredCount < config.AoEHealMinTargets) return;
+        var minTargets = AoEHealTargetHelper.GetEffectiveMinTargets(
+            context.Configuration.Healing, context.PartyHelper.GetPartySize(player));
+        if (avgHp > config.AoEHealThreshold || injuredCount < minTargets) return;
 
         var action = SCHActions.Indomitability;
 

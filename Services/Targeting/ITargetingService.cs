@@ -19,6 +19,16 @@ public interface ITargetingService
     IBattleNpc? FindEnemyNeedingDot(uint dotStatusId, float refreshThreshold, float maxRange, IPlayerCharacter player);
 
     /// <summary>
+    /// Longest remaining time for any of <paramref name="statusIds"/> on in-range enemies.
+    /// </summary>
+    float GetBestStatusRemainingOnAnyEnemy(uint[] statusIds, float maxRange, IPlayerCharacter player);
+
+    /// <summary>
+    /// Longest remaining time for any of <paramref name="statusIds"/> from <paramref name="sourceId"/> on in-range enemies.
+    /// </summary>
+    float GetBestStatusRemainingFromSourceOnAnyEnemy(uint[] statusIds, uint sourceId, float maxRange, IPlayerCharacter player);
+
+    /// <summary>
     /// Counts the number of valid enemies within the specified radius of the player.
     /// </summary>
     int CountEnemiesInRange(float radius, IPlayerCharacter player);

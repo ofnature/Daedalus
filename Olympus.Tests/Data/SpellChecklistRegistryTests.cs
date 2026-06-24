@@ -14,14 +14,18 @@ public class SpellChecklistRegistryTests
         Assert.Empty(result);
     }
 
-    [Fact]
-    public void GetChecklist_StarterClass_ReturnsEmptyArray()
+    [Theory]
+    [InlineData(JobRegistry.Gladiator, JobRegistry.Paladin)]
+    [InlineData(JobRegistry.Marauder, JobRegistry.Warrior)]
+    [InlineData(JobRegistry.Lancer, JobRegistry.Dragoon)]
+    [InlineData(JobRegistry.Pugilist, JobRegistry.Monk)]
+    public void GetChecklist_StarterClass_MapsToAdvancedJobChecklist(uint starterJobId, uint advancedJobId)
     {
-        // Gladiator, Marauder, etc. have no checklist
-        Assert.Empty(SpellChecklistRegistry.GetChecklist(JobRegistry.Gladiator));
-        Assert.Empty(SpellChecklistRegistry.GetChecklist(JobRegistry.Marauder));
-        Assert.Empty(SpellChecklistRegistry.GetChecklist(JobRegistry.Lancer));
-        Assert.Empty(SpellChecklistRegistry.GetChecklist(JobRegistry.Pugilist));
+        // NormalizeJobId maps base classes to their advanced job for checklist lookups.
+        var starter = SpellChecklistRegistry.GetChecklist(starterJobId);
+        var advanced = SpellChecklistRegistry.GetChecklist(advancedJobId);
+        Assert.NotEmpty(starter);
+        Assert.Equal(advanced.Length, starter.Length);
     }
 
     [Theory]

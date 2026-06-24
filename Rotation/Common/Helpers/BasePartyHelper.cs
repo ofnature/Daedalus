@@ -136,6 +136,17 @@ public abstract class BasePartyHelper
         return true;
     }
 
+    /// <summary>
+    /// Live party size including the player (Trust NPCs count when PartyList is empty).
+    /// </summary>
+    public int GetPartySize(IPlayerCharacter player, bool includeDead = true)
+    {
+        var count = 0;
+        foreach (var _ in GetAllPartyMembers(player, includeDead))
+            count++;
+        return count;
+    }
+
     #endregion
 
     #region Role Detection

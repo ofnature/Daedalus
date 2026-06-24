@@ -519,17 +519,48 @@ public sealed class AsclepiusStatusHelper : BaseStatusHelper
     #region DoT
 
     /// <summary>
+    /// Checks if target has any version of Eukrasian Dosis DoT.
+    /// </summary>
+    public static bool HasEukrasianDosisDoT(IBattleChara target) =>
+        HasEukrasianDosisDoT(target, out _);
+
+    /// <summary>
+    /// Returns the longest remaining Eukrasian Dosis DoT on the target (any rank).
+    /// </summary>
+    public static float GetEukrasianDosisRemaining(IBattleChara target)
+    {
+        var best = 0f;
+        if (target.StatusList == null)
+            return best;
+
+        foreach (var status in target.StatusList)
+        {
+            if ((status.StatusId is SGEActions.EukrasianDosisStatusId
+                    or SGEActions.EukrasianDosisIIStatusId
+                    or SGEActions.EukrasianDosisIIIStatusId)
+                && status.RemainingTime > best)
+            {
+                best = status.RemainingTime;
+            }
+        }
+
+        return best;
+    }
+
+    /// <summary>
+    /// Checks if target has any version of Eukrasian Dosis DoT and returns remaining duration.
+    /// </summary>
+    public static bool HasEukrasianDosisDoT(IBattleChara target, out float remainingTime)
+    {
+        remainingTime = GetEukrasianDosisRemaining(target);
+        return remainingTime > 0f;
+    }
+
+    /// <summary>
     /// Checks if target has Eukrasian Dosis DoT and returns remaining duration.
     /// </summary>
     public static bool HasEukrasianDosis(IBattleChara target, out float remainingTime) =>
-        HasStatus(target, SGEActions.EukrasianDosisStatusId, out remainingTime);
-
-    /// <summary>
-    /// Checks if target has any version of Eukrasian Dosis DoT.
-    /// Note: All Dosis upgrades apply the same DoT status.
-    /// </summary>
-    public static bool HasEukrasianDosisDoT(IBattleChara target) =>
-        HasStatus(target, SGEActions.EukrasianDosisStatusId);
+        HasEukrasianDosisDoT(target, out remainingTime);
 
     #endregion
 

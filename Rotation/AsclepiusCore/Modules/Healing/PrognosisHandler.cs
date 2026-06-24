@@ -4,6 +4,7 @@ using Olympus.Data;
 using Olympus.Rotation.AsclepiusCore.Abilities;
 using Olympus.Rotation.AsclepiusCore.Context;
 using Olympus.Rotation.AsclepiusCore.Helpers;
+using Olympus.Rotation.Common.Helpers;
 using Olympus.Rotation.Common.Scheduling;
 using Olympus.Services.Training;
 
@@ -27,7 +28,9 @@ public sealed class PrognosisHandler : IHealingHandler
 
         var (avgHp, _, injuredCount) = AsclepiusPartyMetrics.GetAoEHealMetrics(context.PartyHelper, player);
 
-        if (injuredCount < config.AoEHealMinTargets) { context.Debug.AoEStatus = $"{injuredCount} < {config.AoEHealMinTargets} injured"; return; }
+        var minTargets = AoEHealTargetHelper.GetEffectiveMinTargets(
+            context.Configuration.Healing, context.PartyHelper.GetPartySize(player));
+        if (injuredCount < minTargets) { context.Debug.AoEStatus = $"{injuredCount} < {minTargets} injured"; return; }
         if (avgHp > config.AoEHealThreshold) { context.Debug.AoEStatus = $"Avg HP {avgHp:P0}"; return; }
 
         // GCD-heal gating: with a co-healer covering the party, leave non-critical AoE healing to

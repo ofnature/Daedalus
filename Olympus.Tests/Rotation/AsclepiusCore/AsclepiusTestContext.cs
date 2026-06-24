@@ -320,6 +320,8 @@ public static class AsclepiusTestContext
         mock.Setup(x => x.IsAtMax).Returns(currentStacks >= 3);
         mock.Setup(x => x.CanAfford(It.IsAny<int>())).Returns((int cost) => currentStacks >= cost);
         mock.Setup(x => x.HasStacksAboveReserve(It.IsAny<int>())).Returns((int reserve) => currentStacks > reserve);
+        mock.Setup(x => x.ShouldPreventCap(It.IsAny<float>())).Returns(
+            currentStacks >= 3 || (currentStacks == 2 && timerRemaining > 0 && timerRemaining <= 3f));
         return mock;
     }
 
@@ -387,6 +389,7 @@ public static class AsclepiusTestContext
         var mock = new Mock<IEukrasiaStateService>();
         mock.Setup(x => x.IsEukrasiaActive(It.IsAny<IPlayerCharacter>())).Returns(isActive);
         mock.Setup(x => x.IsZoeActive(It.IsAny<IPlayerCharacter>())).Returns(false);
+        mock.Setup(x => x.GetEstimatedDotRemainingSeconds()).Returns(0f);
         return mock;
     }
 }

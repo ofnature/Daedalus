@@ -23,8 +23,8 @@ public sealed class TestableAthenaPartyHelper : AthenaPartyHelper
 
     public TestableAthenaPartyHelper(IEnumerable<IBattleChara> members, Configuration? config = null)
         : base(
-            new Mock<IObjectTable>().Object,
-            new Mock<IPartyList>().Object,
+            MockBuilders.CreateMockObjectTable().Object,
+            MockBuilders.CreateMockPartyList(length: 0).Object,
             CreateHpPredictionService(),
             config ?? new Configuration(),
             new AthenaStatusHelper())

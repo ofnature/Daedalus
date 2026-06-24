@@ -4,6 +4,7 @@ using Olympus.Data;
 using Olympus.Rotation.AsclepiusCore.Abilities;
 using Olympus.Rotation.AsclepiusCore.Context;
 using Olympus.Rotation.AsclepiusCore.Helpers;
+using Olympus.Rotation.Common.Helpers;
 using Olympus.Rotation.Common.Scheduling;
 using Olympus.Services.Training;
 
@@ -61,8 +62,10 @@ public sealed class HolosHandler : IHealingHandler
 
         if (!addersgallEmergency)
         {
+            var minTargets = AoEHealTargetHelper.GetEffectiveMinTargets(
+                context.Configuration.Healing, context.PartyHelper.GetPartySize(player));
             if (lowestHp > config.HolosThreshold) { context.Debug.HolosState = $"Lowest HP {lowestHp:P0}"; return; }
-            if (injuredCount < config.AoEHealMinTargets) { context.Debug.HolosState = $"{injuredCount} injured"; return; }
+            if (injuredCount < minTargets) { context.Debug.HolosState = $"{injuredCount} injured"; return; }
         }
 
         var capturedAvgHp = avgHp;

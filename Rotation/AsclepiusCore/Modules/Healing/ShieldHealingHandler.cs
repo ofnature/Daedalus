@@ -5,7 +5,9 @@ using Olympus.Rotation.ApolloCore.Helpers;
 using Olympus.Rotation.AsclepiusCore.Abilities;
 using Olympus.Rotation.AsclepiusCore.Context;
 using Olympus.Rotation.AsclepiusCore.Helpers;
+using Olympus.Rotation.Common.Helpers;
 using Olympus.Rotation.Common.Scheduling;
+using Olympus.Services.Sage;
 using Olympus.Services.Training;
 
 namespace Olympus.Rotation.AsclepiusCore.Modules.Healing;
@@ -30,11 +32,31 @@ public sealed class ShieldHealingHandler : IHealingHandler
 
         if (player.Level < SGEActions.Eukrasia.MinLevel) return;
 
+        // RSR: do not press Eukrasia for E.Diagnosis when Addersting is already full — the shield
+        // break would waste a proc. Gate at MaxStacks (not just IsAtMax) so we stop at 2→3 edge too
+        // when the gauge reads one frame late.
+        if (context.AdderstingService.CurrentStacks >= AdderstingTrackingService.MaxStacks)
+        {
+            context.Debug.EukrasiaState = "Yield (Addersting cap)";
+            return;
+        }
+
         var (avgHp, lowestHp, injuredCount) = AsclepiusPartyMetrics.GetAoEHealMetrics(context.PartyHelper, player);
-        var (shouldActivateForAoE, shouldActivateForSt) = EvaluateShieldNeed(context, config, avgHp, lowestHp, injuredCount);
+        var minAoETargets = AoEHealTargetHelper.GetEffectiveMinTargets(
+            context.Configuration.Healing, context.PartyHelper.GetPartySize(player));
+        var (shouldActivateForAoE, shouldActivateForSt) = EvaluateShieldNeed(
+            context, config, avgHp, lowestHp, injuredCount, minAoETargets);
 
         if (context.HasEukrasia)
         {
+            // DoT maintenance takes priority — don't spend Eukrasia on shields while the
+            // strategy target still needs Eukrasian Dosis apply/refresh.
+            if (EnemyNeedsEukrasianDosis(context))
+            {
+                context.Debug.EukrasiaState = "Reserved for DoT";
+                return;
+            }
+
             // Eukrasia is already up — but only spend it on a shield when one is actually warranted.
             // Otherwise leave the Eukrasia for the DoT (DamageModule presses Eukrasia for Eukrasian
             // Dosis) or another Eukrasian spell. Without this gate the shield hijacks every Eukrasia,
@@ -51,6 +73,13 @@ public sealed class ShieldHealingHandler : IHealingHandler
         }
 
         if (!shouldActivateForAoE && !shouldActivateForSt) return;
+
+        // Let DamageModule activate Eukrasia for DoT when uptime is missing.
+        if (EnemyNeedsEukrasianDosis(context))
+        {
+            context.Debug.EukrasiaState = "Yield (DoT refresh)";
+            return;
+        }
 
         // Yield the single weave slot to a life-saving oGCD heal. Direct-dispatching Eukrasia consumes
         // the weave, so when someone is in the oGCD-emergency band AND we actually have an Addersgall
@@ -84,7 +113,7 @@ public sealed class ShieldHealingHandler : IHealingHandler
     /// never consumes an Eukrasia that was pressed for something else (e.g. the DoT).
     /// </summary>
     private static (bool aoe, bool st) EvaluateShieldNeed(
-        IAsclepiusContext context, SageConfig config, float avgHp, float lowestHp, int injuredCount)
+        IAsclepiusContext context, SageConfig config, float avgHp, float lowestHp, int injuredCount, int minAoETargets)
     {
         if (config.EukrasianShieldsForMitigation)
         {
@@ -102,7 +131,7 @@ public sealed class ShieldHealingHandler : IHealingHandler
 
             var aoe = config.EnableEukrasianPrognosis &&
                       (raidwideImminent ||
-                       (injuredCount >= config.AoEHealMinTargets && avgHp <= config.EukrasianShieldHpBackstop));
+                       (injuredCount >= minAoETargets && avgHp <= config.EukrasianShieldHpBackstop));
             var st = config.EnableEukrasianDiagnosis &&
                      (tankBusterImminent || lowestHp <= config.EukrasianShieldHpBackstop);
             return (aoe, st);
@@ -110,11 +139,25 @@ public sealed class ShieldHealingHandler : IHealingHandler
 
         // Reactive model (legacy): shield whenever HP dips below the shield threshold.
         var aoeReactive = config.EnableEukrasianPrognosis &&
-                          injuredCount >= config.AoEHealMinTargets &&
+                          injuredCount >= minAoETargets &&
                           avgHp < config.AoEHealThreshold;
         var stReactive = config.EnableEukrasianDiagnosis &&
                          lowestHp < config.EukrasianDiagnosisThreshold;
         return (aoeReactive, stReactive);
+    }
+
+    /// <summary>
+    /// True when DoT is enabled and no in-range enemy (or recent cast) has healthy Eukrasian Dosis uptime.
+    /// </summary>
+    private static bool EnemyNeedsEukrasianDosis(IAsclepiusContext context)
+    {
+        if (!AsclepiusDotHelper.IsEnabled(context)) return false;
+
+        var player = context.Player;
+        if (player.Level < SGEActions.EukrasianDosis.MinLevel) return false;
+
+        var dotAction = SGEActions.GetDotForLevel(player.Level);
+        return !AsclepiusDotHelper.HasHealthyDotUptime(context, dotAction.Range);
     }
 
     private void TryPushEukrasianHealSpell(IAsclepiusContext context, RotationScheduler scheduler, bool preferAoE)
@@ -186,9 +229,15 @@ public sealed class ShieldHealingHandler : IHealingHandler
             return;
         }
 
-        // Single-target shield
+        // Single-target shield — RSR: Addersting < 3 before E.Diagnosis (shield break generates a stack).
         if (config.EnableEukrasianDiagnosis)
         {
+            if (context.AdderstingService.CurrentStacks >= AdderstingTrackingService.MaxStacks)
+            {
+                context.Debug.EukrasianDiagnosisState = "Skipped (Addersting cap)";
+                return;
+            }
+
             var target = context.PartyHelper.FindLowestHpPartyMember(player);
             if (target == null) return;
             if (context.HealingCoordination.IsTargetReserved(target.EntityId, context.PartyCoordinationService))

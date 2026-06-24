@@ -31,6 +31,21 @@ public sealed class TrustPartyRoleHelperTests
     }
 
     [Fact]
+    public void FindTankInParty_NullObjectTable_ReturnsNullWithoutThrowing()
+    {
+        var player = MockBuilders.CreateMockPlayerCharacter();
+        var partyList = MockBuilders.CreateMockPartyList(0);
+
+        var tank = TrustPartyRoleHelper.FindTankInParty(
+            player.Object,
+            members: Array.Empty<IBattleChara>(),
+            objectTable: null!,
+            partyList: partyList.Object);
+
+        Assert.Null(tank);
+    }
+
+    [Fact]
     public void TrustCardTargeting_Documentation()
     {
         // Trust WAR/RDM/PCT expose ClassJob on IBattleChara in-game.

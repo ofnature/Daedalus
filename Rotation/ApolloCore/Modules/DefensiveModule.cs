@@ -251,7 +251,9 @@ public sealed class DefensiveModule : IApolloModule
             c => c.EnableHealing && c.Defensive.EnablePlenaryIndulgence))
             return;
 
-        var shouldUse = config.Defensive.UseDefensivesWithAoEHeals && injuredCount >= config.Healing.AoEHealMinTargets;
+        var minTargets = AoEHealTargetHelper.GetEffectiveMinTargets(
+            context.Configuration.Healing, context.PartyHelper.GetPartySize(player));
+        var shouldUse = config.Defensive.UseDefensivesWithAoEHeals && injuredCount >= minTargets;
         if (!shouldUse) return;
 
         var capturedInjured = injuredCount;

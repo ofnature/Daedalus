@@ -4,6 +4,7 @@ using Olympus.Data;
 using Olympus.Rotation.AsclepiusCore.Abilities;
 using Olympus.Rotation.AsclepiusCore.Context;
 using Olympus.Rotation.AsclepiusCore.Helpers;
+using Olympus.Rotation.Common.Helpers;
 using Olympus.Rotation.Common.Scheduling;
 using Olympus.Services.Training;
 
@@ -32,7 +33,9 @@ public sealed class IxocholeHandler : IHealingHandler
         if (!context.ActionService.IsActionReady(SGEActions.Ixochole.ActionId)) { context.Debug.IxocholeState = "On CD"; return; }
 
         var (avgHp, _, injuredCount) = AsclepiusPartyMetrics.GetAoEHealMetrics(context.PartyHelper, player);
-        if (injuredCount < config.AoEHealMinTargets) { context.Debug.IxocholeState = $"{injuredCount} < {config.AoEHealMinTargets} injured"; return; }
+        var minTargets = AoEHealTargetHelper.GetEffectiveMinTargets(
+            context.Configuration.Healing, context.PartyHelper.GetPartySize(player));
+        if (injuredCount < minTargets) { context.Debug.IxocholeState = $"{injuredCount} < {minTargets} injured"; return; }
         if (avgHp > config.AoEHealThreshold) { context.Debug.IxocholeState = $"Avg HP {avgHp:P0} > {config.AoEHealThreshold:P0}"; return; }
 
         var action = SGEActions.Ixochole;

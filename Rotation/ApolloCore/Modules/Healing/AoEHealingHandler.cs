@@ -48,9 +48,10 @@ public sealed class AoEHealingHandler : IHealingHandler
             config,
             out var raidwideSource);
 
-        var effectiveMinTargets = config.Healing.AoEHealMinTargets;
+        var effectiveMinTargets = AoEHealTargetHelper.GetEffectiveMinTargets(
+            config.Healing, context.PartyHelper.GetPartySize(player));
         if (raidwideImminent && effectiveMinTargets > 2)
-            effectiveMinTargets = config.Healing.AoEHealMinTargets - 1;
+            effectiveMinTargets--;
 
         var hasEnoughSelfCenteredTargets = injuredCount >= effectiveMinTargets;
         var hasEnoughCureIIITargets = cureIIITargetCount >= effectiveMinTargets;

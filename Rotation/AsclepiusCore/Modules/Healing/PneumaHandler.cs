@@ -4,6 +4,7 @@ using Olympus.Data;
 using Olympus.Rotation.AsclepiusCore.Abilities;
 using Olympus.Rotation.AsclepiusCore.Context;
 using Olympus.Rotation.AsclepiusCore.Helpers;
+using Olympus.Rotation.Common.Helpers;
 using Olympus.Rotation.Common.Scheduling;
 using Olympus.Services.Training;
 
@@ -39,7 +40,9 @@ public sealed class PneumaHandler : IHealingHandler
         if (enemy == null) { context.Debug.PneumaState = "No enemy"; return; }
 
         var (avgHp, _, injuredCount) = AsclepiusPartyMetrics.GetAoEHealMetrics(context.PartyHelper, player);
-        if (avgHp > config.PneumaThreshold && injuredCount < config.AoEHealMinTargets)
+        var minTargets = AoEHealTargetHelper.GetEffectiveMinTargets(
+            context.Configuration.Healing, context.PartyHelper.GetPartySize(player));
+        if (avgHp > config.PneumaThreshold && injuredCount < minTargets)
         {
             context.Debug.PneumaState = $"Party HP {avgHp:P0}";
             return;

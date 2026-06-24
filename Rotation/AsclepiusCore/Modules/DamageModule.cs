@@ -22,10 +22,10 @@ namespace Olympus.Rotation.AsclepiusCore.Modules;
 public sealed class DamageModule : BaseDamageModule<IAsclepiusContext>, IAsclepiusModule
 {
     protected override bool IsDamageEnabled(IAsclepiusContext context) => context.Configuration.EnableDamage;
-    protected override bool IsDoTEnabled(IAsclepiusContext context) => context.Configuration.EnableDoT;
+    protected override bool IsDoTEnabled(IAsclepiusContext context) => AsclepiusDotHelper.IsEnabled(context);
     protected override bool IsAoEDamageEnabled(IAsclepiusContext context) => context.Configuration.Sage.EnableAoEDamage;
     protected override int AoEMinTargets(IAsclepiusContext context) => context.Configuration.Sage.AoEDamageMinTargets;
-    protected override float DoTRefreshThreshold(IAsclepiusContext context) => FFXIVConstants.DotRefreshThreshold;
+    protected override float DoTRefreshThreshold(IAsclepiusContext context) => AsclepiusDotHelper.RefreshThreshold(context);
     protected override uint GetDoTStatusId(IAsclepiusContext context) => SGEActions.GetDotStatusId(context.Player.Level);
     protected override ActionDefinition? GetDoTAction(IAsclepiusContext context) => SGEActions.GetDotForLevel(context.Player.Level);
     protected override ActionDefinition? GetAoEDamageAction(IAsclepiusContext context) => SGEActions.GetAoEDamageGcdForLevel(context.Player.Level);
@@ -51,25 +51,26 @@ public sealed class DamageModule : BaseDamageModule<IAsclepiusContext>, IAsclepi
         }
 
         TryPushPsyche(context, scheduler);
-        TryPushPhlegma(context, scheduler);
+        TryPushPhlegma(context, scheduler, isMoving);
+        TryPushToxikon(context, scheduler, isMoving);
         TryDirectDispatchEukrasiaForDoT(context);
         TryPushDoT(context, scheduler);
         TryPushAoEDamage(context, scheduler);
         TryPushSingleTargetDamage(context, scheduler, isMoving);
-        if (isMoving) TryPushToxikon(context, scheduler);
     }
 
     public override void UpdateDebugState(IAsclepiusContext context)
     {
         var player = context.Player;
         var dotAction = SGEActions.GetDotForLevel(player.Level);
-        var dotStatusId = SGEActions.GetDotStatusId(player.Level);
 
         var enemy = context.TargetingService.FindEnemy(
             context.Configuration.Targeting.EnemyStrategy, dotAction.Range, player);
         if (enemy != null)
         {
-            var dotRemaining = GetStatusRemainingTime(enemy, dotStatusId, player.GameObjectId);
+            var dotRemaining = Math.Max(
+                AsclepiusStatusHelper.GetEukrasianDosisRemaining(enemy),
+                context.EukrasiaService.GetEstimatedDotRemainingSeconds());
             context.Debug.DoTRemaining = dotRemaining;
             context.Debug.DoTState = dotRemaining > 0 ? $"{dotRemaining:F1}s" : "Not applied";
         }
@@ -149,25 +150,7 @@ public sealed class DamageModule : BaseDamageModule<IAsclepiusContext>, IAsclepi
         var dotAction = GetDoTAction(context);
         if (dotAction == null) return;
 
-        var enemy = context.TargetingService.FindEnemy(
-            context.Configuration.Targeting.EnemyStrategy, dotAction.Range, player);
-        if (enemy == null) return;
-
-        var dotStatusId = GetDoTStatusId(context);
-        bool needsDot = true;
-        if (enemy.StatusList != null)
-        {
-            foreach (var status in enemy.StatusList)
-            {
-                if (status.StatusId == dotStatusId && status.RemainingTime > DoTRefreshThreshold(context))
-                {
-                    needsDot = false;
-                    break;
-                }
-            }
-        }
-
-        if (!needsDot) return;
+        if (AsclepiusDotHelper.FindEnemyNeedingEukrasianDosis(context, dotAction) == null) return;
 
         if (context.ActionService.ExecuteOgcd(SGEActions.Eukrasia, player.GameObjectId))
         {
@@ -177,31 +160,26 @@ public sealed class DamageModule : BaseDamageModule<IAsclepiusContext>, IAsclepi
         }
     }
 
-    private void TryPushPhlegma(IAsclepiusContext context, RotationScheduler scheduler)
+    private void TryPushPhlegma(IAsclepiusContext context, RotationScheduler scheduler, bool isMoving)
     {
-        var config = context.Configuration.Sage;
         var player = context.Player;
 
-        if (!config.EnablePhlegma) return;
         var phlegmaAction = SGEActions.GetPhlegmaForLevel(player.Level);
         if (phlegmaAction == null) { context.Debug.PhlegmaState = "Level too low"; return; }
 
-        var charges = context.ActionService.GetCurrentCharges(phlegmaAction.ActionId);
-        if (charges < 1) { context.Debug.PhlegmaState = "No charges"; return; }
-
-        var maxCharges = 2u;
-        var rechargingTime = context.ActionService.GetCooldownRemaining(phlegmaAction.ActionId);
-        var shouldUse = charges >= maxCharges || (charges == maxCharges - 1 && rechargingTime < 5f);
-        if (!shouldUse && charges < maxCharges) { context.Debug.PhlegmaState = $"Saving ({charges}/{maxCharges})"; return; }
+        if (!AsclepiusPhlegmaHelper.ShouldPushPhlegma(
+                context, isMoving, phlegmaAction.ActionId, player.Level, out var debugState))
+        {
+            context.Debug.PhlegmaState = debugState;
+            return;
+        }
 
         var enemy = context.TargetingService.FindEnemy(
             context.Configuration.Targeting.EnemyStrategy, phlegmaAction.Range, player);
         if (enemy == null) { context.Debug.PhlegmaState = "Out of range"; return; }
 
         var capturedAction = phlegmaAction;
-        var capturedEnemy = enemy;
-        var capturedCharges = charges;
-        var behavior = new AbilityBehavior { Action = phlegmaAction };
+        var behavior = AsclepiusPhlegmaHelper.GetBehaviorForLevel(player.Level);
 
         scheduler.PushGcd(behavior, enemy.GameObjectId, priority: 295,
             onDispatched: _ =>
@@ -212,7 +190,7 @@ public sealed class DamageModule : BaseDamageModule<IAsclepiusContext>, IAsclepi
             });
     }
 
-    private void TryPushToxikon(IAsclepiusContext context, RotationScheduler scheduler)
+    private void TryPushToxikon(IAsclepiusContext context, RotationScheduler scheduler, bool isMoving)
     {
         var config = context.Configuration.Sage;
         var player = context.Player;
@@ -222,18 +200,29 @@ public sealed class DamageModule : BaseDamageModule<IAsclepiusContext>, IAsclepi
         if (toxikonAction == null) { context.Debug.ToxikonState = "Level too low"; return; }
         if (context.AdderstingStacks < 1) { context.Debug.ToxikonState = "No Addersting"; return; }
 
+        // RSR burns Toxikon while moving or whenever Addersting is capped — standing still with a
+        // full gauge wastes shield-break procs from E.Diagnosis / E.Prognosis.
+        if (!isMoving && !context.AdderstingService.IsAtMax)
+        {
+            context.Debug.ToxikonState = $"{context.AdderstingStacks} stacks (holding)";
+            return;
+        }
+
         var enemy = context.TargetingService.FindEnemy(
             context.Configuration.Targeting.EnemyStrategy, toxikonAction.Range, player);
         if (enemy == null) { context.Debug.ToxikonState = "No target"; return; }
 
         var capturedAction = toxikonAction;
+        var capturedStacks = context.AdderstingStacks;
         var behavior = new AbilityBehavior { Action = toxikonAction };
 
         scheduler.PushGcd(behavior, enemy.GameObjectId, priority: 305,
             onDispatched: _ =>
             {
                 SetPlannedAction(context, capturedAction.Name);
-                SetDpsState(context, capturedAction.Name);
+                SetDpsState(context, context.AdderstingService.IsAtMax
+                    ? $"Toxikon (cap dump, {capturedStacks})"
+                    : capturedAction.Name);
                 context.Debug.ToxikonState = "Executing";
             });
     }
@@ -249,16 +238,21 @@ public sealed class DamageModule : BaseDamageModule<IAsclepiusContext>, IAsclepi
         if (dotAction == null) return;
         if (!context.HasEukrasia) return; // Eukrasia activates separately via direct dispatch
 
-        var enemy = context.TargetingService.FindEnemy(
-            context.Configuration.Targeting.EnemyStrategy, dotAction.Range, player);
-        if (enemy == null) return;
+        var enemy = AsclepiusDotHelper.FindEnemyNeedingEukrasianDosis(context, dotAction);
+        if (enemy == null)
+        {
+            SetDpsState(context, "DoT: uptime OK");
+            return;
+        }
 
         var capturedAction = dotAction;
+        var capturedTargetId = enemy.GameObjectId;
         var behavior = new AbilityBehavior { Action = dotAction };
 
         scheduler.PushGcd(behavior, enemy.GameObjectId, priority: 310,
             onDispatched: _ =>
             {
+                context.EukrasiaService.RecordEukrasianDosisApplied(capturedTargetId);
                 SetPlannedAction(context, capturedAction.Name);
                 SetDpsState(context, "DoT Applied");
             });
@@ -321,16 +315,5 @@ public sealed class DamageModule : BaseDamageModule<IAsclepiusContext>, IAsclepi
                 SetPlannedAction(context, capturedAction.Name);
                 SetDpsState(context, capturedAction.Name);
             });
-    }
-
-    private float GetStatusRemainingTime(IBattleChara target, uint statusId, ulong sourceId)
-    {
-        if (target.StatusList == null) return 0f;
-        foreach (var status in target.StatusList)
-        {
-            if (status.StatusId == statusId && status.SourceId == (uint)sourceId)
-                return status.RemainingTime;
-        }
-        return 0f;
     }
 }

@@ -342,6 +342,13 @@ public static class MockBuilders
         mock.Setup(x => x.FindEnemyNeedingDot(It.IsAny<uint>(), It.IsAny<float>(), It.IsAny<float>(), It.IsAny<IPlayerCharacter>()))
             .Returns((IBattleNpc?)null);
 
+        mock.Setup(x => x.GetBestStatusRemainingOnAnyEnemy(It.IsAny<uint[]>(), It.IsAny<float>(), It.IsAny<IPlayerCharacter>()))
+            .Returns(0f);
+
+        mock.Setup(x => x.GetBestStatusRemainingFromSourceOnAnyEnemy(
+                It.IsAny<uint[]>(), It.IsAny<uint>(), It.IsAny<float>(), It.IsAny<IPlayerCharacter>()))
+            .Returns(0f);
+
         // Default: not paused, no user target, gap closers allowed — these safety checks
         // always evaluate to "permissive" in tests unless a specific test overrides them.
         mock.Setup(x => x.IsDamageTargetingPaused()).Returns(false);
@@ -373,6 +380,9 @@ public static class MockBuilders
 
         mock.Setup(x => x.GetAllPartyMembers(It.IsAny<IPlayerCharacter>(), It.IsAny<bool>()))
             .Returns(partyMembers);
+
+        mock.Setup(x => x.GetPartySize(It.IsAny<IPlayerCharacter>(), It.IsAny<bool>()))
+            .Returns(partyMembers.Count + 1);
 
         mock.Setup(x => x.FindLowestHpPartyMember(It.IsAny<IPlayerCharacter>(), It.IsAny<int>()))
             .Returns(lowestHpMember);

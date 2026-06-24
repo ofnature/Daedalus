@@ -93,26 +93,29 @@ public static class TrustPartyRoleHelper
         }
 
         IBattleChara? effectiveTank = null;
-        foreach (var obj in objectTable)
+        if (objectTable is not null)
         {
-            if (obj is not IBattleNpc enemy)
-                continue;
-            if (enemy.TargetObjectId is 0 or 0xE0000000)
-                continue;
-
-            foreach (var member in members)
+            foreach (var obj in objectTable)
             {
-                if (member.EntityId == player.EntityId || member.IsDead)
+                if (obj is not IBattleNpc enemy)
                     continue;
-                if (member.GameObjectId != enemy.TargetObjectId)
+                if (enemy.TargetObjectId is 0 or 0xE0000000)
                     continue;
 
-                effectiveTank = member;
-                break;
+                foreach (var member in members)
+                {
+                    if (member.EntityId == player.EntityId || member.IsDead)
+                        continue;
+                    if (member.GameObjectId != enemy.TargetObjectId)
+                        continue;
+
+                    effectiveTank = member;
+                    break;
+                }
+
+                if (effectiveTank != null)
+                    break;
             }
-
-            if (effectiveTank != null)
-                break;
         }
 
         return effectiveTank;

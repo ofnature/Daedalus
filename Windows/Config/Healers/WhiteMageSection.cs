@@ -163,7 +163,13 @@ public sealed class WhiteMageSection
             ConfigUIHelpers.Spacing();
 
             config.Healing.AoEHealMinTargets = ConfigUIHelpers.IntSlider(Loc.T(LocalizedStrings.WhiteMage.AoEMinTargetsLabel, "AoE Min Targets"),
-                config.Healing.AoEHealMinTargets, 2, 8, "Use AoE heal when this many party members need healing.", save, v => config.Healing.AoEHealMinTargets = v);
+                config.Healing.AoEHealMinTargets, 2, 8, "Use AoE heal when this many party members need healing. Auto-adjust overrides to 2 in dungeons and 3 in raids when enabled.", save, v => config.Healing.AoEHealMinTargets = v);
+            ConfigUIHelpers.Toggle(
+                "Auto-Adjust AoE Min Targets by Party Size",
+                () => config.Healing.AutoAdjustAoEHealMinTargetsByPartySize,
+                v => config.Healing.AutoAdjustAoEHealMinTargetsByPartySize = v,
+                "Dungeon/trust (≤4): 2 targets. Raid (≥8): 3 targets. Manual value used when off or party size is 5–7.",
+                save);
 
             config.Healing.AoEHealHpThreshold = ConfigUIHelpers.ThresholdSlider(Loc.T(LocalizedStrings.WhiteMage.AoEHpThresholdLabel, "AoE HP Threshold"),
                 config.Healing.AoEHealHpThreshold, 50f, 95f, "Count a party member as needing AoE healing when below this HP %.", save, v => config.Healing.AoEHealHpThreshold = v);

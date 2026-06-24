@@ -1,3 +1,4 @@
+using System;
 using Dalamud.Game.ClientState.Objects.SubKinds;
 using Olympus.Data;
 
@@ -19,6 +20,10 @@ public sealed class EukrasiaStateService : IEukrasiaStateService
     /// Fixed GCD time for Eukrasian spells (not affected by spell speed).
     /// </summary>
     public const float EukrasianGcd = 2.5f;
+
+    private const float EukrasianDosisDurationSeconds = 30f;
+
+    private DateTime _lastEukrasianDosisAppliedUtc = DateTime.MinValue;
 
     /// <summary>
     /// Checks if Eukrasia is currently active on the player.
@@ -56,6 +61,26 @@ public sealed class EukrasiaStateService : IEukrasiaStateService
 
         return 0f;
     }
+
+    /// <inheritdoc/>
+    public void RecordEukrasianDosisApplied(ulong targetId)
+    {
+        _ = targetId;
+        _lastEukrasianDosisAppliedUtc = DateTime.UtcNow;
+    }
+
+    /// <inheritdoc/>
+    public float GetEstimatedDotRemainingSeconds()
+    {
+        if (_lastEukrasianDosisAppliedUtc == DateTime.MinValue)
+            return 0f;
+
+        var elapsed = (float)(DateTime.UtcNow - _lastEukrasianDosisAppliedUtc).TotalSeconds;
+        return Math.Max(0f, EukrasianDosisDurationSeconds - elapsed);
+    }
+
+    /// <inheritdoc/>
+    public void ResetDotTracking() => _lastEukrasianDosisAppliedUtc = DateTime.MinValue;
 
     /// <summary>
     /// Determines the predicted spell that Eukrasia will modify.
@@ -212,4 +237,19 @@ public interface IEukrasiaStateService
     /// Gets the remaining duration of Zoe buff.
     /// </summary>
     float GetZoeRemaining(IPlayerCharacter player);
+
+    /// <summary>
+    /// Records a successful Eukrasian Dosis application for uptime fallback when StatusList is stale.
+    /// </summary>
+    void RecordEukrasianDosisApplied(ulong targetId);
+
+    /// <summary>
+    /// Estimated seconds remaining on the last Eukrasian Dosis we applied (0 when none tracked).
+    /// </summary>
+    float GetEstimatedDotRemainingSeconds();
+
+    /// <summary>
+    /// Clears cast-time DoT tracking (e.g. leaving combat).
+    /// </summary>
+    void ResetDotTracking();
 }

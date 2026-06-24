@@ -64,6 +64,17 @@ public sealed unsafe class ActionService : IActionService
     // every frame, re-clearing the guard and letting ExecuteGcd re-submit the same GCD every frame
     // for the whole ~0.5s queue window (observed as melee skill spam, e.g. 17x Spinning Edge).
     private bool _queueWindowReleasedThisCycle;
+    // Last adjusted GCD dispatch id accepted this recast-group-57 cycle. Cleared on rollover so the
+    // next cycle can fire the same action again, but blocks duplicate UseAction for the same GCD
+    // (e.g. Phlegma III / Eukrasian Dosis III double-feed) if the submit guard flaps mid queue window.
+    private uint _blockedRepeatGcdDispatchId;
+    // Short post-submit block for instant oGCDs direct-dispatched during CollectCandidates (SGE
+    // Eukrasia) before the game's cooldown/status catches up on the next frame.
+    private uint _blockedRepeatOgcdId;
+    private DateTime _blockedRepeatOgcdUntil = DateTime.MinValue;
+    // Floor for charge-based GCDs (Phlegma, etc.): block a second submit until one full GCD
+    // window has elapsed. Covers sub-second double-feed when burst/queue latches flap.
+    private DateTime _lastChargeBasedGcdSubmitUtc = DateTime.MinValue;
     private bool _recastGroupWasActive;
     private bool _gcdRecastSeenSinceSubmit;
     private float _peakRecastElapsedSinceSubmit;
@@ -140,6 +151,9 @@ public sealed unsafe class ActionService : IActionService
         {
             _history.RecordGcd(historyId);
             _gcdSubmittedThisCycle = true;
+            var dispatchId = recordActionId != 0 ? recordActionId : action.ActionId;
+            _blockedRepeatGcdDispatchId = dispatchId;
+            RecordChargeBasedGcdSubmit(dispatchId);
 
             // Raw ActionManager dispatches (Hermes mudra/ninjutsu/TCJ) bypass ExecuteGcd but still consume GCD.
             var actionManager = SafeGameAccess.GetActionManager(_errorMetrics);
@@ -225,6 +239,12 @@ public sealed unsafe class ActionService : IActionService
         if (_recastGroupWasActive && !recastActive)
         {
             _queueWindowReleasedThisCycle = false;
+            if (!_gcdSubmittedThisCycle
+                && (DateTime.UtcNow - _lastExecuteTime).TotalSeconds > 0.5)
+            {
+                _blockedRepeatGcdDispatchId = 0;
+            }
+            _lastChargeBasedGcdSubmitUtc = DateTime.MinValue;
             _peakRecastElapsedSinceSubmit = 0;
             _peakRecastTotalSinceSubmit = 0;
             _gcdRecastSeenSinceSubmit = false;
@@ -312,18 +332,26 @@ public sealed unsafe class ActionService : IActionService
         if (_gcdSubmittedThisCycle)
             return false;
 
+        var dispatchId = actionManager->GetAdjustedActionId(action.ActionId);
+        if (dispatchId == _blockedRepeatGcdDispatchId)
+            return false;
+
+        if (IsChargeBasedGcd(action.ActionId, actionManager) && IsChargeBasedGcdSubmitBlocked())
+            return false;
+
         if (DateTime.UtcNow < _nextGcdAttemptAllowed)
             return false;
 
         // Do NOT pre-check GetActionStatus here: while the global GCD is rolling it returns 583 ("not ready"),
         // but UseAction still accepts the call in the last ~0.5s and queues the action to fire on rollover.
         // Pre-checking defeats the server-side action queue, so we delegate the "can fire now?" decision to UseAction.
-        var dispatchId = actionManager->GetAdjustedActionId(action.ActionId);
         var result = actionManager->UseAction(ActionType.Action, dispatchId, targetId);
 
         if (result)
         {
             _gcdSubmittedThisCycle = true;
+            _blockedRepeatGcdDispatchId = dispatchId;
+            RecordChargeBasedGcdSubmit(dispatchId);
             _gcdRecastSeenSinceSubmit = false;
             _peakRecastElapsedSinceSubmit = 0;
             _peakRecastTotalSinceSubmit = 0;
@@ -358,6 +386,9 @@ public sealed unsafe class ActionService : IActionService
             return false;
         }
 
+        if (action.ActionId == _blockedRepeatOgcdId && DateTime.UtcNow < _blockedRepeatOgcdUntil)
+            return false;
+
         var actionManager = SafeGameAccess.GetActionManager(_errorMetrics);
         if (actionManager is null)
             return false;
@@ -375,6 +406,8 @@ public sealed unsafe class ActionService : IActionService
             _lastExecuteTime = DateTime.UtcNow;
             _history.RecordOgcd(action.ActionId);
             _ogcdsUsedThisCycle++; // Increment oGCD count for double-weave tracking
+            _blockedRepeatOgcdId = action.ActionId;
+            _blockedRepeatOgcdUntil = DateTime.UtcNow.AddSeconds(1.0);
             _actionTracker.LogAttempt(action.ActionId, null, null, ActionResult.Success, 0);
             RaiseActionExecuted(action);
         }
@@ -409,6 +442,8 @@ public sealed unsafe class ActionService : IActionService
             _lastExecuteTime = DateTime.UtcNow;
             _history.RecordOgcd(action.ActionId);
             _ogcdsUsedThisCycle++; // Increment oGCD count for double-weave tracking
+            _blockedRepeatOgcdId = action.ActionId;
+            _blockedRepeatOgcdUntil = DateTime.UtcNow.AddSeconds(1.0);
             _actionTracker.LogAttempt(action.ActionId, null, null, ActionResult.Success, 0);
             RaiseActionExecuted(action);
         }
@@ -439,6 +474,12 @@ public sealed unsafe class ActionService : IActionService
         if (_gcdSubmittedThisCycle)
             return false;
 
+        if (rawDispatchId == _blockedRepeatGcdDispatchId)
+            return false;
+
+        if (IsChargeBasedGcd(action.ActionId, actionManager) && IsChargeBasedGcdSubmitBlocked())
+            return false;
+
         if (DateTime.UtcNow < _nextGcdAttemptAllowed)
             return false;
 
@@ -447,6 +488,8 @@ public sealed unsafe class ActionService : IActionService
         if (result)
         {
             _gcdSubmittedThisCycle = true;
+            _blockedRepeatGcdDispatchId = rawDispatchId;
+            RecordChargeBasedGcdSubmit(rawDispatchId);
             _gcdRecastSeenSinceSubmit = false;
             _peakRecastElapsedSinceSubmit = 0;
             _peakRecastTotalSinceSubmit = 0;
@@ -467,6 +510,9 @@ public sealed unsafe class ActionService : IActionService
     /// <inheritdoc/>
     public bool ExecuteOgcdRaw(ActionDefinition action, uint rawDispatchId, ulong targetId)
     {
+        if (action.ActionId == _blockedRepeatOgcdId && DateTime.UtcNow < _blockedRepeatOgcdUntil)
+            return false;
+
         var actionManager = SafeGameAccess.GetActionManager(_errorMetrics);
         if (actionManager is null)
             return false;
@@ -480,6 +526,8 @@ public sealed unsafe class ActionService : IActionService
             _lastExecuteTime = DateTime.UtcNow;
             _history.RecordOgcd(action.ActionId);
             _ogcdsUsedThisCycle++;
+            _blockedRepeatOgcdId = action.ActionId;
+            _blockedRepeatOgcdUntil = DateTime.UtcNow.AddSeconds(1.0);
             _actionTracker.LogAttempt(action.ActionId, null, null, ActionResult.Success, 0);
             RaiseActionExecuted(action);
         }
@@ -690,6 +738,23 @@ public sealed unsafe class ActionService : IActionService
         => _gcdRecastSeenSinceSubmit
            && _peakRecastTotalSinceSubmit > 0f
            && _peakRecastElapsedSinceSubmit >= _peakRecastTotalSinceSubmit * MinRecastCompletionRatio;
+
+    private bool IsChargeBasedGcdSubmitBlocked()
+        => ChargeGcdSubmitGuard.ShouldBlock(_lastChargeBasedGcdSubmitUtc, _lastKnownGcdTotal, DateTime.UtcNow);
+
+    private static bool IsChargeBasedGcd(uint baseActionId, ActionManager* actionManager)
+    {
+        var dispatchId = actionManager->GetAdjustedActionId(baseActionId);
+        return ActionManager.GetMaxCharges(dispatchId, 0) > 1;
+    }
+
+    private void RecordChargeBasedGcdSubmit(uint baseActionId)
+    {
+        if (ActionManager.GetMaxCharges(baseActionId, 0) <= 1)
+            return;
+
+        _lastChargeBasedGcdSubmitUtc = DateTime.UtcNow;
+    }
 
     private void RaiseActionExecuted(ActionDefinition action)
     {

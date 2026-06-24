@@ -205,6 +205,48 @@ public sealed class TargetingService : ITargetingService
         return GetDotDuration(strategyTarget, dotStatusId) < refreshThreshold ? strategyTarget : null;
     }
 
+    /// <inheritdoc/>
+    public float GetBestStatusRemainingOnAnyEnemy(uint[] statusIds, float maxRange, IPlayerCharacter player)
+    {
+        if (statusIds.Length == 0)
+            return 0f;
+
+        var best = 0f;
+        foreach (var enemy in GetValidEnemies(maxRange, player))
+        {
+            foreach (var statusId in statusIds)
+            {
+                var remaining = GetDotDuration(enemy, statusId);
+                if (remaining > best)
+                    best = remaining;
+            }
+        }
+
+        return best;
+    }
+
+    /// <inheritdoc/>
+    public float GetBestStatusRemainingFromSourceOnAnyEnemy(
+        uint[] statusIds, uint sourceId, float maxRange, IPlayerCharacter player)
+    {
+        if (statusIds.Length == 0)
+            return 0f;
+
+        var best = 0f;
+        foreach (var enemy in GetValidEnemies(maxRange, player))
+        {
+            foreach (var statusId in statusIds)
+            {
+                var remaining = Rotation.Common.Helpers.BaseStatusHelper.GetStatusRemainingFromSource(
+                    enemy, statusId, sourceId);
+                if (remaining > best)
+                    best = remaining;
+            }
+        }
+
+        return best;
+    }
+
     /// <summary>
     /// Counts the number of valid enemies within the specified radius of the player.
     /// Used for AoE damage decisions (e.g., Holy when 3+ enemies).

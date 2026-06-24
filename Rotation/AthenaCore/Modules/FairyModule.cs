@@ -121,7 +121,9 @@ public sealed class FairyModule : IAthenaModule
         if (!context.ActionService.IsActionReady(SCHActions.Consolation.ActionId)) return;
 
         var (avgHp, _, injuredCount) = context.PartyHelper.CalculatePartyHealthMetrics(player);
-        if (avgHp > config.AoEHealThreshold && injuredCount < config.AoEHealMinTargets) return;
+        var minTargets = AoEHealTargetHelper.GetEffectiveMinTargets(
+            context.Configuration.Healing, context.PartyHelper.GetPartySize(player));
+        if (avgHp > config.AoEHealThreshold && injuredCount < minTargets) return;
 
         scheduler.PushOgcd(AthenaAbilities.Consolation, player.GameObjectId, priority: 3,
             onDispatched: _ =>

@@ -81,12 +81,10 @@ public sealed class ScholarSection
 
             ConfigUIHelpers.Spacing();
             ConfigUIHelpers.SectionLabel(Loc.T(LocalizedStrings.Scholar.AoEHealing, "AoE Healing:"));
+            ConfigUIHelpers.InfoTooltip("AoE min injured count is under WHM → Healing (shared). Auto-adjust: 2 in dungeons/trust, 3 in raids.");
 
             config.Scholar.AoEHealThreshold = ConfigUIHelpers.ThresholdSlider("AoE HP Threshold",
                 config.Scholar.AoEHealThreshold, 50f, 90f, null, save, v => config.Scholar.AoEHealThreshold = v);
-
-            config.Scholar.AoEHealMinTargets = ConfigUIHelpers.IntSlider("AoE Min Targets##SCH",
-                config.Scholar.AoEHealMinTargets, 2, 8, null, save, v => config.Scholar.AoEHealMinTargets = v);
 
             ConfigUIHelpers.Spacing();
             ConfigUIHelpers.SectionLabel(Loc.T(LocalizedStrings.Scholar.RecitationPriorityLabel, "Recitation Priority:"));

@@ -54,22 +54,20 @@ public sealed class AsclepiusContext : BaseHealerContext, IAsclepiusContext
 
     #region SGE Cached Status Checks
 
-    private bool? _hasEukrasia;
     private bool? _hasZoe;
     private bool? _hasSoteria;
     private bool? _hasPhilosophia;
     private int? _addersgallStacks;
     private float? _addersgallTimer;
-    private int? _adderstingStacks;
 
-    public bool HasEukrasia => _hasEukrasia ??= AsclepiusStatusHelper.HasEukrasia(Player);
+    public bool HasEukrasia => EukrasiaService.IsEukrasiaActive(Player);
     public bool HasZoe => _hasZoe ??= AsclepiusStatusHelper.HasZoe(Player);
     public bool HasSoteria => _hasSoteria ??= AsclepiusStatusHelper.HasSoteria(Player);
     public bool HasPhilosophia => _hasPhilosophia ??= AsclepiusStatusHelper.HasPhilosophia(Player);
 
     public int AddersgallStacks => _addersgallStacks ??= AddersgallService.CurrentStacks;
     public float AddersgallTimer => _addersgallTimer ??= AddersgallService.TimerRemaining;
-    public int AdderstingStacks => _adderstingStacks ??= AdderstingService.CurrentStacks;
+    public int AdderstingStacks => AdderstingService.CurrentStacks;
 
     public bool HasKardiaPlaced => KardiaManager.HasKardia;
     public ulong KardiaTargetId => KardiaManager.CurrentKardiaTarget;

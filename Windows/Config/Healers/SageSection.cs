@@ -182,12 +182,10 @@ public sealed class SageSection
 
             ConfigUIHelpers.Spacing();
             ConfigUIHelpers.SectionLabel(Loc.T(LocalizedStrings.Sage.AoEThresholds, "AoE Thresholds:"));
+            ConfigUIHelpers.InfoTooltip("AoE min injured count is under WHM → Healing (shared). Auto-adjust: 2 in dungeons/trust, 3 in raids.");
 
             config.Sage.AoEHealThreshold = ConfigUIHelpers.ThresholdSlider(Loc.T(LocalizedStrings.Sage.AoEHpThreshold, "AoE HP Threshold"),
                 config.Sage.AoEHealThreshold, 50f, 90f, null, save, v => config.Sage.AoEHealThreshold = v);
-
-            config.Sage.AoEHealMinTargets = ConfigUIHelpers.IntSlider(Loc.T(LocalizedStrings.Sage.AoEMinTargets, "AoE Min Targets"),
-                config.Sage.AoEHealMinTargets, 1, 8, null, save, v => config.Sage.AoEHealMinTargets = v);
 
             config.Sage.KeracholeThreshold = ConfigUIHelpers.ThresholdSlider(Loc.T(LocalizedStrings.Sage.KeracholeThreshold, "Kerachole Threshold"),
                 config.Sage.KeracholeThreshold, 60f, 95f, null, save, v => config.Sage.KeracholeThreshold = v);
