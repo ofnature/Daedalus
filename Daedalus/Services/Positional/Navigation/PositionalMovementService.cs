@@ -51,13 +51,13 @@ public sealed class PositionalMovementService : IPositionalMovementService
             {
                 idleReason = "already at positional";
             }
-            else if (WouldClipGcd(
+            else if (!request.AllowMovementDuringActionLock && WouldClipGcd(
                 request.ActionService,
                 request.PlayerPosition,
                 request.PlayerHitboxRadius,
                 target,
                 anticipation.Required,
-                request.AllowMovementDuringActionLock))
+                false))
             {
                 SetSkipped("would clip GCD");
                 return;

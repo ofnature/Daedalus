@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using Dalamud.Game.ClientState.JobGauge;
 using Dalamud.Game.ClientState.Objects.SubKinds;
+using Dalamud.Game.ClientState.Objects.Types;
 using Dalamud.Game.ClientState.Party;
 using Dalamud.Plugin.Services;
 using Daedalus.Data;
@@ -281,16 +282,37 @@ public sealed class Kratos : BaseMeleeDpsRotation<IKratosContext, IKratosModule>
     /// <inheritdoc />
     protected override void SyncDebugState(IKratosContext context)
     {
-        // Map Monk debug state to common debug state fields
-        _debugState.PlanningState = _kratosDebugState.PlanningState;
-        _debugState.PlannedAction = _kratosDebugState.PlannedAction;
-        _debugState.DpsState = _kratosDebugState.DamageState;
-        // Note: BuffState is tracked in KratosDebugState but not in common DebugState
+        _debugState.PlannedAction = string.IsNullOrEmpty(_kratosDebugState.PlannedAction)
+            ? "None" : _kratosDebugState.PlannedAction;
+        _debugState.DpsState = string.IsNullOrEmpty(_kratosDebugState.DamageState)
+            ? (context.InCombat ? "Idle" : "Out of combat") : _kratosDebugState.DamageState;
 
-        // Party/player info
+        if (!string.IsNullOrEmpty(_kratosDebugState.BuffState))
+            _debugState.PlanningState = _kratosDebugState.BuffState;
+        else if (!string.IsNullOrEmpty(_kratosDebugState.DamageState))
+            _debugState.PlanningState = _kratosDebugState.DamageState;
+        else
+            _debugState.PlanningState = context.InCombat ? "Active" : "Idle";
+
+        _debugState.AoEDpsEnemyCount = _kratosDebugState.NearbyEnemies;
+        var aoeMin = context.Configuration.Monk.AoEMinTargets;
+        _debugState.AoEDpsState = _kratosDebugState.NearbyEnemies >= aoeMin
+            ? $"AoE ({_kratosDebugState.NearbyEnemies} enemies)"
+            : _kratosDebugState.NearbyEnemies > 0
+                ? $"ST ({_kratosDebugState.NearbyEnemies} nearby)"
+                : "No enemies";
+
+        var target = TargetingService.FindEnemyForAction(
+            context.Configuration.Targeting.EnemyStrategy,
+            MNKActions.Bootshine.ActionId,
+            context.Player)
+            ?? TargetingService.FindNearbyEnemy(25f, context.Player) as IBattleChara;
+        _debugState.TargetInfo = target != null
+            ? $"{target.Name} ({(float)target.CurrentHp / target.MaxHp:P0})"
+            : "None";
+
         _debugState.PlayerHpPercent = (float)context.Player.CurrentHp / context.Player.MaxHp;
         _debugState.PartyListCount = context.PartyList.Length;
-        _debugState.TargetInfo = TargetingDebugHelper.FormatTargetInfo(null, context.TargetingService);
     }
 
     /// <inheritdoc />
@@ -314,6 +336,8 @@ public sealed class Kratos : BaseMeleeDpsRotation<IKratosContext, IKratosModule>
 
         if (ActionService.CanExecuteGcd)
             _scheduler.DispatchGcd(context);
+
+        SyncDebugState(context);
     }
 
     #endregion

@@ -307,7 +307,6 @@ public sealed class DamageModule : IKratosModule
             (MNKActions.BeastChakraType)context.BeastChakra2,
             (MNKActions.BeastChakraType)context.BeastChakra3);
         if (blitzAction == null) return;
-        if (!context.ActionService.IsActionReady(blitzAction.ActionId)) return;
 
         var ability = blitzAction.ActionId switch
         {
@@ -350,7 +349,6 @@ public sealed class DamageModule : IKratosModule
         if (context.HasPerfectBalance) return;
         if (context.HasFormlessFist) return;
         if (context.CurrentForm != MonkForm.OpoOpo && context.CurrentForm != MonkForm.None) return;
-        if (!context.ActionService.IsActionReady(MNKActions.FiresReply.ActionId)) return;
 
         scheduler.PushGcd(KratosAbilities.FiresReply, target.GameObjectId, priority: 2,
             onDispatched: _ =>
@@ -380,7 +378,6 @@ public sealed class DamageModule : IKratosModule
         var player = context.Player;
         if (player.Level < MNKActions.WindsReply.MinLevel) return;
         if (!context.HasWindsRumination) return;
-        if (!context.ActionService.IsActionReady(MNKActions.WindsReply.ActionId)) return;
 
         scheduler.PushGcd(KratosAbilities.WindsReply, target.GameObjectId, priority: 2,
             onDispatched: _ =>
@@ -411,7 +408,6 @@ public sealed class DamageModule : IKratosModule
 
         var action = GetPerfectBalanceAction(context, useAoE);
         if (action == null) return;
-        if (!context.ActionService.IsActionReady(action.ActionId)) return;
 
         var ability = MapToAbility(action);
 
@@ -467,7 +463,6 @@ public sealed class DamageModule : IKratosModule
                 ? MNKActions.ShadowOfTheDestroyer : MNKActions.ArmOfTheDestroyer;
             var ability = level >= MNKActions.ShadowOfTheDestroyer.MinLevel
                 ? KratosAbilities.ShadowOfTheDestroyer : KratosAbilities.ArmOfTheDestroyer;
-            if (!context.ActionService.IsActionReady(aoeAction.ActionId)) return;
 
             scheduler.PushGcd(ability, target.GameObjectId, priority: 5,
                 onDispatched: _ =>
@@ -492,7 +487,6 @@ public sealed class DamageModule : IKratosModule
         }
 
         var action = GetOpoOpoAction(context, (uint)level);
-        if (!context.ActionService.IsActionReady(action.ActionId)) return;
 
         bool isRearPositional = action == MNKActions.Bootshine || action == MNKActions.LeapingOpo;
         string positional = isRearPositional ? "(rear)" : "(flank)";
@@ -533,7 +527,6 @@ public sealed class DamageModule : IKratosModule
 
         if (useAoE && level >= MNKActions.FourPointFury.MinLevel)
         {
-            if (!context.ActionService.IsActionReady(MNKActions.FourPointFury.ActionId)) return;
             scheduler.PushGcd(KratosAbilities.FourPointFury, target.GameObjectId, priority: 5,
                 onDispatched: _ =>
                 {
@@ -557,7 +550,6 @@ public sealed class DamageModule : IKratosModule
         }
 
         var action = GetRaptorAction(context, (uint)level);
-        if (!context.ActionService.IsActionReady(action.ActionId)) return;
 
         bool isRearPositional = action == MNKActions.TrueStrike || action == MNKActions.RisingRaptor;
         string positional = isRearPositional ? "(rear)" : "(flank)";
@@ -598,7 +590,6 @@ public sealed class DamageModule : IKratosModule
 
         if (useAoE && level >= MNKActions.Rockbreaker.MinLevel)
         {
-            if (!context.ActionService.IsActionReady(MNKActions.Rockbreaker.ActionId)) return;
             scheduler.PushGcd(KratosAbilities.Rockbreaker, target.GameObjectId, priority: 5,
                 onDispatched: _ =>
                 {
@@ -622,7 +613,6 @@ public sealed class DamageModule : IKratosModule
         }
 
         var action = GetCoeurlAction(context, (uint)level);
-        if (!context.ActionService.IsActionReady(action.ActionId)) return;
 
         bool isRearPositional = action == MNKActions.Demolish || action == MNKActions.PouncingCoeurl;
         string positional = isRearPositional ? "(rear)" : "(flank)";
@@ -665,8 +655,6 @@ public sealed class DamageModule : IKratosModule
         var player = context.Player;
         if (player.Level < MNKActions.SixSidedStar.MinLevel) return;
         if (context.Chakra < 5) return;
-        if (!context.ActionService.IsActionReady(MNKActions.SixSidedStar.ActionId)) return;
-
         scheduler.PushGcd(KratosAbilities.SixSidedStar, target.GameObjectId, priority: 6,
             onDispatched: _ =>
             {

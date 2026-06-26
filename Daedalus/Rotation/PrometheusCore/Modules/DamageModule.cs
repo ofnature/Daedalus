@@ -1,3 +1,4 @@
+using System;
 using Dalamud.Game.ClientState.Objects.Types;
 using Daedalus.Data;
 using Daedalus.Models.Action;
@@ -23,6 +24,7 @@ public sealed class DamageModule : IPrometheusModule
 
     private readonly IBurstWindowService? _burstWindowService;
     private readonly ISmartAoEService? _smartAoEService;
+    private DateTime _aoeActiveUntil;
 
     public DamageModule(IBurstWindowService? burstWindowService = null, ISmartAoEService? smartAoEService = null)
     {
@@ -73,7 +75,12 @@ public sealed class DamageModule : IPrometheusModule
             rawEnemyCount = context.TargetingService.CountNearbyEnemiesInRange(
                 FFXIVConstants.RangedTargetingRange, player);
         context.Debug.NearbyEnemies = rawEnemyCount;
-        var enemyCount = aoeEnabled ? rawEnemyCount : 0;
+        // Latch AoE mode for 3s to prevent rapid ST/AoE toggling when enemy count fluctuates
+        // around the threshold (mobs dying, targeting cache, trust aggro).
+        if (aoeEnabled && rawEnemyCount >= aoeThreshold)
+            _aoeActiveUntil = DateTime.UtcNow.AddSeconds(3.0);
+        var enemyCount = aoeEnabled && (rawEnemyCount >= aoeThreshold || DateTime.UtcNow < _aoeActiveUntil)
+            ? Math.Max(rawEnemyCount, aoeThreshold) : 0;
 
         // oGCDs
         TryPushInterrupt(context, scheduler, target);

@@ -311,6 +311,7 @@ public abstract class BaseMeleeDpsRotation<TContext, TModule> : BaseRotation<TCo
             ActionService: ActionService,
             InCombat: inCombat,
             EnableMovement: IsPositionalMovementEnabled() && IsAutoMovementAllowed(),
+            AllowMovementDuringActionLock: true,
             MaintainMaxMelee: IsMaxMeleeMaintenanceAllowed(),
             MaxMeleeTarget: ResolveMaxMeleeTarget(player, out var maxMeleeFollowsPlayer),
             MaxMeleeTargetFollowsPlayer: maxMeleeFollowsPlayer,
