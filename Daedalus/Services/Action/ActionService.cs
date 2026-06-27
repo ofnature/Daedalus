@@ -718,6 +718,23 @@ public sealed unsafe class ActionService : IActionService
         var elapsed = actionManager->GetRecastTimeElapsed(ActionType.Action, actionId);
         var total = actionManager->GetRecastTime(ActionType.Action, actionId);
 
+        // Some actions (e.g. GNB Bloodfest, id 16164) return 0 from GetRecastTime-by-id even while on
+        // cooldown — a ClientStructs quirk where the action→recast-group lookup fails. RSR avoids this by
+        // reading the recast GROUP detail directly. Fall back to that when the by-id read comes back empty.
+        if (total <= 0)
+        {
+            var group = ActionUnlockHelper.GetCooldownGroup(_dataManager, actionId);
+            if (group > 0)
+            {
+                var detail = actionManager->GetRecastGroupDetail((byte)(group - 1));
+                if (detail is not null && detail->IsActive && detail->Total > 0)
+                {
+                    total = detail->Total;
+                    elapsed = detail->Elapsed;
+                }
+            }
+        }
+
         if (total <= 0)
             return 0;
 

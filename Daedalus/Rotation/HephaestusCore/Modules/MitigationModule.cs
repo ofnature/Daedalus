@@ -55,6 +55,15 @@ public sealed class MitigationModule : IHephaestusModule
 
         context.Debug.MitigationState = $"Monitoring ({hpPercent:P0} HP)";
 
+        // Wall-to-wall proactive trigger: on a real pack, layer the sustain cooldowns (Camouflage/Rampart/
+        // Nebula) on cooldown instead of waiting for HP to fall below MitigationThreshold (which fires them
+        // late, after avoidable damage is already taken). Take the larger of engaged pull size and self-
+        // centered AoE count so a stacked camp trips it regardless of which scan sees the mobs.
+        var pack = EnemyPackDebugHelper.Count(context.TargetingService, JobAoERadiusYalms.Tank, player);
+        EnemyPackDebugHelper.Apply(context.Debug, pack);
+        var packCount = Math.Max(pack.Engaged, pack.AoeRange);
+        var proactiveBigPull = packCount >= context.Configuration.Tank.ProactiveMitMinTargets;
+
         // Timeline-aware proactive pushes before normal ladder
         TryPushTimelineAwareMitigation(context, scheduler, hpPercent);
 
@@ -62,9 +71,9 @@ public sealed class MitigationModule : IHephaestusModule
         TryPushInterrupt(context, scheduler);
         TryPushSuperbolide(context, scheduler, hpPercent);
         TryPushHeartOfCorundum(context, scheduler, hpPercent, damageRate);
-        TryPushNebula(context, scheduler, hpPercent, damageRate);
-        TryPushRampart(context, scheduler, hpPercent, damageRate);
-        TryPushCamouflage(context, scheduler, hpPercent);
+        TryPushNebula(context, scheduler, hpPercent, damageRate, proactiveBigPull, packCount);
+        TryPushRampart(context, scheduler, hpPercent, damageRate, proactiveBigPull);
+        TryPushCamouflage(context, scheduler, hpPercent, proactiveBigPull, packCount);
         TryPushAurora(context, scheduler, hpPercent);
         TryPushHeartOfLight(context, scheduler);
         TryPushReprisal(context, scheduler);
@@ -397,7 +406,7 @@ public sealed class MitigationModule : IHephaestusModule
             });
     }
 
-    private static void TryPushNebula(IHephaestusContext context, RotationScheduler scheduler, float hpPercent, float damageRate)
+    private static void TryPushNebula(IHephaestusContext context, RotationScheduler scheduler, float hpPercent, float damageRate, bool proactiveBigPull, int packCount)
     {
         if (!context.Configuration.Tank.EnableNebula)
             return;
@@ -408,7 +417,8 @@ public sealed class MitigationModule : IHephaestusModule
         if (level < GNBActions.Nebula.MinLevel)
             return;
 
-        if (!context.TankCooldownService.ShouldUseMajorCooldown(hpPercent, damageRate))
+        // Reactive HP/damage gate OR proactive on a wall-to-wall pull.
+        if (!context.TankCooldownService.ShouldUseMajorCooldown(hpPercent, damageRate) && !proactiveBigPull)
             return;
 
         if (context.HasSuperbolide)
@@ -434,7 +444,9 @@ public sealed class MitigationModule : IHephaestusModule
             {
                 var nebulaAction = GNBActions.GetNebulaAction(level, context.ActionService);
                 context.Debug.PlannedAction = nebulaAction.Name;
-                context.Debug.MitigationState = $"Major CD ({hpPercent:P0} HP)";
+                context.Debug.MitigationState = proactiveBigPull && !context.TankCooldownService.ShouldUseMajorCooldown(hpPercent, damageRate)
+                    ? $"Major CD ({packCount}-mob pull)"
+                    : $"Major CD ({hpPercent:P0} HP)";
                 partyCoord?.OnCooldownUsed(nebulaAction.ActionId, 120_000);
 
                 TrainingHelper.Decision(context.TrainingService)
@@ -455,9 +467,11 @@ public sealed class MitigationModule : IHephaestusModule
             });
     }
 
-    private static void TryPushRampart(IHephaestusContext context, RotationScheduler scheduler, float hpPercent, float damageRate)
+    private static void TryPushRampart(IHephaestusContext context, RotationScheduler scheduler, float hpPercent, float damageRate, bool proactiveBigPull)
     {
-        if (!context.TankCooldownService.ShouldUseMitigation(hpPercent, damageRate, context.HasActiveMitigation))
+        // Reactive sustain gate OR proactive on a wall-to-wall pull (don't stack on top of active mit).
+        if (!context.TankCooldownService.ShouldUseMitigation(hpPercent, damageRate, context.HasActiveMitigation)
+            && !(proactiveBigPull && !context.HasActiveMitigation))
             return;
 
         if (context.HasSuperbolide)
@@ -492,7 +506,7 @@ public sealed class MitigationModule : IHephaestusModule
             });
     }
 
-    private static void TryPushCamouflage(IHephaestusContext context, RotationScheduler scheduler, float hpPercent)
+    private static void TryPushCamouflage(IHephaestusContext context, RotationScheduler scheduler, float hpPercent, bool proactiveBigPull, int packCount)
     {
         if (!context.Configuration.Tank.EnableCamouflage)
             return;
@@ -503,7 +517,8 @@ public sealed class MitigationModule : IHephaestusModule
         if (level < GNBActions.Camouflage.MinLevel)
             return;
 
-        if (hpPercent > context.Configuration.Tank.MitigationThreshold)
+        // Reactive: HP below threshold. Proactive: a wall-to-wall pull (don't wait to drop low first).
+        if (hpPercent > context.Configuration.Tank.MitigationThreshold && !proactiveBigPull)
             return;
 
         if (context.HasSuperbolide)
@@ -519,7 +534,9 @@ public sealed class MitigationModule : IHephaestusModule
             onDispatched: _ =>
             {
                 context.Debug.PlannedAction = GNBActions.Camouflage.Name;
-                context.Debug.MitigationState = $"Camouflage ({hpPercent:P0} HP)";
+                context.Debug.MitigationState = proactiveBigPull && hpPercent > context.Configuration.Tank.MitigationThreshold
+                    ? $"Camouflage ({packCount}-mob pull)"
+                    : $"Camouflage ({hpPercent:P0} HP)";
 
                 TrainingHelper.Decision(context.TrainingService)
                     .Action(GNBActions.Camouflage.ActionId, GNBActions.Camouflage.Name)

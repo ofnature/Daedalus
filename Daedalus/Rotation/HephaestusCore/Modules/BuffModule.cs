@@ -60,6 +60,11 @@ public sealed class BuffModule : BaseTankBuffModule<IHephaestusContext>, IHephae
             return;
         }
 
+        // Royal Guard (tank stance) — was never pushed (this override skipped it, unlike the other tanks),
+        // so GNB never auto-enabled its stance. Push before the damage gate so stance applies even if
+        // damage is disabled.
+        TryPushTankStance(context, scheduler);
+
         if (!IsDamageEnabled(context))
         {
             context.Debug.BuffState = "Damage disabled";
@@ -68,6 +73,26 @@ public sealed class BuffModule : BaseTankBuffModule<IHephaestusContext>, IHephae
 
         TryPushNoMercy(context, scheduler);
         TryPushBloodfest(context, scheduler);
+    }
+
+    private void TryPushTankStance(IHephaestusContext context, RotationScheduler scheduler)
+    {
+        var player = context.Player;
+        if (player.Level < GNBActions.RoyalGuard.MinLevel) return;
+        if (!context.Configuration.Tank.AutoTankStance)
+        {
+            context.Debug.BuffState = "AutoTankStance disabled";
+            return;
+        }
+        if (context.HasRoyalGuard) return;
+        if (!context.ActionService.IsActionReady(GNBActions.RoyalGuard.ActionId)) return;
+
+        scheduler.PushOgcd(GnbAbilities.RoyalGuard, player.GameObjectId, priority: 1,
+            onDispatched: _ =>
+            {
+                context.Debug.PlannedAction = GNBActions.RoyalGuard.Name;
+                context.Debug.BuffState = "Enabling Royal Guard";
+            });
     }
 
     private void TryPushNoMercy(IHephaestusContext context, RotationScheduler scheduler)
@@ -138,8 +163,25 @@ public sealed class BuffModule : BaseTankBuffModule<IHephaestusContext>, IHephae
         if (level < GNBActions.Bloodfest.MinLevel)
             return;
 
+        // Diagnostic: surface Bloodfest's live readiness so we can see whether its 60s cooldown is being
+        // read at all (it was being re-dispatched every GCD / "rejected").
+        var bfReady = context.ActionService.IsActionReady(GNBActions.Bloodfest.ActionId);
+        var bfCd = context.ActionService.GetCooldownRemaining(GNBActions.Bloodfest.ActionId);
+        var bfStatus = context.ActionService.GetActionStatusCode(GNBActions.Bloodfest.ActionId);
+        context.Debug.BloodfestDiag = $"ready={bfReady} cd={bfCd:F0}s status={bfStatus}";
+
         if (!context.ActionService.IsActionReady(GNBActions.Bloodfest.ActionId))
             return;
+
+        // Bloodfest is flagged CanTargetSelf=false / CanTargetHostile=true in the game data: despite being a
+        // self-buff (grants cartridges), UseAction silently no-ops unless it's dispatched at a hostile target.
+        // Dispatching with player.GameObjectId left it perpetually "ready" but never casting. Require an enemy.
+        var bloodfestTarget = context.CurrentTarget;
+        if (bloodfestTarget is null)
+        {
+            context.Debug.BuffState = "Bloodfest: no enemy target";
+            return;
+        }
 
         // Patch 7.4: Bloodfest is a 60s cooldown (down from 120s) that grants a temporary 6-cartridge
         // cap for 30s, so it can no longer overcap the gauge, and at Lv100 it grants Ready to Reign.
@@ -165,7 +207,7 @@ public sealed class BuffModule : BaseTankBuffModule<IHephaestusContext>, IHephae
         var duringNoMercy = context.HasNoMercy;
         scheduler.PushOgcd(
             GnbAbilities.Bloodfest,
-            player.GameObjectId,
+            bloodfestTarget.GameObjectId,
             priority: 2,
             onDispatched: _ =>
             {
@@ -179,7 +221,7 @@ public sealed class BuffModule : BaseTankBuffModule<IHephaestusContext>, IHephae
                         duringNoMercy
                             ? $"Bloodfest during No Mercy ({context.Cartridges} -> 3 cartridges)"
                             : $"Bloodfest to refill cartridges ({context.Cartridges} -> 3)",
-                        "Bloodfest instantly grants 3 cartridges (120s cooldown). " +
+                        "Bloodfest instantly grants 3 cartridges (60s cooldown). " +
                         "At Lv.100+, also grants Ready to Reign for the Reign of Beasts combo. " +
                         "Best used when cartridges are low (0-1) during No Mercy to maximize burst damage.")
                     .Factors(

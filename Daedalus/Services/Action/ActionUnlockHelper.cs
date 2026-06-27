@@ -26,6 +26,31 @@ public static unsafe class ActionUnlockHelper
         return IsUnlockLinkSatisfied(row.Value.UnlockLink.RowId);
     }
 
+    /// <summary>The shared global-GCD recast group (1-indexed). Actions whose primary cooldown group is the
+    /// GCD store their own recast in <c>AdditionalCooldownGroup</c>.</summary>
+    private const byte GcdCooldownGroup = 58;
+
+    /// <summary>
+    /// Resolves an action's own recast (cooldown) group from the Lumina Action sheet, RSR-style. Returns the
+    /// 1-indexed group (caller passes group - 1 to <c>GetRecastGroupDetail</c>), or 0 if unavailable / the
+    /// action only shares the GCD group. Used to read a cooldown via the recast GROUP when the by-action-id
+    /// recast lookup fails (a ClientStructs quirk for some actions, e.g. GNB Bloodfest).
+    /// </summary>
+    public static byte GetCooldownGroup(IDataManager? dataManager, uint actionId)
+    {
+        if (dataManager is null)
+            return 0;
+
+        var row = dataManager.GetExcelSheet<LuminaAction>()?.GetRowOrDefault(actionId);
+        if (row is null)
+            return 0;
+
+        var group = row.Value.CooldownGroup == GcdCooldownGroup
+            ? row.Value.AdditionalCooldownGroup
+            : row.Value.CooldownGroup;
+        return group == GcdCooldownGroup ? (byte)0 : group;
+    }
+
     /// <summary>
     /// Checks Lumina unlock link or quest id (&gt; 0x10000) via UIState.
     /// </summary>

@@ -172,6 +172,58 @@ public class MitigationModuleCollectCandidatesTests
         Assert.DoesNotContain(scheduler.InspectOgcdQueue(), c => c.Behavior == GnbAbilities.Reprisal);
     }
 
+    // Test 11: Camouflage fires proactively on a wall-to-wall pull even at healthy HP.
+    [Fact]
+    public void CollectCandidates_BigPullHealthyHp_PushesCamouflageProactively()
+    {
+        // HP healthy (100%) — the reactive HP gate would NOT fire Camouflage. A 5-mob pull should.
+        var scheduler = SchedulerFactory.CreateForTest();
+        var context = CreateContext(inCombat: true, currentHp: 50000, maxHp: 50000, enemyPackCount: 5);
+
+        _module.CollectCandidates(context, scheduler, isMoving: false);
+
+        Assert.Contains(scheduler.InspectOgcdQueue(), c => c.Behavior == GnbAbilities.Camouflage);
+    }
+
+    // Test 12: Camouflage NOT fired at healthy HP on a small pull (proactive trigger respects min targets).
+    [Fact]
+    public void CollectCandidates_SmallPullHealthyHp_CamouflageNotPushed()
+    {
+        // 2 mobs is below the default ProactiveMitMinTargets of 3, and HP is healthy.
+        var scheduler = SchedulerFactory.CreateForTest();
+        var context = CreateContext(inCombat: true, currentHp: 50000, maxHp: 50000, enemyPackCount: 2);
+
+        _module.CollectCandidates(context, scheduler, isMoving: false);
+
+        Assert.DoesNotContain(scheduler.InspectOgcdQueue(), c => c.Behavior == GnbAbilities.Camouflage);
+    }
+
+    // Test 13: Nebula fires proactively on a wall-to-wall pull even when the reactive major-CD gate is false.
+    [Fact]
+    public void CollectCandidates_BigPull_PushesNebulaProactively()
+    {
+        // tankCooldownService defaults ShouldUseMajorCooldown=false, so only the pull trigger can fire Nebula.
+        var scheduler = SchedulerFactory.CreateForTest();
+        var context = CreateContext(inCombat: true, currentHp: 50000, maxHp: 50000, enemyPackCount: 5);
+
+        _module.CollectCandidates(context, scheduler, isMoving: false);
+
+        Assert.Contains(scheduler.InspectOgcdQueue(), c => c.Behavior == GnbAbilities.Nebula && c.Priority == 4);
+    }
+
+    // Test 14: Rampart fires proactively on a wall-to-wall pull when no mitigation is active.
+    [Fact]
+    public void CollectCandidates_BigPullNoActiveMit_PushesRampartProactively()
+    {
+        var scheduler = SchedulerFactory.CreateForTest();
+        var context = CreateContext(inCombat: true, currentHp: 50000, maxHp: 50000,
+            hasActiveMitigation: false, enemyPackCount: 5);
+
+        _module.CollectCandidates(context, scheduler, isMoving: false);
+
+        Assert.Contains(scheduler.InspectOgcdQueue(), c => c.Behavior == GnbAbilities.Rampart);
+    }
+
     #region Helpers
 
     private static IHephaestusContext CreateContext(
@@ -189,6 +241,7 @@ public class MitigationModuleCollectCandidatesTests
         float avgPartyHp = 1.0f,
         int injuredPartyCount = 0,
         IBattleChara? currentTarget = null,
+        int enemyPackCount = 0,
         Mock<ITankCooldownService>? tankCooldownService = null)
     {
         config ??= HephaestusTestContext.CreateDefaultGunbreakerConfiguration();
@@ -198,7 +251,7 @@ public class MitigationModuleCollectCandidatesTests
         player.Setup(x => x.Position).Returns(System.Numerics.Vector3.Zero);
 
         var damageIntakeService = MockBuilders.CreateMockDamageIntakeService();
-        var targetingService = MockBuilders.CreateMockTargetingService();
+        var targetingService = MockBuilders.CreateMockTargetingService(countEnemiesInRange: enemyPackCount);
 
         if (tankCooldownService == null)
         {

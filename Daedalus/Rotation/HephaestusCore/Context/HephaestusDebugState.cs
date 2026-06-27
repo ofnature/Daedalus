@@ -52,6 +52,10 @@ public sealed class HephaestusDebugState : IEnemyPackDebug
     public bool HasNoMercy { get; set; }
     public float NoMercyRemaining { get; set; }
 
+    /// <summary>Live Bloodfest readiness diagnostic (ready / cooldown / action-status) — to debug the
+    /// repeated-dispatch ("rejected") behaviour where its 60s cooldown isn't being respected.</summary>
+    public string BloodfestDiag { get; set; } = "";
+
     // Defensive tracking
     public bool HasActiveMitigation { get; set; }
     public string ActiveMitigations { get; set; } = "";

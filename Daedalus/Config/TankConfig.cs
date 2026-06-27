@@ -575,6 +575,20 @@ public sealed class TankConfig
     public bool EnableNebula { get; set; } = true;
 
     /// <summary>
+    /// Engaged pull size at or above which GNB's sustain mitigation (Camouflage, Rampart, Nebula) is used
+    /// proactively on cooldown for wall-to-wall pulls, in addition to the reactive HP / damage-rate gate.
+    /// Without this, those cooldowns wait for HP to fall below <see cref="MitigationThreshold"/>, so on a
+    /// big pull they fire late (after you have already taken avoidable damage). Takes the larger of engaged
+    /// pull size and self-centered AoE count. Recommended default is 3 (a real pack). Range: 2 to 8.
+    /// </summary>
+    private int _proactiveMitMinTargets = 3;
+    public int ProactiveMitMinTargets
+    {
+        get => _proactiveMitMinTargets;
+        set => _proactiveMitMinTargets = Math.Clamp(value, 2, 8);
+    }
+
+    /// <summary>
     /// Use Aurora (regen).
     /// </summary>
     public bool EnableAurora { get; set; } = true;

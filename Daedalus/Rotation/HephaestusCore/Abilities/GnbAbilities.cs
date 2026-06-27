@@ -20,18 +20,20 @@ public static class GnbAbilities
         Toggle = cfg => cfg.Tank.EnableDamage,
     };
 
+    // Standard combos (Keen Edge → Brutal Shell → Solid Barrel) are separate buttons that do NOT morph
+    // via GetAdjustedActionId, so AdjustedActionProbe would never pass and the finisher would never fire
+    // (combo never advances → no cartridges). The DamageModule already gates these by ComboStep +
+    // LastComboAction (the WAR/DRK pattern). No probe.
     public static readonly AbilityBehavior BrutalShell = new()
     {
         Action = GNBActions.BrutalShell,
         Toggle = cfg => cfg.Tank.EnableDamage,
-        AdjustedActionProbe = GNBActions.KeenEdge.ActionId,
     };
 
     public static readonly AbilityBehavior SolidBarrel = new()
     {
         Action = GNBActions.SolidBarrel,
         Toggle = cfg => cfg.Tank.EnableDamage,
-        AdjustedActionProbe = GNBActions.KeenEdge.ActionId,
     };
 
     // --- AoE combo ---
@@ -46,7 +48,7 @@ public static class GnbAbilities
     {
         Action = GNBActions.DemonSlaughter,
         Toggle = cfg => cfg.Tank.EnableAoEDamage,
-        AdjustedActionProbe = GNBActions.DemonSlice.ActionId,
+        // No AdjustedActionProbe — Demon Slice → Demon Slaughter doesn't morph; gated by ComboStep in the module.
     };
 
     // --- Gnashing Fang chain (AmmoComboStep drives it) ---

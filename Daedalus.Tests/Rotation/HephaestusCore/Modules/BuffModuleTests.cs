@@ -157,6 +157,53 @@ public class BuffModuleCollectCandidatesTests
     }
 
     [Fact]
+    public void CollectCandidates_Bloodfest_NotPushed_WhenNoEnemyTarget()
+    {
+        // Regression: Bloodfest is flagged CanTargetSelf=false / CanTargetHostile=true. It was being
+        // dispatched at player.GameObjectId, which UseAction silently no-ops (perpetually "ready, never
+        // casts"). With no enemy target it must not be pushed at all.
+        var actionService = MockBuilders.CreateMockActionService(canExecuteOgcd: false);
+        actionService.Setup(x => x.IsActionReady(GNBActions.NoMercy.ActionId)).Returns(false);
+        actionService.Setup(x => x.IsActionReady(GNBActions.Bloodfest.ActionId)).Returns(true);
+        actionService.Setup(x => x.GetCooldownRemaining(GNBActions.NoMercy.ActionId)).Returns(0f);
+
+        var scheduler = SchedulerFactory.CreateForTest(actionService: actionService);
+        var context = CreateContext(
+            inCombat: true,
+            hasNoMercy: true,
+            cartridges: 0,
+            actionService: actionService,
+            hasTarget: false);
+
+        new BuffModule().CollectCandidates(context, scheduler, isMoving: false);
+
+        Assert.DoesNotContain(scheduler.InspectOgcdQueue(), c => c.Behavior == GnbAbilities.Bloodfest);
+    }
+
+    [Fact]
+    public void CollectCandidates_Bloodfest_DispatchedAtEnemyTarget_NotSelf()
+    {
+        // Bloodfest must be dispatched at the hostile target's id, not the player's, or the game refuses it.
+        var actionService = MockBuilders.CreateMockActionService(canExecuteOgcd: false);
+        actionService.Setup(x => x.IsActionReady(GNBActions.NoMercy.ActionId)).Returns(false);
+        actionService.Setup(x => x.IsActionReady(GNBActions.Bloodfest.ActionId)).Returns(true);
+        actionService.Setup(x => x.GetCooldownRemaining(GNBActions.NoMercy.ActionId)).Returns(0f);
+
+        var scheduler = SchedulerFactory.CreateForTest(actionService: actionService);
+        var context = CreateContext(
+            inCombat: true,
+            hasNoMercy: true,
+            cartridges: 0,
+            actionService: actionService);
+
+        new BuffModule().CollectCandidates(context, scheduler, isMoving: false);
+
+        var bloodfest = Assert.Single(scheduler.InspectOgcdQueue(), c => c.Behavior == GnbAbilities.Bloodfest);
+        Assert.NotEqual(context.Player.GameObjectId, bloodfest.TargetId);
+        Assert.Equal(context.CurrentTarget!.GameObjectId, bloodfest.TargetId);
+    }
+
+    [Fact]
     public void CollectCandidates_EnableNoMercyFalse_PushesNothing()
     {
         var config = HephaestusTestContext.CreateDefaultGunbreakerConfiguration();
@@ -179,6 +226,42 @@ public class BuffModuleCollectCandidatesTests
         Assert.Empty(scheduler.InspectOgcdQueue());
     }
 
+    [Fact]
+    public void CollectCandidates_RoyalGuard_PushedWhenStanceMissing()
+    {
+        // Regression: GNB BuffModule previously never pushed tank stance at all. Royal Guard must be
+        // pushed in combat when the stance isn't up and AutoTankStance is enabled.
+        var actionService = MockBuilders.CreateMockActionService(canExecuteOgcd: false);
+        actionService.Setup(x => x.IsActionReady(It.IsAny<uint>())).Returns(true);
+
+        var scheduler = SchedulerFactory.CreateForTest(actionService: actionService);
+        var context = CreateContext(
+            inCombat: true,
+            hasRoyalGuard: false,
+            actionService: actionService);
+
+        new BuffModule().CollectCandidates(context, scheduler, isMoving: false);
+
+        Assert.Contains(scheduler.InspectOgcdQueue(), c => c.Behavior == GnbAbilities.RoyalGuard);
+    }
+
+    [Fact]
+    public void CollectCandidates_RoyalGuard_NotPushedWhenStanceActive()
+    {
+        var actionService = MockBuilders.CreateMockActionService(canExecuteOgcd: false);
+        actionService.Setup(x => x.IsActionReady(It.IsAny<uint>())).Returns(true);
+
+        var scheduler = SchedulerFactory.CreateForTest(actionService: actionService);
+        var context = CreateContext(
+            inCombat: true,
+            hasRoyalGuard: true,
+            actionService: actionService);
+
+        new BuffModule().CollectCandidates(context, scheduler, isMoving: false);
+
+        Assert.DoesNotContain(scheduler.InspectOgcdQueue(), c => c.Behavior == GnbAbilities.RoyalGuard);
+    }
+
     #region Helpers
 
     private static IHephaestusContext CreateContext(
@@ -188,7 +271,9 @@ public class BuffModuleCollectCandidatesTests
         int cartridges = 0,
         byte level = 100,
         Configuration? config = null,
-        Mock<IActionService>? actionService = null)
+        Mock<IActionService>? actionService = null,
+        bool hasRoyalGuard = true,
+        bool hasTarget = true)
     {
         config ??= HephaestusTestContext.CreateDefaultGunbreakerConfiguration();
         actionService ??= MockBuilders.CreateMockActionService(canExecuteOgcd: false);
@@ -208,6 +293,10 @@ public class BuffModuleCollectCandidatesTests
         mock.Setup(x => x.HasNoMercy).Returns(hasNoMercy);
         mock.Setup(x => x.NoMercyRemaining).Returns(noMercyRemaining);
         mock.Setup(x => x.Cartridges).Returns(cartridges);
+        mock.Setup(x => x.HasRoyalGuard).Returns(hasRoyalGuard);
+        // Bloodfest is CanTargetHostile (not self-targetable), so it requires a CurrentTarget to dispatch.
+        mock.Setup(x => x.CurrentTarget).Returns(
+            hasTarget ? MockBuilders.CreateMockBattleChara(entityId: 0x40000001).Object : null);
         mock.Setup(x => x.Debug).Returns(new HephaestusDebugState());
 
         return mock.Object;

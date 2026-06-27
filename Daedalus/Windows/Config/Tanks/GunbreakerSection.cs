@@ -88,6 +88,12 @@ public sealed class GunbreakerSection
                 save,
                 actionId: GNBActions.Camouflage.ActionId);
 
+            config.Tank.ProactiveMitMinTargets = ConfigUIHelpers.IntSlider(
+                "Proactive Mit Pull Size",
+                config.Tank.ProactiveMitMinTargets, 2, 8,
+                "Use sustain mitigation (Camouflage, Rampart, Nebula) on cooldown when tanking this many or more engaged enemies (wall-to-wall pulls), instead of waiting for HP to drop. Recommended: 3.",
+                save, v => config.Tank.ProactiveMitMinTargets = v);
+
             ConfigUIHelpers.Toggle(
                 Loc.T(LocalizedStrings.Gunbreaker.EnableAurora, "Aurora"),
                 () => config.Tank.EnableAurora,

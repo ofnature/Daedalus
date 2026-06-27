@@ -48,6 +48,14 @@ All notable changes to Daedalus will be documented in this file.
 - Shadowstride no longer darts you around the pack: it's no longer woven as filler damage by default (only used to close the gap to an out-of-range target). New "Auto-weave Shadowstride" toggle (off) to opt back in
 - Salted Earth (and its Salt and Darkness follow-up) now actually fire — they were blocked by a wrong action ID and never went off. Added a "Salted Earth Min Targets" slider (default 1 = on cooldown) so you can hold it for big wall-to-wall packs
 
+### Fix — Gunbreaker
+- Bloodfest now actually fires: it was being cast on yourself, but the game requires it on an enemy target, so it sat "ready" and never went off (which also meant the Lv100 Reign of Beasts → Noble Blood → Lion Heart combo never triggered). Bloodfest now lands once per cooldown and the Reign combo fires inside No Mercy
+- Royal Guard (tank stance) now auto-enables in combat like the other tanks — Gunbreaker previously never turned its stance on
+- Fixed a mid-pull lockup where the rotation could freeze for ~10+ seconds after Bloodfest: the basic combo could desync and stop dispatching, starving cartridges and stalling No Mercy. The combo now always falls back to its starter and self-corrects
+
+### New — Gunbreaker proactive mitigation
+- Sustain cooldowns (Camouflage, Rampart, Nebula) now fire proactively on wall-to-wall pulls instead of waiting for your HP to drop — so you're mitigated before the damage lands, not after. New "Proactive Mit Pull Size" slider (default 3) under the GNB Mitigation section
+
 ### Improved — "Why Stuck" diagnostics (all jobs)
 - Live "Last action: Ns ago" idle timer, a PAUSED banner that names why the whole rotation is idle (including "no action in combat"), and per-ability reasons for why a GCD won't fire (cooldown, proc, combo, out of range, line-of-sight/facing). The tank tab also shows enemy counts (in PBAoE range vs aggroed within 25y)
 - Added a vNav movement state (Idle / Pathing / Finding path) and a live "In LoS / facing" enemy counter, so it's clear whether an idle is the character moving vs. no enemy actually being castable-at (line of sight / facing)

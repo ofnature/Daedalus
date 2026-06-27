@@ -739,7 +739,7 @@ public sealed class DamageModule : IHephaestusModule
                         .Record();
                     context.TrainingService?.RecordConceptApplication("gnb_cartridge_gauge", true, "Solid Barrel cartridge generation");
                 });
-            return;
+            // No early return — Keen Edge below is the starter fallback if Solid Barrel's combo gate rejects.
         }
 
         // ComboStep == 1 is ambiguous — it is set by both Keen Edge (ST) and Demon Slice (AoE).
@@ -771,7 +771,7 @@ public sealed class DamageModule : IHephaestusModule
                         .Record();
                     context.TrainingService?.RecordConceptApplication("gnb_cartridge_gauge", true, "Brutal Shell combo step");
                 });
-            return;
+            // No early return — Keen Edge below is the starter fallback if Brutal Shell's combo gate rejects.
         }
 
         // Starter: Keen Edge (always available)
@@ -834,7 +834,9 @@ public sealed class DamageModule : IHephaestusModule
                         .Record();
                     context.TrainingService?.RecordConceptApplication("gnb_cartridge_gauge", true, "Demon Slaughter AoE cartridge gen");
                 });
-            return;
+            // No early return: also push Demon Slice below as a fallback. Demon Slaughter is gated by
+            // AdjustedActionProbe (= Demon Slice morph), so if the game's combo has lapsed/desynced it
+            // rejects — without the starter fallback the rotation locks up (combo never re-established).
         }
 
         if (context.ActionService.IsActionReady(GNBActions.DemonSlice.ActionId))

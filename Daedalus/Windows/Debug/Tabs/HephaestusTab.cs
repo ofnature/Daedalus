@@ -165,6 +165,12 @@ public static class HephaestusTab
 
             ImGui.TableNextRow();
             ImGui.TableNextColumn();
+            ImGui.Text("Bloodfest:");
+            ImGui.TableNextColumn();
+            ImGui.TextDisabled(string.IsNullOrEmpty(state.BloodfestDiag) ? "—" : state.BloodfestDiag);
+
+            ImGui.TableNextRow();
+            ImGui.TableNextColumn();
             ImGui.Text(Loc.T(LocalizedStrings.Debug.SonicBreak, "Sonic Break DoT:"));
             ImGui.TableNextColumn();
             if (state.HasSonicBreakDot)

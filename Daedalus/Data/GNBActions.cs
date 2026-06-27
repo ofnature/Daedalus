@@ -588,7 +588,7 @@ public static class GNBActions
         TargetType = ActionTargetType.Self,
         EffectTypes = ActionEffectType.Buff,
         CastTime = 0f,
-        RecastTime = 120f,
+        RecastTime = 60f, // 7.4: reduced from 120s to 60s (Recast100ms=600, verified via XIVAPI)
         MpCost = 0
         // Grants 3 Cartridges and Ready to Reign at Lv.100
     };
