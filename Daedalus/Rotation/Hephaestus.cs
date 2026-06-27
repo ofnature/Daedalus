@@ -295,17 +295,25 @@ public sealed class Hephaestus : BaseTankRotation<IHephaestusContext, IHephaestu
     /// <inheritdoc />
     protected override void ExecuteModules(IHephaestusContext context, bool isMoving, bool inCombat)
     {
+        // Capture WHY the whole rotation stops, so a stall is self-diagnosing in Why Stuck.
+        context.Debug.PauseReason = "";
+
         // Preserve BaseRotation's safety pauses (same as parent loop).
         if (Configuration.Targeting.PauseAllOnStandStillPunisher
             && PlayerSafetyHelper.IsStandStillPunisherActive(context.Player))
         {
+            context.Debug.PauseReason = "Stand-still punisher (Pyretic) — all actions paused";
             return;
         }
         if (Configuration.Targeting.PauseOnPlayerChannel
             && PlayerSafetyHelper.IsPlayerIntentChannelActive(context.Player))
         {
+            context.Debug.PauseReason = "Player channel/stance active — all actions paused";
             return;
         }
+
+        if (!inCombat)
+            context.Debug.PauseReason = "Not in combat (rotation idle)";
 
         if (TryDispatchTincture(context, inCombat)) return;
 

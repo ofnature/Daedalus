@@ -18,6 +18,9 @@ public sealed class NyxDebugState : IEnemyPackDebug
     public string PlannedAction { get; set; } = "";
     public string PlanningState { get; set; } = "";
 
+    /// <summary>Non-empty when the whole rotation is globally paused this frame; explains why it's idle.</summary>
+    public string PauseReason { get; set; } = "";
+
     // Combo tracking
     public int ComboStep { get; set; }
     public string LastComboAction { get; set; } = "";

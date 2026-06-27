@@ -162,12 +162,24 @@ public sealed class Nyx : BaseTankRotation<INyxContext, INyxModule>
 
     protected override void ExecuteModules(INyxContext context, bool isMoving, bool inCombat)
     {
+        // Capture WHY the whole rotation stops, so a stall is self-diagnosing in Why Stuck.
+        context.Debug.PauseReason = "";
+
         if (Configuration.Targeting.PauseAllOnStandStillPunisher
             && PlayerSafetyHelper.IsStandStillPunisherActive(context.Player))
+        {
+            context.Debug.PauseReason = "Stand-still punisher (Pyretic) — all actions paused";
             return;
+        }
         if (Configuration.Targeting.PauseOnPlayerChannel
             && PlayerSafetyHelper.IsPlayerIntentChannelActive(context.Player))
+        {
+            context.Debug.PauseReason = "Player channel/stance active — all actions paused";
             return;
+        }
+
+        if (!inCombat)
+            context.Debug.PauseReason = "Not in combat (rotation idle)";
 
         if (TryDispatchTincture(context, inCombat)) return;
 

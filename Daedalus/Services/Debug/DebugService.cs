@@ -312,6 +312,7 @@ public sealed class DebugService
             GaugeValue = s.BeastGauge,
             ComboStep = s.ComboStep,
             ComboTimeRemaining = s.ComboTimeRemaining,
+            PauseReason = s.PauseReason,
             AggroedInRange = s.EngagedEnemies,
             InAoERange = s.AoeRangeEnemies,
             ResourceLines = resources
@@ -347,6 +348,7 @@ public sealed class DebugService
             GaugeValue = s.BloodGauge,
             ComboStep = s.ComboStep,
             ComboTimeRemaining = s.ComboTimeRemaining,
+            PauseReason = s.PauseReason,
             AggroedInRange = s.EngagedEnemies,
             InAoERange = s.AoeRangeEnemies,
             ResourceLines = resources
@@ -380,6 +382,7 @@ public sealed class DebugService
             GaugeMax = 3,
             ComboStep = s.ComboStep,
             ComboTimeRemaining = s.ComboTimeRemaining,
+            PauseReason = s.PauseReason,
             AggroedInRange = s.EngagedEnemies,
             InAoERange = s.AoeRangeEnemies,
             ResourceLines = resources
