@@ -245,7 +245,15 @@ public sealed class DamageModule : IAresModule
         if (!context.Configuration.Tank.AutoOnslaught) return;
         var player = context.Player;
         if (player.Level < WARActions.Onslaught.MinLevel) return;
+        // Don't dash mid-movement (RSR YEET !moving) — keeps Onslaught from yanking you out of position.
+        if (context.IsMoving) return;
         if (!context.ActionService.IsActionReady(WARActions.Onslaught.ActionId)) return;
+
+        // Burst-align (RSR YEETBurst): weave during Inner Release; otherwise hold a charge and only
+        // spend when about to overcap (2+ charges banked).
+        var charges = (int)context.ActionService.GetCurrentCharges(WARActions.Onslaught.ActionId);
+        if (!context.HasInnerRelease && charges < 2) return;
+
         if (context.TargetingService.GapCloserSafety.ShouldBlockGapCloser(target, player))
         {
             context.Debug.DamageState = $"Onslaught blocked: {context.TargetingService.GapCloserSafety.LastBlockReason}";
@@ -387,6 +395,21 @@ public sealed class DamageModule : IAresModule
 
     #region Gauge spenders
 
+    /// <summary>
+    /// Surging Tempest guard (RSR parity): outside Inner Release, don't dump Beast Gauge if Surging
+    /// Tempest is down or about to fall off — the gauge spender (p3) outranks the Storm's Eye combo
+    /// finisher (p6), so without this the rotation can spend forever and let the +damage buff lapse.
+    /// Blocking the spender lets the combo run and refresh Surging Tempest via Storm's Eye.
+    /// </summary>
+    private static bool ShouldRefreshSurgingTempestFirst(IAresContext context)
+    {
+        if (context.HasInnerRelease) return false; // inside IR we spend stacks; ST was refreshed pre-burst
+        if (context.Player.Level < WARActions.StormsEye.MinLevel) return false;
+        return !context.HasSurgingTempest
+               || BaseStatusHelper.WillStatusEndInGcds(
+                      context.SurgingTempestRemaining, 3, context.ActionService.GcdDuration);
+    }
+
     private void TryPushGaugeSpender(IAresContext context, RotationScheduler scheduler, ulong targetId, int enemyCount)
     {
         bool atCap = context.BeastGauge >= context.Configuration.Tank.BeastGaugeCap;
@@ -394,6 +417,9 @@ public sealed class DamageModule : IAresModule
                         || context.BeastGauge >= 50
                         || atCap;
         if (!canSpend) return;
+
+        // Refresh Surging Tempest before dumping gauge when it's about to drop (filler only).
+        if (ShouldRefreshSurgingTempestFirst(context)) return;
 
         var level = context.Player.Level;
 

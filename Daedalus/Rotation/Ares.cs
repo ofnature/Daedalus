@@ -175,7 +175,10 @@ public sealed class Ares : BaseTankRotation<IAresContext, IAresModule>
         }
 
         if (!inCombat)
+        {
             context.Debug.PauseReason = "Not in combat (rotation idle)";
+            TryPrePullTomahawk(context);
+        }
 
         if (TryDispatchTincture(context, inCombat)) return;
 
@@ -193,6 +196,21 @@ public sealed class Ares : BaseTankRotation<IAresContext, IAresModule>
         {
             _scheduler.DispatchGcd(context);
         }
+    }
+
+    /// <summary>
+    /// Pre-pull opener: out of combat with an enemy hard-targeted, throw Tomahawk to start the pull.
+    /// Opt-in (off by default) and only acts on the player's explicit target, so it never auto-pulls.
+    /// </summary>
+    private void TryPrePullTomahawk(IAresContext context)
+    {
+        if (!Configuration.Tank.EnablePrePullTomahawk) return;
+        if (context.Player.Level < WARActions.Tomahawk.MinLevel) return;
+        if (!ActionService.CanExecuteGcd) return;
+        if (!ActionService.IsActionReady(WARActions.Tomahawk.ActionId)) return;
+        if (context.TargetingService.GetUserEnemyTarget() is not { } target) return;
+
+        ActionService.ExecuteGcd(WARActions.Tomahawk, target.GameObjectId);
     }
 
     protected override void SyncDebugState(IAresContext context)

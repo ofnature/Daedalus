@@ -362,11 +362,17 @@ public sealed class TankConfig
     public bool EnableOnslaught { get; set; } = true;
 
     /// <summary>
-    /// Auto-weave Onslaught as damage when already in melee range. When off,
-    /// Onslaught is only used to close the gap (uptime), leaving charges under
-    /// player control for positioning. Ignored when EnableOnslaught is off.
+    /// Auto-weave Onslaught as damage. Burst-aligned: only weaves during Inner Release or when about to
+    /// overcap charges, and never while moving (so the dash doesn't pull you out of position). When off,
+    /// Onslaught is only used to close the gap (uptime). Ignored when EnableOnslaught is off.
     /// </summary>
-    public bool AutoOnslaught { get; set; } = false;
+    public bool AutoOnslaught { get; set; } = true;
+
+    /// <summary>
+    /// Pull with the job's ranged GCD (WAR Tomahawk) out of combat when an enemy is hard-targeted —
+    /// a pre-pull opener. Default false. (Planned: gate to trials/raids only.)
+    /// </summary>
+    public bool EnablePrePullTomahawk { get; set; } = false;
 
     /// <summary>
     /// Share mitigation and healing with a party member via Nascent Flash.

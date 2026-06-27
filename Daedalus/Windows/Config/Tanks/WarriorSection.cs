@@ -179,7 +179,7 @@ public sealed class WarriorSection
                 "Auto-weave Onslaught",
                 () => config.Tank.AutoOnslaught,
                 v => config.Tank.AutoOnslaught = v,
-                "When off, Onslaught is only used to close the gap when you're out of melee range. Charges stay under your control for positioning jumps. Gap-close uptime use is unaffected.",
+                "Burst-aligned: weaves Onslaught during Inner Release or when about to overcap charges, and never while moving (so the dash won't pull you out of position). When off, Onslaught is only used to close the gap when out of melee.",
                 save);
 
             ConfigUIHelpers.Toggle(
@@ -204,6 +204,14 @@ public sealed class WarriorSection
                 null,
                 save,
                 actionId: WARActions.PrimalRuination.ActionId);
+
+            ConfigUIHelpers.Toggle(
+                "Pre-pull Tomahawk",
+                () => config.Tank.EnablePrePullTomahawk,
+                v => config.Tank.EnablePrePullTomahawk = v,
+                "Out of combat with an enemy hard-targeted, throw Tomahawk to open the pull. Off by default; only acts on your explicit target. (Planned: restrict to trials/raids.)",
+                save,
+                actionId: WARActions.Tomahawk.ActionId);
 
             ConfigUIHelpers.Spacing();
 
