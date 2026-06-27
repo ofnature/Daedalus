@@ -56,8 +56,14 @@ public sealed class DarkKnightSection
             config.Tank.TBNThreshold = ConfigUIHelpers.ThresholdSlider(
                 Loc.T(LocalizedStrings.DarkKnight.TBNThreshold, "TBN Threshold"),
                 config.Tank.TBNThreshold, 50f, 100f,
-                Loc.T(LocalizedStrings.DarkKnight.TBNThresholdDesc, "Apply TBN when HP is above this %, ensuring the shield will break for Dark Arts."),
+                Loc.T(LocalizedStrings.DarkKnight.TBNThresholdDesc, "Apply TBN as a reactive shield when HP falls below this %."),
                 save, v => config.Tank.TBNThreshold = v);
+            ConfigUIHelpers.Toggle(
+                "TBN Dark Arts banking",
+                () => config.Tank.TBNProactiveBanking,
+                v => config.Tank.TBNProactiveBanking = v,
+                "While actively tanking with MP to spare, pop TBN so the shield breaks for Dark Arts → a free Edge/Flood. MP-neutral, adds a free shield, small DPS gain. Independent of the HP threshold above.",
+                save);
             ConfigUIHelpers.EndDisabledGroup();
 
             ConfigUIHelpers.Spacing();

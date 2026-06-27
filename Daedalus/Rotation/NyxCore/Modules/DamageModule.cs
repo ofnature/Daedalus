@@ -210,6 +210,27 @@ public sealed class DamageModule : INyxModule
             });
     }
 
+    /// <summary>
+    /// Edge/Flood (Darkside maintenance + MP spend) decision — RSR <c>CheckDarkSide</c> parity. Refreshes
+    /// Darkside before it lapses (within ~3 GCDs), then spends MP above a floor that reserves 3000 for The
+    /// Blackest Night (unless TBN is disabled). In the burst window (Delirium/Blood Weapon up) it spends
+    /// down to that reserve to fit the extra Edges (5/2 plan); outside burst it only dumps near cap (8500)
+    /// so natural MP regen isn't wasted. (Dark Arts free Edge is handled separately at priority 1.)
+    /// </summary>
+    internal static (bool spend, string reason) ResolveDarksideSpend(
+        bool hasDarkside, float darksideRemaining, int currentMp, bool keepTbnReserve, bool inBurst, float gcdDuration)
+    {
+        if (!hasDarkside) return (true, "Darkside activate");
+        if (darksideRemaining > 0f && BaseStatusHelper.WillStatusEndInGcds(darksideRemaining, 3, gcdDuration))
+            return (true, $"Darkside refresh ({darksideRemaining:F1}s)");
+
+        // 3000 to cast Edge/Flood, plus 3000 banked for TBN when the reserve is on.
+        var reserve = keepTbnReserve ? 6000 : 3000;
+        if (inBurst && currentMp >= reserve + 100) return (true, "MP dump (burst)");
+        if (currentMp >= 8500 && currentMp >= reserve) return (true, "MP dump");
+        return (false, string.Empty);
+    }
+
     private void TryPushDarksideMaintenance(INyxContext context, RotationScheduler scheduler, ulong targetId, int enemyCount)
     {
         if (!context.HasEnoughMpForEdge)
@@ -223,17 +244,16 @@ public sealed class DamageModule : INyxModule
         var action = isAoe ? DRKActions.GetFloodAction(level, context.ActionService) : DRKActions.GetEdgeAction(level, context.ActionService);
         var behavior = isAoe ? NyxAbilities.FloodOfShadow : NyxAbilities.EdgeOfShadow;
 
-        bool expiringSoon = context.HasDarkside && context.DarksideRemaining < 10f && context.DarksideRemaining > 0f;
-        bool noDarkside = !context.HasDarkside;
-        bool mpDump = context.CurrentMp >= 9400;
-        if (!expiringSoon && !noDarkside && !mpDump) return;
+        bool inBurst = context.HasDelirium || context.HasBloodWeapon;
+        bool keepTbnReserve = context.Configuration.Tank.EnableTheBlackestNight;
+        var (spend, reason) = ResolveDarksideSpend(context.HasDarkside, context.DarksideRemaining,
+            context.CurrentMp, keepTbnReserve, inBurst, context.ActionService.GcdDuration);
+        if (!spend) return;
         if (!context.ActionService.IsActionReady(action.ActionId)) return;
 
         var darksideRem = context.DarksideRemaining;
         var mp = context.CurrentMp;
-        var reason = expiringSoon ? $"Darkside refresh ({darksideRem:F1}s)"
-                   : noDarkside ? "Darkside activate"
-                   : "MP dump";
+        var noDarkside = !context.HasDarkside;
 
         scheduler.PushOgcd(behavior, targetId, priority: 5,
             onDispatched: _ =>
@@ -307,12 +327,12 @@ public sealed class DamageModule : INyxModule
         if (level < DRKActions.ScarletDelirium.MinLevel) return;
         if (!context.HasDelirium) return;
 
-        // AoE: use Impalement (step 1 replacement for AoE)
+        // AoE: Impalement (replaces Quietus during Delirium). Button-replacement, so it fires per stack.
         bool useAoE = context.Configuration.Tank.EnableAoEDamage &&
                       enemyCount >= context.Configuration.Tank.GetEffectiveAoEMinTargets(JobRegistry.DarkKnight) &&
                       level >= DRKActions.Impalement.MinLevel;
 
-        if (useAoE && context.ActionService.IsActionReady(DRKActions.Impalement.ActionId))
+        if (useAoE)
         {
             scheduler.PushGcd(NyxAbilities.Impalement, targetId, priority: 2,
                 onDispatched: _ =>
@@ -323,15 +343,25 @@ public sealed class DamageModule : INyxModule
             return;
         }
 
-        if (!context.ActionService.IsActionReady(DRKActions.ScarletDelirium.ActionId)) return;
+        // ST Delirium combo: Scarlet Delirium → Comeuppance → Torcleaver. Push all three; the
+        // AdjustedActionProbe gate dispatches only the step the Bloodspiller slot currently shows, so the
+        // chain advances one GCD at a time (Comeuppance/Torcleaver were previously never pushed — the
+        // combo broke after step 1, losing the two highest-potency burst GCDs + the Scornful Edge proc).
+        PushDeliriumStep(context, scheduler, NyxAbilities.Torcleaver, targetId, DRKActions.Torcleaver.Name);
+        PushDeliriumStep(context, scheduler, NyxAbilities.Comeuppance, targetId, DRKActions.Comeuppance.Name);
+        PushDeliriumStep(context, scheduler, NyxAbilities.ScarletDelirium, targetId, DRKActions.ScarletDelirium.Name);
+    }
 
-        scheduler.PushGcd(NyxAbilities.ScarletDelirium, targetId, priority: 2,
+    private void PushDeliriumStep(INyxContext context, RotationScheduler scheduler,
+                                  Daedalus.Rotation.Common.Scheduling.AbilityBehavior behavior, ulong targetId, string name)
+    {
+        scheduler.PushGcd(behavior, targetId, priority: 2,
             onDispatched: _ =>
             {
-                context.Debug.PlannedAction = DRKActions.ScarletDelirium.Name;
-                context.Debug.DamageState = "Scarlet Delirium";
+                context.Debug.PlannedAction = name;
+                context.Debug.DamageState = $"{name} (Delirium combo)";
                 TrainingHelper.Decision(context.TrainingService)
-                    .Action(DRKActions.ScarletDelirium.ActionId, "Delirium Combo").AsTankBurst()
+                    .Action(behavior.Action.ActionId, "Delirium Combo").AsTankBurst()
                     .Reason("Delirium combo during burst window.", "Scarlet Delirium → Comeuppance → Torcleaver.")
                     .Factors("Delirium active")
                     .Alternatives("Break combo (wastes burst)")

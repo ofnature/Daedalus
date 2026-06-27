@@ -40,6 +40,11 @@ All notable changes to Daedalus will be documented in this file.
 - Vengeance / Damnation now also fires on cooldown for big pulls: new "Vengeance Pull Size" slider (default 3) pops it when you're tanking that many or more engaged enemies (wall-to-wall), on top of the existing HP-based trigger
 - New "Pre-pull Tomahawk" toggle (off by default): with an enemy targeted out of combat, opens the pull with Tomahawk
 
+### Fix — Dark Knight
+- The level-96 Delirium combo now completes: Comeuppance and Torcleaver fire after Scarlet Delirium instead of the combo stalling on the first hit — recovering the two biggest burst GCDs and the Disesteem proc. AoE Impalement under Delirium also fires reliably now
+- Edge/Flood MP usage is smarter: Darkside refreshes before it lapses, MP dumps near cap outside burst, and during burst it spends down while keeping enough banked for The Blackest Night (closer to the 5/2 plan)
+- The Blackest Night now also banks Dark Arts for damage: while you're actively tanking with MP to spare, TBN is used so the shield breaks and grants a free Edge/Flood (MP-neutral, plus a free shield). New "TBN Dark Arts banking" toggle (on by default); the HP-threshold slider still controls reactive shielding
+
 ### Improved — "Why Stuck" diagnostics (all jobs)
 - Live "Last action: Ns ago" idle timer, a PAUSED banner that names why the whole rotation is idle (including "no action in combat"), and per-ability reasons for why a GCD won't fire (cooldown, proc, combo, out of range, line-of-sight/facing). The tank tab also shows enemy counts (in PBAoE range vs aggroed within 25y)
 - Added a vNav movement state (Idle / Pathing / Finding path) and a live "In LoS / facing" enemy counter, so it's clear whether an idle is the character moving vs. no enemy actually being castable-at (line of sight / facing)

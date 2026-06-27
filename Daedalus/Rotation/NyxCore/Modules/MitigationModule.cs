@@ -292,6 +292,15 @@ public sealed class MitigationModule : INyxModule
             });
     }
 
+    /// <summary>
+    /// Proactive TBN banking: while actively taking tank damage with MP to spare and no Dark Arts already
+    /// banked, popping TBN breaks the 25% shield and grants Dark Arts → a free Edge/Flood (consumes Dark
+    /// Arts instead of 3000 MP). MP-neutral + a free shield, so it's a small DPS gain. The damage-rate gate
+    /// ensures the shield actually breaks; the MP floor keeps enough to maintain Darkside via the free Edge.
+    /// </summary>
+    internal static bool ShouldBankTbn(bool enabled, bool hasDarkArts, float damageRate, int currentMp, int mpFloor = 6000)
+        => enabled && !hasDarkArts && damageRate > 0f && currentMp >= mpFloor;
+
     private void TryPushTBN(INyxContext context, RotationScheduler scheduler, float hpPercent)
     {
         if (!context.Configuration.Tank.EnableTheBlackestNight) return;
@@ -300,15 +309,25 @@ public sealed class MitigationModule : INyxModule
         if (context.HasTheBlackestNight) return;
         if (context.HasWalkingDead) return;
         if (!context.HasEnoughMpForTbn) return;
-        // Use proactively before predictable damage or at moderate HP
-        if (hpPercent > context.Configuration.Tank.TBNThreshold) return;
         if (!context.ActionService.IsActionReady(DRKActions.TheBlackestNight.ActionId)) return;
 
-        scheduler.PushOgcd(NyxAbilities.TheBlackestNight, player.GameObjectId, priority: 3,
+        // Reactive: shield self at/below the HP threshold.
+        bool reactive = hpPercent <= context.Configuration.Tank.TBNThreshold;
+        // Proactive: bank Dark Arts for a free Edge while tanking (DPS-positive).
+        var damageRate = context.DamageIntakeService.GetDamageRate(player.EntityId);
+        bool banking = ShouldBankTbn(context.Configuration.Tank.TBNProactiveBanking,
+            context.HasDarkArts, damageRate, context.CurrentMp);
+
+        if (!reactive && !banking) return;
+
+        // Reactive shielding takes the mitigation weave slot (priority 3); pure banking is opportunistic
+        // (priority 6) so it never preempts real mitigation or key damage oGCDs.
+        var reason = reactive ? $"TBN shield ({hpPercent:P0} HP)" : "TBN bank (Dark Arts → free Edge)";
+        scheduler.PushOgcd(NyxAbilities.TheBlackestNight, player.GameObjectId, priority: reactive ? 3 : 6,
             onDispatched: _ =>
             {
                 context.Debug.PlannedAction = DRKActions.TheBlackestNight.Name;
-                context.Debug.MitigationState = $"TBN shield ({hpPercent:P0} HP)";
+                context.Debug.MitigationState = reason;
             });
     }
 

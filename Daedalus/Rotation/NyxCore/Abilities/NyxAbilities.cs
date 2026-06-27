@@ -24,10 +24,41 @@ public static class NyxAbilities
     public static readonly AbilityBehavior Quietus = new() { Action = DRKActions.Quietus, Toggle = cfg => cfg.Tank.EnableAoEDamage };
 
     // --- Delirium combo (Lv.96+) ---
-    public static readonly AbilityBehavior ScarletDelirium = new() { Action = DRKActions.ScarletDelirium, Toggle = cfg => cfg.Tank.EnableDamage };
-    public static readonly AbilityBehavior Comeuppance = new() { Action = DRKActions.Comeuppance, Toggle = cfg => cfg.Tank.EnableDamage };
-    public static readonly AbilityBehavior Torcleaver = new() { Action = DRKActions.Torcleaver, Toggle = cfg => cfg.Tank.EnableDamage };
-    public static readonly AbilityBehavior Impalement = new() { Action = DRKActions.Impalement, Toggle = cfg => cfg.Tank.EnableAoEDamage };
+    // Scarlet Delirium -> Comeuppance -> Torcleaver is a button-replacement combo over Bloodspiller while
+    // Delirium is active. ReplacementBaseId routes dispatch through the Bloodspiller slot (which the game
+    // morphs to the current combo step); AdjustedActionProbe ensures only the currently-shown step's
+    // candidate passes the gate (PLD Atonement chain pattern). Without these the combo deadlocks after
+    // step 1 (Comeuppance/Torcleaver never fire).
+    public static readonly AbilityBehavior ScarletDelirium = new()
+    {
+        Action = DRKActions.ScarletDelirium,
+        Toggle = cfg => cfg.Tank.EnableDamage,
+        ReplacementBaseId = DRKActions.Bloodspiller.ActionId,
+        AdjustedActionProbe = DRKActions.Bloodspiller.ActionId,
+    };
+    public static readonly AbilityBehavior Comeuppance = new()
+    {
+        Action = DRKActions.Comeuppance,
+        Toggle = cfg => cfg.Tank.EnableDamage,
+        ReplacementBaseId = DRKActions.Bloodspiller.ActionId,
+        AdjustedActionProbe = DRKActions.Bloodspiller.ActionId,
+    };
+    public static readonly AbilityBehavior Torcleaver = new()
+    {
+        Action = DRKActions.Torcleaver,
+        Toggle = cfg => cfg.Tank.EnableDamage,
+        ReplacementBaseId = DRKActions.Bloodspiller.ActionId,
+        AdjustedActionProbe = DRKActions.Bloodspiller.ActionId,
+    };
+    // Impalement replaces Quietus during Delirium (AoE). Same button-replacement treatment so it fires
+    // reliably for each Delirium stack.
+    public static readonly AbilityBehavior Impalement = new()
+    {
+        Action = DRKActions.Impalement,
+        Toggle = cfg => cfg.Tank.EnableAoEDamage,
+        ReplacementBaseId = DRKActions.Quietus.ActionId,
+        AdjustedActionProbe = DRKActions.Quietus.ActionId,
+    };
 
     // --- L100 AoE finisher ---
     public static readonly AbilityBehavior Disesteem = new() { Action = DRKActions.Disesteem, Toggle = cfg => cfg.Tank.EnableDamage };

@@ -499,7 +499,7 @@ public sealed class TankConfig
     public bool EnableTheBlackestNight { get; set; } = true;
 
     /// <summary>
-    /// HP percentage threshold to apply The Blackest Night.
+    /// HP percentage threshold to apply The Blackest Night as a reactive shield.
     /// Range: 0.0 to 1.0 (0% to 100%).
     /// </summary>
     private float _tbnThreshold = 0.80f;
@@ -508,6 +508,15 @@ public sealed class TankConfig
         get => _tbnThreshold;
         set => _tbnThreshold = Math.Clamp(value, 0f, 1f);
     }
+
+    /// <summary>
+    /// Use The Blackest Night proactively on the tank while actively taking damage, so the shield breaks
+    /// and grants Dark Arts — a free Edge/Flood of Shadow (consumes Dark Arts instead of 3000 MP). This is
+    /// MP-neutral and adds a free shield, so it's a small DPS gain on top of mitigation. Only fires while
+    /// taking damage (so the shield reliably breaks), with MP to spare, and when no Dark Arts is already
+    /// banked. Default true.
+    /// </summary>
+    public bool TBNProactiveBanking { get; set; } = true;
 
     /// <summary>
     /// Spend Blood Gauge before reaching this cap to avoid overcapping.
