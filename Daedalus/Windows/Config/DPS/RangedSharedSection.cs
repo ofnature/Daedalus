@@ -41,5 +41,20 @@ public sealed class RangedSharedSection
 
             ConfigUIHelpers.EndIndent();
         }
+
+        if (ConfigUIHelpers.SectionHeader(Loc.T(LocalizedStrings.RangedShared.Utility, "Utility"), "Ranged"))
+        {
+            ConfigUIHelpers.BeginIndent();
+
+            ConfigUIHelpers.Toggle(
+                Loc.T(LocalizedStrings.RangedShared.EnablePeloton, "Enable Peloton"),
+                () => config.RangedShared.EnablePeloton,
+                v => config.RangedShared.EnablePeloton = v,
+                "Auto-cast Peloton while out of combat and moving (travel speed buff between pulls).",
+                save,
+                actionId: RoleActions.Peloton.ActionId);
+
+            ConfigUIHelpers.EndIndent();
+        }
     }
 }

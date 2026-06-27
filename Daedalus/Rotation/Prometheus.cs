@@ -291,6 +291,8 @@ public sealed class Prometheus : BaseRangedDpsRotation<IPrometheusContext, IProm
             && PlayerSafetyHelper.IsPlayerIntentChannelActive(context.Player))
             return;
 
+        RangedSharedHelper.TryCastPeloton(Configuration, ActionService, context.Player, inCombat, isMoving);
+
         if (TryDispatchTincture(context, inCombat)) return;
 
         if (!inCombat && PrometheusPrePullCandidate.TryDispatchPrePullGcd(context))

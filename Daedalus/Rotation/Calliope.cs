@@ -243,6 +243,8 @@ public sealed class Calliope : BaseRangedDpsRotation<ICalliopeContext, ICalliope
             && PlayerSafetyHelper.IsPlayerIntentChannelActive(context.Player))
             return;
 
+        RangedSharedHelper.TryCastPeloton(Configuration, ActionService, context.Player, inCombat, isMoving);
+
         if (TryDispatchTincture(context, inCombat)) return;
 
         _scheduler.Reset();
