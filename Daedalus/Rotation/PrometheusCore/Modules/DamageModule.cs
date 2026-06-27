@@ -64,14 +64,14 @@ public sealed class DamageModule : IPrometheusModule
 
         var aoeEnabled = context.Configuration.Machinist.EnableAoERotation;
         var aoeThreshold = context.Configuration.Machinist.AoEMinTargets;
-        var rawEnemyCount = context.TargetingService.CountEnemiesInRange(12f, player);
-        context.Debug.NearbyEnemies = rawEnemyCount;
+        var pack = EnemyPackDebugHelper.Count(context.TargetingService, 12f, player);
+        EnemyPackDebugHelper.Apply(context.Debug, pack);
         // Latch AoE mode for 3s to prevent rapid ST/AoE toggling when enemy count fluctuates
         // around the threshold (mobs dying, targeting cache, trust aggro).
-        if (aoeEnabled && rawEnemyCount >= aoeThreshold)
+        if (aoeEnabled && pack.AoeRange >= aoeThreshold)
             _aoeActiveUntil = DateTime.UtcNow.AddSeconds(3.0);
-        var enemyCount = aoeEnabled && (rawEnemyCount >= aoeThreshold || DateTime.UtcNow < _aoeActiveUntil)
-            ? Math.Max(rawEnemyCount, aoeThreshold) : 0;
+        var enemyCount = aoeEnabled && (pack.AoeRange >= aoeThreshold || DateTime.UtcNow < _aoeActiveUntil)
+            ? Math.Max(pack.AoeRange, aoeThreshold) : 0;
 
         // oGCDs
         TryPushInterrupt(context, scheduler, target);

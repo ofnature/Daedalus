@@ -29,8 +29,6 @@ public sealed class OverlayWindow : Window
     private static readonly Vector4 HpHighColor    = new(0.5f, 1.0f, 0.5f, 1f);
     private static readonly Vector4 HpMidColor     = new(1.0f, 1.0f, 0.4f, 1f);
     private static readonly Vector4 HpLowColor     = new(1.0f, 0.4f, 0.4f, 1f);
-    private static readonly Vector4 RearColor               = new(0.4f, 0.8f, 1.0f, 1f);
-    private static readonly Vector4 FlankColor              = new(0.8f, 0.5f, 1.0f, 1f);
     private static readonly Vector4 MechanicImminentColor   = new(1.0f, 0.3f, 0.3f, 1f);
     private static readonly Vector4 MechanicSoonColor       = new(1.0f, 0.65f, 0.2f, 1f);
     private static readonly Vector4 MechanicUpcomingColor   = new(0.85f, 0.85f, 0.85f, 1f);
@@ -180,22 +178,7 @@ public sealed class OverlayWindow : Window
 
         // Positional indicator (melee DPS only)
         if (rotation is IHasPositionals posRotation)
-        {
-            var pos = posRotation.Positionals;
-            if (pos.HasTarget)
-            {
-                ImGui.Text(Loc.T(LocalizedStrings.Overlay.PositionalLabel, "Pos:"));
-                ImGui.SameLine();
-                if (pos.TargetHasImmunity)
-                    ImGui.TextDisabled(Loc.T(LocalizedStrings.Overlay.Immune, "Immune"));
-                else if (pos.IsAtRear)
-                    ImGui.TextColored(RearColor,  Loc.T(LocalizedStrings.Overlay.Rear,  "Rear"));
-                else if (pos.IsAtFlank)
-                    ImGui.TextColored(FlankColor, Loc.T(LocalizedStrings.Overlay.Flank, "Flank"));
-                else
-                    ImGui.TextDisabled(Loc.T(LocalizedStrings.Overlay.Front, "Front"));
-            }
-        }
+            PositionalDisplayHelper.DrawOverlay(posRotation.Positionals);
     }
 
     private void DrawMechanicsForecast()

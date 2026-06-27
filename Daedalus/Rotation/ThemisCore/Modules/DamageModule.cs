@@ -1,5 +1,6 @@
 using Daedalus.Data;
 using Daedalus.Models.Action;
+using Daedalus.Rotation.Common;
 using Daedalus.Rotation.Common.Helpers;
 using Daedalus.Rotation.Common.Scheduling;
 using Daedalus.Rotation.ThemisCore.Abilities;
@@ -48,6 +49,9 @@ public sealed class DamageModule : IThemisModule
         }
 
         var player = context.Player;
+
+        var pack = EnemyPackDebugHelper.Count(context.TargetingService, JobAoERadiusYalms.Tank, player);
+        EnemyPackDebugHelper.Apply(context.Debug, pack);
 
         var enemyStrategy = TankTargetingHelper.ResolveEnemyStrategy(
             context.Configuration.Tank,

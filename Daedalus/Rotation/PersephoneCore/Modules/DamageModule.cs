@@ -77,10 +77,10 @@ public sealed class DamageModule : IPersephoneModule
 
         var aoeEnabled = context.Configuration.Summoner.EnableAoERotation;
         var aoeThreshold = context.Configuration.Summoner.AoEMinTargets;
-        var rawEnemyCount = context.TargetingService.CountEnemiesInRange(5f, player);
-        context.Debug.NearbyEnemies = rawEnemyCount;
-        var enemyCount = aoeEnabled ? rawEnemyCount : 0;
-        var useAoe = enemyCount >= aoeThreshold;
+        var pack = EnemyPackDebugHelper.Count(context.TargetingService, 5f, player);
+        EnemyPackDebugHelper.Apply(context.Debug, pack);
+        var enemyCount = aoeEnabled ? pack.AoeRange : 0;
+        var useAoe = aoeEnabled && pack.AoeRange >= aoeThreshold;
 
         // Addle (party mit utility)
         TryPushAddle(context, scheduler, target);

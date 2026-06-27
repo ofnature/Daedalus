@@ -46,6 +46,17 @@ public interface ITargetingService
     int CountNearbyEnemiesInRange(float radius, IPlayerCharacter player);
 
     /// <summary>
+    /// Counts engaged/hostile enemies within <paramref name="scanRadius"/> of the player.
+    /// Used for pull-size decisions (positionals, pack awareness) — not self-centered AoE hit count.
+    /// </summary>
+    int CountEngagedEnemies(float scanRadius, IPlayerCharacter player);
+
+    /// <summary>
+    /// Returns engaged pull size and enemies within <paramref name="aoeRadiusYalms"/> of the player.
+    /// </summary>
+    EnemyPackCounts CountEnemyPack(float aoeRadiusYalms, IPlayerCharacter player);
+
+    /// <summary>
     /// Counts valid enemies within <paramref name="radius"/> of <paramref name="target"/>'s position.
     /// Used for targeted AoE (e.g. Impact's circle on the target) while the player stands at cast range.
     /// Candidates are gathered within range of the player, then filtered by distance to the anchor target.

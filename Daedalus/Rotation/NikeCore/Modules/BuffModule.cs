@@ -1,5 +1,6 @@
 using Dalamud.Game.ClientState.Objects.Types;
 using Daedalus.Data;
+using Daedalus.Rotation.Common;
 using Daedalus.Rotation.Common.Helpers;
 using Daedalus.Rotation.Common.RoleActionHelpers;
 using Daedalus.Rotation.Common.Scheduling;
@@ -228,7 +229,9 @@ public sealed class BuffModule : INikeModule
         var level = player.Level;
         if (context.Kenki < 25) return;
 
-        var enemyCount = context.TargetingService.CountEnemiesInRange(5f, player);
+        var pack = EnemyPackDebugHelper.Count(context.TargetingService, JobAoERadiusYalms.Melee, player);
+        EnemyPackDebugHelper.Apply(context.Debug, pack);
+        var enemyCount = pack.AoeRange;
         var useAoe = enemyCount >= 3 && level >= SAMActions.Guren.MinLevel;
 
         if (useAoe)

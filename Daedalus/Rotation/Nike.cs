@@ -311,6 +311,8 @@ public sealed class Nike : BaseMeleeDpsRotation<INikeContext, INikeModule>
         _debugState.PlannedAction = _nikeDebugState.PlannedAction;
         _debugState.DpsState = _nikeDebugState.DamageState;
 
+        EnemyPackDebugHelper.SyncAoEDps(_debugState, _nikeDebugState, context.Configuration.Samurai.AoEMinTargets, JobAoERadiusYalms.Melee);
+
         // Party/player info
         _debugState.PlayerHpPercent = (float)context.Player.CurrentHp / context.Player.MaxHp;
         _debugState.PartyListCount = context.PartyList.Length;

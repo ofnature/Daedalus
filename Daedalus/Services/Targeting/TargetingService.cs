@@ -10,6 +10,7 @@ using FFXIVClientStructs.FFXIV.Client.Game;
 using FFXIVClientStructs.FFXIV.Common.Component.BGCollision;
 using Daedalus.Data;
 using Daedalus.Rotation.ApolloCore.Helpers;
+using Daedalus.Services.Positional;
 
 namespace Daedalus.Services.Targeting;
 
@@ -118,8 +119,9 @@ public sealed class TargetingService : ITargetingService
     {
         PrepareDamageTargeting(player);
 
+        // Hard pause: player has no target and PauseWhenNoTarget is on. Covers gaze mechanics.
         if (IsDamageTargetingPaused())
-            return FindNearbyEnemy(maxRange, player);
+            return null;
 
         // Try primary strategy
         var target = FindEnemyByStrategy(strategy, maxRange, player);
@@ -252,15 +254,25 @@ public sealed class TargetingService : ITargetingService
     /// </summary>
     /// <inheritdoc />
     public int CountNearbyEnemiesInRange(float radius, IPlayerCharacter player)
+        => CountEngagedEnemies(radius, player);
+
+    /// <inheritdoc />
+    public int CountEngagedEnemies(float scanRadius, IPlayerCharacter player)
     {
         var count = 0;
-        foreach (var enemy in GetValidEnemies(radius, player))
+        foreach (var enemy in GetValidEnemies(scanRadius, player, applyLineOfSightFilter: false))
         {
             if (IsEngagedOrHostile(enemy, player))
                 count++;
         }
         return count;
     }
+
+    /// <inheritdoc />
+    public EnemyPackCounts CountEnemyPack(float aoeRadiusYalms, IPlayerCharacter player)
+        => new(
+            CountEngagedEnemies(PositionalRequirementHelper.EngagedScanYalms, player),
+            CountEnemiesInRange(aoeRadiusYalms, player));
 
     /// <inheritdoc />
     public IBattleNpc? FindNearbyEnemy(float maxRange, IPlayerCharacter player)
@@ -304,12 +316,14 @@ public sealed class TargetingService : ITargetingService
     /// <returns>Number of valid enemies within radius.</returns>
     public int CountEnemiesInRange(float radius, IPlayerCharacter player)
     {
-        // RSR parity: count ALL valid enemies in range. GetValidEnemies already filters for
-        // targetable combatant BattleNpcs that aren't invulnerable. No engagement check —
-        // the game considers them valid targets if they pass the base filters.
+        // Count only enemies that are engaged or hostile — passive mobs in nearby packs
+        // must not inflate AoE thresholds before they're pulled.
         var count = 0;
-        foreach (var _ in GetValidEnemies(radius, player))
-            count++;
+        foreach (var enemy in GetValidEnemies(radius, player))
+        {
+            if (IsEngagedOrHostile(enemy, player))
+                count++;
+        }
         return count;
     }
 
@@ -439,8 +453,9 @@ public sealed class TargetingService : ITargetingService
     {
         PrepareDamageTargeting(player);
 
+        // Hard pause: no target → no damage targeting at all.
         if (IsDamageTargetingPaused())
-            return FindNearbyEnemy(25f, player);
+            return null;
 
         var target = FindEnemyByActionStrategy(strategy, actionId, player);
 

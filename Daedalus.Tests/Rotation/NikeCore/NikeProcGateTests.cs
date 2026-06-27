@@ -1,5 +1,6 @@
 using Moq;
 using Daedalus.Data;
+using Daedalus.Rotation.NikeCore.Abilities;
 using Daedalus.Services.Action;
 using Daedalus.Tests.Mocks;
 using Xunit;
@@ -58,5 +59,22 @@ public class NikeProcGateTests
         var svc = WithAdjust(SAMActions.OgiNamikiri.ActionId, SAMActions.OgiNamikiri.ActionId);
         Assert.False(SAMActions.IsKaeshiNamikiriReady(svc.Object));
         Assert.False(SAMActions.IsTsubameGaeshiActionReady(svc.Object));
+    }
+
+    /// <summary>
+    /// Kaeshi follow-ups must NOT carry a scheduler ProcBuff gate. The module already gates on the
+    /// dual adjusted-action / status check (KaeshiNamikiriReady / TsubameGaeshiActionReady); a second
+    /// status gate in the scheduler re-introduces the 1-2 frame stale-window race that drops the
+    /// Kaeshi after Ogi Namikiri / Iaijutsu (observed as a mid-rotation lockup).
+    /// </summary>
+    [Fact]
+    public void KaeshiFollowups_DoNotCarryRedundantProcBuffGate()
+    {
+        Assert.Null(NikeAbilities.KaeshiNamikiri.ProcBuff);
+        Assert.Null(NikeAbilities.KaeshiSetsugekka.ProcBuff);
+        Assert.Null(NikeAbilities.KaeshiGoken.ProcBuff);
+        Assert.Null(NikeAbilities.KaeshiHiganbana.ProcBuff);
+        Assert.Null(NikeAbilities.TendoKaeshiSetsugekka.ProcBuff);
+        Assert.Null(NikeAbilities.TendoKaeshiGoken.ProcBuff);
     }
 }

@@ -34,8 +34,7 @@ public class AresComboFallbackTests
         var config = AresTestContext.CreateDefaultWarriorConfiguration();
         config.Tank.EnableAoEDamage = true;
         config.Tank.WarriorAoEMinTargetsOverride = 2;
-        targeting.Setup(x => x.CountEnemiesInRange(It.IsAny<float>(), It.IsAny<IPlayerCharacter>()))
-            .Returns(1);
+        MockBuilders.SetupEnemyPackCount(targeting, 1);
 
         var scheduler = SchedulerFactory.CreateForTest(config: config);
         var context = AresTestContext.CreateMock(
@@ -63,8 +62,7 @@ public class AresComboFallbackTests
         targeting.Setup(x => x.FindEnemy(
                 It.IsAny<EnemyTargetingStrategy>(), It.IsAny<float>(), It.IsAny<IPlayerCharacter>()))
             .Returns(enemy.Object);
-        targeting.Setup(x => x.CountEnemiesInRange(It.IsAny<float>(), It.IsAny<IPlayerCharacter>()))
-            .Returns(3);
+        MockBuilders.SetupEnemyPackCount(targeting, 3);
 
         var config = AresTestContext.CreateDefaultWarriorConfiguration();
         config.Tank.EnableAoEDamage = true;

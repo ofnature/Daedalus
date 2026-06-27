@@ -226,7 +226,7 @@ public abstract class BaseRotation<TContext, TModule> : IRotation, IDisposable
             inCombat = (player.StatusFlags & StatusFlags.InCombat) != 0;
         if (!inCombat && Configuration.EnableOnAutoAttack)
             inCombat = IsAutoAttacking();
-        if (!inCombat)
+        if (!inCombat && Configuration.EnableOnPartyInCombat)
             inCombat = PartyCombatHelper.IsAnyGroupMemberInCombat(player, PartyList, ObjectTable);
         UpdateCombatState(inCombat);
 

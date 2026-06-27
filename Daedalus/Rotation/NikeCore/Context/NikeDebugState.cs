@@ -1,4 +1,5 @@
 using Daedalus.Data;
+using Daedalus.Rotation.Common;
 
 namespace Daedalus.Rotation.NikeCore.Context;
 
@@ -6,7 +7,7 @@ namespace Daedalus.Rotation.NikeCore.Context;
 /// Debug state for Samurai (Nike) rotation.
 /// Tracks rotation decisions and state for debug display.
 /// </summary>
-public sealed class NikeDebugState
+public sealed class NikeDebugState : IEnemyPackDebug
 {
     // Module states
     public string DamageState { get; set; } = "";
@@ -53,7 +54,13 @@ public sealed class NikeDebugState
 
     // Targeting
     public string CurrentTarget { get; set; } = "";
-    public int NearbyEnemies { get; set; }
+    public int EngagedEnemies { get; set; }
+    public int AoeRangeEnemies { get; set; }
+    public int NearbyEnemies
+    {
+        get => AoeRangeEnemies;
+        set => AoeRangeEnemies = value;
+    }
 
     /// <summary>
     /// Gets a formatted string of the current Sen state.

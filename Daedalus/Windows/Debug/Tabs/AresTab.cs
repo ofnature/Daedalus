@@ -2,6 +2,8 @@ using System.Numerics;
 using Dalamud.Bindings.ImGui;
 using Daedalus.Localization;
 using Daedalus.Rotation.AresCore.Context;
+using Daedalus.Rotation.Common;
+using Daedalus.Rotation.Common.Helpers;
 using Daedalus.Windows.Debug;
 
 namespace Daedalus.Windows.Debug.Tabs;
@@ -60,11 +62,7 @@ public static class AresTab
             else
                 ImGui.TextDisabled(Loc.T(LocalizedStrings.Debug.Defiance, "Defiance"));
 
-            ImGui.TableNextRow();
-            ImGui.TableNextColumn();
-            ImGui.Text(Loc.T(LocalizedStrings.Debug.NearbyEnemies, "Nearby Enemies:"));
-            ImGui.TableNextColumn();
-            ImGui.Text($"{state.NearbyEnemies}");
+            EnemyPackDebugHelper.DrawEnemyPackTableRows(state, JobAoERadiusYalms.Tank);
 
             ImGui.TableNextRow();
             ImGui.TableNextColumn();

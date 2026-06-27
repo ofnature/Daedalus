@@ -96,9 +96,9 @@ public abstract class BaseDpsDamageModule<TContext> : IRotationModule<TContext>
     protected abstract void SetDamageState(TContext context, string state);
 
     /// <summary>
-    /// Sets the nearby enemy count in this job's debug display.
+    /// Sets engaged + AoE-range enemy counts in this job's debug display.
     /// </summary>
-    protected abstract void SetNearbyEnemies(TContext context, int count);
+    protected abstract void SetEnemyPackCounts(TContext context, EnemyPackCounts counts);
 
     /// <summary>
     /// Sets the planned action name in this job's debug display.
@@ -231,14 +231,14 @@ public abstract class BaseDpsDamageModule<TContext> : IRotationModule<TContext>
         // Phase 3: Enemy count for AoE decisions
         // Update the per-frame threshold from config before counting enemies.
         _currentAoeThreshold = GetConfiguredAoEThreshold(context);
-        var rawEnemyCount = context.TargetingService.CountEnemiesInRange(GetAoECountRange(), context.Player);
-        SetNearbyEnemies(context, rawEnemyCount);
+        var pack = EnemyPackDebugHelper.Count(context.TargetingService, GetAoECountRange(), context.Player);
+        SetEnemyPackCounts(context, pack);
         // Treat enemy count as 0 when AoE rotation is disabled — all ShouldUseAoE / AoeThreshold checks return false.
-        var enemyCount = IsAoEEnabled(context) ? rawEnemyCount : 0;
+        var enemyCount = IsAoEEnabled(context) ? pack.AoeRange : 0;
 
         // Phase 3b: Smart AoE — compute optimal facing for the last/next directional ability
         if (enemyCount > 0)
-            UpdateSmartAoE(context, target, rawEnemyCount);
+            UpdateSmartAoE(context, target, pack.AoeRange);
 
         // Phase 4: oGCD damage (weave window)
         if (context.CanExecuteOgcd)

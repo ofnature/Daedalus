@@ -1,5 +1,6 @@
 using System;
 using Daedalus.Data;
+using Daedalus.Rotation.Common;
 using Daedalus.Rotation.Common.Helpers;
 using Daedalus.Rotation.Common.RoleActionHelpers;
 using Daedalus.Rotation.Common.Scheduling;
@@ -696,7 +697,8 @@ public sealed class MitigationModule : IHephaestusModule
         if (injuredCount < 3 && avgHp > 0.85f)
             return;
 
-        var enemyCount = context.TargetingService.CountEnemiesInRange(5f, player);
+        var pack = EnemyPackDebugHelper.Count(context.TargetingService, JobAoERadiusYalms.Tank, player);
+        EnemyPackDebugHelper.Apply(context.Debug, pack);
         var capturedTarget = target;
 
         scheduler.PushOgcd(
@@ -706,16 +708,16 @@ public sealed class MitigationModule : IHephaestusModule
             onDispatched: _ =>
             {
                 context.Debug.PlannedAction = RoleActions.Reprisal.Name;
-                context.Debug.MitigationState = $"Reprisal ({enemyCount} enemies)";
+                context.Debug.MitigationState = $"Reprisal ({pack.AoeRange} enemies)";
                 partyCoord?.OnCooldownUsed(RoleActions.Reprisal.ActionId, 60_000);
 
                 TrainingHelper.Decision(context.TrainingService)
                     .Action(RoleActions.Reprisal.ActionId, RoleActions.Reprisal.Name)
                     .AsPartyMit()
                     .Reason(
-                        $"Reprisal used to reduce enemy damage by 10% for {enemyCount} enemies. Party mitigation during heavy damage phase.",
+                        $"Reprisal used to reduce enemy damage by 10% for {pack.AoeRange} enemies. Party mitigation during heavy damage phase.",
                         "Reprisal reduces the targets' damage dealt by 10% for 10 seconds. Since it affects all enemies in range, it's exceptionally strong during dungeon pulls and raidwides.")
-                    .Factors($"{enemyCount} enemies in range", $"{injuredCount} party members injured", $"Party average HP: {avgHp:P0}", "Reprisal available", "60s cooldown - deploy during damage pressure")
+                    .Factors($"{pack.AoeRange} enemies in range", $"{injuredCount} party members injured", $"Party average HP: {avgHp:P0}", "Reprisal available", "60s cooldown - deploy during damage pressure")
                     .Alternatives("Save for raidwide (depends on content)", "Heart of Light (magic only)", "Rely on personal mitigation (loses party value)")
                     .Tip("Use Reprisal during dungeon pulls - it reduces damage from every enemy hitting you. In raids, coordinate with your co-tank for raidwide coverage.")
                     .Concept("gnb_heart_of_light")

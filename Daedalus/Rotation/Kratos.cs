@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Dalamud.Game.ClientState.JobGauge;
 using Dalamud.Game.ClientState.Objects.SubKinds;
@@ -134,7 +135,11 @@ public sealed class Kratos : BaseMeleeDpsRotation<IKratosContext, IKratosModule>
         _partyCoordinationService = partyCoordinationService;
         _trainingService = trainingService;
 
-        _positionalAnticipationProvider = new DelegatePositionalAnticipationProvider(GetNextRequiredPositional);
+        _positionalAnticipationProvider = new DelegatePositionalAnticipationProvider(() =>
+        {
+            var player = ObjectTable.LocalPlayer;
+            return player == null ? null : ResolveNextRequiredPositional(player);
+        });
         _scheduler = new RotationScheduler(actionService, jobGauges, configuration, timelineService, errorMetrics);
 
         // Initialize helpers
@@ -177,26 +182,28 @@ public sealed class Kratos : BaseMeleeDpsRotation<IKratosContext, IKratosModule>
     }
 
     /// <summary>
-    /// Determines the required positional for the next Monk GCD based on current form.
-    /// Opo-opo form → Rear (Bootshine/LeapingOpo)
-    /// Raptor form → Flank (TrueStrike/TwinSnakes/RisingRaptor)
-    /// Coeurl form → Rear (Demolish, when DoT needs refresh) or Flank (Snap Punch/Pouncing Coeurl)
-    /// No form / Formless → Rear (starts with Opo-opo)
+    /// Anticipates the positional for the GCD AFTER the current one — mirrors how SAM anticipates
+    /// Gekko/Kasha one step after Jinpu/Shifu. Movement starts during the current GCD's animation lock
+    /// so the player arrives at the correct position before the next form fires.
+    ///
+    /// OpoOpo/no-form → Raptor is next → Flank
+    /// Raptor          → Coeurl is next → Rear (Demolish pending) or Flank (Demolish fresh)
+    /// Coeurl          → OpoOpo is next → Rear
+    /// FormlessFist    → OpoOpo is next → Rear
     /// </summary>
     protected override PositionalType? GetNextRequiredPositional()
     {
         var player = ObjectTable.LocalPlayer;
         if (player == null) return null;
 
-        // Check form status effects directly
         foreach (var status in player.StatusList)
         {
+            if (status.StatusId == MNKActions.StatusIds.OpoOpoForm)
+                return PositionalType.Flank; // next form is Raptor → flank
+
             if (status.StatusId == MNKActions.StatusIds.RaptorForm)
-                return PositionalType.Flank;
-            if (status.StatusId == MNKActions.StatusIds.CoeurlForm)
             {
-                // Coeurl alternates: Demolish (rear) when DoT needs refresh, Snap Punch/Pouncing Coeurl (flank) otherwise.
-                // Mirror the GetCoeurlAction condition from DamageModule.
+                // Next form is Coeurl — check whether Demolish will need refreshing then.
                 var target = TargetingService.FindEnemyForAction(
                     Configuration.Targeting.EnemyStrategy,
                     MNKActions.Demolish.ActionId,
@@ -209,12 +216,16 @@ public sealed class Kratos : BaseMeleeDpsRotation<IKratosContext, IKratosModule>
                 }
                 return PositionalType.Rear;
             }
-            if (status.StatusId is MNKActions.StatusIds.OpoOpoForm or MNKActions.StatusIds.FormlessFist)
-                return PositionalType.Rear;
+
+            if (status.StatusId == MNKActions.StatusIds.CoeurlForm)
+                return PositionalType.Rear; // next form is OpoOpo → rear
+
+            if (status.StatusId == MNKActions.StatusIds.FormlessFist)
+                return PositionalType.Flank; // FormlessFist acts as OpoOpo → Raptor is next
         }
 
-        // No form → starting Opo-opo → Rear
-        return PositionalType.Rear;
+        // No form at all → OpoOpo will be first → anticipate Raptor (flank)
+        return PositionalType.Flank;
     }
 
     /// <inheritdoc />
@@ -223,7 +234,14 @@ public sealed class Kratos : BaseMeleeDpsRotation<IKratosContext, IKratosModule>
 
     /// <inheritdoc />
     protected override bool IsPositionalMovementEnabled()
-        => Configuration.Monk.EnablePositionalMovement;
+        => Configuration.Monk.EnablePositionalMovement || Configuration.Monk.EnforcePositionals;
+
+    /// <summary>
+    /// MNK has back-to-back Rear/Flank/Rear form switches with no buffer GCD.
+    /// Targeting 10° inside each arc from the flank/rear boundary keeps both stand points ~2-3y apart,
+    /// well within one GCD of movement, vs. ~90° (11y) center-to-center.
+    /// </summary>
+    protected override float PositionalBoundaryBiasRadians => MathF.PI / 18f; // 10°
 
     /// <summary>
     /// Updates MP forecast. Monks don't use MP for abilities.
@@ -287,20 +305,36 @@ public sealed class Kratos : BaseMeleeDpsRotation<IKratosContext, IKratosModule>
         _debugState.DpsState = string.IsNullOrEmpty(_kratosDebugState.DamageState)
             ? (context.InCombat ? "Idle" : "Out of combat") : _kratosDebugState.DamageState;
 
-        if (!string.IsNullOrEmpty(_kratosDebugState.BuffState))
+        _kratosDebugState.RequiredPositional = Positionals.RequiredPositional;
+        var movement = PositionalMovementService?.State;
+        _kratosDebugState.PositionalMovementPhase = movement?.Phase.ToString() ?? "";
+        _kratosDebugState.PositionalMovementSkipReason = movement?.SkipReason ?? "";
+
+        if (!string.IsNullOrEmpty(_kratosDebugState.DamageState)
+            && _kratosDebugState.DamageState.StartsWith("Moving to", StringComparison.OrdinalIgnoreCase))
+        {
+            if (movement?.Phase == PositionalMovementPhase.Skipped
+                && !string.IsNullOrEmpty(movement?.SkipReason))
+            {
+                _debugState.PlanningState =
+                    $"{_kratosDebugState.DamageState} — vNav skipped: {movement?.SkipReason}";
+            }
+            else
+            {
+                _debugState.PlanningState = _kratosDebugState.DamageState;
+            }
+        }
+        else if (ShouldPreferDamagePlanningState(_kratosDebugState.DamageState))
+            _debugState.PlanningState = _kratosDebugState.DamageState;
+        else if (!string.IsNullOrEmpty(_kratosDebugState.BuffState)
+                 && !IsGenericBuffPlanningState(_kratosDebugState.BuffState))
             _debugState.PlanningState = _kratosDebugState.BuffState;
         else if (!string.IsNullOrEmpty(_kratosDebugState.DamageState))
             _debugState.PlanningState = _kratosDebugState.DamageState;
         else
             _debugState.PlanningState = context.InCombat ? "Active" : "Idle";
 
-        _debugState.AoEDpsEnemyCount = _kratosDebugState.NearbyEnemies;
-        var aoeMin = context.Configuration.Monk.AoEMinTargets;
-        _debugState.AoEDpsState = _kratosDebugState.NearbyEnemies >= aoeMin
-            ? $"AoE ({_kratosDebugState.NearbyEnemies} enemies)"
-            : _kratosDebugState.NearbyEnemies > 0
-                ? $"ST ({_kratosDebugState.NearbyEnemies} nearby)"
-                : "No enemies";
+        EnemyPackDebugHelper.SyncAoEDps(_debugState, _kratosDebugState, context.Configuration.Monk.AoEMinTargets, JobAoERadiusYalms.Melee);
 
         var target = TargetingService.FindEnemyForAction(
             context.Configuration.Targeting.EnemyStrategy,
@@ -339,6 +373,18 @@ public sealed class Kratos : BaseMeleeDpsRotation<IKratosContext, IKratosModule>
 
         SyncDebugState(context);
     }
+
+    private static bool ShouldPreferDamagePlanningState(string damageState)
+    {
+        if (string.IsNullOrEmpty(damageState))
+            return false;
+
+        return damageState is not ("Not in combat" or "No target" or "Out of melee range"
+            or "Paused (forced movement)" or "Idle");
+    }
+
+    private static bool IsGenericBuffPlanningState(string buffState)
+        => buffState is "Monitoring" or "Not in combat";
 
     #endregion
 }

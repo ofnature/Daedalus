@@ -1,10 +1,12 @@
+using Daedalus.Rotation.Common;
+
 namespace Daedalus.Rotation.ZeusCore.Context;
 
 /// <summary>
 /// Debug state for Dragoon (Zeus) rotation.
 /// Tracks rotation decisions and state for debug display.
 /// </summary>
-public sealed class ZeusDebugState
+public sealed class ZeusDebugState : IEnemyPackDebug
 {
     // Module states
     public string DamageState { get; set; } = "";
@@ -57,7 +59,13 @@ public sealed class ZeusDebugState
 
     // Targeting
     public string CurrentTarget { get; set; } = "";
-    public int NearbyEnemies { get; set; }
+    public int EngagedEnemies { get; set; }
+    public int AoeRangeEnemies { get; set; }
+    public int NearbyEnemies
+    {
+        get => AoeRangeEnemies;
+        set => AoeRangeEnemies = value;
+    }
 
     /// <summary>
     /// Gets a formatted string of the current combo state.

@@ -46,4 +46,9 @@ public readonly record struct PositionalMovementUpdateRequest(
     /// Grace dead-band (yalms) around the max-melee stand distance. vNav is only called when the character
     /// leaves <c>standDistance ± VNavFlex</c>; inside the band the call is suppressed (anti-twitch).
     /// </summary>
-    float VNavFlex = PositionalMovementConstants.DefaultVNavFlexYalms);
+    float VNavFlex = PositionalMovementConstants.DefaultVNavFlexYalms,
+    /// <summary>
+    /// When > 0, stand points target the flank/rear boundary ± this margin instead of the arc center.
+    /// Set to ~10° (π/18) for MNK to minimize travel between back-to-back Rear/Flank form switches.
+    /// </summary>
+    float PositionalBoundaryBiasRadians = 0f);

@@ -216,10 +216,18 @@ public sealed class NikeContext : INikeContext
         HasZanshinReady = statusHelper.HasZanshinReady(player);
 
         var level = player.Level;
+        // Accept either adjusted-action substitution OR status 2960 — whichever arrives from
+        // the server first in the frame after Ogi Namikiri fires. Both alone are susceptible to
+        // a 1-2 frame stale window; the OR eliminates the race without loosening safety.
         KaeshiNamikiriReady = level >= SAMActions.KaeshiNamikiri.MinLevel &&
-                              SAMActions.IsKaeshiNamikiriReady(actionService);
+                              (SAMActions.IsKaeshiNamikiriReady(actionService)
+                               || statusHelper.HasKaeshiNamikiriReady(player));
+        // Same dual-check race as Kaeshi: Namikiri above. After an Iaijutsu fires, the adjusted-action
+        // substitution (slot → Kaeshi) and the Tsubame-gaeshi Ready status arrive on separate frames.
+        // OR-ing them eliminates the 1-2 frame stale window that otherwise drops the Kaeshi follow-up.
         TsubameGaeshiActionReady = level >= SAMActions.TsubameGaeshi.MinLevel &&
-                                   SAMActions.IsTsubameGaeshiActionReady(actionService);
+                                   (SAMActions.IsTsubameGaeshiActionReady(actionService)
+                                    || statusHelper.HasTsubameGaeshiReady(player));
 
         // Iaijutsu tracking (training/debug only)
         LastIaijutsu = lastIaijutsu;

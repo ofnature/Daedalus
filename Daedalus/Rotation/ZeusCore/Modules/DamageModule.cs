@@ -7,6 +7,7 @@ using Daedalus.Rotation.Common.Scheduling;
 using Daedalus.Rotation.ZeusCore.Abilities;
 using Daedalus.Rotation.ZeusCore.Context;
 using Daedalus.Services;
+using Daedalus.Services.Positional;
 using Daedalus.Services.Targeting;
 using Daedalus.Services.Training;
 
@@ -72,10 +73,10 @@ public sealed class DamageModule : IZeusModule
 
         var aoeEnabled = context.Configuration.Dragoon.EnableAoERotation;
         var aoeThreshold = context.Configuration.Dragoon.AoEMinTargets;
-        var rawEnemyCount = context.TargetingService.CountEnemiesInRange(5f, player);
-        context.Debug.NearbyEnemies = rawEnemyCount;
-        var enemyCount = aoeEnabled ? rawEnemyCount : 0;
-        var useAoE = enemyCount >= aoeThreshold;
+        var pack = EnemyPackDebugHelper.Count(context.TargetingService, 5f, player);
+        EnemyPackDebugHelper.Apply(context.Debug, pack);
+        var enemyCount = aoeEnabled ? pack.AoeRange : 0;
+        var useAoE = aoeEnabled && pack.AoeRange >= aoeThreshold;
 
         // oGCDs
         TryPushFeint(context, scheduler, target);
@@ -530,7 +531,8 @@ public sealed class DamageModule : IZeusModule
             && context.ActionService.IsActionReady(DRGActions.FangAndClaw.ActionId))
         {
             var positionalOk = context.IsAtFlank || context.HasTrueNorth || context.TargetHasPositionalImmunity;
-            if (context.Configuration.Dragoon.EnforcePositionals && !positionalOk && !context.Configuration.Dragoon.AllowPositionalLoss) return;
+            if (PositionalRequirementHelper.ShouldApply(context.Debug.EngagedEnemies)
+                && context.Configuration.Dragoon.EnforcePositionals && !positionalOk && !context.Configuration.Dragoon.AllowPositionalLoss) return;
             scheduler.PushGcd(ZeusAbilities.FangAndClaw, target.GameObjectId, priority: 2,
                 onDispatched: _ =>
                 {
@@ -563,7 +565,8 @@ public sealed class DamageModule : IZeusModule
             && context.ActionService.IsActionReady(DRGActions.WheelingThrust.ActionId))
         {
             var positionalOk = context.IsAtRear || context.HasTrueNorth || context.TargetHasPositionalImmunity;
-            if (context.Configuration.Dragoon.EnforcePositionals && !positionalOk && !context.Configuration.Dragoon.AllowPositionalLoss) return;
+            if (PositionalRequirementHelper.ShouldApply(context.Debug.EngagedEnemies)
+                && context.Configuration.Dragoon.EnforcePositionals && !positionalOk && !context.Configuration.Dragoon.AllowPositionalLoss) return;
             scheduler.PushGcd(ZeusAbilities.WheelingThrust, target.GameObjectId, priority: 2,
                 onDispatched: _ =>
                 {

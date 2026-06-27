@@ -1,10 +1,12 @@
+using Daedalus.Rotation.Common;
+
 namespace Daedalus.Rotation.NyxCore.Context;
 
 /// <summary>
 /// Debug state for Dark Knight (Nyx) rotation.
 /// Tracks rotation decisions and state for debug display.
 /// </summary>
-public sealed class NyxDebugState
+public sealed class NyxDebugState : IEnemyPackDebug
 {
     // Module states
     public string DamageState { get; set; } = "";
@@ -62,5 +64,11 @@ public sealed class NyxDebugState
     public string CurrentTarget { get; set; } = "";
 
     // Targeting
-    public int NearbyEnemies { get; set; }
+    public int EngagedEnemies { get; set; }
+    public int AoeRangeEnemies { get; set; }
+    public int NearbyEnemies
+    {
+        get => AoeRangeEnemies;
+        set => AoeRangeEnemies = value;
+    }
 }

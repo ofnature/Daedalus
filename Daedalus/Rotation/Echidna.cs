@@ -134,7 +134,11 @@ public sealed class Echidna : BaseMeleeDpsRotation<IEchidnaContext, IEchidnaModu
         _partyCoordinationService = partyCoordinationService;
         _trainingService = trainingService;
 
-        _positionalAnticipationProvider = new DelegatePositionalAnticipationProvider(GetNextRequiredPositional);
+        _positionalAnticipationProvider = new DelegatePositionalAnticipationProvider(() =>
+        {
+            var player = ObjectTable.LocalPlayer;
+            return player == null ? null : ResolveNextRequiredPositional(player);
+        });
         _scheduler = new RotationScheduler(actionService, jobGauges, configuration, timelineService, errorMetrics);
 
         // Initialize helpers
@@ -196,7 +200,7 @@ public sealed class Echidna : BaseMeleeDpsRotation<IEchidnaContext, IEchidnaModu
 
     /// <inheritdoc />
     protected override bool IsPositionalMovementEnabled()
-        => Configuration.Viper.EnablePositionalMovement;
+        => Configuration.Viper.EnablePositionalMovement || Configuration.Viper.EnforcePositionals;
 
     /// <inheritdoc />
     protected override int DetermineComboStep(uint comboAction, float comboTimer)
@@ -298,6 +302,8 @@ public sealed class Echidna : BaseMeleeDpsRotation<IEchidnaContext, IEchidnaModu
         _debugState.PlannedAction = _echidnaDebugState.PlannedAction;
         _debugState.DpsState = _echidnaDebugState.DamageState;
         // Note: BuffState is tracked in EchidnaDebugState but not in common DebugState
+
+        EnemyPackDebugHelper.SyncAoEDps(_debugState, _echidnaDebugState, context.Configuration.Viper.AoEMinTargets, JobAoERadiusYalms.Melee);
 
         // Party/player info
         _debugState.PlayerHpPercent = (float)context.Player.CurrentHp / context.Player.MaxHp;

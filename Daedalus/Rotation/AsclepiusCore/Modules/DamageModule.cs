@@ -33,6 +33,7 @@ public sealed class DamageModule : BaseDamageModule<IAsclepiusContext>, IAsclepi
     protected override void SetDpsState(IAsclepiusContext context, string state) => context.Debug.DpsState = state;
     protected override void SetAoEDpsState(IAsclepiusContext context, string state) => context.Debug.AoEDpsState = state;
     protected override void SetAoEDpsEnemyCount(IAsclepiusContext context, int count) => context.Debug.AoEDpsEnemyCount = count;
+    protected override void SetAoEDpsEngagedCount(IAsclepiusContext context, int count) => context.Debug.AoEDpsEngagedCount = count;
     protected override void SetPlannedAction(IAsclepiusContext context, string action) => context.Debug.PlannedAction = action;
     protected override bool BlocksOnExecution => false;
     protected override bool CanSingleTarget(IAsclepiusContext context, bool isMoving) => !isMoving;
@@ -268,9 +269,11 @@ public sealed class DamageModule : BaseDamageModule<IAsclepiusContext>, IAsclepi
         var aoeCastTime = context.HasSwiftcast ? 0f : aoeAction.CastTime;
         if (MechanicCastGate.ShouldBlock(context, aoeCastTime)) { SetAoEDpsState(context, "Holding: mechanic imminent"); return; }
 
+        var pack = context.TargetingService.CountEnemyPack(aoeAction.Radius, context.Player);
+        SetAoEDpsEngagedCount(context, pack.Engaged);
         var enemyCount = context.PartyHelper is AsclepiusPartyHelper sageParty
             ? sageParty.CountEnemiesForAoEDamage(context.Player, aoeAction.Radius, context.TargetingService, context.ActionService)
-            : context.TargetingService.CountEnemiesInRange(aoeAction.Radius, context.Player);
+            : pack.AoeRange;
         SetAoEDpsEnemyCount(context, enemyCount);
         if (enemyCount < AoEMinTargets(context)) { SetAoEDpsState(context, $"{enemyCount} < {AoEMinTargets(context)} min"); return; }
 

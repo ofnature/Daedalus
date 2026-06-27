@@ -264,13 +264,8 @@ public sealed class Prometheus : BaseRangedDpsRotation<IPrometheusContext, IProm
         else
             _debugState.PlanningState = context.InCombat ? "Active" : "Idle";
 
-        _debugState.AoEDpsEnemyCount = _prometheusDebugState.NearbyEnemies;
         var aoeMin = context.Configuration.Machinist.AoEMinTargets;
-        _debugState.AoEDpsState = _prometheusDebugState.NearbyEnemies >= aoeMin
-            ? $"AoE ({_prometheusDebugState.NearbyEnemies} enemies)"
-            : _prometheusDebugState.NearbyEnemies > 0
-                ? $"ST ({_prometheusDebugState.NearbyEnemies} nearby)"
-                : "No enemies";
+        EnemyPackDebugHelper.SyncAoEDps(_debugState, _prometheusDebugState, aoeMin, JobAoERadiusYalms.PhysicalRanged);
 
         var target = TargetingService.FindEnemy(
             context.Configuration.Targeting.EnemyStrategy,

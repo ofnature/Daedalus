@@ -277,6 +277,9 @@ public sealed class IrisContext : IIrisContext
             FFXIVConstants.CasterTargetingRange,
             player);
         var aoeRadius = PCTActions.Fire2InRed.Radius;
+        var pack = targetingService.CountEnemyPack(aoeRadius, player);
+        debugState.EngagedEnemies = pack.Engaged;
+        debugState.AoeRangeEnemies = pack.AoeRange;
         NearbyEnemyCount = _currentTarget is IBattleNpc battleTarget
             ? targetingService.CountEnemiesInRangeOfTarget(aoeRadius, battleTarget, player)
             : targetingService.CountEnemiesInRange(aoeRadius, player);

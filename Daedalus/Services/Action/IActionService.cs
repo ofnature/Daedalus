@@ -104,8 +104,7 @@ public interface IActionService
 
     /// <summary>
     /// True when the action is unlocked (level + job quest). Uses action-manager status
-    /// 565 ("not learned") with recast/casting checks disabled so GCD state does not
-    /// affect the result.
+    /// 565 ("not learned") plus Lumina unlock-link / class-quest completion via UIState.
     /// </summary>
     bool IsActionLearned(uint actionId);
 

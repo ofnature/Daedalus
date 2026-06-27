@@ -1,4 +1,6 @@
 using Dalamud.Bindings.ImGui;
+using Daedalus.Rotation.Common;
+using Daedalus.Rotation.Common.Helpers;
 using Daedalus.Services.Debug;
 using Daedalus.Windows.Debug;
 
@@ -36,7 +38,11 @@ public static class DamageTab
             DrawRow("Planned Action", rot.PlannedAction);
             DrawRow("DPS State", rot.DpsState);
             DrawRow("AoE State", rot.AoEDpsState);
-            DrawRow("AoE Targets", rot.AoEDpsEnemyCount.ToString());
+            DrawRow("Engaged", rot.AoEDpsEngagedCount.ToString());
+            var aoeRadiusLabel = rot.AoEDpsRadiusYalms > 0f
+                ? $"In AoE ({EnemyPackDebugHelper.FormatRadiusLabel(rot.AoEDpsRadiusYalms)})"
+                : "In AoE range";
+            DrawRow(aoeRadiusLabel, rot.AoEDpsEnemyCount.ToString());
             DrawRow("Target", rot.TargetInfo);
 
             ImGui.EndTable();

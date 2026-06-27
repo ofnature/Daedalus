@@ -1,7 +1,11 @@
 using System.Numerics;
 using Dalamud.Bindings.ImGui;
 using Daedalus.Localization;
+using Daedalus.Rotation.Common;
 using Daedalus.Rotation.KratosCore.Context;
+using Daedalus.Windows;
+using Daedalus.Rotation.Common;
+using Daedalus.Rotation.Common.Helpers;
 using Daedalus.Windows.Debug;
 
 namespace Daedalus.Windows.Debug.Tabs;
@@ -268,51 +272,50 @@ public static class KratosTab
 
     private static void DrawPositionalSection(KratosDebugState state)
     {
+        var pos = new PositionalSnapshot
+        {
+            IsAtRear = state.IsAtRear,
+            IsAtFlank = state.IsAtFlank,
+            TargetHasImmunity = state.TargetHasPositionalImmunity,
+            HasTarget = true,
+            RequiredPositional = state.RequiredPositional,
+        };
+
         DebugTabHelpers.DrawSection(Loc.T(LocalizedStrings.Debug.Positional, "Positional"), "MnkPositionalTable", () =>
         {
-            // Current Position
+            ImGui.TableNextRow();
+            ImGui.TableNextColumn();
+            ImGui.Text(Loc.T(LocalizedStrings.Debug.RequiredPositional, "Required:"));
+            ImGui.TableNextColumn();
+            PositionalDisplayHelper.DrawDebugRequiredValue(state.RequiredPositional, in pos);
+
             ImGui.TableNextRow();
             ImGui.TableNextColumn();
             ImGui.Text(Loc.T(LocalizedStrings.Debug.Position, "Position:"));
             ImGui.TableNextColumn();
-            if (state.TargetHasPositionalImmunity)
-            {
-                ImGui.TextColored(new Vector4(0.5f, 0.8f, 1f, 1f), Loc.T(LocalizedStrings.Debug.ImmuneOmni, "Immune (omni)"));
-            }
-            else if (state.IsAtRear)
-            {
-                ImGui.TextColored(new Vector4(0.5f, 1f, 0.5f, 1f), Loc.T(LocalizedStrings.Debug.Rear, "Rear"));
-            }
-            else if (state.IsAtFlank)
-            {
-                ImGui.TextColored(new Vector4(1f, 1f, 0.5f, 1f), Loc.T(LocalizedStrings.Debug.Flank, "Flank"));
-            }
-            else
-            {
-                ImGui.TextColored(new Vector4(1f, 0.5f, 0.5f, 1f), Loc.T(LocalizedStrings.Debug.Front, "Front"));
-            }
+            PositionalDisplayHelper.DrawDebugCurrent(in pos);
 
-            // True North
             ImGui.TableNextRow();
             ImGui.TableNextColumn();
             ImGui.Text(Loc.T(LocalizedStrings.Debug.TrueNorth, "True North:"));
             ImGui.TableNextColumn();
             DrawProcStatus(state.HasTrueNorth);
 
-            // Target
+            ImGui.TableNextRow();
+            ImGui.TableNextColumn();
+            ImGui.Text(Loc.T(LocalizedStrings.Debug.PositionalVNav, "Positional vNav:"));
+            ImGui.TableNextColumn();
+            ImGui.TextWrapped(string.IsNullOrEmpty(state.PositionalMovementPhase)
+                ? "—"
+                : $"{state.PositionalMovementPhase} {state.PositionalMovementSkipReason}".Trim());
+
             ImGui.TableNextRow();
             ImGui.TableNextColumn();
             ImGui.Text(Loc.T(LocalizedStrings.Debug.TargetLabel, "Target:"));
             ImGui.TableNextColumn();
             ImGui.Text(string.IsNullOrEmpty(state.CurrentTarget) ? Loc.T(LocalizedStrings.Debug.NoneLabel, "None") : state.CurrentTarget);
 
-            // Nearby Enemies
-            ImGui.TableNextRow();
-            ImGui.TableNextColumn();
-            ImGui.Text(Loc.T(LocalizedStrings.Debug.NearbyEnemies, "Nearby Enemies:"));
-            ImGui.TableNextColumn();
-            var aoeColor = state.NearbyEnemies >= 3 ? new Vector4(1f, 0.6f, 0.2f, 1f) : new Vector4(0.7f, 0.7f, 0.7f, 1f);
-            ImGui.TextColored(aoeColor, $"{state.NearbyEnemies}");
+            EnemyPackDebugHelper.DrawEnemyPackTableRows(state, JobAoERadiusYalms.Melee);
         }, 140f);
     }
 

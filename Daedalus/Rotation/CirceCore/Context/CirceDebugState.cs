@@ -1,9 +1,11 @@
+using Daedalus.Rotation.Common;
+
 namespace Daedalus.Rotation.CirceCore.Context;
 
 /// <summary>
 /// Debug state for Circe (Red Mage) rotation.
 /// </summary>
-public sealed class CirceDebugState
+public sealed class CirceDebugState : IEnemyPackDebug
 {
     // Planning state
     public string PlanningState { get; set; } = "";
@@ -66,7 +68,13 @@ public sealed class CirceDebugState
 
     // Combat info
     public string CurrentTarget { get; set; } = "None";
-    public int NearbyEnemies { get; set; }
+    public int EngagedEnemies { get; set; }
+    public int AoeRangeEnemies { get; set; }
+    public int NearbyEnemies
+    {
+        get => AoeRangeEnemies;
+        set => AoeRangeEnemies = value;
+    }
 
     // Phase
     public string Phase { get; set; } = "Waiting";

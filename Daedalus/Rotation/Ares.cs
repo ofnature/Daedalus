@@ -193,6 +193,7 @@ public sealed class Ares : BaseTankRotation<IAresContext, IAresModule>
         _debugState.PlannedAction = _aresDebugState.PlannedAction;
         _debugState.DpsState = _aresDebugState.DamageState;
         _debugState.DefensiveState = _aresDebugState.MitigationState;
+        EnemyPackDebugHelper.SyncAoEDps(_debugState, _aresDebugState, context.Configuration.Tank.GetEffectiveAoEMinTargets(JobRegistry.Warrior), JobAoERadiusYalms.Tank);
         _debugState.PlayerHpPercent = (float)context.Player.CurrentHp / context.Player.MaxHp;
         _debugState.PartyListCount = context.PartyList.Length;
         _debugState.TargetInfo = TargetingDebugHelper.FormatTargetInfo(context.CurrentTarget, context.TargetingService);

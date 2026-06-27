@@ -102,29 +102,7 @@ public sealed class MainWindow : Window
         // Positional indicator — only shown for melee DPS jobs with an active target
         if (activeRotation is IHasPositionals posRotation)
         {
-            var pos = posRotation.Positionals;
-            if (pos.HasTarget)
-            {
-                ImGui.Separator();
-                ImGui.Text(Loc.T(LocalizedStrings.Main.Positional, "Position:"));
-                ImGui.SameLine();
-                if (pos.TargetHasImmunity)
-                {
-                    ImGui.TextDisabled(Loc.T(LocalizedStrings.Main.PositionalImmune, "Immune"));
-                }
-                else if (pos.IsAtRear)
-                {
-                    ImGui.TextColored(new Vector4(0.4f, 0.8f, 1f, 1f), Loc.T(LocalizedStrings.Main.PositionalRear, "Rear"));
-                }
-                else if (pos.IsAtFlank)
-                {
-                    ImGui.TextColored(new Vector4(0.8f, 0.5f, 1f, 1f), Loc.T(LocalizedStrings.Main.PositionalFlank, "Flank"));
-                }
-                else
-                {
-                    ImGui.TextColored(new Vector4(0.7f, 0.7f, 0.7f, 1f), Loc.T(LocalizedStrings.Main.PositionalFront, "Front"));
-                }
-            }
+            PositionalDisplayHelper.DrawMainWindow(posRotation.Positionals);
         }
 
         ImGui.Separator();

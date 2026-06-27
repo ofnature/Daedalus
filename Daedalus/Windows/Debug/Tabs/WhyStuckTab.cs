@@ -1,7 +1,10 @@
+using System;
 using System.Numerics;
 using Dalamud.Bindings.ImGui;
 using Daedalus.Data;
 using Daedalus.Localization;
+using Daedalus.Rotation.Common;
+using Daedalus.Rotation.Common.Helpers;
 using Daedalus.Services.Debug;
 
 namespace Daedalus.Windows.Debug.Tabs;
@@ -86,6 +89,16 @@ public static class WhyStuckTab
         var plannedAction = tank?.PlannedAction ?? rotation.PlannedAction;
         var actionColor = plannedAction != "None" ? DebugColors.Success : DebugColors.Dim;
         ImGui.TextColored(actionColor, Loc.TFormat(LocalizedStrings.Debug.LastFormat, "Last: {0}", plannedAction));
+
+        var distanceColor = rotation.TargetDistanceInfo switch
+        {
+            "None" => DebugColors.Dim,
+            var d when d.Contains("in melee", StringComparison.Ordinal) => DebugColors.Success,
+            _ => DebugColors.Warning
+        };
+        ImGui.TextColored(
+            distanceColor,
+            Loc.TFormat(LocalizedStrings.Debug.TargetDistanceFormat, "Distance: {0}", rotation.TargetDistanceInfo));
     }
 
     private static void DrawTankGcdPriorityChain(DebugTankState tank)
@@ -328,7 +341,9 @@ public static class WhyStuckTab
             ImGui.TableNextColumn();
             ImGui.Text(Loc.T(LocalizedStrings.Debug.AoE, "AoE"));
             ImGui.TableNextColumn();
-            var aoEText = Loc.TFormat(LocalizedStrings.Debug.AoEEnemiesFormat, "{0} ({1} enemies)", rotation.AoEDpsState, rotation.AoEDpsEnemyCount);
+            var aoeRadius = rotation.AoEDpsRadiusYalms > 0f ? rotation.AoEDpsRadiusYalms : JobAoERadiusYalms.Melee;
+            var aoEText = EnemyPackDebugHelper.FormatWhyStuckAoE(
+                rotation.AoEDpsState, rotation.AoEDpsEngagedCount, rotation.AoEDpsEnemyCount, aoeRadius);
             ImGui.TextColored(GetStateColor(rotation.AoEDpsState), aoEText);
 
             if (isHealer)

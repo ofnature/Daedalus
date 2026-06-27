@@ -2,6 +2,7 @@ using Dalamud.Game.ClientState.Objects.Types;
 using Daedalus.Data;
 using Daedalus.Models.Action;
 using Daedalus.Rotation.ApolloCore.Helpers;
+using Daedalus.Rotation.Common;
 using Daedalus.Rotation.Common.Helpers;
 using Daedalus.Rotation.Common.RoleActionHelpers;
 using Daedalus.Rotation.Common.Scheduling;
@@ -541,20 +542,22 @@ public sealed class MitigationModule : IThemisModule
         var (avgHp, lowestHp, injuredCount) = context.PartyHealthMetrics;
         if (injuredCount < 3 && avgHp > 0.85f) return;
 
-        var enemyCount = context.TargetingService.CountEnemiesInRange(5f, player);
+        var pack = EnemyPackDebugHelper.Count(context.TargetingService, JobAoERadiusYalms.Tank, player);
+        EnemyPackDebugHelper.Apply(context.Debug, pack);
+        if (pack.AoeRange < 1) return;
         if (!context.ActionService.IsActionReady(RoleActions.Reprisal.ActionId)) return;
 
         scheduler.PushOgcd(ThemisAbilities.Reprisal, target.EntityId, priority: 4,
             onDispatched: _ =>
             {
                 context.Debug.PlannedAction = RoleActions.Reprisal.Name;
-                context.Debug.MitigationState = $"Reprisal ({enemyCount} enemies)";
+                context.Debug.MitigationState = $"Reprisal ({pack.AoeRange} enemies)";
                 partyCoord?.OnCooldownUsed(RoleActions.Reprisal.ActionId, 60_000);
                 TrainingHelper.Decision(context.TrainingService)
                     .Action(RoleActions.Reprisal.ActionId, RoleActions.Reprisal.Name)
                     .AsPartyMit()
-                    .Reason($"Reprisal applied with {enemyCount} enemies nearby.", "Reprisal reduces enemy damage output by 10% for 10s.")
-                    .Factors($"Enemy count: {enemyCount}", "Reprisal available")
+                    .Reason($"Reprisal applied with {pack.AoeRange} enemies nearby.", "Reprisal reduces enemy damage output by 10% for 10s.")
+                    .Factors($"Enemy count: {pack.AoeRange}", "Reprisal available")
                     .Alternatives("Divine Veil", "Wait for raidwide")
                     .Tip("Reprisal is a party mitigation tool.")
                     .Concept(PldConcepts.PartyProtection)

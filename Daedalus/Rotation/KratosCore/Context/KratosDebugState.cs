@@ -1,10 +1,14 @@
+using Daedalus.Data;
+using Daedalus.Rotation.Common;
+using Daedalus.Services.Positional;
+
 namespace Daedalus.Rotation.KratosCore.Context;
 
 /// <summary>
 /// Debug state for Monk (Kratos) rotation.
 /// Tracks rotation decisions and state for debug display.
 /// </summary>
-public sealed class KratosDebugState
+public sealed class KratosDebugState : IEnemyPackDebug
 {
     // Module states
     public string DamageState { get; set; } = "";
@@ -52,10 +56,22 @@ public sealed class KratosDebugState
     public bool IsAtFlank { get; set; }
     public bool HasTrueNorth { get; set; }
     public bool TargetHasPositionalImmunity { get; set; }
+    public PositionalType? RequiredPositional { get; set; }
+    public string PositionalMovementPhase { get; set; } = "";
+    public string PositionalMovementSkipReason { get; set; } = "";
 
     // Targeting
     public string CurrentTarget { get; set; } = "";
-    public int NearbyEnemies { get; set; }
+    /// <summary>Engaged hostiles in pull (scan radius).</summary>
+    public int EngagedEnemies { get; set; }
+    /// <summary>Enemies within Monk self-centered AoE radius (5y).</summary>
+    public int AoeRangeEnemies { get; set; }
+    /// <summary>Legacy alias for <see cref="AoeRangeEnemies"/>.</summary>
+    public int NearbyEnemies
+    {
+        get => AoeRangeEnemies;
+        set => AoeRangeEnemies = value;
+    }
 
     /// <summary>
     /// Gets a formatted string of the Beast Chakra state.

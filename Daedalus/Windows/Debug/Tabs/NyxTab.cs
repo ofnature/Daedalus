@@ -2,6 +2,8 @@ using System.Numerics;
 using Dalamud.Bindings.ImGui;
 using Daedalus.Localization;
 using Daedalus.Rotation.NyxCore.Context;
+using Daedalus.Rotation.Common;
+using Daedalus.Rotation.Common.Helpers;
 using Daedalus.Windows.Debug;
 
 namespace Daedalus.Windows.Debug.Tabs;
@@ -90,11 +92,7 @@ public static class NyxTab
             var mpPercent = state.MaxMp > 0 ? (float)state.CurrentMp / state.MaxMp : 0f;
             ImGui.ProgressBar(mpPercent, new Vector2(-1, 0), $"{state.CurrentMp:N0}/{state.MaxMp:N0}");
 
-            ImGui.TableNextRow();
-            ImGui.TableNextColumn();
-            ImGui.Text(Loc.T(LocalizedStrings.Debug.NearbyEnemies, "Nearby Enemies:"));
-            ImGui.TableNextColumn();
-            ImGui.Text($"{state.NearbyEnemies}");
+            EnemyPackDebugHelper.DrawEnemyPackTableRows(state, JobAoERadiusYalms.Tank);
         });
     }
 

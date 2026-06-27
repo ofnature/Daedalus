@@ -242,6 +242,8 @@ public sealed class Terpsichore : BaseRangedDpsRotation<ITerpsichoreContext, ITe
         _debugState.DpsState = _terpsichoreDebugState.DamageState;
         // Note: BuffState is tracked in TerpsichoreDebugState but not in common DebugState
 
+        EnemyPackDebugHelper.SyncAoEDps(_debugState, _terpsichoreDebugState, context.Configuration.Dancer.AoEMinTargets, JobAoERadiusYalms.Melee);
+
         // Party/player info
         _debugState.PlayerHpPercent = (float)context.Player.CurrentHp / context.Player.MaxHp;
         _debugState.PartyListCount = context.PartyList.Length;

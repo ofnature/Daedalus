@@ -8,6 +8,7 @@ using Daedalus.Rotation.Common.Scheduling;
 using Daedalus.Rotation.ThanatosCore.Abilities;
 using Daedalus.Rotation.ThanatosCore.Context;
 using Daedalus.Services;
+using Daedalus.Services.Positional;
 using Daedalus.Services.Targeting;
 using Daedalus.Services.Training;
 
@@ -70,9 +71,9 @@ public sealed class DamageModule : IThanatosModule
 
         var aoeEnabled = context.Configuration.Reaper.EnableAoERotation;
         var aoeThreshold = context.Configuration.Reaper.AoEMinTargets;
-        var rawEnemyCount = context.TargetingService.CountEnemiesInRange(5f, player);
-        context.Debug.NearbyEnemies = rawEnemyCount;
-        var enemyCount = aoeEnabled ? rawEnemyCount : 0;
+        var pack = EnemyPackDebugHelper.Count(context.TargetingService, 5f, player);
+        EnemyPackDebugHelper.Apply(context.Debug, pack);
+        var enemyCount = aoeEnabled ? pack.AoeRange : 0;
 
         // Feint (party mit utility)
         TryPushFeint(context, scheduler, target);
@@ -501,7 +502,7 @@ public sealed class DamageModule : IThanatosModule
 
         if (!context.ActionService.IsActionReady(action.ActionId)) return;
 
-        if (!useAoe)
+        if (PositionalRequirementHelper.ShouldApply(context.Debug.EngagedEnemies))
         {
             var isGibbetPositional = action == RPRActions.Gibbet;
             bool positionalOk = isGibbetPositional
@@ -522,10 +523,10 @@ public sealed class DamageModule : IThanatosModule
                 {
                     TrainingHelper.Decision(context.TrainingService)
                         .Action(action.ActionId, action.Name)
-                        .AsAoE(context.Debug.NearbyEnemies)
+                        .AsAoE(context.Debug.AoeRangeEnemies)
                         .Reason($"Using {action.Name} (AoE Soul Reaver)",
                             "Guillotine is the AoE Soul Reaver spender. Use instead of Gibbet/Gallows when 3+ enemies.")
-                        .Factors(new[] { $"Soul Reaver stacks: {context.SoulReaverStacks}", $"Enemies: {context.Debug.NearbyEnemies}" })
+                        .Factors(new[] { $"Soul Reaver stacks: {context.SoulReaverStacks}", $"Enemies: {context.Debug.AoeRangeEnemies}" })
                         .Alternatives(new[] { "Use Gibbet/Gallows for ST" })
                         .Tip("Guillotine has no positional. Use for AoE, then continue with AoE combo.")
                         .Concept("rpr_guillotine")

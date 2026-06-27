@@ -1,10 +1,12 @@
+using Daedalus.Rotation.Common;
+
 namespace Daedalus.Rotation.AresCore.Context;
 
 /// <summary>
 /// Debug state for Warrior (Ares) rotation.
 /// Tracks rotation decisions and state for debug display.
 /// </summary>
-public sealed class AresDebugState
+public sealed class AresDebugState : IEnemyPackDebug
 {
     // Module states
     public string DamageState { get; set; } = "";
@@ -44,5 +46,11 @@ public sealed class AresDebugState
     public string CurrentTarget { get; set; } = "";
 
     // Targeting
-    public int NearbyEnemies { get; set; }
+    public int EngagedEnemies { get; set; }
+    public int AoeRangeEnemies { get; set; }
+    public int NearbyEnemies
+    {
+        get => AoeRangeEnemies;
+        set => AoeRangeEnemies = value;
+    }
 }

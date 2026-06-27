@@ -73,8 +73,9 @@ public sealed class DamageModule : IAresModule
             return;
         }
 
-        var enemyCount = context.TargetingService.CountEnemiesInRange(5f, player);
-        context.Debug.NearbyEnemies = enemyCount;
+        var pack = EnemyPackDebugHelper.Count(context.TargetingService, 5f, player);
+        EnemyPackDebugHelper.Apply(context.Debug, pack);
+        var enemyCount = pack.AoeRange;
 
         // oGCD pushes
         TryPushPrimalWrath(context, scheduler, target.GameObjectId, enemyCount);

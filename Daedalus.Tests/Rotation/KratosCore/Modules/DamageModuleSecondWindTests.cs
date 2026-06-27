@@ -82,6 +82,9 @@ public class DamageModuleSecondWindTests
         targeting.Setup(x => x.FindEnemyForAction(
                 It.IsAny<EnemyTargetingStrategy>(), It.IsAny<uint>(), It.IsAny<IPlayerCharacter>()))
             .Returns(enemy.Object);
+        targeting.Setup(x => x.FindEnemy(
+                It.IsAny<EnemyTargetingStrategy>(), It.IsAny<float>(), It.IsAny<IPlayerCharacter>()))
+            .Returns(enemy.Object);
 
         var objectTable = MockBuilders.CreateMockObjectTable();
         var partyList = MockBuilders.CreateMockPartyList();

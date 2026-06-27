@@ -225,6 +225,8 @@ public sealed class Calliope : BaseRangedDpsRotation<ICalliopeContext, ICalliope
         _debugState.DpsState = _calliopeDebugState.DamageState;
         // Note: BuffState is tracked in CalliopeDebugState but not in common DebugState
 
+        EnemyPackDebugHelper.SyncAoEDps(_debugState, _calliopeDebugState, context.Configuration.Bard.AoEMinTargets, JobAoERadiusYalms.PhysicalRanged);
+
         // Party/player info
         _debugState.PlayerHpPercent = (float)context.Player.CurrentHp / context.Player.MaxHp;
         _debugState.PartyListCount = context.PartyList.Length;

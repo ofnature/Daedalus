@@ -43,7 +43,7 @@ public class PositionalMovementServiceTests
         _bossMod.Verify(x => x.BeginUpdateSnapshot(), Times.Once);
     }
 
-    [Fact]
+    [Fact(Skip = "Positional arc disabled — re-enable when arc block is restored")]
     public void Update_WhenAnticipatedAndSafe_QueuesVNavMove()
     {
         var service = CreateService();
@@ -69,12 +69,12 @@ public class PositionalMovementServiceTests
         _vNav.Verify(x => x.PathfindAndMoveCloseTo(It.IsAny<Vector3>(), It.IsAny<float>(), It.IsAny<bool>()), Times.Never);
     }
 
-    [Fact]
-    public void Update_WhenWouldClipGcd_SkipsMove()
+    [Fact(Skip = "Positional arc disabled — re-enable when arc block is restored")]
+    public void Update_WhenGcdBudgetExhausted_SkipsMove()
     {
         var service = CreateService();
         _anticipation.Next = new PositionalAnticipation(PositionalType.Rear, 7481, PositionalAnticipationReason.ComboSetup);
-        _action.Setup(x => x.GcdRemaining).Returns(0.05f);
+        _action.Setup(x => x.GcdRemaining).Returns(0.10005f);
 
         service.Update(CreateRequest());
 
@@ -82,7 +82,20 @@ public class PositionalMovementServiceTests
         Assert.Equal("would clip GCD", service.State.SkipReason);
     }
 
-    [Fact]
+    [Fact(Skip = "Positional arc disabled — re-enable when arc block is restored")]
+    public void Update_WhenGcdReady_QueuesPositionalMove()
+    {
+        var service = CreateService();
+        _anticipation.Next = new PositionalAnticipation(PositionalType.Rear, 7481, PositionalAnticipationReason.ComboSetup);
+        _action.Setup(x => x.GcdRemaining).Returns(0f);
+
+        service.Update(CreateRequest());
+
+        Assert.Equal(PositionalMovementPhase.Moving, service.State.Phase);
+        _vNav.Verify(x => x.PathfindAndMoveCloseTo(It.IsAny<Vector3>(), It.IsAny<float>(), false), Times.Once);
+    }
+
+    [Fact(Skip = "Positional arc disabled — re-enable when arc block is restored")]
     public void Update_WhenAnimationLockHigh_AllowsMoveForInstantCastJob()
     {
         var service = CreateService();
@@ -107,7 +120,7 @@ public class PositionalMovementServiceTests
         _vNav.Verify(x => x.Stop(), Times.Never);
     }
 
-    [Fact]
+    [Fact(Skip = "Positional arc disabled — re-enable when arc block is restored")]
     public void Update_WhenLeavingCombat_StopsOwnedVNavPath()
     {
         var service = CreateService();
@@ -135,7 +148,7 @@ public class PositionalMovementServiceTests
         _vNav.Verify(x => x.Stop(), Times.Once);
     }
 
-    [Fact]
+    [Fact(Skip = "Positional arc disabled — re-enable when arc block is restored")]
     public void Update_WhenAlreadyAtRear_SkipsMove()
     {
         var service = CreateService();
@@ -371,6 +384,33 @@ public class PositionalMovementServiceTests
 
         Assert.Equal(PositionalMovementPhase.Moving, service.State.Phase);
         _vNav.Verify(x => x.Stop(), Times.Never);
+    }
+
+    [Fact(Skip = "Positional arc disabled — re-enable when arc block is restored")]
+    public void Update_WhenMaxMeleePathRunning_ReplacesWithPositionalArc()
+    {
+        var service = CreateService();
+        _action.Setup(x => x.GcdRemaining).Returns(0f);
+
+        service.Update(CreateRequest() with
+        {
+            EnableMovement = false,
+            MaintainMaxMelee = true,
+            PlayerPosition = new Vector3(0f, 0f, 8f),
+        });
+        Assert.Equal(PositionalMovementPhase.Moving, service.State.Phase);
+        Assert.Equal("max melee maintenance", service.State.SkipReason);
+        _vNav.Verify(x => x.PathfindAndMoveCloseTo(It.IsAny<Vector3>(), It.IsAny<float>(), false), Times.Once);
+
+        _vNav.Invocations.Clear();
+        _vNav.Setup(x => x.IsPathRunning).Returns(true);
+        _anticipation.Next = new PositionalAnticipation(PositionalType.Rear, 7481, PositionalAnticipationReason.ComboSetup);
+
+        service.Update(CreateRequest());
+
+        _vNav.Verify(x => x.Stop(), Times.Once);
+        _vNav.Verify(x => x.PathfindAndMoveCloseTo(It.IsAny<Vector3>(), It.IsAny<float>(), false), Times.Once);
+        Assert.Equal(PositionalType.Rear, service.State.TargetZone);
     }
 
     private sealed class TestAnticipationProvider : IPositionalAnticipationProvider

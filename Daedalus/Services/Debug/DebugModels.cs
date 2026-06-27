@@ -75,6 +75,7 @@ public sealed class DebugRotationState
     public string PlannedAction { get; init; } = "None";
     public string DpsState { get; init; } = "Idle";
     public string TargetInfo { get; init; } = "None";
+    public string TargetDistanceInfo { get; init; } = "None";
 
     // Resurrection
     public string RaiseState { get; init; } = "Idle";
@@ -96,6 +97,8 @@ public sealed class DebugRotationState
     // DPS Details
     public string AoEDpsState { get; init; } = "Idle";
     public int AoEDpsEnemyCount { get; init; }
+    public int AoEDpsEngagedCount { get; init; }
+    public float AoEDpsRadiusYalms { get; init; }
     public string MiseryState { get; init; } = "Idle";
 
     // Resources

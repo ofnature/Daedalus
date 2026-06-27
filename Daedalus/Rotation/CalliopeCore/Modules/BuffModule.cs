@@ -3,6 +3,7 @@ using Daedalus.Config.DPS;
 using Daedalus.Data;
 using Daedalus.Rotation.CalliopeCore.Abilities;
 using Daedalus.Rotation.CalliopeCore.Context;
+using Daedalus.Rotation.Common;
 using Daedalus.Rotation.Common.Helpers;
 using Daedalus.Rotation.Common.Scheduling;
 using Daedalus.Services;
@@ -504,8 +505,9 @@ public sealed class BuffModule : ICalliopeModule
         if (level < BRDActions.Bloodletter.MinLevel) return;
         if (context.BloodletterCharges == 0) return;
 
-        var enemyCount = context.TargetingService.CountEnemiesInRange(8f, player);
-        context.Debug.NearbyEnemies = enemyCount;
+        var pack = EnemyPackDebugHelper.Count(context.TargetingService, JobAoERadiusYalms.Caster, player);
+        EnemyPackDebugHelper.Apply(context.Debug, pack);
+        var enemyCount = pack.AoeRange;
 
         if (context.Configuration.Bard.EnableAoERotation
             && enemyCount >= context.Configuration.Bard.AoEMinTargets

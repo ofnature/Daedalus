@@ -1,10 +1,12 @@
+using Daedalus.Rotation.Common;
+
 namespace Daedalus.Rotation.HephaestusCore.Context;
 
 /// <summary>
 /// Debug state for Gunbreaker (Hephaestus) rotation.
 /// Tracks rotation decisions and state for debug display.
 /// </summary>
-public sealed class HephaestusDebugState
+public sealed class HephaestusDebugState : IEnemyPackDebug
 {
     // Module states
     public string DamageState { get; set; } = "";
@@ -65,5 +67,11 @@ public sealed class HephaestusDebugState
     public string CurrentTarget { get; set; } = "";
 
     // Targeting
-    public int NearbyEnemies { get; set; }
+    public int EngagedEnemies { get; set; }
+    public int AoeRangeEnemies { get; set; }
+    public int NearbyEnemies
+    {
+        get => AoeRangeEnemies;
+        set => AoeRangeEnemies = value;
+    }
 }

@@ -2,6 +2,7 @@ using Dalamud.Game.ClientState.Objects.Types;
 using Daedalus.Config.DPS;
 using Daedalus.Data;
 using Daedalus.Models.Action;
+using Daedalus.Rotation.Common;
 using Daedalus.Rotation.Common.Helpers;
 using Daedalus.Rotation.Common.Scheduling;
 using Daedalus.Rotation.PrometheusCore.Abilities;
@@ -64,7 +65,9 @@ public sealed class BuffModule : IPrometheusModule
             return;
         }
 
-        var enemyCount = context.TargetingService.CountEnemiesInRange(12f, player);
+        var pack = EnemyPackDebugHelper.Count(context.TargetingService, JobAoERadiusYalms.PhysicalRanged, player);
+        EnemyPackDebugHelper.Apply(context.Debug, pack);
+        var enemyCount = pack.AoeRange;
 
         TryPushWildfire(context, scheduler, target);
         TryPushBarrelStabilizer(context, scheduler);
@@ -180,7 +183,9 @@ public sealed class BuffModule : IPrometheusModule
         var strategy = context.Configuration.Machinist.ReassembleStrategy;
         if (strategy == ReassembleStrategy.Delay) return;
 
-        var enemyCount = context.TargetingService.CountEnemiesInRange(12f, player);
+        var pack = EnemyPackDebugHelper.Count(context.TargetingService, JobAoERadiusYalms.PhysicalRanged, player);
+        EnemyPackDebugHelper.Apply(context.Debug, pack);
+        var enemyCount = pack.AoeRange;
         var nextGcdId = PredictNextGcd(context, enemyCount);
 
         var nextIsBlessed = IsBlessedTool(nextGcdId);
@@ -456,7 +461,7 @@ public sealed class BuffModule : IPrometheusModule
         var gaussAction = MCHActions.GetGaussRound((byte)level, context.ActionService);
         var ricochetAction = MCHActions.GetRicochet((byte)level, context.ActionService);
 
-        var nextGcdId = PredictNextGcd(context, context.TargetingService.CountEnemiesInRange(12f, player));
+        var nextGcdId = PredictNextGcd(context, EnemyPackDebugHelper.Count(context.TargetingService, JobAoERadiusYalms.PhysicalRanged, player).AoeRange);
         if (context.HasFullMetalMachinist && nextGcdId == MCHActions.FullMetalField.ActionId)
             return;
 

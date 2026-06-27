@@ -133,7 +133,11 @@ public sealed class Zeus : BaseMeleeDpsRotation<IZeusContext, IZeusModule>
         _partyCoordinationService = partyCoordinationService;
         _trainingService = trainingService;
 
-        _positionalAnticipationProvider = new DelegatePositionalAnticipationProvider(GetNextRequiredPositional);
+        _positionalAnticipationProvider = new DelegatePositionalAnticipationProvider(() =>
+        {
+            var player = ObjectTable.LocalPlayer;
+            return player == null ? null : ResolveNextRequiredPositional(player);
+        });
         _scheduler = new RotationScheduler(actionService, jobGauges, configuration, timelineService, errorMetrics);
 
         // Initialize helpers
@@ -193,7 +197,7 @@ public sealed class Zeus : BaseMeleeDpsRotation<IZeusContext, IZeusModule>
 
     /// <inheritdoc />
     protected override bool IsPositionalMovementEnabled()
-        => Configuration.Dragoon.EnablePositionalMovement;
+        => Configuration.Dragoon.EnablePositionalMovement || Configuration.Dragoon.EnforcePositionals;
 
     /// <inheritdoc />
     protected override int DetermineComboStep(uint comboAction, float comboTimer)
@@ -287,6 +291,8 @@ public sealed class Zeus : BaseMeleeDpsRotation<IZeusContext, IZeusModule>
         _debugState.PlannedAction = _zeusDebugState.PlannedAction;
         _debugState.DpsState = _zeusDebugState.DamageState;
         // Note: BuffState is tracked in ZeusDebugState but not in common DebugState
+
+        EnemyPackDebugHelper.SyncAoEDps(_debugState, _zeusDebugState, context.Configuration.Dragoon.AoEMinTargets, JobAoERadiusYalms.Melee);
 
         // Party/player info
         _debugState.PlayerHpPercent = (float)context.Player.CurrentHp / context.Player.MaxHp;

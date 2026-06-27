@@ -74,7 +74,7 @@ Modules implement `IAstraeaModule` (healers) or `IThemisModule` (tanks) or equiv
 - **Warnings:** 18 (do not increase — fix any new warnings before committing)
 - **Tests:** 3095 passing (as of last commit — always run full suite before committing)
 - **Test project:** `dotnet test Daedalus.Tests`
-- **Build:** `dotnet build Daedalus.sln`
+- **Build BOTH configurations — always:** `dotnet build Daedalus.sln -c Debug` AND `dotnet build Daedalus.sln -c Release`. Both must succeed with 0 errors before any change is considered done. Never verify only one configuration — Release is what ships, Debug is what the user runs in-game during testing, and config-specific compile failures (e.g. `#if DEBUG` blocks, conditional analyzers) only surface when both are built.
 
 Never commit with failing tests. Never commit with warnings above baseline.
 

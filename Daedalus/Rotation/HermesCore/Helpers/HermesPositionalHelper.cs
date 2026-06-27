@@ -14,6 +14,9 @@ internal static class HermesPositionalHelper
         if (context.TargetHasPositionalImmunity || context.HasTrueNorth)
             return true;
 
+        if (!PositionalRequirementHelper.ShouldApply(context.Debug.EngagedEnemies))
+            return true;
+
         if (!context.Configuration.Ninja.EnforcePositionals)
             return true;
 

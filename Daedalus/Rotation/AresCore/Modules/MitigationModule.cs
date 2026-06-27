@@ -2,6 +2,7 @@ using Daedalus.Data;
 using Daedalus.Rotation.AresCore.Abilities;
 using Daedalus.Rotation.AresCore.Context;
 using Daedalus.Rotation.ApolloCore.Helpers;
+using Daedalus.Rotation.Common;
 using Daedalus.Rotation.Common.Helpers;
 using Daedalus.Rotation.Common.RoleActionHelpers;
 using Daedalus.Rotation.Common.Scheduling;
@@ -438,20 +439,22 @@ public sealed class MitigationModule : IAresModule
         var (avgHp, _, injuredCount) = context.PartyHealthMetrics;
         if (injuredCount < 3 && avgHp > 0.85f) return;
 
-        var enemyCount = context.TargetingService.CountEnemiesInRange(5f, player);
+        var pack = EnemyPackDebugHelper.Count(context.TargetingService, JobAoERadiusYalms.Tank, player);
+        EnemyPackDebugHelper.Apply(context.Debug, pack);
+        if (pack.AoeRange < 1) return;
         if (!context.ActionService.IsActionReady(RoleActions.Reprisal.ActionId)) return;
 
         scheduler.PushOgcd(AresAbilities.Reprisal, target.EntityId, priority: 4,
             onDispatched: _ =>
             {
                 context.Debug.PlannedAction = RoleActions.Reprisal.Name;
-                context.Debug.MitigationState = $"Reprisal ({enemyCount} enemies)";
+                context.Debug.MitigationState = $"Reprisal ({pack.AoeRange} enemies)";
                 partyCoord?.OnCooldownUsed(RoleActions.Reprisal.ActionId, 60_000);
                 TrainingHelper.Decision(context.TrainingService)
                     .Action(RoleActions.Reprisal.ActionId, RoleActions.Reprisal.Name)
                     .AsPartyMit()
-                    .Reason($"Reprisal - 10% damage reduction on {enemyCount} enemies.", "Party mitigation for multi-target pulls.")
-                    .Factors($"{enemyCount} enemies", "Reprisal available")
+                    .Reason($"Reprisal - 10% damage reduction on {pack.AoeRange} enemies.", "Party mitigation for multi-target pulls.")
+                    .Factors($"{pack.AoeRange} enemies", "Reprisal available")
                     .Alternatives("Save for raidwide")
                     .Tip("Use Reprisal frequently in pulls.")
                     .Concept(WarConcepts.PartyProtection)

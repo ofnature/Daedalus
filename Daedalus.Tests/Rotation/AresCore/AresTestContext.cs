@@ -231,8 +231,7 @@ public static class AresTestContext
 
         mock.Setup(x => x.PartyCoordinationService).Returns((IPartyCoordinationService?)null);
 
-        targetingService.Setup(x => x.CountEnemiesInRange(It.IsAny<float>(), It.IsAny<Dalamud.Game.ClientState.Objects.SubKinds.IPlayerCharacter>()))
-            .Returns(enemyCount);
+        MockBuilders.SetupEnemyPackCount(targetingService, enemyCount);
 
         var debugState = new AresDebugState();
         mock.Setup(x => x.Debug).Returns(debugState);

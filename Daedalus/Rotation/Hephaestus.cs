@@ -335,6 +335,7 @@ public sealed class Hephaestus : BaseTankRotation<IHephaestusContext, IHephaestu
         _debugState.PlannedAction = _hephaestusDebugState.PlannedAction;
         _debugState.DpsState = _hephaestusDebugState.DamageState;
         _debugState.DefensiveState = _hephaestusDebugState.MitigationState;
+        EnemyPackDebugHelper.SyncAoEDps(_debugState, _hephaestusDebugState, context.Configuration.Tank.GetEffectiveAoEMinTargets(JobRegistry.Gunbreaker), JobAoERadiusYalms.Tank);
 
         // Party/player info
         _debugState.PlayerHpPercent = (float)context.Player.CurrentHp / context.Player.MaxHp;

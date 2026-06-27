@@ -35,6 +35,7 @@ public sealed unsafe class ActionService : IActionService
     private readonly IActionTracker _actionTracker;
     private readonly IErrorMetricsService? _errorMetrics;
     private readonly IObjectTable? _objectTable;
+    private readonly IDataManager? _dataManager;
     private readonly WeaveOptimizer _weaveOptimizer;
 
     // GCD tracking state
@@ -183,11 +184,16 @@ public sealed unsafe class ActionService : IActionService
     /// <summary>Gets the WeaveOptimizer for intelligent oGCD timing.</summary>
     public IWeaveOptimizer WeaveOptimizer => _weaveOptimizer;
 
-    public ActionService(IActionTracker actionTracker, IErrorMetricsService? errorMetrics = null, IObjectTable? objectTable = null)
+    public ActionService(
+        IActionTracker actionTracker,
+        IErrorMetricsService? errorMetrics = null,
+        IObjectTable? objectTable = null,
+        IDataManager? dataManager = null)
     {
         _actionTracker = actionTracker;
         _errorMetrics = errorMetrics;
         _objectTable = objectTable;
+        _dataManager = dataManager;
         _weaveOptimizer = new WeaveOptimizer();
     }
 
@@ -736,7 +742,8 @@ public sealed unsafe class ActionService : IActionService
             checkRecastActive: false,
             checkCastingActive: false);
 
-        return status != ActionStatusNotLearned;
+        return status != ActionStatusNotLearned
+            && ActionUnlockHelper.IsActionQuestUnlocked(_dataManager, actionId);
     }
 
     /// <summary>

@@ -353,6 +353,8 @@ public sealed class Circe : BaseCasterDpsRotation<ICirceContext, ICirceModule>
         _debugState.DpsState = _circeDebugState.DamageState;
         // Note: BuffState is tracked in CirceDebugState but not in common DebugState
 
+        EnemyPackDebugHelper.SyncAoEDps(_debugState, _circeDebugState, context.Configuration.RedMage.AoEMinTargets, JobAoERadiusYalms.Caster);
+
         // Party/player info
         _debugState.PlayerHpPercent = (float)context.Player.CurrentHp / context.Player.MaxHp;
         _debugState.PartyListCount = context.PartyList.Length;

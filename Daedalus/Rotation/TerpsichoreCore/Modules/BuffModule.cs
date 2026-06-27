@@ -1,6 +1,7 @@
 using Dalamud.Game.ClientState.Objects.Types;
 using Daedalus.Config.DPS;
 using Daedalus.Data;
+using Daedalus.Rotation.Common;
 using Daedalus.Rotation.Common.Helpers;
 using Daedalus.Rotation.Common.Scheduling;
 using Daedalus.Rotation.TerpsichoreCore.Abilities;
@@ -459,8 +460,9 @@ public sealed class BuffModule : ITerpsichoreModule
         bool shouldUse = context.Feathers >= featherConfig.FeatherOvercapThreshold || inBurst;
         if (!shouldUse && featherConfig.SaveFeathersForBurst) return;
 
-        var enemyCount = context.TargetingService.CountEnemiesInRange(5f, player);
-        context.Debug.NearbyEnemies = enemyCount;
+        var pack = EnemyPackDebugHelper.Count(context.TargetingService, JobAoERadiusYalms.Melee, player);
+        EnemyPackDebugHelper.Apply(context.Debug, pack);
+        var enemyCount = pack.AoeRange;
 
         if (enemyCount >= context.Configuration.Dancer.AoEMinTargets
             && level >= DNCActions.FanDanceII.MinLevel

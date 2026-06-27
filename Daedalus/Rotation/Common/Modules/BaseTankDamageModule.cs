@@ -1,6 +1,7 @@
 using Dalamud.Game.ClientState.Objects.Types;
 using Daedalus.Models.Action;
 using Daedalus.Rotation.Common.Helpers;
+using Daedalus.Services.Targeting;
 
 namespace Daedalus.Rotation.Common.Modules;
 
@@ -50,8 +51,8 @@ public abstract class BaseTankDamageModule<TContext> : IRotationModule<TContext>
     /// <summary>Sets the damage state debug string.</summary>
     protected abstract void SetDamageState(TContext context, string state);
 
-    /// <summary>Sets the nearby enemy count for debug display.</summary>
-    protected abstract void SetNearbyEnemies(TContext context, int count);
+    /// <summary>Sets engaged + AoE-range enemy counts for debug display.</summary>
+    protected abstract void SetEnemyPackCounts(TContext context, EnemyPackCounts counts);
 
     #endregion
 
@@ -126,8 +127,9 @@ public abstract class BaseTankDamageModule<TContext> : IRotationModule<TContext>
         }
 
         // Phase 5: Enemy count for AoE decisions
-        var enemyCount = context.TargetingService.CountEnemiesInRange(5f, player);
-        SetNearbyEnemies(context, enemyCount);
+        var pack = EnemyPackDebugHelper.Count(context.TargetingService, 5f, player);
+        SetEnemyPackCounts(context, pack);
+        var enemyCount = pack.AoeRange;
 
         // Phase 6: oGCD damage (weave window)
         if (context.CanExecuteOgcd)

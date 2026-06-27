@@ -39,6 +39,8 @@ public sealed class BuffModule : IKratosModule
             return;
         }
 
+        context.Debug.BuffState = "Monitoring";
+
         TryPushRiddleOfFire(context, scheduler);
         TryPushBrotherhood(context, scheduler);
         TryPushPerfectBalance(context, scheduler);

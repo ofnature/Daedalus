@@ -26,8 +26,7 @@ public class NinjutsuModuleTcjDesyncTests
         targeting.Setup(x => x.FindEnemy(
                 It.IsAny<EnemyTargetingStrategy>(), It.IsAny<float>(), It.IsAny<IPlayerCharacter>()))
             .Returns(enemy.Object);
-        targeting.Setup(x => x.CountEnemiesInRange(It.IsAny<float>(), It.IsAny<IPlayerCharacter>()))
-            .Returns(4);
+        MockBuilders.SetupEnemyPackCount(targeting, aoeRange: 4);
 
         var actionService = MockBuilders.CreateMockActionService();
         actionService.Setup(x => x.IsActionReady(NINActions.Ten.ActionId)).Returns(true);

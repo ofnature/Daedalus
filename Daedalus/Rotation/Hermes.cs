@@ -184,7 +184,7 @@ public sealed class Hermes : BaseMeleeDpsRotation<IHermesContext, IHermesModule>
 
     /// <inheritdoc />
     protected override bool IsPositionalMovementEnabled()
-        => Configuration.Ninja.EnablePositionalMovement;
+        => Configuration.Ninja.EnablePositionalMovement || Configuration.Ninja.EnforcePositionals;
 
     /// <summary>
     /// NIN positionals: Aeolian Edge = rear, Armor Crush = flank.
@@ -229,7 +229,7 @@ public sealed class Hermes : BaseMeleeDpsRotation<IHermesContext, IHermesModule>
                 Target: movementTarget,
                 ActionService: ActionService,
                 InCombat: inCombat,
-                EnableMovement: IsPositionalMovementEnabled() && IsAutoMovementAllowed(),
+                EnableMovement: IsPositionalMovementEnabled() && IsAutoMovementAllowed() && ShouldApplyPositionalRequirements(player),
                 AllowMovementDuringActionLock: true,
                 MaintainMaxMelee: IsMaxMeleeMaintenanceAllowed(),
                 MaxMeleeTarget: ResolveMaxMeleeTarget(player, out var maxMeleeFollowsPlayer),
@@ -517,13 +517,8 @@ public sealed class Hermes : BaseMeleeDpsRotation<IHermesContext, IHermesModule>
         else
             _debugState.PlanningState = context.InCombat ? "Active" : "Idle";
 
-        _debugState.AoEDpsEnemyCount = _hermesDebugState.NearbyEnemies;
         var aoeMin = context.Configuration.Ninja.AoEMinTargets;
-        _debugState.AoEDpsState = _hermesDebugState.NearbyEnemies >= aoeMin
-            ? $"AoE ({_hermesDebugState.NearbyEnemies} enemies)"
-            : _hermesDebugState.NearbyEnemies > 0
-                ? $"ST ({_hermesDebugState.NearbyEnemies} nearby)"
-                : "No enemies";
+        EnemyPackDebugHelper.SyncAoEDps(_debugState, _hermesDebugState, aoeMin, JobAoERadiusYalms.Melee);
 
         var target = TargetingService.FindEnemy(
             context.Configuration.Targeting.EnemyStrategy,

@@ -231,8 +231,26 @@ public abstract class BaseMeleeDpsRotation<TContext, TModule> : BaseRotation<TCo
             IsAtFlank = IsAtFlank,
             TargetHasImmunity = TargetHasPositionalImmunity,
             HasTarget = true,
-            RequiredPositional = (TargetHasPositionalImmunity || hasTrueNorth) ? null : GetNextRequiredPositional(),
+            RequiredPositional = (TargetHasPositionalImmunity || hasTrueNorth) ? null : ResolveNextRequiredPositional(player),
         };
+    }
+
+    /// <summary>
+    /// Positional enforcement, overlay, and vNav reposition only apply with one enemy in melee.
+    /// </summary>
+    protected bool ShouldApplyPositionalRequirements(IPlayerCharacter player)
+        => PositionalRequirementHelper.ShouldApply(
+            TargetingService.CountEngagedEnemies(PositionalRequirementHelper.EngagedScanYalms, player));
+
+    /// <summary>
+    /// Returns the upcoming positional when single-target; null on multi-enemy packs.
+    /// </summary>
+    protected PositionalType? ResolveNextRequiredPositional(IPlayerCharacter player)
+    {
+        if (!ShouldApplyPositionalRequirements(player))
+            return null;
+
+        return GetNextRequiredPositional();
     }
 
     /// <summary>
@@ -250,6 +268,13 @@ public abstract class BaseMeleeDpsRotation<TContext, TModule> : BaseRotation<TCo
     /// Whether anticipatory vNav positional movement is enabled for this job.
     /// </summary>
     protected virtual bool IsPositionalMovementEnabled() => false;
+
+    /// <summary>
+    /// When > 0, stand points target the flank/rear boundary ± this margin instead of the arc center.
+    /// Override for jobs with back-to-back Rear/Flank switches (e.g. MNK) to minimize repositioning distance.
+    /// Default 0 = center of arc (SAM/NIN behaviour).
+    /// </summary>
+    protected virtual float PositionalBoundaryBiasRadians => 0f;
 
     /// <summary>
     /// Whether vNav-driven auto movement (positional reposition, burst approach) is permitted right
@@ -310,12 +335,13 @@ public abstract class BaseMeleeDpsRotation<TContext, TModule> : BaseRotation<TCo
             Target: movementTarget,
             ActionService: ActionService,
             InCombat: inCombat,
-            EnableMovement: IsPositionalMovementEnabled() && IsAutoMovementAllowed(),
+            EnableMovement: IsPositionalMovementEnabled() && IsAutoMovementAllowed() && ShouldApplyPositionalRequirements(player),
             AllowMovementDuringActionLock: true,
             MaintainMaxMelee: IsMaxMeleeMaintenanceAllowed(),
             MaxMeleeTarget: ResolveMaxMeleeTarget(player, out var maxMeleeFollowsPlayer),
             MaxMeleeTargetFollowsPlayer: maxMeleeFollowsPlayer,
-            VNavFlex: Configuration.Nav.VNavFlex);
+            VNavFlex: Configuration.Nav.VNavFlex,
+            PositionalBoundaryBiasRadians: PositionalBoundaryBiasRadians);
 
         PositionalMovementService.Update(in request);
     }

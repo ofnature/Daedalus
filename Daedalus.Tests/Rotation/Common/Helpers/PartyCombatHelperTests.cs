@@ -40,7 +40,7 @@ public class PartyCombatHelperTests
         partyList.Setup(x => x.GetEnumerator())
             .Returns(new List<IPartyMember> { partyMember.Object }.GetEnumerator());
 
-        var objectTable = new Mock<IObjectTable>();
+        var objectTable = MockBuilders.CreateMockObjectTable();
         objectTable.Setup(x => x.SearchByEntityId(tankEntityId)).Returns(tank.Object);
 
         Assert.True(PartyCombatHelper.IsAnyGroupMemberInCombat(
@@ -67,7 +67,7 @@ public class PartyCombatHelperTests
         partyList.Setup(x => x.GetEnumerator())
             .Returns(new List<IPartyMember> { selfMember.Object, deadPartyMember.Object }.GetEnumerator());
 
-        var objectTable = new Mock<IObjectTable>();
+        var objectTable = MockBuilders.CreateMockObjectTable();
         objectTable.Setup(x => x.SearchByEntityId(deadEntityId)).Returns(deadMember.Object);
 
         Assert.False(PartyCombatHelper.IsAnyGroupMemberInCombat(
@@ -79,6 +79,7 @@ public class PartyCombatHelperTests
         var mock = new Mock<IPlayerCharacter>();
         mock.Setup(x => x.EntityId).Returns(entityId);
         mock.Setup(x => x.StatusFlags).Returns(inCombat ? StatusFlags.InCombat : 0);
+        mock.Setup(x => x.Position).Returns(System.Numerics.Vector3.Zero);
         return mock;
     }
 

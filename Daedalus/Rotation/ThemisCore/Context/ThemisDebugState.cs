@@ -1,10 +1,12 @@
 namespace Daedalus.Rotation.ThemisCore.Context;
 
+using Daedalus.Rotation.Common;
+
 /// <summary>
 /// Debug state for Paladin (Themis) rotation.
 /// Tracks rotation decisions and state for debug display.
 /// </summary>
-public sealed class ThemisDebugState
+public sealed class ThemisDebugState : IEnemyPackDebug
 {
     // Execution flow tracking (for debugging)
     public bool InCombat { get; set; }
@@ -51,4 +53,12 @@ public sealed class ThemisDebugState
     // Enmity tracking
     public bool IsMainTank { get; set; }
     public string CurrentTarget { get; set; } = "";
+
+    public int EngagedEnemies { get; set; }
+    public int AoeRangeEnemies { get; set; }
+    public int NearbyEnemies
+    {
+        get => AoeRangeEnemies;
+        set => AoeRangeEnemies = value;
+    }
 }

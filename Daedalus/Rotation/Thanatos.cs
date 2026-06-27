@@ -134,7 +134,11 @@ public sealed class Thanatos : BaseMeleeDpsRotation<IThanatosContext, IThanatosM
         _partyCoordinationService = partyCoordinationService;
         _trainingService = trainingService;
 
-        _positionalAnticipationProvider = new DelegatePositionalAnticipationProvider(GetNextRequiredPositional);
+        _positionalAnticipationProvider = new DelegatePositionalAnticipationProvider(() =>
+        {
+            var player = ObjectTable.LocalPlayer;
+            return player == null ? null : ResolveNextRequiredPositional(player);
+        });
         _scheduler = new RotationScheduler(actionService, jobGauges, configuration, timelineService, errorMetrics);
 
         // Initialize helpers
@@ -193,7 +197,7 @@ public sealed class Thanatos : BaseMeleeDpsRotation<IThanatosContext, IThanatosM
 
     /// <inheritdoc />
     protected override bool IsPositionalMovementEnabled()
-        => Configuration.Reaper.EnablePositionalMovement;
+        => Configuration.Reaper.EnablePositionalMovement || Configuration.Reaper.EnforcePositionals;
 
     /// <inheritdoc />
     protected override int DetermineComboStep(uint comboAction, float comboTimer)
@@ -284,6 +288,8 @@ public sealed class Thanatos : BaseMeleeDpsRotation<IThanatosContext, IThanatosM
         _debugState.PlannedAction = _thanatosDebugState.PlannedAction;
         _debugState.DpsState = _thanatosDebugState.DamageState;
         // Note: BuffState is tracked in ThanatosDebugState but not in common DebugState
+
+        EnemyPackDebugHelper.SyncAoEDps(_debugState, _thanatosDebugState, context.Configuration.Reaper.AoEMinTargets, JobAoERadiusYalms.Melee);
 
         // Party/player info
         _debugState.PlayerHpPercent = (float)context.Player.CurrentHp / context.Player.MaxHp;

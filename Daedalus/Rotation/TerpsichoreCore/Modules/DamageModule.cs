@@ -71,9 +71,9 @@ public sealed class DamageModule : ITerpsichoreModule
 
         var aoeEnabled = context.Configuration.Dancer.EnableAoERotation;
         var aoeThreshold = context.Configuration.Dancer.AoEMinTargets;
-        var rawEnemyCount = context.TargetingService.CountEnemiesInRange(5f, player);
-        context.Debug.NearbyEnemies = rawEnemyCount;
-        var enemyCount = aoeEnabled ? rawEnemyCount : 0;
+        var pack = EnemyPackDebugHelper.Count(context.TargetingService, 5f, player);
+        EnemyPackDebugHelper.Apply(context.Debug, pack);
+        var enemyCount = aoeEnabled ? pack.AoeRange : 0;
 
         // oGCD interrupt
         TryPushInterrupt(context, scheduler, target);

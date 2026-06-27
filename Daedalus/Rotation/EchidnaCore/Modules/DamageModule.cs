@@ -9,6 +9,7 @@ using Daedalus.Rotation.Common.Scheduling;
 using Daedalus.Rotation.EchidnaCore.Abilities;
 using Daedalus.Rotation.EchidnaCore.Context;
 using Daedalus.Services;
+using Daedalus.Services.Positional;
 using Daedalus.Services.Targeting;
 using Daedalus.Services.Training;
 
@@ -71,10 +72,10 @@ public sealed class DamageModule : IEchidnaModule
 
         var aoeEnabled = context.Configuration.Viper.EnableAoERotation;
         var aoeThreshold = context.Configuration.Viper.AoEMinTargets;
-        var rawEnemyCount = context.TargetingService.CountEnemiesInRange(5f, player);
-        context.Debug.NearbyEnemies = rawEnemyCount;
-        var enemyCount = aoeEnabled ? rawEnemyCount : 0;
-        var useAoe = enemyCount >= aoeThreshold;
+        var pack = EnemyPackDebugHelper.Count(context.TargetingService, 5f, player);
+        EnemyPackDebugHelper.Apply(context.Debug, pack);
+        var enemyCount = aoeEnabled ? pack.AoeRange : 0;
+        var useAoe = aoeEnabled && pack.AoeRange >= aoeThreshold;
 
         // oGCDs
         TryPushLegacyOgcd(context, scheduler, target);
@@ -704,7 +705,9 @@ public sealed class DamageModule : IEchidnaModule
         if (level < action.MinLevel) { action = VPRActions.SteelFangs; ability = EchidnaAbilities.SteelFangs; }
         if (!context.ActionService.IsActionReady(action.ActionId)) return;
 
-        if (isPositional && context.Configuration.Viper.EnforcePositionals)
+        if (isPositional
+            && PositionalRequirementHelper.ShouldApply(context.Debug.EngagedEnemies)
+            && context.Configuration.Viper.EnforcePositionals)
         {
             var isRearFinisher = action == VPRActions.HindstingStrike || action == VPRActions.HindsbaneFang;
             bool positionalOk = isRearFinisher

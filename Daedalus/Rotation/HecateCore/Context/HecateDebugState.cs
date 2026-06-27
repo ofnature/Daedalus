@@ -1,10 +1,12 @@
+using Daedalus.Rotation.Common;
+
 namespace Daedalus.Rotation.HecateCore.Context;
 
 /// <summary>
 /// Debug state for the Hecate (Black Mage) rotation.
 /// Tracks all relevant state for debugging and visualization.
 /// </summary>
-public sealed class HecateDebugState
+public sealed class HecateDebugState : IEnemyPackDebug
 {
     #region Module States
 
@@ -180,7 +182,13 @@ public sealed class HecateDebugState
     /// <summary>
     /// Nearby enemy count for AoE decisions.
     /// </summary>
-    public int NearbyEnemies { get; set; }
+    public int EngagedEnemies { get; set; }
+    public int AoeRangeEnemies { get; set; }
+    public int NearbyEnemies
+    {
+        get => AoeRangeEnemies;
+        set => AoeRangeEnemies = value;
+    }
 
     /// <summary>
     /// Current target name.

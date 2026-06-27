@@ -1,10 +1,12 @@
+using Daedalus.Rotation.Common;
+
 namespace Daedalus.Rotation.IrisCore.Context;
 
 /// <summary>
 /// Debug state for Iris (Pictomancer) rotation.
 /// Tracks all relevant gauge, buff, and ability state for debugging.
 /// </summary>
-public sealed class IrisDebugState
+public sealed class IrisDebugState : IEnemyPackDebug
 {
     // Planning state
     public string PlanningState { get; set; } = "";
@@ -70,7 +72,9 @@ public sealed class IrisDebugState
 
     // Combat info
     public string CurrentTarget { get; set; } = "None";
-    public int NearbyEnemies { get; set; }
+    public int EngagedEnemies { get; set; }
+    public int AoeRangeEnemies { get; set; }
+    public int NearbyEnemies { get => AoeRangeEnemies; set => AoeRangeEnemies = value; }
 
     // Phase tracking
     public string Phase { get; set; } = "Waiting";

@@ -1,5 +1,6 @@
 using Dalamud.Game.ClientState.Objects.Types;
 using Daedalus.Data;
+using Daedalus.Rotation.Common;
 using Daedalus.Rotation.Common.Helpers;
 using Daedalus.Rotation.Common.RoleActionHelpers;
 using Daedalus.Rotation.Common.Scheduling;
@@ -292,7 +293,9 @@ public sealed class BuffModule : IPersephoneModule
         if (context.HasAetherflow) return;
 
         var aoeEnabled = context.Configuration.Summoner.EnableAoERotation;
-        var rawEnemyCount = context.TargetingService.CountEnemiesInRange(5f, player);
+        var pack = EnemyPackDebugHelper.Count(context.TargetingService, JobAoERadiusYalms.Caster, player);
+        EnemyPackDebugHelper.Apply(context.Debug, pack);
+        var rawEnemyCount = pack.AoeRange;
         var enemyCount = aoeEnabled ? rawEnemyCount : 0;
         var useAoe = enemyCount >= context.Configuration.Summoner.AoEMinTargets;
         var action = useAoe && player.Level >= SMNActions.EnergySiphon.MinLevel
@@ -347,7 +350,9 @@ public sealed class BuffModule : IPersephoneModule
             return;
         }
 
-        var enemyCount = context.TargetingService.CountEnemiesInRange(5f, player);
+        var pack = EnemyPackDebugHelper.Count(context.TargetingService, JobAoERadiusYalms.Caster, player);
+        EnemyPackDebugHelper.Apply(context.Debug, pack);
+        var enemyCount = pack.AoeRange;
         var useAoe = enemyCount >= 3;
         var action = useAoe ? SMNActions.GetAetherflowSpenderAoe(player.Level, context.ActionService) : SMNActions.GetAetherflowSpenderST(player.Level, context.ActionService);
         var ability = action.ActionId switch

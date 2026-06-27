@@ -1,5 +1,6 @@
 using Daedalus.Data;
 using Daedalus.Rotation.ApolloCore.Helpers;
+using Daedalus.Rotation.Common;
 using Daedalus.Rotation.Common.Helpers;
 using Daedalus.Rotation.Common.RoleActionHelpers;
 using Daedalus.Rotation.Common.Scheduling;
@@ -377,14 +378,16 @@ public sealed class MitigationModule : INyxModule
         var (avgHp, _, injuredCount) = context.PartyHealthMetrics;
         if (injuredCount < 3 && avgHp > 0.85f) return;
 
-        var enemyCount = context.TargetingService.CountEnemiesInRange(5f, player);
+        var pack = EnemyPackDebugHelper.Count(context.TargetingService, JobAoERadiusYalms.Tank, player);
+        EnemyPackDebugHelper.Apply(context.Debug, pack);
+        if (pack.AoeRange < 1) return;
         if (!context.ActionService.IsActionReady(RoleActions.Reprisal.ActionId)) return;
 
         scheduler.PushOgcd(NyxAbilities.Reprisal, target.EntityId, priority: 4,
             onDispatched: _ =>
             {
                 context.Debug.PlannedAction = RoleActions.Reprisal.Name;
-                context.Debug.MitigationState = $"Reprisal ({enemyCount} enemies)";
+                context.Debug.MitigationState = $"Reprisal ({pack.AoeRange} enemies)";
                 partyCoord?.OnCooldownUsed(RoleActions.Reprisal.ActionId, 60_000);
             });
     }

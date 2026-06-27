@@ -73,18 +73,16 @@ public class PositionalServiceTests
     #region Rear/Flank Boundaries (135 and 225 degrees)
 
     [Fact]
-    public void GetPositional_PlayerAtRearFlankBoundary135_ReturnsRear()
+    public void GetPositional_PlayerAtRearFlankBoundary135_ReturnsFlank()
     {
-        // At exactly 135 degrees (start of rear cone)
-        // Target at origin facing +Z (rotation = 0)
-        // 135 degrees = rear starts
+        // At exactly 135° from facing — RSR rear starts above 135°, so this is still flank.
         var target = CreateActor(Vector3.Zero, rotation: 0f);
         var angle = 135f * (MathF.PI / 180f);
         var player = CreateActor(new Vector3(MathF.Sin(angle) * 5f, 0, MathF.Cos(angle) * 5f));
 
         var result = _service.GetPositional(player.Object, target.Object);
 
-        Assert.Equal(PositionalType.Rear, result);
+        Assert.Equal(PositionalType.Flank, result);
     }
 
     [Fact]
@@ -161,16 +159,16 @@ public class PositionalServiceTests
     }
 
     [Fact]
-    public void GetPositional_PlayerAtFlankFrontBoundary315_ReturnsFront()
+    public void GetPositional_PlayerAtFlankFrontBoundary315_ReturnsFlank()
     {
-        // At exactly 315 degrees (start of front cone, wrapping)
+        // 315° relative = 45° from facing — RSR classifies as flank, not front.
         var target = CreateActor(Vector3.Zero, rotation: 0f);
         var angle = 315f * (MathF.PI / 180f);
         var player = CreateActor(new Vector3(MathF.Sin(angle) * 5f, 0, MathF.Cos(angle) * 5f));
 
         var result = _service.GetPositional(player.Object, target.Object);
 
-        Assert.Equal(PositionalType.Front, result);
+        Assert.Equal(PositionalType.Flank, result);
     }
 
     #endregion

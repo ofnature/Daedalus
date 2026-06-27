@@ -70,10 +70,10 @@ public sealed class DamageModule : INikeModule
 
         var aoeEnabled = context.Configuration.Samurai.EnableAoERotation;
         var aoeThreshold = context.Configuration.Samurai.AoEMinTargets;
-        var rawEnemyCount = context.TargetingService.CountEnemiesInRange(5f, player);
-        context.Debug.NearbyEnemies = rawEnemyCount;
-        var enemyCount = aoeEnabled ? rawEnemyCount : 0;
-        var useAoE = enemyCount >= aoeThreshold;
+        var pack = EnemyPackDebugHelper.Count(context.TargetingService, 5f, player);
+        EnemyPackDebugHelper.Apply(context.Debug, pack);
+        var enemyCount = aoeEnabled ? pack.AoeRange : 0;
+        var useAoE = aoeEnabled && pack.AoeRange >= aoeThreshold;
 
         // oGCDs
         TryPushFeint(context, scheduler, target);
@@ -85,7 +85,7 @@ public sealed class DamageModule : INikeModule
         TryPushKaeshiNamikiri(context, scheduler, target);
         TryPushTsubameGaeshi(context, scheduler, target);
         TryPushOgiNamikiri(context, scheduler, target);
-        TryPushIaijutsu(context, scheduler, target, useAoE);
+        TryPushIaijutsu(context, scheduler, target, useAoE, pack.AoeRange);
         TryPushMeikyoFinisher(context, scheduler, target, useAoE);
         TryPushComboRotation(context, scheduler, target, enemyCount, useAoE);
     }
@@ -287,6 +287,11 @@ public sealed class DamageModule : INikeModule
         var player = context.Player;
         if (player.Level < SAMActions.OgiNamikiri.MinLevel) return;
         if (!context.HasOgiNamikiriReady) return;
+        // Block re-dispatch during the server RTT window after Ogi Namikiri fires: status 2959
+        // stays visible on the client for 2–3 frames before the remove-packet arrives, but
+        // KaeshiNamikiriReady (2960) isn't granted yet — without this guard a second Ogi fires
+        // before Kaeshi can be seen. WasLastAction resets the moment Kaeshi is dispatched.
+        if (context.ActionService.WasLastAction(SAMActions.OgiNamikiri.ActionId)) return;
 
         scheduler.PushGcd(NikeAbilities.OgiNamikiri, target.GameObjectId, priority: 2,
             onDispatched: _ =>
@@ -310,7 +315,7 @@ public sealed class DamageModule : INikeModule
             });
     }
 
-    private void TryPushIaijutsu(INikeContext context, RotationScheduler scheduler, IBattleChara target, bool useAoE)
+    private void TryPushIaijutsu(INikeContext context, RotationScheduler scheduler, IBattleChara target, bool useAoE, int enemyCount)
     {
         if (!context.Configuration.Samurai.EnableIaijutsu) return;
         var player = context.Player;
@@ -322,7 +327,8 @@ public sealed class DamageModule : INikeModule
             case 1:
                 if (!context.Configuration.Samurai.MaintainHiganbana) return;
                 if (level < SAMActions.Higanbana.MinLevel) return;
-                if (useAoE) return;
+                // Skip Higanbana at 2+ targets — DoT on one mob is a DPS loss vs AoE filler
+                if (enemyCount >= 2) return;
                 if (context.HasHiganbanaOnTarget && context.HiganbanaRemaining > context.Configuration.Samurai.HiganbanaRefreshThreshold) return;
                 var targetHpPercent = target.MaxHp > 0 ? (float)target.CurrentHp / target.MaxHp : 1f;
                 if (targetHpPercent < context.Configuration.Samurai.HiganbanaMinTargetHp) return;
@@ -621,9 +627,17 @@ public sealed class DamageModule : INikeModule
         var comboStep = context.ComboStep;
         var comboStarter = SAMActions.GetComboStarter((byte)level, context.ActionService);
         var starterAbility = comboStarter == SAMActions.Gyofu ? NikeAbilities.Gyofu : NikeAbilities.Hakaze;
-        var onStarter = comboStep == 1 &&
-                        (context.LastComboAction == comboStarter.ActionId ||
-                         context.LastComboAction == SAMActions.Hakaze.ActionId);
+        // Dual-source starter detection — same resilience as the AoE path. Guards against the gauge
+        // combo-step read lagging after Gyofu/Hakaze, which would otherwise drop the step-2 push and
+        // re-issue the (blocked) starter, stalling the rotation. WasLastGcd (not WasLastAction) so an
+        // oGCD weave (Shinten/Feint/etc.) between the starter and step 2 doesn't mask the starter.
+        var justFiredStarter = context.ActionService.WasLastGcd(comboStarter.ActionId)
+                               || context.ActionService.WasLastGcd(SAMActions.Hakaze.ActionId)
+                               || context.ActionService.WasLastGcd(SAMActions.Gyofu.ActionId);
+        var onStarter = (comboStep == 1 &&
+                         (context.LastComboAction == comboStarter.ActionId ||
+                          context.LastComboAction == SAMActions.Hakaze.ActionId))
+                        || justFiredStarter;
 
         // Step 2 finishers at p6 — no early return; starter at p7 is ActionStatus fallback (PLD parity)
         if (comboStep == 2 &&
@@ -683,7 +697,12 @@ public sealed class DamageModule : INikeModule
         // Step 1 at p6 — no early return
         if (onStarter)
         {
-            if ((!context.HasFugetsu || context.FugetsuRemaining < 10f) && level >= SAMActions.Jinpu.MinLevel)
+            // Ends-first: refresh whichever buff expires sooner so neither drops.
+            var fugetsuUrgent = (!context.HasFugetsu || context.FugetsuRemaining < 10f) && level >= SAMActions.Jinpu.MinLevel;
+            var fukaUrgent    = (!context.HasFuka    || context.FukaRemaining    < 10f) && level >= SAMActions.Shifu.MinLevel;
+            var fugetsuFirst  = fugetsuUrgent && (!fukaUrgent || context.FugetsuRemaining <= context.FukaRemaining);
+
+            if (fugetsuFirst)
             {
                 PushComboStep2(context, scheduler, target, SAMActions.Jinpu, NikeAbilities.Jinpu,
                     $"Jinpu to refresh Fugetsu ({(context.HasFugetsu ? $"{context.FugetsuRemaining:F1}s left" : "missing")})",
@@ -693,7 +712,7 @@ public sealed class DamageModule : INikeModule
                     "Keep both Fugetsu and Fuka up. They expire in 40s — refresh before 10s.",
                     "sam_fugetsu_fuka", "Fugetsu refresh via Jinpu");
             }
-            else if ((!context.HasFuka || context.FukaRemaining < 10f) && level >= SAMActions.Shifu.MinLevel)
+            else if (fukaUrgent)
             {
                 PushComboStep2(context, scheduler, target, SAMActions.Shifu, NikeAbilities.Shifu,
                     $"Shifu to refresh Fuka ({(context.HasFuka ? $"{context.FukaRemaining:F1}s left" : "missing")})",
@@ -803,9 +822,20 @@ public sealed class DamageModule : INikeModule
         var comboStep = context.ComboStep;
         var aoeStarter = SAMActions.GetAoeComboStarter((byte)level, context.ActionService);
         var starterAbility = aoeStarter == SAMActions.Fuko ? NikeAbilities.Fuko : NikeAbilities.Fuga;
-        var onStarter = comboStep == 1 &&
-                        (context.LastComboAction == aoeStarter.ActionId ||
-                         context.LastComboAction == SAMActions.Fuga.ActionId);
+        // Dual-source starter detection. The gauge combo-step read can lag (or briefly read 0) for a
+        // frame or two after Fuko/Fuga fires; if we rely on it alone, onStarter is false, the finisher
+        // is never pushed, and the p7 starter re-push gets blocked by ShouldBlockRepeatGcd (Fuko was the
+        // last GCD) — the "Fuko lockup". Treating "we just dispatched the starter" as equivalent keeps the
+        // finisher flowing. Use WasLastGcd, NOT WasLastAction: an oGCD weave (Shinten/Kyuten/Feint) after
+        // the starter overwrites LastAction but combos only advance on GCDs, so WasLastGcd still points at
+        // the starter. Clears as soon as the finisher GCD dispatches, so it can't double-fire.
+        var justFiredStarter = context.ActionService.WasLastGcd(aoeStarter.ActionId)
+                               || context.ActionService.WasLastGcd(SAMActions.Fuga.ActionId)
+                               || context.ActionService.WasLastGcd(SAMActions.Fuko.ActionId);
+        var onStarter = (comboStep == 1 &&
+                         (context.LastComboAction == aoeStarter.ActionId ||
+                          context.LastComboAction == SAMActions.Fuga.ActionId))
+                        || justFiredStarter;
 
         // Step 2 finishers at p6 — no early return; starter at p7 is fallback (PLD parity)
         if (onStarter)

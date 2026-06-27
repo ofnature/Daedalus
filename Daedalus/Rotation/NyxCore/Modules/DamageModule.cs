@@ -48,9 +48,9 @@ public sealed class DamageModule : INyxModule
             return;
         }
 
-        var enemyCount = context.TargetingService.CountEnemiesInRange(5f, player);
-
-        // oGCDs
+        var pack = EnemyPackDebugHelper.Count(context.TargetingService, 5f, player);
+        EnemyPackDebugHelper.Apply(context.Debug, pack);
+        var enemyCount = pack.AoeRange;
         TryPushDarkArtsProc(context, scheduler, target.GameObjectId, enemyCount);
         TryPushShadowbringer(context, scheduler, target.GameObjectId);
         TryPushSaltedEarth(context, scheduler, player.GameObjectId);

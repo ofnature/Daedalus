@@ -393,8 +393,7 @@ public class DamageModuleCollectCandidatesTests
                 It.IsAny<EnemyTargetingStrategy>(), It.IsAny<uint>(), It.IsAny<IPlayerCharacter>()))
             .Returns(enemy.Object);
         targeting.Setup(x => x.IsDamageTargetingPaused()).Returns(false);
-        targeting.Setup(x => x.CountEnemiesInRange(It.IsAny<float>(), It.IsAny<IPlayerCharacter>()))
-            .Returns(enemyCount);
+        MockBuilders.SetupEnemyPackCount(targeting, enemyCount);
 
         var safetyMock = new Mock<IGapCloserSafetyService>();
         safetyMock.Setup(x => x.ShouldBlockGapCloser(It.IsAny<IBattleChara>(), It.IsAny<IPlayerCharacter>()))

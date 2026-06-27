@@ -1,6 +1,7 @@
 using Dalamud.Game.ClientState.Objects.Types;
 using Daedalus.Models.Action;
 using Daedalus.Rotation.Common.Helpers;
+using Daedalus.Services.Targeting;
 
 namespace Daedalus.Rotation.Common.Modules;
 
@@ -81,6 +82,11 @@ public abstract class BaseDamageModule<TContext> : IHealerRotationModule<TContex
     /// Sets the AoE DPS enemy count debug value.
     /// </summary>
     protected abstract void SetAoEDpsEnemyCount(TContext context, int count);
+
+    /// <summary>
+    /// Sets the engaged enemy count for AoE DPS debug display.
+    /// </summary>
+    protected abstract void SetAoEDpsEngagedCount(TContext context, int count);
 
     /// <summary>
     /// Sets the planned action debug string.
@@ -231,10 +237,10 @@ public abstract class BaseDamageModule<TContext> : IHealerRotationModule<TContex
             var aoeAction = GetAoEDamageAction(context);
             if (aoeAction != null)
             {
-                var enemyCount = context.TargetingService.CountEnemiesInRange(aoeAction.Radius, context.Player);
-                if (enemyCount >= AoEMinTargets(context))
+                var pack = context.TargetingService.CountEnemyPack(aoeAction.Radius, context.Player);
+                if (pack.AoeRange >= AoEMinTargets(context))
                 {
-                    SetDpsState(context, $"DoT: skipped ({enemyCount} enemies, AoE preferred)");
+                    SetDpsState(context, $"DoT: skipped ({pack.AoeRange} enemies, AoE preferred)");
                     return false;
                 }
             }
@@ -301,13 +307,14 @@ public abstract class BaseDamageModule<TContext> : IHealerRotationModule<TContex
             return false;
         }
 
-        var enemyCount = context.TargetingService.CountEnemiesInRange(aoeAction.Radius, context.Player);
-        SetAoEDpsEnemyCount(context, enemyCount);
+        var pack = context.TargetingService.CountEnemyPack(aoeAction.Radius, context.Player);
+        SetAoEDpsEnemyCount(context, pack.AoeRange);
+        SetAoEDpsEngagedCount(context, pack.Engaged);
 
         var minTargets = AoEMinTargets(context);
-        if (enemyCount < minTargets)
+        if (pack.AoeRange < minTargets)
         {
-            SetAoEDpsState(context, $"{enemyCount} < {minTargets} min");
+            SetAoEDpsState(context, $"{pack.AoeRange} < {minTargets} min");
             return false;
         }
 
@@ -322,8 +329,8 @@ public abstract class BaseDamageModule<TContext> : IHealerRotationModule<TContex
         if (context.ActionService.ExecuteGcd(aoeAction, targetId))
         {
             SetPlannedAction(context, aoeAction.Name);
-            SetDpsState(context, $"AoE ({enemyCount} targets)");
-            SetAoEDpsState(context, $"{enemyCount} enemies");
+            SetDpsState(context, $"AoE ({pack.AoeRange} targets)");
+            SetAoEDpsState(context, $"{pack.AoeRange} enemies");
             return true;
         }
 

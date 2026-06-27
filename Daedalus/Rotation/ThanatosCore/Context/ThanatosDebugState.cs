@@ -1,10 +1,12 @@
+using Daedalus.Rotation.Common;
+
 namespace Daedalus.Rotation.ThanatosCore.Context;
 
 /// <summary>
 /// Debug state for Reaper (Thanatos) rotation.
 /// Tracks rotation decisions and state for debug display.
 /// </summary>
-public sealed class ThanatosDebugState
+public sealed class ThanatosDebugState : IEnemyPackDebug
 {
     // Module states
     public string DamageState { get; set; } = "";
@@ -54,7 +56,13 @@ public sealed class ThanatosDebugState
 
     // Targeting
     public string CurrentTarget { get; set; } = "";
-    public int NearbyEnemies { get; set; }
+    public int EngagedEnemies { get; set; }
+    public int AoeRangeEnemies { get; set; }
+    public int NearbyEnemies
+    {
+        get => AoeRangeEnemies;
+        set => AoeRangeEnemies = value;
+    }
 
     // Combo state
     public int ComboStep { get; set; }

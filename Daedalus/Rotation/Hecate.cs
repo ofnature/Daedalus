@@ -215,6 +215,8 @@ public sealed class Hecate : BaseCasterDpsRotation<IHecateContext, IHecateModule
         _debugState.DpsState = _hecateDebugState.DamageState;
         // Note: BuffState is tracked in HecateDebugState but not in common DebugState
 
+        EnemyPackDebugHelper.SyncAoEDps(_debugState, _hecateDebugState, context.Configuration.BlackMage.AoEMinTargets, JobAoERadiusYalms.Caster);
+
         // Party/player info
         _debugState.PlayerHpPercent = (float)context.Player.CurrentHp / context.Player.MaxHp;
         _debugState.PartyListCount = context.PartyList.Length;

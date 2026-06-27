@@ -27,6 +27,7 @@ public sealed class DamageModule : BaseDamageModule<IAthenaContext>, IAthenaModu
     protected override void SetDpsState(IAthenaContext context, string state) => context.Debug.DpsState = state;
     protected override void SetAoEDpsState(IAthenaContext context, string state) => context.Debug.AoEDpsState = state;
     protected override void SetAoEDpsEnemyCount(IAthenaContext context, int count) => context.Debug.AoEDpsEnemyCount = count;
+    protected override void SetAoEDpsEngagedCount(IAthenaContext context, int count) => context.Debug.AoEDpsEngagedCount = count;
     protected override void SetPlannedAction(IAthenaContext context, string action) => context.Debug.PlannedAction = action;
     protected override bool BlocksOnExecution => false;
 
@@ -204,8 +205,8 @@ public sealed class DamageModule : BaseDamageModule<IAthenaContext>, IAthenaModu
             var aoeAction = GetAoEDamageAction(context);
             if (aoeAction != null)
             {
-                var enemyCount = context.TargetingService.CountEnemiesInRange(aoeAction.Radius, context.Player);
-                if (enemyCount >= AoEMinTargets(context)) { SetDpsState(context, $"DoT: skipped ({enemyCount} enemies)"); return; }
+                var pack = context.TargetingService.CountEnemyPack(aoeAction.Radius, context.Player);
+                if (pack.AoeRange >= AoEMinTargets(context)) { SetDpsState(context, $"DoT: skipped ({pack.AoeRange} enemies)"); return; }
             }
         }
 
@@ -239,9 +240,10 @@ public sealed class DamageModule : BaseDamageModule<IAthenaContext>, IAthenaModu
         var aoeCastTime = context.HasSwiftcast ? 0f : aoeAction.CastTime;
         if (MechanicCastGate.ShouldBlock(context, aoeCastTime)) { SetAoEDpsState(context, "Holding: mechanic imminent"); return; }
 
-        var enemyCount = context.TargetingService.CountEnemiesInRange(aoeAction.Radius, context.Player);
-        SetAoEDpsEnemyCount(context, enemyCount);
-        if (enemyCount < AoEMinTargets(context)) { SetAoEDpsState(context, $"{enemyCount} < {AoEMinTargets(context)} min"); return; }
+        var pack = context.TargetingService.CountEnemyPack(aoeAction.Radius, context.Player);
+        SetAoEDpsEnemyCount(context, pack.AoeRange);
+        SetAoEDpsEngagedCount(context, pack.Engaged);
+        if (pack.AoeRange < AoEMinTargets(context)) { SetAoEDpsState(context, $"{pack.AoeRange} < {AoEMinTargets(context)} min"); return; }
 
         var targetId = aoeAction.TargetType == ActionTargetType.Self
             ? context.Player.GameObjectId
@@ -249,7 +251,7 @@ public sealed class DamageModule : BaseDamageModule<IAthenaContext>, IAthenaModu
         if (targetId == 0) return;
 
         var capturedAction = aoeAction;
-        var capturedEnemyCount = enemyCount;
+        var capturedEnemyCount = pack.AoeRange;
         var behavior = new AbilityBehavior { Action = aoeAction };
 
         scheduler.PushGcd(behavior, targetId, priority: 320,

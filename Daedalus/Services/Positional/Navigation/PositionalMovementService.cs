@@ -39,39 +39,11 @@ public sealed class PositionalMovementService : IPositionalMovementService
         // Skip reason to fall back on if neither a positional arc nor a max-melee back-off moves us.
         string? idleReason = null;
 
-        // --- Positional flank/rear arc (SAM/NIN; gated by EnableMovement + a job anticipation provider) ---
-        if (request.EnableMovement
-            && request.AnticipationProvider?.GetAnticipatedPositional(request.AnticipationContext) is { } anticipation)
-        {
-            if (target.HasPositionalImmunity)
-            {
-                idleReason = "target positional immunity";
-            }
-            else if (IsAlreadyCorrect(anticipation.Required, request.AnticipationContext))
-            {
-                idleReason = "already at positional";
-            }
-            else if (!request.AllowMovementDuringActionLock && WouldClipGcd(
-                request.ActionService,
-                request.PlayerPosition,
-                request.PlayerHitboxRadius,
-                target,
-                anticipation.Required,
-                false))
-            {
-                SetSkipped("would clip GCD");
-                return;
-            }
-            else if (TryQueuePositionalArc(in request, target, anticipation.Required))
-            {
-                return;
-            }
-            else
-            {
-                // TryQueuePositionalArc set the skip reason (unsafe / vNav unavailable) and returns false.
-                return;
-            }
-        }
+        // --- Positional flank/rear arc — DISABLED pending per-job rotation validation.
+        // Re-enable by removing this comment block and restoring the block below.
+        // if (request.EnableMovement
+        //     && request.AnticipationProvider?.GetAnticipatedPositional(request.AnticipationContext) is { } anticipation)
+        // { ... }
 
         // --- Max-melee maintenance (all melee jobs; independent of positional repositioning and party state) ---
         // Anchored to the player's current target (request.MaxMeleeTarget) so we keep range on the mob we're
@@ -100,7 +72,8 @@ public sealed class PositionalMovementService : IPositionalMovementService
             TargetHitboxRadius: target.HitboxRadius,
             TargetRotationRadians: target.RotationRadians,
             RequiredPositional: required,
-            GcdRemainingSeconds: request.ActionService.GcdRemaining);
+            GcdRemainingSeconds: ResolveGcdBudgetSeconds(request.ActionService.GcdRemaining),
+            BoundaryBiasRadians: request.PositionalBoundaryBiasRadians);
 
         var destination = _vNav.SnapToFloor(PositionalStandCalculator.Calculate(in standRequest));
 
@@ -117,10 +90,17 @@ public sealed class PositionalMovementService : IPositionalMovementService
             return false;
         }
 
-        if (_vNav.IsPathRunning)
+        if (_vNav.IsPathRunning || _vNav.IsPathfindInProgress)
         {
-            State = new PositionalMovementState(PositionalMovementPhase.Moving, required, destination);
-            return true;
+            if (ShouldHoldPositionalPath(required, destination))
+            {
+                State = new PositionalMovementState(PositionalMovementPhase.Moving, required, destination);
+                return true;
+            }
+
+            // A max-melee or foreign path is active — stop it so we can arc to flank/rear.
+            if (_vNav.IsPathRunning)
+                _vNav.Stop();
         }
 
         var moveResult = _vNav.PathfindAndMoveCloseTo(
@@ -246,6 +226,20 @@ public sealed class PositionalMovementService : IPositionalMovementService
             _vNav.Stop();
     }
 
+    private bool ShouldHoldPositionalPath(PositionalType required, Vector3 destination)
+    {
+        if (State.Phase != PositionalMovementPhase.Moving || State.TargetZone != required)
+            return false;
+
+        if (State.SkipReason == MaxMeleeMaintenanceReason)
+            return false;
+
+        if (!State.Destination.HasValue)
+            return _vNav.IsPathRunning || _vNav.IsPathfindInProgress;
+
+        return HorizontalDistanceTo(State.Destination.Value, destination) <= 0.5f;
+    }
+
     private static bool IsAlreadyCorrect(PositionalType required, in PositionalAnticipationContext context)
     {
         return required switch
@@ -262,8 +256,13 @@ public sealed class PositionalMovementService : IPositionalMovementService
         float playerHitboxRadius,
         PositionalMovementTarget target,
         PositionalType required,
-        bool allowMovementDuringActionLock)
+        bool allowMovementDuringActionLock,
+        float boundaryBiasRadians = 0f)
     {
+        // GCD is ready — rotation is holding for positional; use the full window to reposition.
+        if (actionService.GcdRemaining <= PositionalMovementConstants.GcdClipBufferSeconds)
+            return false;
+
         if (!allowMovementDuringActionLock
             && (actionService.IsCasting
                 || actionService.AnimationLockRemaining
@@ -277,7 +276,8 @@ public sealed class PositionalMovementService : IPositionalMovementService
             TargetHitboxRadius: target.HitboxRadius,
             TargetRotationRadians: target.RotationRadians,
             RequiredPositional: required,
-            GcdRemainingSeconds: actionService.GcdRemaining);
+            GcdRemainingSeconds: actionService.GcdRemaining,
+            BoundaryBiasRadians: boundaryBiasRadians);
 
         var distToIdeal = PositionalStandCalculator.ComputeIdealHorizontalDistance(in standRequest);
         var maxMove = PositionalStandCalculator.ComputeMaxHorizontalMoveYalms(distToIdeal, actionService.GcdRemaining);
@@ -288,5 +288,16 @@ public sealed class PositionalMovementService : IPositionalMovementService
 
         // Capped path must finish before the GCD queue window (partial moves allowed when ideal is farther).
         return moveDuration > actionService.GcdRemaining - PositionalMovementConstants.GcdClipBufferSeconds;
+    }
+
+    /// <summary>
+    /// When the GCD queue window is open, budget the full positional arc instead of zero movement.
+    /// </summary>
+    private static float ResolveGcdBudgetSeconds(float gcdRemainingSeconds)
+    {
+        if (gcdRemainingSeconds <= PositionalMovementConstants.GcdClipBufferSeconds)
+            return float.NaN;
+
+        return gcdRemainingSeconds;
     }
 }

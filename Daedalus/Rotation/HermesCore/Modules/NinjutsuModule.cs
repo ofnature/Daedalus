@@ -2,6 +2,7 @@ using Dalamud.Game.ClientState.Objects.Types;
 using FFXIVClientStructs.FFXIV.Client.Game;
 using Daedalus.Data;
 using Daedalus.Models.Action;
+using Daedalus.Rotation.Common;
 using Daedalus.Rotation.Common.Helpers;
 using Daedalus.Rotation.Common.Scheduling;
 using Daedalus.Rotation.HermesCore.Context;
@@ -64,7 +65,9 @@ public sealed class NinjutsuModule : IHermesModule
             return;
         }
 
-        var enemyCount = context.TargetingService.CountEnemiesInRange(5f, player);
+        var pack = EnemyPackDebugHelper.Count(context.TargetingService, JobAoERadiusYalms.Melee, player);
+        EnemyPackDebugHelper.Apply(context.Debug, pack);
+        var enemyCount = pack.AoeRange;
 
         if (TryHandleRabbitFailure(context, target))
             return;

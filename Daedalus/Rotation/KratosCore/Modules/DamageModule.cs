@@ -9,6 +9,8 @@ using Daedalus.Rotation.Common.Scheduling;
 using Daedalus.Rotation.KratosCore.Abilities;
 using Daedalus.Rotation.KratosCore.Context;
 using Daedalus.Services;
+using Daedalus.Services.Action;
+using Daedalus.Services.Positional;
 using Daedalus.Services.Targeting;
 using Daedalus.Services.Training;
 
@@ -20,6 +22,9 @@ namespace Daedalus.Rotation.KratosCore.Modules;
 /// </summary>
 public sealed class DamageModule : IKratosModule
 {
+    /// <summary>Self-centered AoE radius for Arm of the Destroyer / Rockbreaker / Four-point Fury.</summary>
+    private const float AoERadiusYalms = 5f;
+
     public int Priority => 30;
     public string Name => "Damage";
 
@@ -76,20 +81,35 @@ public sealed class DamageModule : IKratosModule
             player);
         if (target == null)
         {
-            // Out of melee range — try Thunderclap to close gap
+            // Out of melee range — gap close, ranged Chakra spend, Meditation filler
             var farTarget = context.TargetingService.FindNearbyEnemy(25f, player);
             if (farTarget != null)
+            {
                 TryPushThunderclap(context, scheduler, farTarget);
-            context.Debug.DamageState = target == null && farTarget != null ? "Out of melee range" : "No target";
+                TryPushRangedFiller(context, scheduler, farTarget);
+                context.Debug.DamageState = "Out of melee range";
+                if (level >= MNKActions.Meditation.MinLevel && context.Chakra < 5)
+                {
+                    scheduler.PushGcd(KratosAbilities.Meditation, player.GameObjectId, priority: 10,
+                        onDispatched: _ =>
+                        {
+                            context.Debug.PlannedAction = MNKActions.Meditation.Name;
+                            context.Debug.DamageState = $"Meditation ({context.Chakra}/5 Chakra, out of range)";
+                        });
+                }
+            }
+            else
+            {
+                context.Debug.DamageState = "No target";
+            }
             return;
         }
 
         var aoeEnabled = context.Configuration.Monk.EnableAoERotation;
         var aoeThreshold = context.Configuration.Monk.AoEMinTargets;
-        var rawEnemyCount = context.TargetingService.CountEnemiesInRange(5f, player);
-        context.Debug.NearbyEnemies = rawEnemyCount;
-        var enemyCount = aoeEnabled ? rawEnemyCount : 0;
-        var useAoE = enemyCount >= aoeThreshold;
+        var pack = EnemyPackDebugHelper.Count(context.TargetingService, AoERadiusYalms, player);
+        EnemyPackDebugHelper.Apply(context.Debug, pack);
+        var useAoE = aoeEnabled && pack.AoeRange >= aoeThreshold;
 
         // oGCDs
         TryPushFeint(context, scheduler, target);
@@ -108,17 +128,32 @@ public sealed class DamageModule : IKratosModule
         TryPushRangedFiller(context, scheduler, target);
     }
 
-    private static bool ShouldSkipMnkPositional(IKratosContext context, bool correctPositional)
+    private static bool ShouldSkipMnkPositional(
+        IKratosContext context,
+        bool correctPositional,
+        string positionalName,
+        ActionDefinition action)
     {
-        var strictness = context.Configuration.Monk.PositionalStrictness;
-        if (strictness == PositionalStrictness.Strict)
-            return !correctPositional;
-        if (strictness == PositionalStrictness.Moderate)
-            return !correctPositional;
-        // Relaxed: fall back to EnforcePositionals / AllowPositionalLoss
-        if (!context.Configuration.Monk.EnforcePositionals) return false;
-        if (correctPositional) return false;
-        return !context.Configuration.Monk.AllowPositionalLoss;
+        if (correctPositional || context.HasTrueNorth || context.TargetHasPositionalImmunity)
+            return false;
+
+        if (!PositionalRequirementHelper.ShouldApply(context.Debug.EngagedEnemies))
+            return false;
+
+        if (!context.Configuration.Monk.EnforcePositionals
+            && context.ActionService.CanExecuteActionId(action.ActionId))
+            return false;
+
+        if (!context.Configuration.Monk.EnforcePositionals)
+            return false;
+
+        if (context.Configuration.Monk.AllowPositionalLoss)
+            return false;
+
+        var current = context.IsAtRear ? "rear" : context.IsAtFlank ? "flank" : "front";
+        context.Debug.PlannedAction = action.Name;
+        context.Debug.DamageState = $"Moving to {positionalName} (detected {current})";
+        return true;
     }
 
     #region oGCDs
@@ -436,27 +471,21 @@ public sealed class DamageModule : IKratosModule
     {
         var form = context.CurrentForm;
 
-        // Push all three forms as candidates. The scheduler tries each via UseAction —
-        // the game rejects wrong-form GCDs, so only the correct one dispatches.
-        // Order by detected form first (hint), then the others as fallback.
-        // This avoids stale form status causing the wrong GCD to fire.
+        // MNK GCDs are NOT rejected by UseAction for wrong form — the game accepts them
+        // but without the form bonus. Must select the correct form GCD based on status.
+        // Formless Fist / no form → default to Opo-opo (RSR pattern).
+        if (context.HasFormlessFist || form == MonkForm.Formless || form == MonkForm.None)
+        {
+            TryPushOpoOpo(context, scheduler, target, useAoE);
+            return;
+        }
+
         switch (form)
         {
-            case MonkForm.Raptor:
-                TryPushRaptor(context, scheduler, target, useAoE);
-                TryPushCoeurl(context, scheduler, target, useAoE);
-                TryPushOpoOpo(context, scheduler, target, useAoE);
-                break;
-            case MonkForm.Coeurl:
-                TryPushCoeurl(context, scheduler, target, useAoE);
-                TryPushOpoOpo(context, scheduler, target, useAoE);
-                TryPushRaptor(context, scheduler, target, useAoE);
-                break;
-            default:
-                TryPushOpoOpo(context, scheduler, target, useAoE);
-                TryPushRaptor(context, scheduler, target, useAoE);
-                TryPushCoeurl(context, scheduler, target, useAoE);
-                break;
+            case MonkForm.OpoOpo: TryPushOpoOpo(context, scheduler, target, useAoE); break;
+            case MonkForm.Raptor: TryPushRaptor(context, scheduler, target, useAoE); break;
+            case MonkForm.Coeurl: TryPushCoeurl(context, scheduler, target, useAoE); break;
+            default: TryPushOpoOpo(context, scheduler, target, useAoE); break;
         }
     }
 
@@ -471,7 +500,7 @@ public sealed class DamageModule : IKratosModule
             var ability = level >= MNKActions.ShadowOfTheDestroyer.MinLevel
                 ? KratosAbilities.ShadowOfTheDestroyer : KratosAbilities.ArmOfTheDestroyer;
 
-            scheduler.PushGcd(ability, target.GameObjectId, priority: 5,
+            scheduler.PushGcd(ability, context.Player.GameObjectId, priority: 5,
                 onDispatched: _ =>
                 {
                     context.Debug.PlannedAction = aoeAction.Name;
@@ -501,7 +530,7 @@ public sealed class DamageModule : IKratosModule
         bool correctPositional = isRearPositional
             ? (context.IsAtRear || context.HasTrueNorth || context.TargetHasPositionalImmunity)
             : (context.IsAtFlank || context.HasTrueNorth || context.TargetHasPositionalImmunity);
-        if (ShouldSkipMnkPositional(context, correctPositional)) return;
+        if (ShouldSkipMnkPositional(context, correctPositional, positionalName, action)) return;
 
         var stAbility = MapToAbility(action);
         scheduler.PushGcd(stAbility, target.GameObjectId, priority: 5,
@@ -532,14 +561,14 @@ public sealed class DamageModule : IKratosModule
     {
         var level = context.Player.Level;
 
-        if (useAoE && level >= MNKActions.FourPointFury.MinLevel)
+        if (useAoE && ActionAvailability.MeetsLevelAndLearned(level, context.ActionService, MNKActions.FourPointFury))
         {
-            scheduler.PushGcd(KratosAbilities.FourPointFury, target.GameObjectId, priority: 5,
+            context.Debug.PlannedAction = MNKActions.FourPointFury.Name;
+            context.Debug.DamageState = "Four-point Fury (Raptor)";
+
+            scheduler.PushGcd(KratosAbilities.FourPointFury, context.Player.GameObjectId, priority: 5,
                 onDispatched: _ =>
                 {
-                    context.Debug.PlannedAction = MNKActions.FourPointFury.Name;
-                    context.Debug.DamageState = "Four-point Fury (Raptor)";
-
                     TrainingHelper.Decision(context.TrainingService)
                         .Action(MNKActions.FourPointFury.ActionId, MNKActions.FourPointFury.Name)
                         .AsAoE(0)
@@ -564,7 +593,7 @@ public sealed class DamageModule : IKratosModule
         bool correctPositional = isRearPositional
             ? (context.IsAtRear || context.HasTrueNorth || context.TargetHasPositionalImmunity)
             : (context.IsAtFlank || context.HasTrueNorth || context.TargetHasPositionalImmunity);
-        if (ShouldSkipMnkPositional(context, correctPositional)) return;
+        if (ShouldSkipMnkPositional(context, correctPositional, positionalName, action)) return;
 
         var stAbility = MapToAbility(action);
         scheduler.PushGcd(stAbility, target.GameObjectId, priority: 5,
@@ -597,7 +626,7 @@ public sealed class DamageModule : IKratosModule
 
         if (useAoE && level >= MNKActions.Rockbreaker.MinLevel)
         {
-            scheduler.PushGcd(KratosAbilities.Rockbreaker, target.GameObjectId, priority: 5,
+            scheduler.PushGcd(KratosAbilities.Rockbreaker, context.Player.GameObjectId, priority: 5,
                 onDispatched: _ =>
                 {
                     context.Debug.PlannedAction = MNKActions.Rockbreaker.Name;
@@ -627,7 +656,7 @@ public sealed class DamageModule : IKratosModule
         bool correctPositional = isRearPositional
             ? (context.IsAtRear || context.HasTrueNorth || context.TargetHasPositionalImmunity)
             : (context.IsAtFlank || context.HasTrueNorth || context.TargetHasPositionalImmunity);
-        if (ShouldSkipMnkPositional(context, correctPositional)) return;
+        if (ShouldSkipMnkPositional(context, correctPositional, positionalName, action)) return;
 
         var stAbility = MapToAbility(action);
         scheduler.PushGcd(stAbility, target.GameObjectId, priority: 5,
@@ -743,7 +772,7 @@ public sealed class DamageModule : IKratosModule
                     : GetOpoOpoAction(context, (uint)level);
             }
             return useAoe
-                ? (level >= MNKActions.FourPointFury.MinLevel ? MNKActions.FourPointFury : MNKActions.TwinSnakes)
+                ? ResolveRaptorAoEAction(level, context.ActionService)
                 : GetRaptorAction(context, (uint)level);
         }
 
@@ -756,7 +785,7 @@ public sealed class DamageModule : IKratosModule
         if (!hasRaptor)
         {
             return useAoe
-                ? (level >= MNKActions.FourPointFury.MinLevel ? MNKActions.FourPointFury : MNKActions.TwinSnakes)
+                ? ResolveRaptorAoEAction(level, context.ActionService)
                 : GetRaptorAction(context, (uint)level);
         }
         if (!hasCoeurl)
@@ -770,6 +799,11 @@ public sealed class DamageModule : IKratosModule
             ? (level >= MNKActions.ShadowOfTheDestroyer.MinLevel ? MNKActions.ShadowOfTheDestroyer : MNKActions.ArmOfTheDestroyer)
             : GetOpoOpoAction(context, (uint)level);
     }
+
+    private static ActionDefinition ResolveRaptorAoEAction(byte level, IActionService actionService)
+        => ActionAvailability.MeetsLevelAndLearned(level, actionService, MNKActions.FourPointFury)
+            ? MNKActions.FourPointFury
+            : MNKActions.TwinSnakes;
 
     private static ActionDefinition GetOpoOpoAction(IKratosContext context, uint level)
     {
@@ -789,6 +823,12 @@ public sealed class DamageModule : IKratosModule
 
     private static ActionDefinition GetRaptorAction(IKratosContext context, uint level)
     {
+        if (context.HasRaptorsFury)
+        {
+            if (level >= MNKActions.RisingRaptor.MinLevel) return MNKActions.RisingRaptor;
+            if (level >= MNKActions.TrueStrike.MinLevel) return MNKActions.TrueStrike;
+        }
+
         if (!context.HasDisciplinedFist || context.DisciplinedFistRemaining < 5f)
         {
             if (level >= MNKActions.TwinSnakes.MinLevel) return MNKActions.TwinSnakes;
@@ -800,6 +840,12 @@ public sealed class DamageModule : IKratosModule
 
     private static ActionDefinition GetCoeurlAction(IKratosContext context, uint level)
     {
+        if (context.HasCoeurlsFury)
+        {
+            if (level >= MNKActions.PouncingCoeurl.MinLevel) return MNKActions.PouncingCoeurl;
+            if (level >= MNKActions.SnapPunch.MinLevel) return MNKActions.SnapPunch;
+        }
+
         if (!context.HasDemolishOnTarget || context.DemolishRemaining < 3f)
         {
             if (level >= MNKActions.Demolish.MinLevel) return MNKActions.Demolish;

@@ -1,4 +1,5 @@
 using Daedalus.Data;
+using Daedalus.Rotation.Common;
 
 namespace Daedalus.Rotation.EchidnaCore.Context;
 
@@ -6,7 +7,7 @@ namespace Daedalus.Rotation.EchidnaCore.Context;
 /// Debug state for Viper (Echidna) rotation.
 /// Tracks rotation decisions and state for debug display.
 /// </summary>
-public sealed class EchidnaDebugState
+public sealed class EchidnaDebugState : IEnemyPackDebug
 {
     // Module states
     public string DamageState { get; set; } = "";
@@ -57,7 +58,13 @@ public sealed class EchidnaDebugState
 
     // Targeting
     public string CurrentTarget { get; set; } = "";
-    public int NearbyEnemies { get; set; }
+    public int EngagedEnemies { get; set; }
+    public int AoeRangeEnemies { get; set; }
+    public int NearbyEnemies
+    {
+        get => AoeRangeEnemies;
+        set => AoeRangeEnemies = value;
+    }
 
     // Combo state
     public int ComboStep { get; set; }

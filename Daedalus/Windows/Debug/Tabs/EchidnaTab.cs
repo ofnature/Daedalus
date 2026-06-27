@@ -2,6 +2,8 @@ using System.Numerics;
 using Dalamud.Bindings.ImGui;
 using Daedalus.Localization;
 using Daedalus.Rotation.EchidnaCore.Context;
+using Daedalus.Rotation.Common;
+using Daedalus.Rotation.Common.Helpers;
 using Daedalus.Windows.Debug;
 
 namespace Daedalus.Windows.Debug.Tabs;
@@ -240,13 +242,7 @@ public static class EchidnaTab
             ImGui.TableNextColumn();
             ImGui.Text(string.IsNullOrEmpty(state.CurrentTarget) ? Loc.T(LocalizedStrings.Debug.NoneLabel, "None") : state.CurrentTarget);
 
-            // Nearby Enemies
-            ImGui.TableNextRow();
-            ImGui.TableNextColumn();
-            ImGui.Text(Loc.T(LocalizedStrings.Debug.NearbyEnemies, "Nearby Enemies:"));
-            ImGui.TableNextColumn();
-            var aoeColor = state.NearbyEnemies >= 3 ? new Vector4(1f, 0.6f, 0.2f, 1f) : new Vector4(0.7f, 0.7f, 0.7f, 1f);
-            ImGui.TextColored(aoeColor, $"{state.NearbyEnemies}");
+            EnemyPackDebugHelper.DrawEnemyPackTableRows(state, JobAoERadiusYalms.Melee);
         }, 140f);
     }
 

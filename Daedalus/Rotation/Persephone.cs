@@ -282,6 +282,8 @@ public sealed class Persephone : BaseCasterDpsRotation<IPersephoneContext, IPers
         _debugState.DpsState = _persephoneDebugState.DamageState;
         // Note: BuffState is tracked in PersephoneDebugState but not in common DebugState
 
+        EnemyPackDebugHelper.SyncAoEDps(_debugState, _persephoneDebugState, context.Configuration.Summoner.AoEMinTargets, JobAoERadiusYalms.Caster);
+
         // Party/player info
         _debugState.PlayerHpPercent = (float)context.Player.CurrentHp / context.Player.MaxHp;
         _debugState.PartyListCount = context.PartyList.Length;

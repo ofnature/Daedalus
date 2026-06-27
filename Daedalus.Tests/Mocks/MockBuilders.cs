@@ -334,6 +334,13 @@ public static class MockBuilders
         mock.Setup(x => x.CountEnemiesInRange(It.IsAny<float>(), It.IsAny<IPlayerCharacter>()))
             .Returns(countEnemiesInRange);
 
+        mock.Setup(x => x.CountEngagedEnemies(It.IsAny<float>(), It.IsAny<IPlayerCharacter>()))
+            .Returns(countEnemiesInRange);
+
+        mock.Setup(x => x.CountEnemyPack(It.IsAny<float>(), It.IsAny<IPlayerCharacter>()))
+            .Returns((float radius, IPlayerCharacter _) =>
+                new EnemyPackCounts(countEnemiesInRange, countEnemiesInRange));
+
         mock.Setup(x => x.CountEnemiesInRangeOfTarget(It.IsAny<float>(), It.IsAny<IBattleNpc>(), It.IsAny<IPlayerCharacter>()))
             .Returns(countEnemiesInRange);
 
@@ -362,6 +369,23 @@ public static class MockBuilders
         mock.Setup(x => x.GapCloserSafety).Returns(gapCloserSafetyMock.Object);
 
         return mock;
+    }
+
+    /// <summary>
+    /// Keeps CountEnemyPack, CountEngagedEnemies, and CountEnemiesInRange in sync on a mock.
+    /// Use when tests override enemy counts after CreateMockTargetingService.
+    /// </summary>
+    public static void SetupEnemyPackCount(Mock<ITargetingService> mock, int aoeRange, int? engaged = null)
+    {
+        var engagedCount = engaged ?? aoeRange;
+        mock.Setup(x => x.CountEnemiesInRange(It.IsAny<float>(), It.IsAny<IPlayerCharacter>()))
+            .Returns(aoeRange);
+        mock.Setup(x => x.CountEngagedEnemies(It.IsAny<float>(), It.IsAny<IPlayerCharacter>()))
+            .Returns(engagedCount);
+        mock.Setup(x => x.CountEnemyPack(It.IsAny<float>(), It.IsAny<IPlayerCharacter>()))
+            .Returns(new EnemyPackCounts(engagedCount, aoeRange));
+        mock.Setup(x => x.CountEnemiesInRangeOfTarget(It.IsAny<float>(), It.IsAny<IBattleNpc>(), It.IsAny<IPlayerCharacter>()))
+            .Returns(aoeRange);
     }
 
     /// <summary>

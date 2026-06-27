@@ -29,6 +29,9 @@ public class DamageModuleFeintTests
         targeting.Setup(x => x.FindEnemyForAction(
                 It.IsAny<EnemyTargetingStrategy>(), It.IsAny<uint>(), It.IsAny<IPlayerCharacter>()))
             .Returns(enemy.Object);
+        targeting.Setup(x => x.FindEnemy(
+                It.IsAny<EnemyTargetingStrategy>(), It.IsAny<float>(), It.IsAny<IPlayerCharacter>()))
+            .Returns(enemy.Object);
 
         var actionService = MockBuilders.CreateMockActionService();
         actionService.Setup(x => x.IsActionReady(It.IsAny<uint>())).Returns(true);
@@ -53,6 +56,9 @@ public class DamageModuleFeintTests
         targeting.Setup(x => x.FindEnemyForAction(
                 It.IsAny<EnemyTargetingStrategy>(), It.IsAny<uint>(), It.IsAny<IPlayerCharacter>()))
             .Returns(enemy.Object);
+        targeting.Setup(x => x.FindEnemy(
+                It.IsAny<EnemyTargetingStrategy>(), It.IsAny<float>(), It.IsAny<IPlayerCharacter>()))
+            .Returns(enemy.Object);
 
         var actionService = MockBuilders.CreateMockActionService();
         actionService.Setup(x => x.IsActionReady(It.IsAny<uint>())).Returns(true);
@@ -76,6 +82,9 @@ public class DamageModuleFeintTests
         var targeting = MockBuilders.CreateMockTargetingService();
         targeting.Setup(x => x.FindEnemyForAction(
                 It.IsAny<EnemyTargetingStrategy>(), It.IsAny<uint>(), It.IsAny<IPlayerCharacter>()))
+            .Returns(enemy.Object);
+        targeting.Setup(x => x.FindEnemy(
+                It.IsAny<EnemyTargetingStrategy>(), It.IsAny<float>(), It.IsAny<IPlayerCharacter>()))
             .Returns(enemy.Object);
 
         var actionService = MockBuilders.CreateMockActionService();

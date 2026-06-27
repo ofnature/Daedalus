@@ -76,9 +76,9 @@ public sealed class DamageModule : IHermesModule
 
         var aoeEnabled = context.Configuration.Ninja.EnableAoERotation;
         var aoeThreshold = context.Configuration.Ninja.AoEMinTargets;
-        var rawEnemyCount = context.TargetingService.CountEnemiesInRange(5f, player);
-        context.Debug.NearbyEnemies = rawEnemyCount;
-        var enemyCount = aoeEnabled ? rawEnemyCount : 0;
+        var pack = EnemyPackDebugHelper.Count(context.TargetingService, 5f, player);
+        EnemyPackDebugHelper.Apply(context.Debug, pack);
+        var enemyCount = aoeEnabled ? pack.AoeRange : 0;
 
         // Role oGCDs are safe during mudra — RSR blocks them at base layer, but Feint/Second Wind
         // live in DamageModule and must not interrupt hand-sign sequences (BuffModule owns burst oGCDs).

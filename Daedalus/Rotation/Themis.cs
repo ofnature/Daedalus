@@ -351,6 +351,7 @@ public sealed class Themis : BaseTankRotation<IThemisContext, IThemisModule>
         _debugState.PlannedAction = _themisDebugState.PlannedAction;
         _debugState.DpsState = _themisDebugState.DamageState;
         _debugState.DefensiveState = _themisDebugState.MitigationState;
+        EnemyPackDebugHelper.SyncAoEDps(_debugState, _themisDebugState, context.Configuration.Tank.GetEffectiveAoEMinTargets(JobRegistry.Paladin), JobAoERadiusYalms.Tank);
         _debugState.PlayerHpPercent = (float)context.Player.CurrentHp / context.Player.MaxHp;
         _debugState.PartyListCount = context.PartyList.Length;
         _debugState.TargetInfo = TargetingDebugHelper.FormatTargetInfo(context.CurrentTarget, context.TargetingService);

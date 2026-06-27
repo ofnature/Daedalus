@@ -9,6 +9,7 @@ using Daedalus.Models;
 using Daedalus.Rotation;
 using Daedalus.Rotation.ApolloCore.Context;
 using Daedalus.Rotation.Common;
+using Daedalus.Rotation.Common.Helpers;
 using CommonDebugState = Daedalus.Rotation.Common.DebugState;
 using Daedalus.Rotation.AresCore.Context;
 using Daedalus.Rotation.AsclepiusCore.Context;
@@ -34,6 +35,7 @@ using Daedalus.Services.Action;
 using Daedalus.Services.Healing;
 using Daedalus.Services.Prediction;
 using Daedalus.Services.Stats;
+using Daedalus.Services.Targeting;
 
 using LuminaAction = Lumina.Excel.Sheets.Action;
 
@@ -54,6 +56,7 @@ public sealed class DebugService
     private readonly HealingSpellSelector _healingSpellSelector;
     private readonly SpellStatusService _spellStatusService;
     private readonly RotationManager _rotationManager;
+    private readonly ITargetingService _targetingService;
     private readonly IObjectTable _objectTable;
     private readonly IDataManager _dataManager;
 
@@ -71,6 +74,7 @@ public sealed class DebugService
         HealingSpellSelector healingSpellSelector,
         SpellStatusService spellStatusService,
         RotationManager rotationManager,
+        ITargetingService targetingService,
         IObjectTable objectTable,
         IDataManager dataManager)
     {
@@ -82,6 +86,7 @@ public sealed class DebugService
         _healingSpellSelector = healingSpellSelector;
         _spellStatusService = spellStatusService;
         _rotationManager = rotationManager;
+        _targetingService = targetingService;
         _objectTable = objectTable;
         _dataManager = dataManager;
     }
@@ -178,6 +183,11 @@ public sealed class DebugService
             };
         }
 
+        var player = _objectTable.LocalPlayer;
+        var combatTarget = player != null
+            ? TargetingDebugHelper.ResolveCombatTarget(null, _targetingService, player)
+            : null;
+
         return new DebugRotationState
         {
             // Core state
@@ -185,6 +195,7 @@ public sealed class DebugService
             PlannedAction = debug.PlannedAction,
             DpsState = debug.DpsState,
             TargetInfo = debug.TargetInfo,
+            TargetDistanceInfo = TargetingDebugHelper.FormatTargetDistance(player, combatTarget),
 
             // Resurrection
             RaiseState = debug.RaiseState,
@@ -205,6 +216,8 @@ public sealed class DebugService
             // DPS Details
             AoEDpsState = debug.AoEDpsState,
             AoEDpsEnemyCount = debug.AoEDpsEnemyCount,
+            AoEDpsEngagedCount = debug.AoEDpsEngagedCount,
+            AoEDpsRadiusYalms = debug.AoEDpsRadiusYalms,
             MiseryState = debug.MiseryState,
 
             // Resources

@@ -29,6 +29,7 @@ public static class LocalizedStrings
         public const string Control = "ui.main.control";
         public const string NavControl = "ui.main.nav_control";
         public const string Positional = "ui.main.positional";
+        public const string PositionalRequired = "ui.main.positional_required";
         public const string PositionalRear = "ui.main.positional_rear";
         public const string PositionalFlank = "ui.main.positional_flank";
         public const string PositionalFront = "ui.main.positional_front";
@@ -1468,6 +1469,8 @@ public static class LocalizedStrings
         public const string EnableThunderclapDesc = "config.job.mnk.enable_thunderclap_desc";
         public const string EnablePerfectBalance = "config.job.mnk.enable_perfect_balance";
         public const string EnablePerfectBalanceDesc = "config.job.mnk.enable_perfect_balance_desc";
+        public const string EnablePositionalMovement = "config.job.mnk.enable_positional_movement";
+        public const string EnablePositionalMovementDesc = "config.job.mnk.enable_positional_movement_desc";
         public const string EnforcePositionals = "config.job.mnk.enforce_positionals";
         public const string EnforcePositionalsDesc = "config.job.mnk.enforce_positionals_desc";
         public const string RoleActionsSection = "config.job.mnk.role_actions_section";
@@ -2715,6 +2718,7 @@ public static class LocalizedStrings
         public const string SacredSight = "debug.why_stuck.sacred_sight";
         public const string SacredSightStacks = "debug.why_stuck.sacred_sight_stacks";
         public const string PriorityFormat = "debug.why_stuck.priority_format";
+        public const string TargetDistanceFormat = "debug.why_stuck.target_distance_format";
         public const string InjuredCountFormat = "debug.why_stuck.injured_count_format";
         public const string ActiveLabel = "debug.why_stuck.active";
         public const string CheckingLabel = "debug.why_stuck.checking";
@@ -2911,6 +2915,8 @@ public static class LocalizedStrings
         public const string Ready = "debug.job.ready";
         public const string OnCd = "debug.job.on_cd";
         public const string Position = "debug.job.position";
+        public const string RequiredPositional = "debug.job.required_positional";
+        public const string PositionalVNav = "debug.job.positional_vnav";
         public const string ImmuneOmni = "debug.job.immune_omni";
         public const string Rear = "debug.job.rear";
         public const string Flank = "debug.job.flank";

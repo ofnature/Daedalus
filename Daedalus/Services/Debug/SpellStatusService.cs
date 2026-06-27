@@ -100,6 +100,8 @@ public sealed class SpellStatusService
 
             if (!isLevelSynced)
                 entry.NotReadyReason = $"Lv{action.MinLevel}";
+            else if (!_actionService.IsActionLearned(action.ActionId))
+                entry.NotReadyReason = "Not learned";
             else if (cooldownRemaining > 0)
                 entry.NotReadyReason = $"{cooldownRemaining:F1}s";
             else

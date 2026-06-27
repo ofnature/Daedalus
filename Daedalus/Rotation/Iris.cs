@@ -234,6 +234,8 @@ public sealed class Iris : BaseCasterDpsRotation<IIrisContext, IIrisModule>
         _debugState.DpsState = _irisDebugState.DamageState;
         // Note: BuffState is tracked in IrisDebugState but not in common DebugState
 
+        EnemyPackDebugHelper.SyncAoEDps(_debugState, _irisDebugState, context.Configuration.Pictomancer.AoEMinTargets, JobAoERadiusYalms.Caster);
+
         // Party/player info
         _debugState.PlayerHpPercent = (float)context.Player.CurrentHp / context.Player.MaxHp;
         _debugState.PartyListCount = context.PartyList.Length;

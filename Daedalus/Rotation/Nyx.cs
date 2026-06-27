@@ -193,6 +193,7 @@ public sealed class Nyx : BaseTankRotation<INyxContext, INyxModule>
         _debugState.PlannedAction = _nyxDebugState.PlannedAction;
         _debugState.DpsState = _nyxDebugState.DamageState;
         _debugState.DefensiveState = _nyxDebugState.MitigationState;
+        EnemyPackDebugHelper.SyncAoEDps(_debugState, _nyxDebugState, context.Configuration.Tank.GetEffectiveAoEMinTargets(JobRegistry.DarkKnight), JobAoERadiusYalms.Tank);
         _debugState.PlayerHpPercent = (float)context.Player.CurrentHp / context.Player.MaxHp;
         _debugState.PartyListCount = context.PartyList.Length;
         _debugState.TargetInfo = TargetingDebugHelper.FormatTargetInfo(context.CurrentTarget, context.TargetingService);

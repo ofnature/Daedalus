@@ -1,10 +1,12 @@
+using Daedalus.Rotation.Common;
+
 namespace Daedalus.Rotation.PersephoneCore.Context;
 
 /// <summary>
 /// Debug state for the Persephone (Summoner) rotation.
 /// Tracks all relevant state for debugging and visualization.
 /// </summary>
-public sealed class PersephoneDebugState
+public sealed class PersephoneDebugState : IEnemyPackDebug
 {
     #region Module States
 
@@ -210,7 +212,13 @@ public sealed class PersephoneDebugState
     /// <summary>
     /// Nearby enemy count for AoE decisions.
     /// </summary>
-    public int NearbyEnemies { get; set; }
+    public int EngagedEnemies { get; set; }
+    public int AoeRangeEnemies { get; set; }
+    public int NearbyEnemies
+    {
+        get => AoeRangeEnemies;
+        set => AoeRangeEnemies = value;
+    }
 
     /// <summary>
     /// Current target name.

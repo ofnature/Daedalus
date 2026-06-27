@@ -32,17 +32,18 @@ public static class NikeAbilities
     public static readonly AbilityBehavior MidareSetsugekka = new() { Action = SAMActions.MidareSetsugekka, Toggle = cfg => cfg.Samurai.EnableIaijutsu };
 
     // --- Tendo (Lv.100) Kaeshi — slot resolution only; burst logic Phase C ---
+    // No ProcBuff on any Kaeshi below — TryPushTsubameGaeshi already gates on the dual
+    // adjusted-action / status check (TsubameGaeshiActionReady). A second ProcBuff gate in
+    // the scheduler re-creates the stale-frame race that drops the Kaeshi after Iaijutsu.
     public static readonly AbilityBehavior TendoKaeshiGoken = new()
     {
         Action = SAMActions.TendoKaeshiGoken,
         Toggle = cfg => cfg.Samurai.EnableTsubamegaeshi,
-        ProcBuff = SAMActions.StatusIds.TsubameGaeshiReady,
     };
     public static readonly AbilityBehavior TendoKaeshiSetsugekka = new()
     {
         Action = SAMActions.TendoKaeshiSetsugekka,
         Toggle = cfg => cfg.Samurai.EnableTsubamegaeshi,
-        ProcBuff = SAMActions.StatusIds.TsubameGaeshiReady,
     };
 
     // --- Tsubame-gaeshi ---
@@ -50,19 +51,16 @@ public static class NikeAbilities
     {
         Action = SAMActions.KaeshiHiganbana,
         Toggle = cfg => cfg.Samurai.EnableTsubamegaeshi,
-        ProcBuff = SAMActions.StatusIds.TsubameGaeshiReady,
     };
     public static readonly AbilityBehavior KaeshiGoken = new()
     {
         Action = SAMActions.KaeshiGoken,
         Toggle = cfg => cfg.Samurai.EnableTsubamegaeshi,
-        ProcBuff = SAMActions.StatusIds.TsubameGaeshiReady,
     };
     public static readonly AbilityBehavior KaeshiSetsugekka = new()
     {
         Action = SAMActions.KaeshiSetsugekka,
         Toggle = cfg => cfg.Samurai.EnableTsubamegaeshi,
-        ProcBuff = SAMActions.StatusIds.TsubameGaeshiReady,
     };
 
     // --- Ogi Namikiri / Kaeshi: Namikiri / Zanshin ---
@@ -75,7 +73,9 @@ public static class NikeAbilities
     public static readonly AbilityBehavior KaeshiNamikiri = new()
     {
         Action = SAMActions.KaeshiNamikiri,
-        ProcBuff = SAMActions.StatusIds.KaeshiNamikiriReady,
+        // No ProcBuff here — module gate (KaeshiNamikiriReady) already covers the dual
+        // adjusted-action / status-2960 check. A second ProcBuff gate in the scheduler
+        // creates a stale-frame race after Ogi Namikiri fires.
     };
     public static readonly AbilityBehavior Zanshin = new()
     {

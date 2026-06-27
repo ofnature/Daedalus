@@ -73,10 +73,11 @@ public sealed class DamageModule : ICirceModule
         var aoeEnabled = context.Configuration.RedMage.EnableAoERotation;
         var aoeThreshold = context.Configuration.RedMage.AoEMinTargets;
         // Impact / Veraero II / Verthunder II: 5y circle on the target from up to 25y away — not 5y from the player.
-        var rawEnemyCount = context.TargetingService.CountEnemiesInRangeOfTarget(5f, target, player);
-        context.Debug.NearbyEnemies = rawEnemyCount;
-        var enemyCount = aoeEnabled ? rawEnemyCount : 0;
-        var useAoe = enemyCount >= aoeThreshold;
+        var pack = EnemyPackDebugHelper.Count(context.TargetingService, 5f, player);
+        var aoeRange = context.TargetingService.CountEnemiesInRangeOfTarget(5f, target, player);
+        EnemyPackDebugHelper.Apply(context.Debug, new EnemyPackCounts(pack.Engaged, aoeRange));
+        var enemyCount = aoeEnabled ? aoeRange : 0;
+        var useAoe = aoeEnabled && aoeRange >= aoeThreshold;
         var level = player.Level;
 
         // Addle (party mit utility)

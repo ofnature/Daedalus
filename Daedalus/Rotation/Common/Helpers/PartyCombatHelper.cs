@@ -12,7 +12,7 @@ namespace Daedalus.Rotation.Common.Helpers;
 internal static class PartyCombatHelper
 {
     /// <summary>
-    /// True when any party member (or Trust ally) other than the player has <see cref="StatusFlags.InCombat"/>.
+    /// True when any party member (or Trust/Duty Support ally) other than the player has <see cref="StatusFlags.InCombat"/>.
     /// </summary>
     public static bool IsAnyGroupMemberInCombat(
         IPlayerCharacter player,
@@ -39,17 +39,13 @@ internal static class PartyCombatHelper
             return false;
         }
 
-        // Trust / squadron / duty companion allies — PartyList is empty in Trust/squadron content.
-        // Check any non-hostile BattleNpc for InCombat (trusts, squadrons, duty support NPCs).
+        // Trust / duty companion allies — PartyList is empty in Trust content.
         foreach (var obj in objectTable)
         {
-            if (obj is not IBattleNpc npc)
+            if (!BasePartyHelper.IsValidTrustNpc(obj, out var npc, includeDead: false))
                 continue;
-            if (npc.CurrentHp == 0 || npc.MaxHp == 0)
-                continue;
-            if ((byte)npc.BattleNpcKind == Daedalus.Compat.BattleNpcKinds.Combatant)
-                continue;
-            if ((npc.StatusFlags & StatusFlags.InCombat) != 0)
+
+            if ((npc!.StatusFlags & StatusFlags.InCombat) != 0)
                 return true;
         }
 

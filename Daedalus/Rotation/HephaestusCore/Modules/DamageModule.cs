@@ -83,7 +83,9 @@ public sealed class DamageModule : IHephaestusModule
             return;
         }
 
-        var enemyCount = context.TargetingService.CountEnemiesInRange(5f, player);
+        var pack = EnemyPackDebugHelper.Count(context.TargetingService, 5f, player);
+        EnemyPackDebugHelper.Apply(context.Debug, pack);
+        var enemyCount = pack.AoeRange;
 
         // oGCD pushes
         TryPushContinuations(context, scheduler, target.GameObjectId);

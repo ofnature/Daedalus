@@ -225,7 +225,7 @@ public sealed class Plugin : IDalamudPlugin
             configuration,
             shieldTrackingService,
             damageTrendService);
-        this.actionService = new ActionService(actionTracker, objectTable: objectTable);
+        this.actionService = new ActionService(actionTracker, objectTable: objectTable, dataManager: dataManager);
         this.playerStatsService = new PlayerStatsService(log, dataManager);
 
         // Healing spell selector (evaluates all heals and picks the best)
@@ -400,6 +400,7 @@ public sealed class Plugin : IDalamudPlugin
             healingSpellSelector,
             spellStatusService,
             rotationManager,
+            targetingService,
             objectTable,
             dataManager);
 

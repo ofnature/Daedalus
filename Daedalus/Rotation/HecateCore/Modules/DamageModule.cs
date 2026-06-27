@@ -71,10 +71,10 @@ public sealed class DamageModule : IHecateModule
 
         var aoeEnabled = context.Configuration.BlackMage.EnableAoERotation;
         var aoeThreshold = context.Configuration.BlackMage.AoEMinTargets;
-        var rawEnemyCount = context.TargetingService.CountEnemiesInRange(8f, player);
-        context.Debug.NearbyEnemies = rawEnemyCount;
-        var enemyCount = aoeEnabled ? rawEnemyCount : 0;
-        var useAoe = enemyCount >= aoeThreshold;
+        var pack = EnemyPackDebugHelper.Count(context.TargetingService, 8f, player);
+        EnemyPackDebugHelper.Apply(context.Debug, pack);
+        var enemyCount = aoeEnabled ? pack.AoeRange : 0;
+        var useAoe = aoeEnabled && pack.AoeRange >= aoeThreshold;
 
         // Addle (oGCD utility, fires regardless of phase or movement)
         TryPushAddle(context, scheduler, target);

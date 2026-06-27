@@ -168,17 +168,16 @@ public sealed class MonkSection
             ConfigUIHelpers.BeginIndent();
 
             ConfigUIHelpers.Toggle(
+                Loc.T(LocalizedStrings.Monk.EnablePositionalMovement, "Enable Positional Movement"),
+                () => config.Monk.EnablePositionalMovement,
+                v => config.Monk.EnablePositionalMovement = v,
+                Loc.T(LocalizedStrings.Monk.EnablePositionalMovementDesc, "Use vNav to reposition before Demolish/Twin Snakes"), save);
+
+            ConfigUIHelpers.Toggle(
                 Loc.T(LocalizedStrings.Monk.EnforcePositionals, "Enforce Positionals"),
                 () => config.Monk.EnforcePositionals,
                 v => config.Monk.EnforcePositionals = v,
                 Loc.T(LocalizedStrings.Monk.EnforcePositionalsDesc, "Only use positional actions when in correct position"), save);
-
-            var strictness = config.Monk.PositionalStrictness;
-            if (ConfigUIHelpers.EnumCombo(Loc.T(LocalizedStrings.Monk.PositionalStrictness, "Positional Strictness"), ref strictness,
-                Loc.T(LocalizedStrings.Monk.PositionalStrictnessDesc, "How strictly to enforce positionals"), save))
-            {
-                config.Monk.PositionalStrictness = strictness;
-            }
 
             ConfigUIHelpers.Toggle(
                 Loc.T(LocalizedStrings.Monk.AllowPositionalLoss, "Allow Positional Loss"),

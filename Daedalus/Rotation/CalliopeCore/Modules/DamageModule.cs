@@ -67,9 +67,9 @@ public sealed class DamageModule : ICalliopeModule
 
         var aoeEnabled = context.Configuration.Bard.EnableAoERotation;
         var aoeThreshold = context.Configuration.Bard.AoEMinTargets;
-        var rawEnemyCount = context.TargetingService.CountEnemiesInRange(12f, player);
-        context.Debug.NearbyEnemies = rawEnemyCount;
-        var enemyCount = aoeEnabled ? rawEnemyCount : 0;
+        var pack = EnemyPackDebugHelper.Count(context.TargetingService, 12f, player);
+        EnemyPackDebugHelper.Apply(context.Debug, pack);
+        var enemyCount = aoeEnabled ? pack.AoeRange : 0;
 
         // oGCD interrupt
         TryPushInterrupt(context, scheduler, target);

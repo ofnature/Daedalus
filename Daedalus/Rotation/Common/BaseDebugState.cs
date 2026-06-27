@@ -21,6 +21,8 @@ public abstract class BaseDebugState
     public string TargetInfo { get; set; } = "None";
     public string AoEDpsState { get; set; } = "Idle";
     public int AoEDpsEnemyCount { get; set; }
+    public int AoEDpsEngagedCount { get; set; }
+    public float AoEDpsRadiusYalms { get; set; }
 
     // Healing
     public int LastHealAmount { get; set; }
