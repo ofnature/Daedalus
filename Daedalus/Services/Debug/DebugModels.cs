@@ -77,6 +77,9 @@ public sealed class DebugRotationState
     public string TargetInfo { get; init; } = "None";
     public string TargetDistanceInfo { get; init; } = "None";
 
+    /// <summary>Non-empty when the whole rotation is globally paused this frame (explains a full stall). All jobs.</summary>
+    public string PauseReason { get; init; } = "";
+
     // Resurrection
     public string RaiseState { get; init; } = "Idle";
     public string RaiseTarget { get; init; } = "None";

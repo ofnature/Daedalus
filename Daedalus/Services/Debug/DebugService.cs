@@ -59,6 +59,7 @@ public sealed class DebugService
     private readonly ITargetingService _targetingService;
     private readonly IObjectTable _objectTable;
     private readonly IDataManager _dataManager;
+    private readonly Configuration _configuration;
 
     // Cached snapshot - updated on demand
     private DebugSnapshot? _cachedSnapshot;
@@ -76,7 +77,8 @@ public sealed class DebugService
         RotationManager rotationManager,
         ITargetingService targetingService,
         IObjectTable objectTable,
-        IDataManager dataManager)
+        IDataManager dataManager,
+        Configuration configuration)
     {
         _actionTracker = actionTracker;
         _actionService = actionService;
@@ -89,6 +91,7 @@ public sealed class DebugService
         _targetingService = targetingService;
         _objectTable = objectTable;
         _dataManager = dataManager;
+        _configuration = configuration;
     }
 
     /// <summary>
@@ -167,6 +170,32 @@ public sealed class DebugService
         };
     }
 
+    /// <summary>
+    /// Computes the global "whole rotation is paused" reason for any job, mirroring the gates every
+    /// rotation's ExecuteModules applies. Surfaced as the Why Stuck PAUSED banner so a full stall is
+    /// self-diagnosing on every class, not just tanks. "Not in combat" is only flagged when enemies are
+    /// actually engaged nearby (otherwise it's normal downtime, not a stall).
+    /// </summary>
+    private string ComputeGlobalPauseReason(IPlayerCharacter? player)
+    {
+        if (player == null)
+            return "";
+
+        var cfg = _configuration.Targeting;
+        if (cfg.PauseAllOnStandStillPunisher && PlayerSafetyHelper.IsStandStillPunisherActive(player))
+            return "Stand-still punisher (Pyretic) — all actions paused";
+        if (cfg.PauseOnPlayerChannel && PlayerSafetyHelper.IsPlayerIntentChannelActive(player))
+            return "Player channel/stance active — all actions paused";
+
+        var inCombat = (Daedalus.Rotation.Base.RotationServices.Condition?[
+                            Dalamud.Game.ClientState.Conditions.ConditionFlag.InCombat] ?? false)
+                       || (player.StatusFlags & Dalamud.Game.ClientState.Objects.Enums.StatusFlags.InCombat) != 0;
+        if (!inCombat && _targetingService.CountEnemyPack(5f, player).Engaged > 0)
+            return $"Not in combat but enemies engaged nearby (rotation idle)";
+
+        return "";
+    }
+
     private DebugRotationState BuildRotationState()
     {
         // Use active rotation's debug state (supports all jobs)
@@ -196,6 +225,7 @@ public sealed class DebugService
             DpsState = debug.DpsState,
             TargetInfo = debug.TargetInfo,
             TargetDistanceInfo = TargetingDebugHelper.FormatTargetDistance(player, combatTarget),
+            PauseReason = ComputeGlobalPauseReason(player),
 
             // Resurrection
             RaiseState = debug.RaiseState,

@@ -72,10 +72,12 @@ public static class WhyStuckTab
         ImGui.Text(Loc.T(LocalizedStrings.Debug.CurrentState, "Current State"));
         ImGui.Separator();
 
-        // Loud banner when the whole rotation is globally paused — turns a mystery stall into a stated cause.
-        if (tank != null && !string.IsNullOrEmpty(tank.PauseReason))
+        // Loud banner when the whole rotation is globally paused — turns a mystery stall into a stated
+        // cause. Computed for every class (DebugService), so this works on all jobs, not just tanks.
+        var pauseReason = !string.IsNullOrEmpty(rotation.PauseReason) ? rotation.PauseReason : tank?.PauseReason;
+        if (!string.IsNullOrEmpty(pauseReason))
         {
-            ImGui.TextColored(DebugColors.Failure, $"PAUSED: {tank.PauseReason}");
+            ImGui.TextColored(DebugColors.Failure, $"PAUSED: {pauseReason}");
         }
 
         var gcdReady = gcd.CanExecuteGcd;
