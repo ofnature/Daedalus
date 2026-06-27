@@ -24,6 +24,7 @@ public class SpellCandidateEvaluatorTests
         public float GcdRemaining => 0f;
         public float GcdDuration => 2.5f;
         public double SecondsSinceLastAction => 0d;
+        public uint GetActionStatusCode(uint actionId) => 0;
         public float AnimationLockRemaining => 0f;
         public bool IsCasting => false;
         public bool CanExecuteGcd => true;

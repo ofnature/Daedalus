@@ -730,6 +730,16 @@ public sealed unsafe class ActionService : IActionService
         return actionManager->GetActionStatus(ActionType.Action, actionId) == 0;
     }
 
+    /// <inheritdoc/>
+    public uint GetActionStatusCode(uint actionId)
+    {
+        var actionManager = SafeGameAccess.GetActionManager(_errorMetrics);
+        if (actionManager is null)
+            return 0;
+
+        return actionManager->GetActionStatus(ActionType.Action, actionId);
+    }
+
     private const uint ActionStatusNotLearned = 565;
 
     /// <inheritdoc/>

@@ -109,6 +109,12 @@ public interface IActionService
     bool CanExecuteActionId(uint actionId);
 
     /// <summary>
+    /// Raw <c>GetActionStatus</c> code for the action (0 = usable). Non-zero codes are FFXIV
+    /// LogMessage IDs (e.g. 565 = not unlocked). Used to explain a rejected dispatch in Why Stuck.
+    /// </summary>
+    uint GetActionStatusCode(uint actionId);
+
+    /// <summary>
     /// True when the action is unlocked (level + job quest). Uses action-manager status
     /// 565 ("not learned") plus Lumina unlock-link / class-quest completion via UIState.
     /// </summary>

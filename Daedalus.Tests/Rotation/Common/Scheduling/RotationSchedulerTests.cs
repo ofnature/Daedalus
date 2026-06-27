@@ -701,7 +701,8 @@ public class RotationSchedulerTests
         var result = scheduler.DispatchOgcd(ctx);
 
         Assert.False(result.Dispatched);
-        Assert.Contains(result.GateFailReasons, r => r.Contains("DispatchRejected"));
+        // DispatchRejected is now described more specifically (out of range / game status / LoS-facing).
+        Assert.Contains(result.GateFailReasons, r => r.Contains("rejected"));
     }
 
     [Fact]

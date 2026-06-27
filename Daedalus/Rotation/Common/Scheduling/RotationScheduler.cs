@@ -323,7 +323,7 @@ public sealed class RotationScheduler
                 };
             }
 
-            RecordFail(candidate, "DispatchRejected");
+            RecordFail(candidate, DescribeReject(candidate, effective, ctx));
         }
 
         return new SchedulerDispatchResult
@@ -338,6 +338,33 @@ public sealed class RotationScheduler
     {
         if (_lastFailReasons.Count >= 16) return;
         _lastFailReasons.Add($"{candidate.Behavior.Action.Name}: {reason}");
+    }
+
+    /// <summary>
+    /// Explains why the game's UseAction refused a dispatch (the generic "DispatchRejected"). Checks
+    /// range first (computable), then the raw GetActionStatus code; if the action is in range and the
+    /// status is clear, the rejection is a transient execution-time refusal (line of sight / facing /
+    /// movement) — common while AutoDuty runs the character around corners.
+    /// </summary>
+    private string DescribeReject(in AbilityCandidate candidate, ActionDefinition effective, IRotationContext ctx)
+    {
+        if (candidate.TargetId != 0
+            && ctx.ObjectTable.SearchById(candidate.TargetId) is { } target
+            && effective.Range > 0f)
+        {
+            var dist = Vector3.Distance(ctx.Player.Position, target.Position)
+                       - target.HitboxRadius - ctx.Player.HitboxRadius;
+            if (dist > effective.Range + 0.5f)
+                return $"out of range ({dist:F0}y > {effective.Range:F0}y)";
+        }
+
+        var status = _actionService.GetActionStatusCode(_actionService.GetAdjustedActionId(effective.ActionId));
+        if (status == 565)
+            return "not unlocked";
+        if (status != 0)
+            return $"rejected (game status {status})";
+
+        return "rejected (line-of-sight / facing / moving?)";
     }
 
     private ActionDefinition ResolveLevelReplacement(AbilityBehavior behavior, byte playerLevel)
