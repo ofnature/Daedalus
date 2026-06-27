@@ -275,6 +275,33 @@ public sealed class TargetingService : ITargetingService
             CountEnemiesInRange(aoeRadiusYalms, player));
 
     /// <inheritdoc />
+    public (int inLineOfSight, int facing) CountEngagedLineOfSightAndFacing(float scanRadius, IPlayerCharacter player)
+    {
+        var los = 0;
+        var facing = 0;
+        var pos = player.Position;
+        // FFXIV facing: rotation 0 = +Z; forward = (sin, 0, cos).
+        var forward = new Vector3(MathF.Sin(player.Rotation), 0f, MathF.Cos(player.Rotation));
+
+        foreach (var enemy in GetValidEnemies(scanRadius, player, applyLineOfSightFilter: false))
+        {
+            if (!IsEngagedOrHostile(enemy, player))
+                continue;
+
+            var hasLos = HasLineOfSight(pos, enemy.Position);
+            if (hasLos)
+                los++;
+
+            var dir = enemy.Position - pos;
+            dir.Y = 0f;
+            if (hasLos && dir.LengthSquared() > 0.01f
+                && Vector3.Dot(Vector3.Normalize(dir), forward) > 0f) // enemy in the front hemisphere
+                facing++;
+        }
+        return (los, facing);
+    }
+
+    /// <inheritdoc />
     public IBattleNpc? FindNearbyEnemy(float maxRange, IPlayerCharacter player)
     {
         IBattleNpc? nearest = null;

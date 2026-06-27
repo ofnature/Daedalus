@@ -118,6 +118,18 @@ public static class WhyStuckTab
                 : DebugColors.Dim;
             ImGui.TextColored(idleColor, $"Last action: {idle:F1}s ago");
         }
+
+        // vNav movement state — distinguishes "stalled while standing" from "stalled while AutoDuty moves".
+        var moving = rotation.VNavState.StartsWith("Pathing", StringComparison.Ordinal)
+            || rotation.VNavState.StartsWith("Finding", StringComparison.Ordinal);
+        ImGui.TextColored(moving ? DebugColors.Warning : DebugColors.Dim, $"vNav: {rotation.VNavState}");
+
+        // Enemies actually castable-at: in line of sight, and the subset in front (facing). If these are
+        // 0 while enemies are engaged, that's why casts get rejected (LoS / facing).
+        var losColor = rotation.EnemiesInLineOfSight > 0 ? DebugColors.Success : DebugColors.Warning;
+        ImGui.TextColored(losColor, $"In LoS: {rotation.EnemiesInLineOfSight}");
+        ImGui.SameLine();
+        ImGui.TextColored(DebugColors.Dim, $" / facing: {rotation.EnemiesFacing}");
     }
 
     private static void DrawTankGcdPriorityChain(DebugTankState tank)

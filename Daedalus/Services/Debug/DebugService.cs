@@ -60,6 +60,7 @@ public sealed class DebugService
     private readonly IObjectTable _objectTable;
     private readonly IDataManager _dataManager;
     private readonly Configuration _configuration;
+    private readonly Daedalus.Services.Positional.Navigation.IVNavService _vNav;
 
     // Cached snapshot - updated on demand
     private DebugSnapshot? _cachedSnapshot;
@@ -78,7 +79,8 @@ public sealed class DebugService
         ITargetingService targetingService,
         IObjectTable objectTable,
         IDataManager dataManager,
-        Configuration configuration)
+        Configuration configuration,
+        Daedalus.Services.Positional.Navigation.IVNavService vNav)
     {
         _actionTracker = actionTracker;
         _actionService = actionService;
@@ -92,6 +94,7 @@ public sealed class DebugService
         _objectTable = objectTable;
         _dataManager = dataManager;
         _configuration = configuration;
+        _vNav = vNav;
     }
 
     /// <summary>
@@ -227,6 +230,9 @@ public sealed class DebugService
         var combatTarget = player != null
             ? TargetingDebugHelper.ResolveCombatTarget(null, _targetingService, player)
             : null;
+        var (losCount, facingCount) = player != null
+            ? _targetingService.CountEngagedLineOfSightAndFacing(25f, player)
+            : (0, 0);
 
         return new DebugRotationState
         {
@@ -238,6 +244,11 @@ public sealed class DebugService
             TargetDistanceInfo = TargetingDebugHelper.FormatTargetDistance(player, combatTarget),
             PauseReason = ComputeGlobalPauseReason(player),
             SecondsSinceLastAction = _actionService.SecondsSinceLastAction,
+            VNavState = _vNav.IsPathRunning ? "Pathing (moving)"
+                : _vNav.IsPathfindInProgress ? "Finding path"
+                : "Idle (not moving)",
+            EnemiesInLineOfSight = losCount,
+            EnemiesFacing = facingCount,
 
             // Resurrection
             RaiseState = debug.RaiseState,

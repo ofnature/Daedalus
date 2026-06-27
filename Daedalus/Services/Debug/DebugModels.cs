@@ -83,6 +83,13 @@ public sealed class DebugRotationState
     /// <summary>Seconds since the last action (GCD or oGCD) was dispatched — the live idle timer.</summary>
     public double SecondsSinceLastAction { get; init; }
 
+    /// <summary>vNav movement state: "Idle", "Pathing", or "Finding path".</summary>
+    public string VNavState { get; init; } = "Idle";
+    /// <summary>Engaged enemies (within 25y) the player currently has line of sight to.</summary>
+    public int EnemiesInLineOfSight { get; init; }
+    /// <summary>Engaged enemies in LoS that are also in the player's front hemisphere (facing).</summary>
+    public int EnemiesFacing { get; init; }
+
     // Resurrection
     public string RaiseState { get; init; } = "Idle";
     public string RaiseTarget { get; init; } = "None";

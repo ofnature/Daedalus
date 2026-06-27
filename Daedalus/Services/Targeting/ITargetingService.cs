@@ -72,6 +72,12 @@ public interface ITargetingService
     EnemyPackCounts CountEnemyPack(float aoeRadiusYalms, IPlayerCharacter player);
 
     /// <summary>
+    /// Counts engaged enemies within <paramref name="scanRadius"/> that the player has line of sight to,
+    /// and (subset) that are also in the player's front hemisphere. Debug aid for facing/LoS rejections.
+    /// </summary>
+    (int inLineOfSight, int facing) CountEngagedLineOfSightAndFacing(float scanRadius, IPlayerCharacter player);
+
+    /// <summary>
     /// Counts valid enemies within <paramref name="radius"/> of <paramref name="target"/>'s position.
     /// Used for targeted AoE (e.g. Impact's circle on the target) while the player stands at cast range.
     /// Candidates are gathered within range of the player, then filtered by distance to the anchor target.

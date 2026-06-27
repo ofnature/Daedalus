@@ -409,7 +409,8 @@ public sealed class Plugin : IDalamudPlugin
             targetingService,
             objectTable,
             dataManager,
-            configuration);
+            configuration,
+            vNavService);
 
         this.drawingService = new DrawingService(pluginInterface, configuration.DrawHelper, gameGui, log);
         this.drawCanvas = new DrawCanvas(drawingService, configuration, objectTable, clientState, targetManager, gameGui, positionalService, rotationManager, partyList);
