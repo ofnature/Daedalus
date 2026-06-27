@@ -33,6 +33,13 @@ public interface IActionService
     double SecondsSinceLastAction { get; }
 
     /// <summary>
+    /// Why the most recent <c>ExecuteGcd</c> returned false due to an internal guard (repeat-GCD,
+    /// submit latch, charge guard, backoff). Null when it succeeded or the game refused the cast (that
+    /// case is enriched with range/LoS by the scheduler). Surfaced in Why Stuck.
+    /// </summary>
+    string? LastGcdRejectReason { get; }
+
+    /// <summary>
     /// Animation lock remaining.
     /// </summary>
     float AnimationLockRemaining { get; }

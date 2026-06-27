@@ -51,6 +51,9 @@ public sealed unsafe class ActionService : IActionService
     // Last executed action (for debugging)
     private ActionDefinition? _lastExecutedAction;
     private DateTime _lastExecuteTime;
+    // Why the last ExecuteGcd returned false due to an INTERNAL guard (not a game UseAction refusal).
+    // Null when the last GCD succeeded or was refused by the game (scheduler enriches that case).
+    private string? _lastGcdRejectReason;
 
     // Minimal action history (last GCD / last oGCD id) for oGCD sequencing consumers.
     private readonly ActionHistory _history = new();
@@ -101,6 +104,9 @@ public sealed unsafe class ActionService : IActionService
     /// defaulting to 2.5s before the first GCD has rolled.
     /// </summary>
     public float GcdDuration => _lastKnownGcdTotal;
+
+    /// <inheritdoc/>
+    public string? LastGcdRejectReason => _lastGcdRejectReason;
 
     /// <inheritdoc/>
     public double SecondsSinceLastAction =>
@@ -343,29 +349,47 @@ public sealed unsafe class ActionService : IActionService
     {
         if (!action.IsGCD)
             return false;
+        _lastGcdRejectReason = null;
 
         var actionManager = SafeGameAccess.GetActionManager(_errorMetrics);
         if (actionManager is null)
+        {
+            _lastGcdRejectReason = "action manager unavailable";
             return false;
+        }
 
         // If we already submitted a GCD for this cycle, don't spam UseAction every frame.
         if (_gcdSubmittedThisCycle)
+        {
+            _lastGcdRejectReason = "already submitted this GCD cycle";
             return false;
+        }
 
         var dispatchId = actionManager->GetAdjustedActionId(action.ActionId);
         if (ShouldBlockRepeatGcd(dispatchId, actionManager))
+        {
+            _lastGcdRejectReason = "repeat-GCD guard (awaiting recast roll-over)";
             return false;
+        }
 
         if (IsChargeBasedGcd(action.ActionId, actionManager) && IsChargeBasedGcdSubmitBlocked())
+        {
+            _lastGcdRejectReason = "charge-GCD submit guard";
             return false;
+        }
 
         if (DateTime.UtcNow < _nextGcdAttemptAllowed)
+        {
+            _lastGcdRejectReason = "submit backoff (recent failed submit)";
             return false;
+        }
 
         // Do NOT pre-check GetActionStatus here: while the global GCD is rolling it returns 583 ("not ready"),
         // but UseAction still accepts the call in the last ~0.5s and queues the action to fire on rollover.
         // Pre-checking defeats the server-side action queue, so we delegate the "can fire now?" decision to UseAction.
         var result = actionManager->UseAction(ActionType.Action, dispatchId, targetId);
+        if (!result)
+            _lastGcdRejectReason = null; // game refused — scheduler enriches with range/status/LoS
 
         if (result)
         {

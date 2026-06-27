@@ -323,7 +323,7 @@ public sealed class RotationScheduler
                 };
             }
 
-            RecordFail(candidate, DescribeReject(candidate, effective, ctx));
+            RecordFail(candidate, DescribeReject(candidate, effective, ctx, isOgcd));
         }
 
         return new SchedulerDispatchResult
@@ -346,8 +346,13 @@ public sealed class RotationScheduler
     /// status is clear, the rejection is a transient execution-time refusal (line of sight / facing /
     /// movement) — common while AutoDuty runs the character around corners.
     /// </summary>
-    private string DescribeReject(in AbilityCandidate candidate, ActionDefinition effective, IRotationContext ctx)
+    private string DescribeReject(in AbilityCandidate candidate, ActionDefinition effective, IRotationContext ctx, bool isOgcd)
     {
+        // Internal ActionService guard (repeat-GCD / submit latch / charge / backoff) — the accurate
+        // reason. GCD path only; null means the game refused (enriched below).
+        if (!isOgcd && _actionService.LastGcdRejectReason is { Length: > 0 } internalReason)
+            return internalReason;
+
         if (candidate.TargetId != 0
             && ctx.ObjectTable.SearchById(candidate.TargetId) is { } target
             && effective.Range > 0f)
