@@ -190,8 +190,19 @@ public sealed class DebugService
         var inCombat = (Daedalus.Rotation.Base.RotationServices.Condition?[
                             Dalamud.Game.ClientState.Conditions.ConditionFlag.InCombat] ?? false)
                        || (player.StatusFlags & Dalamud.Game.ClientState.Objects.Enums.StatusFlags.InCombat) != 0;
-        if (!inCombat && _targetingService.CountEnemyPack(5f, player).Engaged > 0)
-            return $"Not in combat but enemies engaged nearby (rotation idle)";
+        if (!inCombat)
+        {
+            if (_targetingService.CountEnemyPack(5f, player).Engaged > 0)
+                return "Not in combat but enemies engaged nearby (rotation idle)";
+            return "";
+        }
+
+        // Generic stall detector (all classes): in combat but nothing has fired for a while. Catches the
+        // cases the per-module/per-candidate reasons miss — e.g. no castable target in range during
+        // AutoDuty travel between packs. ~5s is well past normal GCD pacing and weave windows.
+        var idle = _actionService.SecondsSinceLastAction;
+        if (idle is > 5.0 and < 600.0)
+            return $"No action for {idle:F0}s in combat — no castable target in range?";
 
         return "";
     }

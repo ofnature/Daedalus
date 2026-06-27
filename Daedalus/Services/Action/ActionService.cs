@@ -102,6 +102,10 @@ public sealed unsafe class ActionService : IActionService
     /// </summary>
     public float GcdDuration => _lastKnownGcdTotal;
 
+    /// <inheritdoc/>
+    public double SecondsSinceLastAction =>
+        _lastExecuteTime == default ? double.MaxValue : (DateTime.UtcNow - _lastExecuteTime).TotalSeconds;
+
     /// <summary>Animation lock remaining.</summary>
     public float AnimationLockRemaining => Math.Max(0, _lastAnimationLock);
 

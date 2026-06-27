@@ -27,6 +27,12 @@ public interface IActionService
     float GcdDuration { get; }
 
     /// <summary>
+    /// Seconds since the last action (GCD or oGCD) was dispatched. <see cref="double.MaxValue"/> when
+    /// nothing has fired yet. Used to detect a stalled rotation (no action while in combat).
+    /// </summary>
+    double SecondsSinceLastAction { get; }
+
+    /// <summary>
     /// Animation lock remaining.
     /// </summary>
     float AnimationLockRemaining { get; }
