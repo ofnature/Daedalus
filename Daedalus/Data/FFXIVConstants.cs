@@ -169,4 +169,18 @@ public static class FFXIVConstants
         849,   // Collective Unconscious channel (AST)
         1827,  // Improvisation (DNC)
     };
+
+    // Look-away / gaze mechanics: enemy CAST action IDs that demand you face AWAY from the caster at
+    // resolution (e.g. "Mortal Gaze"). With Auto-face-target-on-action enabled, the bot's casts would
+    // turn the character toward the boss and eat the gaze — so while one of these is being cast, auto-face
+    // is temporarily suppressed (see Plugin.EnsureAutoFaceTarget).
+    //
+    // SEED LIST — populate with the gaze cast action IDs you actually encounter. Find an ID in-game by
+    // noting the boss cast name when a gaze threatens, then look it up (e.g. /xldata or the Actions tab).
+    // BossMod does not expose gaze info via IPC, so this curated list is the detection source.
+    /// <summary>Enemy cast action IDs that require facing away (gaze). Empty = no gaze suppression.</summary>
+    public static readonly HashSet<uint> GazeCastActionIds = new()
+    {
+        // (none yet — add gaze action IDs as encountered)
+    };
 }

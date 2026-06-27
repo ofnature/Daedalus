@@ -713,20 +713,27 @@ public sealed class Plugin : IDalamudPlugin
     {
         try
         {
-            if (configuration.Enabled)
+            if (!configuration.Enabled)
             {
-                var current = gameConfig.UiControl.GetBool(AutoFaceTargetConfig);
-                if (!current)
+                // Fully disabled — restore the player's original value if we ever overrode it.
+                if (_originalAutoFaceTarget.HasValue)
                 {
-                    _originalAutoFaceTarget ??= false;
-                    gameConfig.UiControl.Set(AutoFaceTargetConfig, true);
+                    gameConfig.UiControl.Set(AutoFaceTargetConfig, _originalAutoFaceTarget.Value);
+                    _originalAutoFaceTarget = null;
                 }
+                return;
             }
-            else if (_originalAutoFaceTarget.HasValue)
-            {
-                gameConfig.UiControl.Set(AutoFaceTargetConfig, _originalAutoFaceTarget.Value);
-                _originalAutoFaceTarget = null;
-            }
+
+            // Capture the player's original setting once, before we start managing it.
+            var current = gameConfig.UiControl.GetBool(AutoFaceTargetConfig);
+            _originalAutoFaceTarget ??= current;
+
+            // ON while running, but OFF while a look-away/gaze is being cast so our actions don't turn
+            // the character into the boss. The latch is kept so we re-enable once the gaze passes.
+            var desired = !(configuration.EnableLookAwaySafety
+                            && PlayerSafetyHelper.IsLookAwayMechanicActive(objectTable));
+            if (current != desired)
+                gameConfig.UiControl.Set(AutoFaceTargetConfig, desired);
         }
         catch
         {

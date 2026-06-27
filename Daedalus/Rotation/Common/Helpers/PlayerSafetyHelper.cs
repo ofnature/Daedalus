@@ -29,6 +29,28 @@ public static class PlayerSafetyHelper
             Dalamud.Game.ClientState.Conditions.ConditionFlag.BoundByDuty] ?? true;
 
     /// <summary>
+    /// True when a nearby enemy is casting a look-away/gaze action (<see cref="FFXIVConstants.GazeCastActionIds"/>).
+    /// Used to suppress auto-face during the gaze so the bot's casts don't turn the character into it.
+    /// No-op (returns false) until the gaze list is populated, so there's zero cost otherwise.
+    /// </summary>
+    public static bool IsLookAwayMechanicActive(Dalamud.Plugin.Services.IObjectTable? objectTable)
+    {
+        if (objectTable == null || FFXIVConstants.GazeCastActionIds.Count == 0)
+            return false;
+
+        foreach (var obj in objectTable)
+        {
+            if (obj is not Dalamud.Game.ClientState.Objects.Types.IBattleChara npc)
+                continue;
+            if (obj.ObjectKind != Dalamud.Game.ClientState.Objects.Enums.ObjectKind.BattleNpc)
+                continue;
+            if (npc.IsCasting && FFXIVConstants.GazeCastActionIds.Contains(npc.CastActionId))
+                return true;
+        }
+        return false;
+    }
+
+    /// <summary>
     /// Returns true if the player has any forced-movement debuff active.
     /// Guards against null player and null StatusList — IBattleChara.StatusList
     /// can be null mid-frame for despawning actors and in unit-test mocks.

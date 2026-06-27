@@ -97,6 +97,13 @@ public sealed class Configuration : IPluginConfiguration
     /// </summary>
     public bool EnableOnPartyInCombat { get; set; } = true;
 
+    /// <summary>
+    /// Suppress the forced auto-face setting while a nearby enemy is casting a look-away/gaze action
+    /// (<see cref="Daedalus.Data.FFXIVConstants.GazeCastActionIds"/>), so the bot's casts don't turn the
+    /// character into the gaze. Default true. (Gaze action list is curated/seeded as encountered.)
+    /// </summary>
+    public bool EnableLookAwaySafety { get; set; } = true;
+
     // Master category toggles
     public bool EnableHealing { get; set; } = true;
     public bool EnableDamage { get; set; } = true;
