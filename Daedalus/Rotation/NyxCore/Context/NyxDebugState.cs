@@ -62,6 +62,10 @@ public sealed class NyxDebugState : IEnemyPackDebug
     // Ground DoT tracking
     public bool HasSaltedEarth { get; set; }
 
+    /// <summary>Live Salted Earth decision: why it did/didn't fire this frame
+    /// (Disabled / Active / Not learned / On cooldown Ns / Queued).</summary>
+    public string SaltedEarthState { get; set; } = "";
+
     // Enmity tracking
     public bool IsMainTank { get; set; }
     public string CurrentTarget { get; set; } = "";

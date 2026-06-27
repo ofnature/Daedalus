@@ -207,6 +207,14 @@ public sealed class DarkKnightSection
                 save,
                 actionId: DRKActions.SaltedEarth.ActionId);
 
+            ConfigUIHelpers.BeginDisabledGroup(!config.Tank.EnableSaltedEarth);
+            config.Tank.SaltedEarthMinTargets = ConfigUIHelpers.IntSlider(
+                "Salted Earth Min Targets",
+                config.Tank.SaltedEarthMinTargets, 1, 8,
+                "Minimum enemies to drop Salted Earth. 1 = use on cooldown (best single-target/boss DPS); raise it (e.g. 5) to hold the 90s DoT for big wall-to-wall packs.",
+                save, v => config.Tank.SaltedEarthMinTargets = v);
+            ConfigUIHelpers.EndDisabledGroup();
+
             ConfigUIHelpers.Toggle(
                 "Carve and Spit",
                 () => config.Tank.EnableCarveAndSpit,

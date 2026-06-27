@@ -49,6 +49,8 @@ public sealed class Nyx : BaseTankRotation<INyxContext, INyxModule>
     private readonly RotationScheduler _scheduler;
     private float _darksideTimer;
     private bool _hasDarkArts;
+    private string _saltedEarthDiag = "";
+    private System.DateTime _saltedEarthDiagAt;
 
     public Nyx(
         IPluginLog log,
@@ -194,7 +196,20 @@ public sealed class Nyx : BaseTankRotation<INyxContext, INyxModule>
 
         if (inCombat && ActionService.CanExecuteOgcd)
         {
-            _scheduler.DispatchOgcd(context);
+            var ogcd = _scheduler.DispatchOgcd(context);
+            // Salted Earth diagnosis: if it was evaluated and rejected, surface the reject reason (dispatch
+            // failure). If it never appears here it was out-competed for the single weave slot by a
+            // higher-priority oGCD (starvation) — the "Queued" breadcrumb then persists.
+            foreach (var reason in ogcd.GateFailReasons)
+            {
+                if (reason.StartsWith("Salted Earth", System.StringComparison.Ordinal))
+                {
+                    context.Debug.SaltedEarthState = reason;
+                    _saltedEarthDiag = reason;       // latch so a static screenshot can catch it
+                    _saltedEarthDiagAt = System.DateTime.UtcNow;
+                    break;
+                }
+            }
         }
         if (ActionService.CanExecuteGcd)
         {
@@ -214,5 +229,11 @@ public sealed class Nyx : BaseTankRotation<INyxContext, INyxModule>
         _debugState.PlayerHpPercent = (float)context.Player.CurrentHp / context.Player.MaxHp;
         _debugState.PartyListCount = context.PartyList.Length;
         _debugState.TargetInfo = TargetingDebugHelper.FormatTargetInfo(context.CurrentTarget, context.TargetingService);
+
+        // Persist the last Salted Earth dispatch-reject reason for a few seconds so a static screenshot
+        // shows it instead of the per-frame "Queued". If this stays "Queued", Salted Earth is never even
+        // evaluated by the dispatcher (out-competed for the weave slot) = starvation, not dispatch failure.
+        if (_saltedEarthDiag.Length > 0 && (System.DateTime.UtcNow - _saltedEarthDiagAt).TotalSeconds < 5)
+            _nyxDebugState.SaltedEarthState = _saltedEarthDiag;
     }
 }

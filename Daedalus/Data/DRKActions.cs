@@ -427,7 +427,8 @@ public static class DRKActions
     /// </summary>
     public static readonly ActionDefinition SaltedEarth = new()
     {
-        ActionId = 7394,
+        ActionId = 3639, // Heavensward Lv52 ground AoE (verified via XIVAPI). Was wrongly 7394 (a
+                         // Stormblood-range id for another job → game refused it with status 574 "wrong job").
         Name = "Salted Earth",
         MinLevel = 52,
         Category = ActionCategory.oGCD,

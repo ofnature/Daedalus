@@ -103,15 +103,13 @@ public sealed class NyxStatusHelper : BaseStatusHelper
     #region Ground DoT
 
     /// <summary>
-    /// Checks if Salted Earth is active.
-    /// Note: Salted Earth is a ground effect, not a player buff.
-    /// For now, tracking is done via action cooldown in the rotation.
+    /// Checks if Salted Earth is active. Salted Earth applies a player status (749) for its 15s duration —
+    /// RSR tracks it via PlayerHasStatus(SaltedEarth). The old "no player buff" assumption was wrong and
+    /// left Salt and Darkness (which requires Salted Earth active) permanently unable to fire.
     /// </summary>
     public bool HasSaltedEarth(IBattleChara player)
     {
-        // Salted Earth doesn't give the player a status buff
-        // We track this via the action's cooldown state instead
-        return false;
+        return HasStatus(player, DRKActions.StatusIds.SaltedEarth);
     }
 
     #endregion

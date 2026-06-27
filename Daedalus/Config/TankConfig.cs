@@ -459,6 +459,19 @@ public sealed class TankConfig
     public bool EnableSaltedEarth { get; set; } = true;
 
     /// <summary>
+    /// Minimum enemy count required to use Salted Earth. It's a 90s, 15s-duration AoE DoT, so on a
+    /// wall-to-wall route you may want to hold it for big packs rather than spend it on a straggler.
+    /// Default 1 = use on cooldown (optimal single-target/boss DPS, RSR behaviour); set higher (e.g. 5)
+    /// to save it for large pulls. Range: 1 to 8.
+    /// </summary>
+    private int _saltedEarthMinTargets = 1;
+    public int SaltedEarthMinTargets
+    {
+        get => _saltedEarthMinTargets;
+        set => _saltedEarthMinTargets = Math.Clamp(value, 1, 8);
+    }
+
+    /// <summary>
     /// Use Carve and Spit (oGCD damage + MP).
     /// </summary>
     public bool EnableCarveAndSpit { get; set; } = true;

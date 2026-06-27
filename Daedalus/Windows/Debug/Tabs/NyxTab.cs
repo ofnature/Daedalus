@@ -125,7 +125,7 @@ public static class NyxTab
             if (state.HasSaltedEarth)
                 ImGui.TextColored(new Vector4(0.5f, 1f, 0.5f, 1f), Loc.T(LocalizedStrings.Debug.JobActiveLabel, "Active"));
             else
-                ImGui.TextDisabled(Loc.T(LocalizedStrings.Debug.JobInactiveLabel, "—"));
+                ImGui.TextDisabled(string.IsNullOrEmpty(state.SaltedEarthState) ? "—" : state.SaltedEarthState);
         });
     }
 

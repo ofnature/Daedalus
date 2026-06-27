@@ -57,7 +57,7 @@ public sealed class DamageModule : INyxModule
         var enemyCount = pack.AoeRange;
         TryPushDarkArtsProc(context, scheduler, target.GameObjectId, enemyCount);
         TryPushShadowbringer(context, scheduler, target.GameObjectId);
-        TryPushSaltedEarth(context, scheduler, player.GameObjectId);
+        TryPushSaltedEarth(context, scheduler, player.GameObjectId, enemyCount);
         TryPushSaltAndDarkness(context, scheduler, player.GameObjectId);
         TryPushDarksideMaintenance(context, scheduler, target.GameObjectId, enemyCount);
         TryPushCarveAndSpit(context, scheduler, target.GameObjectId);
@@ -178,15 +178,31 @@ public sealed class DamageModule : INyxModule
             });
     }
 
-    private void TryPushSaltedEarth(INyxContext context, RotationScheduler scheduler, ulong selfId)
+    private void TryPushSaltedEarth(INyxContext context, RotationScheduler scheduler, ulong selfId, int enemyCount)
     {
-        if (!context.Configuration.Tank.EnableSaltedEarth) return;
+        var debug = context.Debug;
+        if (!context.Configuration.Tank.EnableSaltedEarth) { debug.SaltedEarthState = "Disabled"; return; }
         var player = context.Player;
-        if (player.Level < DRKActions.SaltedEarth.MinLevel) return;
-        if (context.HasSaltedEarth) return;
-        if (!context.ActionService.IsActionReady(DRKActions.SaltedEarth.ActionId)) return;
+        if (player.Level < DRKActions.SaltedEarth.MinLevel) { debug.SaltedEarthState = $"Level < {DRKActions.SaltedEarth.MinLevel}"; return; }
+        var minTargets = context.Configuration.Tank.SaltedEarthMinTargets;
+        if (enemyCount < minTargets) { debug.SaltedEarthState = $"Holding ({enemyCount} < {minTargets} enemies)"; return; }
+        if (context.HasSaltedEarth) { debug.SaltedEarthState = "Active"; return; }
+        // Surface the quest-unlock gate explicitly — that's what silently blocked Vengeance.
+        if (!context.ActionService.IsActionLearned(DRKActions.SaltedEarth.ActionId)) { debug.SaltedEarthState = "Not learned (quest-unlock)"; return; }
+        if (!context.ActionService.IsActionReady(DRKActions.SaltedEarth.ActionId))
+        {
+            var cd = context.ActionService.GetCooldownRemaining(DRKActions.SaltedEarth.ActionId);
+            debug.SaltedEarthState = $"On cooldown ({cd:F0}s)";
+            return;
+        }
+        debug.SaltedEarthState = "Queued";
 
-        scheduler.PushOgcd(NyxAbilities.SaltedEarth, selfId, priority: 3,
+        // Salted Earth is a SELF-cast oGCD (TargetArea=false, CanTargetSelf=true — confirmed via XIVAPI),
+        // placed at the player automatically. Dispatch it like any other self oGCD (TBN/Oblation), NOT via
+        // the ground-targeted UseActionLocation path (which returns false for a non-area action).
+        // Priority 2 (burst-damage tier): it's a 90s, 15s ground DoT, so it should land early in the pull
+        // while mobs are healthy rather than getting starved to the tail.
+        scheduler.PushOgcd(NyxAbilities.SaltedEarth, selfId, priority: 2,
             onDispatched: _ =>
             {
                 context.Debug.PlannedAction = DRKActions.SaltedEarth.Name;
