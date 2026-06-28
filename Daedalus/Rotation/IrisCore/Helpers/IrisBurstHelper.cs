@@ -43,6 +43,11 @@ public static class IrisBurstHelper
 
         if (BurstHoldHelper.IsInBurst(burstWindowService)) return false;
 
+        // Solo / Trust / AutoDuty: don't pool Striking Muse to align with Starry — short back-to-back pulls
+        // never reach that Starry window, so Hammer would just sit unused. Use it on cooldown instead. The
+        // Starry-alignment hold only applies when real burst coordination is present (raid IPC).
+        if (burstWindowService?.UseSoloBurstFallback != false) return false;
+
         // Read the cooldown on the base gauge action (Scenic Muse), not the morphed Starry Muse id.
         var starryCd = actionService.GetCooldownRemaining(PCTActions.ScenicMuse.ActionId);
         return starryCd > 0f && starryCd <= 60f;
@@ -79,6 +84,9 @@ public static class IrisBurstHelper
 
         if (context.HasStarryMuse)
             return false;
+
+        // Solo / Trust / AutoDuty: don't hold the Hammer combo for a Starry window short pulls won't reach.
+        if (burstWindowService?.UseSoloBurstFallback != false) return false;
 
         // Read the cooldown on the base gauge action (Scenic Muse), not the morphed Starry Muse id.
         var starryCd = actionService.GetCooldownRemaining(PCTActions.ScenicMuse.ActionId);

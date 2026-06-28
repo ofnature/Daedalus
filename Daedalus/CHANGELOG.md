@@ -50,6 +50,7 @@ All notable changes to Daedalus will be documented in this file.
 
 ### Fix — Pictomancer Hammer combo / Striking Muse never firing
 - Fixed Striking Muse (and therefore the Hammer combo) never triggering, and Starry Muse firing late: their readiness was reading the cooldown off the wrong action (the morphed button instead of the base Steel/Scenic Muse gauge action). Now consistent with Living Muse, so the weapon/Hammer line and Starry burst come up on time
+- Striking Muse and the Hammer combo now fire on cooldown in solo/Trust/dungeon content instead of being pooled to align with Starry Muse — short back-to-back pulls never reached that Starry window, so Hammer was being wasted. The Starry alignment still applies when coordinating burst with a party
 
 ### Fix — Pictomancer canvas/muse system dormant in pulls
 - Fixed Pictomancer never using its motifs, muses, Hammer combo, portraits (Mog/Madeen), or Starry Muse during back-to-back pulls — it was stuck spamming only color spells. Motif painting was being out-prioritized by the basic combo and never fired in combat, so the canvases the whole system depends on were never created. Motifs are now painted in combat, timed to each muse's cooldown, so Living/Steel/Scenic Muse (and everything they enable) come online
