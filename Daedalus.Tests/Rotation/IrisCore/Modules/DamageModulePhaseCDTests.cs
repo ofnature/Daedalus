@@ -99,6 +99,82 @@ public class DamageModulePhaseCDTests
     }
 
     [Fact]
+    public void LandscapeMotif_PaintedInCombat_AbovetheCombo_WhenScenicMuseImminent()
+    {
+        // Regression: in-combat motif painting was priority 9 (below the color combo) and never fired, so
+        // the canvas/muse/Starry system stayed dormant in AutoDuty pulls. It must now paint Starry Sky when
+        // Scenic Muse is within ~15s, at a priority that beats the combo (so the canvas is ready for burst).
+        var enemy = CreateMockEnemy();
+        var targeting = BuildTargeting(enemy);
+
+        var actionService = MockBuilders.CreateMockActionService();
+        actionService.Setup(x => x.GetAdjustedActionId(PCTActions.LandscapeMotif.ActionId))
+            .Returns(PCTActions.StarrySkyMotif.ActionId);
+        actionService.Setup(x => x.GetCooldownRemaining(PCTActions.ScenicMuse.ActionId)).Returns(10f);
+
+        var scheduler = SchedulerFactory.CreateForTest(actionService: actionService);
+        var module = new DamageModule();
+        var context = IrisTestContext.Create(
+            actionService: actionService, targetingService: targeting, level: 100, inCombat: true,
+            needsLandscapeMotif: true, hasLandscapeCanvas: false);
+
+        module.CollectCandidates(context, scheduler, isMoving: false);
+
+        var motif = Assert.Single(scheduler.InspectGcdQueue(), c => c.Behavior == IrisAbilities.StarrySkyMotif);
+        Assert.True(motif.Priority < 7, $"motif priority {motif.Priority} must beat the color combo (7/8)");
+    }
+
+    [Fact]
+    public void LandscapeMotif_NotPainted_WhenScenicMuseFarAway()
+    {
+        // Muse-timed: don't waste a GCD painting Landscape when Scenic Muse is still ~a minute out.
+        var enemy = CreateMockEnemy();
+        var targeting = BuildTargeting(enemy);
+
+        var actionService = MockBuilders.CreateMockActionService();
+        actionService.Setup(x => x.GetAdjustedActionId(PCTActions.LandscapeMotif.ActionId))
+            .Returns(PCTActions.StarrySkyMotif.ActionId);
+        actionService.Setup(x => x.GetCooldownRemaining(PCTActions.ScenicMuse.ActionId)).Returns(60f);
+
+        var scheduler = SchedulerFactory.CreateForTest(actionService: actionService);
+        var module = new DamageModule();
+        var context = IrisTestContext.Create(
+            actionService: actionService, targetingService: targeting, level: 100, inCombat: true,
+            needsLandscapeMotif: true, hasLandscapeCanvas: false);
+
+        module.CollectCandidates(context, scheduler, isMoving: false);
+
+        Assert.DoesNotContain(scheduler.InspectGcdQueue(), c => c.Behavior == IrisAbilities.StarrySkyMotif);
+    }
+
+    [Fact]
+    public void CreatureMotif_PaintedInCombat_WhenLivingMuseReady()
+    {
+        var enemy = CreateMockEnemy();
+        var targeting = BuildTargeting(enemy);
+
+        var actionService = MockBuilders.CreateMockActionService();
+        actionService.Setup(x => x.IsActionReady(PCTActions.LivingMuse.ActionId)).Returns(true);
+        actionService.Setup(x => x.GetAdjustedActionId(PCTActions.CreatureMotif.ActionId))
+            .Returns(PCTActions.PomMotif.ActionId);
+
+        var scheduler = SchedulerFactory.CreateForTest(actionService: actionService);
+        var module = new DamageModule();
+        var context = IrisTestContext.Create(
+            actionService: actionService, targetingService: targeting, level: 100, inCombat: true,
+            needsCreatureMotif: true, hasCreatureCanvas: false,
+            needsLandscapeMotif: false, needsWeaponMotif: false);
+
+        module.CollectCandidates(context, scheduler, isMoving: false);
+
+        var creatureMotifs = new[]
+        {
+            IrisAbilities.PomMotif, IrisAbilities.WingMotif, IrisAbilities.ClawMotif, IrisAbilities.MawMotif,
+        };
+        Assert.Contains(scheduler.InspectGcdQueue(), c => System.Array.IndexOf(creatureMotifs, c.Behavior) >= 0);
+    }
+
+    [Fact]
     public void BaseCombo_UsesSmartAoETarget_WhenShouldUseAoe()
     {
         var enemy = CreateMockEnemy(100UL);

@@ -636,6 +636,23 @@ public sealed class TargetingService : ITargetingService
     }
 
     /// <summary>
+    /// Face-recovery hook (wired to <c>ActionService.FaceTargetOnStuck</c>): make the given enemy the
+    /// game's hard target so auto-face turns the character toward it. Called only when a GCD was refused
+    /// for facing, so this fires rarely. No-op if it's already the hard target or the id can't be resolved
+    /// to a live enemy.
+    /// </summary>
+    public void EnsureHardTarget(ulong enemyGameObjectId)
+    {
+        if (enemyGameObjectId == 0)
+            return;
+        if (_targetManager.Target?.GameObjectId == enemyGameObjectId)
+            return;
+        var enemy = ResolveEnemyById(enemyGameObjectId);
+        if (enemy != null)
+            SetGameHardTarget(enemy);
+    }
+
+    /// <summary>
     /// Layer 3: bypass StrictCurrentTargetStrategy for explicit-strategy → aggregate fallback.
     /// </summary>
     private bool ShouldRelaxStrictOnCombatDeath(IPlayerCharacter player) =>

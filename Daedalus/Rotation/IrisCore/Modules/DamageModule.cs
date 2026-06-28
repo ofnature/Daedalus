@@ -246,8 +246,41 @@ public sealed class DamageModule : IIrisModule
         var level = player.Level;
         if (context.IsCasting) return;
 
+        // Paint motifs IN COMBAT, timed to each muse's cooldown (RSR parity). Priority 6 puts these ABOVE
+        // the color combo (7/8): a motif paint enables a Living/Steel/Scenic Muse (portrait + Hammer + the
+        // Starry burst), all far higher value than a filler color spell. Previously this ran at priority 9
+        // (below the combo), so the combo always preempted it and — in back-to-back AutoDuty pulls with no
+        // pre-pull downtime — the canvases never got painted and the entire muse/Hammer/Starry system never
+        // fired. Each motif is gated so it's painted only when its muse is up or about to be (no over-paint).
+        var svc = context.ActionService;
+        const int motifPriority = 6;
+
+        // Landscape (Starry Sky Motif): paint ~15s before Scenic Muse so the canvas is ready for the burst.
+        if (CanPaintStarrySkyMotif(context) && context.NeedsLandscapeMotif
+            && level >= PCTActions.StarrySkyMotif.MinLevel
+            && !context.HasStarryMuse && !context.HasHyperphantasia
+            && IrisActionProbes.IsStarrySkyMotifReady(svc)
+            && svc.GetCooldownRemaining(PCTActions.ScenicMuse.ActionId) <= 15f)
+        {
+            if (MechanicCastGate.ShouldBlock(context, PCTActions.StarrySkyMotif.CastTime))
+            {
+                context.Debug.DamageState = MechanicCastGate.FormatBlockedState(context);
+                return;
+            }
+            scheduler.PushGcd(IrisAbilities.StarrySkyMotif, player.GameObjectId, priority: motifPriority,
+                onDispatched: _ =>
+                {
+                    context.Debug.PlannedAction = PCTActions.StarrySkyMotif.Name;
+                    context.Debug.DamageState = "Painting Starry Sky (Scenic soon)";
+                });
+            return;
+        }
+
+        // Creature: paint when Living Muse has a charge or is about to (so it's consumed promptly).
         if (context.Configuration.Pictomancer.EnableCreatureMotif && context.NeedsCreatureMotif
-            && level >= PCTActions.CreatureMotif.MinLevel)
+            && level >= PCTActions.CreatureMotif.MinLevel
+            && (svc.IsActionReady(PCTActions.LivingMuse.ActionId)
+                || svc.GetCooldownRemaining(PCTActions.LivingMuse.ActionId) <= PCTActions.CreatureMotif.CastTime * 1.7f))
         {
             var motif = GetCreatureMotifOrdered(context, level);
             if (IsCreatureMotifEnabled(context, motif))
@@ -258,48 +291,33 @@ public sealed class DamageModule : IIrisModule
                     return;
                 }
                 var ability = MapCreatureMotifAbility(motif);
-                scheduler.PushGcd(ability, player.GameObjectId, priority: 9,
+                scheduler.PushGcd(ability, player.GameObjectId, priority: motifPriority,
                     onDispatched: _ =>
                     {
                         context.Debug.PlannedAction = motif.Name;
-                        context.Debug.DamageState = $"Repainting {motif.Name}";
+                        context.Debug.DamageState = $"Painting {motif.Name} (Living Muse soon)";
                     });
                 return;
             }
         }
 
+        // Weapon (Hammer Motif): paint when Steel Muse has a charge or is about to.
         if (CanPaintHammerMotif(context) && context.NeedsWeaponMotif
             && level >= PCTActions.WeaponMotif.MinLevel
-            && IrisActionProbes.IsHammerMotifReady(context.ActionService))
+            && IrisActionProbes.IsHammerMotifReady(svc)
+            && (svc.IsActionReady(PCTActions.SteelMuse.ActionId)
+                || svc.GetCooldownRemaining(PCTActions.SteelMuse.ActionId) <= PCTActions.WeaponMotif.CastTime))
         {
             if (MechanicCastGate.ShouldBlock(context, PCTActions.HammerMotif.CastTime))
             {
                 context.Debug.DamageState = MechanicCastGate.FormatBlockedState(context);
                 return;
             }
-            scheduler.PushGcd(IrisAbilities.HammerMotif, player.GameObjectId, priority: 9,
+            scheduler.PushGcd(IrisAbilities.HammerMotif, player.GameObjectId, priority: motifPriority,
                 onDispatched: _ =>
                 {
                     context.Debug.PlannedAction = PCTActions.HammerMotif.Name;
-                    context.Debug.DamageState = "Repainting Hammer";
-                });
-            return;
-        }
-
-        if (CanPaintStarrySkyMotif(context) && context.NeedsLandscapeMotif
-            && level >= PCTActions.StarrySkyMotif.MinLevel
-            && IrisActionProbes.IsStarrySkyMotifReady(context.ActionService))
-        {
-            if (MechanicCastGate.ShouldBlock(context, PCTActions.StarrySkyMotif.CastTime))
-            {
-                context.Debug.DamageState = MechanicCastGate.FormatBlockedState(context);
-                return;
-            }
-            scheduler.PushGcd(IrisAbilities.StarrySkyMotif, player.GameObjectId, priority: 9,
-                onDispatched: _ =>
-                {
-                    context.Debug.PlannedAction = PCTActions.StarrySkyMotif.Name;
-                    context.Debug.DamageState = "Repainting Starry Sky";
+                    context.Debug.DamageState = "Painting Hammer (Steel Muse soon)";
                 });
         }
     }

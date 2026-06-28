@@ -47,7 +47,10 @@ public static class IrisAbilities
     {
         Action = PCTActions.ThunderInMagenta,
         Toggle = cfg => cfg.Pictomancer.EnableSubtractiveCombo,
-        AdjustedActionProbe = PCTActions.StoneInYellow.ActionId,
+        // Probe the combo STARTER (Blizzard in Cyan) — only it morphs through the chain. StoneInYellow
+        // never morphs, so this step's gate never passed and the ST subtractive stalled at Thunder (the
+        // same bug as the AoE Thunder II step). Matches Stone in Yellow + the AoE Thunder II behavior.
+        AdjustedActionProbe = PCTActions.BlizzardInCyan.ActionId,
         ReplacementBaseId = PCTActions.BlizzardInCyan.ActionId,
     };
 

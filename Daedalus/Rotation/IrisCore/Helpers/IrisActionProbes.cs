@@ -103,7 +103,11 @@ public static class IrisActionProbes
 
             if (shouldUseAoe && level >= PCTActions.Blizzard2InCyan.MinLevel)
             {
-                if (IsAdjustedTo(actionService, PCTActions.Stone2InYellow.ActionId, PCTActions.Thunder2InMagenta.ActionId))
+                // Only the combo STARTER (Blizzard II in Cyan) morphs via GetAdjustedActionId — the mid/end
+                // steps report themselves. Probe the starter for every step, matching the additive resolver
+                // above and the AdjustedActionProbe on these behaviors. Probing Stone II for step 2 never
+                // matched, so the Thunder II step fell back to the starter and stalled on its probe.
+                if (IsAdjustedTo(actionService, PCTActions.Blizzard2InCyan.ActionId, PCTActions.Thunder2InMagenta.ActionId))
                 {
                     baseStep = 2;
                     return;
@@ -118,7 +122,7 @@ public static class IrisActionProbes
                 return;
             }
 
-            if (IsAdjustedTo(actionService, PCTActions.StoneInYellow.ActionId, PCTActions.ThunderInMagenta.ActionId))
+            if (IsAdjustedTo(actionService, PCTActions.BlizzardInCyan.ActionId, PCTActions.ThunderInMagenta.ActionId))
             {
                 baseStep = 2;
                 return;

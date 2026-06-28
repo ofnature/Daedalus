@@ -136,6 +136,10 @@ public abstract class BaseRotation<TContext, TModule> : IRotation, IDisposable
         TargetingService = targetingService;
         HpPredictionService = hpPredictionService;
         ActionService = actionService;
+        // Face-recovery: when a GCD is refused for facing (UseAction false, or a submit that never
+        // commits), re-face the target by hard-targeting it. Auto-face can't self-correct because the
+        // game only turns the character on a successful cast. Shared across all jobs.
+        ActionService.FaceTargetOnStuck = TargetingService.EnsureHardTarget;
         PlayerStatsService = playerStatsService;
         DebuffDetectionService = debuffDetectionService;
         ErrorMetrics = errorMetrics;
@@ -496,6 +500,9 @@ public abstract class BaseRotation<TContext, TModule> : IRotation, IDisposable
     /// <inheritdoc />
     public void Dispose()
     {
+        // Drop the face-recovery hook so a shared ActionService doesn't hold a disposed TargetingService.
+        // The next rotation re-wires it in its constructor.
+        ActionService.FaceTargetOnStuck = null;
         Dispose(true);
         GC.SuppressFinalize(this);
     }

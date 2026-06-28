@@ -94,7 +94,7 @@ public sealed class DebugWindow : Window
 
             if (ImGui.BeginTabItem(Loc.T(LocalizedStrings.Debug.TabWhyStuck, "Why Stuck?")))
             {
-                WhyStuckTab.Draw(snapshot, _configuration);
+                WhyStuckTab.Draw(snapshot, _configuration, _debugService.GetIrisDebugState());
                 ImGui.EndTabItem();
             }
 

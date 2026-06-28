@@ -114,6 +114,12 @@ public interface ITargetingService
     void InvalidateCache();
 
     /// <summary>
+    /// Make the given enemy the game's hard target so auto-face turns toward it. Face-recovery hook for
+    /// GCDs refused on facing; no-op if already the hard target or the id isn't a live enemy.
+    /// </summary>
+    void EnsureHardTarget(ulong enemyGameObjectId);
+
+    /// <summary>
     /// Returns true when damage targeting should be paused because the player has
     /// intentionally dropped their target and <see cref="Config.TargetingConfig.PauseWhenNoTarget"/> is ON.
     /// Returns false during active combat when the hard target is dead or missing but live

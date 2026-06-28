@@ -5,6 +5,7 @@ using Daedalus.Data;
 using Daedalus.Localization;
 using Daedalus.Rotation.Common;
 using Daedalus.Rotation.Common.Helpers;
+using Daedalus.Rotation.IrisCore.Context;
 using Daedalus.Services.Debug;
 
 namespace Daedalus.Windows.Debug.Tabs;
@@ -14,7 +15,7 @@ namespace Daedalus.Windows.Debug.Tabs;
 /// </summary>
 public static class WhyStuckTab
 {
-    public static void Draw(DebugSnapshot snapshot, Configuration config)
+    public static void Draw(DebugSnapshot snapshot, Configuration config, IrisDebugState? irisState = null)
     {
         var rotation = snapshot.Rotation;
         var healing = snapshot.Healing;
@@ -58,12 +59,61 @@ public static class WhyStuckTab
             ImGui.Spacing();
         }
 
+        // Pictomancer canvas/muse tracker: the muse → Hammer/portrait/Starry system all gate on a painted
+        // canvas, so when the rotation looks "stuck on color spells" this shows whether the canvases are up.
+        if (jobId == JobRegistry.Pictomancer && irisState != null)
+        {
+            ImGui.Spacing();
+            DrawPictomancerCanvas(irisState);
+        }
+
         if (IsSectionVisible(config, "Resources"))
         {
             if (isTank)
                 DrawTankResources(tank!);
             else if (isHealer)
                 DrawHealerResources(rotation);
+        }
+    }
+
+    private static void DrawPictomancerCanvas(IrisDebugState iris)
+    {
+        ImGui.Text("Canvas / Muse");
+        ImGui.Separator();
+
+        if (ImGui.BeginTable("PctCanvasWhyStuck", 2, ImGuiTableFlags.BordersInnerV | ImGuiTableFlags.SizingStretchProp))
+        {
+            ImGui.TableSetupColumn("Canvas", ImGuiTableColumnFlags.WidthFixed, 150);
+            ImGui.TableSetupColumn("State", ImGuiTableColumnFlags.WidthStretch);
+
+            DrawCanvasRow("Creature canvas", iris.HasCreatureCanvas,
+                iris.HasCreatureCanvas ? $"Painted ({iris.CreatureMotif})" : "Empty — paint Creature Motif",
+                iris.LivingMuseReady ? "Living Muse ready" : null);
+            DrawCanvasRow("Weapon canvas", iris.HasWeaponCanvas,
+                iris.HasWeaponCanvas ? "Painted (Hammer)" : "Empty — paint Weapon Motif",
+                iris.StrikingMuseReady ? "Striking Muse ready" : (iris.HasHammerTime ? $"Hammer Time x{iris.HammerTimeStacks}" : null));
+            DrawCanvasRow("Landscape canvas", iris.HasLandscapeCanvas,
+                iris.HasLandscapeCanvas ? "Painted (Starry Sky)" : "Empty — paint Landscape Motif",
+                iris.StarryMuseReady ? "Starry Muse ready" : (iris.HasStarryMuse ? $"Starry Muse ({iris.StarryMuseRemaining:F0}s)" : null));
+
+            ImGui.EndTable();
+        }
+
+        ImGui.TextColored(DebugColors.Dim,
+            $"Paint: {iris.WhitePaint}/5  Palette: {iris.PaletteGauge}/100" + (iris.HasBlackPaint ? "  +Black" : ""));
+    }
+
+    private static void DrawCanvasRow(string label, bool painted, string state, string? muse)
+    {
+        ImGui.TableNextRow();
+        ImGui.TableNextColumn();
+        ImGui.Text(label);
+        ImGui.TableNextColumn();
+        ImGui.TextColored(painted ? DebugColors.Success : DebugColors.Warning, state);
+        if (!string.IsNullOrEmpty(muse))
+        {
+            ImGui.SameLine();
+            ImGui.TextColored(DebugColors.Dim, $" — {muse}");
         }
     }
 

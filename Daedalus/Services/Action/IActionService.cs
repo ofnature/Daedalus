@@ -66,6 +66,14 @@ public interface IActionService
     Func<ulong, bool>? KardiaRecastGuard { get; set; }
 
     /// <summary>
+    /// Optional recovery hook invoked with an enemy GameObjectId when a GCD is refused for <em>facing</em>
+    /// — either UseAction returned false, or a submit was accepted but never committed. Wired to
+    /// <c>TargetingService.EnsureHardTarget</c> so the character re-faces the target (auto-face can't
+    /// self-correct because it only turns on a successful cast). Fired at most once per stuck window.
+    /// </summary>
+    Action<ulong>? FaceTargetOnStuck { get; set; }
+
+    /// <summary>
     /// Checks if a specific action is off cooldown.
     /// </summary>
     bool IsActionReady(uint actionId);

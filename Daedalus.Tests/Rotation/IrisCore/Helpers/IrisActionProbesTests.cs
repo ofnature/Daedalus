@@ -155,6 +155,55 @@ public class IrisActionProbesTests
     }
 
     [Fact]
+    public void ResolveBaseComboStep_Subtractive_Returns2_WhenStarterReplacedByThunder()
+    {
+        // Regression: only the combo STARTER (Blizzard in Cyan) morphs. After Stone in Yellow the starter
+        // slot reports Thunder in Magenta — step must resolve to 2 (was stuck at 0, dispatching Blizzard
+        // and stalling on its AdjustedActionProbe).
+        var svc = WithAdjust(PCTActions.BlizzardInCyan.ActionId, PCTActions.ThunderInMagenta.ActionId);
+        IrisActionProbes.ResolveBaseComboStep(
+            svc.Object, shouldUseAoe: false, level: 100, useSubtractiveRoute: true,
+            out var step, out var isSubtractive);
+
+        Assert.Equal(2, step);
+        Assert.True(isSubtractive);
+    }
+
+    [Fact]
+    public void ResolveBaseComboStep_SubtractiveAoE_Returns2_WhenStarterReplacedByThunderII()
+    {
+        // The exact in-game stall: AoE subtractive, starter (Blizzard II) slot shows Thunder II (34661).
+        var svc = WithAdjust(PCTActions.Blizzard2InCyan.ActionId, PCTActions.Thunder2InMagenta.ActionId);
+        IrisActionProbes.ResolveBaseComboStep(
+            svc.Object, shouldUseAoe: true, level: 100, useSubtractiveRoute: true,
+            out var step, out var isSubtractive);
+
+        Assert.Equal(2, step);
+        Assert.True(isSubtractive);
+    }
+
+    [Fact]
+    public void ResolveBaseComboStep_SubtractiveAoE_Returns1_WhenStarterReplacedByStoneII()
+    {
+        var svc = WithAdjust(PCTActions.Blizzard2InCyan.ActionId, PCTActions.Stone2InYellow.ActionId);
+        IrisActionProbes.ResolveBaseComboStep(
+            svc.Object, shouldUseAoe: true, level: 100, useSubtractiveRoute: true,
+            out var step, out var isSubtractive);
+
+        Assert.Equal(1, step);
+        Assert.True(isSubtractive);
+    }
+
+    [Fact]
+    public void SubtractiveThunder_ProbesTheStarter_NotStone()
+    {
+        // The ST Thunder behavior must probe the combo starter (only it morphs), matching Stone in Yellow
+        // and the AoE Thunder II behavior. Probing Stone in Yellow never passed → ST subtractive stalled.
+        Assert.Equal(PCTActions.BlizzardInCyan.ActionId, IrisAbilities.ThunderInMagenta.AdjustedActionProbe);
+        Assert.Equal(PCTActions.Blizzard2InCyan.ActionId, IrisAbilities.Thunder2InMagenta.AdjustedActionProbe);
+    }
+
+    [Fact]
     public void ComboFollowups_UseReplacementBaseId_OnChainStarter()
     {
         Assert.Equal(PCTActions.FireInRed.ActionId, IrisAbilities.AeroInGreen.ReplacementBaseId);

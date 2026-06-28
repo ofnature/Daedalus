@@ -86,6 +86,13 @@ public sealed unsafe class ActionService : IActionService
     private float _peakRecastElapsedSinceSubmit;
     private float _peakRecastTotalSinceSubmit;
     private DateTime _nextGcdAttemptAllowed = DateTime.MinValue;
+    // Last GCD submitted via UseAction this cycle (adjusted id + target). Used to query the real
+    // GetActionStatus(id, target) reason and trigger a face-the-target recovery when a submit is
+    // accepted by the queue but never commits (no recast) — the multi-mob "Fire in Red" spam case.
+    private uint _lastSubmittedDispatchId;
+    private ulong _lastSubmittedTargetId;
+    // FFXIV GetActionStatus LogMessage code: target not within the facing cone.
+    private const uint StatusNotFacing = 566;
 
     private const float MinRecastCompletionRatio = 0.85f;
     private const double UncommittedSubmitStaleSeconds = 0.5;
@@ -130,6 +137,9 @@ public sealed unsafe class ActionService : IActionService
 
     /// <inheritdoc/>
     public Func<ulong, bool>? KardiaRecastGuard { get; set; }
+
+    /// <inheritdoc/>
+    public Action<ulong>? FaceTargetOnStuck { get; set; }
 
     /// <summary>Last executed action (for debugging).</summary>
     public ActionDefinition? LastExecutedAction => _lastExecutedAction;
@@ -270,12 +280,27 @@ public sealed unsafe class ActionService : IActionService
 
         var secondsSinceSubmit = (DateTime.UtcNow - _lastExecuteTime).TotalSeconds;
 
-        // Stale guard: submit accepted but recast group 57 never activated.
+        // Stale guard: submit accepted but recast group 57 never activated. The action was queued but the
+        // game never executed it (rejected at fire time for facing / LoS / range). Record the real reason
+        // from a target-aware status query (the multi-mob spam read as a guess before) and, if it's a
+        // facing refusal, force a re-face so the next attempt commits instead of re-queuing.
         if (_gcdSubmittedThisCycle && !_gcdRecastSeenSinceSubmit
             && secondsSinceSubmit > UncommittedSubmitStaleSeconds)
         {
             _gcdSubmittedThisCycle = false;
             _nextGcdAttemptAllowed = DateTime.UtcNow.AddSeconds(FailedSubmitBackoffSeconds);
+
+            if (_lastSubmittedTargetId != 0)
+            {
+                var status = GetActionStatusCode(_lastSubmittedDispatchId, _lastSubmittedTargetId);
+                var reason = DescribeStatusReason(status);
+                _lastGcdRejectReason = reason is not null
+                    ? $"submitted but not cast — {reason}"
+                    : status != 0
+                        ? $"submitted but not cast (game status {status})"
+                        : "submitted but not cast (line-of-sight / facing / moving?)";
+                TryFaceRecovery(_lastSubmittedDispatchId, _lastSubmittedTargetId);
+            }
         }
 
         // Stale guard: recast blip without a full roll (guard would otherwise stay latched indefinitely).
@@ -323,7 +348,15 @@ public sealed unsafe class ActionService : IActionService
         {
             CurrentGcdState = GcdState.Ready;
             _ogcdsUsedThisCycle = 0;
-            _gcdSubmittedThisCycle = false;
+            // Normally clear the submit latch so the next GCD can fire. EXCEPTION: a submit was accepted
+            // this cycle but no recast has started (the action was queued but rejected at execution —
+            // facing / LoS / range). Clearing here every frame is what let it re-submit ~5x/second (the
+            // multi-mob "Fire in Red" spam). Hold the latch through the uncommitted grace so the stale
+            // guard below clears it once (with backoff + face recovery) instead of spamming.
+            var submitUncommitted = _gcdSubmittedThisCycle && !_gcdRecastSeenSinceSubmit
+                && (DateTime.UtcNow - _lastExecuteTime).TotalSeconds <= UncommittedSubmitStaleSeconds;
+            if (!submitUncommitted)
+                _gcdSubmittedThisCycle = false;
             // Recast is fully done — a new GCD cycle. Release the repeat-GCD block here too, not only on
             // the single recast roll-over frame: if that frame's clear was missed (e.g. _gcdSubmittedThisCycle
             // was still latched) AND no further GCD fires, the roll-over never recurs and the block would
@@ -395,11 +428,18 @@ public sealed unsafe class ActionService : IActionService
         // Pre-checking defeats the server-side action queue, so we delegate the "can fire now?" decision to UseAction.
         var result = actionManager->UseAction(ActionType.Action, dispatchId, targetId);
         if (!result)
+        {
             _lastGcdRejectReason = null; // game refused — scheduler enriches with range/status/LoS
+            // Facing recovery: the game refused outright; if it's because we aren't facing the target,
+            // force a re-face (hard-target) so the next attempt lands instead of stalling (PLD case).
+            TryFaceRecovery(dispatchId, targetId);
+        }
 
         if (result)
         {
             _gcdSubmittedThisCycle = true;
+            _lastSubmittedDispatchId = dispatchId;
+            _lastSubmittedTargetId = targetId;
             _blockedRepeatGcdDispatchId = dispatchId;
             RecordChargeBasedGcdSubmit(dispatchId);
             _gcdRecastSeenSinceSubmit = false;
@@ -797,6 +837,32 @@ public sealed unsafe class ActionService : IActionService
         // Passing the target evaluates facing / range / line-of-sight refusals (the target-less
         // overload reports 0 for those because it has no target to check against).
         return actionManager->GetActionStatus(ActionType.Action, actionId, targetId);
+    }
+
+    /// <summary>
+    /// Maps the FFXIV GetActionStatus LogMessage codes we recognize to a human reason; null otherwise.
+    /// Mirrors the scheduler's DescribeActionStatusCode so reject reasons read consistently.
+    /// </summary>
+    private static string? DescribeStatusReason(uint status) => status switch
+    {
+        565 => "not unlocked",
+        566 => "not facing target",
+        562 => "out of range",
+        563 => "target not in line of sight",
+        _ => null,
+    };
+
+    /// <summary>
+    /// When a GCD refusal is specifically a facing failure (566), invoke the face-the-target hook so the
+    /// character is re-faced (hard-targeted) for the next attempt. Other codes (LoS / range) can't be
+    /// fixed by facing, so they're left for the caller to surface via the reject reason.
+    /// </summary>
+    private void TryFaceRecovery(uint dispatchId, ulong targetId)
+    {
+        if (FaceTargetOnStuck is null || targetId == 0)
+            return;
+        if (GetActionStatusCode(dispatchId, targetId) == StatusNotFacing)
+            FaceTargetOnStuck(targetId);
     }
 
     private const uint ActionStatusNotLearned = 565;

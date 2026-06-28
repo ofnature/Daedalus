@@ -48,6 +48,16 @@ All notable changes to Daedalus will be documented in this file.
 - Shadowstride no longer darts you around the pack: it's no longer woven as filler damage by default (only used to close the gap to an out-of-range target). New "Auto-weave Shadowstride" toggle (off) to opt back in
 - Salted Earth (and its Salt and Darkness follow-up) now actually fire — they were blocked by a wrong action ID and never went off. Added a "Salted Earth Min Targets" slider (default 1 = on cooldown) so you can hold it for big wall-to-wall packs
 
+### Fix — Pictomancer canvas/muse system dormant in pulls
+- Fixed Pictomancer never using its motifs, muses, Hammer combo, portraits (Mog/Madeen), or Starry Muse during back-to-back pulls — it was stuck spamming only color spells. Motif painting was being out-prioritized by the basic combo and never fired in combat, so the canvases the whole system depends on were never created. Motifs are now painted in combat, timed to each muse's cooldown, so Living/Steel/Scenic Muse (and everything they enable) come online
+
+### Fix — Pictomancer subtractive combo stall
+- Fixed the subtractive AoE/single-target combo (Blizzard → Stone → Thunder) getting stuck after Stone, refusing to fire Thunder in Magenta and stalling the rotation. The combo-step detection was checking the wrong action for the final step, so it kept trying to recast the combo starter
+
+### Fix — Stuck / spamming when not facing the target (all jobs)
+- Fixed a case where the rotation would either stall or rapidly re-cast the same GCD (e.g. Pictomancer spamming Fire in Red during multi-mob pulls) when the auto-targeted enemy wasn't being faced. The game's auto-face only turns you on a *successful* cast, so a refused cast couldn't self-correct. Now, when a GCD is refused for facing, the target is re-faced (hard-targeted) so the next cast lands; submits that don't commit are throttled instead of re-firing every frame
+- The "Why Stuck?" reason is now accurate for this case — it reads the real refusal (not facing / line of sight / out of range) instead of guessing
+
 ### Fix — Gunbreaker
 - Bloodfest now actually fires: it was being cast on yourself, but the game requires it on an enemy target, so it sat "ready" and never went off (which also meant the Lv100 Reign of Beasts → Noble Blood → Lion Heart combo never triggered). Bloodfest now lands once per cooldown and the Reign combo fires inside No Mercy
 - Royal Guard (tank stance) now auto-enables in combat like the other tanks — Gunbreaker previously never turned its stance on
