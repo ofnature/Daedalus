@@ -363,14 +363,37 @@ public sealed class RotationScheduler
                 return $"out of range ({dist:F0}y > {effective.Range:F0}y)";
         }
 
-        var status = _actionService.GetActionStatusCode(_actionService.GetAdjustedActionId(effective.ActionId));
-        if (status == 565)
-            return "not unlocked";
+        var adjustedId = _actionService.GetAdjustedActionId(effective.ActionId);
+
+        // Query the status WITH the target so target-dependent refusals (facing / range / line of sight)
+        // resolve to a real code instead of the generic guess. The target-less query reports 0 for those
+        // because it has nothing to check against — which is how a stuck dispatch read as "?" before.
+        var status = candidate.TargetId != 0
+            ? _actionService.GetActionStatusCode(adjustedId, candidate.TargetId)
+            : _actionService.GetActionStatusCode(adjustedId);
+
+        var mapped = DescribeActionStatusCode(status);
+        if (mapped is not null)
+            return mapped;
         if (status != 0)
             return $"rejected (game status {status})";
 
         return "rejected (line-of-sight / facing / moving?)";
     }
+
+    /// <summary>
+    /// Maps the FFXIV GetActionStatus LogMessage codes we recognize to a human reason. Returns null for
+    /// codes we don't have a confident label for (the caller prints the raw code instead).
+    /// </summary>
+    private static string? DescribeActionStatusCode(uint status) => status switch
+    {
+        0 => null,
+        565 => "not unlocked",
+        566 => "not facing target",
+        562 => "out of range",
+        563 => "target not in line of sight",
+        _ => null,
+    };
 
     private ActionDefinition ResolveLevelReplacement(AbilityBehavior behavior, byte playerLevel)
     {

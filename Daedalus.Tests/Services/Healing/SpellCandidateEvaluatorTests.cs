@@ -26,6 +26,7 @@ public class SpellCandidateEvaluatorTests
         public double SecondsSinceLastAction => 0d;
         public string? LastGcdRejectReason => null;
         public uint GetActionStatusCode(uint actionId) => 0;
+        public uint GetActionStatusCode(uint actionId, ulong targetId) => 0;
         public float AnimationLockRemaining => 0f;
         public bool IsCasting => false;
         public bool CanExecuteGcd => true;

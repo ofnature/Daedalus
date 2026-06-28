@@ -859,4 +859,38 @@ public class RotationSchedulerTests
         mock.Setup(c => c.ObjectTable).Returns(objectTable.Object);
         return mock.Object;
     }
+
+    [Fact]
+    public void Dispatch_GcdRefusedForFacing_ReportsRealStatusCodeNotGuess()
+    {
+        // Regression: when UseAction refuses a dispatch for a target-dependent reason (facing/range/LoS),
+        // the reject reason must come from GetActionStatus queried WITH the target (real code 566 ->
+        // "not facing target"), not the generic "los/facing/moving?" guess from the target-less query.
+        var actionService = new Mock<IActionService>();
+        actionService.Setup(x => x.GetAdjustedActionId(It.IsAny<uint>())).Returns((uint id) => id);
+        actionService.Setup(x => x.ExecuteGcd(It.IsAny<ActionDefinition>(), It.IsAny<ulong>())).Returns(false);
+        // Target-less query returns 0 (the old guess path); target-aware query returns the real code.
+        actionService.Setup(x => x.GetActionStatusCode(It.IsAny<uint>())).Returns(0u);
+        actionService.Setup(x => x.GetActionStatusCode(It.IsAny<uint>(), It.IsAny<ulong>())).Returns(566u);
+        var scheduler = Build(actionService);
+
+        const ulong targetId = 7777UL;
+        var mockCtx = new Mock<IRotationContext>();
+        var player = new Mock<Dalamud.Game.ClientState.Objects.SubKinds.IPlayerCharacter>();
+        player.Setup(p => p.Level).Returns((byte)80);
+        mockCtx.Setup(c => c.Player).Returns(player.Object);
+        mockCtx.Setup(c => c.Configuration).Returns(new Configuration());
+        var objectTable = new Mock<IObjectTable>();
+        var targetObj = new Mock<Dalamud.Game.ClientState.Objects.Types.IGameObject>();
+        objectTable.Setup(t => t.SearchById(targetId)).Returns(targetObj.Object);
+        mockCtx.Setup(c => c.ObjectTable).Returns(objectTable.Object);
+
+        var behavior = TestBehaviors.InstantGcd(actionId: 9301);
+        scheduler.PushGcd(behavior, targetId: targetId, priority: 10);
+
+        var result = scheduler.DispatchGcd(mockCtx.Object);
+
+        Assert.False(result.Dispatched);
+        Assert.Contains(result.GateFailReasons, r => r.Contains("not facing"));
+    }
 }

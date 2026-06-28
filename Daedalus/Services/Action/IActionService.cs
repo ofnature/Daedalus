@@ -122,6 +122,14 @@ public interface IActionService
     uint GetActionStatusCode(uint actionId);
 
     /// <summary>
+    /// Raw <c>GetActionStatus</c> code for the action evaluated <em>against a specific target</em>
+    /// (0 = usable). Unlike the target-less overload, this evaluates target-dependent refusals —
+    /// facing, range, and line of sight — so a stuck dispatch can be explained precisely instead of
+    /// guessed. Pass the candidate's target id.
+    /// </summary>
+    uint GetActionStatusCode(uint actionId, ulong targetId);
+
+    /// <summary>
     /// True when the action is unlocked (level + job quest). Uses action-manager status
     /// 565 ("not learned") plus Lumina unlock-link / class-quest completion via UIState.
     /// </summary>

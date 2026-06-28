@@ -787,6 +787,18 @@ public sealed unsafe class ActionService : IActionService
         return actionManager->GetActionStatus(ActionType.Action, actionId);
     }
 
+    /// <inheritdoc/>
+    public uint GetActionStatusCode(uint actionId, ulong targetId)
+    {
+        var actionManager = SafeGameAccess.GetActionManager(_errorMetrics);
+        if (actionManager is null)
+            return 0;
+
+        // Passing the target evaluates facing / range / line-of-sight refusals (the target-less
+        // overload reports 0 for those because it has no target to check against).
+        return actionManager->GetActionStatus(ActionType.Action, actionId, targetId);
+    }
+
     private const uint ActionStatusNotLearned = 565;
 
     /// <inheritdoc/>
