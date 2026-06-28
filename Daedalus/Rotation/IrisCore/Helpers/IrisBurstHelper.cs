@@ -43,7 +43,8 @@ public static class IrisBurstHelper
 
         if (BurstHoldHelper.IsInBurst(burstWindowService)) return false;
 
-        var starryCd = actionService.GetCooldownRemaining(PCTActions.StarryMuse.ActionId);
+        // Read the cooldown on the base gauge action (Scenic Muse), not the morphed Starry Muse id.
+        var starryCd = actionService.GetCooldownRemaining(PCTActions.ScenicMuse.ActionId);
         return starryCd > 0f && starryCd <= 60f;
     }
 
@@ -79,7 +80,8 @@ public static class IrisBurstHelper
         if (context.HasStarryMuse)
             return false;
 
-        var starryCd = actionService.GetCooldownRemaining(PCTActions.StarryMuse.ActionId);
+        // Read the cooldown on the base gauge action (Scenic Muse), not the morphed Starry Muse id.
+        var starryCd = actionService.GetCooldownRemaining(PCTActions.ScenicMuse.ActionId);
         return starryCd > 0f && starryCd <= 30f && !context.StarryMuseReady;
     }
 

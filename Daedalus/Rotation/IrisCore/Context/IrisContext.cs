@@ -325,9 +325,13 @@ public sealed class IrisContext : IIrisContext
 
         // Cooldown tracking
         var level = player.Level;
+        // Muse readiness reads the cooldown on the BASE gauge action (Living/Steel/Scenic Muse), NOT the
+        // morphed button (Pom.../Striking/Starry Muse) — the recast lives on the base. Living Muse already
+        // did this; Striking/Starry were checking the morphed id, so Striking Muse never read ready (→ no
+        // Hammer combo) and Starry's readiness was flaky.
         StarryMuseReady = level >= PCTActions.StarryMuse.MinLevel &&
                          HasLandscapeCanvas &&
-                         actionService.IsActionReady(PCTActions.StarryMuse.ActionId) &&
+                         actionService.IsActionReady(PCTActions.ScenicMuse.ActionId) &&
                          IrisActionProbes.IsStarryMuseReady(actionService);
         LivingMuseReady = level >= PCTActions.LivingMuse.MinLevel &&
                          HasCreatureCanvas &&
@@ -338,7 +342,7 @@ public sealed class IrisContext : IIrisContext
             : 0;
         StrikingMuseReady = level >= PCTActions.StrikingMuse.MinLevel &&
                           HasWeaponCanvas &&
-                          actionService.IsActionReady(PCTActions.StrikingMuse.ActionId) &&
+                          actionService.IsActionReady(PCTActions.SteelMuse.ActionId) &&
                           IrisActionProbes.IsStrikingMuseReady(actionService);
         SubtractivePaletteReady = level >= PCTActions.SubtractivePalette.MinLevel &&
                                  CanUseSubtractivePalette &&

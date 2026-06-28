@@ -50,7 +50,7 @@ public class DamageModulePhaseCDTests
         burst.Setup(x => x.IsInBurstWindow).Returns(false);
 
         var actionService = MockBuilders.CreateMockActionService();
-        actionService.Setup(x => x.GetCooldownRemaining(PCTActions.StarryMuse.ActionId)).Returns(30f);
+        actionService.Setup(x => x.GetCooldownRemaining(PCTActions.ScenicMuse.ActionId)).Returns(30f);
 
         var scheduler = SchedulerFactory.CreateForTest(actionService: actionService);
         var module = new BuffModule(burst.Object);

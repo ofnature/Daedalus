@@ -34,7 +34,7 @@ public class IrisBurstHelperTests
     public void ShouldHoldStrikingMuse_True_WhenStarryMuseWithinSixtySeconds()
     {
         var actionService = MockBuilders.CreateMockActionService();
-        actionService.Setup(x => x.GetCooldownRemaining(PCTActions.StarryMuse.ActionId)).Returns(45f);
+        actionService.Setup(x => x.GetCooldownRemaining(PCTActions.ScenicMuse.ActionId)).Returns(45f);
 
         var ctx = IrisTestContext.Create(
             actionService: actionService,
@@ -49,7 +49,7 @@ public class IrisBurstHelperTests
     public void ShouldHoldHammerStart_True_WhenStarryMuseBetweenOneAndThirtySeconds()
     {
         var actionService = MockBuilders.CreateMockActionService();
-        actionService.Setup(x => x.GetCooldownRemaining(PCTActions.StarryMuse.ActionId)).Returns(20f);
+        actionService.Setup(x => x.GetCooldownRemaining(PCTActions.ScenicMuse.ActionId)).Returns(20f);
 
         var ctx = IrisTestContext.Create(
             actionService: actionService,
@@ -64,7 +64,7 @@ public class IrisBurstHelperTests
     public void ShouldHoldHammerStart_False_WhenStarryMuseOffCooldownButNotReady()
     {
         var actionService = MockBuilders.CreateMockActionService();
-        actionService.Setup(x => x.GetCooldownRemaining(PCTActions.StarryMuse.ActionId)).Returns(0f);
+        actionService.Setup(x => x.GetCooldownRemaining(PCTActions.ScenicMuse.ActionId)).Returns(0f);
 
         var ctx = IrisTestContext.Create(
             actionService: actionService,

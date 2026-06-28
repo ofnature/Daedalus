@@ -48,6 +48,9 @@ All notable changes to Daedalus will be documented in this file.
 - Shadowstride no longer darts you around the pack: it's no longer woven as filler damage by default (only used to close the gap to an out-of-range target). New "Auto-weave Shadowstride" toggle (off) to opt back in
 - Salted Earth (and its Salt and Darkness follow-up) now actually fire — they were blocked by a wrong action ID and never went off. Added a "Salted Earth Min Targets" slider (default 1 = on cooldown) so you can hold it for big wall-to-wall packs
 
+### Fix — Pictomancer Hammer combo / Striking Muse never firing
+- Fixed Striking Muse (and therefore the Hammer combo) never triggering, and Starry Muse firing late: their readiness was reading the cooldown off the wrong action (the morphed button instead of the base Steel/Scenic Muse gauge action). Now consistent with Living Muse, so the weapon/Hammer line and Starry burst come up on time
+
 ### Fix — Pictomancer canvas/muse system dormant in pulls
 - Fixed Pictomancer never using its motifs, muses, Hammer combo, portraits (Mog/Madeen), or Starry Muse during back-to-back pulls — it was stuck spamming only color spells. Motif painting was being out-prioritized by the basic combo and never fired in combat, so the canvases the whole system depends on were never created. Motifs are now painted in combat, timed to each muse's cooldown, so Living/Steel/Scenic Muse (and everything they enable) come online
 
