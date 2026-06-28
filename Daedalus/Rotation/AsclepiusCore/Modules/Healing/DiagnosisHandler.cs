@@ -42,8 +42,10 @@ public sealed class DiagnosisHandler : IHealingHandler
         // GCD-heal gating: with a co-healer covering the party, leave non-critical single-target
         // healing to oGCDs (and the co-healer) and keep DPS uptime. Critical targets still get a
         // GCD heal (the check below this only fires above the GCD-emergency threshold).
-        if (config.RestrictGcdHealsWithCoHealer
-            && context.CoHealerDetectionService?.HasCoHealer == true
+        if (CoHealerAwarenessHelper.ShouldDeferGcdHeals(
+                context.Configuration.Healing.HealerRole,
+                config.RestrictGcdHealsWithCoHealer,
+                context.CoHealerDetectionService?.HasCoHealer == true)
             && hpPercent > context.Configuration.Healing.GcdEmergencyThreshold)
         {
             return;

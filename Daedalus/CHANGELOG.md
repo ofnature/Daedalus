@@ -56,6 +56,16 @@ All notable changes to Daedalus will be documented in this file.
 ### New — Gunbreaker proactive mitigation
 - Sustain cooldowns (Camouflage, Rampart, Nebula) now fire proactively on wall-to-wall pulls instead of waiting for your HP to drop — so you're mitigated before the damage lands, not after. New "Proactive Mit Pull Size" slider (default 3) under the GNB Mitigation section
 
+### New — Main / co-healer roles
+- New "My Healer Role" setting under Shared Healer Settings → Co-Healer Coordination (Auto / Main / Co). In a two-healer party, set one healer to Main (owns GCD heals) and the other to Co (defers non-critical GCD heals to the Main, sticking to oGCDs, shields, and DPS). This fixes the case where two auto-detecting healers would both defer to each other and neither would proactively GCD-heal. Applies to Astrologian and Sage; solo healing is unaffected
+
+### Fix — Astrologian
+- Divination now actually fires in solo, Trust, and AutoDuty content. It was being held for a party burst-alignment signal that only exists with multibox IPC coordination, so in uncoordinated content it sat unused the entire fight (a large DPS loss). It now falls back to using it on cooldown (~8s into combat) when no burst coordination is present, and still aligns to the party window when coordinating
+
+### Improved — Astrologian
+- Essential Dignity now uses per-charge thresholds instead of sitting on charges: a spare charge is spent proactively (new "spare charge" threshold, default 70%) while the final charge is banked for emergencies ("last charge" threshold, default 60%) — more healing throughput without losing the safety net
+- New "GCD Heals Only When Solo Healer" toggle (on by default): with a co-healer in the party, non-critical Benefic/Helios casts are left to oGCDs and the co-healer to keep damage uptime. Critical targets still get a GCD heal, and solo healing is unaffected
+
 ### Improved — "Why Stuck" diagnostics (all jobs)
 - Live "Last action: Ns ago" idle timer, a PAUSED banner that names why the whole rotation is idle (including "no action in combat"), and per-ability reasons for why a GCD won't fire (cooldown, proc, combo, out of range, line-of-sight/facing). The tank tab also shows enemy counts (in PBAoE range vs aggroed within 25y)
 - Added a vNav movement state (Idle / Pathing / Finding path) and a live "In LoS / facing" enemy counter, so it's clear whether an idle is the character moving vs. no enemy actually being castable-at (line of sight / facing)

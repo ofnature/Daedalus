@@ -35,9 +35,12 @@ public sealed class PrognosisHandler : IHealingHandler
 
         // GCD-heal gating: with a co-healer covering the party, leave non-critical AoE healing to
         // oGCDs (Ixochole/Kerachole/Holos) and the co-healer; only hard-cast Prognosis when the party
-        // is genuinely critical (below the GCD-emergency threshold).
-        if (config.RestrictGcdHealsWithCoHealer
-            && context.CoHealerDetectionService?.HasCoHealer == true
+        // is genuinely critical (below the GCD-emergency threshold). Healer-role aware — a Main healer
+        // never defers; a Co healer defers to the Main.
+        if (CoHealerAwarenessHelper.ShouldDeferGcdHeals(
+                context.Configuration.Healing.HealerRole,
+                config.RestrictGcdHealsWithCoHealer,
+                context.CoHealerDetectionService?.HasCoHealer == true)
             && avgHp > context.Configuration.Healing.GcdEmergencyThreshold)
         {
             context.Debug.AoEStatus = "Co-healer covering";

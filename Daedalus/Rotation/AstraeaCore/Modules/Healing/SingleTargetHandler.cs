@@ -58,6 +58,17 @@ public sealed class SingleTargetHandler : IHealingHandler
 
         if (action == null || behavior == null) return;
 
+        // GCD-heal gating (RSR GCDHeal parity): with a co-healer present, leave non-critical single-target
+        // healing to oGCDs and the co-healer to keep DPS uptime. Healer-role aware — a Main healer never
+        // defers (owns GCD heals); a Co healer defers to the Main. Critical targets (below the
+        // GCD-emergency threshold) still get a GCD heal.
+        if (CoHealerAwarenessHelper.ShouldDeferGcdHeals(
+                context.Configuration.Healing.HealerRole,
+                config.RestrictGcdHealsWithCoHealer,
+                context.CoHealerDetectionService?.HasCoHealer == true)
+            && hpPercent > context.Configuration.Healing.GcdEmergencyThreshold)
+            return;
+
         if (CoHealerAwarenessHelper.CoHealerWillCover(
                 context.Configuration.Healing.EnableCoHealerAwareness,
                 context.CoHealerDetectionService,

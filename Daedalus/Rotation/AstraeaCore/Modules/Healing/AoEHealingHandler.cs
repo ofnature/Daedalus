@@ -45,6 +45,18 @@ public sealed class AoEHealingHandler : IHealingHandler
         var shouldUse = (avgHp <= config.AoEHealThreshold && count >= minTargets) || raidwideImminent;
         if (!shouldUse) return;
 
+        // GCD-heal gating (RSR GCDHeal parity): with a co-healer present, defer non-critical AoE GCD heals
+        // (Helios line) to oGCDs and the co-healer to keep DPS uptime. Healer-role aware — a Main healer
+        // never defers; a Co healer defers to the Main. Unless the party is critical (below the
+        // GCD-emergency threshold) or a raidwide is imminent.
+        if (CoHealerAwarenessHelper.ShouldDeferGcdHeals(
+                context.Configuration.Healing.HealerRole,
+                config.RestrictGcdHealsWithCoHealer,
+                context.CoHealerDetectionService?.HasCoHealer == true)
+            && avgHp > context.Configuration.Healing.GcdEmergencyThreshold
+            && !raidwideImminent)
+            return;
+
         ActionDefinition? action = null;
         AbilityBehavior? behavior = null;
 

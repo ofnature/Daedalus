@@ -743,6 +743,17 @@ public sealed class HealingConfig
     public bool EnableCoHealerAwareness { get; set; } = true;
 
     /// <summary>
+    /// This toon's healer role within the party. Multibox runs one Daedalus instance per character, so
+    /// this is set per-instance ("what am I"). It resolves who spends GCDs on healing when two healers
+    /// are present: with pure auto-detection both healers see a co-healer and both defer non-critical GCD
+    /// heals, so neither proactively heals. Designate one healer as <see cref="HealerRoleAssignment.Main"/>
+    /// (never defers — owns GCD heals) and the other as <see cref="HealerRoleAssignment.Co"/> (defers
+    /// non-critical GCD heals to the main). <see cref="HealerRoleAssignment.Auto"/> keeps the legacy
+    /// detection-only behavior. Feeds the per-job "GCD Heals Only When Solo Healer" gate.
+    /// </summary>
+    public HealerRoleAssignment HealerRole { get; set; } = HealerRoleAssignment.Auto;
+
+    /// <summary>
     /// Threshold multiplier for healing when co-healer is present.
     /// Reduces healing aggressiveness to let co-healer share the load.
     /// e.g., 0.85 means reduce healing thresholds by 15% when co-healer is active.
@@ -877,6 +888,28 @@ public sealed class HealingConfig
         set => _tankBusterPreparationWindow = Math.Clamp(value, 1f, 6f);
     }
 
+}
+
+/// <summary>
+/// This toon's healer role within the party, controlling GCD-heal division between two healers.
+/// </summary>
+public enum HealerRoleAssignment
+{
+    /// <summary>
+    /// Detection-only: defer non-critical GCD heals whenever a co-healer is present (legacy behavior).
+    /// In a 2-healer setup both healers defer, so neither leads GCD healing — pick Main/Co instead.
+    /// </summary>
+    Auto,
+
+    /// <summary>
+    /// Main healer: owns GCD heals. Never defers non-critical GCD heals, even with a co-healer present.
+    /// </summary>
+    Main,
+
+    /// <summary>
+    /// Co-healer: support. Defers non-critical GCD heals to the main healer (keeps oGCDs, shields, DPS).
+    /// </summary>
+    Co,
 }
 
 /// <summary>

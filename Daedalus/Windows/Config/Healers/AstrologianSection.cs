@@ -43,6 +43,9 @@ public sealed class AstrologianSection
 
             ConfigUIHelpers.SectionLabel(Loc.T(LocalizedStrings.Astrologian.GcdHeals, "GCD Heals:"));
 
+            ConfigUIHelpers.Toggle("GCD Heals Only When Solo Healer", () => config.Astrologian.RestrictGcdHealsWithCoHealer, v => config.Astrologian.RestrictGcdHealsWithCoHealer = v,
+                "With a co-healer in the party, skip cast-time GCD heals (Benefic/Helios lines) for non-critical targets and stick to oGCDs + DPS. Critical targets (below GCD Emergency) still get a GCD heal.", save);
+
             ConfigUIHelpers.Toggle(Loc.T(LocalizedStrings.Astrologian.EnableBenefic, "Enable Benefic"), () => config.Astrologian.EnableBenefic, v => config.Astrologian.EnableBenefic = v, null, save,
                 actionId: ASTActions.Benefic.ActionId);
 
@@ -87,8 +90,10 @@ public sealed class AstrologianSection
                 config.Astrologian.BeneficIIThreshold, 30f, 85f, null, save, v => config.Astrologian.BeneficIIThreshold = v);
             config.Astrologian.AspectedBeneficThreshold = ConfigUIHelpers.ThresholdSlider(Loc.T(LocalizedStrings.Astrologian.AspectedBeneficThreshold, "Aspected Benefic Threshold"),
                 config.Astrologian.AspectedBeneficThreshold, 50f, 95f, null, save, v => config.Astrologian.AspectedBeneficThreshold = v);
-            config.Astrologian.EssentialDignityThreshold = ConfigUIHelpers.ThresholdSlider(Loc.T(LocalizedStrings.Astrologian.EssentialDignityThreshold, "Essential Dignity Threshold"),
-                config.Astrologian.EssentialDignityThreshold, 20f, 60f, Loc.T(LocalizedStrings.Astrologian.EssentialDignityThresholdDesc, "Lower = more healing potency (scales with missing HP)."), save, v => config.Astrologian.EssentialDignityThreshold = v);
+            config.Astrologian.EssentialDignitySpareChargeThreshold = ConfigUIHelpers.ThresholdSlider("Essential Dignity Threshold (spare charge)",
+                config.Astrologian.EssentialDignitySpareChargeThreshold, 40f, 95f, "HP to use Essential Dignity when a spare charge is available — spend it proactively instead of sitting at cap.", save, v => config.Astrologian.EssentialDignitySpareChargeThreshold = v);
+            config.Astrologian.EssentialDignityThreshold = ConfigUIHelpers.ThresholdSlider("Essential Dignity Threshold (last charge)",
+                config.Astrologian.EssentialDignityThreshold, 20f, 80f, "HP to use the final Essential Dignity charge — kept lower so the last charge is banked for emergencies. Lower = more healing potency (scales with missing HP).", save, v => config.Astrologian.EssentialDignityThreshold = v);
             config.Astrologian.CelestialIntersectionThreshold = ConfigUIHelpers.ThresholdSlider(Loc.T(LocalizedStrings.Astrologian.CelestialIntersectionThreshold, "Celestial Intersection Threshold"),
                 config.Astrologian.CelestialIntersectionThreshold, 40f, 90f, null, save, v => config.Astrologian.CelestialIntersectionThreshold = v);
             config.Astrologian.ExaltationThreshold = ConfigUIHelpers.ThresholdSlider(Loc.T(LocalizedStrings.Astrologian.ExaltationThreshold, "Exaltation Threshold"),

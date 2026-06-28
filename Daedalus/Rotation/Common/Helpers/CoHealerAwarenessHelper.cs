@@ -1,4 +1,5 @@
 using Dalamud.Game.ClientState.Objects.Types;
+using Daedalus.Config;
 using Daedalus.Services.Healing;
 
 namespace Daedalus.Rotation.Common.Helpers;
@@ -38,5 +39,23 @@ public static class CoHealerAwarenessHelper
 
         var coverage = (float)pendingHeal / missingHp;
         return coverage >= coverageThreshold;
+    }
+
+    /// <summary>
+    /// Resolves whether non-critical GCD heals should be deferred (left to oGCDs + the main healer),
+    /// combining the per-job "GCD Heals Only When Solo Healer" toggle with this toon's healer role.
+    /// A <see cref="HealerRoleAssignment.Main"/> healer never defers (it owns GCD healing), so two
+    /// healers don't both wait on each other. Co/Auto defer when the master toggle is on and a co-healer
+    /// is present. Callers still apply their own critical-HP floor (GCD-emergency threshold) on top.
+    /// </summary>
+    /// <param name="role">This toon's role (<c>HealingConfig.HealerRole</c>).</param>
+    /// <param name="restrictEnabled">Per-job master toggle (e.g. <c>RestrictGcdHealsWithCoHealer</c>).</param>
+    /// <param name="hasCoHealer">Whether another healer is present in the party.</param>
+    public static bool ShouldDeferGcdHeals(HealerRoleAssignment role, bool restrictEnabled, bool hasCoHealer)
+    {
+        if (role == HealerRoleAssignment.Main)
+            return false;
+
+        return restrictEnabled && hasCoHealer;
     }
 }

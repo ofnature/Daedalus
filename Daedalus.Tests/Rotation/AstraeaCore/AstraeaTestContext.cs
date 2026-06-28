@@ -35,6 +35,7 @@ public static class AstraeaTestContext
         Mock<ICardTrackingService>? cardService = null,
         Mock<IEarthlyStarService>? earthlyStarService = null,
         Mock<ITargetingService>? targetingService = null,
+        Mock<ICoHealerDetectionService>? coHealerDetectionService = null,
         byte level = 90,
         uint currentHp = 50000,
         uint maxHp = 50000,
@@ -135,6 +136,7 @@ public static class AstraeaTestContext
             partyHelper,
             cooldownPlanner.Object,
             healingSpellSelector.Object,
+            coHealerDetectionService: coHealerDetectionService?.Object,
             debugState: debugState ?? new AstraeaDebugState());
     }
 
@@ -372,7 +374,8 @@ public static class AstraeaTestContext
     public static TestableAstraeaPartyHelper CreatePartyWithInjured(
         int healthyCount,
         int injuredCount,
-        Configuration? config = null)
+        Configuration? config = null,
+        float injuredHpPercent = 0.50f)
     {
         var members = new List<IBattleChara>();
         uint id = 1u;
@@ -383,10 +386,11 @@ public static class AstraeaTestContext
                 entityId: id++, currentHp: 48000, maxHp: 50000).Object); // 96% — not injured
         }
 
+        var injuredHp = (uint)(50000 * injuredHpPercent);
         for (int i = 0; i < injuredCount; i++)
         {
             members.Add(MockBuilders.CreateMockBattleChara(
-                entityId: id++, currentHp: 25000, maxHp: 50000).Object); // 50% — injured
+                entityId: id++, currentHp: injuredHp, maxHp: 50000).Object);
         }
 
         return new TestableAstraeaPartyHelper(members, config);

@@ -56,9 +56,16 @@ public static class AstraeaCardHelper
         if (!config.DivinationOnBurst)
             return true;
 
+        if (context.HasDivination) return false;
+
         if (burstWindowService?.IsInBurstWindow == true) return true;
         if (context.PartyCoordinationService?.IsInBurstWindow() == true) return true;
-        if (context.HasDivination) return false;
+
+        // Solo / Trust / AutoDuty: with no IPC burst coordination to align to, holding Divination for a
+        // party-burst signal that never comes means it never fires (a major DPS loss). Fall back to using
+        // it on cooldown via the shared solo-burst fallback (same mechanism RDM uses). When real IPC
+        // coordination is present, UseSoloBurstFallback is false and Divination still holds for the window.
+        if (burstWindowService is null || burstWindowService.UseSoloBurstFallback) return true;
 
         return false;
     }

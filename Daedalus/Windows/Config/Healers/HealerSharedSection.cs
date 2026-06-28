@@ -29,8 +29,37 @@ public sealed class HealerSharedSection
         ConfigUIHelpers.Spacing();
 
         DrawMpManagement();
+        DrawCoHealerCoordination();
         DrawPredictionAndAwareness();
         DrawTimelineIntegration();
+    }
+
+    private void DrawCoHealerCoordination()
+    {
+        if (ConfigUIHelpers.SectionHeader("Co-Healer Coordination", "Healer"))
+        {
+            ConfigUIHelpers.BeginIndent();
+
+            ConfigUIHelpers.Toggle(
+                "Enable Co-Healer Awareness",
+                () => config.Healing.EnableCoHealerAwareness,
+                v => config.Healing.EnableCoHealerAwareness = v,
+                "Detect another healer in the party and avoid double-healing the same target.",
+                save);
+
+            var role = config.Healing.HealerRole;
+            if (ConfigUIHelpers.EnumCombo(
+                    "My Healer Role", ref role,
+                    "This toon's role. Set one healer to Main (owns GCD heals) and the other to Co " +
+                    "(defers non-critical GCD heals to the Main). Auto = detection only — note that with two " +
+                    "Auto healers both defer, so neither leads GCD healing. Solo healing is unaffected.",
+                    save))
+            {
+                config.Healing.HealerRole = role;
+            }
+
+            ConfigUIHelpers.EndIndent();
+        }
     }
 
     private void DrawMpManagement()

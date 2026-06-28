@@ -65,6 +65,14 @@ public sealed class AstrologianConfig
     /// </summary>
     public bool EnableMacrocosmos { get; set; } = true;
 
+    /// <summary>
+    /// When a co-healer is present, defer non-critical single-target and AoE GCD heals (Benefic line /
+    /// Helios line) to oGCDs and the co-healer, preserving DPS uptime. Critical targets/party states below
+    /// the GCD-emergency threshold still get a GCD heal. Mirrors RSR's <c>GCDHeal=false</c> default and the
+    /// SGE (Asclepius) <c>RestrictGcdHealsWithCoHealer</c> gate. Has no effect when solo-healing.
+    /// </summary>
+    public bool RestrictGcdHealsWithCoHealer { get; set; } = true;
+
     #endregion
 
     #region Healing Thresholds
@@ -100,14 +108,29 @@ public sealed class AstrologianConfig
     }
 
     /// <summary>
-    /// HP threshold to trigger Essential Dignity.
-    /// Note: Essential Dignity scales with missing HP (400-1100 potency).
+    /// HP threshold to trigger Essential Dignity on the LAST available charge (conservative — banked for
+    /// emergencies). Essential Dignity scales with missing HP (400-1100 potency). RSR uses per-charge tiers
+    /// (3rd 0.8 / 2nd 0.7 / last 0.6); since AST's Essential Dignity caps at 2 charges, that 3-tier model
+    /// collapses to two: a spare-charge threshold (used freely) and this last-charge threshold (held back).
     /// </summary>
-    private float _essentialDignityThreshold = 0.40f;
+    private float _essentialDignityThreshold = 0.60f;
     public float EssentialDignityThreshold
     {
         get => _essentialDignityThreshold;
         set => _essentialDignityThreshold = Math.Clamp(value, 0f, 1f);
+    }
+
+    /// <summary>
+    /// HP threshold to trigger Essential Dignity when a spare charge is available (more than one charge
+    /// banked). Higher than <see cref="EssentialDignityThreshold"/> so spare charges are spent proactively
+    /// instead of sitting at cap, while the final charge is still reserved for emergencies (RSR per-charge
+    /// behavior). Default 0.70 mirrors RSR's 2nd-charge tier.
+    /// </summary>
+    private float _essentialDignitySpareChargeThreshold = 0.70f;
+    public float EssentialDignitySpareChargeThreshold
+    {
+        get => _essentialDignitySpareChargeThreshold;
+        set => _essentialDignitySpareChargeThreshold = Math.Clamp(value, 0f, 1f);
     }
 
     /// <summary>

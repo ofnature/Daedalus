@@ -33,7 +33,14 @@ public sealed class EssentialDignityHandler : IHealingHandler
         if (player.Level < ASTActions.EssentialDignity.MinLevel) return;
         if (!context.ActionService.IsActionReady(ASTActions.EssentialDignity.ActionId)) return;
 
-        var target = context.PartyHelper.FindEssentialDignityTarget(player, config.EssentialDignityThreshold);
+        // Per-charge thresholds (RSR parity): spend a spare charge proactively (higher HP) but bank the
+        // last charge for emergencies (lower HP). Essential Dignity caps at 2 charges, so "spare" = >1.
+        var currentCharges = context.ActionService.GetCurrentCharges(ASTActions.EssentialDignity.ActionId);
+        var threshold = currentCharges > 1
+            ? config.EssentialDignitySpareChargeThreshold
+            : config.EssentialDignityThreshold;
+
+        var target = context.PartyHelper.FindEssentialDignityTarget(player, threshold);
         if (target == null) return;
         if (HealerPartyHelper.HasNoHealStatus(target)) return;
         if (context.HealingCoordination.IsTargetReserved(target.EntityId, context.PartyCoordinationService)) return;
@@ -64,7 +71,7 @@ public sealed class EssentialDignityHandler : IHealingHandler
                     var factors = new[]
                     {
                         $"Target HP: {capturedHpPercent:P0}",
-                        $"Threshold: {config.EssentialDignityThreshold:P0}",
+                        $"Threshold: {threshold:P0} ({(currentCharges > 1 ? "spare charge" : "last charge")})",
                         "Potency scales up to 1100 at low HP!",
                         "2 charges, 40s recharge",
                         "oGCD - can weave without clipping",
