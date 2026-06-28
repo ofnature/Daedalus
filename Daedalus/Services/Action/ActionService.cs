@@ -853,15 +853,20 @@ public sealed unsafe class ActionService : IActionService
     };
 
     /// <summary>
-    /// When a GCD refusal is specifically a facing failure (566), invoke the face-the-target hook so the
-    /// character is re-faced (hard-targeted) for the next attempt. Other codes (LoS / range) can't be
-    /// fixed by facing, so they're left for the caller to surface via the reject reason.
+    /// Invoke the face-the-target hook (hard-targets the enemy) when a GCD was refused for a reason that
+    /// hard-targeting can fix. The game does NOT report a "not facing" status from GetActionStatus — facing
+    /// is checked at UseAction time and surfaces as status <b>0</b> (the "los/facing/moving?" fallback), not
+    /// 566. The root in AutoDuty is that the bot's combat target isn't the hard target, so AutoFaceTarget
+    /// turns toward the (wrong/absent) hard target and the action at the real target fails facing. Syncing
+    /// the hard target fixes it. Fire on 566 (explicit) AND 0 (the real case); skip 562/563 (range / LoS),
+    /// which need movement, not facing.
     /// </summary>
     private void TryFaceRecovery(uint dispatchId, ulong targetId)
     {
         if (FaceTargetOnStuck is null || targetId == 0)
             return;
-        if (GetActionStatusCode(dispatchId, targetId) == StatusNotFacing)
+        var status = GetActionStatusCode(dispatchId, targetId);
+        if (status == StatusNotFacing || status == 0)
             FaceTargetOnStuck(targetId);
     }
 
