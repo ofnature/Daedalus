@@ -104,8 +104,11 @@ public sealed class DebuffDetectionService : IDebuffDetectionService
         if (LowPriorityDebuffs.Contains(statusId))
             return DebuffPriority.Low;
 
-        // Unknown dispellable debuff - treat as low priority
-        return DebuffPriority.Low;
+        // Unknown dispellable debuff → Medium so it cleanses at the default threshold. Most "esuna check"
+        // mechanics in dungeons/trials/raids use a unique status id we don't hardcode; if it's flagged
+        // CanDispel and isn't one of the known trivial movement debuffs above (Bind/Heavy/Blind/Leaden),
+        // it's far more likely a damaging poison or a wipe-on-fail cleanse than something to leave alone.
+        return DebuffPriority.Medium;
     }
 
     /// <summary>
