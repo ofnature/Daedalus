@@ -35,7 +35,8 @@ public sealed class BuffModule : IThanatosModule
     {
         if (!context.InCombat)
         {
-            context.Debug.BuffState = "Not in combat";
+            context.Debug.ArcaneCircleState = "Not in combat";
+            context.Debug.EnshroudDecision = "Not in combat";
             return;
         }
 
@@ -50,25 +51,29 @@ public sealed class BuffModule : IThanatosModule
         if (player.Level < RPRActions.ArcaneCircle.MinLevel) return;
         if (context.HasArcaneCircle)
         {
-            context.Debug.BuffState = $"AC active ({context.ArcaneCircleRemaining:F1}s)";
+            context.Debug.ArcaneCircleState = $"Active ({context.ArcaneCircleRemaining:F1}s)";
             return;
         }
-        if (!context.ActionService.IsActionReady(RPRActions.ArcaneCircle.ActionId)) return;
+        if (!context.ActionService.IsActionReady(RPRActions.ArcaneCircle.ActionId))
+        {
+            context.Debug.ArcaneCircleState = "On cooldown";
+            return;
+        }
 
         if (context.Configuration.Reaper.EnableBurstPooling &&
             ShouldHoldForBurst(context.Configuration.Reaper.ArcaneCircleHoldTime))
         {
-            context.Debug.BuffState = "Holding Arcane Circle for burst window";
+            context.Debug.ArcaneCircleState = "Holding for burst window";
             return;
         }
         if (BurstHoldHelper.ShouldHoldForPhaseTransition(context.TimelineService))
         {
-            context.Debug.BuffState = "Holding Arcane Circle (phase soon)";
+            context.Debug.ArcaneCircleState = "Holding (phase soon)";
             return;
         }
         if (!context.HasDeathsDesign)
         {
-            context.Debug.BuffState = "Waiting for Death's Design";
+            context.Debug.ArcaneCircleState = "Waiting for Death's Design";
             return;
         }
 
@@ -77,10 +82,10 @@ public sealed class BuffModule : IThanatosModule
             context.Configuration.PartyCoordination.EnableRaidBuffCoordination)
         {
             if (!partyCoord.IsRaidBuffAligned(RPRActions.ArcaneCircle.ActionId))
-                context.Debug.BuffState = "Raid buffs desynced, using independently";
+                context.Debug.ArcaneCircleState = "Raid buffs desynced, using independently";
             else if (partyCoord.HasPendingRaidBuffIntent(
                 context.Configuration.PartyCoordination.RaidBuffAlignmentWindowSeconds))
-                context.Debug.BuffState = "Aligning with party burst";
+                context.Debug.ArcaneCircleState = "Aligning with party burst";
             partyCoord.AnnounceRaidBuffIntent(RPRActions.ArcaneCircle.ActionId);
         }
 
@@ -88,7 +93,7 @@ public sealed class BuffModule : IThanatosModule
             onDispatched: _ =>
             {
                 context.Debug.PlannedAction = RPRActions.ArcaneCircle.Name;
-                context.Debug.BuffState = "Activating Arcane Circle";
+                context.Debug.ArcaneCircleState = "Activating";
                 partyCoord?.OnRaidBuffUsed(RPRActions.ArcaneCircle.ActionId, 120_000);
 
                 TrainingHelper.Decision(context.TrainingService)
@@ -112,58 +117,68 @@ public sealed class BuffModule : IThanatosModule
         if (!context.Configuration.Reaper.EnableEnshroud) return;
         var player = context.Player;
         if (player.Level < RPRActions.Enshroud.MinLevel) return;
+        // Level-met but the job quest that unlocks Enshroud may not be done (leveling via AutoDuty).
+        // IsActionReady doesn't check quest unlock, so without this the row would optimistically show
+        // "Ready — queued" while the game silently refuses the cast. Surface it clearly instead.
+        if (!context.ActionService.IsActionLearned(RPRActions.Enshroud.ActionId))
+        {
+            context.Debug.EnshroudDecision = "Not unlocked (job quest)";
+            return;
+        }
         if (context.IsEnshrouded)
         {
-            context.Debug.BuffState = context.Debug.GetEnshroudState();
+            context.Debug.EnshroudDecision = context.Debug.GetEnshroudState();
             return;
         }
         if (context.HasSoulReaver)
         {
-            context.Debug.BuffState = "In Soul Reaver state";
+            context.Debug.EnshroudDecision = "In Soul Reaver state";
             return;
         }
         if (context.HasExecutioner)
         {
-            context.Debug.BuffState = "Spending Executioner stacks";
+            context.Debug.EnshroudDecision = "Spending Executioner stacks";
             return;
         }
         // Ideal Host grants a FREE Enshroud (no Shroud cost) — bypass the gauge requirement when it's up.
         if (!context.HasIdealHost && context.Shroud < context.Configuration.Reaper.ShroudMinGauge)
         {
-            context.Debug.BuffState = $"Need {context.Configuration.Reaper.ShroudMinGauge} Shroud ({context.Shroud}/{context.Configuration.Reaper.ShroudMinGauge})";
+            context.Debug.EnshroudDecision = $"Need {context.Configuration.Reaper.ShroudMinGauge} Shroud ({context.Shroud}/{context.Configuration.Reaper.ShroudMinGauge})";
             return;
         }
-        if (!context.ActionService.IsActionReady(RPRActions.Enshroud.ActionId)) return;
+        if (!context.ActionService.IsActionReady(RPRActions.Enshroud.ActionId))
+        {
+            context.Debug.EnshroudDecision = "On cooldown";
+            return;
+        }
 
         if (context.Configuration.Reaper.EnableBurstPooling
             && context.Configuration.Reaper.SaveShroudForBurst
             && ShouldHoldForBurst(context.Configuration.Reaper.ArcaneCircleHoldTime)
             && context.Shroud < 90)
         {
-            context.Debug.BuffState = "Holding Enshroud for burst";
+            context.Debug.EnshroudDecision = "Holding for burst window";
             return;
         }
 
-        bool shouldEnshroud = context.HasIdealHost
-                              || (context.Configuration.Reaper.UseEnshroudDuringArcaneCircle && context.HasArcaneCircle)
-                              || context.Shroud >= 90
-                              || (context.HasDeathsDesign && context.DeathsDesignRemaining > 15f);
-        if (!shouldEnshroud)
-        {
-            context.Debug.BuffState = "Waiting for burst window";
-            return;
-        }
-        if (!context.HasDeathsDesign || context.DeathsDesignRemaining < 10f)
-        {
-            context.Debug.BuffState = "Need Death's Design refresh";
-            return;
-        }
+        // By here we have the Shroud gauge (or Ideal Host) and we are NOT pooling for a real burst
+        // window (the ShouldHoldForBurst check above respects the solo fallback), so Enshroud fires.
+        // NOTE: Enshroud is intentionally NOT gated on Death's Design. DD is great to have up during
+        // the burst, and the rotation maintains it separately, but requiring it to ENTER Enshroud
+        // blocked the burst whenever the current target briefly lacked the DoT (target swaps in packs)
+        // — and forcing DD high-priority to satisfy that gate made it re-apply every swap, starving the
+        // Soul Reaver spenders that build Shroud. Decoupling fixes both the burst and Shroud generation.
+
+        // All gates passed — Enshroud is queued. Set the row here (not only in onDispatched) so when it
+        // queues but loses the oGCD weave / never dispatches we see "Ready — queued" instead of a stale
+        // bail reason from an earlier frame. onDispatched overwrites this with "Entering Enshroud".
+        context.Debug.EnshroudDecision = $"Ready — queued (Shroud {context.Shroud}, DD {context.DeathsDesignRemaining:F0}s)";
 
         scheduler.PushOgcd(ThanatosAbilities.Enshroud, player.GameObjectId, priority: 2,
             onDispatched: _ =>
             {
                 context.Debug.PlannedAction = RPRActions.Enshroud.Name;
-                context.Debug.BuffState = "Entering Enshroud";
+                context.Debug.EnshroudDecision = "Entering Enshroud";
 
                 var reason = context.HasArcaneCircle ? "Arcane Circle active" :
                              context.Shroud >= 90 ? "Shroud gauge nearly full" :

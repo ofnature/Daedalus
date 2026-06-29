@@ -293,6 +293,8 @@ public sealed class ThanatosContext : IThanatosContext
         Debug.IsEnshrouded = IsEnshrouded;
         Debug.HasSoulReaver = HasSoulReaver;
         Debug.SoulReaverStacks = SoulReaverStacks;
+        Debug.HasExecutioner = HasExecutioner;
+        Debug.ExecutionerStacks = ExecutionerStacks;
 
         // Enhanced buffs
         Debug.HasEnhancedGibbet = HasEnhancedGibbet;

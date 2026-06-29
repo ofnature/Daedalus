@@ -226,11 +226,14 @@ public sealed class DamageModule : IThanatosModule
         if (context.Soul >= context.Configuration.Reaper.SoulOvercapThreshold) { /* force spend — fall through */ }
         else if (context.Soul < context.Configuration.Reaper.SoulMinGauge) return;
 
-        // Gluttony preferred (60s CD, 2 SR stacks)
+        // Gluttony preferred (60s CD, 2 SR stacks) — fire on cooldown as the premium Soul spender.
+        // NOTE: do NOT gate on IsActionReady(Enshroud): Enshroud is gauge-gated, so its short cooldown
+        // is up almost always, which made that clause permanently false and Gluttony never fired.
+        // Gluttony and Enshroud are independent (Soul vs Shroud) — Enshroud already wins the weave when
+        // both are pushable (BuffModule collects before DamageModule), so no extra guard is needed.
         if (level >= RPRActions.Gluttony.MinLevel && context.Configuration.Reaper.EnableGluttony
             && context.ActionService.IsActionReady(RPRActions.Gluttony.ActionId)
-            && !(context.Configuration.Reaper.EnableBurstPooling && ShouldHoldForBurst(8f))
-            && context.Shroud < 50 && !context.ActionService.IsActionReady(RPRActions.Enshroud.ActionId))
+            && !(context.Configuration.Reaper.EnableBurstPooling && ShouldHoldForBurst(8f)))
         {
             scheduler.PushOgcd(ThanatosAbilities.Gluttony, target.GameObjectId, priority: 2,
                 onDispatched: _ =>
@@ -752,7 +755,15 @@ public sealed class DamageModule : IThanatosModule
         if (level < action.MinLevel) return;
         if (!context.ActionService.IsActionReady(action.ActionId)) return;
 
-        scheduler.PushGcd(ability, target.GameObjectId, priority: 7,
+        // Death's Design is foundational (10% damage debuff + 10 Soul), so when it's absent apply it
+        // promptly — but BELOW the Soul Reaver spenders (priority 4) so it never steals the GCDs that
+        // build Shroud. An earlier version used priority 3 (above Soul Reaver); combined with target
+        // swaps in packs (each fresh mob reads as un-DoT'd) it re-applied DD ~2x too often and starved
+        // Shroud generation. Priority 5 when absent still beats the basic combo/soul builder (8) so DD
+        // goes up at pull start and in any gap where no reaver is pending; lazy (7) when just refreshing.
+        var ddPriority = context.HasDeathsDesign ? 7 : 5;
+
+        scheduler.PushGcd(ability, target.GameObjectId, priority: ddPriority,
             onDispatched: _ =>
             {
                 context.Debug.PlannedAction = action.Name;

@@ -30,6 +30,10 @@ public static class ThanatosTab
         DrawEnshroudSection(state);
         ImGui.Spacing();
 
+        // Decision reasons (why Enshroud / soul spenders did or didn't fire)
+        DrawDecisionSection(state);
+        ImGui.Spacing();
+
         // Buffs Section
         DrawBuffSection(state);
         ImGui.Spacing();
@@ -116,6 +120,54 @@ public static class ThanatosTab
             {
                 ImGui.TextDisabled(Loc.T(LocalizedStrings.Debug.JobInactiveLabel, "Inactive"));
             }
+
+            // Executioner (Lv.96+ Gluttony grant)
+            ImGui.TableNextRow();
+            ImGui.TableNextColumn();
+            ImGui.Text("Executioner:");
+            ImGui.TableNextColumn();
+            if (state.HasExecutioner)
+            {
+                ImGui.TextColored(new Vector4(1f, 0.6f, 0.2f, 1f), Loc.TFormat(LocalizedStrings.Debug.StacksFormat, "{0} stacks", state.ExecutionerStacks));
+            }
+            else
+            {
+                ImGui.TextDisabled(Loc.T(LocalizedStrings.Debug.JobInactiveLabel, "Inactive"));
+            }
+        }, 140f);
+    }
+
+    private static void DrawDecisionSection(ThanatosDebugState state)
+    {
+        DebugTabHelpers.DrawSection("Decisions", "RprDecisionTable", () =>
+        {
+            // Arcane Circle decision (separate row so it doesn't clobber the Enshroud reason)
+            ImGui.TableNextRow();
+            ImGui.TableNextColumn();
+            ImGui.Text("Arcane Circle:");
+            ImGui.TableNextColumn();
+            ImGui.TextWrapped(string.IsNullOrEmpty(state.ArcaneCircleState) ? "—" : state.ArcaneCircleState);
+
+            // Enshroud decision (why Enshroud did or didn't fire)
+            ImGui.TableNextRow();
+            ImGui.TableNextColumn();
+            ImGui.Text("Enshroud:");
+            ImGui.TableNextColumn();
+            ImGui.TextWrapped(string.IsNullOrEmpty(state.EnshroudDecision) ? "—" : state.EnshroudDecision);
+
+            // Damage module reason (soul spender / combo / Executioner)
+            ImGui.TableNextRow();
+            ImGui.TableNextColumn();
+            ImGui.Text("Damage:");
+            ImGui.TableNextColumn();
+            ImGui.TextWrapped(string.IsNullOrEmpty(state.DamageState) ? "—" : state.DamageState);
+
+            // Last planned action
+            ImGui.TableNextRow();
+            ImGui.TableNextColumn();
+            ImGui.Text("Planned:");
+            ImGui.TableNextColumn();
+            ImGui.TextWrapped(string.IsNullOrEmpty(state.PlannedAction) ? "—" : state.PlannedAction);
         }, 140f);
     }
 

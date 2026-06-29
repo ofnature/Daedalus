@@ -12,6 +12,10 @@ public sealed class ThanatosDebugState : IEnemyPackDebug
     public string DamageState { get; set; } = "";
     public string BuffState { get; set; } = "";
 
+    // Split buff-decision reasons so Arcane Circle and Enshroud don't clobber a shared row.
+    public string ArcaneCircleState { get; set; } = "";
+    public string EnshroudDecision { get; set; } = "";
+
     // Current action planning
     public string PlannedAction { get; set; } = "";
     public string PlanningState { get; set; } = "";
@@ -27,6 +31,8 @@ public sealed class ThanatosDebugState : IEnemyPackDebug
     public bool IsEnshrouded { get; set; }
     public bool HasSoulReaver { get; set; }
     public int SoulReaverStacks { get; set; }
+    public bool HasExecutioner { get; set; }
+    public int ExecutionerStacks { get; set; }
 
     // Enhanced buff tracking
     public bool HasEnhancedGibbet { get; set; }

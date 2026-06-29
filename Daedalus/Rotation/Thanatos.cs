@@ -314,7 +314,22 @@ public sealed class Thanatos : BaseMeleeDpsRotation<IThanatosContext, IThanatosM
             module.CollectCandidates(context, _scheduler, isMoving);
 
         if (inCombat && ActionService.CanExecuteOgcd)
-            _scheduler.DispatchOgcd(context);
+        {
+            var ogcd = _scheduler.DispatchOgcd(context);
+            // Surface why Enshroud was refused at execution (UseAction returned false) when it queued
+            // but didn't win — otherwise the Enshroud row stays on the stale "Ready — queued" breadcrumb.
+            if (ogcd.GateFailReasons is { } reasons)
+            {
+                foreach (var r in reasons)
+                {
+                    if (r.StartsWith("Enshroud:", System.StringComparison.Ordinal))
+                    {
+                        _thanatosDebugState.EnshroudDecision = r;
+                        break;
+                    }
+                }
+            }
+        }
 
         if (ActionService.CanExecuteGcd)
         {
