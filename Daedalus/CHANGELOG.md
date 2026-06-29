@@ -5,6 +5,10 @@ All notable changes to Daedalus will be documented in this file.
 <!-- LATEST-START -->
 ## v0.1.0 — 2026-06-27
 
+### Improved — Reaper ranged filler & smarter Enshroud
+- Reaper now uses **Harpe** as a ranged filler when an AoE mechanic forces you out of melee range, so the GCD keeps rolling instead of dropping to auto-attacks (Harvest Moon is still preferred when Soulsow is up). Only used while standing at range — it won't waste a cast trying to fire while you're moving (unless Enhanced Harpe makes it instant)
+- Enshroud no longer gets blown on a dying target in dungeons: if every enemy in range is about to die, it holds the burst. Never applies in trials/raids (boss HP makes it pointless). Tunable via "Skip Enshroud on dying target" under the Reaper Enshroud settings (default 5%, 0 to disable)
+
 ### New — Missing window (unlocked-ability check)
 - Added a **Missing** window (button in the main window footer, next to Debug) that scans your current job's abilities and flags any that are high enough level but **not actually unlocked** — almost always an uncompleted job quest. Updates automatically for whatever job you're on. Handy when leveling via AutoDuty: if a key ability silently never fires (like Reaper's Enshroud before its Lv80 quest), this tells you exactly which quest you're missing. Expand "All expected abilities" to see the full unlocked/locked list
 

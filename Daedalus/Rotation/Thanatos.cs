@@ -72,6 +72,9 @@ public sealed class Thanatos : BaseMeleeDpsRotation<IThanatosContext, IThanatosM
     // Training service for explaining rotation decisions (optional)
     private readonly ITrainingService? _trainingService;
 
+    // Duty classifier for the content-aware Enshroud low-HP gate (optional)
+    private readonly Daedalus.Services.Content.IDutyContentService? _dutyContentService;
+
     // Gauge values (read each frame)
     private int _soul;
     private int _shroud;
@@ -108,7 +111,8 @@ public sealed class Thanatos : BaseMeleeDpsRotation<IThanatosContext, IThanatosM
         IBurstWindowService? burstWindowService = null,
         IErrorMetricsService? errorMetrics = null,
         Daedalus.Services.Consumables.ITinctureDispatcher? tinctureDispatcher = null,
-        Daedalus.Services.Pull.IPullIntentService? pullIntentService = null)
+        Daedalus.Services.Pull.IPullIntentService? pullIntentService = null,
+        Daedalus.Services.Content.IDutyContentService? dutyContentService = null)
         : base(
             log,
             actionTracker,
@@ -133,6 +137,7 @@ public sealed class Thanatos : BaseMeleeDpsRotation<IThanatosContext, IThanatosM
         _timelineService = timelineService;
         _partyCoordinationService = partyCoordinationService;
         _trainingService = trainingService;
+        _dutyContentService = dutyContentService;
 
         _positionalAnticipationProvider = new DelegatePositionalAnticipationProvider(() =>
         {
@@ -148,7 +153,7 @@ public sealed class Thanatos : BaseMeleeDpsRotation<IThanatosContext, IThanatosM
         // Initialize modules (ordered by priority - lower = executed first)
         _modules = new List<IThanatosModule>
         {
-            new BuffModule(BurstWindowService),    // Priority 20 - Buff management (Arcane Circle, Enshroud)
+            new BuffModule(BurstWindowService, _dutyContentService),    // Priority 20 - Buff management (Arcane Circle, Enshroud)
             new DamageModule(BurstWindowService, SmartAoEService),  // Priority 30 - DPS rotation
         };
 

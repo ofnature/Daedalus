@@ -3,7 +3,10 @@ using Daedalus.Rotation.Common.Helpers;
 using Daedalus.Rotation.Common.Scheduling;
 using Daedalus.Rotation.ThanatosCore.Abilities;
 using Daedalus.Rotation.ThanatosCore.Context;
+using Daedalus.Rotation.ThanatosCore.Helpers;
 using Daedalus.Services;
+using Daedalus.Services.Content;
+using Daedalus.Services.Targeting;
 using Daedalus.Services.Training;
 
 namespace Daedalus.Rotation.ThanatosCore.Modules;
@@ -18,10 +21,12 @@ public sealed class BuffModule : IThanatosModule
     public string Name => "Buff";
 
     private readonly IBurstWindowService? _burstWindowService;
+    private readonly IDutyContentService? _dutyContentService;
 
-    public BuffModule(IBurstWindowService? burstWindowService = null)
+    public BuffModule(IBurstWindowService? burstWindowService = null, IDutyContentService? dutyContentService = null)
     {
         _burstWindowService = burstWindowService;
+        _dutyContentService = dutyContentService;
     }
 
     private bool ShouldHoldForBurst(float thresholdSeconds = 8f) =>
@@ -150,6 +155,23 @@ public sealed class BuffModule : IThanatosModule
         {
             context.Debug.EnshroudDecision = "On cooldown";
             return;
+        }
+
+        // Auto-config low-HP gate: in dungeon / open-world content, don't blow Enshroud when everything
+        // in range is about to die (the burst would be wasted). Never gates in trials/raids/high-end —
+        // boss HP makes it pointless. Uses the HEALTHIEST enemy so a healthy pack never trips it.
+        var hpThreshold = context.Configuration.Reaper.EnshroudSkipBelowTargetHpPercent;
+        if (hpThreshold > 0f)
+        {
+            var profile = _dutyContentService?.EffectiveProfile ?? EffectiveDutyProfile.None;
+            var best = context.TargetingService.FindEnemyForAction(
+                EnemyTargetingStrategy.HighestHp, RPRActions.Slice.ActionId, player);
+            var hpFraction = best is { MaxHp: > 0 } ? (float)best.CurrentHp / best.MaxHp : 1f;
+            if (ThanatosEnshroudPolicy.ShouldSkipForLowHp(profile, hpFraction, hpThreshold))
+            {
+                context.Debug.EnshroudDecision = $"Target dying ({hpFraction * 100f:F0}% < {hpThreshold:F0}%, dungeon)";
+                return;
+            }
         }
 
         if (context.Configuration.Reaper.EnableBurstPooling

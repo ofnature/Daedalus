@@ -103,6 +103,7 @@ public sealed class DamageModule : IThanatosModule
         TryPushExecutionerGcd(context, scheduler, target, enemyCount);
         TryPushSoulReaverGcd(context, scheduler, target, enemyCount);
         TryPushHarvestMoon(context, scheduler, target);
+        TryPushHarpe(context, scheduler, target);
         TryPushDeathsDesign(context, scheduler, target, enemyCount);
         TryPushSoulBuilder(context, scheduler, target, enemyCount);
         TryPushBasicCombo(context, scheduler, target, enemyCount);
@@ -739,6 +740,44 @@ public sealed class DamageModule : IThanatosModule
                     .Concept("rpr_harvest_moon")
                     .Record();
                 context.TrainingService?.RecordConceptApplication("rpr_harvest_moon", true, "Ranged GCD option");
+            });
+    }
+
+    /// <summary>
+    /// Harpe — ranged single-target filler when forced out of melee (e.g. an AoE mechanic pushes you out
+    /// or spreads the group). Fallback below Harvest Moon (which needs Soulsow); covers the common case
+    /// where Soulsow isn't up. Harpe has a cast time unless Enhanced Harpe is active, so it's only used
+    /// while standing at range — never while actively moving without the instant proc (the cast would be
+    /// interrupted and wasted).
+    /// </summary>
+    private void TryPushHarpe(IThanatosContext context, RotationScheduler scheduler, IBattleChara target)
+    {
+        var player = context.Player;
+        if (player.Level < RPRActions.Harpe.MinLevel) return;
+        // In melee and not moving → use the melee combo instead.
+        if (DistanceHelper.IsActionInRange(RPRActions.Slice.ActionId, player, target) && !context.IsMoving) return;
+        // Cast-time GCD: don't start it while moving unless Enhanced Harpe makes it instant.
+        if (context.IsMoving && !context.HasEnhancedHarpe) return;
+        if (!context.ActionService.IsActionReady(RPRActions.Harpe.ActionId)) return;
+
+        scheduler.PushGcd(ThanatosAbilities.Harpe, target.GameObjectId, priority: 7,
+            onDispatched: _ =>
+            {
+                context.Debug.PlannedAction = RPRActions.Harpe.Name;
+                context.Debug.DamageState = "Harpe (ranged filler)";
+
+                TrainingHelper.Decision(context.TrainingService)
+                    .Action(RPRActions.Harpe.ActionId, RPRActions.Harpe.Name)
+                    .AsMeleeDamage()
+                    .Target(target.Name?.TextValue ?? "Target")
+                    .Reason("Using Harpe (ranged filler)",
+                        "Harpe is the basic ranged GCD. Use it to keep casting when an AoE mechanic forces " +
+                        "you out of melee range and Harvest Moon (Soulsow) isn't available.")
+                    .Factors(new[] { "Out of melee range", context.HasEnhancedHarpe ? "Enhanced Harpe (instant)" : "Standing cast" })
+                    .Alternatives(new[] { "Harvest Moon when Soulsow is up", "Melee GCDs when in range" })
+                    .Tip("Harpe keeps your GCD rolling during forced ranged uptime.")
+                    .Concept("rpr_harpe")
+                    .Record();
             });
     }
 

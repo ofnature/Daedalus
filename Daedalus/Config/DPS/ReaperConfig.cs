@@ -112,6 +112,18 @@ public sealed class ReaperConfig
     /// </summary>
     public bool SaveShroudForBurst { get; set; } = true;
 
+    /// <summary>
+    /// In dungeon / open-world content, skip Enshroud when no enemy in range is above this HP% (the
+    /// target is about to die, so the burst would be wasted). Never applied in trials/raids/high-end —
+    /// boss HP pools make the gate pointless there. 0 disables the gate entirely. Default 5%.
+    /// </summary>
+    private float _enshroudSkipBelowTargetHpPercent = 5f;
+    public float EnshroudSkipBelowTargetHpPercent
+    {
+        get => _enshroudSkipBelowTargetHpPercent;
+        set => _enshroudSkipBelowTargetHpPercent = Math.Clamp(value, 0f, 50f);
+    }
+
     #endregion
 
     #region Burst Window Settings

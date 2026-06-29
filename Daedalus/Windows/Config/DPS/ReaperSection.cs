@@ -157,6 +157,13 @@ public sealed class ReaperSection
                 v => config.Reaper.SaveShroudForBurst = v,
                 Loc.T(LocalizedStrings.Reaper.SaveShroudForBurstDesc, "Hold Shroud gauge for burst windows"), save);
 
+            config.Reaper.EnshroudSkipBelowTargetHpPercent = ConfigUIHelpers.FloatSlider(
+                Loc.T("config.reaper.enshroud_skip_lowhp", "Skip Enshroud on dying target (dungeon)"),
+                config.Reaper.EnshroudSkipBelowTargetHpPercent, 0f, 20f, "%.0f%%",
+                Loc.T("config.reaper.enshroud_skip_lowhp_desc",
+                    "In dungeons/open world, don't use Enshroud when every enemy in range is below this HP% (about to die — burst wasted). Never applies in trials/raids. 0 = always use Enshroud."),
+                save, v => config.Reaper.EnshroudSkipBelowTargetHpPercent = v);
+
             ConfigUIHelpers.EndIndent();
         }
     }
