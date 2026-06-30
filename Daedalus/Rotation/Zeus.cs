@@ -213,14 +213,14 @@ public sealed class Zeus : BaseMeleeDpsRotation<IZeusContext, IZeusModule>
         return comboAction switch
         {
             // Single-target combo
-            75 => 1,     // True Thrust
+            75 or 16479 => 1,     // True Thrust / Raiden Thrust (proc'd starter — game reports this id)
             78 => 2,     // Vorpal Thrust
             87 => 2,     // Disembowel
             84 or 25771 => 3,  // Full Thrust / Heavens' Thrust
             88 or 25772 => 3,  // Chaos Thrust / Chaotic Spring
 
             // AoE combo
-            86 => 1,     // Doom Spike
+            86 or 25770 => 1,     // Doom Spike / Draconian Fury (proc'd AoE starter)
             7397 => 2,   // Sonic Thrust
             16477 => 3,  // Coerthan Torment
 

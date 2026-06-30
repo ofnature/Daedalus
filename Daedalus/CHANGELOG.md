@@ -15,6 +15,9 @@ All notable changes to Daedalus will be documented in this file.
 - Lily cap prevention is now proactive: it spends a Lily at 2/3 when the next one is about to tick (not only at 3/3), so a Lily regen is never wasted — which also feeds Blood Lily → Afflatus Misery faster
 - Co-healer GCD gating: with a co-healer present, a White Mage set to the **Co** role now leaves non-critical GCD heals to the Main healer and oGCDs to keep up DPS (parity with AST/SGE). Critical targets still get healed, and it has no effect when solo-healing. New "GCD Heals Only When Solo Healer" toggle under Co-Healer Coordination
 
+### Fix — Dragoon combo broke after level 76
+- Once Raiden Thrust (Lv.76) or Draconian Fury (Lv.82) replaced True Thrust / Doom Spike as the combo starter, the rotation no longer recognized the combo had started, so it kept re-pressing the starter instead of advancing to step 2 — stalling the whole 1-2-3. The combo now treats Raiden Thrust and Draconian Fury as valid starters, so the chain flows correctly at all levels
+
 ### Fix — Monk never reached Phantom Rush
 - Perfect Balance was rebuilding the Nadi you already had instead of the one you were missing, so Monk would make Lunar (or Solar) over and over and never assemble both — meaning Phantom Rush, its strongest GCD (1500 potency), never fired. Perfect Balance now builds the missing Nadi each time (Solar = one of each form, Lunar = three Opo-opo GCDs), opening Solar first for the safest sequence, so the Lunar → Solar → Phantom Rush cycle works
 

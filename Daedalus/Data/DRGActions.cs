@@ -32,6 +32,45 @@ public static class DRGActions
     };
 
     /// <summary>
+    /// Raiden Thrust - replaces True Thrust as the combo starter (Lv.76) when the Draconian Fire / Sharper
+    /// proc is active. Same combo position as True Thrust (step 1); higher potency + builds Firstmind's Focus.
+    /// The game reports THIS id in Combo.Action once it fires, so combo step detection must treat it as a starter.
+    /// </summary>
+    public static readonly ActionDefinition RaidenThrust = new()
+    {
+        ActionId = 16479,
+        Name = "Raiden Thrust",
+        MinLevel = 76,
+        Category = ActionCategory.GCD,
+        TargetType = ActionTargetType.SingleEnemy,
+        EffectTypes = ActionEffectType.Damage,
+        CastTime = 0f,
+        RecastTime = 2.5f,
+        Range = 3f,
+        MpCost = 0,
+        DamagePotency = 320
+    };
+
+    /// <summary>
+    /// Draconian Fury - replaces Doom Spike as the AoE combo starter (Lv.82) when the proc is active.
+    /// Same combo position as Doom Spike (AoE step 1). Reported in Combo.Action once it fires.
+    /// </summary>
+    public static readonly ActionDefinition DraconianFury = new()
+    {
+        ActionId = 25770,
+        Name = "Draconian Fury",
+        MinLevel = 82,
+        Category = ActionCategory.GCD,
+        TargetType = ActionTargetType.SingleEnemy,
+        EffectTypes = ActionEffectType.Damage,
+        CastTime = 0f,
+        RecastTime = 2.5f,
+        Range = 10f,
+        MpCost = 0,
+        DamagePotency = 130
+    };
+
+    /// <summary>
     /// Vorpal Thrust - Second combo action (Lv.4)
     /// Leads to Heavens' Thrust / Full Thrust
     /// </summary>

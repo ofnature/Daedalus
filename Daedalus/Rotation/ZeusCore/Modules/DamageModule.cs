@@ -673,8 +673,9 @@ public sealed class DamageModule : IZeusModule
             }
         }
 
-        // Step 2: choose Vorpal Thrust vs Disembowel based on Power Surge / DoT health
-        if (comboActive && lastAction == DRGActions.TrueThrust.ActionId)
+        // Step 2: choose Vorpal Thrust vs Disembowel based on Power Surge / DoT health.
+        // Accept Raiden Thrust too — past Lv.76 the starter morphs and the game reports its id here.
+        if (comboActive && (lastAction == DRGActions.TrueThrust.ActionId || lastAction == DRGActions.RaidenThrust.ActionId))
         {
             var needsPowerSurge = !context.HasPowerSurge || context.PowerSurgeRemaining < 10f;
             var needsDot = !context.HasDotOnTarget || context.DotRemaining < 5f;
@@ -802,8 +803,8 @@ public sealed class DamageModule : IZeusModule
             return;
         }
 
-        // Step 2: Sonic Thrust
-        if (comboActive && lastAction == DRGActions.DoomSpike.ActionId
+        // Step 2: Sonic Thrust (accept Draconian Fury — the proc'd AoE starter the game reports here)
+        if (comboActive && (lastAction == DRGActions.DoomSpike.ActionId || lastAction == DRGActions.DraconianFury.ActionId)
             && level >= DRGActions.SonicThrust.MinLevel
             && context.ActionService.IsActionReady(DRGActions.SonicThrust.ActionId))
         {

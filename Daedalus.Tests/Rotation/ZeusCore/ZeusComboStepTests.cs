@@ -16,6 +16,8 @@ public class ZeusComboStepTests
     [InlineData(0u, 30f, 0)]        // No combo
     [InlineData(75u, 0f, 0)]        // True Thrust - timer expired
     [InlineData(75u, 30f, 1)]       // True Thrust → step 1
+    [InlineData(16479u, 30f, 1)]    // Raiden Thrust (Lv.76 proc'd starter) → step 1
+    [InlineData(25770u, 30f, 1)]    // Draconian Fury (Lv.82 proc'd AoE starter) → step 1
     [InlineData(78u, 30f, 2)]       // Vorpal Thrust → step 2
     [InlineData(87u, 30f, 2)]       // Disembowel → step 2
     [InlineData(84u, 30f, 3)]       // Full Thrust → step 3
