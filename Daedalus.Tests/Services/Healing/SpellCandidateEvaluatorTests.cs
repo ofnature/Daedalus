@@ -33,6 +33,7 @@ public class SpellCandidateEvaluatorTests
         public bool CanExecuteOgcd => true;
         public Func<ulong, bool>? KardiaRecastGuard { get; set; }
         public Action<ulong>? FaceTargetOnStuck { get; set; }
+        public Func<ulong>? HardTargetIdProvider { get; set; }
 
         private readonly HashSet<uint> readyActions = [];
         private readonly Dictionary<uint, float> cooldowns = [];

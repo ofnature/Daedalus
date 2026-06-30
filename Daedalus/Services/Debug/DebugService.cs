@@ -61,6 +61,7 @@ public sealed class DebugService
     private readonly IDataManager _dataManager;
     private readonly Configuration _configuration;
     private readonly Daedalus.Services.Positional.Navigation.IVNavService _vNav;
+    private readonly DebugLogService? _debugLog;
 
     // Cached snapshot - updated on demand
     private DebugSnapshot? _cachedSnapshot;
@@ -80,7 +81,8 @@ public sealed class DebugService
         IObjectTable objectTable,
         IDataManager dataManager,
         Configuration configuration,
-        Daedalus.Services.Positional.Navigation.IVNavService vNav)
+        Daedalus.Services.Positional.Navigation.IVNavService vNav,
+        DebugLogService? debugLog = null)
     {
         _actionTracker = actionTracker;
         _actionService = actionService;
@@ -95,14 +97,65 @@ public sealed class DebugService
         _dataManager = dataManager;
         _configuration = configuration;
         _vNav = vNav;
+        _debugLog = debugLog;
     }
 
+    /// <summary>Idle seconds (in combat, enemies engaged) before a no-dispatch stall is logged. Tunable.</summary>
+    private const double StallLogThresholdSeconds = 4.0;
+
     /// <summary>
-    /// Call once per frame to increment frame counter.
+    /// Call once per frame to increment frame counter and detect no-dispatch stalls.
     /// </summary>
     public void Update()
     {
         _currentFrame++;
+        DetectAndLogStall();
+    }
+
+    /// <summary>
+    /// Logs a genuine stall — in combat with enemies engaged but nothing has fired for a while — to the
+    /// curated debug log. Complements the per-cast refusal lines: this catches the "never even tried to
+    /// cast" gaps (no castable target in range) that produce no UseAction refusal. Travel between packs
+    /// (no enemies nearby) and intentional safety pauses (Pyretic / channel) are deliberately excluded, so
+    /// only real stalls log. The message is stable so coalescing collapses the whole stall into one line
+    /// whose span shows how long it lasted.
+    /// </summary>
+    private void DetectAndLogStall()
+    {
+        if (_debugLog is null)
+            return;
+        var player = _objectTable.LocalPlayer;
+        if (player == null)
+            return;
+
+        // Travel / repositioning, not a stall: a real rotation stall is stationary (the 12s facing bug had
+        // vNav Idle). While vNav is actively pathing, the bot is running to the next pack — an engaged mob
+        // it's approaching trips the wide "engaged" scan below, so suppress to avoid false positives.
+        if (_vNav.IsPathRunning)
+            return;
+
+        var cfg = _configuration.Targeting;
+        // Intentional safety pauses are correct behaviour, not stalls.
+        if (cfg.PauseAllOnStandStillPunisher && PlayerSafetyHelper.IsStandStillPunisherActive(player))
+            return;
+        if (cfg.PauseOnPlayerChannel && PlayerSafetyHelper.IsPlayerIntentChannelActive(player))
+            return;
+
+        var idle = _actionService.SecondsSinceLastAction;
+        if (idle <= StallLogThresholdSeconds || idle >= 600.0)
+            return;
+        if (_targetingService.CountEnemyPack(5f, player).Engaged <= 0)
+            return; // travel between packs — no enemies, not a stall
+
+        var inCombat = (Daedalus.Rotation.Base.RotationServices.Condition?[
+                            Dalamud.Game.ClientState.Conditions.ConditionFlag.InCombat] ?? false)
+                       || (player.StatusFlags & Dalamud.Game.ClientState.Objects.Enums.StatusFlags.InCombat) != 0;
+
+        var reason = inCombat
+            ? "stalled — no castable action while enemies are engaged (in combat)"
+            : "stalled — enemies engaged but rotation idle (not flagged in combat)";
+
+        _debugLog.Log(DebugLogCategory.Targeting, DebugLogSeverity.Warning, reason);
     }
 
     /// <summary>

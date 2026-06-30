@@ -140,6 +140,7 @@ public abstract class BaseRotation<TContext, TModule> : IRotation, IDisposable
         // commits), re-face the target by hard-targeting it. Auto-face can't self-correct because the
         // game only turns the character on a successful cast. Shared across all jobs.
         ActionService.FaceTargetOnStuck = TargetingService.EnsureHardTarget;
+        ActionService.HardTargetIdProvider = TargetingService.GetGameHardTargetId;
         PlayerStatsService = playerStatsService;
         DebuffDetectionService = debuffDetectionService;
         ErrorMetrics = errorMetrics;
@@ -276,6 +277,13 @@ public abstract class BaseRotation<TContext, TModule> : IRotation, IDisposable
         // This prevents stutter-casting when player briefly stops during movement
         var timeSinceMovement = (FrameTimestamp - _lastMovementTime).TotalSeconds;
         var isMoving = positionChanged || timeSinceMovement < Configuration.MovementTolerance;
+
+        // vNav actively pathing the toon (AutoDuty) counts as moving even across its micro-pauses, where
+        // position-based detection flickers false between steps. Without this a hard-cast can start during a
+        // brief pause and then get interrupted when vNav resumes — the Stone IV "submitted but not cast /
+        // not ready (582)" loop that the position-only check missed.
+        if (RotationServices.VNav?.IsPathRunning == true)
+            isMoving = true;
 
         return (isMoving, positionChanged);
     }
@@ -503,6 +511,7 @@ public abstract class BaseRotation<TContext, TModule> : IRotation, IDisposable
         // Drop the face-recovery hook so a shared ActionService doesn't hold a disposed TargetingService.
         // The next rotation re-wires it in its constructor.
         ActionService.FaceTargetOnStuck = null;
+        ActionService.HardTargetIdProvider = null;
         Dispose(true);
         GC.SuppressFinalize(this);
     }

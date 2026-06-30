@@ -119,6 +119,9 @@ public interface ITargetingService
     /// </summary>
     void EnsureHardTarget(ulong enemyGameObjectId);
 
+    /// <summary>Current game hard-target GameObjectId, or 0 if none. Used for stuck diagnostics.</summary>
+    ulong GetGameHardTargetId();
+
     /// <summary>
     /// Returns true when damage targeting should be paused because the player has
     /// intentionally dropped their target and <see cref="Config.TargetingConfig.PauseWhenNoTarget"/> is ON.

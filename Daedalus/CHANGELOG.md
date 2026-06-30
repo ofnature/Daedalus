@@ -15,6 +15,16 @@ All notable changes to Daedalus will be documented in this file.
 - Lily cap prevention is now proactive: it spends a Lily at 2/3 when the next one is about to tick (not only at 3/3), so a Lily regen is never wasted — which also feeds Blood Lily → Afflatus Misery faster
 - Co-healer GCD gating: with a co-healer present, a White Mage set to the **Co** role now leaves non-critical GCD heals to the Main healer and oGCDs to keep up DPS (parity with AST/SGE). Critical targets still get healed, and it has no effect when solo-healing. New "GCD Heals Only When Solo Healer" toggle under Co-Healer Coordination
 
+### New — Debug Log tab + file
+- Added a **Debug Log** tab to the Debug window that surfaces meaningful failures only — actions the game refused to cast (not facing / line of sight / etc.) and failed BossMod config pushes — without the per-frame rotation chatter. Repeated identical events are collapsed into one line with a running ×count and how long the condition has persisted (e.g. "×42 over 11.9s"), so a stall reads as one self-timing entry instead of a flood
+- Refused-cast lines name the target and flag whether it matches your hard target ("hard target MISMATCH — auto-face turns elsewhere"), which pinpoints the common "stuck, won't cast" cause at a glance
+- Also catches **no-dispatch stalls** — being stuck in combat with enemies engaged but nothing firing (no castable target in range), even when no cast was ever attempted. Travel between packs and intentional safety pauses (Pyretic / look-away) are excluded, so only real stalls log
+- The same events are mirrored to `daedalus-debug.log` in the plugin config folder for after-the-fact inspection. Toggle file writing with "Write to file" in the tab (on by default); filter by category, copy, or clear from the same tab
+
+### Fix — Casters no longer jam or stall while moving
+- Fixed a rotation deadlock that could freeze a job for many seconds (seen on White Mage in AutoDuty): once a cast was interrupted in a certain way the rotation got stuck on "already submitted this GCD cycle" with the GCD sitting ready and nothing firing. It now recovers within a fraction of a second. This is a dispatcher-level fix, so it hardens every job
+- While the character is moving — e.g. AutoDuty pathing you to the next mob or out of an AoE — casters and healers no longer keep trying to start hard-cast GCDs (Stone IV, Glare, Fire/Blizzard, etc.) that get interrupted before they finish, which previously left the rotation spinning. Hard-casts are now held while moving (this also tracks the plugin's own pathing, not just raw position) and instant GCDs — DoT refreshes, Swiftcast'd casts — carry the rotation until you stop
+
 ### Improved — Dancer dance partner
 - Auto-partner now upgrades mid-fight: if a higher-priority partner becomes available (e.g. a better DPS revives or joins), Dancer switches Closed Position to them instead of only re-partnering when the current one dies. It only ever moves to a strictly better job, so it never flip-flops between equal partners (requires "auto re-partner")
 - Refreshed the partner priority for the current patch — Pictomancer is now picked first, ahead of the melee, matching its top-tier value as a dance partner

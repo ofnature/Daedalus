@@ -18,6 +18,12 @@ public sealed class DebugConfig
     public bool EnableVerboseLogging { get; set; } = false;
 
     /// <summary>
+    /// Mirror the in-game Debug Log tab to <c>daedalus-debug.log</c> in the plugin config directory.
+    /// Captures curated diagnostic events (refused casts, failed BossMod pushes) — not per-frame chatter.
+    /// </summary>
+    public bool EnableDebugLogFile { get; set; } = true;
+
+    /// <summary>
     /// Visibility settings for debug window sections.
     /// Key is section name, value is whether it's visible.
     /// </summary>

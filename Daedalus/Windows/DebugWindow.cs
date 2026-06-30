@@ -20,6 +20,7 @@ public sealed class DebugWindow : Window
     private readonly Configuration _configuration;
     private readonly ITimelineService? _timelineService;
     private readonly SmartAoETab? _smartAoETab;
+    private readonly Daedalus.Services.Debug.DebugLogService? _debugLogService;
 
     private uint _selectedJobId; // 0 = unset; auto-selects active job on next Draw
 
@@ -55,13 +56,14 @@ public sealed class DebugWindow : Window
         (JobRegistry.Pictomancer, JobRegistry.GetJobName(JobRegistry.Pictomancer)),
     ];
 
-    public DebugWindow(DebugService debugService, Configuration configuration, ITimelineService? timelineService = null, SmartAoETab? smartAoETab = null)
+    public DebugWindow(DebugService debugService, Configuration configuration, ITimelineService? timelineService = null, SmartAoETab? smartAoETab = null, Daedalus.Services.Debug.DebugLogService? debugLogService = null)
         : base(Loc.T(LocalizedStrings.Debug.WindowTitle, "Daedalus Debug"), ImGuiWindowFlags.NoSavedSettings)
     {
         _debugService = debugService;
         _configuration = configuration;
         _timelineService = timelineService;
         _smartAoETab = smartAoETab;
+        _debugLogService = debugLogService;
 
         Size = new Vector2(550, 450);
         SizeCondition = ImGuiCond.FirstUseEver;
@@ -95,6 +97,12 @@ public sealed class DebugWindow : Window
             if (ImGui.BeginTabItem(Loc.T(LocalizedStrings.Debug.TabWhyStuck, "Why Stuck?")))
             {
                 WhyStuckTab.Draw(snapshot, _configuration, _debugService.GetIrisDebugState());
+                ImGui.EndTabItem();
+            }
+
+            if (_debugLogService != null && ImGui.BeginTabItem(Loc.T(LocalizedStrings.Debug.TabDebugLog, "Debug Log")))
+            {
+                DebugLogTab.Draw(_debugLogService, _configuration);
                 ImGui.EndTabItem();
             }
 

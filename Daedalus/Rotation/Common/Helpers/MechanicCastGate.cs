@@ -23,6 +23,14 @@ public static class MechanicCastGate
     {
         if (castTime <= 0f) return false;
 
+        // Movement gate (unconditional): a hard-cast can't complete while the character is moving — in
+        // AutoDuty, vNav walks the toon to the mob / out of AoE, interrupting every Stone IV/Glare so the
+        // GCD never finishes and the game rejects everything ("not ready", status 582). Hold the hard-cast
+        // and let instants (castTime<=0, returned above) carry the rotation while moving. This mirrors the
+        // base damage module's `CanSingleTarget => !isMoving`; scheduler-based casters that bypass that flow
+        // (WHM/BLM/RDM …) only reach this gate, so it must live here too.
+        if (context.IsMoving) return true;
+
         var cfg = context.Configuration.Timeline;
         if (!cfg.EnableMechanicAwareCasting) return false;
         if (!cfg.EnableTimelinePredictions) return false;
@@ -50,6 +58,8 @@ public static class MechanicCastGate
     /// </summary>
     public static string FormatBlockedState(IRotationContext context)
     {
+        if (context.IsMoving) return "Held cast (moving — instants only)";
+
         var timeline = context.TimelineService;
         if (timeline == null) return "Held cast (mechanic)";
 

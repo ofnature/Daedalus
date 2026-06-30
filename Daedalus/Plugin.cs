@@ -76,6 +76,7 @@ public sealed class Plugin : IDalamudPlugin
     private readonly ShieldTrackingService shieldTrackingService;
     private readonly HpPredictionService hpPredictionService;
     private readonly ActionService actionService;
+    private readonly Daedalus.Services.Debug.DebugLogService debugLogService;
     private readonly PlayerStatsService playerStatsService;
     private readonly HealingSpellSelector healingSpellSelector;
     private readonly SpellStatusService spellStatusService;
@@ -250,7 +251,10 @@ public sealed class Plugin : IDalamudPlugin
             configuration,
             shieldTrackingService,
             damageTrendService);
-        this.actionService = new ActionService(actionTracker, objectTable: objectTable, dataManager: dataManager);
+        this.debugLogService = new Daedalus.Services.Debug.DebugLogService(
+            configuration, pluginInterface.ConfigDirectory.FullName, log);
+        this.actionService = new ActionService(actionTracker, objectTable: objectTable, dataManager: dataManager,
+            debugLog: debugLogService);
         this.playerStatsService = new PlayerStatsService(log, dataManager);
 
         // Healing spell selector (evaluates all heals and picks the best)
@@ -283,9 +287,10 @@ public sealed class Plugin : IDalamudPlugin
         // Melee DPS services
         this.positionalService = new PositionalService();
         this.vNavService = new VNavService(pluginInterface, log);
+        Rotation.Base.RotationServices.VNav = vNavService;
         this.bossModSafetyService = new BossModSafetyService(pluginInterface, log);
         this.positionalMovementService = new PositionalMovementService(vNavService, bossModSafetyService);
-        this.bmrAiConfigService = new BmrAiConfigService(pluginInterface, bossModSafetyService, log);
+        this.bmrAiConfigService = new BmrAiConfigService(pluginInterface, bossModSafetyService, log, debugLogService);
         this.samuraiPositionalAnticipationProvider = new SamuraiPositionalAnticipationProvider();
         this.ninjaPositionalAnticipationProvider = new NinjaPositionalAnticipationProvider();
         this.ninjaBurstApproachService = new NinjaBurstApproachService(vNavService, bossModSafetyService);
@@ -418,7 +423,8 @@ public sealed class Plugin : IDalamudPlugin
             objectTable,
             dataManager,
             configuration,
-            vNavService);
+            vNavService,
+            debugLogService);
 
         this.drawingService = new DrawingService(pluginInterface, configuration.DrawHelper, gameGui, log);
         this.drawCanvas = new DrawCanvas(drawingService, configuration, objectTable, clientState, targetManager, gameGui, positionalService, rotationManager, partyList);
@@ -430,7 +436,7 @@ public sealed class Plugin : IDalamudPlugin
         this.missingWindow = new MissingWindow(debugService);
         this.mainWindow = new MainWindow(configuration, SaveConfiguration, OpenConfigUI, OpenDebugUI, OpenAnalyticsUI, OpenTrainingUI, OpenChangelogUI, OpenOverlayUI, OpenControlUI, OpenNavControlUI, OpenRaidUI, OpenMissingUI, PluginVersion, rotationManager, textureProvider);
         var smartAoETab = new SmartAoETab(aoeTracker, drawCanvas, objectTable);
-        this.debugWindow = new DebugWindow(debugService, configuration, timelineService, smartAoETab);
+        this.debugWindow = new DebugWindow(debugService, configuration, timelineService, smartAoETab, debugLogService);
         this.welcomeWindow = new WelcomeWindow(configuration, SaveConfiguration, OpenConfigUI);
         this.analyticsWindow = new AnalyticsWindow(performanceTracker, configuration, SaveConfiguration, fflogsService, fightSummaryService);
         this.trainingWindow = new TrainingWindow(trainingService, configuration, decisionValidationService, spacedRepetitionService);

@@ -74,6 +74,13 @@ public interface IActionService
     Action<ulong>? FaceTargetOnStuck { get; set; }
 
     /// <summary>
+    /// Optional provider of the current game hard-target GameObjectId (0 if none). Wired to
+    /// <c>TargetingService.GetGameHardTargetId</c>. Used only by the cast-refusal diagnostic to report
+    /// whether the action's target matches the hard target (auto-face can only turn toward the hard target).
+    /// </summary>
+    Func<ulong>? HardTargetIdProvider { get; set; }
+
+    /// <summary>
     /// Checks if a specific action is off cooldown.
     /// </summary>
     bool IsActionReady(uint actionId);

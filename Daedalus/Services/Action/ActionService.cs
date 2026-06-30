@@ -55,6 +55,11 @@ public sealed unsafe class ActionService : IActionService
     // Null when the last GCD succeeded or was refused by the game (scheduler enriches that case).
     private string? _lastGcdRejectReason;
 
+    // Curated diagnostic log (refused casts surface here, separate from the Dalamud log). Nullable.
+    private readonly Daedalus.Services.Debug.DebugLogService? _debugLog;
+    // Display name of the last GCD we submitted, for the "submitted but not cast" diagnostic.
+    private string _lastSubmittedActionName = "";
+
     // Minimal action history (last GCD / last oGCD id) for oGCD sequencing consumers.
     private readonly ActionHistory _history = new();
 
@@ -141,6 +146,9 @@ public sealed unsafe class ActionService : IActionService
     /// <inheritdoc/>
     public Action<ulong>? FaceTargetOnStuck { get; set; }
 
+    /// <inheritdoc/>
+    public Func<ulong>? HardTargetIdProvider { get; set; }
+
     /// <summary>Last executed action (for debugging).</summary>
     public ActionDefinition? LastExecutedAction => _lastExecutedAction;
 
@@ -208,12 +216,14 @@ public sealed unsafe class ActionService : IActionService
         IActionTracker actionTracker,
         IErrorMetricsService? errorMetrics = null,
         IObjectTable? objectTable = null,
-        IDataManager? dataManager = null)
+        IDataManager? dataManager = null,
+        Daedalus.Services.Debug.DebugLogService? debugLog = null)
     {
         _actionTracker = actionTracker;
         _errorMetrics = errorMetrics;
         _objectTable = objectTable;
         _dataManager = dataManager;
+        _debugLog = debugLog;
         _weaveOptimizer = new WeaveOptimizer();
     }
 
@@ -280,11 +290,15 @@ public sealed unsafe class ActionService : IActionService
 
         var secondsSinceSubmit = (DateTime.UtcNow - _lastExecuteTime).TotalSeconds;
 
-        // Stale guard: submit accepted but recast group 57 never activated. The action was queued but the
-        // game never executed it (rejected at fire time for facing / LoS / range). Record the real reason
-        // from a target-aware status query (the multi-mob spam read as a guess before) and, if it's a
-        // facing refusal, force a re-face so the next attempt commits instead of re-queuing.
-        if (_gcdSubmittedThisCycle && !_gcdRecastSeenSinceSubmit
+        // Stale guard: submit accepted but the GCD isn't actually casting. Either recast group 57 never
+        // activated (queued action rejected at fire time for facing / LoS / range), OR the recast is no
+        // longer active while the latch is still set — the deadlock where a cast was seen + read as
+        // "completed" but the GCD is sitting Ready, so neither the 85% release (needs recastActive) nor
+        // stale-guard #2 (needs !HasCompletedSubmittedRecast) clears it, latching "already submitted this
+        // GCD cycle" indefinitely. The `!recastActive` term recovers that: no active recast + >0.5s since
+        // submit means nothing is in flight. The time threshold protects the normal queue-window carry
+        // (the next GCD's recast activates within a frame, so secondsSinceSubmit stays tiny there).
+        if (_gcdSubmittedThisCycle && (!_gcdRecastSeenSinceSubmit || !recastActive)
             && secondsSinceSubmit > UncommittedSubmitStaleSeconds)
         {
             _gcdSubmittedThisCycle = false;
@@ -300,6 +314,8 @@ public sealed unsafe class ActionService : IActionService
                         ? $"submitted but not cast (game status {status})"
                         : "submitted but not cast (line-of-sight / facing / moving?)";
                 TryFaceRecovery(_lastSubmittedDispatchId, _lastSubmittedTargetId);
+                LogCastRefusal(_lastSubmittedActionName, _lastSubmittedDispatchId, _lastSubmittedTargetId,
+                    submittedNotCast: true);
             }
         }
 
@@ -433,6 +449,7 @@ public sealed unsafe class ActionService : IActionService
             // Facing recovery: the game refused outright; if it's because we aren't facing the target,
             // force a re-face (hard-target) so the next attempt lands instead of stalling (PLD case).
             TryFaceRecovery(dispatchId, targetId);
+            LogCastRefusal(action.Name, dispatchId, targetId, submittedNotCast: false);
         }
 
         if (result)
@@ -440,6 +457,7 @@ public sealed unsafe class ActionService : IActionService
             _gcdSubmittedThisCycle = true;
             _lastSubmittedDispatchId = dispatchId;
             _lastSubmittedTargetId = targetId;
+            _lastSubmittedActionName = action.Name;
             _blockedRepeatGcdDispatchId = dispatchId;
             RecordChargeBasedGcdSubmit(dispatchId);
             _gcdRecastSeenSinceSubmit = false;
@@ -851,6 +869,60 @@ public sealed unsafe class ActionService : IActionService
         563 => "target not in line of sight",
         _ => null,
     };
+
+    private static string NameOr(string name, string fallback)
+        => string.IsNullOrEmpty(name) ? fallback : name;
+
+    /// <summary>
+    /// Surfaces a genuine "couldn't cast this action" event to the curated debug log. Skips pure
+    /// out-of-range (562) — that's normal movement between packs, not a real cast failure.
+    /// </summary>
+    private void LogCastRefusal(string actionName, uint dispatchId, ulong targetId, bool submittedNotCast)
+    {
+        if (_debugLog is null)
+            return;
+
+        // A cast is in flight: the real GCD is casting fine, and this submit is just a duplicate re-probe of
+        // it (the scheduler re-submitting Holy/Stone while it's already mid-cast). Not a refusal — don't log.
+        if (_lastIsCasting)
+            return;
+
+        var status = targetId != 0 ? GetActionStatusCode(dispatchId, targetId) : 0u;
+        // 562 = out of range (movement between packs, not a cast failure).
+        // 582 = "not ready" — the GCD is already in flight / mid-cast and the scheduler re-probed the same
+        // action (a duplicate-GCD probe, e.g. while a hard-cast is rolling), not a genuine refusal.
+        if (status == 562 || status == 582)
+            return;
+
+        var label = DescribeStatusReason(status)
+            ?? (status != 0 ? $"game status {status}" : "facing / line-of-sight / moving?");
+
+        // Hard-target comparison: auto-face only turns toward the HARD target, so if the action's target
+        // isn't the hard target the cast keeps failing facing. This tag tells the two stall causes apart.
+        // Self-targeted actions (PBAoE like Vicepit/Steel Maw, self-buffs) dispatch at the player, so the
+        // hard-target comparison is meaningless for them — never flag those as a mismatch.
+        var selfId = _objectTable?.LocalPlayer?.GameObjectId ?? 0;
+        string targetTag;
+        if (targetId != 0 && targetId == selfId)
+        {
+            targetTag = " [self-targeted]";
+        }
+        else
+        {
+            var hardId = HardTargetIdProvider?.Invoke() ?? 0;
+            targetTag = hardId == 0
+                ? " [no hard target]"
+                : hardId == targetId
+                    ? " [hard target matches]"
+                    : " [hard target MISMATCH — auto-face turns elsewhere]";
+        }
+
+        var targetName = targetId != 0 ? ResolveTargetInfo(targetId).name ?? "Target" : "Target";
+        var verb = submittedNotCast ? "submitted but not cast" : "unable to cast";
+        _debugLog.Log(Daedalus.Services.Debug.DebugLogCategory.Action,
+            Daedalus.Services.Debug.DebugLogSeverity.Warning,
+            $"{verb}: {NameOr(actionName, "Action")} -> {targetName} — {label}{targetTag}");
+    }
 
     /// <summary>
     /// Invoke the face-the-target hook (hard-targets the enemy) when a GCD was refused for a reason that

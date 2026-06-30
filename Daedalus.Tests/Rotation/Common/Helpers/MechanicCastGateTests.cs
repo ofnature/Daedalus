@@ -19,7 +19,8 @@ public class MechanicCastGateTests
         bool enableGate = true,
         bool enablePredictions = true,
         float threshold = 0.8f,
-        bool timelineNull = false)
+        bool timelineNull = false,
+        bool isMoving = false)
     {
         var config = new Configuration();
         config.Timeline.EnableMechanicAwareCasting = enableGate;
@@ -28,6 +29,7 @@ public class MechanicCastGateTests
 
         var ctx = new Mock<IRotationContext>();
         ctx.SetupGet(c => c.Configuration).Returns(config);
+        ctx.SetupGet(c => c.IsMoving).Returns(isMoving);
 
         if (timelineNull)
         {
@@ -137,6 +139,44 @@ public class MechanicCastGateTests
     {
         var ctx = BuildContext(enablePredictions: false, raidwide: new MechanicPrediction { SecondsUntil = 1f });
         Assert.False(MechanicCastGate.ShouldBlock(ctx.Object, castTime: 2.5f));
+    }
+
+    [Fact]
+    public void Moving_HardCast_ReturnsTrue()
+    {
+        // No mechanic at all — movement alone must block a hard-cast (AutoDuty vNav interrupting casts).
+        var ctx = BuildContext(raidwide: null, tankbuster: null, isMoving: true);
+        Assert.True(MechanicCastGate.ShouldBlock(ctx.Object, castTime: 2.5f));
+    }
+
+    [Fact]
+    public void Moving_InstantCast_ReturnsFalse()
+    {
+        // Instants are still allowed while moving (DoT refresh, Swiftcast'd nukes).
+        var ctx = BuildContext(isMoving: true);
+        Assert.False(MechanicCastGate.ShouldBlock(ctx.Object, castTime: 0f));
+    }
+
+    [Fact]
+    public void Moving_BlocksEvenWhenTimelineGateDisabled()
+    {
+        // Movement blocking is unconditional — independent of the mechanic-aware-casting config.
+        var ctx = BuildContext(enableGate: false, enablePredictions: false, timelineNull: true, isMoving: true);
+        Assert.True(MechanicCastGate.ShouldBlock(ctx.Object, castTime: 2.5f));
+    }
+
+    [Fact]
+    public void NotMoving_NoMechanic_ReturnsFalse()
+    {
+        var ctx = BuildContext(raidwide: null, tankbuster: null, isMoving: false);
+        Assert.False(MechanicCastGate.ShouldBlock(ctx.Object, castTime: 2.5f));
+    }
+
+    [Fact]
+    public void FormatBlockedState_Moving_ShowsMoving()
+    {
+        var ctx = BuildContext(isMoving: true);
+        Assert.StartsWith("Held cast (moving", MechanicCastGate.FormatBlockedState(ctx.Object));
     }
 
     [Fact]

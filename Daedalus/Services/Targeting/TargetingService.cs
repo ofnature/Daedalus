@@ -736,6 +736,9 @@ public sealed class TargetingService : ITargetingService
             SetGameHardTarget(enemy);
     }
 
+    /// <inheritdoc />
+    public ulong GetGameHardTargetId() => _targetManager.Target?.GameObjectId ?? 0;
+
     /// <summary>
     /// Layer 3: bypass StrictCurrentTargetStrategy for explicit-strategy → aggregate fallback.
     /// </summary>

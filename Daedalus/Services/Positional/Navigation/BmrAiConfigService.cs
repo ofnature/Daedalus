@@ -25,6 +25,7 @@ public sealed class BmrAiConfigService
     private readonly IDalamudPluginInterface _pi;
     private readonly IBossModSafetyService _bmr;
     private readonly IPluginLog? _log;
+    private readonly Daedalus.Services.Debug.DebugLogService? _debugLog;
 
     private ICallGateSubscriber<List<string>, bool, List<string>>? _configIpc;
     private ICallGateSubscriber<string>? _getPresetIpc;
@@ -35,11 +36,13 @@ public sealed class BmrAiConfigService
     private bool _movementOnlyApplied;
     private bool _wasEnabled;
 
-    public BmrAiConfigService(IDalamudPluginInterface pi, IBossModSafetyService bmr, IPluginLog? log = null)
+    public BmrAiConfigService(IDalamudPluginInterface pi, IBossModSafetyService bmr, IPluginLog? log = null,
+        Daedalus.Services.Debug.DebugLogService? debugLog = null)
     {
         _pi = pi;
         _bmr = bmr;
         _log = log;
+        _debugLog = debugLog;
     }
 
     public readonly record struct Request(
@@ -140,14 +143,25 @@ public sealed class BmrAiConfigService
         {
             var result = _configIpc?.InvokeFunc(new List<string> { "AIConfig", field, value }, false);
             // BMR returns lines on error (config/field not found, conversion failure); empty list = success.
-            LastPushResult = result is { Count: > 0 }
-                ? $"{field}={value}: {string.Join("; ", result)}"
-                : $"{field}={value}: ok";
+            if (result is { Count: > 0 })
+            {
+                LastPushResult = $"{field}={value}: {string.Join("; ", result)}";
+                _debugLog?.Log(Daedalus.Services.Debug.DebugLogCategory.Nav,
+                    Daedalus.Services.Debug.DebugLogSeverity.Warning,
+                    $"BMR config push rejected: {field}={value} — {string.Join("; ", result)}");
+            }
+            else
+            {
+                LastPushResult = $"{field}={value}: ok";
+            }
         }
         catch (System.Exception ex)
         {
             LastPushResult = $"{field}={value}: IPC threw ({ex.Message})";
             _log?.Debug(ex, "[BmrAiConfigService] Failed to push AIConfig.{Field}={Value}", field, value);
+            _debugLog?.Log(Daedalus.Services.Debug.DebugLogCategory.Nav,
+                Daedalus.Services.Debug.DebugLogSeverity.Error,
+                $"BMR config push failed: {field}={value} — IPC threw ({ex.Message})");
         }
     }
 

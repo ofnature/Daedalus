@@ -2613,6 +2613,7 @@ public static class LocalizedStrings
         // Tab names
         public const string TabOverview = "debug.tab.overview";
         public const string TabWhyStuck = "debug.tab.why_stuck";
+        public const string TabDebugLog = "debug.tab.debug_log";
         public const string TabHealing = "debug.tab.healing";
         public const string TabDamage = "debug.tab.damage";
         public const string TabMitigation = "debug.tab.mitigation";
