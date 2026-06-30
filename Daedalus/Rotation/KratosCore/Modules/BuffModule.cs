@@ -3,6 +3,7 @@ using Daedalus.Rotation.Common.Helpers;
 using Daedalus.Rotation.Common.Scheduling;
 using Daedalus.Rotation.KratosCore.Abilities;
 using Daedalus.Rotation.KratosCore.Context;
+using Daedalus.Rotation.KratosCore.Helpers;
 using Daedalus.Services;
 using Daedalus.Services.Training;
 
@@ -221,9 +222,9 @@ public sealed class BuffModule : IKratosModule
     private static string DetermineTargetBlitz(IKratosContext context)
     {
         if (context.HasBothNadi) return "Phantom Rush";
-        if (!context.HasLunarNadi) return "Elixir Field (Lunar)";
-        if (!context.HasSolarNadi) return "Rising Phoenix (Solar)";
-        return "Phantom Rush";
+        return KratosNadiPolicy.ShouldBuildSolar(context.HasLunarNadi, context.HasSolarNadi)
+            ? "Rising Phoenix (Solar)"
+            : "Elixir Burst (Lunar)";
     }
 
     private void TryPushRiddleOfWind(IKratosContext context, RotationScheduler scheduler)

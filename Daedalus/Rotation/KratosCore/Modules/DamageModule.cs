@@ -8,6 +8,7 @@ using Daedalus.Rotation.Common.RoleActionHelpers;
 using Daedalus.Rotation.Common.Scheduling;
 using Daedalus.Rotation.KratosCore.Abilities;
 using Daedalus.Rotation.KratosCore.Context;
+using Daedalus.Rotation.KratosCore.Helpers;
 using Daedalus.Services;
 using Daedalus.Services.Action;
 using Daedalus.Services.Positional;
@@ -743,10 +744,10 @@ public sealed class DamageModule : IKratosModule
         if (string.IsNullOrWhiteSpace(chakraStr)) chakraStr = "None";
 
         if (context.HasBothNadi)
-            return ("Phantom Rush", "Both Nadi active - using same Beast Chakra type 3 times for Phantom Rush.", chakraStr, "Spam Opo-opo GCDs for highest potency Phantom Rush.");
-        if (context.HasLunarNadi)
-            return ("Solar Nadi", "Have Lunar, need Solar. Building 2 same + 1 different for Rising Phoenix.", chakraStr, "Use Opo-opo twice, then a different form.");
-        return ("Lunar Nadi", "Need Lunar first. Building 3 different Beast Chakra for Elixir Field.", chakraStr, "Use Opo → Raptor → Coeurl for Elixir Field.");
+            return ("Phantom Rush", "Both Nadi active - 3 identical Opo-opo GCDs for Phantom Rush.", chakraStr, "Spam Opo-opo GCDs for the 1500-potency Phantom Rush.");
+        if (KratosNadiPolicy.ShouldBuildSolar(context.HasLunarNadi, context.HasSolarNadi))
+            return ("Solar Nadi", "Building one of each form (Opo → Raptor → Coeurl) for Rising Phoenix (Solar).", chakraStr, "Use a different form for each of the 3 Perfect Balance GCDs.");
+        return ("Lunar Nadi", "Building 3 identical Opo-opo GCDs for Elixir Burst (Lunar).", chakraStr, "Use Opo-opo GCDs x3 for the Lunar Nadi.");
     }
 
     private ActionDefinition? GetPerfectBalanceAction(IKratosContext context, bool useAoe)
@@ -757,47 +758,24 @@ public sealed class DamageModule : IKratosModule
         var hasRaptor = context.BeastChakra1 == 2 || context.BeastChakra2 == 2 || context.BeastChakra3 == 2;
         var hasCoeurl = context.BeastChakra1 == 3 || context.BeastChakra2 == 3 || context.BeastChakra3 == 3;
 
-        if (context.HasBothNadi)
-        {
-            return useAoe
-                ? (level >= MNKActions.ShadowOfTheDestroyer.MinLevel ? MNKActions.ShadowOfTheDestroyer : MNKActions.ArmOfTheDestroyer)
-                : GetOpoOpoAction(context, (uint)level);
-        }
-        if (context.HasLunarNadi)
-        {
-            if (!hasOpo || (hasOpo && !hasRaptor && !hasCoeurl))
-            {
-                return useAoe
-                    ? (level >= MNKActions.ShadowOfTheDestroyer.MinLevel ? MNKActions.ShadowOfTheDestroyer : MNKActions.ArmOfTheDestroyer)
-                    : GetOpoOpoAction(context, (uint)level);
-            }
-            return useAoe
-                ? ResolveRaptorAoEAction(level, context.ActionService)
-                : GetRaptorAction(context, (uint)level);
-        }
+        // Build the nadi we're MISSING (so we eventually hold both → Phantom Rush). The old logic rebuilt
+        // whichever nadi we already had and never reached Phantom Rush. See KratosNadiPolicy.
+        var nextForm = KratosNadiPolicy.NextForm(
+            context.HasLunarNadi, context.HasSolarNadi, hasOpo, hasRaptor, hasCoeurl);
 
-        if (!hasOpo)
+        return nextForm switch
         {
-            return useAoe
+            MnkPbForm.OpoOpo => useAoe
                 ? (level >= MNKActions.ShadowOfTheDestroyer.MinLevel ? MNKActions.ShadowOfTheDestroyer : MNKActions.ArmOfTheDestroyer)
-                : GetOpoOpoAction(context, (uint)level);
-        }
-        if (!hasRaptor)
-        {
-            return useAoe
+                : GetOpoOpoAction(context, (uint)level),
+            MnkPbForm.Raptor => useAoe
                 ? ResolveRaptorAoEAction(level, context.ActionService)
-                : GetRaptorAction(context, (uint)level);
-        }
-        if (!hasCoeurl)
-        {
-            return useAoe
+                : GetRaptorAction(context, (uint)level),
+            MnkPbForm.Coeurl => useAoe
                 ? (level >= MNKActions.Rockbreaker.MinLevel ? MNKActions.Rockbreaker : MNKActions.SnapPunch)
-                : GetCoeurlAction(context, (uint)level);
-        }
-
-        return useAoe
-            ? (level >= MNKActions.ShadowOfTheDestroyer.MinLevel ? MNKActions.ShadowOfTheDestroyer : MNKActions.ArmOfTheDestroyer)
-            : GetOpoOpoAction(context, (uint)level);
+                : GetCoeurlAction(context, (uint)level),
+            _ => GetOpoOpoAction(context, (uint)level),
+        };
     }
 
     private static ActionDefinition ResolveRaptorAoEAction(byte level, IActionService actionService)
