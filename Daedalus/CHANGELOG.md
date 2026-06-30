@@ -5,6 +5,10 @@ All notable changes to Daedalus will be documented in this file.
 <!-- LATEST-START -->
 ## v0.1.0 — 2026-06-27
 
+### Fix — Viper combo could lock up
+
+- Fixed a rare Viper stall where the rotation would freeze on its combo (Why Stuck showing the finisher rejected, nothing else firing): if the game's combo state briefly desynced, the finisher was rejected and nothing fell back to the basic combo. Viper now keeps the basic starter (Steel/Reaving Fangs, or Steel/Reaving Maw in AoE) ready as a fallback, so a rejected finisher restarts the combo instead of stalling — without disturbing positional holds
+
 ### Fix — Esuna now cleanses "esuna check" debuffs by default (all healers)
 - Unrecognized dispellable debuffs were treated as low priority and skipped at the default Esuna setting. Many dungeon/trial/raid "cleanse or wipe" mechanics use a unique debuff the bot doesn't have hardcoded, so they could be missed. These now default to medium priority and get cleansed at the default threshold. Known harmless movement debuffs (Bind/Heavy/Blind) are unaffected. Applies to all four healers
 

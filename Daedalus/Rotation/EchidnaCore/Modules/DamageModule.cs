@@ -787,6 +787,14 @@ public sealed class DamageModule : IEchidnaModule
                     context.TrainingService?.RecordConceptApplication("vpr.combo_basics", true, "Combo starter");
                 }
             });
+
+        // Combo-desync fallback (GNB lesson): a continuation/finisher passes the module's cooldown-only
+        // IsActionReady yet gets rejected by the scheduler's status check when the game's combo/Venom state
+        // desynced — with no fallback the rotation stalls (Why Stuck: finisher rejected "ActionStatus" and
+        // nothing else). Queue the basic starter one priority lower so a rejected finisher restarts the
+        // combo. Only after a non-starter step was queued, so the positional-hold return above is preserved.
+        if (action != VPRActions.SteelFangs && action != VPRActions.ReavingFangs)
+            TryPushComboStarterFallback(context, scheduler, target, useAoe: false);
     }
 
     private void TryPushAoeDualWieldCombo(IEchidnaContext context, RotationScheduler scheduler, IBattleChara target, int enemyCount)
@@ -836,6 +844,10 @@ public sealed class DamageModule : IEchidnaModule
                     .Record();
                 context.TrainingService?.RecordConceptApplication("vpr.combo_basics", true, "AoE combo");
             });
+
+        // Same combo-desync fallback as the ST combo (see TryPushSingleTargetDualWieldCombo).
+        if (action != VPRActions.SteelMaw && action != VPRActions.ReavingMaw)
+            TryPushComboStarterFallback(context, scheduler, target, useAoe: true);
     }
 
     private void TryPushWrithingSnap(IEchidnaContext context, RotationScheduler scheduler, IBattleChara target, bool isMoving)
@@ -902,6 +914,28 @@ public sealed class DamageModule : IEchidnaModule
         if (action == VPRActions.SteelMaw) return EchidnaAbilities.SteelMaw;
         if (action == VPRActions.ReavingMaw) return EchidnaAbilities.ReavingMaw;
         return EchidnaAbilities.SteelMaw;
+    }
+
+    /// <summary>
+    /// Queues the basic dual-wield starter (Steel/Reaving Fangs ST, Steel/Reaving Maw AoE) at a low
+    /// priority so a rejected combo continuation/finisher can't stall the rotation. AoE starters are
+    /// point-blank, so they dispatch at the player; ST starters at the enemy.
+    /// </summary>
+    private void TryPushComboStarterFallback(IEchidnaContext context, RotationScheduler scheduler, IBattleChara target, bool useAoe)
+    {
+        var starter = useAoe ? GetAoeStarterAction(context) : GetStarterAction(context);
+        if (context.Player.Level < starter.MinLevel) return;
+        if (!context.ActionService.IsActionReady(starter.ActionId)) return;
+
+        var ability = useAoe ? MapAoeStarter(starter) : MapStarter(starter);
+        var pushTarget = useAoe ? context.Player.GameObjectId : target.GameObjectId;
+        var starterRef = starter;
+        scheduler.PushGcd(ability, pushTarget, priority: 7,
+            onDispatched: _ =>
+            {
+                context.Debug.PlannedAction = starterRef.Name;
+                context.Debug.DamageState = $"{starterRef.Name} (combo restart)";
+            });
     }
 
     private static bool ShouldRefreshNoxiousGnash(IEchidnaContext context)
