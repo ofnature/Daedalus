@@ -5,6 +5,10 @@ All notable changes to Daedalus will be documented in this file.
 <!-- LATEST-START -->
 ## v0.1.0 — 2026-06-27
 
+### Fix — Missing window no longer flags upgraded abilities
+
+- The Missing window could list a base ability as "not unlocked" even when its trait upgrade was on your bar and being used (e.g. Monk's Howling Fist shown as missing while Enlightenment — its level-74 upgrade — was firing). It now recognizes that a castable upgrade means the ability is available, so only genuinely locked abilities (uncompleted job quests) are listed
+
 ### Fix — Viper combo could lock up
 
 - Fixed a rare Viper stall where the rotation would freeze on its combo (Why Stuck showing the finisher rejected, nothing else firing): if the game's combo state briefly desynced, the finisher was rejected and nothing fell back to the basic combo. Viper now keeps the basic starter (Steel/Reaving Fangs, or Steel/Reaving Maw in AoE) ready as a fallback, so a rejected finisher restarts the combo instead of stalling — without disturbing positional holds

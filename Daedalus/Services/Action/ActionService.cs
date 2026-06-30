@@ -958,6 +958,13 @@ public sealed unsafe class ActionService : IActionService
             checkRecastActive: false,
             checkCastingActive: false);
 
+        // A trait upgrade replaces the base on the bar (e.g. Howling Fist → Enlightenment at Lv74). When the
+        // upgraded action is castable, the ability is genuinely available — don't report the base as
+        // "missing" just because the base row's own UnlockLink reads unsatisfied; the castable upgrade
+        // proves the chain is unlocked. (A truly locked ability returns status 565 here and falls through.)
+        if (adjustedId != actionId && status != ActionStatusNotLearned)
+            return true;
+
         return status != ActionStatusNotLearned
             && ActionUnlockHelper.IsActionQuestUnlocked(_dataManager, actionId);
     }
