@@ -425,7 +425,7 @@ public sealed class Plugin : IDalamudPlugin
         this.updateCheckerService = new UpdateCheckerService(PluginVersion, notificationManager, log);
         this.configWindow = new ConfigWindow(configuration, SaveConfiguration, updateCheckerService, textureProvider, dutyContentService);
         this.controlWindow = new ControlWindow(configuration, SaveConfiguration, rotationManager, textureProvider);
-        this.navControlWindow = new NavControlWindow(configuration, SaveConfiguration);
+        this.navControlWindow = new NavControlWindow(configuration, SaveConfiguration, bmrAiConfigService);
         this.raidWindow = new RaidWindow(configuration, SaveConfiguration, dutyContentService);
         this.missingWindow = new MissingWindow(debugService);
         this.mainWindow = new MainWindow(configuration, SaveConfiguration, OpenConfigUI, OpenDebugUI, OpenAnalyticsUI, OpenTrainingUI, OpenChangelogUI, OpenOverlayUI, OpenControlUI, OpenNavControlUI, OpenRaidUI, OpenMissingUI, PluginVersion, rotationManager, textureProvider);

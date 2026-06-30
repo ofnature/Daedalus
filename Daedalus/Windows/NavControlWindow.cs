@@ -2,6 +2,7 @@ using System;
 using System.Numerics;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.Windowing;
+using Daedalus.Services.Positional.Navigation;
 using Daedalus.Windows.Config;
 
 namespace Daedalus.Windows;
@@ -14,12 +15,14 @@ public sealed class NavControlWindow : Window
 {
     private readonly Configuration configuration;
     private readonly Action saveConfiguration;
+    private readonly BmrAiConfigService bmrAiConfigService;
 
-    public NavControlWindow(Configuration configuration, Action saveConfiguration)
+    public NavControlWindow(Configuration configuration, Action saveConfiguration, BmrAiConfigService bmrAiConfigService)
         : base("Nav Control", ImGuiWindowFlags.NoCollapse)
     {
         this.configuration = configuration;
         this.saveConfiguration = saveConfiguration;
+        this.bmrAiConfigService = bmrAiConfigService;
 
         Size = new Vector2(340, 280);
         SizeCondition = ImGuiCond.FirstUseEver;
@@ -91,6 +94,8 @@ public sealed class NavControlWindow : Window
                 "How far healers/ranged/casters stand from the target. 15y is inside cast range but out of "
                 + "most melee/AoE. Melee always hug (2.6y).",
                 saveConfiguration);
+
+            DrawBmrStatus();
         }
 
         ImGui.Spacing();
@@ -117,5 +122,50 @@ public sealed class NavControlWindow : Window
         {
             nav.TankMode = tankMode;
         }
+    }
+
+    private static readonly Vector4 Green = new(0.40f, 0.85f, 0.40f, 1f);
+    private static readonly Vector4 Yellow = new(0.95f, 0.80f, 0.30f, 1f);
+    private static readonly Vector4 Red = new(0.90f, 0.45f, 0.45f, 1f);
+
+    /// <summary>
+    /// Live diagnostics for the BMR push — without this it's a black box, since BMR can't be exercised in
+    /// tests. Shows whether BMR is loaded, whether a preset is blocking our config, and the last IPC result.
+    /// </summary>
+    private void DrawBmrStatus()
+    {
+        ImGui.Spacing();
+        ImGui.Indent();
+
+        if (!bmrAiConfigService.BmrAvailable)
+        {
+            ImGui.TextColored(Red, "BossMod Reborn: not loaded");
+            ImGui.Unindent();
+            return;
+        }
+
+        ImGui.TextColored(Green, "BossMod Reborn: loaded");
+
+        var preset = bmrAiConfigService.CurrentAiPreset();
+        if (string.IsNullOrEmpty(preset))
+        {
+            ImGui.TextColored(Green, "AI preset: none (movement config active)");
+        }
+        else
+        {
+            ImGui.TextColored(Yellow, $"AI preset loaded: {preset}");
+            ImGui.TextWrapped("A loaded AI preset does its own positioning and ignores Daedalus's distance/"
+                + "positional. Clear it in BMR's AI window for this to control movement.");
+        }
+
+        var result = bmrAiConfigService.LastPushResult;
+        if (!string.IsNullOrEmpty(result))
+        {
+            var ok = result.EndsWith(": ok", StringComparison.Ordinal);
+            ImGui.TextColored(ok ? Green : Yellow, $"Last push: {result}");
+        }
+
+        ImGui.TextDisabled("Enable BMR AI itself with /bmrai.");
+        ImGui.Unindent();
     }
 }
