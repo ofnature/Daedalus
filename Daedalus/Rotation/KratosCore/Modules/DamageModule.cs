@@ -125,7 +125,7 @@ public sealed class DamageModule : IKratosModule
         TryPushWindsReply(context, scheduler, target);
         TryPushPerfectBalanceAction(context, scheduler, target, useAoE);
         TryPushFormRotation(context, scheduler, target, useAoE);
-        TryPushSixSidedStar(context, scheduler, target);
+        TryPushSixSidedStar(context, scheduler, target, isMoving);
         TryPushRangedFiller(context, scheduler, target);
     }
 
@@ -691,28 +691,32 @@ public sealed class DamageModule : IKratosModule
 
     #endregion
 
-    private void TryPushSixSidedStar(IKratosContext context, RotationScheduler scheduler, IBattleChara target)
+    private void TryPushSixSidedStar(IKratosContext context, RotationScheduler scheduler, IBattleChara target, bool isMoving)
     {
         if (!context.Configuration.Monk.EnableSixSidedStar) return;
         var player = context.Player;
         if (player.Level < MNKActions.SixSidedStar.MinLevel) return;
-        if (context.Chakra < 5) return;
+        // Movement-only filler. Six-sided Star does NOT consume Chakra (the old Chakra>=5 gate was wrong and
+        // kept it perpetually eligible, so it grabbed every gap the form combo left and spammed). It's a
+        // single instant GCD with a move-speed buff — only worth pressing when you're moving and can't keep
+        // the melee combo going. Priority 6 keeps it below the form rotation, so it never pre-empts the combo.
+        if (!isMoving) return;
         scheduler.PushGcd(KratosAbilities.SixSidedStar, target.GameObjectId, priority: 6,
             onDispatched: _ =>
             {
                 context.Debug.PlannedAction = MNKActions.SixSidedStar.Name;
-                context.Debug.DamageState = $"Six-Sided Star (5 Chakra)";
+                context.Debug.DamageState = "Six-Sided Star (movement filler)";
 
                 TrainingHelper.Decision(context.TrainingService)
                     .Action(MNKActions.SixSidedStar.ActionId, MNKActions.SixSidedStar.Name)
-                    .AsMeleeResource("Chakra", context.Chakra)
+                    .AsMeleeDamage()
                     .Target(target.Name?.TextValue ?? "Target")
-                    .Reason("Six-Sided Star at 5 Chakra",
-                        "Six-Sided Star consumes all 5 Chakra for a powerful AoE strike. " +
-                        "Use when at full Chakra and no higher-priority GCDs are available.")
-                    .Factors(new[] { "5 Chakra stacks", "No higher-priority GCD available" })
-                    .Alternatives(new[] { "Use Forbidden Chakra/Enlightenment (oGCD option)" })
-                    .Tip("Six-Sided Star is a situational filler. The oGCD chakra spenders are generally preferred.")
+                    .Reason("Six-Sided Star while moving",
+                        "Six-Sided Star is a single instant GCD with a movement-speed buff. Use only while " +
+                        "moving and unable to keep the melee combo going — it does not consume Chakra.")
+                    .Factors(new[] { "Moving", "Melee combo interrupted" })
+                    .Alternatives(new[] { "Resume the form combo when stationary" })
+                    .Tip("Six-Sided Star is a movement filler, not a Chakra spender. Prefer the form combo.")
                     .Concept("mnk_chakra_gauge")
                     .Record();
                 context.TrainingService?.RecordConceptApplication("mnk_chakra_gauge", true, "Six-Sided Star");
@@ -806,19 +810,16 @@ public sealed class DamageModule : IKratosModule
 
     private static ActionDefinition GetRaptorAction(IKratosContext context, uint level)
     {
-        if (context.HasRaptorsFury)
-        {
-            if (level >= MNKActions.RisingRaptor.MinLevel) return MNKActions.RisingRaptor;
-            if (level >= MNKActions.TrueStrike.MinLevel) return MNKActions.TrueStrike;
-        }
+        // Rising Raptor is the Raptor's Fury spender — only usable with the proc.
+        if (context.HasRaptorsFury && level >= MNKActions.RisingRaptor.MinLevel)
+            return MNKActions.RisingRaptor;
 
-        if (!context.HasDisciplinedFist || context.DisciplinedFistRemaining < 5f)
-        {
-            if (level >= MNKActions.TwinSnakes.MinLevel) return MNKActions.TwinSnakes;
-        }
-        if (level >= MNKActions.RisingRaptor.MinLevel) return MNKActions.RisingRaptor;
-        if (level >= MNKActions.TrueStrike.MinLevel) return MNKActions.TrueStrike;
-        return level >= MNKActions.TwinSnakes.MinLevel ? MNKActions.TwinSnakes : MNKActions.TrueStrike;
+        // Otherwise Twin Snakes is the standard raptor GCD (higher potency than True Strike). Do NOT gate on
+        // Disciplined Fist: it never reads active on current patch and RSR's Monk logic doesn't track it.
+        // (The old code returned Rising Raptor here with no Fury — an unusable action masked by the dead DF
+        // read that would have surfaced the moment DF read true.)
+        if (level >= MNKActions.TwinSnakes.MinLevel) return MNKActions.TwinSnakes;
+        return MNKActions.TrueStrike;
     }
 
     private static ActionDefinition GetCoeurlAction(IKratosContext context, uint level)

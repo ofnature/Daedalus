@@ -5,6 +5,9 @@ All notable changes to Daedalus will be documented in this file.
 <!-- LATEST-START -->
 ## v0.1.0 — 2026-06-27
 
+### Fix — Monk Six-sided Star spam
+- Six-sided Star was firing constantly (its gate wrongly assumed it consumes Chakra, which it doesn't), grabbing gaps in the form combo. It's now a movement-only filler — used only while moving and unable to continue the melee combo — so it no longer interrupts the normal rotation. Also cleaned up the raptor GCD selection to stop depending on a buff the game no longer applies
+
 ### Fix — Monk Perfect Balance / Masterful Blitz never fired
 - Perfect Balance was being queued but never actually went off, so Monk never built Beast Chakra and never got a Masterful Blitz (Phantom Rush / Rising Phoenix / Elixir Burst) — a huge chunk of its damage. Two causes: the chakra spender was set to the highest weave priority and, with Chakra capped, ate every weave slot ahead of Perfect Balance; and PB's timing depended on a Disciplined Fist check that never reads active on current patch, so it could only ever fire inside Riddle of Fire. The spender now yields to the burst cooldowns, and PB is timed off Riddle of Fire like the rest of the burst — so it fires in the window and spends its spare charge between windows instead of overcapping
 
