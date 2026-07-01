@@ -60,6 +60,15 @@ public sealed unsafe class ActionService : IActionService
     // Display name of the last GCD we submitted, for the "submitted but not cast" diagnostic.
     private string _lastSubmittedActionName = "";
 
+    // Deferred GCD logging: the game QUEUES a submit and only the last one per GCD window actually fires, so
+    // the scheduler's multiple submits-per-window would inflate the action log/uptime with casts that never
+    // happened. We stash the last submit here and flush it to the ActionTracker only when a new GCD really
+    // fires (recast rolls over — detected in UpdateGcdState), so the log reflects one entry per real cast.
+    private bool _hasPendingGcdLog;
+    private uint _pendingGcdLogActionId;
+    private ulong _pendingGcdLogTargetId;
+    private float _pendingGcdLogDuration;
+
     // Minimal action history (last GCD / last oGCD id) for oGCD sequencing consumers.
     private readonly ActionHistory _history = new();
 
@@ -346,9 +355,13 @@ public sealed unsafe class ActionService : IActionService
 
         // Detect new GCD cycle: GcdRemaining jumped up, meaning a new GCD fired via the queue window.
         // Without this, _ogcdsUsedThisCycle accumulates across queue-submitted GCDs (e.g. Heat Blast spam)
-        // and blocks all oGCD weaving during Overheat.
+        // and blocks all oGCD weaving during Overheat. This is also the moment a queued GCD actually COMMITS,
+        // so flush the deferred GCD log here — one entry per real cast instead of per submit.
         if (GcdRemaining > _prevGcdRemaining + 0.3f)
+        {
             _ogcdsUsedThisCycle = 0;
+            FlushPendingGcdLog();
+        }
         _prevGcdRemaining = GcdRemaining;
 
         // Determine current state
@@ -468,11 +481,12 @@ public sealed unsafe class ActionService : IActionService
             _lastExecuteTime = DateTime.UtcNow;
             _history.RecordGcd(action.ActionId);
 
-            // Track for statistics
-            var gcdDuration = actionManager->GetRecastTime(ActionType.Action, dispatchId);
-            _actionTracker.LogGcdCast(gcdDuration);
-            var (tName, tHp) = ResolveTargetInfo(targetId);
-            _actionTracker.LogAttempt(action.ActionId, tName, tHp, ActionResult.Success, 0);
+            // Defer the ActionTracker log to commit (see _hasPendingGcdLog): the game queues this submit and
+            // only the last one this GCD window actually fires, so logging here inflates the timeline.
+            _pendingGcdLogActionId = action.ActionId;
+            _pendingGcdLogTargetId = targetId;
+            _pendingGcdLogDuration = actionManager->GetRecastTime(ActionType.Action, dispatchId);
+            _hasPendingGcdLog = true;
             RaiseActionExecuted(action);
         }
 
@@ -608,10 +622,11 @@ public sealed unsafe class ActionService : IActionService
             _lastExecuteTime = DateTime.UtcNow;
             _history.RecordGcd(action.ActionId);
 
-            var gcdDuration = actionManager->GetRecastTime(ActionType.Action, rawDispatchId);
-            _actionTracker.LogGcdCast(gcdDuration);
-            var (rName, rHp) = ResolveTargetInfo(targetId);
-            _actionTracker.LogAttempt(action.ActionId, rName, rHp, ActionResult.Success, 0);
+            // Defer the ActionTracker log to commit (see ExecuteGcd / _hasPendingGcdLog).
+            _pendingGcdLogActionId = action.ActionId;
+            _pendingGcdLogTargetId = targetId;
+            _pendingGcdLogDuration = actionManager->GetRecastTime(ActionType.Action, rawDispatchId);
+            _hasPendingGcdLog = true;
             RaiseActionExecuted(action);
         }
 
@@ -677,6 +692,21 @@ public sealed unsafe class ActionService : IActionService
 
         var slotAdjusted = actionManager->GetAdjustedActionId(useActionId);
         return slotAdjusted == useActionId;
+    }
+
+    /// <summary>
+    /// Writes the just-committed GCD to the action tracker. Called from <see cref="UpdateGcdState"/> the frame
+    /// a new GCD actually fires (recast rolled over), NOT on submit — so the action log and GCD-uptime reflect
+    /// one entry per real cast instead of the multiple queue submissions the scheduler makes per window.
+    /// </summary>
+    private void FlushPendingGcdLog()
+    {
+        if (!_hasPendingGcdLog)
+            return;
+        _hasPendingGcdLog = false;
+        _actionTracker.LogGcdCast(_pendingGcdLogDuration);
+        var (name, hp) = ResolveTargetInfo(_pendingGcdLogTargetId);
+        _actionTracker.LogAttempt(_pendingGcdLogActionId, name, hp, ActionResult.Success, 0);
     }
 
     private (string? name, uint? hp) ResolveTargetInfo(ulong targetId)

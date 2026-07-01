@@ -5,6 +5,9 @@ All notable changes to Daedalus will be documented in this file.
 <!-- LATEST-START -->
 ## v0.1.0 — 2026-06-27
 
+### Fix — Action log now shows real casts, not queue submissions
+- The debug action log (and GCD-uptime stat) recorded an entry every time the rotation *submitted* a GCD to the game's queue — but the game only casts the last one queued per GCD window, so fast rotations showed several actions crammed into one 2.5s window that never really happened. It now logs a GCD when it actually fires, so the timeline is one entry per real cast. Purely a logging/diagnostic fix — it doesn't change how any rotation plays
+
 ### Fix — Monk never reached Phantom Rush
 - Solar Nadi was read from the wrong gauge bit, so it always registered as missing. Monk kept rebuilding Solar (Rising Phoenix) every Perfect Balance and never advanced to Lunar (Elixir Burst), so it never held both Nadi and **Phantom Rush** — its strongest GCD — never fired. Solar Nadi is now read correctly, restoring the full Rising Phoenix → Elixir Burst → Phantom Rush progression
 
