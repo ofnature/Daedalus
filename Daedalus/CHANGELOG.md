@@ -5,6 +5,9 @@ All notable changes to Daedalus will be documented in this file.
 <!-- LATEST-START -->
 ## v0.1.0 — 2026-06-27
 
+### Fix — Monk Riddle of Fire never fired
+- Riddle of Fire was held indefinitely behind a "wait for Disciplined Fist" check that never released, so Monk's core damage buff (and its Fire's Reply follow-up) never went off. It now fires on cooldown like every other burst cooldown (RSR parity), with the burst/phase holds still respected
+
 ### New — Short command /dae
 
 - Added `/dae` as a shorter alias for `/daedalus` — same window and subcommands (`toggle`, `debug`, `hardcast`). The full `/daedalus` still works

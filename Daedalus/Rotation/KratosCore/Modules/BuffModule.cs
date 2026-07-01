@@ -59,11 +59,10 @@ public sealed class BuffModule : IKratosModule
             context.Debug.BuffState = $"RoF active ({context.RiddleOfFireRemaining:F1}s)";
             return;
         }
-        if (!context.HasDisciplinedFist)
-        {
-            context.Debug.BuffState = "Waiting for Disciplined Fist";
-            return;
-        }
+        // Fire on cooldown (RSR parity) — do NOT hard-gate on Disciplined Fist. The old gate stalled the
+        // whole burst forever whenever DF wasn't seen as active, which also starved Perfect Balance (it
+        // gates on Riddle of Fire being up). Disciplined Fist alignment is handled naturally by the combo,
+        // not by blocking RoF; the burst/phase holds below still apply.
         if (!context.ActionService.IsActionReady(MNKActions.RiddleOfFire.ActionId)) return;
         if (BurstHoldHelper.ShouldHoldForPhaseTransition(context.TimelineService))
         {
