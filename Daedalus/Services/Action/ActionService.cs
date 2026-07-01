@@ -47,6 +47,9 @@ public sealed unsafe class ActionService : IActionService
     private float _lastKnownGcdTotal = 2.5f;
     private float _lastAnimationLock;
     private bool _lastIsCasting;
+    // True once a hard cast was observed in the current GCD cycle; cleared on rollover. Used to detect
+    // the post-cast tail so casters get their single weave slot there (see GetAvailableWeaveSlots).
+    private bool _castSeenThisCycle;
 
     // Last executed action (for debugging)
     private ActionDefinition? _lastExecutedAction;
@@ -246,6 +249,8 @@ public sealed unsafe class ActionService : IActionService
             return;
 
         _lastIsCasting = isCasting;
+        if (isCasting)
+            _castSeenThisCycle = true;
         UpdateGcdState(actionManager);
 
         // Update WeaveOptimizer with current state
@@ -360,6 +365,7 @@ public sealed unsafe class ActionService : IActionService
         if (GcdRemaining > _prevGcdRemaining + 0.3f)
         {
             _ogcdsUsedThisCycle = 0;
+            _castSeenThisCycle = false;
             FlushPendingGcdLog();
         }
         _prevGcdRemaining = GcdRemaining;
@@ -1013,7 +1019,12 @@ public sealed unsafe class ActionService : IActionService
         // no room for a 0.7s weave (0.9s - 0.6 = 0.3s). Drop the queue reserve entirely — the
         // game's built-in action queue handles the next Heat Blast submission, and a single weaved
         // oGCD's animation lock (~0.6s) finishes before the GCD rolls over.
-        var queueReserve = _lastKnownGcdTotal > 0 && _lastKnownGcdTotal <= 1.6f
+        // Same for the post-hard-cast tail (casters): a 1.5s cast in a 2.4s GCD leaves ~0.9s — the queue
+        // reserve ate all of it, so oGCDs could ONLY weave after instant GCDs. When instants dried up
+        // (PCT with Holy/Comet locked), muses/Striking/Starry starved for entire fights. One ~0.6s weave
+        // fits the tail without clipping, and the next GCD is queue-submitted regardless (RSR weaves here).
+        var postCastTail = _castSeenThisCycle && !_lastIsCasting;
+        var queueReserve = postCastTail || (_lastKnownGcdTotal > 0 && _lastKnownGcdTotal <= 1.6f)
             ? 0f
             : FFXIVTimings.QueueWindow;
         var availableTime = GcdRemaining - queueReserve - FFXIVConstants.WeaveWindowBuffer;
