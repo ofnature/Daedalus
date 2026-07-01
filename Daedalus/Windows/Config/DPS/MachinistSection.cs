@@ -159,6 +159,18 @@ public sealed class MachinistSection
                 v => config.Machinist.SaveBatteryForBurst = v,
                 Loc.T(LocalizedStrings.Machinist.SaveBatteryForBurstDesc, "Hold Battery gauge for burst windows"), save);
 
+            config.Machinist.QueenHoldTargetHpPercent = ConfigUIHelpers.IntSlider(
+                "Hold Queen Below Enemy HP %",
+                config.Machinist.QueenHoldTargetHpPercent, 0, 25,
+                "Don't summon the Queen when even the healthiest enemy in range is below this HP% (pack about to die — Battery carries to the next pull). 0 disables.", save,
+                v => config.Machinist.QueenHoldTargetHpPercent = v);
+
+            config.Machinist.QueenMinPackTtkSeconds = ConfigUIHelpers.IntSlider(
+                "Hold Queen Below Pack TTK (s)",
+                config.Machinist.QueenMinPackTtkSeconds, 0, 20,
+                "Don't summon the Queen when the pack's estimated time-to-kill (from recent damage rate) is below this — she ramps ~5s before her first hit, so melting trash gets zero value. 0 disables.", save,
+                v => config.Machinist.QueenMinPackTtkSeconds = v);
+
             ConfigUIHelpers.EndIndent();
         }
     }

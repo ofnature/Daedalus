@@ -5,6 +5,15 @@ All notable changes to Daedalus will be documented in this file.
 <!-- LATEST-START -->
 ## v0.1.0 — 2026-06-27
 
+### Fix — Machinist no longer wastes the Automaton Queen on dying packs
+- The Queen could deploy onto a mob at 4% HP moments before combat ended — she needs several seconds of Arm Punches before Pile Bunker, so that's pure Battery down the drain. She's now held on two signals: when even the healthiest enemy in range is nearly dead (default 5% HP), and when the pack's estimated time-to-kill from the recent damage rate is too short (default 8s) — trash packs don't get low, they melt, so a mob at 45% HP dying in 3 seconds is caught by the second check. Both thresholds are sliders in the Automaton Queen section; the Battery simply carries into the next pull
+
+### New — Action log shows AoE target counts
+- AoE actions in the debug action log now show how many enemies were inside the ability's radius when it fired (e.g. `[Scattergun ×3]`) — makes it easy to verify AoE-vs-single-target choices matched the pack size
+
+### Fix — Machinist never used Full Metal Field
+- Full Metal Field — the big 900-potency hit granted by Barrel Stabilizer — never fired. Its readiness check read the global GCD cooldown, which is always rolling mid-fight, so the check never passed: it locked out both the skill itself and the logic that holds Hypercharge until it's spent, and the proc quietly expired every burst. The burst now sequences properly (tools → Full Metal Field → Hypercharge + Wildfire), and Reassemble is no longer wasted on it (it already always crits)
+
 ### Fix — Casters can now weave abilities after hard casts
 - Ability (oGCD) weaving only ever happened after instant spells — the slot math reserved the whole end of the GCD for the next cast, which ate the ~0.9s gap a hard cast leaves. When a caster had no instants available, cooldowns just piled up unused (Pictomancer muses, Striking/Starry Muse could sit ready for a whole fight). One ability now weaves into the post-cast gap, the same way experienced casters (and RSR) play it — burst tools come out noticeably earlier on every casting job
 

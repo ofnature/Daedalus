@@ -5,6 +5,7 @@ using Daedalus.Rotation.Common.Helpers;
 using Daedalus.Rotation.PrometheusCore.Context;
 using Daedalus.Services.Action;
 using Daedalus.Services.Content;
+using Daedalus.Services.Targeting;
 using Daedalus.Timeline;
 
 namespace Daedalus.Rotation.PrometheusCore.Helpers;
@@ -55,7 +56,12 @@ internal static class PrometheusRotationHelper
         if (!context.HasFullMetalMachinist)
             return false;
 
-        if (!context.ActionService.IsActionReady(MCHActions.FullMetalField.ActionId))
+        // NO cooldown/ready check here: FMF sits on the GLOBAL recast group, so IsActionReady reads
+        // 0 charges whenever the GCD is rolling — i.e. at every submit moment at full uptime. That
+        // check was a permanent lock (FMF never fired in-game). Its availability IS the status; RSR
+        // checks none (FullMetalFieldPvE ActionCheck = !HasReassembled && HasFullMetalMachinist).
+        // Don't eat a Reassemble charge either — FMF is guaranteed crit/DH already (RSR parity).
+        if (context.HasReassemble)
             return false;
 
         if (StatusExpiringSoon(context.Player, MCHActions.StatusIds.FullMetalMachinist, ProcExpiryWindowSeconds))
@@ -226,7 +232,33 @@ internal static class PrometheusRotationHelper
             return false;
         if (!context.Configuration.Machinist.EnableFullMetalField)
             return false;
-        return context.ActionService.IsActionReady(MCHActions.FullMetalField.ActionId);
+        // FMF proc pending → hold Hypercharge so the burst order is tools → FMF → HC (RSR opener) and
+        // the proc is never buried under Overheat GCDs. Bounded: the 30s proc always gets spent (the
+        // expiry rescue in ShouldUseFullMetalFieldNow fires it at <=3s remaining), then HC proceeds.
+        // Was gated on IsActionReady(FMF) — a global-recast-group action that reads not-ready whenever
+        // the GCD is rolling — so this hold NEVER engaged and HC fired ahead of FMF (validated log:
+        // HC at +8s with FMF unspent, proc expired 20s later unused).
+        return true;
+    }
+
+    /// <summary>
+    /// Hold the Queen when the pack is about to die: she needs several seconds of Arm Punches
+    /// before Pile Bunker, and Battery carries to the next pull — a Queen summoned onto a mob at
+    /// 4% HP does nothing (validated log 2026-07-01: Queen deployed 0.7s before combat ended).
+    /// "Pack dying" = even the highest-current-HP enemy in range is below the configured HP%.
+    /// </summary>
+    internal static bool ShouldHoldQueenForDyingPack(IPrometheusContext context)
+    {
+        var threshold = context.Configuration.Machinist.QueenHoldTargetHpPercent;
+        if (threshold <= 0)
+            return false;
+
+        var beefiest = context.TargetingService.FindEnemy(
+            EnemyTargetingStrategy.HighestHp, FFXIVConstants.RangedTargetingRange, context.Player);
+        if (beefiest == null || beefiest.MaxHp == 0)
+            return false;
+
+        return beefiest.CurrentHp * 100f / beefiest.MaxHp < threshold;
     }
 
     /// <summary>

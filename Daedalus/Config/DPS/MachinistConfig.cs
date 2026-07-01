@@ -137,6 +137,30 @@ public sealed class MachinistConfig
     /// </summary>
     public bool SaveBatteryForBurst { get; set; } = true;
 
+    /// <summary>
+    /// Hold the Queen when the beefiest enemy in range is below this HP% (pack about to die —
+    /// the Queen needs several seconds of Arm Punches before Pile Bunker, and Battery carries to
+    /// the next pull). 0 disables the hold.
+    /// </summary>
+    private int _queenHoldTargetHpPercent = 5;
+    public int QueenHoldTargetHpPercent
+    {
+        get => _queenHoldTargetHpPercent;
+        set => _queenHoldTargetHpPercent = Math.Clamp(value, 0, 25);
+    }
+
+    /// <summary>
+    /// Hold the Queen when the engaged pack's estimated time-to-kill (from the recent damage rate)
+    /// is below this many seconds — she ramps ~5s before her first hit, so a melting trash pack
+    /// gets zero value from her. 0 disables. Complements the HP% hold: trash doesn't get low, it melts.
+    /// </summary>
+    private int _queenMinPackTtkSeconds = 8;
+    public int QueenMinPackTtkSeconds
+    {
+        get => _queenMinPackTtkSeconds;
+        set => _queenMinPackTtkSeconds = Math.Clamp(value, 0, 20);
+    }
+
     #endregion
 
     #region Queen Settings

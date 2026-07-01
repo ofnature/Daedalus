@@ -55,6 +55,12 @@ public interface ITargetingService
     int CountEnemiesInRange(float radius, IPlayerCharacter player);
 
     /// <summary>
+    /// Total current HP of engaged/hostile enemies within radius — feeds pack time-to-kill
+    /// estimates (e.g. holding the MCH Queen when the pack will die before she ramps).
+    /// </summary>
+    long SumEnemyCurrentHpInRange(float radius, IPlayerCharacter player);
+
+    /// <summary>
     /// Counts valid in-combat enemies within range, bypassing <c>PauseWhenNoTarget</c>.
     /// Paired with <see cref="FindNearbyEnemy"/> for AoE fallback.
     /// </summary>

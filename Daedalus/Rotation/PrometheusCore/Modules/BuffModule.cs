@@ -1,3 +1,4 @@
+using System;
 using Dalamud.Game.ClientState.Objects.Types;
 using Daedalus.Config.DPS;
 using Daedalus.Data;
@@ -23,6 +24,7 @@ public sealed class BuffModule : IPrometheusModule
     private readonly IBurstWindowService? _burstWindowService;
     private readonly IDutyContentService? _dutyContentService;
     private readonly PrometheusQueenTracker _queenTracker;
+    private readonly PackTtkEstimator _packTtk = new();
 
     public BuffModule(
         IBurstWindowService? burstWindowService = null,
@@ -50,6 +52,7 @@ public sealed class BuffModule : IPrometheusModule
         if (!context.InCombat)
         {
             _queenTracker.Reset();
+            _packTtk.Reset();
             context.Debug.BuffState = "Not in combat";
             return;
         }
@@ -390,6 +393,13 @@ public sealed class BuffModule : IPrometheusModule
         var level = player.Level;
         var petAction = MCHActions.GetPetSummon((byte)level, context.ActionService);
         if (level < petAction.MinLevel) return;
+
+        // Keep the pack-TTK window fed every frame (also while the Queen is out) so the estimate is
+        // warm the moment the next summon decision comes up.
+        _packTtk.Sample(
+            context.TargetingService.SumEnemyCurrentHpInRange(FFXIVConstants.RangedTargetingRange, player),
+            DateTime.UtcNow);
+
         if (context.IsQueenActive) return;
 
         _queenTracker.OnFrame(context.LastQueenBattery);
@@ -425,6 +435,21 @@ public sealed class BuffModule : IPrometheusModule
         }
 
         if (!shouldSummon) return;
+        // Never deploy onto a dying pack — the Queen ramps ~5s before her first hit and Battery
+        // carries to the next pull (overcapping a little beats a zero-damage Queen). Two signals:
+        // HP% (last mob nearly dead) and pack TTK (trash doesn't get LOW, it MELTS — a mob at 45%
+        // dying in 2.5s passes any % check; the recent kill-rate catches it).
+        if (PrometheusRotationHelper.ShouldHoldQueenForDyingPack(context))
+        {
+            context.Debug.BuffState = "Hold Queen (pack dying)";
+            return;
+        }
+        var minTtk = context.Configuration.Machinist.QueenMinPackTtkSeconds;
+        if (minTtk > 0 && _packTtk.EstimateTtkSeconds() is { } ttk && ttk < minTtk)
+        {
+            context.Debug.BuffState = $"Hold Queen (pack TTK {ttk:F1}s)";
+            return;
+        }
         if (!context.ActionService.IsActionReady(petAction.ActionId)) return;
 
         scheduler.PushOgcd(PrometheusAbilities.AutomatonQueen, player.GameObjectId, priority: 5,

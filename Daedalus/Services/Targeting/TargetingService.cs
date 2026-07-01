@@ -419,6 +419,20 @@ public sealed class TargetingService : ITargetingService
     }
 
     /// <inheritdoc />
+    public long SumEnemyCurrentHpInRange(float radius, IPlayerCharacter player)
+    {
+        // Same engaged/hostile filter as CountEnemiesInRange — feeds pack time-to-kill estimates
+        // (e.g. MCH Queen hold), so passive unpulled packs must not inflate the total.
+        long total = 0;
+        foreach (var enemy in GetValidEnemies(radius, player))
+        {
+            if (IsEngagedOrHostile(enemy, player))
+                total += enemy.CurrentHp;
+        }
+        return total;
+    }
+
+    /// <inheritdoc />
     public int CountEnemiesInRangeOfTarget(float radius, IBattleNpc target, IPlayerCharacter player)
     {
         SyncUserStickyFromTargetManager();
