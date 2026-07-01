@@ -5,6 +5,9 @@ All notable changes to Daedalus will be documented in this file.
 <!-- LATEST-START -->
 ## v0.1.0 — 2026-06-27
 
+### Fix — Monk never reached Phantom Rush
+- Solar Nadi was read from the wrong gauge bit, so it always registered as missing. Monk kept rebuilding Solar (Rising Phoenix) every Perfect Balance and never advanced to Lunar (Elixir Burst), so it never held both Nadi and **Phantom Rush** — its strongest GCD — never fired. Solar Nadi is now read correctly, restoring the full Rising Phoenix → Elixir Burst → Phantom Rush progression
+
 ### Fix — Monk Six-sided Star spam
 - Six-sided Star was firing constantly (its gate wrongly assumed it consumes Chakra, which it doesn't), grabbing gaps in the form combo. It's now a movement-only filler — used only while moving and unable to continue the melee combo — so it no longer interrupts the normal rotation. Also cleaned up the raptor GCD selection to stop depending on a buff the game no longer applies
 

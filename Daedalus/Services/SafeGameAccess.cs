@@ -316,7 +316,7 @@ public static class SafeGameAccess
     /// Safely gets the Monk Nadi flags (Lunar and Solar).
     /// </summary>
     /// <param name="errorMetrics">Optional error metrics service for tracking failures.</param>
-    /// <returns>Nadi flags (bit 0 = Lunar, bit 1 = Solar).</returns>
+    /// <returns>Nadi flags (Lunar = 0x02, Solar = 0x04) per ClientStructs Monk.Nadi.</returns>
     public static unsafe byte GetMnkNadi(IErrorMetricsService? errorMetrics = null)
     {
         var jobGauge = GetJobGaugeManager(errorMetrics);
@@ -340,7 +340,7 @@ public static class SafeGameAccess
     public static unsafe bool HasMnkLunarNadi(IErrorMetricsService? errorMetrics = null)
     {
         var nadi = GetMnkNadi(errorMetrics);
-        return (nadi & 0x02) != 0; // Lunar is bit 1
+        return (nadi & 0x02) != 0; // Lunar = 0x02
     }
 
     /// <summary>
@@ -349,7 +349,7 @@ public static class SafeGameAccess
     public static unsafe bool HasMnkSolarNadi(IErrorMetricsService? errorMetrics = null)
     {
         var nadi = GetMnkNadi(errorMetrics);
-        return (nadi & 0x01) != 0; // Solar is bit 0
+        return (nadi & 0x04) != 0; // Solar = 0x04 (was 0x01 — never matched, so Phantom Rush never triggered)
     }
 
     /// <summary>
