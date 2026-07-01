@@ -37,6 +37,12 @@ public sealed class ActionAttempt
     public uint? StatusCode { get; init; }
 
     /// <summary>
+    /// For AoE actions: alive hostile NPCs within the action's radius of the primary target at
+    /// commit time (circle approximation — cones/lines over-count slightly). Null for non-AoE.
+    /// </summary>
+    public int? AoeTargetCount { get; init; }
+
+    /// <summary>
     /// Maps ActionManager status codes to ActionResult.
     /// Status code 0 = ready, anything else = not ready.
     /// </summary>

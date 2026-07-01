@@ -71,6 +71,7 @@ public sealed unsafe class ActionService : IActionService
     private uint _pendingGcdLogActionId;
     private ulong _pendingGcdLogTargetId;
     private float _pendingGcdLogDuration;
+    private float _pendingGcdLogAoeRadius;
 
     // Minimal action history (last GCD / last oGCD id) for oGCD sequencing consumers.
     private readonly ActionHistory _history = new();
@@ -492,6 +493,7 @@ public sealed unsafe class ActionService : IActionService
             _pendingGcdLogActionId = action.ActionId;
             _pendingGcdLogTargetId = targetId;
             _pendingGcdLogDuration = actionManager->GetRecastTime(ActionType.Action, dispatchId);
+            _pendingGcdLogAoeRadius = action.Radius;
             _hasPendingGcdLog = true;
             RaiseActionExecuted(action);
         }
@@ -632,6 +634,7 @@ public sealed unsafe class ActionService : IActionService
             _pendingGcdLogActionId = action.ActionId;
             _pendingGcdLogTargetId = targetId;
             _pendingGcdLogDuration = actionManager->GetRecastTime(ActionType.Action, rawDispatchId);
+            _pendingGcdLogAoeRadius = action.Radius;
             _hasPendingGcdLog = true;
             RaiseActionExecuted(action);
         }
@@ -712,7 +715,8 @@ public sealed unsafe class ActionService : IActionService
         _hasPendingGcdLog = false;
         _actionTracker.LogGcdCast(_pendingGcdLogDuration);
         var (name, hp) = ResolveTargetInfo(_pendingGcdLogTargetId);
-        _actionTracker.LogAttempt(_pendingGcdLogActionId, name, hp, ActionResult.Success, 0);
+        var aoeCount = CountEnemiesNearTarget(_pendingGcdLogTargetId, _pendingGcdLogAoeRadius);
+        _actionTracker.LogAttempt(_pendingGcdLogActionId, name, hp, ActionResult.Success, 0, aoeTargetCount: aoeCount);
     }
 
     private (string? name, uint? hp) ResolveTargetInfo(ulong targetId)
@@ -723,6 +727,35 @@ public sealed unsafe class ActionService : IActionService
         if (obj is IBattleChara bc)
             return (bc.Name?.TextValue, bc.CurrentHp);
         return (obj?.Name?.TextValue, null);
+    }
+
+    /// <summary>
+    /// Counts alive hostile battle NPCs within <paramref name="radius"/> yalms of the given object
+    /// (AoE validation aid for the action log — approximate: circle around the primary target, so
+    /// cones/lines over-count slightly). Returns null for non-AoE actions (radius 0) or when the
+    /// center can't be resolved.
+    /// </summary>
+    private int? CountEnemiesNearTarget(ulong targetId, float radius)
+    {
+        if (radius <= 0f || targetId == 0 || _objectTable == null)
+            return null;
+        var center = _objectTable.SearchById(targetId);
+        if (center == null)
+            return null;
+
+        var centerPos = center.Position;
+        var radiusSq = radius * radius;
+        var count = 0;
+        foreach (var obj in _objectTable)
+        {
+            if (obj is not IBattleNpc npc) continue;
+            // Same combatant filter as TargetingService (BattleNpcKinds.Combatant + SubKind).
+            if ((byte)npc.BattleNpcKind != Daedalus.Compat.BattleNpcKinds.Combatant && npc.SubKind != 0) continue;
+            if (npc.CurrentHp == 0 || !npc.IsTargetable) continue;
+            if (Vector3.DistanceSquared(npc.Position, centerPos) > radiusSq) continue;
+            count++;
+        }
+        return count;
     }
 
     /// <inheritdoc/>

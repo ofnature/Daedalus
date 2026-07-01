@@ -87,7 +87,8 @@ public sealed class ActionTracker : IActionTracker
         uint? targetHp,
         ActionResult result,
         byte playerLevel,
-        uint? statusCode = null)
+        uint? statusCode = null,
+        int? aoeTargetCount = null)
     {
         var now = DateTime.Now;
 
@@ -120,7 +121,8 @@ public sealed class ActionTracker : IActionTracker
                 PlayerLevel = playerLevel,
                 FailureReason = failureReason,
                 TimeSinceLastCast = timeSinceLastCast,
-                StatusCode = statusCode
+                StatusCode = statusCode,
+                AoeTargetCount = aoeTargetCount
             };
 
             // Update statistics

@@ -34,7 +34,8 @@ public interface IActionTracker
         uint? targetHp,
         ActionResult result,
         byte playerLevel,
-        uint? statusCode = null);
+        uint? statusCode = null,
+        int? aoeTargetCount = null);
 
     /// <summary>
     /// Get a cached copy of the action history.

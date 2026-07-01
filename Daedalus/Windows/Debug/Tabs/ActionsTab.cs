@@ -149,7 +149,7 @@ public static class ActionsTab
                 var ts = attempt.Timestamp.ToString("HH:mm:ss.fff");
                 var icon = DebugColors.GetResultIcon(attempt.Result);
                 if (attempt.Result == ActionResult.Success)
-                    lines.AppendLine($"{ts} {icon} [{attempt.SpellName}] -> {attempt.TargetName} (HP: {attempt.TargetHp})");
+                    lines.AppendLine($"{ts} {icon} [{attempt.SpellName}{FormatAoeCount(attempt)}] -> {attempt.TargetName} (HP: {attempt.TargetHp})");
                 else
                     lines.AppendLine($"{ts} {icon} [{attempt.SpellName}] {attempt.FailureReason ?? attempt.Result.ToString()}");
             }
@@ -184,6 +184,13 @@ public static class ActionsTab
         ImGui.EndChild();
     }
 
+    /// <summary>
+    /// " ×N" suffix for AoE actions — alive hostiles within the action's radius of the primary
+    /// target when the cast committed. Validation aid: shows whether AoE choices matched pack size.
+    /// </summary>
+    private static string FormatAoeCount(ActionAttempt attempt)
+        => attempt.AoeTargetCount is { } n ? $" ×{n}" : string.Empty;
+
     private static bool ShouldShowAttempt(ActionAttempt attempt)
     {
         return attempt.Result switch
@@ -214,8 +221,8 @@ public static class ActionsTab
         ImGui.TextColored(DebugColors.Dim, timestamp);
         ImGui.SameLine();
 
-        // Result icon and spell name
-        ImGui.TextColored(color, $"{resultIcon} [{attempt.SpellName}]");
+        // Result icon and spell name (AoE actions show enemies-in-radius at commit, e.g. "×3")
+        ImGui.TextColored(color, $"{resultIcon} [{attempt.SpellName}{FormatAoeCount(attempt)}]");
         ImGui.SameLine();
 
         // Target or failure reason
