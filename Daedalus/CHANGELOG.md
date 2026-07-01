@@ -5,6 +5,9 @@ All notable changes to Daedalus will be documented in this file.
 <!-- LATEST-START -->
 ## v0.1.0 — 2026-06-27
 
+### Fix — Monk Perfect Balance / Masterful Blitz never fired
+- Perfect Balance was being queued but never actually went off, so Monk never built Beast Chakra and never got a Masterful Blitz (Phantom Rush / Rising Phoenix / Elixir Burst) — a huge chunk of its damage. Two causes: the chakra spender was set to the highest weave priority and, with Chakra capped, ate every weave slot ahead of Perfect Balance; and PB's timing depended on a Disciplined Fist check that never reads active on current patch, so it could only ever fire inside Riddle of Fire. The spender now yields to the burst cooldowns, and PB is timed off Riddle of Fire like the rest of the burst — so it fires in the window and spends its spare charge between windows instead of overcapping
+
 ### Fix — Monk Riddle of Fire never fired
 - Riddle of Fire was held indefinitely behind a "wait for Disciplined Fist" check that never released, so Monk's core damage buff (and its Fire's Reply follow-up) never went off. It now fires on cooldown like every other burst cooldown (RSR parity), with the burst/phase holds still respected
 

@@ -36,6 +36,13 @@ public static class KratosTab
         DrawBuffSection(state);
         ImGui.Spacing();
 
+        // Perfect Balance decision breadcrumb (why PB did/didn't fire this frame)
+        if (!string.IsNullOrEmpty(state.PerfectBalanceState))
+        {
+            ImGui.TextColored(new Vector4(0.9f, 0.7f, 0.4f, 1f), $"PB decision: {state.PerfectBalanceState}");
+            ImGui.Spacing();
+        }
+
         // Procs Section
         DrawProcSection(state);
         ImGui.Spacing();

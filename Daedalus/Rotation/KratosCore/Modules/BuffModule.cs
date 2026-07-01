@@ -163,43 +163,57 @@ public sealed class BuffModule : IKratosModule
 
     private void TryPushPerfectBalance(IKratosContext context, RotationScheduler scheduler)
     {
-        if (!context.Configuration.Monk.EnablePerfectBalance) return;
+        if (!context.Configuration.Monk.EnablePerfectBalance) { context.Debug.PerfectBalanceState = "Disabled (config)"; return; }
         var player = context.Player;
-        if (player.Level < MNKActions.PerfectBalance.MinLevel) return;
+        if (player.Level < MNKActions.PerfectBalance.MinLevel) { context.Debug.PerfectBalanceState = "Below level"; return; }
 
         if (context.HasPerfectBalance)
         {
             context.Debug.BuffState = $"PB active ({context.PerfectBalanceStacks} stacks)";
+            context.Debug.PerfectBalanceState = $"Active ({context.PerfectBalanceStacks} stacks)";
             return;
         }
         if (context.BeastChakraCount >= 3)
         {
             context.Debug.BuffState = "Ready to Blitz";
+            context.Debug.PerfectBalanceState = $"Ready to Blitz ({context.BeastChakraCount} chakra)";
             return;
         }
-        if (!context.ActionService.IsActionReady(MNKActions.PerfectBalance.ActionId)) return;
+        if (!context.ActionService.IsActionReady(MNKActions.PerfectBalance.ActionId))
+        {
+            context.Debug.PerfectBalanceState = "On cooldown / not ready";
+            return;
+        }
 
         // PB fires only after an Opo-opo GCD for proper form flow (RSR EmergencyAbility cadence).
         if (context.CurrentForm != MonkForm.OpoOpo && context.CurrentForm != MonkForm.None
             && !context.HasFormlessFist)
         {
             context.Debug.BuffState = "Waiting for Opo-opo for PB";
+            context.Debug.PerfectBalanceState = $"Waiting for Opo-opo (form: {context.CurrentForm})";
             return;
         }
 
+        // Use PB in the Riddle of Fire window, or when RoF is on cooldown (spend the spare charge rather
+        // than overcap). RSR parity: gate on RoF/burst timing, NOT Disciplined Fist — RSR's Monk logic
+        // never uses DF, and our status read never sees it active (Dawntrail doesn't apply status 3001 the
+        // way our data assumes). Only hold PB when RoF is ready-but-not-active, i.e. imminent — align to it.
         bool shouldUsePB = context.HasRiddleOfFire ||
-                           (context.HasDisciplinedFist && !context.ActionService.IsActionReady(MNKActions.RiddleOfFire.ActionId));
+                           !context.ActionService.IsActionReady(MNKActions.RiddleOfFire.ActionId);
         if (!shouldUsePB)
         {
-            context.Debug.BuffState = "Waiting for RoF for PB";
+            context.Debug.BuffState = "Holding PB for imminent RoF";
+            context.Debug.PerfectBalanceState = "Holding for imminent RoF";
             return;
         }
 
+        context.Debug.PerfectBalanceState = "Ready — queued (pri 3)";
         scheduler.PushOgcd(KratosAbilities.PerfectBalance, player.GameObjectId, priority: 3,
             onDispatched: _ =>
             {
                 context.Debug.PlannedAction = MNKActions.PerfectBalance.Name;
                 context.Debug.BuffState = "Activating Perfect Balance";
+                context.Debug.PerfectBalanceState = "Dispatched";
 
                 var targetBlitz = DetermineTargetBlitz(context);
                 TrainingHelper.Decision(context.TrainingService)

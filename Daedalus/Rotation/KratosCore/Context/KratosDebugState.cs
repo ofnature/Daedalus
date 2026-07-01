@@ -13,6 +13,8 @@ public sealed class KratosDebugState : IEnemyPackDebug
     // Module states
     public string DamageState { get; set; } = "";
     public string BuffState { get; set; } = "";
+    /// <summary>Dedicated Perfect Balance decision breadcrumb (BuffState is shared/overwritten by RoW etc.).</summary>
+    public string PerfectBalanceState { get; set; } = "";
 
     // Current action planning
     public string PlannedAction { get; set; } = "";

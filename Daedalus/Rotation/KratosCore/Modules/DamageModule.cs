@@ -223,7 +223,11 @@ public sealed class DamageModule : IKratosModule
             var ability = level >= MNKActions.Enlightenment.MinLevel ? KratosAbilities.Enlightenment : KratosAbilities.HowlingFist;
             if (!context.ActionService.IsActionReady(aoeAction.ActionId)) return;
 
-            scheduler.PushOgcd(ability, target.GameObjectId, priority: 1,
+            // Priority 4: below the burst cooldowns (RoF 1 / Brotherhood 2 / Perfect Balance 3). With Chakra
+            // capped at 5/5 the spender is eligible every weave; at priority 1 it starved Perfect Balance out
+            // of every slot, so PB never fired and no Blitz happened. It still spends promptly in the many
+            // weave slots the burst cooldowns don't use.
+            scheduler.PushOgcd(ability, target.GameObjectId, priority: 4,
                 onDispatched: _ =>
                 {
                     context.Debug.PlannedAction = aoeAction.Name;
@@ -252,7 +256,8 @@ public sealed class DamageModule : IKratosModule
             var ability = level >= MNKActions.TheForbiddenChakra.MinLevel ? KratosAbilities.TheForbiddenChakra : KratosAbilities.SteelPeak;
             if (!context.ActionService.IsActionReady(stAction.ActionId)) return;
 
-            scheduler.PushOgcd(ability, target.GameObjectId, priority: 1,
+            // Priority 4: below the burst cooldowns so it never starves Perfect Balance (see AoE branch).
+            scheduler.PushOgcd(ability, target.GameObjectId, priority: 4,
                 onDispatched: _ =>
                 {
                     context.Debug.PlannedAction = stAction.Name;
