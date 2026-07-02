@@ -1307,8 +1307,7 @@ public sealed class TargetingService : ITargetingService
         if ((byte)npc.BattleNpcKind != Daedalus.Compat.BattleNpcKinds.Combatant && npc.SubKind != 0)
             return false;
 
-        var effectiveRange = radius + npc.HitboxRadius + anchor.HitboxRadius;
-        if (Vector3.DistanceSquared(centerPos, npc.Position) > effectiveRange * effectiveRange)
+        if (!DistanceHelper.IsWithinTargetCircleAoE(centerPos, npc.Position, radius, npc.HitboxRadius))
             return false;
 
         // No LoS check — used only for AoE pack counting around an already-acquired anchor.

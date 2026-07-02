@@ -21,6 +21,23 @@ public static class DistanceHelper
         => Vector3.DistanceSquared(from, to) <= range * range;
 
     /// <summary>
+    /// Hit test for a target-circle AoE. The circle extends <paramref name="radius"/> from the
+    /// anchor's CENTER and hits anything whose own hitbox ring intersects it — the anchor's
+    /// hitbox does not enlarge the circle (game rule; RSR ActionTargetInfo parity). Including
+    /// the anchor hitbox overcounts spread packs around large-hitbox mobs.
+    /// </summary>
+    /// <param name="anchorCenter">Position of the enemy the AoE is centered on.</param>
+    /// <param name="candidate">Position of the enemy being tested.</param>
+    /// <param name="radius">The action's effect radius in yalms.</param>
+    /// <param name="candidateHitboxRadius">Hitbox radius of the enemy being tested.</param>
+    public static bool IsWithinTargetCircleAoE(
+        Vector3 anchorCenter, Vector3 candidate, float radius, float candidateHitboxRadius)
+    {
+        var effectiveRange = radius + candidateHitboxRadius;
+        return Vector3.DistanceSquared(anchorCenter, candidate) <= effectiveRange * effectiveRange;
+    }
+
+    /// <summary>
     /// Checks if two game objects are within the specified range.
     /// </summary>
     /// <param name="from">Source object.</param>
