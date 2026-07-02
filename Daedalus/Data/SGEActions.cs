@@ -1,4 +1,4 @@
-using Daedalus.Models.Action;
+﻿using Daedalus.Models.Action;
 using Daedalus.Services.Action;
 
 namespace Daedalus.Data;
@@ -92,7 +92,9 @@ public static class SGEActions
     /// </summary>
     public static readonly ActionDefinition EukrasianPrognosisII = new()
     {
-        ActionId = 37033,
+        // 37034 verified via XIVAPI — was swapped with Psyche's id (37033). The swap silently killed
+        // Psyche (dispatching the E.Prognosis II id without Eukrasia -> rejected every 60s window).
+        ActionId = 37034,
         Name = "Eukrasian Prognosis II",
         MinLevel = 96,
         Category = ActionCategory.GCD,
@@ -745,7 +747,8 @@ public static class SGEActions
     /// </summary>
     public static readonly ActionDefinition Psyche = new()
     {
-        ActionId = 37034,
+        // 37033 verified via XIVAPI — was swapped with Eukrasian Prognosis II's id (37034).
+        ActionId = 37033,
         Name = "Psyche",
         MinLevel = 92,
         Category = ActionCategory.oGCD,

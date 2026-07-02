@@ -1,4 +1,4 @@
-using Daedalus.Models.Action;
+﻿using Daedalus.Models.Action;
 using Daedalus.Services.Action;
 
 namespace Daedalus.Data;
@@ -790,7 +790,9 @@ public static class SAMActions
     /// </summary>
     public static readonly ActionDefinition Tengentsu = new()
     {
-        ActionId = 25857,
+        // 36962 verified via XIVAPI (was 25857 = Magick Barrier, an RDM spell — wrong-job rejection
+        // on every cast; SAM's Third Eye upgrade was silently dead. Caught by the bulk id audit.)
+        ActionId = 36962,
         Name = "Tengentsu",
         MinLevel = 82,
         Category = ActionCategory.oGCD,

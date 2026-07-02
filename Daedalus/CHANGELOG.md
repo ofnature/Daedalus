@@ -5,6 +5,9 @@ All notable changes to Daedalus will be documented in this file.
 <!-- LATEST-START -->
 ## v0.1.0 — 2026-06-27
 
+### Fix — Wrong action ids found by a full data audit (SAM, SGE, SMN)
+- All 831 action ids were verified against the game sheets after the Dark Knight Unmend discovery. Three more jobs had wrong ids: **Samurai's Tengentsu** pointed at a Red Mage spell (the defensive never fired), **Sage's Psyche and Eukrasian Prognosis II ids were swapped** (Psyche — a damage cooldown — never fired), and **Summoner's Ifrit/Titan/Garuda summons** pointed at their level-90 upgrades (broken below 90). All corrected
+
 ### Fix — Ninja froze mid-Ten Chi Jin when Doton was already down
 - The AoE Ten Chi Jin sequence's third cast can only be Doton, but the logic refused to recast Doton while one was already ticking — so the sequence hung until the buff expired (~5 seconds of nothing, every burst with a Doton down). Now: if Doton is already active, TCJ takes the single-target sequence instead; and once a sequence is started, it always completes
 

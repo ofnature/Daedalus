@@ -196,7 +196,7 @@ public class SpellEnablementService : ISpellEnablementService
             // Healing - AoE
             { 24286, () => configuration.Sage.EnablePrognosis },              // Prognosis
             { 24292, () => configuration.Sage.EnableEukrasianPrognosis },     // Eukrasian Prognosis
-            { 37033, () => configuration.Sage.EnableEukrasianPrognosis },     // Eukrasian Prognosis II (Lv96)
+            { 37034, () => configuration.Sage.EnableEukrasianPrognosis },     // Eukrasian Prognosis II (Lv96)
 
             // oGCD Heals - Addersgall
             { 24296, () => configuration.Sage.EnableDruochole },              // Druochole
@@ -243,7 +243,7 @@ public class SpellEnablementService : ISpellEnablementService
             { 24313, () => configuration.Sage.EnablePhlegma },                // Phlegma III
             { 24304, () => configuration.Sage.EnableToxikon },                // Toxikon
             { 24316, () => configuration.Sage.EnableToxikon },                // Toxikon II
-            { 37034, () => configuration.Sage.EnablePsyche },                 // Psyche
+            { 37033, () => configuration.Sage.EnablePsyche },                 // Psyche
         };
     }
 

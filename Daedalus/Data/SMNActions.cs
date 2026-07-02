@@ -1,4 +1,4 @@
-using Daedalus.Models.Action;
+﻿using Daedalus.Models.Action;
 using Daedalus.Services.Action;
 
 namespace Daedalus.Data;
@@ -526,7 +526,9 @@ public static class SMNActions
     /// </summary>
     public static readonly ActionDefinition SummonIfrit = new()
     {
-        ActionId = 25838,
+        // 25805 verified via XIVAPI (was 25838 = the Summon II upgrade, unusable below L90;
+        // the base id auto-upgrades to II at 90 via GetAdjustedActionId).
+        ActionId = 25805,
         Name = "Summon Ifrit",
         MinLevel = 30,
         Category = ActionCategory.GCD,
@@ -543,7 +545,7 @@ public static class SMNActions
     /// </summary>
     public static readonly ActionDefinition SummonIfrit2 = new()
     {
-        ActionId = 25838, // Same ID, upgraded
+        ActionId = 25838, // The II action's own id (base id is separate and auto-upgrades at 90)
         Name = "Summon Ifrit II",
         MinLevel = 90,
         Category = ActionCategory.GCD,
@@ -560,7 +562,9 @@ public static class SMNActions
     /// </summary>
     public static readonly ActionDefinition SummonTitan = new()
     {
-        ActionId = 25839,
+        // 25806 verified via XIVAPI (was 25839 = the Summon II upgrade, unusable below L90;
+        // the base id auto-upgrades to II at 90 via GetAdjustedActionId).
+        ActionId = 25806,
         Name = "Summon Titan",
         MinLevel = 35,
         Category = ActionCategory.GCD,
@@ -577,7 +581,7 @@ public static class SMNActions
     /// </summary>
     public static readonly ActionDefinition SummonTitan2 = new()
     {
-        ActionId = 25839, // Same ID, upgraded
+        ActionId = 25839, // The II action's own id (base id is separate and auto-upgrades at 90)
         Name = "Summon Titan II",
         MinLevel = 90,
         Category = ActionCategory.GCD,
@@ -594,7 +598,9 @@ public static class SMNActions
     /// </summary>
     public static readonly ActionDefinition SummonGaruda = new()
     {
-        ActionId = 25840,
+        // 25807 verified via XIVAPI (was 25840 = the Summon II upgrade, unusable below L90;
+        // the base id auto-upgrades to II at 90 via GetAdjustedActionId).
+        ActionId = 25807,
         Name = "Summon Garuda",
         MinLevel = 45,
         Category = ActionCategory.GCD,
@@ -611,7 +617,7 @@ public static class SMNActions
     /// </summary>
     public static readonly ActionDefinition SummonGaruda2 = new()
     {
-        ActionId = 25840, // Same ID, upgraded
+        ActionId = 25840, // The II action's own id (base id is separate and auto-upgrades at 90)
         Name = "Summon Garuda II",
         MinLevel = 90,
         Category = ActionCategory.GCD,

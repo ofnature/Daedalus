@@ -1,4 +1,4 @@
-using Daedalus.Models.Action;
+﻿using Daedalus.Models.Action;
 using Daedalus.Services.Action;
 
 namespace Daedalus.Data;
@@ -689,7 +689,7 @@ public static class MNKActions
     public static readonly ActionDefinition Meditation = new()
     {
         ActionId = 36940,
-        Name = "Meditation",
+        Name = "Steeled Meditation", // real sheet name (id audit); base morphs per form
         MinLevel = 15,
         Category = ActionCategory.GCD,
         TargetType = ActionTargetType.Self,
