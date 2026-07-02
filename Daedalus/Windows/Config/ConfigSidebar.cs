@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Numerics;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.Textures;
@@ -53,6 +53,7 @@ public enum ConfigSection
     Summoner,
     RedMage,
     Pictomancer,
+    BlueMage,
 
     // Utility
     Timeline,
@@ -81,7 +82,7 @@ public sealed class ConfigSidebar
     private static readonly ConfigSection[] TankSections     = [ConfigSection.Paladin, ConfigSection.Warrior, ConfigSection.DarkKnight, ConfigSection.Gunbreaker];
     private static readonly ConfigSection[] MeleeSections    = [ConfigSection.MeleeShared, ConfigSection.Dragoon, ConfigSection.Ninja, ConfigSection.Samurai, ConfigSection.Monk, ConfigSection.Reaper, ConfigSection.Viper];
     private static readonly ConfigSection[] RangedSections   = [ConfigSection.RangedShared, ConfigSection.Machinist, ConfigSection.Bard, ConfigSection.Dancer];
-    private static readonly ConfigSection[] CasterSections   = [ConfigSection.CasterShared, ConfigSection.BlackMage, ConfigSection.Summoner, ConfigSection.RedMage, ConfigSection.Pictomancer];
+    private static readonly ConfigSection[] CasterSections   = [ConfigSection.CasterShared, ConfigSection.BlackMage, ConfigSection.Summoner, ConfigSection.RedMage, ConfigSection.Pictomancer, ConfigSection.BlueMage];
 
     // Maps sidebar sections to their primary job ID for icon lookup.
     private static readonly Dictionary<ConfigSection, uint> SectionJobIds = new()
@@ -107,6 +108,7 @@ public sealed class ConfigSidebar
         { ConfigSection.Summoner,    JobRegistry.Summoner },
         { ConfigSection.RedMage,     JobRegistry.RedMage },
         { ConfigSection.Pictomancer, JobRegistry.Pictomancer },
+        { ConfigSection.BlueMage, JobRegistry.BlueMage },
     };
 
     private readonly ITextureProvider? _textureProvider;
@@ -224,6 +226,7 @@ public sealed class ConfigSidebar
             sectionChanged |= DrawNavItemFiltered(Loc.T(LocalizedStrings.Sidebar.Summoner, "Summoner"), ConfigSection.Summoner, ConfigUIHelpers.SummonerColor, matchingSections, hasSearch);
             sectionChanged |= DrawNavItemFiltered(Loc.T(LocalizedStrings.Sidebar.RedMage, "Red Mage"), ConfigSection.RedMage, ConfigUIHelpers.RedMageColor, matchingSections, hasSearch);
             sectionChanged |= DrawNavItemFiltered(Loc.T(LocalizedStrings.Sidebar.Pictomancer, "Pictomancer"), ConfigSection.Pictomancer, ConfigUIHelpers.PictomancerColor, matchingSections, hasSearch);
+            sectionChanged |= DrawNavItemFiltered("Blue Mage", ConfigSection.BlueMage, ConfigUIHelpers.BlackMageColor, matchingSections, hasSearch);
         }
 
         ImGui.EndChild();

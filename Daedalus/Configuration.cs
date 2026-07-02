@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using Dalamud.Configuration;
 using Daedalus.Config;
 using Daedalus.Config.DPS;
@@ -163,6 +163,9 @@ public sealed class Configuration : IPluginConfiguration
     // Job-specific configuration - Casters
     public CasterSharedConfig CasterShared { get; set; } = new();
     public BlackMageConfig BlackMage { get; set; } = new();
+
+    /// <summary>Blue Mage (Proteus) settings — role dropdown, mimicry, kit toggles.</summary>
+    public BlueMageConfig BlueMage { get; set; } = new();
     public SummonerConfig Summoner { get; set; } = new();
     public RedMageConfig RedMage { get; set; } = new();
     public PictomancerConfig Pictomancer { get; set; } = new();

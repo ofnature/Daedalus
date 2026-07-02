@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Numerics;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.Windowing;
@@ -54,6 +54,7 @@ public sealed class DebugWindow : Window
         (JobRegistry.Summoner,    JobRegistry.GetJobName(JobRegistry.Summoner)),
         (JobRegistry.RedMage,     JobRegistry.GetJobName(JobRegistry.RedMage)),
         (JobRegistry.Pictomancer, JobRegistry.GetJobName(JobRegistry.Pictomancer)),
+        (JobRegistry.BlueMage, JobRegistry.GetJobName(JobRegistry.BlueMage)),
     ];
 
     public DebugWindow(DebugService debugService, Configuration configuration, ITimelineService? timelineService = null, SmartAoETab? smartAoETab = null, Daedalus.Services.Debug.DebugLogService? debugLogService = null)
@@ -256,6 +257,7 @@ public sealed class DebugWindow : Window
             case JobRegistry.Summoner:    PersephoneTab.Draw(_debugService.GetPersephoneDebugState(), _configuration); break;
             case JobRegistry.RedMage:     CirceTab.Draw(_debugService.GetCirceDebugState(), _configuration); break;
             case JobRegistry.Pictomancer: IrisTab.Draw(_debugService.GetIrisDebugState(), _configuration); break;
+            case JobRegistry.BlueMage:    ProteusTab.Draw(_debugService.GetProteusDebugState(), _configuration); break;
 
             default:
                 ImGui.TextDisabled(Loc.T(LocalizedStrings.Debug.NoDebugInfoForJob, "No debug info available for this job."));

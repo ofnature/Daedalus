@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using Daedalus.Ipc;
 
 namespace Daedalus.Config;
@@ -16,6 +16,51 @@ public sealed class PartyCoordinationConfig
     /// Default false (opt-in feature).
     /// </summary>
     public bool EnablePartyCoordination { get; set; } = false;
+
+    // ── LAN coordinator (cross-machine UDP broadcast, same VLAN) ─────────────
+
+    /// <summary>
+    /// Enable cross-machine coordination via UDP broadcast. Same-machine toons keep using Dalamud
+    /// IPC (lower latency); the CoordinationBus deduplicates so nothing double-processes.
+    /// Default off (opt-in; requires a firewall rule for the port on both machines).
+    /// </summary>
+    public bool LanCoordinatorEnabled { get; set; } = false;
+
+    /// <summary>UDP broadcast port (both machines must match). 47200 is unassigned by IANA.</summary>
+    private int _lanPort = 47200;
+    public int LanPort
+    {
+        get => _lanPort;
+        set => _lanPort = Math.Clamp(value, 1024, 65535);
+    }
+
+    /// <summary>
+    /// Unique per machine, generated once and persisted — drives IPC/LAN dedup (same-machine
+    /// mirrored traffic is dropped because Dalamud IPC already delivered it).
+    /// </summary>
+    public string LanMachineId { get; set; } = "";
+
+    /// <summary>Returns the persisted machine id, generating it on first use.</summary>
+    public string GetOrCreateMachineId()
+    {
+        if (string.IsNullOrEmpty(LanMachineId))
+            LanMachineId = Guid.NewGuid().ToString("N");
+        return LanMachineId;
+    }
+
+    // ── LAN Party window ─────────────────────────────────────────────────────
+
+    /// <summary>Replace character names with session-consistent mythological aliases (display only).</summary>
+    public bool LanScrambleNames { get; set; } = false;
+
+    /// <summary>Show HP bars per toon row.</summary>
+    public bool LanShowHpBars { get; set; } = true;
+
+    /// <summary>Hide local toons — show only remote machines.</summary>
+    public bool LanShowRemoteOnly { get; set; } = false;
+
+    /// <summary>Single line per toon, no HP bars.</summary>
+    public bool LanCompactMode { get; set; } = false;
 
     /// <summary>
     /// Interval between heartbeat broadcasts (milliseconds).

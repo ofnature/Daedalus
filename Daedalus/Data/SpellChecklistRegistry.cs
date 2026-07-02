@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using Daedalus.Models.Action;
@@ -63,6 +63,7 @@ public static class SpellChecklistRegistry
             JobRegistry.Summoner    => _smn,
             JobRegistry.RedMage     => _rdm,
             JobRegistry.Pictomancer => _pct,
+            JobRegistry.BlueMage    => _blu,
             _                       => Array.Empty<ChecklistGroup>()
         };
     }
@@ -493,6 +494,36 @@ public static class SpellChecklistRegistry
                                        .Where(a => a.MinLevel <= l).ToArray()),
         new("Role Actions",   l => new[] { RoleActions.Swiftcast, RoleActions.LucidDreaming, RoleActions.Surecast, RoleActions.Addle }
                                        .Where(a => a.MinLevel <= l).ToArray()),
+    };
+
+    // ── Blue Mage ─────────────────────────────────────────────────────────
+    // The full 124-spell spellbook grouped by learn source. BLU has no level gating — "learned"
+    // IS the spellbook — so every entry is expected at any level, and the Missing window doubles
+    // as a farm planner (learn sources rendered there from BLUSpellbook).
+
+    private static ActionDefinition[]? _bluDuty;
+    private static ActionDefinition[]? _bluOpenWorld;
+    private static ActionDefinition[]? _bluTotem;
+
+    private static ActionDefinition[] BluBySource(BLUSpellSource source, ref ActionDefinition[]? cache)
+        => cache ??= BLUSpellbook.All
+            .Where(e => e.Source == source)
+            .Select(e => new ActionDefinition
+            {
+                ActionId = e.ActionId,
+                Name = e.Name,
+                MinLevel = 1,
+                Category = ActionCategory.GCD,
+                TargetType = ActionTargetType.SingleEnemy,
+            })
+            .ToArray();
+
+    private static readonly ChecklistGroup[] _blu =
+    {
+        new("Rotation Kit",              _ => new[] { BLUActions.SonicBoom, BLUActions.SongOfTorment, BLUActions.TheRoseOfDestruction, BLUActions.Plaincracker, BLUActions.GoblinPunch, BLUActions.AethericMimicry, BLUActions.MightyGuard, BLUActions.Diamondback, BLUActions.WhiteWind, BLUActions.WaterCannon }),
+        new("Spellbook — Duties",        _ => BluBySource(BLUSpellSource.Duty, ref _bluDuty)),
+        new("Spellbook — Open World",    _ => BluBySource(BLUSpellSource.OpenWorld, ref _bluOpenWorld)),
+        new("Spellbook — Whalaqee Totems", _ => BluBySource(BLUSpellSource.WhalaqeeTotem, ref _bluTotem)),
     };
 
     private static readonly ChecklistGroup[] _pct =

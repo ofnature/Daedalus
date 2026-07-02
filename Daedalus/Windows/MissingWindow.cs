@@ -52,6 +52,13 @@ public sealed class MissingWindow : Window
 
         var missing = statuses.Where(s => !s.Learned).ToList();
 
+        // BLU: spells are learned from enemies, not quests — show the farm source per entry so
+        // this window doubles as a spell-hunting planner (sources from the game's Aoz sheets).
+        var isBlu = jobId == JobRegistry.BlueMage;
+        var bluSources = isBlu
+            ? BLUSpellbook.All.ToDictionary(e => e.ActionId, e => e.SourceName)
+            : null;
+
         // Missing first — the actionable part.
         if (missing.Count == 0)
         {
@@ -59,14 +66,27 @@ public sealed class MissingWindow : Window
         }
         else
         {
-            ImGui.TextColored(_red, $"{missing.Count} ability(ies) level-met but NOT unlocked:");
-            ImGui.TextWrapped("These are almost always uncompleted job quests — finish the job quest to enable them.");
+            ImGui.TextColored(_red, isBlu
+                ? $"{missing.Count} spell(s) not yet learned:"
+                : $"{missing.Count} ability(ies) level-met but NOT unlocked:");
+            ImGui.TextWrapped(isBlu
+                ? "Blue Mage spells are learned from enemies (synced duty clears guarantee the learn). The source is shown next to each spell."
+                : "These are almost always uncompleted job quests — finish the job quest to enable them.");
             ImGui.Spacing();
             foreach (var s in missing.OrderBy(s => s.MinLevel))
             {
                 ImGui.TextColored(_red, "✗");
                 ImGui.SameLine();
-                ImGui.Text($"{s.Name}  (Lv.{s.MinLevel})");
+                if (isBlu && bluSources!.TryGetValue(s.ActionId, out var source))
+                {
+                    ImGui.Text(s.Name);
+                    ImGui.SameLine();
+                    ImGui.TextColored(_dim, $"— {source}");
+                }
+                else
+                {
+                    ImGui.Text($"{s.Name}  (Lv.{s.MinLevel})");
+                }
             }
         }
 

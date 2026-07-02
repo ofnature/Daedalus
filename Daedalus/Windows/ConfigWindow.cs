@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Numerics;
 using Dalamud.Bindings.ImGui;
@@ -67,6 +67,7 @@ public sealed class ConfigWindow : Window
     private readonly SummonerSection summonerSection;
     private readonly RedMageSection redMageSection;
     private readonly PictomancerSection pictomancerSection;
+    private readonly BlueMageSection blueMageSection;
     private readonly DrawHelperSection drawHelperSection;
     private readonly ActionFeedSection actionFeedSection;
     private readonly TimelineSection timelineSection;
@@ -113,6 +114,7 @@ public sealed class ConfigWindow : Window
         summonerSection = new SummonerSection(configuration, saveConfiguration);
         redMageSection = new RedMageSection(configuration, saveConfiguration);
         pictomancerSection = new PictomancerSection(configuration, saveConfiguration);
+        blueMageSection = new BlueMageSection(configuration, saveConfiguration);
         drawHelperSection = new DrawHelperSection(configuration, saveConfiguration);
         actionFeedSection = new ActionFeedSection(configuration, saveConfiguration);
         timelineSection = new TimelineSection(configuration, saveConfiguration);
@@ -388,6 +390,10 @@ public sealed class ConfigWindow : Window
 
             case ConfigSection.Pictomancer:
                 pictomancerSection.Draw();
+                break;
+
+            case ConfigSection.BlueMage:
+                blueMageSection.Draw();
                 break;
 
             case ConfigSection.Timeline:

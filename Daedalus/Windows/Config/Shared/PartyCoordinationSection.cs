@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Numerics;
 using Dalamud.Bindings.ImGui;
 using Daedalus.Localization;
@@ -32,11 +32,69 @@ public sealed class PartyCoordinationSection
                 "Coordinate heals and cooldowns with other Daedalus users in your party. Changes take effect on next plugin reload."),
             save);
 
+        DrawLanSection();
+
         if (!config.PartyCoordination.EnablePartyCoordination)
             return;
 
         DrawCoordinationSection();
         DrawConnectionSection();
+    }
+
+    /// <summary>
+    /// Live LAN status for the settings UI. Set by Plugin after the coordinator is constructed;
+    /// static because this section is built inside ConfigWindow before the LAN stack exists.
+    /// </summary>
+    public static Func<(string Status, string Detail)>? LanStatusSource;
+
+    private void DrawLanSection()
+    {
+        if (!ConfigUIHelpers.SectionHeader("LAN Coordinator (Cross-Machine)", "PartyCoordLan"))
+            return;
+
+        ConfigUIHelpers.BeginIndent();
+
+        ConfigUIHelpers.Toggle(
+            "Enable LAN Coordinator",
+            () => config.PartyCoordination.LanCoordinatorEnabled,
+            v => config.PartyCoordination.LanCoordinatorEnabled = v,
+            "Coordinate with Daedalus instances on OTHER machines via UDP broadcast (same VLAN). " +
+            "Same-machine toons keep using Dalamud IPC; messages are deduplicated automatically. " +
+            "Requires a Windows Firewall inbound rule for the UDP port on every machine. " +
+            "Takes effect on next plugin reload.",
+            save);
+
+        var port = config.PartyCoordination.LanPort;
+        if (ImGui.InputInt("LAN Port", ref port))
+        {
+            config.PartyCoordination.LanPort = port;
+            save();
+        }
+        if (ImGui.IsItemHovered())
+            ImGui.SetTooltip("UDP broadcast port — must match on all machines. Default 47200.");
+
+        var machineId = config.PartyCoordination.LanMachineId;
+        ImGui.TextDisabled($"Machine ID: {(machineId.Length > 0 ? machineId : "(generated on first enable)")}");
+
+        if (LanStatusSource != null)
+        {
+            var (status, detail) = LanStatusSource();
+            ImGui.Text("Status:");
+            ImGui.SameLine();
+            var color = status switch
+            {
+                "Connected" => new Vector4(0.3f, 0.9f, 0.3f, 1f),
+                "Error" => new Vector4(1f, 0.35f, 0.35f, 1f),
+                _ => new Vector4(0.62f, 0.62f, 0.62f, 1f),
+            };
+            ImGui.TextColored(color, detail.Length > 0 ? $"{status} — {detail}" : status);
+        }
+        else if (config.PartyCoordination.LanCoordinatorEnabled)
+        {
+            ImGui.TextDisabled("Status: starts on next plugin reload");
+        }
+
+        ConfigUIHelpers.EndIndent();
     }
 
     private void DrawCoordinationSection()

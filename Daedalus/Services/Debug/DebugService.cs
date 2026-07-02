@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using Dalamud.Game.ClientState.Objects.SubKinds;
@@ -913,6 +913,14 @@ public sealed class DebugService
     /// <summary>
     /// Gets the Kratos (Monk) debug state, if the active rotation is Monk.
     /// </summary>
+    /// <summary>
+    /// Gets the Proteus (Blue Mage) debug state, if the active rotation is Blue Mage.
+    /// </summary>
+    public Daedalus.Rotation.ProteusCore.Context.ProteusDebugState? GetProteusDebugState()
+    {
+        return (_rotationManager.ActiveRotation as Proteus)?.ProteusDebug;
+    }
+
     public KratosDebugState? GetKratosDebugState()
     {
         return (_rotationManager.ActiveRotation as Kratos)?.KratosDebug;

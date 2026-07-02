@@ -1,4 +1,4 @@
-namespace Daedalus.Data;
+﻿namespace Daedalus.Data;
 
 /// <summary>
 /// Centralized registry of FFXIV job IDs.
@@ -45,6 +45,9 @@ public static class JobRegistry
     public const uint Summoner = 27;
     public const uint RedMage = 35;
     public const uint Pictomancer = 42;
+
+    // Limited jobs
+    public const uint BlueMage = 36;
 
     /// <summary>
     /// Returns true if the job is a healer (WHM, SCH, AST, SGE).
@@ -101,7 +104,8 @@ public static class JobRegistry
     /// </summary>
     public static bool IsCasterDps(uint jobId) => jobId is
         BlackMage or Thaumaturge or
-        Summoner or RedMage or Pictomancer;
+        Summoner or RedMage or Pictomancer or
+        BlueMage;
 
     /// <summary>
     /// Returns true if the job is a White Mage or Conjurer.
@@ -164,6 +168,7 @@ public static class JobRegistry
         Summoner => "Summoner",
         RedMage => "Red Mage",
         Pictomancer => "Pictomancer",
+        BlueMage => "Blue Mage",
 
         _ => "Unknown"
     };

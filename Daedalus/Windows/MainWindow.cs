@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Numerics;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.Textures;
@@ -29,6 +29,10 @@ public sealed class MainWindow : Window
     private readonly Action openNavControl;
     private readonly Action openRaid;
     private readonly Action openMissing;
+
+    /// <summary>Opens the LAN party window. Null-tolerant: the button only renders when the LAN
+    /// coordinator is enabled in Party Coordination settings.</summary>
+    public Action? OpenLanParty { get; set; }
     private readonly RotationManager rotationManager;
     private readonly ITextureProvider textureProvider;
 
@@ -180,6 +184,16 @@ public sealed class MainWindow : Window
         if (ImGui.Button(Loc.T(LocalizedStrings.Main.Raid, "Raid"), new Vector2(buttonWidth, 0)))
         {
             openRaid();
+        }
+        // LAN party window — only offered while the LAN coordinator is enabled (Party Coordination
+        // settings); the window itself hosts the cross-machine roster/network UI.
+        if (configuration.PartyCoordination.LanCoordinatorEnabled && OpenLanParty != null)
+        {
+            ImGui.SameLine();
+            if (ImGui.Button("LAN Party", new Vector2(buttonWidth, 0)))
+            {
+                OpenLanParty();
+            }
         }
 
         // Footer links

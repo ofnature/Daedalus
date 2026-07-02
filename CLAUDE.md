@@ -10,8 +10,9 @@ Daedalus is a Dalamud plugin for Final Fantasy XIV providing automated rotation 
 **Plugin entry:** `Daedalus/Plugin.cs`
 **Burn reference docs — TWO folders, both matter:**
 - `.cursor/rules/burn-reference/` — per-job `{job}-rotation.md` (current-patch ground truth; always check before implementing rotation logic) plus cross-cutting docs for later milestones: `general-burn-flow.md`, `ipc-burn-protocol.md` (8-toon IPC/LAN burst sync), `bossmod-integration.md`, `vnav-integration.md` (movement/positionals). Consult the relevant cross-cutting doc before IPC/BossMod/nav work, not just the per-job file.
-- `/burn-reference/` (repo root) — forward-looking / special-content references needed for later: `tank-rotation.md` (cross-tank backlog/TODO for all four tanks — PLD/WAR/DRK/GNB; check before any shared tank-feature work), `blu-rotation.md` (Proteus/BLU design), and the duty-action layers `bozja-lost-actions.md`, `occult-crescent-phantom-jobs.md`, `variant-dungeon-actions.md` (reference only, no code yet — these sit on top of the main job, not part of per-job modules).
+- `/burn-reference/` (repo root) — forward-looking / special-content references needed for later: `tank-rotation.md` (cross-tank backlog/TODO for all four tanks — PLD/WAR/DRK/GNB; check before any shared tank-feature work), `blu-rotation.md` (Proteus/BLU design), `blu-loadouts.md` (BLU role loadouts, verified utility-spell data, Coil T5/T9/T13 reference), and the duty-action layers `bozja-lost-actions.md`, `occult-crescent-phantom-jobs.md`, `variant-dungeon-actions.md` (reference only, no code yet — these sit on top of the main job, not part of per-job modules).
 **RSR source (upstream):** `.cursor/rsr/` — checkout of the forked RotationSolverReborn branch. Consult it directly when burn-reference docs lack detail or when you need the exact RSR logic a `*-rotation.md` diff cites (e.g. `RebornRotations/Tank/PLD_Reborn.cs`).
+**BMR source (movement/safety/positionals reference):** `.cursor/bmr/` — full BossmodReborn checkout (gitignored). The ground truth for movement, pathfinding, safe-spots, forbidden zones/directions (gaze), positional recommendations, and the `BossMod.*` IPC we consume. Consult before any movement / positional / mechanics-safety work. Key files: `BossMod/Framework/IPCProvider.cs` (full IPC list), `BossMod/BossModule/AIHints.cs` (hint model), `BossMod/Pathfinding/`, `BossMod/AI/`. See the BossMod (BMR) IPC section below for the endpoint inventory.
 
 ## Versioning
 - Current: `0.x.x` during implementation
@@ -96,6 +97,9 @@ For every new job, follow this exact sequence:
 7. Trust dungeon validation (Origenics or equivalent) — check combat log for spam, idle gaps, DoT uptime
 8. Commit with descriptive message citing patch version and what changed
 
+### Opener / countdown / pre-pull timing is NOT optional
+AutoDuty (dungeon farming) never uses a countdown, so it's tempting to skip RSR's countdown/opener logic. **Don't.** A future **burst-alignment IPC with pre-pull potion logic** will use countdown timings + pre-pull pot windows to sync every toon's burst for trial/raid/savage content. So per-job opener sequences, countdown actions (Provoke/TBN/meds/ranged-pull at fixed pre-pull times), and pre-pull pot hooks are real backlog to build — treat them as needed for trial/raid even though they're inert in AutoDuty. Don't dismiss RSR `CountDownAction` / `CombatElapsedLessGCD` opener logic as irrelevant.
+
 ## Known Patterns and Gotchas
 
 ### ABC (Always Be Casting)
@@ -163,9 +167,14 @@ BossMod Reborn exposes these IPC endpoints (prefix `BossMod.`, as RSR subscribes
 - `Timeline.NextRaidwideIn`, `Timeline.NextTankbusterIn`, `Timeline.NextKnockbackIn`, `Timeline.NextDowntimeIn`, `Timeline.NextDowntimeEndIn`, `Timeline.NextVulnerableIn`, `Timeline.NextVulnerableEndIn`
 - `Hints.NextDamageIn`*, `Hints.NextDamageType`, `Hints.NextRaidwideDamageIn`, `Hints.NextTankbusterDamageIn`
 - `Hints.SpecialModeIn`, `Hints.SpecialModeType` (Pyretic/Freezing/etc. — NOT gaze)
-- `Hints.IsPositionSafe`*, `Hints.IsDashSafe`*, `Hints.IsFixedDashSafe`
-- `Debug.TimelineWalk`
-- **No gaze / forbidden-direction / facing hint exists** — gaze/look-away safety must use the curated `FFXIVConstants.GazeCastActionIds` list (see `Plugin.EnsureAutoFaceTarget`), not BMR.
+- `Hints.IsPositionSafe`*, `Hints.IsDashSafe`*, `Hints.IsFixedDashSafe`, `Hints.IsBackdashSafe`
+- `Hints.ArenaCenter` (Vector2), `Hints.ArenaRadius` — pathfind map bounds (for kiting / backline stay-at-range / safe-zone awareness)
+- `Hints.RecommendedPositional` (int Positional enum) — BMR's flank/rear recommendation for the current target
+- `Hints.ShouldCleansePlayers` (BitMask raw ulong) — players BMR says need an Esuna THIS encounter (the actual "esuna check" set; far better than our debuff-priority heuristic — hook this into the EsunaHandler when BMR is available, fall back to `DebuffDetectionService` otherwise)
+- `Hints.ForbiddenDirectionsCount`, `Hints.ForbiddenZonesCount`, `Hints.PredictedDamagePlayers`, `Hints.MaxCastTime`, `Hints.ForceCancelCast`, `Hints.InteractWithTargetOID`
+- `Debug.TimelineWalk`, `AI.PauseMovement`
+- **CORRECTION (verified against BMR source 2026):** gaze/forbidden-direction DOES exist — `Hints.ForbiddenDirectionsCount` (the underlying `AIHints.ForbiddenDirections` holds the actual `(center, halfWidth, activation)` arcs, though only the count is exposed via IPC today). So `ForbiddenDirectionsCount > 0` is a BMR-driven "gaze active, look away" signal — an alternative/supplement to the curated `FFXIVConstants.GazeCastActionIds` list. (The `Hints.SpecialModeIn/Type` endpoints are Pyretic/Freezing, NOT gaze — that part stands.)
+- **Full BMR source now checked out at `.cursor/bmr/`** (gitignored, sibling of `.cursor/rsr/`). Authoritative IPC list: `.cursor/bmr/BossMod/Framework/IPCProvider.cs`; hint model: `.cursor/bmr/BossMod/BossModule/AIHints.cs`; movement: `BossMod/Pathfinding/`, `BossMod/AI/`. Consult before any movement / positional / mechanics-safety work.
 
 ## Pending Plugin: Caduceus
 Standalone mouseover healing plugin — separate from Daedalus rotation. Scoped but not started.

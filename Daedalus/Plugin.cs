@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Linq;
 using Dalamud.Game.ClientState.Objects.Types;
 using Dalamud.Game.Command;
@@ -113,6 +113,9 @@ public sealed class Plugin : IDalamudPlugin
     // Party coordination (multi-Daedalus IPC)
     private readonly PartyCoordinationService? partyCoordinationService;
     private readonly PartyCoordinationIpc? partyCoordinationIpc;
+    private readonly Daedalus.Services.Network.LanCoordinator? lanCoordinator;
+    private readonly Daedalus.Services.Network.CoordinationBus? coordinationBus;
+    private readonly LanPartyWindow? lanPartyWindow;
 
     // Performance analytics
     private readonly PerformanceTracker performanceTracker;
@@ -303,6 +306,31 @@ public sealed class Plugin : IDalamudPlugin
             this.partyCoordinationIpc = new PartyCoordinationIpc(pluginInterface, partyCoordinationService, log);
         }
 
+        // LAN coordinator (cross-machine UDP broadcast on the local VLAN). Opt-in; same-machine
+        // toons keep Dalamud IPC, the CoordinationBus mirrors + dedups between the transports.
+        if (configuration.PartyCoordination.LanCoordinatorEnabled)
+        {
+            var machineId = configuration.PartyCoordination.GetOrCreateMachineId();
+            pluginInterface.SavePluginConfig(configuration); // persist a freshly-generated machine id
+            this.lanCoordinator = new Daedalus.Services.Network.LanCoordinator(
+                log, machineId, configuration.PartyCoordination.LanPort);
+            this.coordinationBus = new Daedalus.Services.Network.CoordinationBus(
+                log, lanCoordinator, partyCoordinationService, machineId);
+            this.coordinationBus.HeartbeatProvider = BuildLanHeartbeat;
+            this.lanCoordinator.Start(); // bind failure logs + falls back to IPC-only (Status=Error)
+            this.clientState.TerritoryChanged += OnLanTerritoryChanged;
+            Windows.Config.Shared.PartyCoordinationSection.LanStatusSource = () =>
+            {
+                var status = lanCoordinator.Status.ToString();
+                var detail = lanCoordinator.Status == Daedalus.Services.Network.LanStatus.Error
+                    ? lanCoordinator.LastError
+                    : $"{coordinationBus!.PeerToonCount} peer toon(s), {coordinationBus.PeerMachineCount} machine(s)";
+                return (lanCoordinator.Status == Daedalus.Services.Network.LanStatus.Connected ? "Connected"
+                        : lanCoordinator.Status == Daedalus.Services.Network.LanStatus.Error ? "Error"
+                        : status, detail);
+            };
+        }
+
         // Burst window service (DPS resource pooling during raid buffs)
         // Created after partyCoordinationService so it can use IPC data when available.
         // Wired to CombatEventService for low-latency cast-event burst detection: when
@@ -435,7 +463,11 @@ public sealed class Plugin : IDalamudPlugin
         this.navControlWindow = new NavControlWindow(configuration, SaveConfiguration, bmrAiConfigService);
         this.raidWindow = new RaidWindow(configuration, SaveConfiguration, dutyContentService);
         this.missingWindow = new MissingWindow(debugService);
+        if (coordinationBus != null && lanCoordinator != null)
+            this.lanPartyWindow = new LanPartyWindow(coordinationBus, lanCoordinator, configuration, SaveConfiguration);
         this.mainWindow = new MainWindow(configuration, SaveConfiguration, OpenConfigUI, OpenDebugUI, OpenAnalyticsUI, OpenTrainingUI, OpenChangelogUI, OpenOverlayUI, OpenControlUI, OpenNavControlUI, OpenRaidUI, OpenMissingUI, PluginVersion, rotationManager, textureProvider);
+        if (lanPartyWindow != null)
+            this.mainWindow.OpenLanParty = () => lanPartyWindow.Toggle();
         var smartAoETab = new SmartAoETab(aoeTracker, drawCanvas, objectTable);
         this.debugWindow = new DebugWindow(debugService, configuration, timelineService, smartAoETab, debugLogService);
         this.welcomeWindow = new WelcomeWindow(configuration, SaveConfiguration, OpenConfigUI);
@@ -472,6 +504,8 @@ public sealed class Plugin : IDalamudPlugin
         windowSystem.AddWindow(navControlWindow);
         windowSystem.AddWindow(raidWindow);
         windowSystem.AddWindow(missingWindow);
+        if (lanPartyWindow != null)
+            windowSystem.AddWindow(lanPartyWindow);
         windowSystem.AddWindow(debugWindow);
         windowSystem.AddWindow(welcomeWindow);
         windowSystem.AddWindow(analyticsWindow);
@@ -613,6 +647,88 @@ public sealed class Plugin : IDalamudPlugin
             container.Register<IFightSummaryService, FightSummaryService>(fightSummaryService);
 
         return container;
+    }
+
+    /// <summary>Local toon heartbeat for the LAN roster (null when not logged in).</summary>
+    private Daedalus.Services.Network.LanHeartbeatPayload? BuildLanHeartbeat()
+    {
+        var player = objectTable.LocalPlayer;
+        if (player == null || lanCoordinator == null)
+            return null;
+
+        // Sender id is per toon: "Name@World" — set it here so login/relog always refreshes it.
+        var world = player.HomeWorld.Value.Name.ToString();
+        lanCoordinator.SenderId = $"{player.Name.TextValue}@{world}";
+
+        var jobId = player.ClassJob.RowId;
+        var role = JobRegistry.IsTank(jobId) ? "Tank" : JobRegistry.IsHealer(jobId) ? "Healer" : "DPS";
+        return new Daedalus.Services.Network.LanHeartbeatPayload
+        {
+            CharacterName = player.Name.TextValue,
+            JobId = jobId,
+            JobAbbrev = player.ClassJob.Value.Abbreviation.ToString(),
+            HpPercent = player.MaxHp > 0 ? (float)player.CurrentHp / player.MaxHp : 0f,
+            Role = role,
+            Status = clientState.IsPvP ? "PvP" : "OK",
+        };
+    }
+
+    private DateTime _lanHealerDownLastCheck = DateTime.MinValue;
+    private DateTime _lanHealerDownLastBroadcast = DateTime.MinValue;
+
+    /// <summary>
+    /// Any toon detects ALL party healers dead -> broadcasts HealerDown (rate-limited to one per
+    /// 10s). The designated Phoenix Down carrier subscribes on the bus; the actual item-use
+    /// execution is a follow-up milestone (needs inventory/UseItem machinery) — this ships the
+    /// detection + signaling half so the carrier logic has something real to hook.
+    /// </summary>
+    private void UpdateLanHealerDownDetector()
+    {
+        var now = DateTime.UtcNow;
+        if ((now - _lanHealerDownLastCheck).TotalSeconds < 1) return;
+        _lanHealerDownLastCheck = now;
+
+        var player = objectTable.LocalPlayer;
+        if (player == null || partyList.Length == 0) return;
+        var inCombat = (player.StatusFlags & Dalamud.Game.ClientState.Objects.Enums.StatusFlags.InCombat) != 0;
+        if (!inCombat) return;
+
+        var healers = 0;
+        var deadHealers = 0;
+        var deadNames = new System.Collections.Generic.List<string>();
+        foreach (var member in partyList)
+        {
+            if (member?.ClassJob.RowId is not { } jobId || !JobRegistry.IsHealer(jobId)) continue;
+            healers++;
+            if (member.CurrentHP == 0)
+            {
+                deadHealers++;
+                deadNames.Add(member.Name.TextValue);
+            }
+        }
+
+        if (healers > 0 && healers == deadHealers && (now - _lanHealerDownLastBroadcast).TotalSeconds > 10)
+        {
+            _lanHealerDownLastBroadcast = now;
+            coordinationBus!.BroadcastHealerDown(string.Join(",", deadNames));
+            log.Warning($"LAN: all {healers} healer(s) down — HealerDown broadcast");
+        }
+    }
+
+    /// <summary>Zone-in: broadcast our job/role and open the 3s role-collection window.</summary>
+    private void OnLanTerritoryChanged(uint territory)
+    {
+        var player = objectTable.LocalPlayer;
+        if (player == null || coordinationBus == null)
+            return;
+
+        var jobId = player.ClassJob.RowId;
+        coordinationBus.BroadcastRoleAssignment(new Daedalus.Services.Network.LanRolePayload
+        {
+            CharacterName = player.Name.TextValue,
+            JobId = jobId,
+            Role = JobRegistry.IsTank(jobId) ? "Tank" : JobRegistry.IsHealer(jobId) ? "Healer" : "DPS",
+        });
     }
 
     private void SaveConfiguration()
@@ -780,6 +896,12 @@ public sealed class Plugin : IDalamudPlugin
             // Always update debug service frame counter
             debugService.Update();
 
+            // LAN coordination pump: drains the socket-thread inbox, sends the 2s heartbeat,
+            // ages the roster. Framework thread only — the receive thread never touches game state.
+            coordinationBus?.Update();
+            if (coordinationBus != null)
+                UpdateLanHealerDownDetector();
+
             // Always update shield tracking for accurate HP predictions
             shieldTrackingService.Update();
 
@@ -940,6 +1062,12 @@ public sealed class Plugin : IDalamudPlugin
         }
 
         framework.Update -= OnFrameworkUpdate;
+        if (lanCoordinator != null)
+        {
+            clientState.TerritoryChanged -= OnLanTerritoryChanged;
+            coordinationBus?.Dispose();
+            lanCoordinator.Dispose();
+        }
         clientState.TerritoryChanged -= OnTerritoryChanged;
         combatEventService.OnAbilityUsed -= this.onAbilityUsedHandler;
         performanceTracker.OnSessionCompleted -= this.onSessionCompletedHandler;
