@@ -5,6 +5,9 @@ All notable changes to Daedalus will be documented in this file.
 <!-- LATEST-START -->
 ## v0.1.0 — 2026-06-27
 
+### Fix — White Mage no longer casts Cure I past level 30
+- Cure I was sneaking into high-level play through two holes: an MP-conservation mode that picked it to "fish for Freecure" (a proc that was removed from the game in patch 7.0), and a fallback that dropped to Cure I whenever Cure II would overheal. Now Cure I is only used before Cure II unlocks at 30 — and when a target is barely scratched (Cure II would overheal), the GCD goes to damage instead of a weak top-up; Regen, lilies and abilities cover small deficits
+
 ### Fix — Wrong action ids found by a full data audit (SAM, SGE, SMN)
 - All 831 action ids were verified against the game sheets after the Dark Knight Unmend discovery. Three more jobs had wrong ids: **Samurai's Tengentsu** pointed at a Red Mage spell (the defensive never fired), **Sage's Psyche and Eukrasian Prognosis II ids were swapped** (Psyche — a damage cooldown — never fired), and **Summoner's Ifrit/Titan/Garuda summons** pointed at their level-90 upgrades (broken below 90). All corrected
 

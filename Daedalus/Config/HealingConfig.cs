@@ -468,8 +468,9 @@ public sealed class HealingConfig
     public bool PreferLiliesInConservationMode { get; set; } = true;
 
     /// <summary>
-    /// When in MP conservation mode and no lilies available, prefer Cure over Cure II.
-    /// Cure costs less MP and may proc Freecure for a free Cure II.
+    /// Retained for config-file compat; no longer consulted. The "fish for Freecure with Cure I"
+    /// conservation strategy died with Freecure's removal in patch 7.0 — Cure I is never selected
+    /// once Cure II is unlocked.
     /// </summary>
     public bool PreferCureInConservationMode { get; set; } = true;
 

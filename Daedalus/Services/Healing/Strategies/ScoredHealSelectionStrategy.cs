@@ -162,7 +162,11 @@ public sealed class ScoredHealSelectionStrategy : IHealSelectionStrategy
             }
         }
 
-        // Evaluate Cure
+        // Evaluate Cure — ONLY below Lv.30. Once Cure II is unlocked, Cure I is strictly worse per
+        // GCD (500p vs 800p; Freecure was removed in 7.0, so there's nothing to fish for) and must
+        // never win a scoring round just because Cure II gets overheal-penalized — small deficits
+        // belong to lilies/oGCDs/Regen, not a weak GCD heal.
+        if (context.Player.Level < WHMActions.CureII.MinLevel)
         {
             var result = evaluator.EvaluateSingleTarget(
                 WHMActions.Cure,

@@ -113,56 +113,19 @@ public sealed class TieredHealSelectionStrategy : IHealSelectionStrategy
             }
         }
 
-        // === TIER 3: Regular GCD (Cure II with Freecure, or Cure) ===
-        // Apply overheal prevention to GCD heals to avoid wasting MP
-        // MP conservation: prefer Cure over Cure II to save MP and fish for Freecure procs
+        // === TIER 3: Regular GCD (Cure II; Cure only below Lv.30) ===
+        // Apply overheal prevention to GCD heals to avoid wasting MP.
+        // Cure I is NEVER used once Cure II is unlocked: it's 500p vs 800p on the same GCD, and
+        // Freecure (the proc that justified fishing with Cure) was REMOVED from the game in 7.0 —
+        // the old conservation "fish for Freecure" branch was dead logic. Crucially, Cure I is also
+        // no longer the overheal fallback: when Cure II would overheal (target ~85%, Regen rolling),
+        // the right answer is NO GCD heal — lilies/oGCDs/Regen cover small deficits and the GCD goes
+        // to Glare. (Validated log 2026-07-02: Cure I on an 85% tank at Lv.92, twice.)
         if (selectedAction is null)
         {
-            // Prioritize Cure II if we have Freecure proc (always use free spells)
-            if (context.HasFreecure)
-            {
-                var result = evaluator.EvaluateSingleTarget(
-                    WHMActions.CureII,
-                    context.Player.Level,
-                    context.Mind, context.Det, context.Wd,
-                    context.Target,
-                    context.MissingHp,
-                    context.Config.SingleTargetOverhealTolerance);
+            var cureIiUnlocked = context.Player.Level >= WHMActions.CureII.MinLevel;
 
-                if (result.IsValid && result.Action is not null)
-                {
-                    selectedAction = result.Action;
-                    selectedHealAmount = result.HealAmount;
-                    selectionReason = "Tier 3: Cure II (Freecure proc)";
-                }
-            }
-
-            // In MP conservation mode, prefer Cure over Cure II (unless Freecure proc)
-            var preferCureForConservation = context.IsInMpConservationMode &&
-                                            context.Config.PreferCureInConservationMode &&
-                                            !context.HasFreecure;
-
-            if (preferCureForConservation && selectedAction is null)
-            {
-                // Try Cure first (lower MP cost, may proc Freecure)
-                var result = evaluator.EvaluateSingleTarget(
-                    WHMActions.Cure,
-                    context.Player.Level,
-                    context.Mind, context.Det, context.Wd,
-                    context.Target,
-                    context.MissingHp,
-                    context.Config.SingleTargetOverhealTolerance);
-
-                if (result.IsValid && result.Action is not null)
-                {
-                    selectedAction = result.Action;
-                    selectedHealAmount = result.HealAmount;
-                    selectionReason = "Tier 3: Cure (MP conservation)";
-                }
-            }
-
-            // Try Cure II without Freecure (normal mode or Cure didn't work)
-            if (selectedAction is null && !preferCureForConservation)
+            if (cureIiUnlocked)
             {
                 var result = evaluator.EvaluateSingleTarget(
                     WHMActions.CureII,
@@ -179,13 +142,10 @@ public sealed class TieredHealSelectionStrategy : IHealSelectionStrategy
                     selectionReason = "Tier 3: Cure II";
                 }
             }
-
-            // Fallback to Cure (or Cure II in conservation mode if Cure didn't work)
-            if (selectedAction is null)
+            else
             {
-                var fallbackAction = preferCureForConservation ? WHMActions.CureII : WHMActions.Cure;
                 var result = evaluator.EvaluateSingleTarget(
-                    fallbackAction,
+                    WHMActions.Cure,
                     context.Player.Level,
                     context.Mind, context.Det, context.Wd,
                     context.Target,
@@ -196,9 +156,7 @@ public sealed class TieredHealSelectionStrategy : IHealSelectionStrategy
                 {
                     selectedAction = result.Action;
                     selectedHealAmount = result.HealAmount;
-                    selectionReason = preferCureForConservation
-                        ? "Tier 3: Cure II (fallback, MP conservation)"
-                        : "Tier 3: Cure (fallback)";
+                    selectionReason = "Tier 3: Cure (pre-Lv.30)";
                 }
             }
         }
