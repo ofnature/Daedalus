@@ -738,7 +738,9 @@ public static class DRKActions
     /// </summary>
     public static readonly ActionDefinition Unmend = new()
     {
-        ActionId = 2580,
+        // 3624 verified via XIVAPI (was 2580 = "Boulder Clap", a MONSTER ability — game status 574
+        // wrong-job on every dispatch; ranged pull / add-tag / transit filler were all dead on DRK).
+        ActionId = 3624,
         Name = "Unmend",
         MinLevel = 15,
         Category = ActionCategory.GCD,
