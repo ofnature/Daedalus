@@ -33,7 +33,11 @@ internal static class HermesTenChiJinHelper
             && !WasLastAny(wasLastAction, NINActions.TenChiJinAdjusted.FumaShurikenSt,
                 NINActions.TenChiJinAdjusted.FumaShurikenAoE))
         {
-            if (enemyCount >= aoeMinTargets)
+            // The AoE sequence's third press can ONLY be Doton (Jin→Ten→Chi — no other button left).
+            // If Doton is already ticking, entering the AoE sequence guarantees either a wasted
+            // refresh or a stall at step 3 — take the ST sequence (Fuma→Raiton→Suiton) instead.
+            // (Validated log 2026-07-01: TCJ stalled 4.7s at step 3 behind an active Doton.)
+            if (enemyCount >= aoeMinTargets && !hasDotonActive)
             {
                 step = new TenChiJinStep(
                     NINActions.Ten.ActionId,
@@ -84,8 +88,11 @@ internal static class HermesTenChiJinHelper
             return true;
         }
 
+        // NO hasDotonActive gate here: mid-sequence, Doton is the ONLY remaining press — refusing it
+        // stalls until the 6s TCJ buff expires (the 4.7s hole in the validation log). A refresh of an
+        // active Doton is a minor snapshot waste; a stall is a lost cast AND lost uptime. Doton-active
+        // avoidance belongs at sequence ENTRY (see the Fuma step above).
         if (chiAdjusted == NINActions.TenChiJinAdjusted.Doton
-            && !hasDotonActive
             && !wasLastAction(NINActions.TenChiJinAdjusted.Doton))
         {
             step = new TenChiJinStep(

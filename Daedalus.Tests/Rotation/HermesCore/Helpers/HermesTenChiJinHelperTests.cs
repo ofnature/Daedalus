@@ -54,12 +54,30 @@ public class HermesTenChiJinHelperTests
     }
 
     [Fact]
-    public void Step3_ChiAdjustedToDoton_SkippedWhenDotonActive()
+    public void Step3_ChiAdjustedToDoton_FiresEvenWhenDotonActive()
     {
-        Assert.False(HermesTenChiJinHelper.TryGetNextStep(
+        // Regression (2026-07-01 NIN validation): mid-sequence, Doton is the ONLY remaining press
+        // (Jin→Ten→Chi) — the old !hasDotonActive gate refused it and the rotation stalled 4.7s
+        // until the TCJ buff expired. A refresh beats a stall; Doton-avoidance moved to entry.
+        Assert.True(HermesTenChiJinHelper.TryGetNextStep(
             0, NINActions.TenChiJinAdjusted.Doton, 0,
             enemyCount: 3, aoeMinTargets: 3, hasDotonActive: true,
-            _ => false, out _));
+            _ => false, out var step));
+
+        Assert.Equal("TCJ: Doton", step.DebugName);
+    }
+
+    [Fact]
+    public void Step1_DotonActive_TakesStSequenceInsteadOfAoE()
+    {
+        // With Doton already ticking, the AoE sequence's third press would be a wasted Doton
+        // refresh — enter the ST sequence (Fuma ST → Raiton → Suiton) instead.
+        Assert.True(HermesTenChiJinHelper.TryGetNextStep(
+            NINActions.TenChiJinAdjusted.FumaShurikenSt, 0, 0,
+            enemyCount: 3, aoeMinTargets: 3, hasDotonActive: true,
+            _ => false, out var step));
+
+        Assert.Equal(NINActions.TenChiJinAdjusted.FumaShurikenSt, step.AdjustedNinjutsuId);
     }
 
     [Fact]

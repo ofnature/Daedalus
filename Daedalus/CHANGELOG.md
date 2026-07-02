@@ -5,6 +5,9 @@ All notable changes to Daedalus will be documented in this file.
 <!-- LATEST-START -->
 ## v0.1.0 — 2026-06-27
 
+### Fix — Ninja froze mid-Ten Chi Jin when Doton was already down
+- The AoE Ten Chi Jin sequence's third cast can only be Doton, but the logic refused to recast Doton while one was already ticking — so the sequence hung until the buff expired (~5 seconds of nothing, every burst with a Doton down). Now: if Doton is already active, TCJ takes the single-target sequence instead; and once a sequence is started, it always completes
+
 ### Fix — Dark Knight's Unmend was a monster ability
 - Unmend's action id pointed at "Boulder Clap" — a mob skill — so the game rejected every Unmend the plugin ever tried (wrong-job error): ranged pulls, add tagging, and out-of-range filler were all silently dead on Dark Knight. Corrected to the real Unmend
 
