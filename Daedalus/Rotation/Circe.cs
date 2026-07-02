@@ -196,7 +196,10 @@ public sealed class Circe : BaseCasterDpsRotation<ICirceContext, ICirceModule>
         if (actionManager == null)
             return;
 
-        var adjustedId = actionManager->GetAdjustedActionId(RDMActions.EnchantedMoulinet.ActionId);
+        // Probe the BASE hotbar button — only 7513 morphs to Deux/Trois mid-chain. Probing the
+        // Enchanted id (7530) always returns itself, so the chain never advanced past hit 1
+        // (Mistwake log 2026-07-02: lone Moulinets interleaved with hardcasts).
+        var adjustedId = actionManager->GetAdjustedActionId(RDMActions.MoulinetHotbarBaseId);
         _moulinetStep = ComputeMoulinetStep(adjustedId);
     }
 
@@ -205,9 +208,14 @@ public sealed class Circe : BaseCasterDpsRotation<ICirceContext, ICirceModule>
     /// melee chain index. Precedence (top wins):
     ///   1) comboTimer &gt; 0 AND comboAction is Verflare/Verholy ⇒ 4
     ///   2) comboTimer &gt; 0 AND comboAction is Scorch ⇒ 5
-    ///   3) comboTimer &gt; 0 AND (ManaStacks ≥ 3 OR last hit was Redoublement) ⇒ 3
-    ///   4) comboTimer &gt; 0 AND (ManaStacks ≥ 2 OR last hit was Zwerchhau) ⇒ 2
-    ///   5) comboTimer &gt; 0 AND (ManaStacks ≥ 1 OR last hit was Riposte) ⇒ 1
+    ///   3) comboTimer &gt; 0 AND comboAction is a Moulinet-chain hit ⇒ 3 at 3 stacks
+    ///      (finisher next), otherwise 0 — Moulinet hits grant Mana Stacks while keeping the
+    ///      combo timer alive, so without this the stacks fallback below maps an in-progress
+    ///      Moulinet chain onto the single-target chain (Zwerchhau mid-Moulinet). Steps 1-2 of
+    ///      the AoE chain are owned by MoulinetStep, not this mapping
+    ///   4) comboTimer &gt; 0 AND (ManaStacks ≥ 3 OR last hit was Redoublement) ⇒ 3
+    ///   5) comboTimer &gt; 0 AND (ManaStacks ≥ 2 OR last hit was Zwerchhau) ⇒ 2
+    ///   6) comboTimer &gt; 0 AND (ManaStacks ≥ 1 OR last hit was Riposte) ⇒ 1
     ///   else ⇒ 0
     /// Both comboAction and ManaStacks require an active combo timer so stale gauge
     /// or combo IDs from downtime do not start the chain at combat entry.
@@ -221,6 +229,8 @@ public sealed class Circe : BaseCasterDpsRotation<ICirceContext, ICirceModule>
                 return 4;
             if (comboAction == RDMActions.Scorch.ActionId)
                 return 5;
+            if (IsMoulinetComboAction(comboAction))
+                return manaStacks >= 3 ? 3 : 0;
             if (IsRedoublementComboAction(comboAction))
                 return 3;
             if (IsZwerchhauComboAction(comboAction))
@@ -250,6 +260,11 @@ public sealed class Circe : BaseCasterDpsRotation<ICirceContext, ICirceModule>
 
     private static bool IsRedoublementComboAction(uint actionId) =>
         actionId == RDMActions.Redoublement.ActionId || actionId == RDMActions.EnchantedRedoublement.ActionId;
+
+    private static bool IsMoulinetComboAction(uint actionId) =>
+        actionId == RDMActions.EnchantedMoulinet.ActionId
+        || actionId == RDMActions.EnchantedMoulinetDeux.ActionId
+        || actionId == RDMActions.EnchantedMoulinetTrois.ActionId;
 
     /// <summary>
     /// Updates the melee combo step from Mana Stacks (steps 1-3) and the game's

@@ -83,6 +83,19 @@ public sealed class CirceContext : ICirceContext
     public bool IsManaBalanced { get; }
     public int ManaStacks { get; }
     public bool CanStartMeleeCombo { get; }
+    public bool HasMagickedSwordplay { get; }
+
+    /// <summary>
+    /// Combo entry: mana at the configured floor OR Magicked Swordplay up (Manafication grants
+    /// 3 free enchanted melee GCDs at 25y range — mana is irrelevant while it lasts).
+    /// Extracted from the wrapper for unit-test coverage.
+    /// </summary>
+    internal static bool ComputeCanStartMeleeCombo(
+        bool inCombat, bool hasMeleeMana, bool hasMagickedSwordplay,
+        float combatElapsed, float minCombatSeconds) =>
+        inCombat
+        && (hasMeleeMana || hasMagickedSwordplay)
+        && combatElapsed >= minCombatSeconds;
     public int LowerMana { get; }
 
     // Dualcast state
@@ -230,9 +243,10 @@ public sealed class CirceContext : ICirceContext
         var hasMeleeMana = blackMana >= configuration.RedMage.MeleeComboMinMana
                         && whiteMana >= configuration.RedMage.MeleeComboMinMana;
         var combatElapsed = inCombat ? combatEventService.GetCombatDurationSeconds() : 0f;
-        CanStartMeleeCombo = inCombat
-            && hasMeleeMana
-            && combatElapsed >= configuration.RedMage.MeleeComboMinCombatSeconds;
+        HasMagickedSwordplay = statusHelper.HasMagickedSwordplay(player);
+        CanStartMeleeCombo = ComputeCanStartMeleeCombo(
+            inCombat, hasMeleeMana, HasMagickedSwordplay,
+            combatElapsed, configuration.RedMage.MeleeComboMinCombatSeconds);
         LowerMana = Math.Min(blackMana, whiteMana);
 
         // Dualcast state

@@ -246,6 +246,18 @@ public sealed class RedMageConfig
         set => _soloBurstIdealMinMana = Math.Clamp(value, 50, 100);
     }
 
+    /// <summary>
+    /// Single-target solo burst gate: fire Manafication/Embolden on a lone target (boss, big
+    /// trash) when its estimated time-to-death is at least this many seconds. 0 disables the
+    /// TTK check (lone targets then never pass the pack gate).
+    /// </summary>
+    private float _soloBurstMinSingleTargetTtkSeconds = 10f;
+    public float SoloBurstMinSingleTargetTtkSeconds
+    {
+        get => _soloBurstMinSingleTargetTtkSeconds;
+        set => _soloBurstMinSingleTargetTtkSeconds = Math.Clamp(value, 0f, 60f);
+    }
+
     #endregion
 
     #region AoE Settings

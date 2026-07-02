@@ -478,6 +478,13 @@ public static class RDMActions
     };
 
     /// <summary>
+    /// The BASE hotbar button (Moulinet). Only this id morphs via GetAdjustedActionId —
+    /// 7513 → 7530 (mana ≥20|20) → 37002 (Deux) → 37003 (Trois). Probing 7530 always returns
+    /// itself, which silently reads "not in chain".
+    /// </summary>
+    public const uint MoulinetHotbarBaseId = 7513;
+
+    /// <summary>
     /// Enchanted Moulinet - AoE melee (Lv.52)
     /// Requires 20|20 mana
     /// </summary>
@@ -817,9 +824,10 @@ public static class RDMActions
         public const uint MagickBarrier = 2707;     // Party mitigation
 
         // Finisher state tracking
+        public const uint MagickedSwordplay = 3875; // Manafication: 3 free enchanted melee GCDs
         public const uint ThornedFlourish = 3876;   // Vice of Thorns ready
         public const uint GrandImpactReady = 3877;  // Grand Impact ready
-        public const uint PrefulgenceReady = 3878;  // Prefulgence ready
+        public const uint PrefulgenceReady = 3878;  // Prefulgence ready (4322 is the PvP row)
 
         // Debuffs
         public const uint Addle = 1203;

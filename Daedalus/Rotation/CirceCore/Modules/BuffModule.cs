@@ -72,6 +72,11 @@ public sealed class BuffModule : ICirceModule
         if (target == null) return;
         if (context.Player.Level < RDMActions.Fleche.MinLevel) return;
         if (!context.FlecheReady) return;
+        if (RdmSoloBurstHelper.ShouldHoldFillerOgcdsForEmbolden(context, _burstWindowService))
+        {
+            context.Debug.BuffState = "Holding Fleche (Embolden next weave)";
+            return;
+        }
 
         scheduler.PushOgcd(CirceAbilities.Fleche, target.GameObjectId, priority: 1,
             onDispatched: _ =>
@@ -99,6 +104,11 @@ public sealed class BuffModule : ICirceModule
         if (target == null) return;
         if (context.Player.Level < RDMActions.ContreSixte.MinLevel) return;
         if (!context.ContreSixteReady) return;
+        if (RdmSoloBurstHelper.ShouldHoldFillerOgcdsForEmbolden(context, _burstWindowService))
+        {
+            context.Debug.BuffState = "Holding Contre Sixte (Embolden next weave)";
+            return;
+        }
 
         scheduler.PushOgcd(CirceAbilities.ContreSixte, target.GameObjectId, priority: 1,
             onDispatched: _ =>
@@ -153,8 +163,17 @@ public sealed class BuffModule : ICirceModule
         if (target == null) return;
         if (context.Player.Level < RDMActions.Prefulgence.MinLevel) return;
         if (!context.HasPrefulgenceReady) return;
+        if (RdmSoloBurstHelper.ShouldHoldFillerOgcdsForEmbolden(context, _burstWindowService))
+        {
+            context.Debug.BuffState = "Holding Prefulgence for Embolden";
+            return;
+        }
 
-        scheduler.PushOgcd(CirceAbilities.Prefulgence, target.GameObjectId, priority: 1,
+        // Priority 0: the 900p Embolden-window nuke must beat Fleche/Contre Sixte (also
+        // priority 1, and List.Sort ties are unstable) to the scarce post-burst weave slots —
+        // it lost both slots to Fleche and the proc timed out with the pull (Mistwake
+        // 2026-07-02). Prefulgence Ready is a 30s proc; fillers can always take the next slot.
+        scheduler.PushOgcd(CirceAbilities.Prefulgence, target.GameObjectId, priority: 0,
             onDispatched: _ =>
             {
                 context.Debug.PlannedAction = RDMActions.Prefulgence.Name;
@@ -191,9 +210,29 @@ public sealed class BuffModule : ICirceModule
 
         if (soloBurst)
         {
+            // Manafication already fired: the chain is committed — follow with Embolden NOW,
+            // without re-checking pack viability. The pack state that justified Manafication can
+            // thin out one GCD later (mobs die), and re-litigating it strands Manafication
+            // unbuffed while Embolden drifts (Mistwake log 2026-07-02).
+            if (context.HasManafication)
+            {
+                // Priority 1: the follower must win the next weave slot outright — hardcast
+                // stretches only surface ~one slot per dualcast.
+                PushEmbolden(context, scheduler, player, priority: 1, partyCoord: null);
+                return;
+            }
+
             if (!RdmSoloBurstHelper.IsBurstPackViable(context, target, player))
             {
                 context.Debug.BuffState = "Hold Embolden (pack dying/small)";
+                return;
+            }
+
+            // Chain order is Manafication → Embolden. Firing Embolden first deadlocks the pair:
+            // Manafication then waits on a 120s Embolden CD it can never satisfy.
+            if (RdmSoloBurstHelper.ShouldHoldEmboldenForManafication(context, rdmCfg.SoloBurstPairCooldownSeconds))
+            {
+                context.Debug.BuffState = "Hold Embolden for Manafication";
                 return;
             }
 
@@ -278,15 +317,34 @@ public sealed class BuffModule : ICirceModule
 
         if (soloBurst)
         {
+            // Embolden window already open: fire into it now — every gate below (including pack
+            // viability, which can flip as mobs die) only makes the overlap shorter.
+            if (context.HasEmbolden)
+            {
+                scheduler.PushOgcd(CirceAbilities.Manafication, player.GameObjectId, priority: 2,
+                    onDispatched: _ => OnManaficationDispatched(context));
+                return;
+            }
+
             if (!RdmSoloBurstHelper.IsBurstPackViable(context, target, player))
             {
                 context.Debug.BuffState = "Hold Manafication (pack dying/small)";
                 return;
             }
 
-            if (!RdmSoloBurstHelper.AreBurstCooldownsPaired(context, rdmCfg.SoloBurstPairCooldownSeconds))
+            // Embolden desynced (long CD) or disabled: pairing is impossible this window. Fire
+            // on cooldown behind the same mana floor as the non-solo path instead of drifting a
+            // 110s cooldown behind a 120s one.
+            if (!RdmSoloBurstHelper.IsEmboldenImminent(context, rdmCfg.SoloBurstPairCooldownSeconds))
             {
-                context.Debug.BuffState = "Hold Manafication for Embolden CD";
+                if (context.LowerMana < 25)
+                {
+                    context.Debug.BuffState = "Hold Manafication for mana (Embolden desynced)";
+                    return;
+                }
+
+                scheduler.PushOgcd(CirceAbilities.Manafication, player.GameObjectId, priority: 3,
+                    onDispatched: _ => OnManaficationDispatched(context));
                 return;
             }
 
@@ -396,6 +454,17 @@ public sealed class BuffModule : ICirceModule
         if (player.Level < RDMActions.Engagement.MinLevel) return;
         if (context.EngagementCharges == 0) return;
 
+        // Engagement is a 3y melee oGCD and Manafication does NOT extend it (only the enchanted
+        // sword GCDs reach 25y). Dispatched from caster range, the game queue-accepts the press
+        // (UseAction true) then silently drops it — no charge is consumed, so the charge count
+        // never falls and the module re-pushed every weave slot forever (7 phantom Engagements
+        // in 25s, Mistwake log 2026-07-02).
+        if (RdmSoloBurstHelper.IsOutsideMeleeEntryRange(player, target))
+        {
+            context.Debug.BuffState = "Engagement out of melee range";
+            return;
+        }
+
         var hpPercent = player.MaxHp > 0 ? (float)player.CurrentHp / player.MaxHp : 1f;
         if (hpPercent < context.Configuration.RedMage.MeleeDashMinHpPercent)
         {
@@ -459,7 +528,8 @@ public sealed class BuffModule : ICirceModule
         if (history.Count == 0)
             return false;
 
-        var latest = history[^1];
+        // GetHistory() is newest-first (ring buffer AddFirst): index 0 is the latest attempt.
+        var latest = history[0];
         if (latest.Result != ActionResult.Success)
             return false;
 

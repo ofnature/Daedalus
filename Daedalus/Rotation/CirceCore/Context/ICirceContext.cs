@@ -50,6 +50,9 @@ public interface ICirceContext : ICasterDpsRotationContext
     /// </summary>
     bool CanStartMeleeCombo { get; }
 
+    /// <summary>Magicked Swordplay active: Manafication's 3 free enchanted melee GCDs.</summary>
+    bool HasMagickedSwordplay { get; }
+
     /// <summary>
     /// The lower of the two mana values.
     /// </summary>

@@ -108,6 +108,12 @@ public sealed class CirceStatusHelper : BaseStatusHelper
         => HasStatus(player, RDMActions.StatusIds.GrandImpactReady);
 
     /// <summary>
+    /// Checks if Magicked Swordplay is active (Manafication: 3 free enchanted melee GCDs).
+    /// </summary>
+    public bool HasMagickedSwordplay(IBattleChara player)
+        => HasStatus(player, RDMActions.StatusIds.MagickedSwordplay);
+
+    /// <summary>
     /// Checks if Prefulgence Ready buff is active.
     /// </summary>
     public bool HasPrefulgenceReady(IBattleChara player)

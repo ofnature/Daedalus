@@ -1,5 +1,6 @@
 using Daedalus.Data;
 using Daedalus.Rotation;
+using Daedalus.Rotation.CirceCore.Context;
 using Xunit;
 
 namespace Daedalus.Tests.Rotation.CirceCore;
@@ -116,6 +117,77 @@ public class CirceGaugeTests
     {
         var step = Circe.ComputeMeleeComboStep(3, RDMActions.Verflare.ActionId, ActiveComboTimer);
         Assert.Equal(4, step);
+    }
+
+    // Regression (Vanguard log 2026-07-02): Enchanted Moulinet grants a Mana Stack while keeping
+    // the combo timer alive, and its combo id is not an ST-chain action — the stacks fallback
+    // mapped it to ST step 1, so an uncombo'd Zwerchhau fired mid-Moulinet and broke the chain.
+
+    [Fact]
+    public void ComputeMeleeComboStep_Returns_0_MidMoulinetChain_OneStack()
+    {
+        var step = Circe.ComputeMeleeComboStep(1, RDMActions.EnchantedMoulinet.ActionId, ActiveComboTimer);
+        Assert.Equal(0, step);
+    }
+
+    [Fact]
+    public void ComputeMeleeComboStep_Returns_0_MidMoulinetChain_TwoStacks()
+    {
+        var step = Circe.ComputeMeleeComboStep(2, RDMActions.EnchantedMoulinetDeux.ActionId, ActiveComboTimer);
+        Assert.Equal(0, step);
+    }
+
+    [Fact]
+    public void ComputeMeleeComboStep_Returns_3_AfterMoulinetTrois_ThreeStacks()
+    {
+        // Finisher (Verflare/Verholy) legitimately follows Moulinet Trois at 3 stacks.
+        var step = Circe.ComputeMeleeComboStep(3, RDMActions.EnchantedMoulinetTrois.ActionId, ActiveComboTimer);
+        Assert.Equal(3, step);
+    }
+
+    [Fact]
+    public void ComputeMeleeComboStep_Returns_3_MoulinetComboAction_ThreeStacks()
+    {
+        // A Moulinet started at 2 pre-existing stacks reaches 3 after one hit: finisher next.
+        var step = Circe.ComputeMeleeComboStep(3, RDMActions.EnchantedMoulinet.ActionId, ActiveComboTimer);
+        Assert.Equal(3, step);
+    }
+
+    // ----- ComputeCanStartMeleeCombo -----
+    // Regression (Mistwake log 2026-07-02): Manafication's Magicked Swordplay grants 3 free
+    // enchanted melee GCDs, but combo entry was gated on real mana ≥ floor — with mana below
+    // 50|50 the free combo never fired and the whole Manafication window ran out on hardcasts.
+
+    [Fact]
+    public void ComputeCanStartMeleeCombo_MagickedSwordplay_NoMana_ReturnsTrue()
+    {
+        Assert.True(CirceContext.ComputeCanStartMeleeCombo(
+            inCombat: true, hasMeleeMana: false, hasMagickedSwordplay: true,
+            combatElapsed: 10f, minCombatSeconds: 3f));
+    }
+
+    [Fact]
+    public void ComputeCanStartMeleeCombo_NoManaNoSwordplay_ReturnsFalse()
+    {
+        Assert.False(CirceContext.ComputeCanStartMeleeCombo(
+            inCombat: true, hasMeleeMana: false, hasMagickedSwordplay: false,
+            combatElapsed: 10f, minCombatSeconds: 3f));
+    }
+
+    [Fact]
+    public void ComputeCanStartMeleeCombo_ManaFloor_NoSwordplay_ReturnsTrue()
+    {
+        Assert.True(CirceContext.ComputeCanStartMeleeCombo(
+            inCombat: true, hasMeleeMana: true, hasMagickedSwordplay: false,
+            combatElapsed: 10f, minCombatSeconds: 3f));
+    }
+
+    [Fact]
+    public void ComputeCanStartMeleeCombo_Swordplay_BeforeMinCombatTime_ReturnsFalse()
+    {
+        Assert.False(CirceContext.ComputeCanStartMeleeCombo(
+            inCombat: true, hasMeleeMana: true, hasMagickedSwordplay: true,
+            combatElapsed: 1f, minCombatSeconds: 3f));
     }
 
     // ----- ComputeMoulinetStep -----

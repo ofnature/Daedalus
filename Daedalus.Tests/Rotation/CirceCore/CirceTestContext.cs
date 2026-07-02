@@ -121,6 +121,9 @@ public static class CirceTestContext
         mock.Setup(x => x.ActionService).Returns(actionService.Object);
         mock.Setup(x => x.TargetingService).Returns(targetingService.Object);
         mock.Setup(x => x.TrainingService).Returns((ITrainingService?)null);
+        var actionTracker = new Mock<IActionTracker>();
+        actionTracker.Setup(x => x.GetHistory()).Returns(System.Array.Empty<Daedalus.Models.ActionAttempt>());
+        mock.Setup(x => x.ActionTracker).Returns(actionTracker.Object);
         mock.Setup(x => x.TimelineService).Returns(timelineService);
         mock.Setup(x => x.PartyList).Returns(partyList.Object);
         mock.Setup(x => x.HasSwiftcast).Returns(hasSwiftcast);
