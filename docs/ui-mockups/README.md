@@ -56,6 +56,20 @@ static per-job ledger). Gold SeparatorText groups. Shared settings shown in job
 sections get a "— shared ranged setting" annotation. Footer (Reset section / Apply
 preset) is mocked but NOT approved for implementation yet — new behavior, decide later.
 
+### parser.html
+**Parser window** (approved 2026-07-03): ACT-style rows — background bar width =
+damage relative to rank 1, dim-gold fill; YOUR row gets brighter gold wash + 2px gold
+left bar + gold name ("which one am I" beats rank in multibox). Source dots encode
+number trust: gold = you (exact), green = Daedalus toon self-reported over IPC/LAN
+(milestone 2), grey = observed locally. Tags: TRUST for NPC allies, HUMAN for
+non-Daedalus players. Header: combat dot + boss (most-damaged target) + duration +
+party DPS in gold. Footer: fight dropdown (current + history) + Reset + dot legend in
+(?) tooltip. Row hover tooltip: total / crit% / DH%. **Borderless mode** (config
+toggle): overlay flags + 0.88 alpha, drops rank/dots/tags, first names only, keeps
+share %; optional click-through + hide-out-of-combat. Main window gains a Parser
+button (after Analytics) with a green dot while a fight is live. Known limit shown as
+"direct damage only": DoT ticks aren't source-attributed by the game (milestone 3).
+
 ### missing-blu-loadouts-and-nav.html
 BLU loadout checklist (future, with Proteus UI work): collapsible Tank/DPS/Healer
 headers with "N/24 slotted · M not learned" summaries; per spell ✔ green

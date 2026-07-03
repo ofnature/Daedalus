@@ -5,6 +5,15 @@ All notable changes to Daedalus will be documented in this file.
 <!-- LATEST-START -->
 ## v0.1.0 — 2026-06-27
 
+### New — Built-in DPS parser
+- Daedalus now has its own parser — a **Parser** button on the main window opens an ACT-style damage meter that tracks **everyone**: your toons, other players (tagged HUMAN), and Trust/duty-support allies (tagged TRUST), with pet and summon damage merged into their owner's row. Rows show job, name, DPS, and damage share on a proportional bar; your own toon is highlighted in gold. Hover any row for total damage, crit%, and direct-hit%; the header shows the boss, fight timer, and party DPS, and a dropdown keeps your recent fights (configurable history)
+- **Borderless mode** (Settings → General → Parser) turns it into a compact semi-transparent overlay — bars, first names, and share % only — with optional click-through and hide-out-of-combat. A name scramble toggle swaps character names for mythological aliases for streaming
+- Honest numbers note: the game doesn't attribute DoT ticks to their caster, so DoT-heavy jobs read low for everyone equally — cross-toon comparisons stay fair. Per-toon exact reporting over IPC/LAN comes next
+- Accuracy fix along the way: damage and heal values over 65,535 were being truncated in the damage tracking hook (they're split across fields in the game's wire format). Big hits — routine at level 100 — now decode fully, which also corrects the personal DPS figure in Analytics
+
+### Fix — Dancer: Closed Position finally works with Trusts
+- In Trust and Duty Support content the game reports an empty party, so the Dancer concluded she was solo and never applied Closed Position — a straight damage loss in every trust dungeon. Partner selection now finds Trust allies the same way the healers do, so a dance partner is applied on zone-in; avatars that don't report a job are still taken as last-resort partners (Standard Finish buffs you regardless of who holds it)
+
 ### New — Overlay: mechanic forecast everywhere BossMod goes
 - The overlay's RAIDWIDE / TANKBUSTER countdown previously appeared only in the handful of savage and ultimate fights with a bundled timeline. It now falls back to BossMod Reborn's live timeline whenever BMR has a module for the current duty — trials, raids, dungeons — showing the boss name plus urgency-colored countdowns to the next raidwide and tank buster. Fully automatic: bundled timelines (with mechanic names) still take priority, and nothing changes if BMR isn't installed
 - The overlay status pill now matches the intended design — a rounded chip reading "● Running" / "● Paused" (was a plain ACTIVE/INACTIVE button); still click-to-toggle

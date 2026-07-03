@@ -29,6 +29,7 @@ public static class LocalizedStrings
         public const string Control = "ui.main.control";
         public const string NavControl = "ui.main.nav_control";
         public const string Raid = "ui.main.raid";
+        public const string Parser = "ui.main.parser";
         public const string Missing = "ui.main.missing";
         public const string Positional = "ui.main.positional";
         public const string PositionalRequired = "ui.main.positional_required";
@@ -37,6 +38,40 @@ public static class LocalizedStrings
         public const string PositionalFront = "ui.main.positional_front";
         public const string PositionalImmune = "ui.main.positional_immune";
         public const string Preset = "ui.main.preset";
+    }
+
+    #endregion
+
+    #region Parser (ui.parser.* / config.parser.*)
+
+    /// <summary>Keys for the DPS parser window and its settings.</summary>
+    public static class Parser
+    {
+        public const string WindowTitle = "ui.parser.window_title";
+        public const string InCombat = "ui.parser.in_combat";
+        public const string Ended = "ui.parser.ended";
+        public const string PartyLabel = "ui.parser.party";
+        public const string CurrentFight = "ui.parser.current_fight";
+        public const string Reset = "ui.parser.reset";
+        public const string NoData = "ui.parser.no_data";
+        public const string TrustTag = "ui.parser.trust_tag";
+        public const string HumanTag = "ui.parser.human_tag";
+        public const string LegendTooltip = "ui.parser.legend_tooltip";
+        public const string RowTooltip = "ui.parser.row_tooltip";
+
+        public const string Section = "config.parser.section";
+        public const string EnableParser = "config.parser.enable";
+        public const string EnableParserDesc = "config.parser.enable_desc";
+        public const string Borderless = "config.parser.borderless";
+        public const string BorderlessDesc = "config.parser.borderless_desc";
+        public const string ClickThrough = "config.parser.click_through";
+        public const string ClickThroughDesc = "config.parser.click_through_desc";
+        public const string HideOutOfCombat = "config.parser.hide_out_of_combat";
+        public const string HideOutOfCombatDesc = "config.parser.hide_out_of_combat_desc";
+        public const string ScrambleNames = "config.parser.scramble_names";
+        public const string ScrambleNamesDesc = "config.parser.scramble_names_desc";
+        public const string FightHistory = "config.parser.fight_history";
+        public const string FightHistoryDesc = "config.parser.fight_history_desc";
     }
 
     #endregion

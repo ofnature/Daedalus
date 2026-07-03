@@ -39,6 +39,12 @@ public sealed class MainWindow : Window
     /// LAN Party button. Optional; no dot when unset.</summary>
     public Func<bool>? LanConnected { get; set; }
 
+    /// <summary>Opens the Parser (DPS meter) window.</summary>
+    public Action? OpenParser { get; set; }
+
+    /// <summary>True while a fight is being parsed — draws the activity dot on the Parser button.</summary>
+    public Func<bool>? ParserActive { get; set; }
+
     private readonly RotationManager rotationManager;
     private readonly ITextureProvider textureProvider;
     private readonly Daedalus.Services.ActionTracker? actionTracker;
@@ -200,22 +206,38 @@ public sealed class MainWindow : Window
         {
             openAnalytics();
         }
-        ImGui.SameLine();
+        if (OpenParser != null)
+        {
+            ImGui.SameLine();
+            if (ImGui.Button(Loc.T(LocalizedStrings.Main.Parser, "Parser"), new Vector2(buttonWidth, 0)))
+            {
+                OpenParser();
+            }
+            if (ParserActive?.Invoke() == true)
+            {
+                var pMax = ImGui.GetItemRectMax();
+                var pMin = ImGui.GetItemRectMin();
+                ImGui.GetWindowDrawList().AddCircleFilled(
+                    new Vector2(pMax.X - 7, pMin.Y + 7), 3f,
+                    ImGui.ColorConvertFloat4ToU32(DaedalusTheme.StatusGreen));
+            }
+        }
+
         if (ImGui.Button(Loc.T(LocalizedStrings.Main.Training, "Training"), new Vector2(buttonWidth, 0)))
         {
             openTraining();
         }
-
+        ImGui.SameLine();
         if (ImGui.Button(Loc.T(LocalizedStrings.Main.Control, "Control"), new Vector2(buttonWidth, 0)))
         {
             openControl();
         }
-        ImGui.SameLine();
+
         if (ImGui.Button(Loc.T(LocalizedStrings.Main.NavControl, "Nav Control"), new Vector2(buttonWidth, 0)))
         {
             openNavControl();
         }
-
+        ImGui.SameLine();
         if (ImGui.Button(Loc.T(LocalizedStrings.Main.Raid, "Raid"), new Vector2(buttonWidth, 0)))
         {
             openRaid();
@@ -224,7 +246,6 @@ public sealed class MainWindow : Window
         // settings); a small green dot marks live peer presence.
         if (configuration.PartyCoordination.LanCoordinatorEnabled && OpenLanParty != null)
         {
-            ImGui.SameLine();
             if (ImGui.Button("LAN Party", new Vector2(buttonWidth, 0)))
             {
                 OpenLanParty();

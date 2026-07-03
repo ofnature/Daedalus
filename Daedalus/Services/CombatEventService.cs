@@ -63,6 +63,12 @@ public sealed unsafe class CombatEventService : ICombatEventService, IDisposable
     /// </summary>
     public event System.Action<uint, int, uint>? OnLocalPlayerDamageDealt;
 
+    /// <summary>
+    /// Event raised per damage effect from ANY caster in range (party, Trust NPCs, pets, enemies).
+    /// Used by the DPS parser. Raised from the hook thread — subscribers must enqueue.
+    /// </summary>
+    public event System.Action<DamageDealtEvent>? OnDamageDealt;
+
     // Shadow HP tracking: EntityId -> (CurrentHp, LastActionUpdate)
     // LastActionUpdate is set when HP changes from action effects (heal/damage)
     // to prevent InitializeHp from overwriting before game HP catches up
@@ -127,6 +133,20 @@ public sealed unsafe class CombatEventService : ICombatEventService, IDisposable
     // ActionEffectType values from FFXIVClientStructs
     private const byte EffectTypeDamage = 3;
     private const byte EffectTypeHeal = 4;
+
+    // Damage/heal effect field semantics (verified against BossmodReborn ActionEffect.cs):
+    // Param4 bit 0x40 = large-value flag, real value = Value + Param3 * 0x10000.
+    // Damage Param0: bit 0x20 = crit, bit 0x40 = direct hit.
+    private const byte LargeValueFlag = 0x40;
+    private const byte DamageCritFlag = 0x20;
+    private const byte DamageDirectHitFlag = 0x40;
+
+    /// <summary>
+    /// Decodes a damage/heal effect value, unpacking the extended high bits for hits over 65,535.
+    /// Without this, ushort <c>Value</c> alone silently truncates big hits (routine at level 100).
+    /// </summary>
+    public static int DecodeEffectValue(ushort value, byte param3, byte param4)
+        => value + ((param4 & LargeValueFlag) != 0 ? param3 * 0x10000 : 0);
 
     public CombatEventService(IGameInteropProvider gameInterop, IPluginLog log, IObjectTable objectTable)
     {
@@ -353,11 +373,20 @@ public sealed unsafe class CombatEventService : ICombatEventService, IDisposable
                 switch (effect.Type)
                 {
                     case EffectTypeDamage:
-                        totalDelta -= effect.Value;
+                        var damage = DecodeEffectValue(effect.Value, effect.Param3, effect.Param4);
+                        totalDelta -= damage;
+                        OnDamageDealt?.Invoke(new DamageDealtEvent(
+                            casterEntityId,
+                            targetId,
+                            damage,
+                            header->ActionId,
+                            (effect.Param0 & DamageCritFlag) != 0,
+                            (effect.Param0 & DamageDirectHitFlag) != 0));
                         break;
                     case EffectTypeHeal:
-                        totalDelta += effect.Value;
-                        totalHeal += effect.Value;
+                        var heal = DecodeEffectValue(effect.Value, effect.Param3, effect.Param4);
+                        totalDelta += heal;
+                        totalHeal += heal;
                         break;
                 }
             }

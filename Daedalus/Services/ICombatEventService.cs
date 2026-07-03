@@ -1,6 +1,18 @@
 namespace Daedalus.Services;
 
 /// <summary>
+/// One damage effect from any friendly or hostile caster, decoded from the ActionEffect hook.
+/// Extended values (hits over 65,535) are already unpacked into <see cref="Amount"/>.
+/// </summary>
+public readonly record struct DamageDealtEvent(
+    uint CasterEntityId,
+    uint TargetEntityId,
+    int Amount,
+    uint ActionId,
+    bool IsCrit,
+    bool IsDirectHit);
+
+/// <summary>
 /// Interface for combat event tracking, primarily used for shadow HP management.
 /// </summary>
 public interface ICombatEventService
@@ -23,6 +35,13 @@ public interface ICombatEventService
     /// Parameters: (targetEntityId, damageAmount, actionId)
     /// </summary>
     event System.Action<uint, int, uint>? OnLocalPlayerDamageDealt;
+
+    /// <summary>
+    /// Event raised per damage effect from ANY caster in range — party members, Trust NPCs,
+    /// pets, enemies. Used by the DPS parser. Raised from the hook thread; subscribers must
+    /// enqueue and process on the framework thread.
+    /// </summary>
+    event System.Action<DamageDealtEvent>? OnDamageDealt;
 
     /// <summary>
     /// Event raised when any heal effect lands (from any source, not just local player).

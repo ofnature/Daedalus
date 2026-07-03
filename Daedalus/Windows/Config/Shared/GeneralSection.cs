@@ -64,8 +64,68 @@ public sealed class GeneralSection
         DrawCombatBehaviorSection();
         DrawModifierKeysSection();
         DrawResurrectionSection();
+        DrawParserSection();
         DrawLanguageSection();
         DrawPrivacySection();
+    }
+
+    private void DrawParserSection()
+    {
+        if (ConfigUIHelpers.SectionHeader(Loc.T(LocalizedStrings.Parser.Section, "Parser"), "Parser", false))
+        {
+            ConfigUIHelpers.BeginIndent();
+
+            ConfigUIHelpers.Toggle(
+                Loc.T(LocalizedStrings.Parser.EnableParser, "Enable parser"),
+                () => config.Parser.Enabled, v => config.Parser.Enabled = v,
+                Loc.T(LocalizedStrings.Parser.EnableParserDesc, "Tracks damage from everyone in range — party members, Trust allies, pets — and shows DPS in the Parser window."),
+                save);
+
+            ConfigUIHelpers.Spacing();
+
+            ConfigUIHelpers.Toggle(
+                Loc.T(LocalizedStrings.Parser.Borderless, "Borderless mode"),
+                () => config.Parser.BorderlessMode, v => config.Parser.BorderlessMode = v,
+                Loc.T(LocalizedStrings.Parser.BorderlessDesc, "Compact semi-transparent overlay: no title bar, bars only. Position and data are shared with the normal window."),
+                save);
+
+            if (config.Parser.BorderlessMode)
+            {
+                ConfigUIHelpers.BeginIndent();
+
+                ConfigUIHelpers.Toggle(
+                    Loc.T(LocalizedStrings.Parser.ClickThrough, "Click-through"),
+                    () => config.Parser.ClickThrough, v => config.Parser.ClickThrough = v,
+                    Loc.T(LocalizedStrings.Parser.ClickThroughDesc, "Mouse clicks pass through the borderless parser to the game. Disable to reposition the window."),
+                    save);
+
+                ConfigUIHelpers.Toggle(
+                    Loc.T(LocalizedStrings.Parser.HideOutOfCombat, "Hide out of combat"),
+                    () => config.Parser.HideOutOfCombat, v => config.Parser.HideOutOfCombat = v,
+                    Loc.T(LocalizedStrings.Parser.HideOutOfCombatDesc, "Only show the parser while a fight is running."),
+                    save);
+
+                ConfigUIHelpers.EndIndent();
+            }
+
+            ConfigUIHelpers.Spacing();
+
+            ConfigUIHelpers.Toggle(
+                Loc.T(LocalizedStrings.Parser.ScrambleNames, "Scramble names"),
+                () => config.Parser.ScrambleNames, v => config.Parser.ScrambleNames = v,
+                Loc.T(LocalizedStrings.Parser.ScrambleNamesDesc, "Replaces character names with mythological aliases — stream and screenshot safe, display only."),
+                save);
+
+            ConfigUIHelpers.Spacing();
+
+            config.Parser.FightHistoryCount = ConfigUIHelpers.IntSlider(
+                Loc.T(LocalizedStrings.Parser.FightHistory, "Fight history"),
+                config.Parser.FightHistoryCount, 1, 25,
+                Loc.T(LocalizedStrings.Parser.FightHistoryDesc, "How many ended fights stay available in the parser's fight dropdown."),
+                save, v => config.Parser.FightHistoryCount = v);
+
+            ConfigUIHelpers.EndIndent();
+        }
     }
 
     public void DrawDisplay()

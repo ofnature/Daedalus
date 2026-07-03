@@ -126,6 +126,7 @@ public sealed class Configuration : IPluginConfiguration
     public FFlogsConfig FFLogs { get; set; } = new();
     public TrainingConfig Training { get; set; } = new();
     public OverlayConfig Overlay { get; set; } = new();
+    public ParserConfig Parser { get; set; } = new();
     public ActionFeedConfig ActionFeed { get; set; } = new();
     public DrawHelperConfig DrawHelper { get; set; } = new();
     public InputConfig Input { get; set; } = new();

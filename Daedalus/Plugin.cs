@@ -120,6 +120,7 @@ public sealed class Plugin : IDalamudPlugin
 
     // Performance analytics
     private readonly PerformanceTracker performanceTracker;
+    private readonly DpsMeterService dpsMeterService;
 
     // FFLogs integration
     private readonly FFlogsService? fflogsService;
@@ -153,6 +154,7 @@ public sealed class Plugin : IDalamudPlugin
     private readonly HintOverlay hintOverlay;
     private readonly OverlayWindow overlayWindow;
     private readonly ActionFeedWindow actionFeedWindow;
+    private readonly DpsMeterWindow dpsMeterWindow;
     private readonly TelemetryService telemetryService;
     private readonly DrawCanvas drawCanvas;
     private readonly DrawingService drawingService;
@@ -362,6 +364,9 @@ public sealed class Plugin : IDalamudPlugin
             partyCoordinationService,
             pluginInterface.ConfigDirectory.FullName);
 
+        // Full-party DPS parser
+        this.dpsMeterService = new DpsMeterService(combatEventService, objectTable, configuration.Parser);
+
         // FFLogs integration
         this.fflogsService = new FFlogsService(configuration.FFLogs, log);
 
@@ -481,6 +486,9 @@ public sealed class Plugin : IDalamudPlugin
         this.hintOverlay = new HintOverlay(realTimeCoachingService, configuration.Training);
         this.overlayWindow = new OverlayWindow(configuration, SaveConfiguration, rotationManager, partyList, this.timelineService, dutyContentService, bossModForecastService);
         this.actionFeedWindow = new ActionFeedWindow(configuration, SaveConfiguration, actionService, textureProvider);
+        this.dpsMeterWindow = new DpsMeterWindow(configuration, SaveConfiguration, dpsMeterService);
+        this.mainWindow.OpenParser = () => this.dpsMeterWindow.Toggle();
+        this.mainWindow.ParserActive = () => this.dpsMeterService.Current != null;
 
         // Telemetry service for anonymous usage tracking
         this.telemetryService = new TelemetryService(configuration, log);
@@ -517,6 +525,7 @@ public sealed class Plugin : IDalamudPlugin
         windowSystem.AddWindow(changelogWindow);
         windowSystem.AddWindow(hintOverlay);
         windowSystem.AddWindow(overlayWindow);
+        windowSystem.AddWindow(dpsMeterWindow);
         overlayWindow.IsOpen = configuration.Overlay.IsVisible;
         windowSystem.AddWindow(actionFeedWindow);
         // Visibility is gated by DrawConditions via ActionFeed.IsVisible; keep the window open
@@ -624,6 +633,7 @@ public sealed class Plugin : IDalamudPlugin
         container.Register<IVNavService, VNavService>(vNavService);
         container.Register<IBossModSafetyService, BossModSafetyService>(bossModSafetyService);
         container.Register<IBossModForecastService, BossModForecastService>(bossModForecastService);
+        container.Register<IDpsMeterService, DpsMeterService>(dpsMeterService);
         container.Register<IPositionalMovementService, PositionalMovementService>(positionalMovementService);
         container.Register(samuraiPositionalAnticipationProvider);
         container.Register(ninjaPositionalAnticipationProvider);
@@ -936,6 +946,9 @@ public sealed class Plugin : IDalamudPlugin
             // Update performance analytics (tracks combat state independently)
             performanceTracker.Update();
 
+            // Update DPS parser (encounter segmentation + queued damage events)
+            dpsMeterService.Update();
+
             // Update training mode
             trainingService.Update();
 
@@ -1103,6 +1116,7 @@ public sealed class Plugin : IDalamudPlugin
         serviceContainer?.Dispose();
 
         performanceTracker.Dispose();
+        dpsMeterService.Dispose();
         drawingService.Dispose();
         localization.Dispose();
     }

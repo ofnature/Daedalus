@@ -60,23 +60,30 @@ public sealed class TerpsichorePartyHelper
     }
 
     /// <summary>
-    /// Gets all party members including the player (solo) or party list (in party).
+    /// Gets all party members: party list when in a real party, otherwise the player plus any
+    /// Trust/Duty Support allies from the object table (the party list is EMPTY in Trust content —
+    /// same pattern as <see cref="BasePartyHelper"/>).
     /// </summary>
     public IEnumerable<IBattleChara> GetAllPartyMembers(IPlayerCharacter player)
     {
-        if (_partyList.Length == 0)
+        if (_partyList.Length > 0)
         {
-            // Solo - just the player
-            yield return player;
+            foreach (var member in _partyList)
+            {
+                if (member.GameObject is IBattleChara battleChara)
+                {
+                    yield return battleChara;
+                }
+            }
             yield break;
         }
 
-        foreach (var member in _partyList)
+        yield return player;
+
+        foreach (var obj in _objectTable)
         {
-            if (member.GameObject is IBattleChara battleChara)
-            {
-                yield return battleChara;
-            }
+            if (BasePartyHelper.IsValidTrustNpc(obj, out var npc))
+                yield return npc!;
         }
     }
 
@@ -131,12 +138,12 @@ public sealed class TerpsichorePartyHelper
 
     /// <summary>
     /// Selects the best dance partner based on job priority and the configured selection mode.
+    /// Works in real parties AND Trust/Duty Support content — candidates come from
+    /// <see cref="GetAllPartyMembers"/>, so trust allies are valid partners (Closed Position
+    /// buffs the dancer's own damage regardless of who holds it).
     /// </summary>
     public IBattleChara? SelectDancePartner(IPlayerCharacter player, PartnerSelection mode = PartnerSelection.HighestDps)
     {
-        if (_partyList.Length == 0)
-            return null; // Solo, no partner available
-
         return mode switch
         {
             PartnerSelection.MeleePriority => SelectPartnerWithRolePriority(player, preferMelee: true),
@@ -150,20 +157,18 @@ public sealed class TerpsichorePartyHelper
         IBattleChara? bestPartner = null;
         var bestPriority = int.MaxValue;
 
-        foreach (var member in _partyList)
+        foreach (var member in GetAllPartyMembers(player))
         {
-            if (member.GameObject is not IBattleChara battleChara)
+            if (member.EntityId == player.EntityId)
                 continue;
-            if (battleChara.EntityId == player.EntityId)
-                continue;
-            if (battleChara.CurrentHp == 0)
+            if (member.CurrentHp == 0)
                 continue;
 
-            var priority = GetJobPriority(member.ClassJob.RowId);
+            var priority = GetJobPriority(TrustPartyRoleHelper.ResolveJobId(member, _partyList));
             if (priority < bestPriority)
             {
                 bestPriority = priority;
-                bestPartner = battleChara;
+                bestPartner = member;
             }
         }
 
@@ -176,16 +181,14 @@ public sealed class TerpsichorePartyHelper
         IBattleChara? preferred = null;
         var preferredPriority = int.MaxValue;
 
-        foreach (var member in _partyList)
+        foreach (var member in GetAllPartyMembers(player))
         {
-            if (member.GameObject is not IBattleChara battleChara)
+            if (member.EntityId == player.EntityId)
                 continue;
-            if (battleChara.EntityId == player.EntityId)
-                continue;
-            if (battleChara.CurrentHp == 0)
+            if (member.CurrentHp == 0)
                 continue;
 
-            var jobId = member.ClassJob.RowId;
+            var jobId = TrustPartyRoleHelper.ResolveJobId(member, _partyList);
             bool inPreferredRole = preferMelee
                 ? JobRegistry.IsMeleeDps(jobId)
                 : (JobRegistry.IsRangedPhysicalDps(jobId) || JobRegistry.IsCasterDps(jobId));
@@ -197,7 +200,7 @@ public sealed class TerpsichorePartyHelper
             if (priority < preferredPriority)
             {
                 preferredPriority = priority;
-                preferred = battleChara;
+                preferred = member;
             }
         }
 
