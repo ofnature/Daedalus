@@ -1,24 +1,69 @@
 # Daedalus
 
-![Version](https://img.shields.io/github/v/release/RoseOfficial/Daedalus?label=version)
-![Downloads](https://img.shields.io/github/downloads/RoseOfficial/Daedalus/total)
-![Lines of Code](https://aschey.tech/tokei/github/RoseOfficial/Daedalus?category=code)
-![Code Size](https://img.shields.io/github/languages/code-size/RoseOfficial/Daedalus)
-![Last Commit](https://img.shields.io/github/last-commit/RoseOfficial/Daedalus)
-![C#](https://img.shields.io/github/languages/top/RoseOfficial/Daedalus)
+![Version](https://img.shields.io/github/v/release/ofnature/Daedalus?label=version)
+![Downloads](https://img.shields.io/github/downloads/ofnature/Daedalus/total)
+![Code Size](https://img.shields.io/github/languages/code-size/ofnature/Daedalus)
+![Last Commit](https://img.shields.io/github/last-commit/ofnature/Daedalus)
+![C#](https://img.shields.io/github/languages/top/ofnature/Daedalus)
 
-An intelligent rotation assistant for FFXIV that goes beyond automation. Daedalus provides **intelligent decision-making** through fight prediction, party coordination, performance analytics, and an integrated training system to help you master your job.
+An intelligent rotation assistant for FFXIV that goes beyond automation. Daedalus provides **intelligent decision-making** through fight prediction, cross-machine party coordination, a built-in DPS parser, performance analytics, and an integrated training system — built for multibox play and solo players alike.
 
-## What Makes Daedalus Different
+## Installation
+
+1. Open the Dalamud Plugin Installer in-game
+2. Go to **Settings** (gear icon) → **Experimental**
+3. Under "Custom Plugin Repositories", add:
+   ```
+   https://raw.githubusercontent.com/ofnature/Daedalus/main/repo.json
+   ```
+4. Click **Save and Close**
+5. Search for **Daedalus** and install
+
+Updates are delivered automatically — the plugin also checks for new versions itself (Settings → check for updates).
+
+<details>
+<summary>Manual installation</summary>
+
+1. Download `latest.zip` from [Releases](https://github.com/ofnature/Daedalus/releases/latest)
+2. Extract to `%APPDATA%\XIVLauncher\installedPlugins\Daedalus\`
+3. Reload plugins or restart the game
+</details>
+
+## Highlights
 
 | Feature | Description |
 |---------|-------------|
-| **Fight Awareness** | Timeline integration predicts raidwides and tankbusters before they happen |
-| **Party Coordination** | Multiple Daedalus users coordinate heals, mitigations, and burst windows via IPC |
+| **Built-in DPS Parser** | ACT-style meter tracking everyone — your toons, other players, and Trust/duty-support allies — with DoT tick attribution and exact cross-toon numbers over the LAN hook |
+| **LAN Coordination** *(WIP)* | Daedalus instances on **different PCs** coordinate over your local network — no router setup, no external tools |
+| **Blue Mage Support** | Full BLU support with role selection (Tank/DPS/Healer), automatic Aetheric Mimicry, loadout checklists, and a spell farm planner |
+| **Fight Awareness** | Bundled savage/ultimate timelines plus live BossMod integration predict raidwides and tankbusters before they happen |
+| **Healer & Tank Coordination** | Multi-toon heal triage, mitigation stacking, tank swaps, and raise assignment — over same-machine IPC *and* cross-machine LAN |
 | **Training Mode** | Learn *why* abilities are chosen with real-time explanations and skill tracking |
-| **Performance Analytics** | Track GCD uptime, cooldown efficiency, and compare against FFLogs |
 
-## Supported Jobs (21/21)
+## Built-in DPS Parser
+
+A damage meter that needs no external tools:
+
+- **Tracks everyone in the fight** — your toons, other players (tagged `HUMAN`), and Trust/duty-support NPCs (tagged `TRUST`), with pet and summon damage merged into their owner's row
+- **DoT ticks count** — tick damage is attributed to whoever applied the effect, so Chaos Thrust, Dia, and Higanbana show up in the numbers (most hook-based meters silently drop them)
+- **Exact cross-toon numbers via the LAN hook** — every Daedalus toon broadcasts its own parse (always exact for itself); partied toons merge those authoritative reports, marked with a green dot
+- **Borderless overlay mode** — compact semi-transparent bars with optional click-through and hide-out-of-combat, plus a name-scramble toggle for streaming
+- Fight history dropdown, per-row crit/direct-hit tooltips, and damage-share bars with your own toon highlighted in gold
+
+## LAN Coordination *(work in progress)*
+
+Multibox across **multiple PCs** on the same network — UDP broadcast on your local VLAN, unified with same-machine IPC through one coordination bus:
+
+- **Party Coordination window** — every toon across all machines with online status, job, HP, role slot, heartbeat health, and latency
+- **Role negotiation on zone-in** — tanks/healers/DPS slotted identically on every machine, automatically
+- **Coordinated burst** — all toons open their burst windows simultaneously on signal
+- **Healer-down detection** — broadcasts when every healer is dead so a designated toon can respond
+- **DPS report sharing** — feeds the parser exact per-toon numbers (see above)
+- Name scrambling for stream-safe screenshots
+
+Two-machine live testing is ongoing — expect rough edges.
+
+## Supported Jobs (22/22)
 
 | Role | Jobs | Status |
 |------|------|--------|
@@ -27,26 +72,36 @@ An intelligent rotation assistant for FFXIV that goes beyond automation. Daedalu
 | **Melee DPS** | Monk, Dragoon, Ninja, Samurai, Reaper, Viper | ✅ Complete |
 | **Ranged Physical** | Bard, Machinist, Dancer | ✅ Complete |
 | **Casters** | Black Mage, Summoner, Red Mage, Pictomancer | ✅ Complete |
+| **Limited** | Blue Mage | ✅ v1 (Moon Flute planner WIP) |
+
+### Blue Mage
+
+BLU has no fixed role, so Daedalus makes it explicit:
+
+- **Role dropdown** (DPS / Tank / Healer) drives the rotation *and* automatic **Aetheric Mimicry** — the party and nearby players are scanned for the right archetype, reapplied after death or role change
+- Tank role maintains **Mighty Guard** and fires **Diamondback**; Healer role handles **White Wind** thresholds
+- **Loadout awareness** — the rotation only uses spells that are learned *and slotted* in your active set
+- **Role loadout checklists** in the Missing window (Blue Academy reference sets): ✔ slotted / ● learned-not-slotted / ✗ not learned with its farm source — the window doubles as a spell-hunting planner for all 124 spells
 
 ## Core Features
 
 ### Intelligent Rotation
-- **Level-sync awareness** - Abilities adjust to your current level
-- **Resource management** - Lily, Aetherflow, Kenki, Heat, and all job gauges
-- **oGCD weaving** - Optimal ability timing without clipping
-- **Positional indicator** - Real-time rear/flank/front display for melee DPS, updating as your combo progresses; suppressed automatically when True North is active or target is immune
-- **Smart AoE targeting** - Directional AoE abilities (Howling Fist, Chain Saw, Bioblaster, etc.) automatically target the enemy that hits the most targets
-- **Proc tracking** - Never waste a proc or let buffs fall off
-- **Auto-attack start** - Optional setting to begin the rotation as soon as your weapon is drawn, rather than waiting for the first GCD
+- **Level-sync awareness** — abilities adjust to your current level, including low-level dungeon syncs
+- **Resource management** — Lily, Aetherflow, Kenki, Heat, Soul Voice, and every job gauge
+- **oGCD weaving** — optimal ability timing without clipping
+- **Positional indicator** — real-time rear/flank/front display for melee, suppressed when True North is active or the target is immune
+- **Smart AoE targeting** — directional AoEs automatically target the enemy that hits the most targets
+- **Proc tracking** — never waste a proc or let buffs fall off
+- **Trust/Duty Support aware** — party logic (dance partners, heal targeting, co-tank checks) works with NPC allies, not just players
 
 ### Fight Timeline Integration
-- **Raidwide prediction** - Pre-shield and pre-heal before damage hits
-- **Tankbuster awareness** - Mitigations timed for incoming hits
-- **Phase tracking** - Adapts to fight phases and mechanics
-- **Arcadion Savage support** - Full timeline data for current tier
+- **Raidwide prediction** — pre-shield and pre-heal before damage hits
+- **Tankbuster awareness** — mitigations timed for incoming hits
+- **Bundled timelines** — Pandaemonium and Arcadion savage tiers plus all six ultimates
+- **BossMod (BMR) integration** — live raidwide/tankbuster countdowns in the overlay for *any* duty BossMod knows, plus position/dash safety checks for movement
 
-### Party Coordination (IPC)
-When multiple party members use Daedalus, they coordinate automatically:
+### Party Coordination — IPC and LAN
+When multiple toons run Daedalus (same machine or across the network):
 
 | Coordination Type | What It Does |
 |-------------------|--------------|
@@ -57,70 +112,31 @@ When multiple party members use Daedalus, they coordinate automatically:
 | **Burst Windows** | DPS align raid buffs for maximum damage |
 | **Tank Swaps** | Coordinated Provoke/Shirk sequences |
 | **Interrupt Priority** | One player per interruptible cast |
+| **DPS Reports** | Exact per-toon parse numbers shared to every meter |
 
 ### Visual Overlay (Draw Helper)
-An optional in-game overlay to aid positioning and range awareness:
-
-| Feature | Description |
-|---------|-------------|
-| **Attack Range Rings** | Melee and ranged attack ranges displayed as rings around your character, fading when comfortably in range |
-| **Enemy Hitboxes** | Targeted enemy hitbox drawn on screen for precise distance judgement |
-| **Positional Zones** | Rear, flank, and front zones shown on your target so you can see exactly where to stand |
-
-Toggle and appearance options available in **Settings → Draw Helper**.
+- **Attack range rings** — melee and ranged ranges around your character
+- **Enemy hitboxes** — targeted enemy hitbox for precise distance judgement
+- **Positional zones** — rear/flank/front zones drawn on your target
 
 ### Performance Analytics
-- **Real-time metrics** - GCD uptime, deaths, near-deaths during combat
-- **Post-fight scoring** - Letter grades (S/A/B/C/D) with breakdown
-- **Downtime analysis** - Categorizes lost GCDs (movement, death, mechanics)
-- **Cooldown tracking** - Drift detection and missed opportunity alerts
-- **Session history** - Track improvement over multiple fights
-- **FFLogs integration** - Compare your performance to community parses
+- **Real-time metrics** — GCD uptime, deaths, near-deaths during combat
+- **Post-fight scoring** — letter grades (S/A/B/C/D) with breakdown
+- **Downtime analysis** — categorizes lost GCDs (movement, death, mechanics)
+- **Session history** and **FFLogs integration**
 
 ### Training Mode
-Transform from passenger to pilot with intelligent coaching:
-
-| Feature | Description |
-|---------|-------------|
-| **Live Explanations** | See *why* each ability is chosen in real-time |
-| **Real-Time Hints** | In-combat coaching tips for struggling concepts |
-| **Decision Validation** | Instant feedback: optimal (✓), acceptable (≈), or suboptimal (✗) |
-| **Coaching Personality** | 4 feedback styles: Encouraging, Analytical, Strict, Silent |
-| **Spaced Repetition** | Knowledge retention tracking with forgetting curves |
-| **525+ Concepts** | Job-specific knowledge across all 21 jobs |
-| **147 Lessons** | Progressive learning from basics to optimization |
-| **735 Quiz Questions** | Validate understanding with scenario questions |
-| **Skill Detection** | Auto-detects Beginner/Intermediate/Advanced level |
-| **Concept Mastery** | Tracks successful application in combat |
-| **Adaptive Detail** | Explanations adjust to your skill level |
-
-## Installation
-
-### Custom Repository (Recommended)
-1. Open Dalamud Plugin Installer in-game
-2. Go to **Settings** (gear icon) → **Experimental**
-3. Under "Custom Plugin Repositories", add:
-   ```
-   https://raw.githubusercontent.com/RoseOfficial/daedalus/main/repo.json
-   ```
-4. Click **Save and Close**
-5. Search for "Daedalus" and install
-
-Updates are delivered automatically.
-
-### Manual Installation
-1. Download `Daedalus.zip` from [Releases](https://github.com/RoseOfficial/daedalus/releases)
-2. Extract to `%APPDATA%\XIVLauncher\installedPlugins\Daedalus\`
-3. Reload plugins or restart the game
+- **Live explanations** — see *why* each ability is chosen in real-time
+- **Decision validation** — optimal (✓), acceptable (≈), or suboptimal (✗)
+- **525+ concepts, 147 lessons, 735 quiz questions** across all jobs
+- **Spaced repetition** with skill-level detection and adaptive detail
 
 ## Quick Start
 
-1. `/daedalus` - Open the main window
+1. `/daedalus` — open the main window
 2. Click **Enable** to activate
 3. Enter combat on any supported job
-4. Open **Training** to learn as you play
-5. Open **Analytics** to track performance
-6. Open **Overlay** to enable the visual draw helper
+4. **Parser** for the damage meter, **Analytics** for performance, **Training** to learn as you play
 
 ## Commands
 
@@ -136,32 +152,38 @@ Each rotation is named after a Greek deity:
 
 | Role | Job | Module | Role | Job | Module |
 |------|-----|--------|------|-----|--------|
-| Healer | White Mage | Apollo | Melee | Reaper | Thanatos |
-| Healer | Scholar | Athena | Melee | Viper | Echidna |
-| Healer | Astrologian | Astraea | Ranged | Bard | Calliope |
-| Healer | Sage | Asclepius | Ranged | Machinist | Prometheus |
-| Tank | Paladin | Themis | Ranged | Dancer | Terpsichore |
-| Tank | Warrior | Ares | Caster | Black Mage | Hecate |
-| Tank | Dark Knight | Nyx | Caster | Summoner | Persephone |
-| Tank | Gunbreaker | Hephaestus | Caster | Red Mage | Circe |
-| Melee | Monk | Kratos | Caster | Pictomancer | Iris |
+| Healer | White Mage | Apollo | Melee | Viper | Echidna |
+| Healer | Scholar | Athena | Ranged | Bard | Calliope |
+| Healer | Astrologian | Astraea | Ranged | Machinist | Prometheus |
+| Healer | Sage | Asclepius | Ranged | Dancer | Terpsichore |
+| Tank | Paladin | Themis | Caster | Black Mage | Hecate |
+| Tank | Warrior | Ares | Caster | Summoner | Persephone |
+| Tank | Dark Knight | Nyx | Caster | Red Mage | Circe |
+| Tank | Gunbreaker | Hephaestus | Caster | Pictomancer | Iris |
+| Melee | Monk | Kratos | Limited | Blue Mage | Proteus |
 | Melee | Dragoon | Zeus | | | |
 | Melee | Ninja | Hermes | | | |
 | Melee | Samurai | Nike | | | |
+| Melee | Reaper | Thanatos | | | |
 
-## Development Phases
+## Roadmap
 
-| Phase | Status | Milestone |
-|-------|--------|-----------|
-| Phase 1 | ✅ Complete | All 21 combat jobs |
-| Phase 2 | ✅ Complete | Fight timeline integration |
-| Phase 3 | ✅ Complete | Full party coordination via IPC |
-| Phase 4 | ✅ Complete | Performance analytics + FFLogs |
-| Phase 5 | ✅ Complete | Training mode + personalized coaching (v4.0) |
+| Milestone | Status |
+|-----------|--------|
+| All 21 combat jobs | ✅ Complete |
+| Fight timeline integration | ✅ Complete |
+| Party coordination via IPC | ✅ Complete |
+| Performance analytics + FFLogs | ✅ Complete |
+| Training mode + coaching | ✅ Complete |
+| Built-in DPS parser (+ LAN reports, DoT attribution) | ✅ Complete |
+| Blue Mage v1 (role kit, mimicry, loadouts) | ✅ Complete |
+| Cross-machine LAN coordination | 🚧 In progress |
+| BLU Moon Flute burst planner + multi-BLU coordination | 📋 Planned |
+| Countdown/pre-pull burst alignment IPC | 📋 Planned |
 
 ## Contributing
 
-Issues and pull requests welcome at [GitHub](https://github.com/RoseOfficial/daedalus).
+Issues and pull requests welcome at [GitHub](https://github.com/ofnature/Daedalus).
 
 ## License
 
