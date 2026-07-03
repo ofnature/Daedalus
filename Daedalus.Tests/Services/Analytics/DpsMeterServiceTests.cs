@@ -93,8 +93,16 @@ public sealed class DpsMeterServiceTests
 
     // ── Service: segmentation + queue draining ──
 
-    private static (DpsMeterService Service, Mock<ICombatEventService> Ces, ParserConfig Config) MakeService(
-        Func<uint, uint, ResolvedDamage?>? resolver = null)
+    private sealed class TestClock
+    {
+        public DateTime Now = new(2026, 7, 3, 16, 0, 0, DateTimeKind.Utc);
+        public void Advance(double seconds) => Now = Now.AddSeconds(seconds);
+    }
+
+    private static (DpsMeterService Service, Mock<ICombatEventService> Ces, ParserConfig Config, TestClock Clock) MakeService(
+        Func<uint, uint, ResolvedDamage?>? resolver = null,
+        Func<string, bool>? isPartyMember = null,
+        Func<ushort>? territory = null)
     {
         var ces = new Mock<ICombatEventService>();
         var config = new ParserConfig();
@@ -104,23 +112,35 @@ public sealed class DpsMeterServiceTests
             2 => new ResolvedDamage(Ally, "Dummy"),
             _ => null,
         };
-        return (new DpsMeterService(ces.Object, config, resolver), ces, config);
+        var clock = new TestClock();
+        var svc = new DpsMeterService(ces.Object, config, resolver, isPartyMember, territory)
+        {
+            UtcNow = () => clock.Now,
+        };
+        return (svc, ces, config, clock);
     }
 
-    private static void SetCombat(Mock<ICombatEventService> ces, bool inCombat, float duration = 0f)
+    private static void SetCombat(Mock<ICombatEventService> ces, bool inCombat)
+        => ces.Setup(x => x.IsInCombat).Returns(inCombat);
+
+    /// <summary>Ends combat and waits out the encounter linger so the fight finalizes.</summary>
+    private static void EndCombatAndLinger(DpsMeterService svc, Mock<ICombatEventService> ces, TestClock clock)
     {
-        ces.Setup(x => x.IsInCombat).Returns(inCombat);
-        ces.Setup(x => x.GetCombatDurationSeconds()).Returns(duration);
+        SetCombat(ces, false);
+        svc.Update();
+        clock.Advance(DpsMeterService.EncounterLingerSeconds + 1);
+        svc.Update();
     }
 
     [Fact]
     public void Service_StartsEncounterOnCombatEntry_AndAccumulates()
     {
-        var (svc, ces, _) = MakeService();
+        var (svc, ces, _, clock) = MakeService();
 
-        SetCombat(ces, true, 5f);
+        SetCombat(ces, true);
         svc.Update();
         ces.Raise(x => x.OnDamageDealt += null, new DamageDealtEvent(1, 100, 2500, 7, false, false));
+        clock.Advance(5);
         svc.Update();
 
         Assert.NotNull(svc.Current);
@@ -131,9 +151,9 @@ public sealed class DpsMeterServiceTests
     [Fact]
     public void Service_UnresolvableCasters_AreDropped()
     {
-        var (svc, ces, _) = MakeService();
+        var (svc, ces, _, _) = MakeService();
 
-        SetCombat(ces, true, 5f);
+        SetCombat(ces, true);
         svc.Update();
         ces.Raise(x => x.OnDamageDealt += null, new DamageDealtEvent(99, 100, 5000, 7, false, false));
         svc.Update();
@@ -144,32 +164,58 @@ public sealed class DpsMeterServiceTests
     [Fact]
     public void Service_CombatEnd_FreezesEncounterIntoHistory()
     {
-        var (svc, ces, _) = MakeService();
+        var (svc, ces, _, clock) = MakeService();
 
-        SetCombat(ces, true, 30f);
+        SetCombat(ces, true);
         svc.Update();
         ces.Raise(x => x.OnDamageDealt += null, new DamageDealtEvent(1, 100, 6000, 7, false, false));
+        clock.Advance(30);
         svc.Update();
 
-        SetCombat(ces, false);
-        svc.Update();
+        EndCombatAndLinger(svc, ces, clock);
 
         Assert.Null(svc.Current);
         var ended = Assert.Single(svc.History);
         Assert.False(ended.IsActive);
-        Assert.Equal(30f, ended.DurationSeconds); // frozen, not reset to 0
+        Assert.Equal(30f, ended.DurationSeconds); // frozen at the last in-combat tick
         Assert.Equal(6000, ended.TotalDamage);
+    }
+
+    [Fact]
+    public void Service_CombatFlicker_WithinLinger_KeepsOneEncounter()
+    {
+        // Phase cutscenes drop the combat flag briefly — one fight must stay one encounter.
+        var (svc, ces, _, clock) = MakeService();
+
+        SetCombat(ces, true);
+        svc.Update();
+        ces.Raise(x => x.OnDamageDealt += null, new DamageDealtEvent(1, 100, 1000, 7, false, false));
+        clock.Advance(20);
+        svc.Update();
+
+        SetCombat(ces, false);   // cutscene starts
+        clock.Advance(5);        // shorter than the linger
+        svc.Update();
+
+        SetCombat(ces, true);    // cutscene over
+        ces.Raise(x => x.OnDamageDealt += null, new DamageDealtEvent(1, 100, 2000, 7, false, false));
+        clock.Advance(5);
+        svc.Update();
+
+        Assert.NotNull(svc.Current);
+        Assert.Empty(svc.History);
+        Assert.Equal(3000, svc.Current!.TotalDamage); // both phases in one encounter
+        Assert.Equal(30f, svc.Current.DurationSeconds);
     }
 
     [Fact]
     public void Service_EmptyFights_DoNotEnterHistory()
     {
-        var (svc, ces, _) = MakeService();
+        var (svc, ces, _, clock) = MakeService();
 
-        SetCombat(ces, true, 3f);
+        SetCombat(ces, true);
         svc.Update();
-        SetCombat(ces, false);
-        svc.Update();
+        EndCombatAndLinger(svc, ces, clock);
 
         Assert.Empty(svc.History);
     }
@@ -177,17 +223,16 @@ public sealed class DpsMeterServiceTests
     [Fact]
     public void Service_HistoryCapped_NewestFirst()
     {
-        var (svc, ces, config) = MakeService();
+        var (svc, ces, config, clock) = MakeService();
         config.FightHistoryCount = 2;
 
         for (var i = 1; i <= 3; i++)
         {
-            SetCombat(ces, true, i);
+            SetCombat(ces, true);
             svc.Update();
             ces.Raise(x => x.OnDamageDealt += null, new DamageDealtEvent(1, 100, i * 1000, 7, false, false));
             svc.Update();
-            SetCombat(ces, false);
-            svc.Update();
+            EndCombatAndLinger(svc, ces, clock);
         }
 
         Assert.Equal(2, svc.History.Count);
@@ -198,10 +243,10 @@ public sealed class DpsMeterServiceTests
     [Fact]
     public void Service_DisabledConfig_DropsEvents()
     {
-        var (svc, ces, config) = MakeService();
+        var (svc, ces, config, _) = MakeService();
         config.Enabled = false;
 
-        SetCombat(ces, true, 5f);
+        SetCombat(ces, true);
         svc.Update();
         ces.Raise(x => x.OnDamageDealt += null, new DamageDealtEvent(1, 100, 2500, 7, false, false));
         svc.Update();
@@ -212,14 +257,13 @@ public sealed class DpsMeterServiceTests
     [Fact]
     public void Service_Reset_ClearsCurrentAndHistory()
     {
-        var (svc, ces, _) = MakeService();
+        var (svc, ces, _, clock) = MakeService();
 
-        SetCombat(ces, true, 5f);
+        SetCombat(ces, true);
         svc.Update();
         ces.Raise(x => x.OnDamageDealt += null, new DamageDealtEvent(1, 100, 2500, 7, false, false));
         svc.Update();
-        SetCombat(ces, false);
-        svc.Update();
+        EndCombatAndLinger(svc, ces, clock);
 
         svc.Reset();
 
@@ -230,14 +274,14 @@ public sealed class DpsMeterServiceTests
     [Fact]
     public void Service_PreCombatQueueLeftovers_DoNotLeakIntoNewFight()
     {
-        var (svc, ces, _) = MakeService();
+        var (svc, ces, _, _) = MakeService();
 
         // Event arrives while out of combat (e.g. pull spell before server combat flag)
         SetCombat(ces, false);
         svc.Update();
         ces.Raise(x => x.OnDamageDealt += null, new DamageDealtEvent(1, 100, 9999, 7, false, false));
 
-        SetCombat(ces, true, 1f);
+        SetCombat(ces, true);
         svc.Update();
 
         Assert.Equal(0, svc.Current!.TotalDamage);
@@ -270,7 +314,7 @@ public sealed class DpsMeterServiceTests
         var ces = new Mock<ICombatEventService>();
         var svc = new DpsMeterService(ces.Object, objectTable.Object, new ParserConfig());
 
-        SetCombat(ces, true, 10f);
+        SetCombat(ces, true);
         svc.Update();
         ces.Raise(x => x.OnDamageDealt += null, new DamageDealtEvent(2, 100, 4300, 7, false, false));
         svc.Update();
@@ -311,7 +355,9 @@ public sealed class DpsMeterServiceTests
         Assert.Equal(Ally.Key, ranked[0].EntityId); // reported 500k now outranks self 400k
         Assert.True(ranked[0].IsSelfReported);
         Assert.Equal(500_000, ranked[0].EffectiveDamage);
-        Assert.Equal(500_000f / 62f, enc.GetDps(ranked[0]), 1); // their own fight clock
+        // ONE clock for everything: local encounter duration, so row DPS, share and party
+        // DPS stay mutually consistent (reported duration is informational only).
+        Assert.Equal(500_000f / 60f, enc.GetDps(ranked[0]), 1);
         Assert.Equal(25f, ranked[0].CritPercent);               // reported crit wins
         Assert.Equal(500_000f / 900_000f, enc.GetDamageShare(ranked[0]), 3); // effective total
     }
@@ -370,33 +416,75 @@ public sealed class DpsMeterServiceTests
     }
 
     [Fact]
-    public void FindEncounterForReport_MatchesCurrentWithinTolerance_RejectsOutside()
+    public void ApplyRemoteReport_SenderEncounterRestart_AccumulatesSegments()
     {
-        var (svc, ces, _) = MakeService();
-        SetCombat(ces, true, 5f);
-        svc.Update();
-        var start = svc.Current!.StartUtc.Ticks;
+        // The sender's combat flag flickered → its encounter restarted → its cumulative
+        // counter reset. The receiver must bank the finished segment, not go backwards.
+        var enc = new DpsEncounter();
+        enc.ApplyRemoteReport(MakeReport(damage: 100_000));
+        enc.ApplyRemoteReport(MakeReport(damage: 120_000)); // same segment, growing
+        enc.ApplyRemoteReport(MakeReport(damage: 5_000));   // reset detected
 
-        Assert.NotNull(svc.FindEncounterForReport(start + 10 * TimeSpan.TicksPerSecond));
-        Assert.Null(svc.FindEncounterForReport(start + 60 * TimeSpan.TicksPerSecond));
+        var row = Assert.Single(enc.GetRanked());
+        Assert.Equal(125_000, row.EffectiveDamage); // 120k banked + 5k new segment
     }
 
     [Fact]
-    public void FindEncounterForReport_FinalReportAfterCombatEnd_MatchesHistory()
+    public void ShouldAcceptReport_NonPartyMember_Rejected()
     {
-        var (svc, ces, _) = MakeService();
-        SetCombat(ces, true, 30f);
+        // Cross-bleed regression (observed live): a toon in a DIFFERENT duty broadcast its
+        // parse and it merged into this fight. Only party members may merge.
+        var (svc, _, _, _) = MakeService(isPartyMember: name => name == "Nikephoros Astra");
+
+        Assert.True(svc.ShouldAcceptReport(MakeReport(name: "Nikephoros Astra")));
+        Assert.False(svc.ShouldAcceptReport(MakeReport(name: "Korha Ishere")));
+    }
+
+    [Fact]
+    public void ShouldAcceptReport_DifferentTerritory_Rejected()
+    {
+        var (svc, _, _, _) = MakeService(isPartyMember: _ => true, territory: () => 1044);
+
+        var sameZone = MakeReport();
+        sameZone.TerritoryId = 1044;
+        var otherZone = MakeReport();
+        otherZone.TerritoryId = 152;
+
+        Assert.True(svc.ShouldAcceptReport(sameZone));
+        Assert.False(svc.ShouldAcceptReport(otherZone));
+    }
+
+    [Fact]
+    public void FindEncounterForReport_LiveEncounter_AcceptsRegardlessOfStartDrift()
+    {
+        // Partied toons share the fight even when a cutscene shifted one side's start.
+        var (svc, ces, _, _) = MakeService();
+        SetCombat(ces, true);
+        svc.Update();
+
+        var drifted = MakeReport(startTicks: svc.Current!.StartUtc.Ticks + 60 * TimeSpan.TicksPerSecond);
+        Assert.NotNull(svc.FindEncounterForReport(drifted));
+    }
+
+    [Fact]
+    public void FindEncounterForReport_FinalReportAfterCombatEnd_MatchesRecentHistoryOnly()
+    {
+        var (svc, ces, _, clock) = MakeService();
+        SetCombat(ces, true);
         svc.Update();
         ces.Raise(x => x.OnDamageDealt += null, new DamageDealtEvent(1, 100, 6000, 7, false, false));
         svc.Update();
         var start = svc.Current!.StartUtc.Ticks;
 
-        SetCombat(ces, false);
-        svc.Update();
+        EndCombatAndLinger(svc, ces, clock);
 
-        var matched = svc.FindEncounterForReport(start + 2 * TimeSpan.TicksPerSecond);
+        var trailingFinal = MakeReport(startTicks: start + 2 * TimeSpan.TicksPerSecond);
+        var matched = svc.FindEncounterForReport(trailingFinal);
         Assert.NotNull(matched);
         Assert.False(matched!.IsActive);
+
+        var unrelated = MakeReport(startTicks: start + 300 * TimeSpan.TicksPerSecond);
+        Assert.Null(svc.FindEncounterForReport(unrelated));
     }
 
     // ── Effect decode + formatting ──

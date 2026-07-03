@@ -365,7 +365,9 @@ public sealed class Plugin : IDalamudPlugin
             pluginInterface.ConfigDirectory.FullName);
 
         // Full-party DPS parser; the bus (when LAN is enabled) adds cross-toon self-reporting
-        this.dpsMeterService = new DpsMeterService(combatEventService, objectTable, configuration.Parser);
+        this.dpsMeterService = new DpsMeterService(
+            combatEventService, objectTable, configuration.Parser,
+            partyList, () => (ushort)clientState.TerritoryType);
         if (this.coordinationBus != null)
             this.dpsMeterService.AttachCoordinationBus(this.coordinationBus);
 

@@ -46,9 +46,14 @@ public sealed class CombatantStats
     /// </summary>
     public bool IsSelfReported { get; internal set; }
     public long ReportedDamage { get; internal set; }
-    public float ReportedDurationSeconds { get; internal set; }
     public float ReportedCritPercent { get; internal set; }
     public float ReportedDirectHitPercent { get; internal set; }
+
+    // Segment accumulation: when the sender's combat flag flickers (phase cutscenes), its
+    // encounter restarts and its cumulative counter resets. A report smaller than the last
+    // one marks a new segment — completed segments accumulate into the base.
+    internal long ReportedSegmentBase;
+    internal long ReportedSegmentLast;
 
     /// <summary>Reported damage when self-reported, locally-observed total otherwise.</summary>
     public long EffectiveDamage => IsSelfReported ? ReportedDamage : TotalDamage;
@@ -130,15 +135,13 @@ public sealed class DpsEncounter
     }
 
     /// <summary>
-    /// DPS for one combatant. Self-reported rows use the sender's own fight clock —
-    /// exact regardless of when this client entered combat.
+    /// DPS for one combatant — ALWAYS this client's encounter clock (ACT semantics).
+    /// One clock keeps row DPS, share %, and party DPS mutually consistent; mixing the
+    /// sender's fight clock in produced rows whose DPS exceeded the party total whenever
+    /// a phase cutscene split the combat flags across clients.
     /// </summary>
     public float GetDps(CombatantStats stats)
-    {
-        if (stats.IsSelfReported && stats.ReportedDurationSeconds > 0f)
-            return stats.ReportedDamage / stats.ReportedDurationSeconds;
-        return DurationSeconds > 0f ? stats.TotalDamage / DurationSeconds : 0f;
-    }
+        => DurationSeconds > 0f ? stats.EffectiveDamage / DurationSeconds : 0f;
 
     /// <summary>Sum of all combatant DPS (effective damage over this client's duration).</summary>
     public float GetPartyDps()
@@ -193,9 +196,14 @@ public sealed class DpsEncounter
             combatants[key] = match;
         }
 
+        // Sender's cumulative counter went backwards → its encounter restarted (combat-flag
+        // flicker on its side). Bank the finished segment and keep accumulating.
+        if (report.TotalDamage < match.ReportedSegmentLast)
+            match.ReportedSegmentBase += match.ReportedSegmentLast;
+        match.ReportedSegmentLast = report.TotalDamage;
+
         match.IsSelfReported = true;
-        match.ReportedDamage = report.TotalDamage;
-        match.ReportedDurationSeconds = report.DurationSeconds;
+        match.ReportedDamage = match.ReportedSegmentBase + report.TotalDamage;
         match.ReportedCritPercent = report.CritPercent;
         match.ReportedDirectHitPercent = report.DirectHitPercent;
         if (report.JobAbbrev.Length > 0)

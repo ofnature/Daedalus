@@ -153,9 +153,13 @@ public sealed class LanDpsReportPayload
     [JsonPropertyName("j")]
     public string JobAbbrev { get; set; } = "";
 
-    /// <summary>UTC ticks of the sender's encounter start — receivers match ±15s.</summary>
+    /// <summary>UTC ticks of the sender's encounter start.</summary>
     [JsonPropertyName("es")]
     public long EncounterStartTicks { get; set; }
+
+    /// <summary>Sender's territory id — receivers in a different zone drop the report.</summary>
+    [JsonPropertyName("t")]
+    public ushort TerritoryId { get; set; }
 
     [JsonPropertyName("d")]
     public long TotalDamage { get; set; }

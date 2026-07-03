@@ -29,26 +29,40 @@ public sealed class DpsMeterService : IDpsMeterService, IDisposable
 
     // IPC/LAN self-report sharing (milestone 2) — null when party coordination is off.
     private CoordinationBus? bus;
+    private readonly Func<ushort>? territoryProvider;
     private DateTime lastReportSentUtc = DateTime.MinValue;
     private const double ReportIntervalSeconds = 2.0;
-    private const long EncounterMatchToleranceTicks = 15 * TimeSpan.TicksPerSecond;
+
+    /// <summary>
+    /// Combat-flag flickers (phase cutscenes, e.g. Porta Decumana's mid-fight transition)
+    /// must not split one fight into two encounters: the encounter only finalizes after
+    /// this long continuously out of combat.
+    /// </summary>
+    internal const double EncounterLingerSeconds = 8.0;
+
+    /// <summary>Test hook — wall clock for encounter timing.</summary>
+    internal Func<DateTime> UtcNow = () => DateTime.UtcNow;
 
     // Per-encounter caches so the object table is hit once per combatant, not per packet.
     private readonly Dictionary<uint, CombatantIdentity?> casterCache = new();
     private readonly Dictionary<uint, string?> targetCache = new();
 
     private DpsEncounter? current;
-    private bool wasInCombat;
+    private DateTime lastInCombatUtc;
 
     public DpsMeterService(
         ICombatEventService combatEventService,
         IObjectTable objectTable,
-        ParserConfig config)
+        ParserConfig config,
+        IPartyList? partyList = null,
+        Func<ushort>? territoryProvider = null)
     {
         this.combatEventService = combatEventService;
         this.objectTable = objectTable;
         this.config = config;
+        this.territoryProvider = territoryProvider;
         this.resolver = DefaultResolve;
+        this.IsPartyMemberName = name => IsInPartyList(partyList, name);
 
         combatEventService.OnDamageDealt += OnDamageDealt;
     }
@@ -57,13 +71,34 @@ public sealed class DpsMeterService : IDpsMeterService, IDisposable
     internal DpsMeterService(
         ICombatEventService combatEventService,
         ParserConfig config,
-        Func<uint, uint, ResolvedDamage?> resolver)
+        Func<uint, uint, ResolvedDamage?> resolver,
+        Func<string, bool>? isPartyMemberName = null,
+        Func<ushort>? territoryProvider = null)
     {
         this.combatEventService = combatEventService;
         this.config = config;
         this.resolver = resolver;
+        this.territoryProvider = territoryProvider;
+        this.IsPartyMemberName = isPartyMemberName ?? (_ => true);
 
         combatEventService.OnDamageDealt += OnDamageDealt;
+    }
+
+    /// <summary>Is this character name in OUR party right now? Gate for merging remote reports.</summary>
+    internal Func<string, bool> IsPartyMemberName;
+
+    private static bool IsInPartyList(IPartyList? partyList, string name)
+    {
+        if (partyList == null || name.Length == 0)
+            return false;
+
+        foreach (var member in partyList)
+        {
+            if (member.Name.TextValue == name)
+                return true;
+        }
+
+        return false;
     }
 
     public DpsEncounter? Current => current is { IsActive: true } ? current : null;
@@ -82,29 +117,34 @@ public sealed class DpsMeterService : IDpsMeterService, IDisposable
 
     public void Update()
     {
+        var now = UtcNow();
         var inCombat = combatEventService.IsInCombat;
 
-        if (inCombat && !wasInCombat)
+        if (inCombat && current is not { IsActive: true })
         {
-            // New pull — drop anything queued between fights, start fresh.
+            // New pull — drop anything queued between fights, start fresh. (A combat-flag
+            // flicker inside the linger window keeps the existing encounter instead.)
             while (pending.TryDequeue(out _)) { }
             casterCache.Clear();
             targetCache.Clear();
-            current = new DpsEncounter();
+            current = new DpsEncounter { StartUtc = now };
         }
 
         if (current is { IsActive: true })
         {
             if (inCombat)
             {
-                var duration = combatEventService.GetCombatDurationSeconds();
+                lastInCombatUtc = now;
+                // Wall clock from encounter start — survives combat-flag flickers, and keeps
+                // one consistent clock for every displayed number (ACT semantics).
+                var duration = (float)(now - current.StartUtc).TotalSeconds;
                 if (duration > current.DurationSeconds)
                     current.DurationSeconds = duration;
             }
 
             DrainQueue(current);
 
-            if (!inCombat)
+            if (!inCombat && (now - lastInCombatUtc).TotalSeconds >= EncounterLingerSeconds)
             {
                 current.IsActive = false;
                 SendSelfReport(current, isFinal: true);
@@ -116,16 +156,14 @@ public sealed class DpsMeterService : IDpsMeterService, IDisposable
                         history.RemoveAt(history.Count - 1);
                 }
             }
-            else if ((DateTime.UtcNow - lastReportSentUtc).TotalSeconds >= ReportIntervalSeconds)
+            else if (inCombat && (now - lastReportSentUtc).TotalSeconds >= ReportIntervalSeconds)
             {
-                lastReportSentUtc = DateTime.UtcNow;
+                lastReportSentUtc = now;
                 SendSelfReport(current, isFinal: false);
             }
         }
 
         DrainRemoteReports();
-
-        wasInCombat = inCombat;
     }
 
     public void Reset()
@@ -156,8 +194,12 @@ public sealed class DpsMeterService : IDpsMeterService, IDisposable
             return;
 
         var report = BuildSelfReport(encounter, isFinal);
-        if (report != null)
-            bus.BroadcastDpsReport(report);
+        if (report == null)
+            return;
+
+        if (territoryProvider != null)
+            report.TerritoryId = territoryProvider();
+        bus.BroadcastDpsReport(report);
     }
 
     /// <summary>
@@ -192,23 +234,48 @@ public sealed class DpsMeterService : IDpsMeterService, IDisposable
     private void DrainRemoteReports()
     {
         while (remoteReports.TryDequeue(out var report))
-            FindEncounterForReport(report.EncounterStartTicks)?.ApplyRemoteReport(report);
+        {
+            if (!ShouldAcceptReport(report))
+                continue;
+
+            FindEncounterForReport(report)?.ApplyRemoteReport(report);
+        }
     }
 
     /// <summary>
-    /// Matches a remote report to our encounter by start time (±15s — toons enter combat at
-    /// slightly different moments). Final reports can land just after our own combat ended,
-    /// so history is searched too.
+    /// Cross-bleed gate. Reports broadcast on the LAN reach ALL our toons — including ones
+    /// fighting something else entirely (observed live: a Lv81 dungeon parse merging into a
+    /// Porta Decumana run; start times alone can't discriminate concurrent fights). Only
+    /// merge senders that are actually in OUR party — a different instance can never
+    /// contain them — with a territory check as belt-and-braces.
     /// </summary>
-    internal DpsEncounter? FindEncounterForReport(long startTicks)
+    internal bool ShouldAcceptReport(LanDpsReportPayload report)
     {
-        if (current != null && Math.Abs(current.StartUtc.Ticks - startTicks) <= EncounterMatchToleranceTicks)
+        if (report.TerritoryId != 0 && territoryProvider != null)
+        {
+            var territory = territoryProvider();
+            if (territory != 0 && territory != report.TerritoryId)
+                return false;
+        }
+
+        return IsPartyMemberName(report.CharacterName);
+    }
+
+    /// <summary>
+    /// Picks the encounter a (party-gated) report applies to: the live one while fighting;
+    /// after our combat ends, the newest history entry still catches trailing finals
+    /// (start within ±30s — partied toons pull together).
+    /// </summary>
+    internal DpsEncounter? FindEncounterForReport(LanDpsReportPayload report)
+    {
+        if (current is { IsActive: true })
             return current;
 
-        foreach (var encounter in history)
+        if (history.Count > 0)
         {
-            if (Math.Abs(encounter.StartUtc.Ticks - startTicks) <= EncounterMatchToleranceTicks)
-                return encounter;
+            var newest = history[0];
+            if (Math.Abs(newest.StartUtc.Ticks - report.EncounterStartTicks) <= 30 * TimeSpan.TicksPerSecond)
+                return newest;
         }
 
         return null;
