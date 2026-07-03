@@ -85,7 +85,7 @@ public sealed class LanCoordinator : IDisposable
 
             Status = LanStatus.NoPeers;
             LastError = "";
-            _log.Info($"LAN coordinator listening on UDP {_port} (machine {_machineId[..8]})");
+            _log.Info($"LAN coordinator listening on UDP {_port} (machine {(_machineId.Length > 8 ? _machineId[..8] : _machineId)})");
             return true;
         }
         catch (SocketException ex)

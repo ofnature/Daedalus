@@ -79,6 +79,41 @@ public class LanCoordinationTests
     }
 
     [Fact]
+    public void MachineId_IsPerMachine_NotPerInstance()
+    {
+        // Regression (2026-07-03): a random per-config GUID gave each multibox game instance
+        // its own "machine", so two toons on one PC showed as Local + fake Remote machines.
+        var a = new Daedalus.Config.PartyCoordinationConfig();
+        var b = new Daedalus.Config.PartyCoordinationConfig();
+        Assert.Equal(a.GetOrCreateMachineId(), b.GetOrCreateMachineId());
+        Assert.Equal(System.Environment.MachineName, a.GetOrCreateMachineId());
+    }
+
+    [Fact]
+    public void MachineId_ReplacesLegacyGuid()
+    {
+        var cfg = new Daedalus.Config.PartyCoordinationConfig
+        {
+            LanMachineId = "0123456789abcdef0123456789abcdef"
+        };
+        Assert.Equal(System.Environment.MachineName, cfg.GetOrCreateMachineId());
+    }
+
+    [Fact]
+    public void HeartbeatPayload_EchoHeldMs_RoundTrips_AndDefaultsToZero()
+    {
+        var payload = new LanHeartbeatPayload { EchoTimestamp = 123456789, EchoHeldMs = 1800 };
+        var parsed = LanHeartbeatPayload.FromJson(payload.ToJson());
+        Assert.NotNull(parsed);
+        Assert.Equal(1800, parsed!.EchoHeldMs);
+
+        // Older clients don't send the field — must parse as 0, not fail.
+        var legacy = LanHeartbeatPayload.FromJson("{\"e\":123}");
+        Assert.NotNull(legacy);
+        Assert.Equal(0, legacy!.EchoHeldMs);
+    }
+
+    [Fact]
     public void PeerInfo_StaleAfterFiveSeconds()
     {
         var now = DateTime.UtcNow;

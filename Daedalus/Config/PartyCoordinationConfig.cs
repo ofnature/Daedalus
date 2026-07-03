@@ -43,8 +43,12 @@ public sealed class PartyCoordinationConfig
     /// <summary>Returns the persisted machine id, generating it on first use.</summary>
     public string GetOrCreateMachineId()
     {
-        if (string.IsNullOrEmpty(LanMachineId))
-            LanMachineId = Guid.NewGuid().ToString("N");
+        // One id PER MACHINE (hostname), never per game instance: the old random per-config
+        // GUID gave every multibox client its own id, so two toons on the same PC showed as
+        // separate "machines" (one falsely Remote) in the Party Coordination window.
+        var machine = Environment.MachineName;
+        if (LanMachineId != machine)
+            LanMachineId = machine;
         return LanMachineId;
     }
 

@@ -120,6 +120,14 @@ public sealed class LanHeartbeatPayload
     [JsonPropertyName("e")]
     public long EchoTimestamp { get; set; }
 
+    /// <summary>
+    /// How long (ms) the echoed timestamp sat waiting for this heartbeat to go out. Without it,
+    /// "RTT" included up to a full 2s heartbeat interval of dwell (981 ms shown on loopback).
+    /// Receivers subtract this; absent/0 from older clients degrades to the old behavior.
+    /// </summary>
+    [JsonPropertyName("eh")]
+    public long EchoHeldMs { get; set; }
+
     public string ToJson() => JsonSerializer.Serialize(this);
 
     public static LanHeartbeatPayload? FromJson(string json)

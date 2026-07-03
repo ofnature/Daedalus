@@ -54,6 +54,7 @@ public sealed class CoordinationBus : IDisposable
 
     private DateTime _lastHeartbeatSent = DateTime.MinValue;
     private long _newestRemoteTimestamp;
+    private DateTime _newestRemoteTimestampSeenUtc;
 
     // Burst coordination
     private readonly HashSet<string> _burstReadySenders = new();
@@ -181,6 +182,9 @@ public sealed class CoordinationBus : IDisposable
             if (payload != null)
             {
                 payload.EchoTimestamp = _newestRemoteTimestamp;
+                payload.EchoHeldMs = _newestRemoteTimestamp > 0
+                    ? (long)(now - _newestRemoteTimestampSeenUtc).TotalMilliseconds
+                    : 0;
                 _lan.Send(new LanMessage { Type = LanMessageType.Heartbeat, Payload = payload.ToJson() });
 
                 // Self-register directly: our own broadcast loops back but is dropped by the
@@ -222,7 +226,10 @@ public sealed class CoordinationBus : IDisposable
             _dedupKeys.Remove(_dedupOrder.Dequeue());
 
         if (msg.Timestamp > _newestRemoteTimestamp && msg.MachineId != _localMachineId)
+        {
             _newestRemoteTimestamp = msg.Timestamp;
+            _newestRemoteTimestampSeenUtc = now;
+        }
 
         switch (msg.Type)
         {
@@ -285,10 +292,11 @@ public sealed class CoordinationBus : IDisposable
 
         double latency = 0;
         // The remote echoed the newest timestamp it had seen from anyone; if that was one of OUR
-        // ticks, now - echo ≈ round trip.
+        // ticks, now - echo - (how long the remote held it before this heartbeat) ≈ round trip.
         if (hb.EchoTimestamp > 0)
         {
-            var rtt = (now - new DateTime(hb.EchoTimestamp, DateTimeKind.Utc)).TotalMilliseconds;
+            var rtt = (now - new DateTime(hb.EchoTimestamp, DateTimeKind.Utc)).TotalMilliseconds
+                      - hb.EchoHeldMs;
             if (rtt is > 0 and < 10_000) latency = rtt;
         }
 
