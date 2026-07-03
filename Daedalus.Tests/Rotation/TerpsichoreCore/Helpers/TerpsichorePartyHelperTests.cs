@@ -22,7 +22,7 @@ public class TerpsichorePartyHelperTests
 {
     // --- Trust-duty partner selection ---
 
-    private static Mock<IBattleNpc> CreateTrustNpc(uint entityId, uint currentHp = 50000u)
+    private static Mock<IBattleNpc> CreateTrustNpc(uint entityId, uint currentHp = 50000u, StatusFlags statusFlags = 0)
     {
         var npc = new Mock<IBattleNpc>();
         npc.Setup(x => x.ObjectKind).Returns(ObjectKind.BattleNpc);
@@ -30,7 +30,7 @@ public class TerpsichorePartyHelperTests
         npc.Setup(x => x.EntityId).Returns(entityId);
         npc.Setup(x => x.CurrentHp).Returns(currentHp);
         npc.Setup(x => x.MaxHp).Returns(50000u);
-        npc.Setup(x => x.StatusFlags).Returns((StatusFlags)0);
+        npc.Setup(x => x.StatusFlags).Returns(statusFlags);
         // ClassJob left default (RowId 0) — trust avatars often report no job; they must
         // still be selectable as last-resort partners.
         return npc;
@@ -98,6 +98,33 @@ public class TerpsichorePartyHelperTests
     public void Solo_NoTrusts_NoPartner()
     {
         var helper = CreateTrustModeHelper();
+        var player = MockBuilders.CreateMockPlayerCharacter();
+
+        Assert.Null(helper.SelectDancePartner(player.Object));
+    }
+
+    [Fact]
+    public void TrustDuty_CastingTrustNpc_StaysSelectable()
+    {
+        // Regression: the old "hostile" scan bit was actually StatusFlags.IsCasting (128),
+        // so a casting RDM/healer avatar vanished from the ally scan — the dance partner
+        // "left the party" every hardcast, flapping Closed Position (Ending + re-apply,
+        // RDM->GNB->RDM swaps in mob packs).
+        var castingTrust = CreateTrustNpc(entityId: 2, statusFlags: StatusFlags.IsCasting);
+        var helper = CreateTrustModeHelper(castingTrust.Object);
+        var player = MockBuilders.CreateMockPlayerCharacter();
+
+        var partner = helper.SelectDancePartner(player.Object);
+
+        Assert.NotNull(partner);
+        Assert.Equal(2u, partner!.EntityId);
+    }
+
+    [Fact]
+    public void TrustDuty_HostileFlaggedNpc_NotSelectable()
+    {
+        var hostile = CreateTrustNpc(entityId: 2, statusFlags: StatusFlags.Hostile);
+        var helper = CreateTrustModeHelper(hostile.Object);
         var player = MockBuilders.CreateMockPlayerCharacter();
 
         Assert.Null(helper.SelectDancePartner(player.Object));

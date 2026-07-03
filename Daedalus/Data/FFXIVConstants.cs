@@ -12,8 +12,8 @@ public static class FFXIVConstants
     /// <summary>SubKind value for Trust NPC party members.</summary>
     public const int TrustNpcSubKind = 9;
 
-    /// <summary>StatusFlags bit for hostile/untargetable.</summary>
-    public const int HostileStatusFlag = 128;
+    // (Removed) HostileStatusFlag = 128 — that bit is StatusFlags.IsCasting, not hostile;
+    // it made casting trust allies vanish from party scans. Use StatusFlags.Hostile directly.
 
     // Tank ClassJob IDs (PLD, WAR, DRK, GNB + base classes GLA, MRD)
     /// <summary>Paladin/Gladiator ClassJob IDs.</summary>

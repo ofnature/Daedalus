@@ -1,3 +1,4 @@
+using System;
 using Dalamud.Game.ClientState.Objects.Types;
 using Daedalus.Config.DPS;
 using Daedalus.Data;
@@ -285,6 +286,15 @@ public sealed class BuffModule : ITerpsichoreModule
             });
     }
 
+    /// <summary>
+    /// Re-partnering while partnered costs an Ending (the buff drops for a weave before the
+    /// new Closed Position lands), so a transient ally-scan hiccup must never trigger it:
+    /// ShouldUpdatePartner has to hold continuously for this long before we act.
+    /// </summary>
+    internal const double RepartnerDebounceSeconds = 3.0;
+
+    private DateTime _repartnerPendingSinceUtc = DateTime.MinValue;
+
     private void TryPushClosedPosition(ITerpsichoreContext context, RotationScheduler scheduler)
     {
         var player = context.Player;
@@ -293,9 +303,23 @@ public sealed class BuffModule : ITerpsichoreModule
         if (context.IsDancing) return;
 
         var needsPartner = !context.HasDancePartner;
-        if (!needsPartner && context.Configuration.Dancer.AutoRepartner)
-            needsPartner = context.PartyHelper.ShouldUpdatePartner(
-                player, context.StatusHelper, context.Configuration.Dancer.PartnerSelectionMode);
+        if (needsPartner)
+        {
+            // Genuinely unpartnered (own status, reliable) — apply immediately.
+            _repartnerPendingSinceUtc = DateTime.MinValue;
+        }
+        else if (context.Configuration.Dancer.AutoRepartner
+                 && context.PartyHelper.ShouldUpdatePartner(
+                     player, context.StatusHelper, context.Configuration.Dancer.PartnerSelectionMode))
+        {
+            if (_repartnerPendingSinceUtc == DateTime.MinValue)
+                _repartnerPendingSinceUtc = DateTime.UtcNow;
+            needsPartner = (DateTime.UtcNow - _repartnerPendingSinceUtc).TotalSeconds >= RepartnerDebounceSeconds;
+        }
+        else
+        {
+            _repartnerPendingSinceUtc = DateTime.MinValue;
+        }
         if (!needsPartner) return;
 
         var partner = context.PartyHelper.SelectDancePartner(player, context.Configuration.Dancer.PartnerSelectionMode);

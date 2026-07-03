@@ -127,7 +127,11 @@ public abstract class BasePartyHelper
             return false;
         if (battleNpc.MaxHp == 0)
             return false;
-        if ((battleNpc.StatusFlags & (StatusFlags)FFXIVConstants.HostileStatusFlag) != 0)
+        // StatusFlags.Hostile — NOT the old raw 128, which is StatusFlags.IsCasting and made
+        // casting allies (RDM/healer avatars) vanish from the party scan mid-cast. That
+        // transient disappearance is what flapped the DNC dance partner (Ending + re-apply,
+        // RDM->GNB->RDM swaps in mob packs).
+        if ((battleNpc.StatusFlags & StatusFlags.Hostile) != 0)
             return false;
         if (battleNpc.SubKind != FFXIVConstants.TrustNpcSubKind)
             return false;
