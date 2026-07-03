@@ -2428,7 +2428,7 @@
   "ui.parser.no_data": "No fights recorded yet",
   "ui.parser.trust_tag": "TRUST",
   "ui.parser.human_tag": "HUMAN",
-  "ui.parser.legend_tooltip": "Source dots:\n● gold — you (exact)\n● green — Daedalus toon, self-reported over IPC/LAN (exact)\n● grey — observed locally (Trusts, other players; direct damage only)\n\nDoT ticks are not attributed by the game, so DoT-heavy jobs read low for everyone equally.",
+  "ui.parser.legend_tooltip": "Source dots:\n● gold — you (exact)\n● green — Daedalus toon, self-reported over IPC/LAN (exact)\n● grey — observed locally (Trusts, other players)\n\nDoT ticks are attributed to whoever applied the effect; a rare unattributable tick is dropped rather than guessed.",
   "ui.parser.row_tooltip": "{0} — Total {1} · Crit {2:F1}% · DH {3:F1}%",
 
   "config.parser.section": "Parser",

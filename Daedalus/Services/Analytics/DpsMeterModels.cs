@@ -40,6 +40,9 @@ public sealed class CombatantStats
     public int CritCount { get; internal set; }
     public int DirectHitCount { get; internal set; }
 
+    /// <summary>DoT tick damage attributed to this combatant (included in <see cref="TotalDamage"/>).</summary>
+    public long DotDamage { get; internal set; }
+
     /// <summary>
     /// True once this combatant's own Daedalus instance has reported exact numbers over
     /// IPC/LAN — reported values override the locally-observed ones everywhere.
@@ -111,6 +114,45 @@ public sealed class DpsEncounter
         if (isCrit) stats.CritCount++;
         if (isDirectHit) stats.DirectHitCount++;
 
+        TotalDamage += amount;
+
+        if (!string.IsNullOrEmpty(targetName))
+        {
+            damageByTarget.TryGetValue(targetName, out var soFar);
+            var updated = soFar + amount;
+            damageByTarget[targetName] = updated;
+            if (TargetName.Length == 0
+                || (TargetName != targetName && updated > damageByTarget.GetValueOrDefault(TargetName)))
+            {
+                TargetName = targetName;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Adds attributed DoT tick damage. Counts toward totals and share but NOT toward
+    /// <see cref="CombatantStats.HitCount"/> — ticks carry no crit/DH flags, so folding
+    /// them into hits would dilute the crit and direct-hit percentages.
+    /// </summary>
+    public void AddDotDamage(in CombatantIdentity caster, string targetName, int amount)
+    {
+        if (!IsActive || amount <= 0)
+            return;
+
+        if (!combatants.TryGetValue(caster.Key, out var stats))
+        {
+            stats = new CombatantStats
+            {
+                EntityId = caster.Key,
+                Kind = caster.Kind,
+                Name = caster.Name,
+                JobAbbrev = caster.JobAbbrev,
+            };
+            combatants[caster.Key] = stats;
+        }
+
+        stats.TotalDamage += amount;
+        stats.DotDamage += amount;
         TotalDamage += amount;
 
         if (!string.IsNullOrEmpty(targetName))

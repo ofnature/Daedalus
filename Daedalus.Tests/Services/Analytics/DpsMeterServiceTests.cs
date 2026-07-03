@@ -331,6 +331,82 @@ public sealed class DpsMeterServiceTests
         Assert.Equal("Sanduruva", svc.Current.TargetName);
     }
 
+    // ── Milestone 3: DoT tick attribution (ActorControl category 23) ──
+
+    [Fact]
+    public void Encounter_DotDamage_CountsTowardTotals_NotCritRate()
+    {
+        var enc = new DpsEncounter { DurationSeconds = 10f };
+        enc.AddDamage(Self, "Dummy", 1000, isCrit: true, isDirectHit: true);
+        enc.AddDotDamage(Self, "Dummy", 500);
+
+        var stats = Assert.Single(enc.GetRanked());
+        Assert.Equal(1500, stats.TotalDamage);
+        Assert.Equal(500, stats.DotDamage);
+        Assert.Equal(1, stats.HitCount);          // ticks are not hits
+        Assert.Equal(100f, stats.CritPercent);    // crit rate undiluted
+        Assert.Equal(150f, enc.GetDps(stats));
+    }
+
+    [Fact]
+    public void Service_DotTick_AttributedViaPacketSource()
+    {
+        var (svc, ces, _, _) = MakeService();
+
+        SetCombat(ces, true);
+        svc.Update();
+        ces.Raise(x => x.OnDotTick += null, new DotTickEvent(TargetEntityId: 100, EffectId: 118, Kind: 3, Amount: 450, PossibleSourceId: 1));
+        svc.Update();
+
+        var stats = Assert.Single(svc.Current!.GetRanked());
+        Assert.Equal(Self.Key, stats.EntityId);
+        Assert.Equal(450, stats.DotDamage);
+    }
+
+    [Fact]
+    public void Service_DotTick_FallsBackToStatusListSource()
+    {
+        var (svc, ces, _, _) = MakeService();
+        svc.StatusSourceLookup = (targetId, effectId) =>
+            targetId == 100 && effectId == 118 ? 2u : 0u; // Chaos Thrust applied by the ally
+
+        SetCombat(ces, true);
+        svc.Update();
+        ces.Raise(x => x.OnDotTick += null, new DotTickEvent(100, 118, 3, 450, PossibleSourceId: 0));
+        svc.Update();
+
+        var stats = Assert.Single(svc.Current!.GetRanked());
+        Assert.Equal(Ally.Key, stats.EntityId);
+        Assert.Equal(450, stats.DotDamage);
+    }
+
+    [Fact]
+    public void Service_DotTick_Unattributable_IsDroppedNotGuessed()
+    {
+        var (svc, ces, _, _) = MakeService();
+
+        SetCombat(ces, true);
+        svc.Update();
+        ces.Raise(x => x.OnDotTick += null, new DotTickEvent(100, 0, 3, 450, PossibleSourceId: 0));
+        svc.Update();
+
+        Assert.Equal(0, svc.Current!.TotalDamage);
+    }
+
+    [Fact]
+    public void Service_DotTick_ImplausibleAmount_IsDropped()
+    {
+        // Layout insurance: if a patch shuffles the ActorControl params, "amounts" go absurd.
+        var (svc, ces, _, _) = MakeService();
+
+        SetCombat(ces, true);
+        svc.Update();
+        ces.Raise(x => x.OnDotTick += null, new DotTickEvent(100, 118, 3, DpsMeterService.MaxPlausibleTickAmount + 1, PossibleSourceId: 1));
+        svc.Update();
+
+        Assert.Equal(0, svc.Current!.TotalDamage);
+    }
+
     // ── Milestone 2: remote self-reports over IPC/LAN ──
 
     private static Daedalus.Services.Network.LanDpsReportPayload MakeReport(

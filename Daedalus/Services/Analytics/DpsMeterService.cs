@@ -24,8 +24,22 @@ public sealed class DpsMeterService : IDpsMeterService, IDisposable
     private readonly IObjectTable? objectTable;
 
     private readonly ConcurrentQueue<DamageDealtEvent> pending = new();
+    private readonly ConcurrentQueue<DotTickEvent> pendingTicks = new();
     private readonly ConcurrentQueue<LanDpsReportPayload> remoteReports = new();
     private readonly List<DpsEncounter> history = new();
+
+    /// <summary>
+    /// Sanity ceiling for a single DoT tick. The ActorControl param layout is community-
+    /// documented, not ClientStructs-verified — if a game patch shuffles params, amounts
+    /// turn absurd; this keeps garbage out of the meter while the decode gets fixed.
+    /// </summary>
+    internal const int MaxPlausibleTickAmount = 2_000_000;
+
+    /// <summary>
+    /// Looks up which entity applied status <c>effectId</c> on <c>targetId</c> (0 = unknown).
+    /// Default reads the target's status list; injectable for tests.
+    /// </summary>
+    internal Func<uint, uint, uint> StatusSourceLookup;
 
     // IPC/LAN self-report sharing (milestone 2) — null when party coordination is off.
     private CoordinationBus? bus;
@@ -63,8 +77,10 @@ public sealed class DpsMeterService : IDpsMeterService, IDisposable
         this.territoryProvider = territoryProvider;
         this.resolver = DefaultResolve;
         this.IsPartyMemberName = name => IsInPartyList(partyList, name);
+        this.StatusSourceLookup = DefaultStatusSourceLookup;
 
         combatEventService.OnDamageDealt += OnDamageDealt;
+        combatEventService.OnDotTick += OnDotTick;
     }
 
     /// <summary>Test constructor — inject a resolver instead of the object table.</summary>
@@ -80,8 +96,10 @@ public sealed class DpsMeterService : IDpsMeterService, IDisposable
         this.resolver = resolver;
         this.territoryProvider = territoryProvider;
         this.IsPartyMemberName = isPartyMemberName ?? (_ => true);
+        this.StatusSourceLookup = (_, _) => 0;
 
         combatEventService.OnDamageDealt += OnDamageDealt;
+        combatEventService.OnDotTick += OnDotTick;
     }
 
     /// <summary>Is this character name in OUR party right now? Gate for merging remote reports.</summary>
@@ -125,6 +143,7 @@ public sealed class DpsMeterService : IDpsMeterService, IDisposable
             // New pull — drop anything queued between fights, start fresh. (A combat-flag
             // flicker inside the linger window keeps the existing encounter instead.)
             while (pending.TryDequeue(out _)) { }
+            while (pendingTicks.TryDequeue(out _)) { }
             casterCache.Clear();
             targetCache.Clear();
             current = new DpsEncounter { StartUtc = now };
@@ -143,6 +162,7 @@ public sealed class DpsMeterService : IDpsMeterService, IDisposable
             }
 
             DrainQueue(current);
+            DrainTicks(current);
 
             if (!inCombat && (now - lastInCombatUtc).TotalSeconds >= EncounterLingerSeconds)
             {
@@ -171,6 +191,7 @@ public sealed class DpsMeterService : IDpsMeterService, IDisposable
         current = null;
         history.Clear();
         while (pending.TryDequeue(out _)) { }
+        while (pendingTicks.TryDequeue(out _)) { }
         casterCache.Clear();
         targetCache.Clear();
     }
@@ -178,6 +199,7 @@ public sealed class DpsMeterService : IDpsMeterService, IDisposable
     public void Dispose()
     {
         combatEventService.OnDamageDealt -= OnDamageDealt;
+        combatEventService.OnDotTick -= OnDotTick;
     }
 
     private void OnDamageDealt(DamageDealtEvent evt)
@@ -186,6 +208,14 @@ public sealed class DpsMeterService : IDpsMeterService, IDisposable
             return;
 
         pending.Enqueue(evt);
+    }
+
+    private void OnDotTick(DotTickEvent evt)
+    {
+        if (!config.Enabled)
+            return;
+
+        pendingTicks.Enqueue(evt);
     }
 
     private void SendSelfReport(DpsEncounter encounter, bool isFinal)
@@ -291,6 +321,65 @@ public sealed class DpsMeterService : IDpsMeterService, IDisposable
 
             encounter.AddDamage(resolved.Value.Caster, resolved.Value.TargetName, evt.Amount, evt.IsCrit, evt.IsDirectHit);
         }
+    }
+
+    private void DrainTicks(DpsEncounter encounter)
+    {
+        while (pendingTicks.TryDequeue(out var tick))
+        {
+            if (tick.Amount <= 0 || tick.Amount > MaxPlausibleTickAmount)
+                continue;
+
+            var resolved = TryAttributeTick(tick);
+            if (resolved == null)
+                continue;
+
+            encounter.AddDotDamage(resolved.Value.Caster, resolved.Value.TargetName, tick.Amount);
+        }
+    }
+
+    /// <summary>
+    /// Attributes a DoT tick: the packet's source id when present (newer packets carry it),
+    /// otherwise whoever applied the ticking status on the target. The resolver's
+    /// friendly-caster/hostile-target rules apply either way, so enemy DoTs on players and
+    /// HoT ticks fall out naturally. Unattributable ticks are dropped, never guessed.
+    /// </summary>
+    internal ResolvedDamage? TryAttributeTick(in DotTickEvent tick)
+    {
+        if (tick.PossibleSourceId != 0 && tick.PossibleSourceId != Data.FFXIVConstants.InvalidTargetId)
+        {
+            var direct = resolver(tick.PossibleSourceId, tick.TargetEntityId);
+            if (direct != null)
+                return direct;
+        }
+
+        if (tick.EffectId != 0)
+        {
+            var sourceId = StatusSourceLookup(tick.TargetEntityId, tick.EffectId);
+            if (sourceId != 0)
+                return resolver(sourceId, tick.TargetEntityId);
+        }
+
+        return null;
+    }
+
+    private uint DefaultStatusSourceLookup(uint targetId, uint effectId)
+    {
+        var obj = objectTable?.SearchById(targetId);
+        if (obj is not IBattleChara chara)
+            return 0;
+
+        var statusList = chara.StatusList;
+        if (statusList == null)
+            return 0;
+
+        foreach (var status in statusList)
+        {
+            if (status != null && status.StatusId == effectId)
+                return status.SourceId;
+        }
+
+        return 0;
     }
 
     private ResolvedDamage? DefaultResolve(uint casterId, uint targetId)

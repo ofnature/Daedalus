@@ -26,6 +26,15 @@ public sealed unsafe class CombatEventService : ICombatEventService, IDisposable
     private readonly IPluginLog log;
     private readonly IObjectTable objectTable;
     private readonly Hook<ActionEffectHandler.Delegates.Receive>? receiveHook;
+    private readonly Hook<ProcessActorControlDelegate>? actorControlHook;
+
+    // ProcessPacketActorControl — same signature BMR (WorldStateGameSync) and RSR hook.
+    private delegate void ProcessActorControlDelegate(
+        uint actorId, uint category, uint p1, uint p2, uint p3, uint p4,
+        uint p5, uint p6, uint p7, uint p8, ulong targetId, byte replaying);
+
+    private const string ActorControlSignature = "E8 ?? ?? ?? ?? 0F B7 0B 83 E9 64";
+    private const uint ActorControlHotDot = 23;
 
     /// <summary>
     /// Event raised when a healing effect from the local player lands.
@@ -68,6 +77,12 @@ public sealed unsafe class CombatEventService : ICombatEventService, IDisposable
     /// Used by the DPS parser. Raised from the hook thread — subscribers must enqueue.
     /// </summary>
     public event System.Action<DamageDealtEvent>? OnDamageDealt;
+
+    /// <summary>
+    /// Event raised per HoT/DoT tick (ActorControl category 23 — ticks never appear in
+    /// ActionEffect). Raised from the hook thread — subscribers must enqueue.
+    /// </summary>
+    public event System.Action<DotTickEvent>? OnDotTick;
 
     // Shadow HP tracking: EntityId -> (CurrentHp, LastActionUpdate)
     // LastActionUpdate is set when HP changes from action effects (heal/damage)
@@ -165,6 +180,36 @@ public sealed unsafe class CombatEventService : ICombatEventService, IDisposable
         {
             log.Error(ex, "CombatEventService: Failed to create ActionEffect hook");
         }
+
+        try
+        {
+            actorControlHook = gameInterop.HookFromSignature<ProcessActorControlDelegate>(
+                ActorControlSignature, ActorControlDetour);
+            actorControlHook.Enable();
+            log.Info("CombatEventService: ActorControl hook enabled (DoT ticks)");
+        }
+        catch (Exception ex)
+        {
+            // Fail-open: everything except DoT tick attribution works without this hook.
+            log.Error(ex, "CombatEventService: Failed to create ActorControl hook — DoT ticks will not be attributed");
+        }
+    }
+
+    private void ActorControlDetour(
+        uint actorId, uint category, uint p1, uint p2, uint p3, uint p4,
+        uint p5, uint p6, uint p7, uint p8, ulong targetId, byte replaying)
+    {
+        try
+        {
+            if (category == ActorControlHotDot)
+                OnDotTick?.Invoke(new DotTickEvent(actorId, p1, p2, unchecked((int)p3), p4));
+        }
+        catch (Exception ex)
+        {
+            log.Error(ex, "CombatEventService: Error processing HotDot actor control");
+        }
+
+        actorControlHook?.Original(actorId, category, p1, p2, p3, p4, p5, p6, p7, p8, targetId, replaying);
     }
 
 
@@ -576,6 +621,7 @@ public sealed unsafe class CombatEventService : ICombatEventService, IDisposable
     public void Dispose()
     {
         receiveHook?.Dispose();
+        actorControlHook?.Dispose();
         shadowHp.Clear();
         log.Info("CombatEventService: Disposed");
     }

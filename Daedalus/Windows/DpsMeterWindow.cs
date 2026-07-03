@@ -265,7 +265,7 @@ public sealed class DpsMeterWindow : Window
         ImGui.SetCursorPosX(ImGui.GetCursorPosX() + ImGui.GetContentRegionAvail().X - ImGui.CalcTextSize("(?)").X);
         DaedalusTheme.HelpMarker(Loc.T(
             LocalizedStrings.Parser.LegendTooltip,
-            "Source dots:\n● gold — you (exact)\n● green — Daedalus toon, self-reported over IPC/LAN (exact)\n● grey — observed locally (Trusts, other players; direct damage only)\n\nDoT ticks are not attributed by the game, so DoT-heavy jobs read low for everyone equally."));
+            "Source dots:\n● gold — you (exact)\n● green — Daedalus toon, self-reported over IPC/LAN (exact)\n● grey — observed locally (Trusts, other players)\n\nDoT ticks are attributed to whoever applied the effect; a rare unattributable tick is dropped rather than guessed."));
     }
 
     private string EntryLabel(DpsEncounter encounter)

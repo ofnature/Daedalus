@@ -13,6 +13,20 @@ public readonly record struct DamageDealtEvent(
     bool IsDirectHit);
 
 /// <summary>
+/// One HoT/DoT tick from the ActorControl packet stream (category 23 — ticks never appear
+/// in ActionEffect). Param semantics are the community-documented layout: p1 = effect
+/// (status) id, p2 = kind, p3 = amount, p4 = source entity id on newer packets (0 when
+/// absent). Receivers should attribute via <see cref="PossibleSourceId"/> first, then by
+/// finding <see cref="EffectId"/> on the target's status list.
+/// </summary>
+public readonly record struct DotTickEvent(
+    uint TargetEntityId,
+    uint EffectId,
+    uint Kind,
+    int Amount,
+    uint PossibleSourceId);
+
+/// <summary>
 /// Interface for combat event tracking, primarily used for shadow HP management.
 /// </summary>
 public interface ICombatEventService
@@ -42,6 +56,12 @@ public interface ICombatEventService
     /// enqueue and process on the framework thread.
     /// </summary>
     event System.Action<DamageDealtEvent>? OnDamageDealt;
+
+    /// <summary>
+    /// Event raised per HoT/DoT tick (ActorControl category 23). Used by the DPS parser for
+    /// DoT attribution. Raised from the hook thread; subscribers must enqueue.
+    /// </summary>
+    event System.Action<DotTickEvent>? OnDotTick;
 
     /// <summary>
     /// Event raised when any heal effect lands (from any source, not just local player).
