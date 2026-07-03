@@ -1,9 +1,9 @@
 {
   "Name": "Daedalus",
   "Author": "Rose",
-  "Punchline": "Intelligent White Mage rotation assistant",
-  "Description": "Apollo: An intelligent White Mage rotation assistant that handles healing, damage, defensive cooldowns, and resource management with full level-sync awareness.",
-  "RepoUrl": "https://github.com/RoseOfficial/Daedalus",
-  "Tags": ["whm", "white-mage", "combat", "rotation"],
+  "Punchline": "Intelligent rotation assistant for all combat jobs",
+  "Description": "Daedalus: An intelligent rotation assistant supporting all 21 combat jobs with healing, damage, mitigation, burst windows, party coordination, and timeline-aware fight predictions.",
+  "RepoUrl": "https://github.com/ofnature/Daedalus",
+  "Tags": ["combat", "rotation", "jobs", "healing", "multibox"],
   "DalamudApiLevel": 15
 }

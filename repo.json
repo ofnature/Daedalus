@@ -7,16 +7,16 @@
     "Description": "Daedalus: An intelligent rotation assistant supporting all 21 combat jobs with healing, damage, mitigation, burst windows, party coordination, and timeline-aware fight predictions.",
     "ApplicableVersion": "any",
     "CategoryTags": ["jobs"],
-    "RepoUrl": "https://github.com/RoseOfficial/Daedalus",
-    "AssemblyVersion": "0.1.0.0",
+    "RepoUrl": "https://github.com/ofnature/Daedalus",
+    "AssemblyVersion": "0.1.1.0",
     "DalamudApiLevel": 15,
     "IconUrl": "",
     "ImageUrls": [],
     "IsHide": false,
     "IsTestingExclusive": false,
-    "DownloadLinkInstall": "https://github.com/RoseOfficial/Daedalus/releases/download/v0.1.0/Daedalus.zip",
-    "DownloadLinkTesting": "https://github.com/RoseOfficial/Daedalus/releases/download/v0.1.0/Daedalus.zip",
-    "DownloadLinkUpdate": "https://github.com/RoseOfficial/Daedalus/releases/download/v0.1.0/Daedalus.zip"
+    "DownloadLinkInstall": "https://github.com/ofnature/Daedalus/releases/download/v0.1.1/latest.zip",
+    "DownloadLinkTesting": "https://github.com/ofnature/Daedalus/releases/download/v0.1.1/latest.zip",
+    "DownloadLinkUpdate": "https://github.com/ofnature/Daedalus/releases/download/v0.1.1/latest.zip"
   },
   {
     "Author": "RoseOfficial",

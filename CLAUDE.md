@@ -14,10 +14,12 @@ Daedalus is a Dalamud plugin for Final Fantasy XIV providing automated rotation 
 **RSR source (upstream):** `.cursor/rsr/` — checkout of the forked RotationSolverReborn branch. Consult it directly when burn-reference docs lack detail or when you need the exact RSR logic a `*-rotation.md` diff cites (e.g. `RebornRotations/Tank/PLD_Reborn.cs`).
 **BMR source (movement/safety/positionals reference):** `.cursor/bmr/` — full BossmodReborn checkout (gitignored). The ground truth for movement, pathfinding, safe-spots, forbidden zones/directions (gaze), positional recommendations, and the `BossMod.*` IPC we consume. Consult before any movement / positional / mechanics-safety work. Key files: `BossMod/Framework/IPCProvider.cs` (full IPC list), `BossMod/BossModule/AIHints.cs` (hint model), `BossMod/Pathfinding/`, `BossMod/AI/`. See the BossMod (BMR) IPC section below for the endpoint inventory.
 
-## Versioning
-- Current: `0.x.x` during implementation
-- Target: `v0.1.0` when all planned jobs are complete
-- Target: `v1.0.0` when full 8-toon IPC + LAN coordination is stable
+## Versioning & Releases
+- Current: `v0.1.1`. Every release push increments the patch (`+0.0.1`).
+- `v1.0.0` when ALL jobs except BLU are Trust-validated (see the trust-validation memory ledger); then patch increments continue until the next semi-major.
+- **Versions MUST match across:** `Daedalus/Daedalus.csproj` `<Version>`, `Plugin.PluginVersion`, root `repo.json` `AssemblyVersion` (4-part, e.g. `0.1.1.0`) + its three `DownloadLink*` tag URLs, and the `CHANGELOG.md` LATEST block header (`## v{ver} — {date}`). Bump ALL of them together before tagging.
+- Release flow: bump versions → build Release (DalamudPackager emits `Daedalus/bin/Release/Daedalus/latest.zip` + manifest) → commit/push (raw repo.json on main is what Dalamud + the in-plugin update checker read) → tag `v{ver}` → GitHub release with `latest.zip` asset. Dalamud third-party repo URL: `https://raw.githubusercontent.com/ofnature/Daedalus/main/repo.json` (also hosts Memoria's entry — never assume index 0).
+- The Settings "check for updates" reads that same raw repo.json (`UpdateCheckerService`).
 
 ## Naming Conventions — Greek Pantheon
 Every job implementation is named after a Greek deity. Never use job names directly as class prefixes.

@@ -3,7 +3,7 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
-## v0.1.0 — 2026-06-27
+## v0.1.1 — 2026-07-03
 
 ### New — Built-in DPS parser
 - Daedalus now has its own parser — a **Parser** button on the main window opens an ACT-style damage meter that tracks **everyone**: your toons, other players (tagged HUMAN), and Trust/duty-support allies (tagged TRUST), with pet and summon damage merged into their owner's row. Rows show job, name, DPS, and damage share on a proportional bar; your own toon is highlighted in gold. Hover any row for total damage, crit%, and direct-hit%; the header shows the boss, fight timer, and party DPS, and a dropdown keeps your recent fights (configurable history)

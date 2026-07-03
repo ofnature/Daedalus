@@ -24,7 +24,7 @@ public enum UpdateCheckStatus
 public sealed class UpdateCheckerService : IDisposable
 {
     private const string RepoJsonUrl =
-        "https://raw.githubusercontent.com/RoseOfficial/daedalus/main/repo.json";
+        "https://raw.githubusercontent.com/ofnature/Daedalus/main/repo.json";
 
     private readonly string _currentVersion;
     private readonly INotificationManager _notificationManager;
@@ -134,15 +134,35 @@ public sealed class UpdateCheckerService : IDisposable
         var json = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
         using var doc = JsonDocument.Parse(json);
         var root = doc.RootElement;
-        if (root.ValueKind == JsonValueKind.Array && root.GetArrayLength() > 0)
-            return root[0].GetProperty("AssemblyVersion").GetString();
+        if (root.ValueKind != JsonValueKind.Array)
+            return null;
+
+        // repo.json is a multi-plugin master — find OUR entry, never assume index 0.
+        foreach (var entry in root.EnumerateArray())
+        {
+            if (entry.TryGetProperty("InternalName", out var name)
+                && name.GetString() == "Daedalus"
+                && entry.TryGetProperty("AssemblyVersion", out var version))
+            {
+                return version.GetString();
+            }
+        }
+
         return null;
     }
 
-    private static bool IsNewer(string latest, string current) =>
+    /// <summary>
+    /// Compares versions with component-count normalization: repo.json carries four parts
+    /// ("0.1.1.0") while the plugin carries three ("0.1.1") — without padding, System.Version
+    /// treats the four-part form as newer and the checker would nag at the SAME version.
+    /// </summary>
+    internal static bool IsNewer(string latest, string current) =>
         Version.TryParse(latest, out var l) &&
         Version.TryParse(current, out var c) &&
-        l > c;
+        Normalize(l) > Normalize(c);
+
+    private static Version Normalize(Version v) =>
+        new(v.Major, v.Minor, Math.Max(v.Build, 0), Math.Max(v.Revision, 0));
 
     public void Dispose()
     {
