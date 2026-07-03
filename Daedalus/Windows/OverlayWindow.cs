@@ -8,6 +8,7 @@ using Daedalus.Localization;
 using Daedalus.Rotation;
 using Daedalus.Rotation.Common;
 using Daedalus.Services.Content;
+using Daedalus.Services.Prediction;
 using Daedalus.Timeline;
 using Daedalus.Timeline.Models;
 
@@ -21,6 +22,9 @@ public sealed class OverlayWindow : Window
     private readonly IPartyList _partyList;
     private readonly ITimelineService? _timelineService;
     private readonly IDutyContentService? _dutyContentService;
+    private readonly IBossModForecastService? _bossModForecast;
+
+    private const float ForecastWindowSeconds = 60f;
 
     private static readonly Vector4 ActiveColor    = Common.DaedalusTheme.StatusGreen;
     private static readonly Vector4 InactiveColor  = Common.DaedalusTheme.StatusGrey;
@@ -39,7 +43,8 @@ public sealed class OverlayWindow : Window
         RotationManager rotationManager,
         IPartyList partyList,
         ITimelineService? timelineService = null,
-        IDutyContentService? dutyContentService = null)
+        IDutyContentService? dutyContentService = null,
+        IBossModForecastService? bossModForecast = null)
         : base(
             "##DaedalusOverlay",
             ImGuiWindowFlags.NoTitleBar
@@ -57,6 +62,7 @@ public sealed class OverlayWindow : Window
         _partyList = partyList;
         _timelineService = timelineService;
         _dutyContentService = dutyContentService;
+        _bossModForecast = bossModForecast;
 
         Position = new Vector2(configuration.Overlay.X, configuration.Overlay.Y);
         PositionCondition = ImGuiCond.FirstUseEver;
@@ -93,13 +99,11 @@ public sealed class OverlayWindow : Window
             ? Loc.T(LocalizedStrings.Overlay.StatusActive,   "Running")
             : Loc.T(LocalizedStrings.Overlay.StatusInactive, "Paused");
 
-        ImGui.PushStyleColor(ImGuiCol.Text, color);
-        if (ImGui.SmallButton($"● {statusText}##OverlayToggle"))
+        if (Common.DaedalusTheme.StatusChip(statusText, color, "##OverlayToggle"))
         {
             _configuration.Enabled = !_configuration.Enabled;
             _saveConfiguration();
         }
-        ImGui.PopStyleColor();
 
         ImGui.SameLine();
         if (rotation != null)
@@ -176,10 +180,19 @@ public sealed class OverlayWindow : Window
 
     private void DrawMechanicsForecast()
     {
-        if (_timelineService is not { IsActive: true })
+        if (_timelineService is { IsActive: true })
+            DrawCactbotForecast();
+        else
+            DrawBossModForecast();
+    }
+
+    /// <summary>Embedded Cactbot timeline forecast — mapped savage/ultimate zones only.</summary>
+    private void DrawCactbotForecast()
+    {
+        if (_timelineService == null)
             return;
 
-        var mechanics = _timelineService.GetUpcomingMechanics(60f);
+        var mechanics = _timelineService.GetUpcomingMechanics(ForecastWindowSeconds);
         if (mechanics.Count == 0)
             return;
 
@@ -210,34 +223,69 @@ public sealed class OverlayWindow : Window
             if (m.Type is TimelineEntryType.Ability or TimelineEntryType.Sync or TimelineEntryType.Cast)
                 continue;
 
-            var timeColor = m.IsImminent ? MechanicImminentColor
-                          : m.IsSoon    ? MechanicSoonColor
-                          :               MechanicUpcomingColor;
-
-            var (typeTag, typeColor) = m.Type switch
-            {
-                TimelineEntryType.TankBuster => ("TANKBUSTER", TankBusterLabelColor),
-                TimelineEntryType.Raidwide   => ("RAIDWIDE", RaidwideLabelColor),
-                TimelineEntryType.Enrage     => ("ENRAGE", MechanicImminentColor),
-                TimelineEntryType.Phase      => ("PHASE", PhaseLabelColor),
-                TimelineEntryType.Stack      => ("STACK", MechanicUpcomingColor),
-                TimelineEntryType.Spread     => ("SPREAD", MechanicUpcomingColor),
-                TimelineEntryType.Movement   => ("MOVE", MechanicUpcomingColor),
-                TimelineEntryType.Adds       => ("ADDS", MechanicUpcomingColor),
-                _                            => ("·", MechanicUpcomingColor),
-            };
-
-            ImGui.TextColored(typeColor, typeTag);
-            ImGui.SameLine();
-            ImGui.TextColored(timeColor, $"{m.SecondsUntil:F1}s");
-            ImGui.SameLine();
-            if (shown == 0)
-                ImGui.Text(m.Name);
-            else
-                ImGui.TextColored(Common.DaedalusTheme.TextSecondary, m.Name);
-
+            DrawMechanicRow(m, dimName: shown > 0);
             shown++;
         }
+    }
+
+    /// <summary>
+    /// BossMod (BMR) timeline forecast — fallback for any duty BMR has a module for
+    /// when no embedded Cactbot timeline is loaded. BMR exposes timings only, so rows
+    /// render as tag + countdown without a mechanic name.
+    /// </summary>
+    private void DrawBossModForecast()
+    {
+        if (_bossModForecast is not { IsAvailable: true, HasActiveModule: true })
+            return;
+
+        var mechanics = BossModForecastService.BuildForecast(
+            _bossModForecast.NextRaidwideInSeconds,
+            _bossModForecast.NextTankbusterInSeconds,
+            ForecastWindowSeconds);
+        if (mechanics.Count == 0)
+            return;
+
+        ImGui.Separator();
+
+        var moduleName = _bossModForecast.ActiveModuleName;
+        if (!string.IsNullOrEmpty(moduleName))
+            ImGui.TextDisabled(moduleName);
+
+        for (var i = 0; i < mechanics.Count; i++)
+            DrawMechanicRow(mechanics[i], dimName: i > 0);
+    }
+
+    private void DrawMechanicRow(in MechanicPrediction m, bool dimName)
+    {
+        var timeColor = m.IsImminent ? MechanicImminentColor
+                      : m.IsSoon    ? MechanicSoonColor
+                      :               MechanicUpcomingColor;
+
+        var (typeTag, typeColor) = m.Type switch
+        {
+            TimelineEntryType.TankBuster => ("TANKBUSTER", TankBusterLabelColor),
+            TimelineEntryType.Raidwide   => ("RAIDWIDE", RaidwideLabelColor),
+            TimelineEntryType.Enrage     => ("ENRAGE", MechanicImminentColor),
+            TimelineEntryType.Phase      => ("PHASE", PhaseLabelColor),
+            TimelineEntryType.Stack      => ("STACK", MechanicUpcomingColor),
+            TimelineEntryType.Spread     => ("SPREAD", MechanicUpcomingColor),
+            TimelineEntryType.Movement   => ("MOVE", MechanicUpcomingColor),
+            TimelineEntryType.Adds       => ("ADDS", MechanicUpcomingColor),
+            _                            => ("·", MechanicUpcomingColor),
+        };
+
+        ImGui.TextColored(typeColor, typeTag);
+        ImGui.SameLine();
+        ImGui.TextColored(timeColor, $"{m.SecondsUntil:F1}s");
+
+        if (string.IsNullOrEmpty(m.Name))
+            return;
+
+        ImGui.SameLine();
+        if (dimName)
+            ImGui.TextColored(Common.DaedalusTheme.TextSecondary, m.Name);
+        else
+            ImGui.Text(m.Name);
     }
 
     private void DrawToggles()

@@ -5,6 +5,10 @@ All notable changes to Daedalus will be documented in this file.
 <!-- LATEST-START -->
 ## v0.1.0 — 2026-06-27
 
+### New — Overlay: mechanic forecast everywhere BossMod goes
+- The overlay's RAIDWIDE / TANKBUSTER countdown previously appeared only in the handful of savage and ultimate fights with a bundled timeline. It now falls back to BossMod Reborn's live timeline whenever BMR has a module for the current duty — trials, raids, dungeons — showing the boss name plus urgency-colored countdowns to the next raidwide and tank buster. Fully automatic: bundled timelines (with mechanic names) still take priority, and nothing changes if BMR isn't installed
+- The overlay status pill now matches the intended design — a rounded chip reading "● Running" / "● Paused" (was a plain ACTIVE/INACTIVE button); still click-to-toggle
+
 ### New — The Daedalus look: UI overhaul (goodbye Olympus grey)
 - Every core window now wears the Daedalus identity — dark layered panels with gold accents, status colors reserved for actual status. Design system lives in the repo (`docs/ui-mockups/` has browser-viewable mockups of every window)
 - **Main window**: status row with live GCD uptime from the last fight, rotation codename in gold with the current duty underneath, and the Enable/Disable master switch as the one gold-filled button in the plugin. The LAN Party button shows a green presence dot while peers are connected; version moved to the footer

@@ -2418,8 +2418,8 @@
   "config.language.auto": "Auto (Game Client)",
 
   "ui.overlay.no_rotation": "No rotation active",
-  "ui.overlay.status_active": "ACTIVE",
-  "ui.overlay.status_inactive": "INACTIVE",
+  "ui.overlay.status_active": "Running",
+  "ui.overlay.status_inactive": "Paused",
   "ui.overlay.next_action": "Next:",
   "ui.overlay.no_action": "—",
   "ui.overlay.hp_label": "HP:",

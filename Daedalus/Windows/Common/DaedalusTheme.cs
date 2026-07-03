@@ -65,6 +65,30 @@ public static class DaedalusTheme
         ImGui.TextColored(color, label is null ? "●" : $"● {label}");
     }
 
+    /// <summary>
+    /// Rounded status pill ("● Label"): dark fill, border tinted with the status color,
+    /// text in the status color. Returns true when clicked.
+    /// </summary>
+    public static bool StatusChip(string label, Vector4 color, string id)
+    {
+        var text = $"● {label}";
+        var padding = new Vector2(8f, 2f);
+        var size = ImGui.CalcTextSize(text) + padding * 2f;
+        var pos = ImGui.GetCursorScreenPos();
+
+        var clicked = ImGui.InvisibleButton(id, size);
+
+        var dl = ImGui.GetWindowDrawList();
+        var rounding = size.Y / 2f;
+        var fill = new Vector4(0.15f, 0.15f, 0.18f, 1.00f);
+        var border = new Vector4(color.X, color.Y, color.Z, ImGui.IsItemHovered() ? 0.60f : 0.27f);
+        dl.AddRectFilled(pos, pos + size, ImGui.ColorConvertFloat4ToU32(fill), rounding);
+        dl.AddRect(pos, pos + size, ImGui.ColorConvertFloat4ToU32(border), rounding);
+        dl.AddText(pos + padding, ImGui.ColorConvertFloat4ToU32(color), text);
+
+        return clicked;
+    }
+
     /// <summary>HP percentage → status color (green &gt; 50%, yellow &gt; 25%, red below).</summary>
     public static Vector4 HpColor(float hpPercent) =>
         hpPercent > 0.5f ? StatusGreen : hpPercent > 0.25f ? StatusYellow : StatusRed;

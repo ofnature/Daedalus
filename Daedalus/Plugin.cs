@@ -95,6 +95,7 @@ public sealed class Plugin : IDalamudPlugin
     private readonly PositionalService positionalService;
     private readonly VNavService vNavService;
     private readonly BossModSafetyService bossModSafetyService;
+    private readonly BossModForecastService bossModForecastService;
     private readonly PositionalMovementService positionalMovementService;
     private readonly BmrAiConfigService bmrAiConfigService;
     private readonly SamuraiPositionalAnticipationProvider samuraiPositionalAnticipationProvider;
@@ -293,6 +294,7 @@ public sealed class Plugin : IDalamudPlugin
         this.vNavService = new VNavService(pluginInterface, log);
         Rotation.Base.RotationServices.VNav = vNavService;
         this.bossModSafetyService = new BossModSafetyService(pluginInterface, log);
+        this.bossModForecastService = new BossModForecastService(pluginInterface, log);
         this.positionalMovementService = new PositionalMovementService(vNavService, bossModSafetyService);
         this.bmrAiConfigService = new BmrAiConfigService(pluginInterface, bossModSafetyService, log, debugLogService);
         this.samuraiPositionalAnticipationProvider = new SamuraiPositionalAnticipationProvider();
@@ -477,7 +479,7 @@ public sealed class Plugin : IDalamudPlugin
         this.trainingWindow = new TrainingWindow(trainingService, configuration, decisionValidationService, spacedRepetitionService);
         this.changelogWindow = new ChangelogWindow();
         this.hintOverlay = new HintOverlay(realTimeCoachingService, configuration.Training);
-        this.overlayWindow = new OverlayWindow(configuration, SaveConfiguration, rotationManager, partyList, this.timelineService, dutyContentService);
+        this.overlayWindow = new OverlayWindow(configuration, SaveConfiguration, rotationManager, partyList, this.timelineService, dutyContentService, bossModForecastService);
         this.actionFeedWindow = new ActionFeedWindow(configuration, SaveConfiguration, actionService, textureProvider);
 
         // Telemetry service for anonymous usage tracking
@@ -621,6 +623,7 @@ public sealed class Plugin : IDalamudPlugin
         container.Register<IPositionalService, PositionalService>(positionalService);
         container.Register<IVNavService, VNavService>(vNavService);
         container.Register<IBossModSafetyService, BossModSafetyService>(bossModSafetyService);
+        container.Register<IBossModForecastService, BossModForecastService>(bossModForecastService);
         container.Register<IPositionalMovementService, PositionalMovementService>(positionalMovementService);
         container.Register(samuraiPositionalAnticipationProvider);
         container.Register(ninjaPositionalAnticipationProvider);
