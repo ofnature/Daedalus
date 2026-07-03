@@ -79,6 +79,7 @@ public sealed unsafe class ActionService : IActionService
     // Track oGCD usage per GCD cycle (allows up to 2 weaves)
     private int _ogcdsUsedThisCycle;
     private float _prevGcdRemaining;
+    private float _prevRecastElapsed;
 
     // Guard so modules can't spam UseAction every frame while GcdRemaining stays at 0
     // after a successful submit but before recast group 57 activates.
@@ -363,13 +364,22 @@ public sealed unsafe class ActionService : IActionService
         // Without this, _ogcdsUsedThisCycle accumulates across queue-submitted GCDs (e.g. Heat Blast spam)
         // and blocks all oGCD weaving during Overheat. This is also the moment a queued GCD actually COMMITS,
         // so flush the deferred GCD log here — one entry per real cast instead of per submit.
-        if (GcdRemaining > _prevGcdRemaining + 0.3f)
+        // A real new cycle also RESTARTS the recast group: Elapsed snaps back below the previous
+        // frame's value (or the group re-activates). A bare GcdRemaining increase can also come
+        // from Total/Elapsed jitter without any new cast — that fired phantom log flushes at
+        // sub-GCD spacing (triple Verstone, Mistwake 2026-07-02) and spuriously reset the weave
+        // counter, so the elapsed-restart signal is required as well.
+        var recastElapsedNow = recastActive ? recastDetail->Elapsed : 0f;
+        var recastRestarted = recastActive
+            && (_prevRecastElapsed <= 0f || recastElapsedNow < _prevRecastElapsed - 0.05f);
+        if (GcdRemaining > _prevGcdRemaining + 0.3f && recastRestarted)
         {
             _ogcdsUsedThisCycle = 0;
             _castSeenThisCycle = false;
             FlushPendingGcdLog();
         }
         _prevGcdRemaining = GcdRemaining;
+        _prevRecastElapsed = recastElapsedNow;
 
         // Determine current state
         if (_lastIsCasting)
