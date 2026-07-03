@@ -18,6 +18,12 @@ All notable changes to Daedalus will be documented in this file.
 - The Party Coordination window listed a second toon on the same PC as "Machine 2 (Remote)" — each game instance was generating its own random machine identity. The identity is now the computer's hostname, so all toons on one PC group under the local machine and the peer count only counts actual other machines
 - The latency figure was inflated by up to a full heartbeat interval (2s) of queueing time on the echoing side — 981 ms shown on the same PC. Heartbeats now report how long the echo was held so the displayed number is actual round-trip time
 
+### Fix — Low-level rotation audit (all jobs): no more dead ends while leveling
+- After the Dragoon find, every job was audited for the same low-level traps. Three more found and fixed:
+- **Ninja (30-37):** an AoE pack pushed Death Blossom — which unlocks at 38 — forever, and nothing else. Packs below 38 now run the single-target combo
+- **Monk (below 26):** the Opo-opo form in AoE pushed Arm of the Destroyer before it's learned; it now falls back to Bootshine like the other forms already did
+- **Warrior (below 26):** every completed Maim tried to push a combo finisher that doesn't exist yet (caught by the Heavy Swing fallback, but pure rejection noise every chain) — the finisher branch now knows there is no step 3 below Storm's Path
+
 ### Fix — Dragoon combo can always restart (low-level stalls fixed)
 - From level 18 to 49, every combo went into Disembowel: the "DoT needs refreshing" check didn't know the DoT only exists once Chaos Thrust unlocks at 50, so it always demanded the Disembowel line. Now Disembowel fires only when Power Surge actually needs refreshing at those levels, and the rest of the combos run the harder-hitting Vorpal Thrust line
 - A low-level Lancer whose combo state said "finisher next" (easy to carry between quick open-world kills — the combo timer is 30 seconds) pushed a finisher it doesn't have yet, forever — the rotation sat dead until the target died (20-45% uptime pulls). Combo steps are now backed by a True Thrust restart whenever the step can't actually fire, finishers are properly gated below their level, and below Doom Spike a 3+ pack runs the single-target combo instead of nothing

@@ -46,6 +46,31 @@ public class DamageModuleFormSelectionTests
     }
 
     [Fact]
+    public void CollectCandidates_LowLevel_OpoAoE_FallsBackToBootshine()
+    {
+        // Arm of the Destroyer is Lv26 — below it an AoE pack still takes the ST opo GCD
+        // instead of pushing an unlearned AoE action.
+        var enemy = CreateMockEnemy();
+        var targeting = MockBuilders.CreateMockTargetingService(countEnemiesInRange: 5);
+        targeting.Setup(x => x.FindEnemyForAction(
+                It.IsAny<EnemyTargetingStrategy>(), It.IsAny<uint>(), It.IsAny<IPlayerCharacter>()))
+            .Returns(enemy.Object);
+        var actionService = MockBuilders.CreateMockActionService();
+        var scheduler = SchedulerFactory.CreateForTest(actionService: actionService);
+        var context = KratosTestContext.Create(
+            actionService: actionService,
+            targetingService: targeting,
+            level: 20,
+            currentForm: MonkForm.OpoOpo);
+
+        _module.CollectCandidates(context, scheduler, isMoving: false);
+
+        var gcd = scheduler.InspectGcdQueue();
+        Assert.Contains(gcd, c => c.Behavior.Action.ActionId == MNKActions.Bootshine.ActionId);
+        Assert.DoesNotContain(gcd, c => c.Behavior.Action.ActionId == MNKActions.ArmOfTheDestroyer.ActionId);
+    }
+
+    [Fact]
     public void CollectCandidates_RaptorsFury_PrefersTrueStrikeOverTwinSnakes()
     {
         var enemy = CreateMockEnemy();

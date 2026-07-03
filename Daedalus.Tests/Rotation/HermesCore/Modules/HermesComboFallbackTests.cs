@@ -127,6 +127,30 @@ public sealed class HermesComboFallbackTests
         Assert.DoesNotContain(gcd, c => c.Behavior == HermesAbilities.SpinningEdge);
     }
 
+    [Fact]
+    public void CollectCandidates_LowLevelAoEPack_RunsSingleTargetCombo()
+    {
+        // Death Blossom is Lv38 and NIN starts at 30 — an AoE pack at 30-37 must run the ST
+        // combo instead of pushing an unlearned AoE starter forever (the DRG Lv40 lesson).
+        var enemy = CreateMockEnemy();
+        var targeting = MockBuilders.CreateMockTargetingService(countEnemiesInRange: 4);
+        targeting.Setup(x => x.FindEnemyForAction(
+                It.IsAny<EnemyTargetingStrategy>(), It.IsAny<uint>(), It.IsAny<IPlayerCharacter>()))
+            .Returns(enemy.Object);
+        var actionService = MockBuilders.CreateMockActionService();
+        var scheduler = SchedulerFactory.CreateForTest(actionService: actionService);
+        var context = HermesTestContext.Create(
+            actionService: actionService,
+            targetingService: targeting,
+            level: 32);
+
+        _module.CollectCandidates(context, scheduler, isMoving: false);
+
+        var gcd = scheduler.InspectGcdQueue();
+        Assert.Contains(gcd, c => c.Behavior == HermesAbilities.SpinningEdge);
+        Assert.DoesNotContain(gcd, c => c.Behavior == HermesAbilities.DeathBlossom);
+    }
+
     private static (RotationScheduler Scheduler, IHermesContext Context) CreateComboStep2Context(int kazematoi)
     {
         var targeting = BuildTargeting();

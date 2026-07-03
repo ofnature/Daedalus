@@ -579,7 +579,11 @@ public sealed class DamageModule : IAresModule
         {
             bool needsSurgingTempest = !context.HasSurgingTempest || context.SurgingTempestRemaining < 10f;
             var finisher = WARActions.GetComboFinisher(level, needsSurgingTempest, context.ActionService);
-            if (level >= finisher.MinLevel)
+            // Below Storm's Path (Lv26) the resolver falls back to Maim — there IS no step 3;
+            // pushing the finisher behavior then dispatches an unlearned id every chain (Heavy
+            // Swing caught it, but the candidate was pure rejection noise).
+            var hasRealFinisher = finisher.ActionId != WARActions.Maim.ActionId;
+            if (hasRealFinisher && level >= finisher.MinLevel)
             {
                 var isStormsEye = finisher.ActionId == WARActions.StormsEye.ActionId;
                 var behavior = isStormsEye ? AresAbilities.StormsEye : AresAbilities.StormsPath;

@@ -20,6 +20,40 @@ public class AresComboFallbackTests
     private readonly DamageModule _module = new();
 
     [Fact]
+    public void StCombo_LowLevel_Step2_NoDoomedFinisher_HeavySwingRestarts()
+    {
+        // Below Storm's Path (Lv26) the finisher resolver falls back to Maim — there is no
+        // step 3, and pushing the finisher behavior dispatched an unlearned id every chain.
+        var enemy = CreateMockEnemy();
+        var targeting = MockBuilders.CreateMockTargetingService();
+        targeting.Setup(x => x.FindEnemyForAction(
+                It.IsAny<EnemyTargetingStrategy>(), It.IsAny<uint>(), It.IsAny<IPlayerCharacter>()))
+            .Returns(enemy.Object);
+        targeting.Setup(x => x.FindEnemy(
+                It.IsAny<EnemyTargetingStrategy>(), It.IsAny<float>(), It.IsAny<IPlayerCharacter>()))
+            .Returns(enemy.Object);
+
+        var config = AresTestContext.CreateDefaultWarriorConfiguration();
+        MockBuilders.SetupEnemyPackCount(targeting, 1);
+
+        var scheduler = SchedulerFactory.CreateForTest(config: config);
+        var context = AresTestContext.CreateMock(
+            config: config,
+            targetingService: targeting,
+            level: 20,
+            comboStep: 2,
+            lastComboAction: WARActions.Maim.ActionId,
+            enemyCount: 1);
+
+        _module.CollectCandidates(context, scheduler, isMoving: false);
+
+        var gcd = scheduler.InspectGcdQueue();
+        Assert.DoesNotContain(gcd, c => c.Behavior == AresAbilities.StormsPath);
+        Assert.DoesNotContain(gcd, c => c.Behavior == AresAbilities.StormsEye);
+        Assert.Contains(gcd, c => c.Behavior == AresAbilities.HeavySwing);
+    }
+
+    [Fact]
     public void StCombo_QueuesMaimAt6AndHeavySwingAt7_WhenAfterHeavySwing()
     {
         var enemy = CreateMockEnemy();

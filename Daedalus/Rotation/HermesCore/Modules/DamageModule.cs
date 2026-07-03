@@ -505,6 +505,14 @@ public sealed class DamageModule : IHermesModule
 
     private void TryPushAoeCombo(IHermesContext context, RotationScheduler scheduler, IBattleChara target, int enemyCount)
     {
+        // Death Blossom is Lv38 — NIN starts at 30, so an AoE pack below 38 must run the
+        // single-target combo instead of pushing an unlearned AoE starter forever.
+        if (context.Player.Level < NINActions.DeathBlossom.MinLevel)
+        {
+            TryPushSingleTargetCombo(context, scheduler, target);
+            return;
+        }
+
         var level = context.Player.Level;
         var comboStep = context.ComboStep;
 
