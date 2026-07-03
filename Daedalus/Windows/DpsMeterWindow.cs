@@ -158,7 +158,7 @@ public sealed class DpsMeterWindow : Window
             return;
         }
 
-        var topDamage = Math.Max(1L, ranked[0].TotalDamage);
+        var topDamage = Math.Max(1L, ranked[0].EffectiveDamage);
         var dl = ImGui.GetWindowDrawList();
         var rowHeight = ImGui.GetTextLineHeight() + 5f;
         var scramble = configuration.Parser.ScrambleNames;
@@ -176,7 +176,7 @@ public sealed class DpsMeterWindow : Window
             var avail = ImGui.GetContentRegionAvail().X;
             var rowMax = rowMin + new Vector2(avail, rowHeight);
 
-            var fraction = (float)stats.TotalDamage / topDamage;
+            var fraction = (float)stats.EffectiveDamage / topDamage;
             dl.AddRectFilled(rowMin, new Vector2(rowMin.X + avail * fraction, rowMax.Y), isSelf ? selfFill : otherFill, 2f);
             if (isSelf)
                 dl.AddRectFilled(rowMin, new Vector2(rowMin.X + 2f, rowMax.Y), goldBar);
@@ -189,7 +189,11 @@ public sealed class DpsMeterWindow : Window
                 dl.AddText(new Vector2(x, textY), ImGui.ColorConvertFloat4ToU32(DaedalusTheme.TextDisabled), $"{i + 1}");
                 x += 16f;
 
-                var dotColor = isSelf ? DaedalusTheme.AccentGold : DaedalusTheme.StatusGrey;
+                // Gold = you (exact), green = Daedalus toon self-reporting over IPC/LAN (exact),
+                // grey = observed locally.
+                var dotColor = isSelf ? DaedalusTheme.AccentGold
+                             : stats.IsSelfReported ? DaedalusTheme.StatusGreen
+                             : DaedalusTheme.StatusGrey;
                 dl.AddText(new Vector2(x, textY), ImGui.ColorConvertFloat4ToU32(dotColor), "●");
                 x += 16f;
             }
@@ -204,7 +208,9 @@ public sealed class DpsMeterWindow : Window
             dl.AddText(new Vector2(x, textY), ImGui.ColorConvertFloat4ToU32(nameColor), name);
             x += ImGui.CalcTextSize(name).X + 6f;
 
-            if (!borderless && stats.Kind != CombatantKind.Self)
+            // Self-reporting Daedalus toons lose the HUMAN tag — the green dot says it all.
+            if (!borderless && stats.Kind != CombatantKind.Self
+                && !(stats.Kind == CombatantKind.Player && stats.IsSelfReported))
             {
                 var tag = stats.Kind == CombatantKind.Support
                     ? Loc.T(LocalizedStrings.Parser.TrustTag, "TRUST")
@@ -227,7 +233,7 @@ public sealed class DpsMeterWindow : Window
                 ImGui.SetTooltip(Loc.TFormat(
                     LocalizedStrings.Parser.RowTooltip,
                     "{0} — Total {1} · Crit {2:F1}% · DH {3:F1}%",
-                    name, FormatNumber(stats.TotalDamage), stats.CritPercent, stats.DirectHitPercent));
+                    name, FormatNumber(stats.EffectiveDamage), stats.CritPercent, stats.DirectHitPercent));
             }
         }
     }

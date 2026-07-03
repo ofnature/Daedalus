@@ -40,6 +40,9 @@ public enum LanMessageType
 
     /// <summary>A mirrored Dalamud-IPC PartyMessage; Payload = "{channel}\n{json}".</summary>
     IpcMirror = 9,
+
+    /// <summary>Per-toon DPS self-report for the parser (~2s cadence in combat + final on end).</summary>
+    DpsReport = 10,
 }
 
 /// <summary>
@@ -133,6 +136,48 @@ public sealed class LanHeartbeatPayload
     public static LanHeartbeatPayload? FromJson(string json)
     {
         try { return JsonSerializer.Deserialize<LanHeartbeatPayload>(json); }
+        catch { return null; }
+    }
+}
+
+/// <summary>
+/// DpsReport payload — a toon's own parse for the current encounter. Self-observed damage is
+/// exact (own action effects always arrive), so receivers treat these as authoritative and
+/// override their locally-observed row for this character.
+/// </summary>
+public sealed class LanDpsReportPayload
+{
+    [JsonPropertyName("n")]
+    public string CharacterName { get; set; } = "";
+
+    [JsonPropertyName("j")]
+    public string JobAbbrev { get; set; } = "";
+
+    /// <summary>UTC ticks of the sender's encounter start — receivers match ±15s.</summary>
+    [JsonPropertyName("es")]
+    public long EncounterStartTicks { get; set; }
+
+    [JsonPropertyName("d")]
+    public long TotalDamage { get; set; }
+
+    [JsonPropertyName("dur")]
+    public float DurationSeconds { get; set; }
+
+    [JsonPropertyName("c")]
+    public float CritPercent { get; set; }
+
+    [JsonPropertyName("dh")]
+    public float DirectHitPercent { get; set; }
+
+    /// <summary>True on the last report of an encounter (combat ended on the sender).</summary>
+    [JsonPropertyName("f")]
+    public bool IsFinal { get; set; }
+
+    public string ToJson() => JsonSerializer.Serialize(this);
+
+    public static LanDpsReportPayload? FromJson(string json)
+    {
+        try { return JsonSerializer.Deserialize<LanDpsReportPayload>(json); }
         catch { return null; }
     }
 }

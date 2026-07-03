@@ -75,6 +75,9 @@ public sealed class CoordinationBus : IDisposable
     public event System.Action? OnBurstFire;
     public event System.Action<IReadOnlyDictionary<string, LanRolePayload>>? OnRolesAssigned;
 
+    /// <summary>A remote toon's DPS self-report (framework thread — raised from <see cref="Update"/>).</summary>
+    public event System.Action<string /*sender*/, LanDpsReportPayload>? OnDpsReport;
+
     public CoordinationBus(
         IPluginLog log,
         LanCoordinator lan,
@@ -282,6 +285,12 @@ public sealed class CoordinationBus : IDisposable
             case LanMessageType.BurnSignal:
                 OnBurnSignal?.Invoke(msg.SenderId, msg);
                 break;
+
+            case LanMessageType.DpsReport:
+                var report = LanDpsReportPayload.FromJson(msg.Payload);
+                if (report != null)
+                    OnDpsReport?.Invoke(msg.SenderId, report);
+                break;
         }
     }
 
@@ -404,6 +413,10 @@ public sealed class CoordinationBus : IDisposable
 
     public void BroadcastAddSpawn(string payload)
         => _lan.Send(new LanMessage { Type = LanMessageType.AddSpawn, Payload = payload });
+
+    /// <summary>Broadcast this toon's DPS self-report for the current encounter.</summary>
+    public void BroadcastDpsReport(LanDpsReportPayload payload)
+        => _lan.Send(new LanMessage { Type = LanMessageType.DpsReport, Payload = payload.ToJson() });
 
     #endregion
 

@@ -6,6 +6,7 @@ using Dalamud.Game.ClientState.Objects.SubKinds;
 using Dalamud.Game.ClientState.Objects.Types;
 using Dalamud.Plugin.Services;
 using Daedalus.Config;
+using Daedalus.Services.Network;
 
 namespace Daedalus.Services.Analytics;
 
@@ -23,7 +24,14 @@ public sealed class DpsMeterService : IDpsMeterService, IDisposable
     private readonly IObjectTable? objectTable;
 
     private readonly ConcurrentQueue<DamageDealtEvent> pending = new();
+    private readonly ConcurrentQueue<LanDpsReportPayload> remoteReports = new();
     private readonly List<DpsEncounter> history = new();
+
+    // IPC/LAN self-report sharing (milestone 2) — null when party coordination is off.
+    private CoordinationBus? bus;
+    private DateTime lastReportSentUtc = DateTime.MinValue;
+    private const double ReportIntervalSeconds = 2.0;
+    private const long EncounterMatchToleranceTicks = 15 * TimeSpan.TicksPerSecond;
 
     // Per-encounter caches so the object table is hit once per combatant, not per packet.
     private readonly Dictionary<uint, CombatantIdentity?> casterCache = new();
@@ -62,6 +70,16 @@ public sealed class DpsMeterService : IDpsMeterService, IDisposable
 
     public IReadOnlyList<DpsEncounter> History => history;
 
+    /// <summary>
+    /// Attaches the coordination bus so this toon broadcasts its own parse (~2s cadence in
+    /// combat) and merges other Daedalus toons' authoritative self-reports.
+    /// </summary>
+    public void AttachCoordinationBus(CoordinationBus coordinationBus)
+    {
+        bus = coordinationBus;
+        coordinationBus.OnDpsReport += (_, report) => remoteReports.Enqueue(report);
+    }
+
     public void Update()
     {
         var inCombat = combatEventService.IsInCombat;
@@ -89,6 +107,7 @@ public sealed class DpsMeterService : IDpsMeterService, IDisposable
             if (!inCombat)
             {
                 current.IsActive = false;
+                SendSelfReport(current, isFinal: true);
                 if (current.TotalDamage > 0)
                 {
                     history.Insert(0, current);
@@ -97,7 +116,14 @@ public sealed class DpsMeterService : IDpsMeterService, IDisposable
                         history.RemoveAt(history.Count - 1);
                 }
             }
+            else if ((DateTime.UtcNow - lastReportSentUtc).TotalSeconds >= ReportIntervalSeconds)
+            {
+                lastReportSentUtc = DateTime.UtcNow;
+                SendSelfReport(current, isFinal: false);
+            }
         }
+
+        DrainRemoteReports();
 
         wasInCombat = inCombat;
     }
@@ -122,6 +148,70 @@ public sealed class DpsMeterService : IDpsMeterService, IDisposable
             return;
 
         pending.Enqueue(evt);
+    }
+
+    private void SendSelfReport(DpsEncounter encounter, bool isFinal)
+    {
+        if (bus == null || !config.ShareOverNetwork)
+            return;
+
+        var report = BuildSelfReport(encounter, isFinal);
+        if (report != null)
+            bus.BroadcastDpsReport(report);
+    }
+
+    /// <summary>
+    /// Builds this toon's self-report from its own row of the encounter, or null when it
+    /// hasn't dealt damage yet. Static + pure for testability.
+    /// </summary>
+    internal static LanDpsReportPayload? BuildSelfReport(DpsEncounter encounter, bool isFinal)
+    {
+        foreach (var stats in encounter.GetRanked())
+        {
+            if (stats.Kind != CombatantKind.Self)
+                continue;
+            if (stats.TotalDamage <= 0)
+                return null;
+
+            return new LanDpsReportPayload
+            {
+                CharacterName = stats.Name,
+                JobAbbrev = stats.JobAbbrev,
+                EncounterStartTicks = encounter.StartUtc.Ticks,
+                TotalDamage = stats.TotalDamage,
+                DurationSeconds = encounter.DurationSeconds,
+                CritPercent = stats.CritPercent,
+                DirectHitPercent = stats.DirectHitPercent,
+                IsFinal = isFinal,
+            };
+        }
+
+        return null;
+    }
+
+    private void DrainRemoteReports()
+    {
+        while (remoteReports.TryDequeue(out var report))
+            FindEncounterForReport(report.EncounterStartTicks)?.ApplyRemoteReport(report);
+    }
+
+    /// <summary>
+    /// Matches a remote report to our encounter by start time (±15s — toons enter combat at
+    /// slightly different moments). Final reports can land just after our own combat ended,
+    /// so history is searched too.
+    /// </summary>
+    internal DpsEncounter? FindEncounterForReport(long startTicks)
+    {
+        if (current != null && Math.Abs(current.StartUtc.Ticks - startTicks) <= EncounterMatchToleranceTicks)
+            return current;
+
+        foreach (var encounter in history)
+        {
+            if (Math.Abs(encounter.StartUtc.Ticks - startTicks) <= EncounterMatchToleranceTicks)
+                return encounter;
+        }
+
+        return null;
     }
 
     private void DrainQueue(DpsEncounter encounter)

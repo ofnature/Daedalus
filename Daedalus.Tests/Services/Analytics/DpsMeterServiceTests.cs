@@ -282,6 +282,123 @@ public sealed class DpsMeterServiceTests
         Assert.Equal("Sanduruva", svc.Current.TargetName);
     }
 
+    // ── Milestone 2: remote self-reports over IPC/LAN ──
+
+    private static Daedalus.Services.Network.LanDpsReportPayload MakeReport(
+        string name = "Nikephoros Astra", long damage = 500_000, long startTicks = 0,
+        float duration = 60f, float crit = 25f, float dh = 40f)
+        => new()
+        {
+            CharacterName = name,
+            JobAbbrev = "SAM",
+            EncounterStartTicks = startTicks,
+            TotalDamage = damage,
+            DurationSeconds = duration,
+            CritPercent = crit,
+            DirectHitPercent = dh,
+        };
+
+    [Fact]
+    public void ApplyRemoteReport_OverridesLocallyObservedRow()
+    {
+        var enc = new DpsEncounter { DurationSeconds = 60f };
+        enc.AddDamage(Ally, "Dummy", 300_000, false, false); // observed (range-culled, low)
+        enc.AddDamage(Self, "Dummy", 400_000, false, false);
+
+        enc.ApplyRemoteReport(MakeReport(name: Ally.Name, damage: 500_000, duration: 62f));
+
+        var ranked = enc.GetRanked();
+        Assert.Equal(Ally.Key, ranked[0].EntityId); // reported 500k now outranks self 400k
+        Assert.True(ranked[0].IsSelfReported);
+        Assert.Equal(500_000, ranked[0].EffectiveDamage);
+        Assert.Equal(500_000f / 62f, enc.GetDps(ranked[0]), 1); // their own fight clock
+        Assert.Equal(25f, ranked[0].CritPercent);               // reported crit wins
+        Assert.Equal(500_000f / 900_000f, enc.GetDamageShare(ranked[0]), 3); // effective total
+    }
+
+    [Fact]
+    public void ApplyRemoteReport_UnseenSender_CreatesRow()
+    {
+        var enc = new DpsEncounter { DurationSeconds = 60f };
+        enc.AddDamage(Self, "Dummy", 400_000, false, false);
+
+        enc.ApplyRemoteReport(MakeReport(name: "Chroma Wilde", damage: 450_000));
+
+        var ranked = enc.GetRanked();
+        Assert.Equal(2, ranked.Count);
+        Assert.Equal("Chroma Wilde", ranked[0].Name);
+        Assert.Equal(CombatantKind.Player, ranked[0].Kind);
+        Assert.True(ranked[0].IsSelfReported);
+    }
+
+    [Fact]
+    public void ApplyRemoteReport_RepeatedReports_UpdateInPlace()
+    {
+        var enc = new DpsEncounter();
+        enc.ApplyRemoteReport(MakeReport(damage: 100_000));
+        enc.ApplyRemoteReport(MakeReport(damage: 250_000));
+
+        var row = Assert.Single(enc.GetRanked());
+        Assert.Equal(250_000, row.EffectiveDamage);
+    }
+
+    [Fact]
+    public void BuildSelfReport_UsesSelfRow()
+    {
+        var enc = new DpsEncounter { DurationSeconds = 90f };
+        enc.AddDamage(Self, "Dummy", 800_000, true, false);
+        enc.AddDamage(Self, "Dummy", 200_000, false, true);
+        enc.AddDamage(Ally, "Dummy", 999_999, false, false);
+
+        var report = DpsMeterService.BuildSelfReport(enc, isFinal: true);
+
+        Assert.NotNull(report);
+        Assert.Equal(Self.Name, report!.CharacterName);
+        Assert.Equal(1_000_000, report.TotalDamage);
+        Assert.Equal(90f, report.DurationSeconds);
+        Assert.Equal(50f, report.CritPercent);
+        Assert.True(report.IsFinal);
+    }
+
+    [Fact]
+    public void BuildSelfReport_NoSelfDamage_ReturnsNull()
+    {
+        var enc = new DpsEncounter();
+        enc.AddDamage(Ally, "Dummy", 100, false, false);
+
+        Assert.Null(DpsMeterService.BuildSelfReport(enc, isFinal: false));
+    }
+
+    [Fact]
+    public void FindEncounterForReport_MatchesCurrentWithinTolerance_RejectsOutside()
+    {
+        var (svc, ces, _) = MakeService();
+        SetCombat(ces, true, 5f);
+        svc.Update();
+        var start = svc.Current!.StartUtc.Ticks;
+
+        Assert.NotNull(svc.FindEncounterForReport(start + 10 * TimeSpan.TicksPerSecond));
+        Assert.Null(svc.FindEncounterForReport(start + 60 * TimeSpan.TicksPerSecond));
+    }
+
+    [Fact]
+    public void FindEncounterForReport_FinalReportAfterCombatEnd_MatchesHistory()
+    {
+        var (svc, ces, _) = MakeService();
+        SetCombat(ces, true, 30f);
+        svc.Update();
+        ces.Raise(x => x.OnDamageDealt += null, new DamageDealtEvent(1, 100, 6000, 7, false, false));
+        svc.Update();
+        var start = svc.Current!.StartUtc.Ticks;
+
+        SetCombat(ces, false);
+        svc.Update();
+
+        var matched = svc.FindEncounterForReport(start + 2 * TimeSpan.TicksPerSecond);
+        Assert.NotNull(matched);
+        Assert.False(matched!.IsActive);
+    }
+
     // ── Effect decode + formatting ──
 
     [Theory]

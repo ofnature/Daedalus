@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Daedalus.Services.Network;
 
 namespace Daedalus.Services.Analytics;
 
@@ -31,16 +32,32 @@ public sealed class CombatantStats
 {
     public uint EntityId { get; init; }
     public CombatantKind Kind { get; init; }
-    public string Name { get; init; } = "";
-    public string JobAbbrev { get; init; } = "";
+    public string Name { get; internal set; } = "";
+    public string JobAbbrev { get; internal set; } = "";
 
     public long TotalDamage { get; internal set; }
     public int HitCount { get; internal set; }
     public int CritCount { get; internal set; }
     public int DirectHitCount { get; internal set; }
 
-    public float CritPercent => HitCount > 0 ? 100f * CritCount / HitCount : 0f;
-    public float DirectHitPercent => HitCount > 0 ? 100f * DirectHitCount / HitCount : 0f;
+    /// <summary>
+    /// True once this combatant's own Daedalus instance has reported exact numbers over
+    /// IPC/LAN — reported values override the locally-observed ones everywhere.
+    /// </summary>
+    public bool IsSelfReported { get; internal set; }
+    public long ReportedDamage { get; internal set; }
+    public float ReportedDurationSeconds { get; internal set; }
+    public float ReportedCritPercent { get; internal set; }
+    public float ReportedDirectHitPercent { get; internal set; }
+
+    /// <summary>Reported damage when self-reported, locally-observed total otherwise.</summary>
+    public long EffectiveDamage => IsSelfReported ? ReportedDamage : TotalDamage;
+
+    public float CritPercent => IsSelfReported ? ReportedCritPercent
+        : HitCount > 0 ? 100f * CritCount / HitCount : 0f;
+
+    public float DirectHitPercent => IsSelfReported ? ReportedDirectHitPercent
+        : HitCount > 0 ? 100f * DirectHitCount / HitCount : 0f;
 }
 
 /// <summary>
@@ -104,23 +121,84 @@ public sealed class DpsEncounter
         }
     }
 
-    /// <summary>Combatants sorted by total damage, highest first.</summary>
+    /// <summary>Combatants sorted by effective damage (self-reported preferred), highest first.</summary>
     public List<CombatantStats> GetRanked()
     {
         var list = new List<CombatantStats>(combatants.Values);
-        list.Sort((a, b) => b.TotalDamage.CompareTo(a.TotalDamage));
+        list.Sort((a, b) => b.EffectiveDamage.CompareTo(a.EffectiveDamage));
         return list;
     }
 
-    /// <summary>DPS for one combatant over the encounter duration.</summary>
+    /// <summary>
+    /// DPS for one combatant. Self-reported rows use the sender's own fight clock —
+    /// exact regardless of when this client entered combat.
+    /// </summary>
     public float GetDps(CombatantStats stats)
-        => DurationSeconds > 0f ? stats.TotalDamage / DurationSeconds : 0f;
+    {
+        if (stats.IsSelfReported && stats.ReportedDurationSeconds > 0f)
+            return stats.ReportedDamage / stats.ReportedDurationSeconds;
+        return DurationSeconds > 0f ? stats.TotalDamage / DurationSeconds : 0f;
+    }
 
-    /// <summary>Sum of all combatant DPS.</summary>
+    /// <summary>Sum of all combatant DPS (effective damage over this client's duration).</summary>
     public float GetPartyDps()
-        => DurationSeconds > 0f ? TotalDamage / DurationSeconds : 0f;
+        => DurationSeconds > 0f ? GetEffectiveTotal() / DurationSeconds : 0f;
 
-    /// <summary>This combatant's share of the encounter's total damage (0..1).</summary>
+    /// <summary>This combatant's share of the encounter's effective total damage (0..1).</summary>
     public float GetDamageShare(CombatantStats stats)
-        => TotalDamage > 0 ? (float)stats.TotalDamage / TotalDamage : 0f;
+    {
+        var total = GetEffectiveTotal();
+        return total > 0 ? (float)stats.EffectiveDamage / total : 0f;
+    }
+
+    private long GetEffectiveTotal()
+    {
+        long total = 0;
+        foreach (var stats in combatants.Values)
+            total += stats.EffectiveDamage;
+        return total;
+    }
+
+    /// <summary>
+    /// Applies a remote toon's self-report. Matched by character name (entity ids differ
+    /// across clients); creates the row when this client never observed the sender at all
+    /// (e.g. range-culled). Synthetic keys count down from uint.MaxValue to avoid colliding
+    /// with real entity ids.
+    /// </summary>
+    public void ApplyRemoteReport(LanDpsReportPayload report)
+    {
+        if (report.CharacterName.Length == 0)
+            return;
+
+        CombatantStats? match = null;
+        foreach (var stats in combatants.Values)
+        {
+            if (stats.Name == report.CharacterName)
+            {
+                match = stats;
+                break;
+            }
+        }
+
+        if (match == null)
+        {
+            var key = uint.MaxValue - (uint)combatants.Count;
+            match = new CombatantStats
+            {
+                EntityId = key,
+                Kind = CombatantKind.Player,
+                Name = report.CharacterName,
+                JobAbbrev = report.JobAbbrev,
+            };
+            combatants[key] = match;
+        }
+
+        match.IsSelfReported = true;
+        match.ReportedDamage = report.TotalDamage;
+        match.ReportedDurationSeconds = report.DurationSeconds;
+        match.ReportedCritPercent = report.CritPercent;
+        match.ReportedDirectHitPercent = report.DirectHitPercent;
+        if (report.JobAbbrev.Length > 0)
+            match.JobAbbrev = report.JobAbbrev;
+    }
 }

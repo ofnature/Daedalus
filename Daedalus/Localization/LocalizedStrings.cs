@@ -68,6 +68,8 @@ public static class LocalizedStrings
         public const string ClickThroughDesc = "config.parser.click_through_desc";
         public const string HideOutOfCombat = "config.parser.hide_out_of_combat";
         public const string HideOutOfCombatDesc = "config.parser.hide_out_of_combat_desc";
+        public const string ShareOverNetwork = "config.parser.share_over_network";
+        public const string ShareOverNetworkDesc = "config.parser.share_over_network_desc";
         public const string ScrambleNames = "config.parser.scramble_names";
         public const string ScrambleNamesDesc = "config.parser.scramble_names_desc";
         public const string FightHistory = "config.parser.fight_history";

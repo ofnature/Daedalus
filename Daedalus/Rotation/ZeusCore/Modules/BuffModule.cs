@@ -65,6 +65,19 @@ public sealed class BuffModule : IZeusModule
             return;
         }
 
+        // Life Surge guarantees a crit on the NEXT GCD. Out of melee reach that GCD is
+        // Piercing Talon (or nothing) — the weakest hit in the kit — so hold until the
+        // target is back in range. (RSR gates its whole LS block on HasHostilesInRange.)
+        var target = context.TargetingService.FindEnemyForAction(
+            context.Configuration.Targeting.EnemyStrategy,
+            DRGActions.TrueThrust.ActionId,
+            player);
+        if (target == null || !TankTargetingHelper.IsWithinMeleeReach(player, target))
+        {
+            context.Debug.BuffState = "Life Surge held — out of melee reach";
+            return;
+        }
+
         var shouldUseLifeSurge = false;
         if (context.HasFangAndClawBared || context.HasWheelInMotion)
             shouldUseLifeSurge = true;

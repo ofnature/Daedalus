@@ -17,6 +17,12 @@ public sealed class ParserConfig
     /// <summary>Hide the window entirely while no encounter is running.</summary>
     public bool HideOutOfCombat { get; set; } = false;
 
+    /// <summary>
+    /// Broadcast this toon's own parse over IPC/LAN (~2s cadence in combat) and accept other
+    /// Daedalus toons' reports as authoritative. Requires the LAN coordinator to be enabled.
+    /// </summary>
+    public bool ShareOverNetwork { get; set; } = true;
+
     /// <summary>Replace character names with mythological aliases (stream/screenshot safe).</summary>
     public bool ScrambleNames { get; set; } = false;
 

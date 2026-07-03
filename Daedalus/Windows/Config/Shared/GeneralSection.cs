@@ -99,14 +99,24 @@ public sealed class GeneralSection
                     Loc.T(LocalizedStrings.Parser.ClickThroughDesc, "Mouse clicks pass through the borderless parser to the game. Disable to reposition the window."),
                     save);
 
-                ConfigUIHelpers.Toggle(
-                    Loc.T(LocalizedStrings.Parser.HideOutOfCombat, "Hide out of combat"),
-                    () => config.Parser.HideOutOfCombat, v => config.Parser.HideOutOfCombat = v,
-                    Loc.T(LocalizedStrings.Parser.HideOutOfCombatDesc, "Only show the parser while a fight is running."),
-                    save);
-
                 ConfigUIHelpers.EndIndent();
             }
+
+            ConfigUIHelpers.Spacing();
+
+            ConfigUIHelpers.Toggle(
+                Loc.T(LocalizedStrings.Parser.HideOutOfCombat, "Hide out of combat"),
+                () => config.Parser.HideOutOfCombat, v => config.Parser.HideOutOfCombat = v,
+                Loc.T(LocalizedStrings.Parser.HideOutOfCombatDesc, "Only show the parser while a fight is running. Applies to both the normal window and borderless mode."),
+                save);
+
+            ConfigUIHelpers.Spacing();
+
+            ConfigUIHelpers.Toggle(
+                Loc.T(LocalizedStrings.Parser.ShareOverNetwork, "Share my DPS over IPC/LAN"),
+                () => config.Parser.ShareOverNetwork, v => config.Parser.ShareOverNetwork = v,
+                Loc.T(LocalizedStrings.Parser.ShareOverNetworkDesc, "Broadcasts this toon's exact parse to your other Daedalus toons and merges theirs — self-reported rows show a green dot. Requires the LAN coordinator (Party Coordination settings)."),
+                save);
 
             ConfigUIHelpers.Spacing();
 
