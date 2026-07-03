@@ -88,12 +88,55 @@ public class DamageModuleComboFallbackTests
         Assert.Contains(gcds, c => c.Behavior == ZeusAbilities.DoomSpike);
     }
 
+    [Fact]
+    public void MidLevel_PowerSurgeHealthy_PicksVorpalLine_NotDisembowel()
+    {
+        // Lv18-49 has no DoT (Chaos Thrust is Lv50): "DoT missing" must not force Disembowel
+        // every combo — with Power Surge healthy, step 2 belongs to the Vorpal damage line.
+        var (context, scheduler) = Setup(
+            level: 30, lastComboAction: DRGActions.TrueThrust.ActionId, comboTimeRemaining: 20f,
+            hasPowerSurge: true, powerSurgeRemaining: 25f);
+
+        _module.CollectCandidates(context, scheduler, isMoving: false);
+
+        var gcds = scheduler.InspectGcdQueue();
+        Assert.Contains(gcds, c => c.Behavior == ZeusAbilities.VorpalThrust);
+        Assert.DoesNotContain(gcds, c => c.Behavior == ZeusAbilities.Disembowel);
+    }
+
+    [Fact]
+    public void MidLevel_PowerSurgeLow_PicksDisembowel()
+    {
+        var (context, scheduler) = Setup(
+            level: 30, lastComboAction: DRGActions.TrueThrust.ActionId, comboTimeRemaining: 20f,
+            hasPowerSurge: true, powerSurgeRemaining: 5f);
+
+        _module.CollectCandidates(context, scheduler, isMoving: false);
+
+        Assert.Contains(scheduler.InspectGcdQueue(), c => c.Behavior == ZeusAbilities.Disembowel);
+    }
+
+    [Fact]
+    public void MaxLevel_DotMissing_StillPicksDisembowel()
+    {
+        // At 50+ the DoT is real — missing DoT keeps forcing the Disembowel line.
+        var (context, scheduler) = Setup(
+            level: 100, lastComboAction: DRGActions.TrueThrust.ActionId, comboTimeRemaining: 20f,
+            hasPowerSurge: true, powerSurgeRemaining: 25f);
+
+        _module.CollectCandidates(context, scheduler, isMoving: false);
+
+        Assert.Contains(scheduler.InspectGcdQueue(), c => c.Behavior == ZeusAbilities.Disembowel);
+    }
+
     private static (Daedalus.Rotation.ZeusCore.Context.IZeusContext context,
         Daedalus.Rotation.Common.Scheduling.RotationScheduler scheduler) Setup(
         byte level,
         uint lastComboAction = 0,
         float comboTimeRemaining = 0f,
-        int enemiesInRange = 1)
+        int enemiesInRange = 1,
+        bool hasPowerSurge = false,
+        float powerSurgeRemaining = 0f)
     {
         var enemy = new Mock<IBattleNpc>();
         enemy.Setup(x => x.GameObjectId).Returns(777UL);
@@ -113,7 +156,9 @@ public class DamageModuleComboFallbackTests
             targetingService: targeting,
             level: level,
             lastComboAction: lastComboAction,
-            comboTimeRemaining: comboTimeRemaining);
+            comboTimeRemaining: comboTimeRemaining,
+            hasPowerSurge: hasPowerSurge,
+            powerSurgeRemaining: powerSurgeRemaining);
 
         return (context, scheduler);
     }

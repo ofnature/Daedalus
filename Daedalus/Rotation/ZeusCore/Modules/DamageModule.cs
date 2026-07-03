@@ -688,7 +688,12 @@ public sealed class DamageModule : IZeusModule
         if (comboActive && (lastAction == DRGActions.TrueThrust.ActionId || lastAction == DRGActions.RaidenThrust.ActionId))
         {
             var needsPowerSurge = !context.HasPowerSurge || context.PowerSurgeRemaining < 10f;
-            var needsDot = !context.HasDotOnTarget || context.DotRemaining < 5f;
+            // The DoT only exists once Chaos Thrust unlocks (Lv50). Below that, "no DoT on
+            // target" is permanently true and forced Disembowel EVERY combo from Lv18-49 —
+            // Power Surge maintenance only needs it roughly every third chain; the rest
+            // belong to the higher-potency Vorpal line.
+            var needsDot = level >= DRGActions.ChaosThrust.MinLevel
+                           && (!context.HasDotOnTarget || context.DotRemaining < 5f);
 
             if ((needsPowerSurge || needsDot) && level >= DRGActions.Disembowel.MinLevel
                 && context.ActionService.IsActionReady(DRGActions.Disembowel.ActionId))
