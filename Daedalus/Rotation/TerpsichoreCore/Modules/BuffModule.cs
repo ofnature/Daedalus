@@ -48,9 +48,16 @@ public sealed class BuffModule : ITerpsichoreModule
             return;
         }
 
-        // Pre-combat: partner + Standard Step
+        // Pre-combat: partner + Standard Step — but never in a sanctuary (dancing in the
+        // middle of Limsa is not a rotation feature).
         if (!context.InCombat)
         {
+            if (PlayerSafetyHelper.IsInSanctuary())
+            {
+                context.Debug.BuffState = "In sanctuary";
+                return;
+            }
+
             TryPushClosedPosition(context, scheduler);
             if (!context.HasStandardFinish)
                 TryPushStandardStep(context, scheduler);

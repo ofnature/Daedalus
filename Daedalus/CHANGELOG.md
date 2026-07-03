@@ -22,6 +22,7 @@ All notable changes to Daedalus will be documented in this file.
 - A low-level Lancer whose combo state said "finisher next" (easy to carry between quick open-world kills — the combo timer is 30 seconds) pushed a finisher it doesn't have yet, forever — the rotation sat dead until the target died (20-45% uptime pulls). Combo steps are now backed by a True Thrust restart whenever the step can't actually fire, finishers are properly gated below their level, and below Doom Spike a 3+ pack runs the single-target combo instead of nothing
 
 ### Fix — Dancer actually dances now
+- …but not in town: the pre-pull dance and partner buff no longer fire inside sanctuaries (Limsa, Ul'dah, aetheryte camps) — only Peloton remains active out of combat there
 - Standard Step and Technical Step never fired — at all, ever. They're weaponskills (they roll the GCD) but were being dispatched as abilities into weave slots, where the game always refuses them. Both now dispatch as the GCDs they are: Standard Step on cooldown for the damage buff, Technical Step for the raid burst window
 - While mid-dance, the rotation no longer tries to fire Fan Dances and cooldowns the game locks out during steps
 - Dance partner: an unrecognized job could never be picked at all (rather than being picked last) — the dancer sat partnerless in some parties. Anyone is better than no one, since your own Standard Finish buff doesn't depend on who the partner is

@@ -29,6 +29,25 @@ public static class PlayerSafetyHelper
             Dalamud.Game.ClientState.Conditions.ConditionFlag.BoundByDuty] ?? true;
 
     /// <summary>
+    /// True inside a sanctuary (cities, aetheryte camps — where the game shows the crescent-moon
+    /// rest icon). Used to suppress out-of-combat rotation actions that look absurd in towns
+    /// (pre-pull dances, partner buffs). Returns false when the native read is unavailable
+    /// (unit tests), so gated logic stays testable.
+    /// </summary>
+    public static unsafe bool IsInSanctuary()
+    {
+        try
+        {
+            var info = FFXIVClientStructs.FFXIV.Client.Game.UI.TerritoryInfo.Instance();
+            return info != null && info->InSanctuary;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
     /// True when a nearby enemy is casting a look-away/gaze action (<see cref="FFXIVConstants.GazeCastActionIds"/>).
     /// Used to suppress auto-face during the gaze so the bot's casts don't turn the character into it.
     /// No-op (returns false) until the gaze list is populated, so there's zero cost otherwise.
