@@ -243,36 +243,43 @@ public sealed class DamageModule : ICalliopeModule
         if (!context.HasHawksEye) return;
         var aoeThreshold = context.Configuration.Bard.AoEMinTargets;
 
-        if (enemyCount >= aoeThreshold && level >= BRDActions.Shadowbite.MinLevel
-            && context.ActionService.IsActionReady(BRDActions.Shadowbite.ActionId))
+        // AoE proc consumer chain: Wide Volley (25+) -> Shadowbite (72+). Wide Volley is the
+        // pre-72 AoE Hawk's Eye spender — without it, packs at 25-71 dumped procs into the
+        // single-target shot.
+        if (enemyCount >= aoeThreshold && level >= BRDActions.WideVolley.MinLevel)
         {
-            var castTime = context.HasSwiftcast ? 0f : BRDActions.Shadowbite.CastTime;
-            if (MechanicCastGate.ShouldBlock(context, castTime))
+            var aoeProc = BRDActions.GetAoeProcAction((byte)level, context.ActionService);
+            var aoeAbility = aoeProc == BRDActions.Shadowbite ? CalliopeAbilities.Shadowbite : CalliopeAbilities.WideVolley;
+            if (context.ActionService.IsActionReady(aoeProc.ActionId))
             {
-                context.Debug.DamageState = MechanicCastGate.FormatBlockedState(context);
+                var castTime = context.HasSwiftcast ? 0f : aoeProc.CastTime;
+                if (MechanicCastGate.ShouldBlock(context, castTime))
+                {
+                    context.Debug.DamageState = MechanicCastGate.FormatBlockedState(context);
+                    return;
+                }
+
+                scheduler.PushGcd(aoeAbility, target.GameObjectId, priority: 4,
+                    onDispatched: _ =>
+                    {
+                        context.Debug.PlannedAction = aoeProc.Name;
+                        context.Debug.DamageState = $"{aoeProc.Name} (AoE proc)";
+                        TrainingHelper.Decision(context.TrainingService)
+                            .Action(aoeProc.ActionId, aoeProc.Name)
+                            .AsAoE(enemyCount)
+                            .Target(target.Name?.TextValue ?? "Target")
+                            .Reason($"{aoeProc.Name} (AoE proc, {enemyCount} targets)",
+                                "Wide Volley/Shadowbite is the AoE Hawk's Eye spender. " +
+                                "Use at 3+ targets instead of the single-target proc shot for better total damage.")
+                            .Factors("Hawk's Eye active", $"Enemies: {enemyCount}")
+                            .Alternatives("Use the single-target proc shot below the AoE threshold")
+                            .Tip("At 3+ enemies, consume Hawk's Eye procs with the AoE spender.")
+                            .Concept(BrdConcepts.StraightShotReady)
+                            .Record();
+                        context.TrainingService?.RecordConceptApplication(BrdConcepts.StraightShotReady, true, "AoE proc usage");
+                    });
                 return;
             }
-
-            scheduler.PushGcd(CalliopeAbilities.Shadowbite, target.GameObjectId, priority: 4,
-                onDispatched: _ =>
-                {
-                    context.Debug.PlannedAction = BRDActions.Shadowbite.Name;
-                    context.Debug.DamageState = "Shadowbite (AoE proc)";
-                    TrainingHelper.Decision(context.TrainingService)
-                        .Action(BRDActions.Shadowbite.ActionId, BRDActions.Shadowbite.Name)
-                        .AsAoE(enemyCount)
-                        .Target(target.Name?.TextValue ?? "Target")
-                        .Reason($"Shadowbite (AoE proc, {enemyCount} targets)",
-                            "Shadowbite is the AoE version of Refulgent Arrow, consuming Hawk's Eye. " +
-                            "Use at 3+ targets instead of Refulgent Arrow for better total damage.")
-                        .Factors("Hawk's Eye active", $"Enemies: {enemyCount}")
-                        .Alternatives("Use Refulgent for single target")
-                        .Tip("At 3+ enemies, consume Hawk's Eye procs with Shadowbite instead of Refulgent Arrow.")
-                        .Concept(BrdConcepts.StraightShotReady)
-                        .Record();
-                    context.TrainingService?.RecordConceptApplication(BrdConcepts.StraightShotReady, true, "AoE proc usage");
-                });
-            return;
         }
 
         var action = BRDActions.GetProcAction((byte)level, context.ActionService);
@@ -573,6 +580,9 @@ public sealed class DamageModule : ICalliopeModule
                     return;
                 }
 
+                // NOTE: no early return after this push — the single-target filler below stays
+                // queued at lower priority as the fallback (combo-starter-fallback rule), so a
+                // dispatch-rejected AoE filler can never stall the GCD.
                 scheduler.PushGcd(aoeAbility, player.GameObjectId, priority: 8,
                     onDispatched: _ =>
                     {
@@ -591,7 +601,6 @@ public sealed class DamageModule : ICalliopeModule
                             .Record();
                         context.TrainingService?.RecordConceptApplication(BrdConcepts.StraightShotReady, false, "AoE filler usage");
                     });
-                return;
             }
         }
 

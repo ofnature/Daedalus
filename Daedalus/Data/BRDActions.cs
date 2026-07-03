@@ -817,6 +817,14 @@ public static class BRDActions
         => ActionAvailability.Pick(level, actionService, Ladonsbite, QuickNock);
 
     /// <summary>
+    /// Gets the best AoE Hawk's Eye consumer for the player's level:
+    /// Shadowbite (72+) or Wide Volley (25+). Below 25 there is none — spend the proc
+    /// on the single-target shot instead.
+    /// </summary>
+    public static ActionDefinition GetAoeProcAction(byte level, IActionService? actionService = null)
+        => ActionAvailability.Pick(level, actionService, Shadowbite, WideVolley);
+
+    /// <summary>
     /// Gets the best Bloodletter action for the player's level.
     /// </summary>
     public static ActionDefinition GetBloodletter(byte level, IActionService? actionService = null)

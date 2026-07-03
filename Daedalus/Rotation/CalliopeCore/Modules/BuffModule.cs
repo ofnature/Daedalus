@@ -541,13 +541,17 @@ public sealed class BuffModule : ICalliopeModule
             return;
         }
 
-        bool shouldUse = context.IsMagesBalladActive
-                         || context.BloodletterCharges >= 3
-                         || context.HasRagingStrikes;
-        if (!shouldUse) return;
-
         var action = BRDActions.GetBloodletter(level, context.ActionService);
         var ability = action == BRDActions.HeartbreakShot ? CalliopeAbilities.HeartbreakShot : CalliopeAbilities.Bloodletter;
+
+        // Overcap dump at the REAL charge cap: 2 below the Lv84 trait, 3 after. The old
+        // hardcoded ">= 3" never fired below 84, so charges sat capped outside MB/RS.
+        var maxCharges = context.ActionService.GetMaxCharges(action.ActionId, level);
+        var chargeCap = maxCharges > 0 ? maxCharges : 3;
+        bool shouldUse = context.IsMagesBalladActive
+                         || context.BloodletterCharges >= chargeCap
+                         || context.HasRagingStrikes;
+        if (!shouldUse) return;
         if (!context.ActionService.IsActionReady(action.ActionId)) return;
 
         scheduler.PushOgcd(ability, target.GameObjectId, priority: 7,
