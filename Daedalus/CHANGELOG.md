@@ -18,6 +18,9 @@ All notable changes to Daedalus will be documented in this file.
 - The Party Coordination window listed a second toon on the same PC as "Machine 2 (Remote)" — each game instance was generating its own random machine identity. The identity is now the computer's hostname, so all toons on one PC group under the local machine and the peer count only counts actual other machines
 - The latency figure was inflated by up to a full heartbeat interval (2s) of queueing time on the echoing side — 981 ms shown on the same PC. Heartbeats now report how long the echo was held so the displayed number is actual round-trip time
 
+### New — Physical ranged defensives: Second Wind, Shield Samba / Troubadour / Tactician
+- Bard, Machinist and Dancer never used their defensives at all. All three now fire Second Wind below 50% HP, and their party mitigation (Shield Samba / Troubadour / Tactician) on big pulls (3+ engaged enemies, configurable) — skipped automatically when another ranged toon's mitigation is already up, since the three buffs don't stack. Dancer also gets Curing Waltz below 60% HP. Toggles under the shared ranged settings
+
 ### Fix — Low-level rotation audit (all jobs): no more dead ends while leveling
 - After the Dragoon find, every job was audited for the same low-level traps. Three more found and fixed:
 - **Ninja (30-37):** an AoE pack pushed Death Blossom — which unlocks at 38 — forever, and nothing else. Packs below 38 now run the single-target combo

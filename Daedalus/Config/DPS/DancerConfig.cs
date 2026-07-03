@@ -8,6 +8,17 @@ namespace Daedalus.Config.DPS;
 /// </summary>
 public sealed class DancerConfig
 {
+    /// <summary>Curing Waltz self/party heal when own HP drops below the threshold.</summary>
+    public bool EnableCuringWaltz { get; set; } = true;
+
+    /// <summary>HP percentage threshold to trigger Curing Waltz (0.0 to 1.0). Default 0.60.</summary>
+    private float _curingWaltzHpThreshold = 0.60f;
+    public float CuringWaltzHpThreshold
+    {
+        get => _curingWaltzHpThreshold;
+        set => _curingWaltzHpThreshold = System.Math.Clamp(value, 0f, 1f);
+    }
+
     #region Damage Toggles
 
     /// <summary>

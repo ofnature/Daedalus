@@ -26,6 +26,7 @@ public static class TerpsichoreTestContext
         Mock<IActionService>? actionService = null,
         Mock<ITargetingService>? targetingService = null,
         byte level = 100,
+        uint currentHp = 50000,
         bool inCombat = true,
         bool isMoving = false,
         bool canExecuteGcd = true,
@@ -65,7 +66,7 @@ public static class TerpsichoreTestContext
     {
         config ??= CreateDefaultDancerConfiguration();
 
-        var player = MockBuilders.CreateMockPlayerCharacter(level: level);
+        var player = MockBuilders.CreateMockPlayerCharacter(level: level, currentHp: currentHp);
         player.Setup(x => x.StatusList).Returns((Dalamud.Game.ClientState.Statuses.StatusList?)null!);
 
         actionService ??= MockBuilders.CreateMockActionService(

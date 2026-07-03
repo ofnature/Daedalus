@@ -58,4 +58,7 @@ public static class CalliopeAbilities
 
     // --- Role ---
     public static readonly AbilityBehavior HeadGraze = new() { Action = RoleActions.HeadGraze, Toggle = cfg => cfg.RangedShared.EnableHeadGraze };
+
+    public static readonly AbilityBehavior SecondWind = new() { Action = RoleActions.SecondWind, Toggle = cfg => cfg.RangedShared.EnableSecondWind };
+    public static readonly AbilityBehavior Troubadour = new() { Action = BRDActions.Troubadour, Toggle = cfg => cfg.RangedShared.EnablePartyMitigation };
 }

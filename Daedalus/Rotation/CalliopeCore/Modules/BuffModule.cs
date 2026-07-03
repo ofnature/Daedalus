@@ -5,6 +5,7 @@ using Daedalus.Rotation.CalliopeCore.Abilities;
 using Daedalus.Rotation.CalliopeCore.Context;
 using Daedalus.Rotation.Common;
 using Daedalus.Rotation.Common.Helpers;
+using Daedalus.Rotation.Common.RoleActionHelpers;
 using Daedalus.Rotation.Common.Scheduling;
 using Daedalus.Services;
 using Daedalus.Services.Training;
@@ -52,6 +53,9 @@ public sealed class BuffModule : ICalliopeModule
             context.Debug.BuffState = "No target";
             return;
         }
+
+        TryPushSecondWind(context, scheduler);
+        TryPushPartyMitigation(context, scheduler);
 
         TryPushPitchPerfect(context, scheduler, target);
         TryPushSongRotation(context, scheduler);
@@ -568,6 +572,42 @@ public sealed class BuffModule : ICalliopeModule
                     .Concept(BrdConcepts.BloodletterManagement)
                     .Record();
                 context.TrainingService?.RecordConceptApplication(BrdConcepts.BloodletterManagement, true, "Charge usage");
+            });
+    }
+
+    private void TryPushSecondWind(ICalliopeContext context, RotationScheduler scheduler)
+    {
+        if (!context.Configuration.RangedShared.EnableSecondWind) return;
+
+        RoleActionPushers.TryPushSecondWind(
+            context, scheduler, CalliopeAbilities.SecondWind,
+            hpThresholdPct: context.Configuration.RangedShared.SecondWindHpThreshold,
+            priority: 6,
+            onDispatched: _ => context.Debug.PlannedAction = RoleActions.SecondWind.Name);
+    }
+
+    /// <summary>
+    /// Party mitigation on big pulls. Shield Samba / Troubadour / Tactician are one
+    /// non-stacking buff family — skipped while ANY of the three is already on the player
+    /// (a co-ranged toon's press covers us in multibox parties).
+    /// </summary>
+    private void TryPushPartyMitigation(ICalliopeContext context, RotationScheduler scheduler)
+    {
+        var cfg = context.Configuration.RangedShared;
+        if (!cfg.EnablePartyMitigation) return;
+        var player = context.Player;
+        if (player.Level < BRDActions.Troubadour.MinLevel) return;
+        if (RangedSharedHelper.HasRangedPartyMitigation(player)) return;
+        if (!context.ActionService.IsActionReady(BRDActions.Troubadour.ActionId)) return;
+
+        var engaged = context.TargetingService.CountEngagedEnemies(25f, player);
+        if (engaged < cfg.PartyMitigationMinTargets) return;
+
+        scheduler.PushOgcd(CalliopeAbilities.Troubadour, player.GameObjectId, priority: 7,
+            onDispatched: _ =>
+            {
+                context.Debug.PlannedAction = BRDActions.Troubadour.Name;
+                context.Debug.BuffState = $"Troubadour ({engaged} engaged)";
             });
     }
 }

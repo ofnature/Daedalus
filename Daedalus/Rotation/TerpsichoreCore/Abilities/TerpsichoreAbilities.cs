@@ -51,4 +51,8 @@ public static class TerpsichoreAbilities
 
     // --- Role ---
     public static readonly AbilityBehavior HeadGraze = new() { Action = RoleActions.HeadGraze, Toggle = cfg => cfg.RangedShared.EnableHeadGraze };
+
+    public static readonly AbilityBehavior SecondWind = new() { Action = RoleActions.SecondWind, Toggle = cfg => cfg.RangedShared.EnableSecondWind };
+    public static readonly AbilityBehavior ShieldSamba = new() { Action = DNCActions.ShieldSamba, Toggle = cfg => cfg.RangedShared.EnablePartyMitigation };
+    public static readonly AbilityBehavior CuringWaltz = new() { Action = DNCActions.CuringWaltz, Toggle = cfg => cfg.Dancer.EnableCuringWaltz };
 }

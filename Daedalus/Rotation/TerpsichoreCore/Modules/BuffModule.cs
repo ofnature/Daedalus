@@ -3,6 +3,7 @@ using Daedalus.Config.DPS;
 using Daedalus.Data;
 using Daedalus.Rotation.Common;
 using Daedalus.Rotation.Common.Helpers;
+using Daedalus.Rotation.Common.RoleActionHelpers;
 using Daedalus.Rotation.Common.Scheduling;
 using Daedalus.Rotation.TerpsichoreCore.Abilities;
 using Daedalus.Rotation.TerpsichoreCore.Context;
@@ -89,6 +90,11 @@ public sealed class BuffModule : ITerpsichoreModule
         TryPushFanDanceIV(context, scheduler, target);
         TryPushFanDanceIII(context, scheduler, target);
         TryPushFanDance(context, scheduler, target);
+
+        // Role utility / defensives
+        TryPushSecondWind(context, scheduler);
+        TryPushCuringWaltz(context, scheduler);
+        TryPushPartyMitigation(context, scheduler);
     }
 
     private void TryPushDanceStep(ITerpsichoreContext context, RotationScheduler scheduler)
@@ -531,6 +537,61 @@ public sealed class BuffModule : ITerpsichoreModule
                 context.TrainingService?.RecordConceptApplication(DncConcepts.FeatherGauge, true, "Feather spent");
                 if (context.Feathers >= 4)
                     context.TrainingService?.RecordConceptApplication(DncConcepts.FeatherOvercapping, true, "Prevented overcap");
+            });
+    }
+
+    private void TryPushCuringWaltz(ITerpsichoreContext context, RotationScheduler scheduler)
+    {
+        var cfg = context.Configuration.Dancer;
+        if (!cfg.EnableCuringWaltz) return;
+        var player = context.Player;
+        if (player.Level < DNCActions.CuringWaltz.MinLevel) return;
+        if (!context.ActionService.IsActionReady(DNCActions.CuringWaltz.ActionId)) return;
+
+        var hpPct = player.MaxHp > 0 ? (float)player.CurrentHp / player.MaxHp : 1f;
+        if (hpPct >= cfg.CuringWaltzHpThreshold) return;
+
+        scheduler.PushOgcd(TerpsichoreAbilities.CuringWaltz, player.GameObjectId, priority: 6,
+            onDispatched: _ =>
+            {
+                context.Debug.PlannedAction = DNCActions.CuringWaltz.Name;
+                context.Debug.BuffState = $"Curing Waltz ({hpPct:P0} HP)";
+            });
+    }
+
+    private void TryPushSecondWind(ITerpsichoreContext context, RotationScheduler scheduler)
+    {
+        if (!context.Configuration.RangedShared.EnableSecondWind) return;
+
+        RoleActionPushers.TryPushSecondWind(
+            context, scheduler, TerpsichoreAbilities.SecondWind,
+            hpThresholdPct: context.Configuration.RangedShared.SecondWindHpThreshold,
+            priority: 6,
+            onDispatched: _ => context.Debug.PlannedAction = RoleActions.SecondWind.Name);
+    }
+
+    /// <summary>
+    /// Party mitigation on big pulls. Shield Samba / Troubadour / Tactician are one
+    /// non-stacking buff family — skipped while ANY of the three is already on the player
+    /// (a co-ranged toon's press covers us in multibox parties).
+    /// </summary>
+    private void TryPushPartyMitigation(ITerpsichoreContext context, RotationScheduler scheduler)
+    {
+        var cfg = context.Configuration.RangedShared;
+        if (!cfg.EnablePartyMitigation) return;
+        var player = context.Player;
+        if (player.Level < DNCActions.ShieldSamba.MinLevel) return;
+        if (RangedSharedHelper.HasRangedPartyMitigation(player)) return;
+        if (!context.ActionService.IsActionReady(DNCActions.ShieldSamba.ActionId)) return;
+
+        var engaged = context.TargetingService.CountEngagedEnemies(25f, player);
+        if (engaged < cfg.PartyMitigationMinTargets) return;
+
+        scheduler.PushOgcd(TerpsichoreAbilities.ShieldSamba, player.GameObjectId, priority: 7,
+            onDispatched: _ =>
+            {
+                context.Debug.PlannedAction = DNCActions.ShieldSamba.Name;
+                context.Debug.BuffState = $"Shield Samba ({engaged} engaged)";
             });
     }
 }

@@ -5,6 +5,7 @@ using Daedalus.Data;
 using Daedalus.Models.Action;
 using Daedalus.Rotation.Common;
 using Daedalus.Rotation.Common.Helpers;
+using Daedalus.Rotation.Common.RoleActionHelpers;
 using Daedalus.Rotation.Common.Scheduling;
 using Daedalus.Rotation.PrometheusCore.Abilities;
 using Daedalus.Rotation.PrometheusCore.Context;
@@ -67,6 +68,9 @@ public sealed class BuffModule : IPrometheusModule
             context.Debug.BuffState = "No target";
             return;
         }
+
+        TryPushSecondWind(context, scheduler);
+        TryPushPartyMitigation(context, scheduler);
 
         var pack = EnemyPackDebugHelper.Count(context.TargetingService, JobAoERadiusYalms.PhysicalRanged, player);
         EnemyPackDebugHelper.Apply(context.Debug, pack);
@@ -601,6 +605,42 @@ public sealed class BuffModule : IPrometheusModule
                     .Concept("mch.ogcd_weaving")
                     .Record();
                 context.TrainingService?.RecordConceptApplication("mch.ogcd_weaving", context.IsOverheated, "Overheated weaving");
+            });
+    }
+
+    private void TryPushSecondWind(IPrometheusContext context, RotationScheduler scheduler)
+    {
+        if (!context.Configuration.RangedShared.EnableSecondWind) return;
+
+        RoleActionPushers.TryPushSecondWind(
+            context, scheduler, PrometheusAbilities.SecondWind,
+            hpThresholdPct: context.Configuration.RangedShared.SecondWindHpThreshold,
+            priority: 6,
+            onDispatched: _ => context.Debug.PlannedAction = RoleActions.SecondWind.Name);
+    }
+
+    /// <summary>
+    /// Party mitigation on big pulls. Shield Samba / Troubadour / Tactician are one
+    /// non-stacking buff family — skipped while ANY of the three is already on the player
+    /// (a co-ranged toon's press covers us in multibox parties).
+    /// </summary>
+    private void TryPushPartyMitigation(IPrometheusContext context, RotationScheduler scheduler)
+    {
+        var cfg = context.Configuration.RangedShared;
+        if (!cfg.EnablePartyMitigation) return;
+        var player = context.Player;
+        if (player.Level < MCHActions.Tactician.MinLevel) return;
+        if (RangedSharedHelper.HasRangedPartyMitigation(player)) return;
+        if (!context.ActionService.IsActionReady(MCHActions.Tactician.ActionId)) return;
+
+        var engaged = context.TargetingService.CountEngagedEnemies(25f, player);
+        if (engaged < cfg.PartyMitigationMinTargets) return;
+
+        scheduler.PushOgcd(PrometheusAbilities.Tactician, player.GameObjectId, priority: 7,
+            onDispatched: _ =>
+            {
+                context.Debug.PlannedAction = MCHActions.Tactician.Name;
+                context.Debug.BuffState = $"Tactician ({engaged} engaged)";
             });
     }
 }
