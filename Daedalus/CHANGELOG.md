@@ -29,6 +29,7 @@ All notable changes to Daedalus will be documented in this file.
 - Bard, Machinist and Dancer never used their defensives at all. All three now fire Second Wind below 50% HP, and their party mitigation (Shield Samba / Troubadour / Tactician) on big pulls (3+ engaged enemies, configurable) — skipped automatically when another ranged toon's mitigation is already up, since the three buffs don't stack. Dancer also gets Curing Waltz below 60% HP. Toggles under the shared ranged settings
 
 ### Fix — Low-level rotation audit (all jobs): no more dead ends while leveling
+- **Quest-locked skills count too:** a level 41 Dragoon with the Doom Spike job quest undone stalled completely on any 3+ pack — the skill was level-met, so the rotation pushed it forever while the game refused it. AoE gates on DRG/NIN/MNK/WAR now require the skill to be actually unlocked, not just level-met (the Missing window tells you which quests to finish)
 - After the Dragoon find, every job was audited for the same low-level traps. Three more found and fixed:
 - **Ninja (30-37):** an AoE pack pushed Death Blossom — which unlocks at 38 — forever, and nothing else. Packs below 38 now run the single-target combo
 - **Monk (below 26):** the Opo-opo form in AoE pushed Arm of the Destroyer before it's learned; it now falls back to Bootshine like the other forms already did

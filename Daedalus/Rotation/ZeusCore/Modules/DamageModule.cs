@@ -855,9 +855,12 @@ public sealed class DamageModule : IZeusModule
         var lastAction = context.LastComboAction;
         var comboActive = context.ComboTimeRemaining > 0;
 
-        // Below Doom Spike there is no AoE chain at all — a 3+ pack must still run the
-        // single-target combo instead of pushing nothing.
-        if (level < DRGActions.DoomSpike.MinLevel)
+        // No usable AoE chain without Doom Spike — and "usable" means LEARNED, not level-met:
+        // Doom Spike is job-quest locked, so a Lv40+ DRG with the quest undone pushed a doomed
+        // id every cycle and stalled a 3+ pack completely (Lv41 field log, 2026-07-03). A pack
+        // without the AoE chain still runs the single-target combo.
+        if (!Daedalus.Services.Action.ActionAvailability.MeetsLevelAndLearned(
+                (byte)level, context.ActionService, DRGActions.DoomSpike))
         {
             TryPushSingleTargetCombo(context, scheduler, target);
             return;
@@ -865,7 +868,8 @@ public sealed class DamageModule : IZeusModule
 
         // Step 3: Coerthan Torment
         if (comboActive && lastAction == DRGActions.SonicThrust.ActionId
-            && level >= DRGActions.CoerthanTorment.MinLevel
+            && Daedalus.Services.Action.ActionAvailability.MeetsLevelAndLearned(
+                (byte)level, context.ActionService, DRGActions.CoerthanTorment)
             && context.ActionService.IsActionReady(DRGActions.CoerthanTorment.ActionId))
         {
             scheduler.PushGcd(ZeusAbilities.CoerthanTorment, target.GameObjectId, priority: 3,
@@ -895,7 +899,8 @@ public sealed class DamageModule : IZeusModule
 
         // Step 2: Sonic Thrust (accept Draconian Fury — the proc'd AoE starter the game reports here)
         if (comboActive && (lastAction == DRGActions.DoomSpike.ActionId || lastAction == DRGActions.DraconianFury.ActionId)
-            && level >= DRGActions.SonicThrust.MinLevel
+            && Daedalus.Services.Action.ActionAvailability.MeetsLevelAndLearned(
+                (byte)level, context.ActionService, DRGActions.SonicThrust)
             && context.ActionService.IsActionReady(DRGActions.SonicThrust.ActionId))
         {
             scheduler.PushGcd(ZeusAbilities.SonicThrust, target.GameObjectId, priority: 4,

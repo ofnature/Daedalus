@@ -499,9 +499,11 @@ public sealed class DamageModule : IKratosModule
     {
         var level = context.Player.Level;
 
-        // Arm of the Destroyer is Lv26 — below it there is no Opo AoE GCD, so an AoE pack
-        // still takes the single-target opo action (the Coeurl/Raptor picks already do this).
-        if (useAoE && level >= MNKActions.ArmOfTheDestroyer.MinLevel)
+        // Arm of the Destroyer is Lv26 — below it (or with it quest-locked) there is no Opo
+        // AoE GCD, so an AoE pack still takes the single-target opo action (the Coeurl/Raptor
+        // picks already do this).
+        if (useAoE && Daedalus.Services.Action.ActionAvailability.MeetsLevelAndLearned(
+                (byte)level, context.ActionService, MNKActions.ArmOfTheDestroyer))
         {
             var aoeAction = level >= MNKActions.ShadowOfTheDestroyer.MinLevel
                 ? MNKActions.ShadowOfTheDestroyer : MNKActions.ArmOfTheDestroyer;
@@ -776,7 +778,8 @@ public sealed class DamageModule : IKratosModule
 
         return nextForm switch
         {
-            MnkPbForm.OpoOpo => useAoe && level >= MNKActions.ArmOfTheDestroyer.MinLevel
+            MnkPbForm.OpoOpo => useAoe && Daedalus.Services.Action.ActionAvailability.MeetsLevelAndLearned(
+                    (byte)level, context.ActionService, MNKActions.ArmOfTheDestroyer)
                 ? (level >= MNKActions.ShadowOfTheDestroyer.MinLevel ? MNKActions.ShadowOfTheDestroyer : MNKActions.ArmOfTheDestroyer)
                 : GetOpoOpoAction(context, (uint)level),
             MnkPbForm.Raptor => useAoe

@@ -159,6 +159,23 @@ public class DamageModuleComboFallbackTests
         Assert.DoesNotContain(scheduler.InspectGcdQueue(), c => c.Behavior == ZeusAbilities.PiercingTalon);
     }
 
+    [Fact]
+    public void QuestLockedDoomSpike_AoePack_RunsSingleTargetCombo()
+    {
+        // Regression (Lv41 DRG field log, 2026-07-03): Doom Spike was LEVEL-met but job-quest
+        // locked — the AoE branch pushed the uncastable id every cycle with no fallback and the
+        // pack stalled for 35s+. Learned check must gate the branch, not just level.
+        var (context, scheduler) = Setup(
+            level: 41, enemiesInRange: 4,
+            unlearnedActionId: DRGActions.DoomSpike.ActionId);
+
+        _module.CollectCandidates(context, scheduler, isMoving: false);
+
+        var gcds = scheduler.InspectGcdQueue();
+        Assert.Contains(gcds, c => c.Behavior == ZeusAbilities.TrueThrust);
+        Assert.DoesNotContain(gcds, c => c.Behavior == ZeusAbilities.DoomSpike);
+    }
+
     private static (Daedalus.Rotation.ZeusCore.Context.IZeusContext context,
         Daedalus.Rotation.Common.Scheduling.RotationScheduler scheduler) Setup(
         byte level,
@@ -167,7 +184,8 @@ public class DamageModuleComboFallbackTests
         int enemiesInRange = 1,
         bool hasPowerSurge = false,
         float powerSurgeRemaining = 0f,
-        float targetDistance = 0f)
+        float targetDistance = 0f,
+        uint unlearnedActionId = 0)
     {
         var enemy = new Mock<IBattleNpc>();
         enemy.Setup(x => x.GameObjectId).Returns(777UL);
@@ -182,6 +200,8 @@ public class DamageModuleComboFallbackTests
             .Returns(enemy.Object);
 
         var actionService = MockBuilders.CreateMockActionService();
+        if (unlearnedActionId != 0)
+            actionService.Setup(x => x.IsActionLearned(unlearnedActionId)).Returns(false);
 
         var scheduler = SchedulerFactory.CreateForTest(actionService: actionService);
         var context = ZeusTestContext.Create(

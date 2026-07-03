@@ -667,7 +667,8 @@ public sealed class DamageModule : IAresModule
         if (!skipFinisher &&
             context.ComboStep == 1 &&
             context.LastComboAction == WARActions.Overpower.ActionId &&
-            level >= WARActions.MythrilTempest.MinLevel)
+            Daedalus.Services.Action.ActionAvailability.MeetsLevelAndLearned(
+                (byte)level, context.ActionService, WARActions.MythrilTempest))
         {
             scheduler.PushGcd(AresAbilities.MythrilTempest, targetId, priority: 6,
                 onDispatched: _ =>
