@@ -424,9 +424,7 @@ public sealed class PartyAnalyzerService : IPartyAnalyzer
             return false;
         if (battleNpc.MaxHp == 0)
             return false;
-        // StatusFlags.Hostile — the old raw 128 was StatusFlags.IsCasting; see BasePartyHelper.
-        if ((battleNpc.StatusFlags & StatusFlags.Hostile) != 0)
-            return false;
+        // NO StatusFlags gate — unreliable on ally NPCs (see BasePartyHelper.IsValidTrustNpc).
         if (battleNpc.SubKind != FFXIVConstants.TrustNpcSubKind)
             return false;
 

@@ -121,13 +121,19 @@ public class TerpsichorePartyHelperTests
     }
 
     [Fact]
-    public void TrustDuty_HostileFlaggedNpc_NotSelectable()
+    public void TrustDuty_InCombatHostileFlaggedAvatar_StaysSelectable()
     {
-        var hostile = CreateTrustNpc(entityId: 2, statusFlags: StatusFlags.Hostile);
-        var helper = CreateTrustModeHelper(hostile.Object);
+        // Regression: the game sets StatusFlags.Hostile on trust avatars WHILE THEY FIGHT.
+        // Gating the scan on it made all in-combat avatars vanish (parser merged their
+        // damage into the player via OwnerId). No StatusFlags gate — SubKind 9 is the test.
+        var fightingTrust = CreateTrustNpc(entityId: 2, statusFlags: StatusFlags.Hostile | StatusFlags.InCombat);
+        var helper = CreateTrustModeHelper(fightingTrust.Object);
         var player = MockBuilders.CreateMockPlayerCharacter();
 
-        Assert.Null(helper.SelectDancePartner(player.Object));
+        var partner = helper.SelectDancePartner(player.Object);
+
+        Assert.NotNull(partner);
+        Assert.Equal(2u, partner!.EntityId);
     }
 
     [Fact]

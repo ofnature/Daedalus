@@ -292,13 +292,18 @@ public sealed class DpsMeterServiceTests
     [Fact]
     public void DefaultResolver_TrustNpcCaster_GetsSupportRow()
     {
+        // Realistic in-combat avatar: the game sets Hostile|InCombat flags on fighting trust
+        // allies AND gives avatars an OwnerId (the summoning player). Neither may divert the
+        // avatar from its own Support row — flag-gating dropped them, OwnerId merged their
+        // damage into the player ("trust/support combined" field reports).
         var trustNpc = new Mock<IBattleNpc>();
         trustNpc.Setup(x => x.ObjectKind).Returns(ObjectKind.BattleNpc);
         trustNpc.Setup(x => x.SubKind).Returns((byte)Daedalus.Data.FFXIVConstants.TrustNpcSubKind);
         trustNpc.Setup(x => x.EntityId).Returns(2u);
+        trustNpc.Setup(x => x.OwnerId).Returns(1u);
         trustNpc.Setup(x => x.CurrentHp).Returns(50000u);
         trustNpc.Setup(x => x.MaxHp).Returns(50000u);
-        trustNpc.Setup(x => x.StatusFlags).Returns((StatusFlags)0);
+        trustNpc.Setup(x => x.StatusFlags).Returns(StatusFlags.Hostile | StatusFlags.InCombat);
         trustNpc.Setup(x => x.Name).Returns(new SeString(new TextPayload("Thancred's Avatar")));
 
         var enemyNpc = new Mock<IBattleNpc>();
