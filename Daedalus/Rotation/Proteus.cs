@@ -56,6 +56,7 @@ public sealed class Proteus : BaseCasterDpsRotation<IProteusContext, IProteusMod
     private readonly ITimelineService? _timelineService;
     private readonly ITrainingService? _trainingService;
     private readonly IPartyCoordinationService? _partyCoordinationService;
+    private readonly IBluLoadoutService? _bluLoadoutService;
     private readonly RotationScheduler _scheduler;
 
     public Proteus(
@@ -79,7 +80,8 @@ public sealed class Proteus : BaseCasterDpsRotation<IProteusContext, IProteusMod
         IErrorMetricsService? errorMetrics = null,
         IPartyCoordinationService? partyCoordinationService = null,
         Daedalus.Services.Consumables.ITinctureDispatcher? tinctureDispatcher = null,
-        Daedalus.Services.Pull.IPullIntentService? pullIntentService = null)
+        Daedalus.Services.Pull.IPullIntentService? pullIntentService = null,
+        IBluLoadoutService? bluLoadoutService = null)
         : base(
             log,
             actionTracker,
@@ -102,6 +104,7 @@ public sealed class Proteus : BaseCasterDpsRotation<IProteusContext, IProteusMod
         _timelineService = timelineService;
         _trainingService = trainingService;
         _partyCoordinationService = partyCoordinationService;
+        _bluLoadoutService = bluLoadoutService;
 
         _scheduler = new RotationScheduler(actionService, jobGauges, configuration, timelineService, errorMetrics);
 
@@ -165,7 +168,8 @@ public sealed class Proteus : BaseCasterDpsRotation<IProteusContext, IProteusMod
             timelineService: _timelineService,
             trainingService: _trainingService,
             partyCoordinationService: _partyCoordinationService,
-            log: Log);
+            log: Log,
+            loadoutService: _bluLoadoutService);
     }
 
     /// <inheritdoc />

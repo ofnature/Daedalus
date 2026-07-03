@@ -1,8 +1,10 @@
+using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.Windowing;
 using Daedalus.Data;
+using Daedalus.Services.Action;
 using Daedalus.Services.Debug;
 
 namespace Daedalus.Windows;
@@ -11,19 +13,23 @@ namespace Daedalus.Windows;
 /// "Missing" window — scans the current job's expected abilities and flags any that are level-met but
 /// not actually usable (uncompleted job quests). Auto-updates with whatever job you're on. Catches the
 /// case where the rotation silently can't cast something (e.g. Reaper Enshroud before the Lv80 quest).
+/// On BLU it doubles as the farm planner and the role-loadout checklist (Blue Academy reference sets).
 /// </summary>
 public sealed class MissingWindow : Window
 {
     private static readonly Vector4 _red = new(1.0f, 0.4f, 0.4f, 1.0f);
     private static readonly Vector4 _green = new(0.4f, 1.0f, 0.4f, 1.0f);
+    private static readonly Vector4 _yellow = new(1.0f, 0.85f, 0.3f, 1.0f);
     private static readonly Vector4 _dim = new(0.6f, 0.6f, 0.6f, 1.0f);
 
     private readonly DebugService debugService;
+    private readonly IBluLoadoutService? bluLoadoutService;
 
-    public MissingWindow(DebugService debugService)
+    public MissingWindow(DebugService debugService, IBluLoadoutService? bluLoadoutService = null)
         : base("Missing", ImGuiWindowFlags.NoCollapse)
     {
         this.debugService = debugService;
+        this.bluLoadoutService = bluLoadoutService;
         Size = new Vector2(360, 420);
         SizeCondition = ImGuiCond.FirstUseEver;
     }
@@ -90,6 +96,30 @@ public sealed class MissingWindow : Window
             }
         }
 
+        // BLU role-loadout checklist (Blue Academy reference sets): ✔ learned+slotted,
+        // ● learned but NOT slotted, ✗ not learned (+ farm source). Core = the role does
+        // not function without it; Flex = content-dependent alternates.
+        if (isBlu)
+        {
+            ImGui.Spacing();
+            ImGui.Separator();
+
+            var learnedById = statuses.ToDictionary(s => s.ActionId, s => s.Learned);
+            var spellbook = BLUSpellbook.All.ToDictionary(e => e.ActionId, e => e);
+            var hasSlots = bluLoadoutService is { HasSlotData: true };
+
+            ImGui.Text("Role loadouts");
+            ImGui.SameLine();
+            ImGui.TextColored(_dim, hasSlots
+                ? $"— active set {bluLoadoutService!.SlottedCount}/{BluLoadoutService.SlotCount}"
+                : "— slot data unavailable");
+
+            foreach (var loadout in BLULoadouts.All)
+            {
+                DrawLoadoutHeader(loadout, learnedById, spellbook, hasSlots);
+            }
+        }
+
         ImGui.Spacing();
         ImGui.Separator();
 
@@ -112,5 +142,76 @@ public sealed class MissingWindow : Window
                 }
             }
         }
+    }
+
+    private void DrawLoadoutHeader(
+        BluLoadout loadout,
+        Dictionary<uint, bool> learnedById,
+        Dictionary<uint, BLUSpellEntry> spellbook,
+        bool hasSlots)
+    {
+        var coreSlotted = 0;
+        var coreNotLearned = 0;
+        foreach (var id in loadout.Core)
+        {
+            if (!learnedById.GetValueOrDefault(id))
+                coreNotLearned++;
+            else if (!hasSlots || bluLoadoutService!.SlottedActionIds.Contains(id))
+                coreSlotted++;
+        }
+
+        var summary = hasSlots
+            ? $"{loadout.Name} — core {coreSlotted}/{loadout.Core.Length} slotted, {coreNotLearned} not learned"
+            : $"{loadout.Name} — core {loadout.Core.Length - coreNotLearned}/{loadout.Core.Length} learned";
+
+        if (!ImGui.CollapsingHeader($"{summary}###BluLoadout{loadout.Name}"))
+            return;
+
+        foreach (var id in loadout.Core)
+            DrawLoadoutSpell(id, learnedById, spellbook, hasSlots);
+
+        if (loadout.Flex.Length > 0)
+        {
+            ImGui.TextColored(_dim, "Flex (content-dependent):");
+            foreach (var id in loadout.Flex)
+                DrawLoadoutSpell(id, learnedById, spellbook, hasSlots);
+        }
+    }
+
+    private void DrawLoadoutSpell(
+        uint actionId,
+        Dictionary<uint, bool> learnedById,
+        Dictionary<uint, BLUSpellEntry> spellbook,
+        bool hasSlots)
+    {
+        var name = spellbook.TryGetValue(actionId, out var entry) ? entry.Name : $"Action {actionId}";
+        var learned = learnedById.GetValueOrDefault(actionId);
+
+        if (!learned)
+        {
+            ImGui.TextColored(_red, "✗");
+            ImGui.SameLine();
+            ImGui.Text(name);
+            if (entry != null)
+            {
+                ImGui.SameLine();
+                ImGui.TextColored(_dim, $"— {entry.SourceName}");
+            }
+            return;
+        }
+
+        if (hasSlots && !bluLoadoutService!.SlottedActionIds.Contains(actionId))
+        {
+            ImGui.TextColored(_yellow, "●");
+            ImGui.SameLine();
+            ImGui.Text(name);
+            ImGui.SameLine();
+            ImGui.TextColored(_yellow, "not slotted");
+            return;
+        }
+
+        ImGui.TextColored(_green, "✔");
+        ImGui.SameLine();
+        ImGui.TextColored(_dim, name);
     }
 }

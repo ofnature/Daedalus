@@ -169,6 +169,8 @@ public class ProteusTests
         mock.Setup(x => x.HasMightyGuard).Returns(hasMightyGuard);
         mock.Setup(x => x.HasDiamondback).Returns(hasDiamondback);
         mock.Setup(x => x.HasCorrectMimicry).Returns(true); // mimicry not under test here
+        // Learned+slotted availability: everything usable (loadout gating has its own tests)
+        mock.Setup(x => x.IsSpellUsable(It.IsAny<uint>())).Returns(true);
         mock.Setup(x => x.CurrentMp).Returns(10000);
         mock.Setup(x => x.PartyHealthMetrics).Returns((1f, 1f, 0));
         mock.Setup(x => x.Debug).Returns(new ProteusDebugState());

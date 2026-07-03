@@ -23,6 +23,10 @@ public sealed class ProteusDebugState
     public string MimicryBlacklist { get; set; } = "";
 
     public string Role { get; set; } = "";
+
+    /// <summary>Active spell-set summary: "22/24 slotted" or "no slot data".</summary>
+    public string Loadout { get; set; } = "";
+
     public bool HasMightyGuard { get; set; }
     public int EngagedEnemies { get; set; }
     public int AoeRangeEnemies { get; set; }

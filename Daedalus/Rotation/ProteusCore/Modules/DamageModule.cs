@@ -42,7 +42,7 @@ public sealed class DamageModule : IProteusModule
 
         // Rose of Destruction — own 30s recast group (safe to cooldown-check, NOT group 57).
         if (cfg.EnableRoseOfDestruction
-            && context.ActionService.IsActionLearned(BLUActions.TheRoseOfDestruction.ActionId)
+            && context.IsSpellUsable(BLUActions.TheRoseOfDestruction.ActionId)
             && context.ActionService.IsActionReady(BLUActions.TheRoseOfDestruction.ActionId)
             && !MechanicCastGate.ShouldBlock(context, BLUActions.TheRoseOfDestruction.CastTime)
             && !isMoving)
@@ -57,7 +57,7 @@ public sealed class DamageModule : IProteusModule
 
         // Song of Torment — 30s Bleeding, FindEnemyNeedingDot pattern (source-aware, all ranks).
         if (cfg.EnableSongOfTorment
-            && context.ActionService.IsActionLearned(BLUActions.SongOfTorment.ActionId)
+            && context.IsSpellUsable(BLUActions.SongOfTorment.ActionId)
             && !isMoving)
         {
             var dotTarget = context.TargetingService.FindEnemyNeedingDot(
@@ -78,7 +78,7 @@ public sealed class DamageModule : IProteusModule
         context.Debug.AoeRangeEnemies = packCount;
         if (cfg.EnableAoERotation
             && packCount >= cfg.AoEMinTargets
-            && context.ActionService.IsActionLearned(BLUActions.Plaincracker.ActionId)
+            && context.IsSpellUsable(BLUActions.Plaincracker.ActionId)
             && !isMoving
             && !MechanicCastGate.ShouldBlock(context, BLUActions.Plaincracker.CastTime))
         {
@@ -93,7 +93,7 @@ public sealed class DamageModule : IProteusModule
 
         // Tank filler: Goblin Punch — INSTANT, 3y. Also the movement filler for any role when in
         // melee reach (the only GCD castable on the move). Range-rejected at dispatch when far.
-        if (context.Role == BluRole.Tank || isMoving)
+        if ((context.Role == BluRole.Tank || isMoving) && context.IsSpellUsable(BLUActions.GoblinPunch.ActionId))
         {
             scheduler.PushGcd(ProteusAbilities.GoblinPunch, target.GameObjectId, priority: 8,
                 onDispatched: _ =>
@@ -106,12 +106,15 @@ public sealed class DamageModule : IProteusModule
         // Primary filler: Sonic Boom (1.0s cast, 25y).
         if (!isMoving && !MechanicCastGate.ShouldBlock(context, BLUActions.SonicBoom.CastTime))
         {
-            scheduler.PushGcd(ProteusAbilities.SonicBoom, target.GameObjectId, priority: 9,
-                onDispatched: _ =>
-                {
-                    context.Debug.PlannedAction = BLUActions.SonicBoom.Name;
-                    context.Debug.DamageState = "Sonic Boom";
-                });
+            if (context.IsSpellUsable(BLUActions.SonicBoom.ActionId))
+            {
+                scheduler.PushGcd(ProteusAbilities.SonicBoom, target.GameObjectId, priority: 9,
+                    onDispatched: _ =>
+                    {
+                        context.Debug.PlannedAction = BLUActions.SonicBoom.Name;
+                        context.Debug.DamageState = "Sonic Boom";
+                    });
+            }
 
             // Fallback when Sonic Boom isn't slotted: the starter spell always exists.
             scheduler.PushGcd(ProteusAbilities.WaterCannon, target.GameObjectId, priority: 10,

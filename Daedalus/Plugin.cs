@@ -121,6 +121,7 @@ public sealed class Plugin : IDalamudPlugin
     // Performance analytics
     private readonly PerformanceTracker performanceTracker;
     private readonly DpsMeterService dpsMeterService;
+    private readonly BluLoadoutService bluLoadoutService;
 
     // FFLogs integration
     private readonly FFlogsService? fflogsService;
@@ -364,6 +365,10 @@ public sealed class Plugin : IDalamudPlugin
             partyCoordinationService,
             pluginInterface.ConfigDirectory.FullName);
 
+        // BLU active spell-set reader (learned+slotted availability for Proteus + Missing window)
+        this.bluLoadoutService = new BluLoadoutService(
+            () => objectTable.LocalPlayer?.ClassJob.RowId ?? 0);
+
         // Full-party DPS parser; the bus (when LAN is enabled) adds cross-toon self-reporting
         this.dpsMeterService = new DpsMeterService(
             combatEventService, objectTable, configuration.Parser,
@@ -473,7 +478,7 @@ public sealed class Plugin : IDalamudPlugin
         this.controlWindow = new ControlWindow(configuration, SaveConfiguration, rotationManager, textureProvider);
         this.navControlWindow = new NavControlWindow(configuration, SaveConfiguration, bmrAiConfigService);
         this.raidWindow = new RaidWindow(configuration, SaveConfiguration, dutyContentService);
-        this.missingWindow = new MissingWindow(debugService);
+        this.missingWindow = new MissingWindow(debugService, bluLoadoutService);
         if (coordinationBus != null && lanCoordinator != null)
             this.lanPartyWindow = new LanPartyWindow(coordinationBus, lanCoordinator, configuration, SaveConfiguration);
         this.mainWindow = new MainWindow(configuration, SaveConfiguration, OpenConfigUI, OpenDebugUI, OpenAnalyticsUI, OpenTrainingUI, OpenChangelogUI, OpenOverlayUI, OpenControlUI, OpenNavControlUI, OpenRaidUI, OpenMissingUI, PluginVersion, rotationManager, textureProvider,
@@ -638,6 +643,7 @@ public sealed class Plugin : IDalamudPlugin
         container.Register<IBossModSafetyService, BossModSafetyService>(bossModSafetyService);
         container.Register<IBossModForecastService, BossModForecastService>(bossModForecastService);
         container.Register<IDpsMeterService, DpsMeterService>(dpsMeterService);
+        container.Register<IBluLoadoutService, BluLoadoutService>(bluLoadoutService);
         container.Register<IPositionalMovementService, PositionalMovementService>(positionalMovementService);
         container.Register(samuraiPositionalAnticipationProvider);
         container.Register(ninjaPositionalAnticipationProvider);
@@ -952,6 +958,9 @@ public sealed class Plugin : IDalamudPlugin
 
             // Update DPS parser (encounter segmentation + queued damage events)
             dpsMeterService.Update();
+
+            // Refresh the BLU active spell set (throttled internally; no-op off-BLU)
+            bluLoadoutService.Update();
 
             // Update training mode
             trainingService.Update();

@@ -79,6 +79,10 @@ public sealed class ProteusContext : IProteusContext
     public bool HasDiamondback { get; }
     public bool HasCorrectMimicry { get; }
     public bool HasAnyMimicry { get; }
+    public IBluLoadoutService? LoadoutService { get; }
+
+    public bool IsSpellUsable(uint actionId)
+        => ActionService.IsActionLearned(actionId) && (LoadoutService?.IsSlotted(actionId) ?? true);
 
     public ProteusStatusHelper StatusHelper { get; }
     public CasterPartyHelper PartyHelper { get; }
@@ -113,7 +117,8 @@ public sealed class ProteusContext : IProteusContext
         ITimelineService? timelineService = null,
         ITrainingService? trainingService = null,
         IPartyCoordinationService? partyCoordinationService = null,
-        IPluginLog? log = null)
+        IPluginLog? log = null,
+        IBluLoadoutService? loadoutService = null)
     {
         Player = player;
         InCombat = inCombat;
@@ -159,12 +164,16 @@ public sealed class ProteusContext : IProteusContext
         HasDiamondback = statusHelper.HasDiamondback(player);
         HasCorrectMimicry = statusHelper.HasMimicryForRole(player, Role);
         HasAnyMimicry = statusHelper.HasAnyMimicry(player);
+        LoadoutService = loadoutService;
 
         PartyHealthMetrics = CalculatePartyHealth(player);
 
         Debug.Role = Role.ToString();
         Debug.HasMightyGuard = HasMightyGuard;
         Debug.ActiveMimicry = statusHelper.GetActiveMimicryName(player);
+        Debug.Loadout = loadoutService is { HasSlotData: true }
+            ? $"{loadoutService.SlottedCount}/{BluLoadoutService.SlotCount} slotted"
+            : "no slot data";
     }
 
     private (float avgHpPercent, float lowestHpPercent, int injuredCount) CalculatePartyHealth(IPlayerCharacter player)

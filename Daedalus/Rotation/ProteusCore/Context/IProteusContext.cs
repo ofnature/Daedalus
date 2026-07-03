@@ -26,6 +26,16 @@ public interface IProteusContext : ICasterDpsRotationContext
     /// <summary>Any mimicry buff is active (wrong-role detection when Role changed).</summary>
     bool HasAnyMimicry { get; }
 
+    /// <summary>Active spell-set reader; null when unavailable (gating degrades to learned-only).</summary>
+    Daedalus.Services.Action.IBluLoadoutService? LoadoutService { get; }
+
+    /// <summary>
+    /// THE Blue Mage availability check: learned AND in the active 24-slot set. A learned
+    /// spell outside the set cannot be cast. Fail-open to learned-only when slot data is
+    /// unavailable.
+    /// </summary>
+    bool IsSpellUsable(uint actionId);
+
     ProteusStatusHelper StatusHelper { get; }
     CasterPartyHelper PartyHelper { get; }
     ProteusDebugState Debug { get; }
