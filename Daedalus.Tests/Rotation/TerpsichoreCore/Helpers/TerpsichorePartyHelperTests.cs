@@ -46,9 +46,13 @@ public class TerpsichorePartyHelperTests
     }
 
     [Fact]
-    public void UnknownJob_IsLowestPriority()
+    public void UnknownJob_IsLowestPriority_ButSelectable()
     {
-        Assert.Equal(int.MaxValue, TerpsichorePartyHelper.GetJobPriority(9999));
+        // Lowest rank of all — but NOT int.MaxValue: that could never win the `< bestPriority`
+        // scan, leaving the dancer partnerless instead of taking a last-resort partner.
+        var unknown = TerpsichorePartyHelper.GetJobPriority(9999);
+        Assert.True(unknown > TerpsichorePartyHelper.GetJobPriority(JobRegistry.Sage));
+        Assert.True(unknown < int.MaxValue);
     }
 
     // --- Strict-upgrade decision ---

@@ -38,20 +38,23 @@ public sealed class BuffModule : ITerpsichoreModule
     {
         var player = context.Player;
 
-        // Always: dance step execution (highest GCD priority, including pre-pull)
+        // Always: dance step execution (highest GCD priority, including pre-pull). While dancing
+        // the game locks every other weaponskill/ability, so nothing else is worth pushing.
         if (context.IsDancing)
         {
             TryPushDanceStep(context, scheduler);
             TryPushDanceFinish(context, scheduler);
+            context.Debug.BuffState = "Dancing";
+            return;
         }
 
         // Pre-combat: partner + Standard Step
         if (!context.InCombat)
         {
             TryPushClosedPosition(context, scheduler);
-            if (!context.IsDancing && !context.HasStandardFinish)
+            if (!context.HasStandardFinish)
                 TryPushStandardStep(context, scheduler);
-            context.Debug.BuffState = context.IsDancing ? "Dancing (pre-pull)" : "Not in combat";
+            context.Debug.BuffState = "Not in combat";
             return;
         }
 
@@ -179,10 +182,15 @@ public sealed class BuffModule : ITerpsichoreModule
     private void TryPushTechnicalStep(ITerpsichoreContext context, RotationScheduler scheduler)
     {
         if (!context.Configuration.Dancer.EnableTechnicalStep) return;
+        // NOTE: Technical/Standard Step are WEAPONSKILLS on their own recast groups that also
+        // roll the global — they must be pushed as GCDs. IsActionReady on a group-58-linked
+        // action reads not-ready whenever the GCD rolls (the MCH Full Metal Field lesson), and
+        // an oGCD push only ever dispatches in weave slots where the game refuses a GCD — the
+        // combination meant neither step EVER fired (Porta Decumana log 2026-07-02).
         var player = context.Player;
         if (player.Level < DNCActions.TechnicalStep.MinLevel) return;
         if (context.IsDancing) return;
-        if (!context.ActionService.IsActionReady(DNCActions.TechnicalStep.ActionId)) return;
+        if (context.ActionService.GetCooldownRemaining(DNCActions.TechnicalStep.ActionId) > 0f) return;
         if (BurstHoldHelper.ShouldHoldForPhaseTransition(context.TimelineService, context.Configuration.Dancer.TechnicalHoldTime))
         {
             context.Debug.BuffState = "Holding Technical Step (phase soon)";
@@ -201,7 +209,7 @@ public sealed class BuffModule : ITerpsichoreModule
             partyCoord.AnnounceRaidBuffIntent(DNCActions.TechnicalFinish.ActionId);
         }
 
-        scheduler.PushOgcd(TerpsichoreAbilities.TechnicalStep, player.GameObjectId, priority: 2,
+        scheduler.PushGcd(TerpsichoreAbilities.TechnicalStep, player.GameObjectId, priority: 2,
             onDispatched: _ =>
             {
                 context.Debug.PlannedAction = DNCActions.TechnicalStep.Name;
@@ -229,7 +237,7 @@ public sealed class BuffModule : ITerpsichoreModule
         var level = player.Level;
         if (level < DNCActions.StandardStep.MinLevel) return;
         if (context.IsDancing) return;
-        if (!context.ActionService.IsActionReady(DNCActions.StandardStep.ActionId)) return;
+        if (context.ActionService.GetCooldownRemaining(DNCActions.StandardStep.ActionId) > 0f) return;
 
         if (context.Configuration.Dancer.DelayStandardForTechnical
             && level >= DNCActions.TechnicalStep.MinLevel)
@@ -243,7 +251,7 @@ public sealed class BuffModule : ITerpsichoreModule
             }
         }
 
-        scheduler.PushOgcd(TerpsichoreAbilities.StandardStep, player.GameObjectId, priority: 4,
+        scheduler.PushGcd(TerpsichoreAbilities.StandardStep, player.GameObjectId, priority: 3,
             onDispatched: _ =>
             {
                 context.Debug.PlannedAction = DNCActions.StandardStep.Name;

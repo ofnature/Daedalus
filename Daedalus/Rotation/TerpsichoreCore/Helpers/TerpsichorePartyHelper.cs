@@ -311,7 +311,9 @@ public sealed class TerpsichorePartyHelper
                 return i;
         }
 
-        // Unknown job, lowest priority
-        return int.MaxValue;
+        // Unknown job: lowest priority but still SELECTABLE — int.MaxValue can never win the
+        // `< bestPriority` comparison, which left the DNC partnerless instead of taking a
+        // last-resort partner (Standard Finish buffs the dancer regardless of who holds it).
+        return PartnerPriority.Length;
     }
 }
