@@ -56,7 +56,10 @@ public static class JobSectionHeader
             JobValidation.Pending   => ("● pending", DaedalusTheme.StatusYellow),
             _                       => ("● untested", DaedalusTheme.StatusGrey),
         };
-        ImGui.SameLine(ImGui.GetWindowWidth() - ImGui.CalcTextSize(chipText).X - ImGui.GetStyle().WindowPadding.X - 8f);
+        // Right-align inside the CONTENT region — GetWindowWidth includes the scrollbar and
+        // ran the chip underneath it.
+        ImGui.SameLine();
+        ImGui.SetCursorPosX(ImGui.GetCursorPosX() + ImGui.GetContentRegionAvail().X - ImGui.CalcTextSize(chipText).X);
         ImGui.TextColored(chipColor, chipText);
         if (ImGui.IsItemHovered())
             ImGui.SetTooltip("In-game validation status: has this job had a full\nTrust/AutoDuty pass since its last behavior change?");

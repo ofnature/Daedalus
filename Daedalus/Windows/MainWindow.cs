@@ -103,7 +103,8 @@ public sealed class MainWindow : Window
             if (uptime > 0f)
             {
                 var label = $"{uptime:F0}% uptime";
-                ImGui.SameLine(ImGui.GetWindowWidth() - ImGui.CalcTextSize(label).X - ImGui.GetStyle().WindowPadding.X);
+                ImGui.SameLine();
+                ImGui.SetCursorPosX(ImGui.GetCursorPosX() + ImGui.GetContentRegionAvail().X - ImGui.CalcTextSize(label).X);
                 ImGui.TextColored(uptime >= 90f ? DaedalusTheme.StatusGreen : DaedalusTheme.TextSecondary, label);
             }
         }
@@ -258,7 +259,8 @@ public sealed class MainWindow : Window
             openMissing();
         }
         var versionLabel = $"v{version}";
-        ImGui.SameLine(ImGui.GetWindowWidth() - ImGui.CalcTextSize(versionLabel).X - ImGui.GetStyle().WindowPadding.X);
+        ImGui.SameLine();
+        ImGui.SetCursorPosX(ImGui.GetCursorPosX() + ImGui.GetContentRegionAvail().X - ImGui.CalcTextSize(versionLabel).X);
         ImGui.TextDisabled(versionLabel);
     }
 }
