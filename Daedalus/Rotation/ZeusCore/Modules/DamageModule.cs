@@ -609,7 +609,13 @@ public sealed class DamageModule : IZeusModule
         if (comboActive && lastAction == DRGActions.VorpalThrust.ActionId)
         {
             var finisher = DRGActions.GetVorpalFinisher((byte)level, context.ActionService);
-            if (context.ActionService.IsActionReady(finisher.ActionId))
+            // Below Full Thrust the resolver falls back to Vorpal Thrust itself — there IS no
+            // step 3, and IsActionReady passes for unlearned actions (cooldown-only), so a
+            // sub-Lv26 toon pushed a doomed finisher forever with no starter behind it to
+            // restart the 1-2-3 (open-world Lancer log 2026-07-03).
+            var hasRealFinisher = finisher.ActionId != DRGActions.VorpalThrust.ActionId;
+            if (hasRealFinisher && level >= finisher.MinLevel
+                && context.ActionService.IsActionReady(finisher.ActionId))
             {
                 scheduler.PushGcd(ZeusAbilities.VorpalFinisher, target.GameObjectId, priority: 3,
                     onDispatched: _ =>
@@ -633,6 +639,7 @@ public sealed class DamageModule : IZeusModule
                             .Record();
                         context.TrainingService?.RecordConceptApplication(DrgConcepts.ComboBasics, true, "Heavens' Thrust chain finisher");
                     });
+                PushComboRestartFallback(context, scheduler, target);
                 return;
             }
         }
@@ -641,7 +648,9 @@ public sealed class DamageModule : IZeusModule
         if (comboActive && lastAction == DRGActions.Disembowel.ActionId)
         {
             var finisher = DRGActions.GetDisembowelFinisher((byte)level, context.ActionService);
-            if (context.ActionService.IsActionReady(finisher.ActionId))
+            var hasRealFinisher = finisher.ActionId != DRGActions.Disembowel.ActionId;
+            if (hasRealFinisher && level >= finisher.MinLevel
+                && context.ActionService.IsActionReady(finisher.ActionId))
             {
                 var positionalOk = context.IsAtRear || context.HasTrueNorth || context.TargetHasPositionalImmunity;
                 scheduler.PushGcd(ZeusAbilities.DisembowelFinisher, target.GameObjectId, priority: 3,
@@ -669,6 +678,7 @@ public sealed class DamageModule : IZeusModule
                             .Record();
                         context.TrainingService?.RecordConceptApplication(DrgConcepts.DotMaintenance, true, "Chaos Thrust DoT refreshed");
                     });
+                PushComboRestartFallback(context, scheduler, target);
                 return;
             }
         }
@@ -705,6 +715,7 @@ public sealed class DamageModule : IZeusModule
                             .Record();
                         context.TrainingService?.RecordConceptApplication(DrgConcepts.PowerSurge, true, "Disembowel chosen to maintain Power Surge/DoT");
                     });
+                PushComboRestartFallback(context, scheduler, target);
                 return;
             }
 
@@ -732,6 +743,7 @@ public sealed class DamageModule : IZeusModule
                             .Record();
                         context.TrainingService?.RecordConceptApplication(DrgConcepts.ComboBasics, true, "Vorpal Thrust chosen for Heavens' Thrust line");
                     });
+                PushComboRestartFallback(context, scheduler, target);
                 return;
             }
         }
@@ -768,11 +780,45 @@ public sealed class DamageModule : IZeusModule
 
     #region GCD pushes — AoE combo
 
+    /// <summary>
+    /// Combo-starter fallback (the Echidna pattern): every non-starter combo push is backed by
+    /// the starter at a LOWER priority, so a scheduler-rejected step (combo/gauge desync, or a
+    /// finisher the module believed ready) falls through to a 1-2-3 restart instead of stalling.
+    /// Dormant in normal play — the real step at higher priority always dispatches first.
+    /// </summary>
+    private static void PushComboRestartFallback(IZeusContext context, RotationScheduler scheduler, IBattleChara target)
+    {
+        scheduler.PushGcd(ZeusAbilities.TrueThrust, target.GameObjectId, priority: 6,
+            onDispatched: _ =>
+            {
+                context.Debug.PlannedAction = DRGActions.TrueThrust.Name;
+                context.Debug.DamageState = "True Thrust (combo restart)";
+            });
+    }
+
+    private static void PushAoeComboRestartFallback(IZeusContext context, RotationScheduler scheduler, IBattleChara target)
+    {
+        scheduler.PushGcd(ZeusAbilities.DoomSpike, target.GameObjectId, priority: 6,
+            onDispatched: _ =>
+            {
+                context.Debug.PlannedAction = DRGActions.DoomSpike.Name;
+                context.Debug.DamageState = "Doom Spike (combo restart)";
+            });
+    }
+
     private void TryPushAoeCombo(IZeusContext context, RotationScheduler scheduler, IBattleChara target)
     {
         var level = context.Player.Level;
         var lastAction = context.LastComboAction;
         var comboActive = context.ComboTimeRemaining > 0;
+
+        // Below Doom Spike there is no AoE chain at all — a 3+ pack must still run the
+        // single-target combo instead of pushing nothing.
+        if (level < DRGActions.DoomSpike.MinLevel)
+        {
+            TryPushSingleTargetCombo(context, scheduler, target);
+            return;
+        }
 
         // Step 3: Coerthan Torment
         if (comboActive && lastAction == DRGActions.SonicThrust.ActionId
@@ -800,6 +846,7 @@ public sealed class DamageModule : IZeusModule
                         .Record();
                     context.TrainingService?.RecordConceptApplication(DrgConcepts.AoeRotation, true, "AoE finisher Coerthan Torment used");
                 });
+            PushAoeComboRestartFallback(context, scheduler, target);
             return;
         }
 
@@ -828,6 +875,7 @@ public sealed class DamageModule : IZeusModule
                         .Record();
                     context.TrainingService?.RecordConceptApplication(DrgConcepts.AoeRotation, true, "AoE step 2 Sonic Thrust used");
                 });
+            PushAoeComboRestartFallback(context, scheduler, target);
             return;
         }
 
