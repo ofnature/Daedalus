@@ -15,6 +15,9 @@ public sealed class DragoonConfig
     /// </summary>
     public bool EnableAoERotation { get; set; } = true;
 
+    /// <summary>Piercing Talon when out of melee reach — the DRG ranged filler (Lv.15+).</summary>
+    public bool EnablePiercingTalon { get; set; } = true;
+
     /// <summary>
     /// Whether to use Jump/High Jump on cooldown.
     /// </summary>

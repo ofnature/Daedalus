@@ -25,6 +25,7 @@ All notable changes to Daedalus will be documented in this file.
 - **Warrior (below 26):** every completed Maim tried to push a combo finisher that doesn't exist yet (caught by the Heavy Swing fallback, but pure rejection noise every chain) — the finisher branch now knows there is no step 3 below Storm's Path
 
 ### Fix — Dragoon combo can always restart (low-level stalls fixed)
+- Dragoon gains its ranged filler: Piercing Talon now fires when you're genuinely out of melee reach (forced disengages, mechanics), keeping the GCD rolling instead of dropping to nothing — and never in melee, since it resets the combo. Toggle in the Dragoon config (on by default)
 - From level 18 to 49, every combo went into Disembowel: the "DoT needs refreshing" check didn't know the DoT only exists once Chaos Thrust unlocks at 50, so it always demanded the Disembowel line. Now Disembowel fires only when Power Surge actually needs refreshing at those levels, and the rest of the combos run the harder-hitting Vorpal Thrust line
 - A low-level Lancer whose combo state said "finisher next" (easy to carry between quick open-world kills — the combo timer is 30 seconds) pushed a finisher it doesn't have yet, forever — the rotation sat dead until the target died (20-45% uptime pulls). Combo steps are now backed by a True Thrust restart whenever the step can't actually fire, finishers are properly gated below their level, and below Doom Spike a 3+ pack runs the single-target combo instead of nothing
 

@@ -129,6 +129,36 @@ public class DamageModuleComboFallbackTests
         Assert.Contains(scheduler.InspectGcdQueue(), c => c.Behavior == ZeusAbilities.Disembowel);
     }
 
+    [Fact]
+    public void OutOfMeleeReach_PushesPiercingTalon()
+    {
+        var (context, scheduler) = Setup(level: 50, targetDistance: 15f);
+
+        _module.CollectCandidates(context, scheduler, isMoving: false);
+
+        Assert.Contains(scheduler.InspectGcdQueue(), c => c.Behavior == ZeusAbilities.PiercingTalon);
+    }
+
+    [Fact]
+    public void InMeleeReach_NeverPushesPiercingTalon()
+    {
+        var (context, scheduler) = Setup(level: 50, targetDistance: 2f);
+
+        _module.CollectCandidates(context, scheduler, isMoving: false);
+
+        Assert.DoesNotContain(scheduler.InspectGcdQueue(), c => c.Behavior == ZeusAbilities.PiercingTalon);
+    }
+
+    [Fact]
+    public void BelowLevel15_NeverPushesPiercingTalon()
+    {
+        var (context, scheduler) = Setup(level: 10, targetDistance: 15f);
+
+        _module.CollectCandidates(context, scheduler, isMoving: false);
+
+        Assert.DoesNotContain(scheduler.InspectGcdQueue(), c => c.Behavior == ZeusAbilities.PiercingTalon);
+    }
+
     private static (Daedalus.Rotation.ZeusCore.Context.IZeusContext context,
         Daedalus.Rotation.Common.Scheduling.RotationScheduler scheduler) Setup(
         byte level,
@@ -136,12 +166,15 @@ public class DamageModuleComboFallbackTests
         float comboTimeRemaining = 0f,
         int enemiesInRange = 1,
         bool hasPowerSurge = false,
-        float powerSurgeRemaining = 0f)
+        float powerSurgeRemaining = 0f,
+        float targetDistance = 0f)
     {
         var enemy = new Mock<IBattleNpc>();
         enemy.Setup(x => x.GameObjectId).Returns(777UL);
         enemy.Setup(x => x.CurrentHp).Returns(100000u);
         enemy.Setup(x => x.MaxHp).Returns(100000u);
+        enemy.Setup(x => x.Position).Returns(new System.Numerics.Vector3(targetDistance, 0f, 0f));
+        enemy.Setup(x => x.HitboxRadius).Returns(0.5f);
 
         var targeting = MockBuilders.CreateMockTargetingService(countEnemiesInRange: enemiesInRange);
         targeting.Setup(x => x.FindEnemyForAction(

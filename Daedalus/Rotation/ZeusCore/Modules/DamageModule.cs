@@ -98,6 +98,7 @@ public sealed class DamageModule : IZeusModule
 
         // GCDs — positional procs first, then combos
         TryPushPositionalProcs(context, scheduler, target);
+        TryPushPiercingTalon(context, scheduler, target);
         if (useAoE)
             TryPushAoeCombo(context, scheduler, target);
         else
@@ -784,6 +785,43 @@ public sealed class DamageModule : IZeusModule
     #endregion
 
     #region GCD pushes — AoE combo
+
+    /// <summary>
+    /// Ranged filler (Thanatos Harvest Moon parity): Piercing Talon when genuinely out of melee
+    /// reach, so forced disengages keep the GCD rolling instead of dropping to auto-attacks.
+    /// DRG is an all-instant kit — moving IN range keeps the higher-potency combo (the VPR
+    /// rule), so this gates on reach only, never on isMoving. Priority 9 sits below every combo
+    /// push; in range it never wins, out of range the range-rejected combo falls through to it.
+    /// Piercing Talon resets the combo chain — the starter fallback restarts it on re-entry.
+    /// </summary>
+    private void TryPushPiercingTalon(IZeusContext context, RotationScheduler scheduler, IBattleChara target)
+    {
+        if (!context.Configuration.Dragoon.EnablePiercingTalon) return;
+        var player = context.Player;
+        if (player.Level < DRGActions.PiercingTalon.MinLevel) return;
+        if (TankTargetingHelper.IsWithinMeleeReach(player, target)) return;
+
+        scheduler.PushGcd(ZeusAbilities.PiercingTalon, target.GameObjectId, priority: 9,
+            onDispatched: _ =>
+            {
+                context.Debug.PlannedAction = DRGActions.PiercingTalon.Name;
+                context.Debug.DamageState = "Piercing Talon (ranged)";
+
+                TrainingHelper.Decision(context.TrainingService)
+                    .Action(DRGActions.PiercingTalon.ActionId, DRGActions.PiercingTalon.Name)
+                    .AsMeleeDamage()
+                    .Target(target.Name?.TextValue ?? "Target")
+                    .Reason("Piercing Talon — ranged filler while out of melee reach",
+                        "Piercing Talon is the Dragoon's only ranged GCD. Use it during forced " +
+                        "disengages to keep the GCD rolling — note it resets the combo chain, so " +
+                        "the combo restarts with True Thrust on re-entering melee.")
+                    .Factors(new[] { "Out of melee reach", "Instant — usable while moving" })
+                    .Alternatives(new[] { "Close the gap and resume the combo" })
+                    .Tip("Any GCD beats no GCD — but never use Piercing Talon in melee range.")
+                    .Concept(DrgConcepts.ComboBasics)
+                    .Record();
+            });
+    }
 
     /// <summary>
     /// Combo-starter fallback (the Echidna pattern): every non-starter combo push is backed by
