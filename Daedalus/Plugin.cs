@@ -465,7 +465,9 @@ public sealed class Plugin : IDalamudPlugin
         this.missingWindow = new MissingWindow(debugService);
         if (coordinationBus != null && lanCoordinator != null)
             this.lanPartyWindow = new LanPartyWindow(coordinationBus, lanCoordinator, configuration, SaveConfiguration);
-        this.mainWindow = new MainWindow(configuration, SaveConfiguration, OpenConfigUI, OpenDebugUI, OpenAnalyticsUI, OpenTrainingUI, OpenChangelogUI, OpenOverlayUI, OpenControlUI, OpenNavControlUI, OpenRaidUI, OpenMissingUI, PluginVersion, rotationManager, textureProvider);
+        this.mainWindow = new MainWindow(configuration, SaveConfiguration, OpenConfigUI, OpenDebugUI, OpenAnalyticsUI, OpenTrainingUI, OpenChangelogUI, OpenOverlayUI, OpenControlUI, OpenNavControlUI, OpenRaidUI, OpenMissingUI, PluginVersion, rotationManager, textureProvider,
+            actionTracker: actionTracker, dutyContent: dutyContentService);
+        this.mainWindow.LanConnected = () => this.lanCoordinator?.Status == Daedalus.Services.Network.LanStatus.Connected;
         if (lanPartyWindow != null)
             this.mainWindow.OpenLanParty = () => lanPartyWindow.Toggle();
         var smartAoETab = new SmartAoETab(aoeTracker, drawCanvas, objectTable);

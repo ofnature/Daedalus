@@ -22,19 +22,16 @@ public sealed class OverlayWindow : Window
     private readonly ITimelineService? _timelineService;
     private readonly IDutyContentService? _dutyContentService;
 
-    private static readonly Vector4 ActiveColor    = new(0.4f, 0.9f, 0.4f, 1f);
-    private static readonly Vector4 InactiveColor  = new(0.5f, 0.5f, 0.5f, 1f);
-    private static readonly Vector4 ActionColor    = new(0.5f, 1.0f, 0.5f, 1f);
-    private static readonly Vector4 AlertColor     = new(1.0f, 0.65f, 0.2f, 1f);
-    private static readonly Vector4 HpHighColor    = new(0.5f, 1.0f, 0.5f, 1f);
-    private static readonly Vector4 HpMidColor     = new(1.0f, 1.0f, 0.4f, 1f);
-    private static readonly Vector4 HpLowColor     = new(1.0f, 0.4f, 0.4f, 1f);
-    private static readonly Vector4 MechanicImminentColor   = new(1.0f, 0.3f, 0.3f, 1f);
-    private static readonly Vector4 MechanicSoonColor       = new(1.0f, 0.65f, 0.2f, 1f);
-    private static readonly Vector4 MechanicUpcomingColor   = new(0.85f, 0.85f, 0.85f, 1f);
-    private static readonly Vector4 RaidwideLabelColor      = new(1.0f, 0.5f, 0.5f, 1f);
-    private static readonly Vector4 TankBusterLabelColor    = new(0.5f, 0.8f, 1.0f, 1f);
-    private static readonly Vector4 PhaseLabelColor         = new(0.7f, 0.9f, 0.5f, 1f);
+    private static readonly Vector4 ActiveColor    = Common.DaedalusTheme.StatusGreen;
+    private static readonly Vector4 InactiveColor  = Common.DaedalusTheme.StatusGrey;
+    private static readonly Vector4 ActionColor    = Common.DaedalusTheme.AccentGold;
+    private static readonly Vector4 AlertColor     = Common.DaedalusTheme.StatusYellow;
+    private static readonly Vector4 MechanicImminentColor   = Common.DaedalusTheme.StatusRed;
+    private static readonly Vector4 MechanicSoonColor       = Common.DaedalusTheme.StatusYellow;
+    private static readonly Vector4 MechanicUpcomingColor   = Common.DaedalusTheme.TextSecondary;
+    private static readonly Vector4 RaidwideLabelColor      = Common.DaedalusTheme.StatusYellow;
+    private static readonly Vector4 TankBusterLabelColor    = Common.DaedalusTheme.StatusRed;
+    private static readonly Vector4 PhaseLabelColor         = Common.DaedalusTheme.AccentDim;
 
     public OverlayWindow(
         Configuration configuration,
@@ -63,6 +60,7 @@ public sealed class OverlayWindow : Window
 
         Position = new Vector2(configuration.Overlay.X, configuration.Overlay.Y);
         PositionCondition = ImGuiCond.FirstUseEver;
+        BgAlpha = 0.88f;
     }
 
     public override void Draw()
@@ -71,9 +69,7 @@ public sealed class OverlayWindow : Window
 
         var rotation = _rotationManager.ActiveRotation;
 
-        DrawHeader(rotation);
-        ImGui.Separator();
-        DrawStatus();
+        DrawStatusPillAndRotation(rotation);
 
         if (rotation != null)
         {
@@ -89,8 +85,23 @@ public sealed class OverlayWindow : Window
         DrawToggles();
     }
 
-    private void DrawHeader(IRotation? rotation)
+    private void DrawStatusPillAndRotation(IRotation? rotation)
     {
+        var isActive   = _configuration.Enabled;
+        var color      = isActive ? ActiveColor : InactiveColor;
+        var statusText = isActive
+            ? Loc.T(LocalizedStrings.Overlay.StatusActive,   "Running")
+            : Loc.T(LocalizedStrings.Overlay.StatusInactive, "Paused");
+
+        ImGui.PushStyleColor(ImGuiCol.Text, color);
+        if (ImGui.SmallButton($"● {statusText}##OverlayToggle"))
+        {
+            _configuration.Enabled = !_configuration.Enabled;
+            _saveConfiguration();
+        }
+        ImGui.PopStyleColor();
+
+        ImGui.SameLine();
         if (rotation != null)
         {
             var jobId   = rotation.SupportedJobIds[0];
@@ -101,23 +112,6 @@ public sealed class OverlayWindow : Window
         {
             ImGui.TextDisabled(Loc.T(LocalizedStrings.Overlay.NoRotation, "No rotation active"));
         }
-    }
-
-    private void DrawStatus()
-    {
-        var isActive   = _configuration.Enabled;
-        var color      = isActive ? ActiveColor : InactiveColor;
-        var statusText = isActive
-            ? Loc.T(LocalizedStrings.Overlay.StatusActive,   "ACTIVE")
-            : Loc.T(LocalizedStrings.Overlay.StatusInactive, "INACTIVE");
-
-        ImGui.PushStyleColor(ImGuiCol.Text, color);
-        if (ImGui.SmallButton($"● {statusText}##OverlayToggle"))
-        {
-            _configuration.Enabled = !_configuration.Enabled;
-            _saveConfiguration();
-        }
-        ImGui.PopStyleColor();
 
         if (_configuration.EnableAutoDutyConfig && _dutyContentService != null)
         {
@@ -144,13 +138,11 @@ public sealed class OverlayWindow : Window
 
     private void DrawCombatInfo(DebugState state, IRotation rotation)
     {
-        // Player HP bar
+        // Player HP + injured party on one strip
         if (state.PlayerHpPercent > 0f)
         {
-            var hpColor = state.PlayerHpPercent < 0.3f ? HpLowColor
-                        : state.PlayerHpPercent < 0.7f ? HpMidColor
-                        : HpHighColor;
-            ImGui.Text(Loc.T(LocalizedStrings.Overlay.HpLabel, "HP:"));
+            var hpColor = Common.DaedalusTheme.HpColor(state.PlayerHpPercent);
+            ImGui.TextColored(Common.DaedalusTheme.TextSecondary, Loc.T(LocalizedStrings.Overlay.HpLabel, "HP:"));
             ImGui.SameLine();
             ImGui.TextColored(hpColor, $"{state.PlayerHpPercent:P0}");
         }
@@ -158,7 +150,8 @@ public sealed class OverlayWindow : Window
         // Injured party members
         if (state.AoEInjuredCount > 0)
         {
-            ImGui.Text(Loc.T(LocalizedStrings.Overlay.PartyLabel, "Party:"));
+            if (state.PlayerHpPercent > 0f) ImGui.SameLine(0, 14);
+            ImGui.TextColored(Common.DaedalusTheme.TextSecondary, Loc.T(LocalizedStrings.Overlay.PartyLabel, "Party:"));
             ImGui.SameLine();
             var partySize = _partyList.Length > 0 ? _partyList.Length : 1;
             ImGui.TextColored(AlertColor, Loc.TFormat(
@@ -223,22 +216,25 @@ public sealed class OverlayWindow : Window
 
             var (typeTag, typeColor) = m.Type switch
             {
-                TimelineEntryType.TankBuster => ("TB", TankBusterLabelColor),
-                TimelineEntryType.Raidwide   => ("RW", RaidwideLabelColor),
-                TimelineEntryType.Enrage     => ("!!", MechanicImminentColor),
-                TimelineEntryType.Phase      => (">>", PhaseLabelColor),
-                TimelineEntryType.Stack      => ("ST", MechanicUpcomingColor),
-                TimelineEntryType.Spread     => ("SP", MechanicUpcomingColor),
-                TimelineEntryType.Movement   => ("MV", MechanicUpcomingColor),
-                TimelineEntryType.Adds       => ("AD", MechanicUpcomingColor),
-                _                            => ("  ", MechanicUpcomingColor),
+                TimelineEntryType.TankBuster => ("TANKBUSTER", TankBusterLabelColor),
+                TimelineEntryType.Raidwide   => ("RAIDWIDE", RaidwideLabelColor),
+                TimelineEntryType.Enrage     => ("ENRAGE", MechanicImminentColor),
+                TimelineEntryType.Phase      => ("PHASE", PhaseLabelColor),
+                TimelineEntryType.Stack      => ("STACK", MechanicUpcomingColor),
+                TimelineEntryType.Spread     => ("SPREAD", MechanicUpcomingColor),
+                TimelineEntryType.Movement   => ("MOVE", MechanicUpcomingColor),
+                TimelineEntryType.Adds       => ("ADDS", MechanicUpcomingColor),
+                _                            => ("·", MechanicUpcomingColor),
             };
 
             ImGui.TextColored(typeColor, typeTag);
             ImGui.SameLine();
             ImGui.TextColored(timeColor, $"{m.SecondsUntil:F1}s");
             ImGui.SameLine();
-            ImGui.Text(m.Name);
+            if (shown == 0)
+                ImGui.Text(m.Name);
+            else
+                ImGui.TextColored(Common.DaedalusTheme.TextSecondary, m.Name);
 
             shown++;
         }

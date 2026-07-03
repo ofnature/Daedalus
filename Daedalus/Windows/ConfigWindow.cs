@@ -267,6 +267,8 @@ public sealed class ConfigWindow : Window
 
     private void DrawCurrentSection()
     {
+        JobSectionHeader.Draw(sidebar.CurrentSection);
+
         switch (sidebar.CurrentSection)
         {
             case ConfigSection.General:

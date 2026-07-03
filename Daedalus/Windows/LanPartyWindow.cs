@@ -6,6 +6,7 @@ using System.Text;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.Windowing;
 using Daedalus.Services.Network;
+using Daedalus.Windows.Common;
 
 namespace Daedalus.Windows;
 
@@ -16,11 +17,12 @@ namespace Daedalus.Windows;
 /// </summary>
 public sealed class LanPartyWindow : Window
 {
-    private static readonly Vector4 Green = new(0.3f, 0.9f, 0.3f, 1f);
-    private static readonly Vector4 Grey = new(0.5f, 0.5f, 0.5f, 1f);
-    private static readonly Vector4 Red = new(1f, 0.35f, 0.35f, 1f);
-    private static readonly Vector4 Dim = new(0.62f, 0.62f, 0.62f, 1f);
-    private static readonly Vector4 HpColor = new(0.25f, 0.75f, 0.35f, 1f);
+    private static readonly Vector4 Green = DaedalusTheme.StatusGreen;
+    private static readonly Vector4 Yellow = DaedalusTheme.StatusYellow;
+    private static readonly Vector4 Grey = DaedalusTheme.StatusGrey;
+    private static readonly Vector4 Red = DaedalusTheme.StatusRed;
+    private static readonly Vector4 Dim = DaedalusTheme.TextSecondary;
+    private static readonly Vector4 HpColor = DaedalusTheme.StatusGreen;
 
     // Mythological aliases for the scramble toggle — assigned first-seen, stable per session.
     private static readonly string[] AliasPool =
@@ -81,7 +83,11 @@ public sealed class LanPartyWindow : Window
                     currentMachine = peer.MachineId;
                     machineIndex++;
                     ImGui.Spacing();
-                    ImGui.TextColored(Dim, $"Machine {machineIndex} ({(isLocal ? "Local" : "Remote")})");
+                    // Machine id is the hostname since the per-PC identity fix — show it.
+                    ImGui.TextColored(isLocal ? DaedalusTheme.AccentGold : DaedalusTheme.AccentDim,
+                        $"■ {peer.MachineId}");
+                    ImGui.SameLine();
+                    ImGui.TextColored(DaedalusTheme.TextDisabled, isLocal ? "(Local)" : "(Remote)");
                 }
 
                 DrawToonRow(peer, now, cfg.LanCompactMode, cfg.LanShowHpBars, cfg.LanScrambleNames);
@@ -119,8 +125,8 @@ public sealed class LanPartyWindow : Window
 
     private void DrawToonRow(LanPeerInfo peer, DateTime now, bool compact, bool showHp, bool scramble)
     {
-        var stale = peer.IsStale(now);
-        ImGui.TextColored(stale ? Grey : Green, "●");
+        var (state, stateColor, diagnosis) = SyncStateFor(peer, now);
+        DrawRoleSyncIcon(peer.Role, state, stateColor);
         ImGui.SameLine();
 
         var name = scramble ? AliasFor(peer.SenderId) : peer.CharacterName;
@@ -132,16 +138,71 @@ public sealed class LanPartyWindow : Window
         if (showHp && !compact)
         {
             ImGui.SameLine();
-            ImGui.PushStyleColor(ImGuiCol.PlotHistogram, HpColor);
-            ImGui.ProgressBar(Math.Clamp(peer.HpPercent, 0f, 1f), new Vector2(120, 14), $"{peer.HpPercent:P0}");
+            // Stale data renders a grey bar — the number is a memory, not a reading.
+            ImGui.PushStyleColor(ImGuiCol.PlotHistogram, state == SyncState.Synced ? HpColor : Grey);
+            ImGui.ProgressBar(Math.Clamp(peer.HpPercent, 0f, 1f), new Vector2(110, 14), $"{peer.HpPercent:P0}");
             ImGui.PopStyleColor();
         }
 
-        if (peer.AssignedSlot.Length > 0 || peer.Role.Length > 0)
+        if (peer.AssignedSlot.Length > 0)
         {
             ImGui.SameLine();
-            ImGui.TextColored(Dim, peer.AssignedSlot.Length > 0 ? peer.AssignedSlot : peer.Role);
+            ImGui.TextColored(Dim, peer.AssignedSlot);
         }
+
+        ImGui.SameLine();
+        ImGui.TextColored(state == SyncState.Synced ? DaedalusTheme.TextDisabled : stateColor, diagnosis);
+    }
+
+    private enum SyncState { NoData, Synced, SyncIssue, ConnectionLost }
+
+    /// <summary>
+    /// Heartbeat freshness → sync state. Thresholds mirror the bus: fresh under 5s, stale 5-15s,
+    /// beyond that the peer is effectively gone (the roster drops it entirely at 30s).
+    /// </summary>
+    private static (SyncState state, Vector4 color, string diagnosis) SyncStateFor(LanPeerInfo peer, DateTime now)
+    {
+        if (peer.Role.Length == 0 && peer.JobAbbrev.Length == 0)
+            return (SyncState.NoData, Grey, "negotiating…");
+
+        var age = (now - peer.LastSeenUtc).TotalSeconds;
+        if (age <= 5)
+            return (SyncState.Synced, Green, "synced");
+        if (age <= 15)
+            return (SyncState.SyncIssue, Yellow, $"hb {age:F1}s late");
+        return (SyncState.ConnectionLost, Red, $"lost {age:F0}s ago");
+    }
+
+    /// <summary>
+    /// Role glyph (T/H/D) doubling as sync health: filled chip in the state color when we have
+    /// data, hollow grey outline while negotiating. Legend lives in the (?) tooltip below.
+    /// </summary>
+    private static void DrawRoleSyncIcon(string role, SyncState state, Vector4 color)
+    {
+        var glyph = role.Contains("Tank", StringComparison.OrdinalIgnoreCase) ? "T"
+                  : role.Contains("Heal", StringComparison.OrdinalIgnoreCase) ? "H"
+                  : role.Length > 0 ? "D" : "?";
+
+        var dl = ImGui.GetWindowDrawList();
+        var pos = ImGui.GetCursorScreenPos();
+        var size = new Vector2(18, 18);
+        var rectMin = pos;
+        var rectMax = pos + size;
+
+        if (state == SyncState.NoData)
+        {
+            dl.AddRect(rectMin, rectMax, ImGui.ColorConvertFloat4ToU32(Grey), 4f);
+            var half = ImGui.CalcTextSize(glyph) / 2f;
+            dl.AddText(pos + size / 2f - half, ImGui.ColorConvertFloat4ToU32(Grey), glyph);
+        }
+        else
+        {
+            dl.AddRectFilled(rectMin, rectMax, ImGui.ColorConvertFloat4ToU32(color), 4f);
+            var half = ImGui.CalcTextSize(glyph) / 2f;
+            dl.AddText(pos + size / 2f - half, ImGui.ColorConvertFloat4ToU32(DaedalusTheme.BgDeep), glyph);
+        }
+
+        ImGui.Dummy(size);
     }
 
     private void DrawToggles()
@@ -167,6 +228,14 @@ public sealed class LanPartyWindow : Window
 
         if (ImGui.Button("Copy Party Data"))
             ImGui.SetClipboardText(BuildPartyDataText());
+
+        ImGui.SameLine();
+        DaedalusTheme.HelpMarker(
+            "Role icon fill = sync state\n" +
+            "green — synced (heartbeat fresh)\n" +
+            "yellow — sync issue (heartbeat stale)\n" +
+            "red — connection lost\n" +
+            "hollow — no data yet");
 
         if (changed) _save();
     }

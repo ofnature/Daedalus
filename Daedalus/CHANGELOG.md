@@ -5,6 +5,13 @@ All notable changes to Daedalus will be documented in this file.
 <!-- LATEST-START -->
 ## v0.1.0 — 2026-06-27
 
+### New — The Daedalus look: UI overhaul (goodbye Olympus grey)
+- Every core window now wears the Daedalus identity — dark layered panels with gold accents, status colors reserved for actual status. Design system lives in the repo (`docs/ui-mockups/` has browser-viewable mockups of every window)
+- **Main window**: status row with live GCD uptime from the last fight, rotation codename in gold with the current duty underneath, and the Enable/Disable master switch as the one gold-filled button in the plugin. The LAN Party button shows a green presence dot while peers are connected; version moved to the footer
+- **Overlay**: semi-transparent, status pill toggle (Running/Paused), next action in gold, HP and injured-party on one line, and the mechanics forecast now uses full severity tags (RAIDWIDE / TANKBUSTER / ENRAGE) with urgency-colored countdowns — the nearest mechanic stays bright, later rows dim
+- **Party Coordination**: machine headers show the actual hostname; each toon's role icon (T/H/D chip) doubles as sync health — filled green when synced, yellow when the heartbeat runs late, red when the connection drops, hollow while negotiating — with the reason spelled out beside the HP bar and a (?) legend tooltip
+- **Settings**: the sidebar's old blue selection is replaced by a gold accent bar over a soft gold wash, group headers are dimmed for hierarchy, and every job section opens with its name, Greek codename, and an honest validation chip (validated / pending / untested)
+
 ### New — LAN Coordinator: cross-machine party coordination
 - Daedalus instances on **different PCs** can now coordinate over the local network (UDP broadcast, same VLAN — no router setup). Same-machine toons keep using the existing low-latency IPC; a new coordination bus mirrors all party-coordination traffic across both transports and deduplicates automatically, so nothing double-processes. Opt-in under Party Coordination settings: enable toggle, port (default 47200), machine ID display and a live status indicator — remember to allow the UDP port through Windows Firewall on every machine
 - **New Party Coordination window** (appears while LAN is enabled): every toon across all machines grouped per machine with online dot, name, job, HP bar and assigned role slot — fed by 2-second heartbeats (grey after 5s silence, dropped after 30s), with peer count and latency in the status bar. **Scramble Names** swaps character names for mythological aliases (stream/screenshot safe, display-only), plus HP-bar, remote-only and compact toggles, and a Copy Party Data button

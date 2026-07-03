@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Daedalus UI Mockup</title>
+<style>
+body{background:#26262e;margin:0;padding:24px;display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start;justify-content:center}
+.dw{background:#1F1F26;border:1px solid #33333d;border-radius:6px;font-family:"Segoe UI",system-ui,sans-serif;font-size:13px;color:#EBE6D9;overflow:hidden}
+.dt{background:#141419;padding:6px 10px;display:flex;align-items:center;gap:8px;font-size:12px;color:#99948C;border-bottom:1px solid #33333d}
+.db{padding:10px 12px}
+.sep{display:flex;align-items:center;gap:8px;color:#D9A633;font-size:12px;font-weight:500;margin:12px 0 6px}
+.sep::before,.sep::after{content:"";height:1px;background:#33333d;flex:1}
+.cb{display:flex;align-items:center;gap:7px;margin:4px 0;color:#EBE6D9}
+.bx{width:13px;height:13px;border:1px solid #595961;border-radius:2px;background:#141419;display:inline-flex;align-items:center;justify-content:center;color:#D9A633;font-size:11px;line-height:1;flex:none}
+.row{display:flex;align-items:center;gap:8px;padding:4px 6px;border-radius:2px}
+.hp{width:76px;height:11px;background:#141419;border:1px solid #33333d;border-radius:2px;overflow:hidden}
+.ri{width:20px;height:20px;border-radius:4px;display:inline-flex;align-items:center;justify-content:center;font-size:13px;font-weight:700}
+.q{color:#595961;font-size:11px;cursor:default}
+.sg{color:#737380;font-size:10px;letter-spacing:.08em;padding:8px 10px 3px}
+.si{padding:3px 10px 3px 14px;color:#99948C;font-size:12px}
+.si.on{color:#D9A633;background:rgba(217,166,51,.10);border-left:2px solid #D9A633;padding-left:12px}
+.sl{flex:1;max-width:170px;height:14px;background:#141419;border:1px solid #33333d;border-radius:2px;position:relative}
+.sl i{position:absolute;top:1px;width:9px;height:10px;background:#D9A633;border-radius:2px;font-style:normal}
+.slr{display:flex;align-items:center;gap:8px;margin:5px 0}
+.lbl{color:#99948C;font-size:12px;width:150px;flex:none}
+.combo{background:#141419;border:1px solid #33333d;border-radius:3px;padding:3px 8px;font-size:12px;color:#EBE6D9;display:inline-flex;align-items:center;gap:10px}
+.btn{border:1px solid #4d4d59;border-radius:3px;padding:5px 0;font-size:12px;color:#EBE6D9;text-align:center;background:#26262e}
+.sm{font-size:11px;color:#99948C;border:1px solid #33333d;border-radius:3px;padding:1px 7px;background:#191920}
+.mrow{display:flex;align-items:center;gap:7px;padding:2px 0;font-size:12px}
+.tag{font-size:10px;border-radius:2px;padding:1px 5px;font-weight:500}
+.qw{position:relative;display:inline-block}
+.qw .tip{display:none;position:absolute;bottom:22px;right:-8px;background:#141419;border:1px solid #4d4d59;border-radius:4px;padding:8px 11px;width:210px;font-size:12px;color:#EBE6D9;z-index:5}
+.qw:hover .tip{display:block}
+details.sec summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:6px;padding:4px 6px;background:#26262e;border-radius:3px;margin-top:6px}
+details.sec summary::before{content:"\25B8";color:#99948C;font-size:11px}
+details.sec[open] summary::before{content:"\25BE"}
+</style></head><body>
+
+<div class="dw" style="width:288px">
+  <div class="dt"><span style="color:#595961">&#9660;</span><span style="color:#EBE6D9;font-weight:500">Daedalus</span><span style="margin-left:auto;color:#595961">&#10005;</span></div>
+  <div style="padding:10px 12px">
+    <div style="display:flex;align-items:center;gap:8px"><span style="color:#33BF59;font-size:12px">&#9679; Enabled</span><span style="color:#595961;font-size:11px">Dungeon preset</span><span style="margin-left:auto;color:#33BF59;font-size:11px">100% uptime</span></div>
+    <div style="margin:6px 0 2px;font-size:14px"><span style="color:#D9A633;font-weight:500">Terpsichore</span> <span style="color:#99948C">(DNC Lv.64)</span></div>
+    <div style="color:#595961;font-size:11px">The Porta Decumana &mdash; Boss: The Ultima Weapon</div>
+    <div style="margin:10px 0 8px;background:#D9A633;color:#141419;border-radius:3px;text-align:center;padding:6px 0;font-weight:500;font-size:13px">Disable</div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px"><span style="color:#99948C;font-size:12px">Preset</span><span class="combo" style="flex:1;justify-content:space-between">Dungeon <span style="color:#595961">&#9662;</span></span></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+      <span class="btn">Settings</span><span class="btn">Overlay</span><span class="btn">Analytics</span><span class="btn">Training</span>
+      <span class="btn">Control</span><span class="btn">Nav Control</span><span class="btn">Raid</span>
+      <span class="btn" style="border-color:#8C6B21;color:#D9A633">LAN Party <span style="color:#33BF59;font-size:10px">&#9679;</span></span>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;margin-top:10px;border-top:1px solid #33333d;padding-top:8px">
+      <span class="sm">Changelog</span><span style="color:#595961">&middot;</span><span class="sm">Debug</span><span style="color:#595961">&middot;</span><span class="sm">Missing</span>
+      <span style="margin-left:auto;color:#595961;font-size:10px">v0.1.0</span>
+    </div>
+  </div>
+</div>
+<div style="display:flex;flex-direction:column;gap:8px;align-items:center">
+<div class="dw" style="width:238px;background:rgba(20,20,25,.88);border-color:#2b2b33">
+  <div style="padding:8px 10px">
+    <div style="display:flex;align-items:center;gap:8px"><span style="background:#26262e;border:1px solid #33bf5944;border-radius:10px;color:#33BF59;font-size:11px;padding:1px 8px">&#9679; Running</span><span style="color:#99948C;font-size:11px">Terpsichore (DNC)</span></div>
+    <div style="display:flex;align-items:baseline;gap:6px;margin:6px 0 4px"><span style="color:#99948C;font-size:12px">Next:</span><span style="color:#D9A633;font-weight:500;font-size:14px">Standard Finish</span></div>
+    <div style="display:flex;gap:14px;font-size:12px"><span><span style="color:#99948C">HP:</span> <span style="color:#33BF59">87%</span></span><span><span style="color:#99948C">Party:</span> 4</span><span><span style="color:#99948C">GCD:</span> 1.2s</span></div>
+    <div style="height:1px;background:#2b2b33;margin:7px 0 5px"></div>
+    <div style="color:#595961;font-size:11px;margin-bottom:2px">The Ultima Weapon</div>
+    <div class="mrow"><span class="tag" style="background:#3d3210;color:#D9BF1A">RAIDWIDE</span><span style="color:#D9BF1A;width:36px;text-align:right">6.2s</span><span>Ultima Blaster</span></div>
+    <div class="mrow"><span class="tag" style="background:#3d1512;color:#F09595">TANKBUSTER</span><span style="color:#99948C;width:36px;text-align:right">14.8s</span><span style="color:#99948C">Ceruleum Vent</span></div>
+    <div class="mrow"><span class="tag" style="background:#26262e;color:#737380">DOWNTIME</span><span style="color:#99948C;width:36px;text-align:right">32s</span><span style="color:#99948C">Phase transition</span></div>
+  </div>
+</div>
+<span style="color:#99948C;font-size:12px">Overlay &mdash; semi-transparent, no title bar</span>
+</div>
+</body></html>

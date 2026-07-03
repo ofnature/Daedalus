@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Daedalus UI Mockup</title>
+<style>
+body{background:#26262e;margin:0;padding:24px;display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start;justify-content:center}
+.dw{background:#1F1F26;border:1px solid #33333d;border-radius:6px;font-family:"Segoe UI",system-ui,sans-serif;font-size:13px;color:#EBE6D9;overflow:hidden}
+.dt{background:#141419;padding:6px 10px;display:flex;align-items:center;gap:8px;font-size:12px;color:#99948C;border-bottom:1px solid #33333d}
+.db{padding:10px 12px}
+.sep{display:flex;align-items:center;gap:8px;color:#D9A633;font-size:12px;font-weight:500;margin:12px 0 6px}
+.sep::before,.sep::after{content:"";height:1px;background:#33333d;flex:1}
+.cb{display:flex;align-items:center;gap:7px;margin:4px 0;color:#EBE6D9}
+.bx{width:13px;height:13px;border:1px solid #595961;border-radius:2px;background:#141419;display:inline-flex;align-items:center;justify-content:center;color:#D9A633;font-size:11px;line-height:1;flex:none}
+.row{display:flex;align-items:center;gap:8px;padding:4px 6px;border-radius:2px}
+.hp{width:76px;height:11px;background:#141419;border:1px solid #33333d;border-radius:2px;overflow:hidden}
+.ri{width:20px;height:20px;border-radius:4px;display:inline-flex;align-items:center;justify-content:center;font-size:13px;font-weight:700}
+.q{color:#595961;font-size:11px;cursor:default}
+.sg{color:#737380;font-size:10px;letter-spacing:.08em;padding:8px 10px 3px}
+.si{padding:3px 10px 3px 14px;color:#99948C;font-size:12px}
+.si.on{color:#D9A633;background:rgba(217,166,51,.10);border-left:2px solid #D9A633;padding-left:12px}
+.sl{flex:1;max-width:170px;height:14px;background:#141419;border:1px solid #33333d;border-radius:2px;position:relative}
+.sl i{position:absolute;top:1px;width:9px;height:10px;background:#D9A633;border-radius:2px;font-style:normal}
+.slr{display:flex;align-items:center;gap:8px;margin:5px 0}
+.lbl{color:#99948C;font-size:12px;width:150px;flex:none}
+.combo{background:#141419;border:1px solid #33333d;border-radius:3px;padding:3px 8px;font-size:12px;color:#EBE6D9;display:inline-flex;align-items:center;gap:10px}
+.btn{border:1px solid #4d4d59;border-radius:3px;padding:5px 0;font-size:12px;color:#EBE6D9;text-align:center;background:#26262e}
+.sm{font-size:11px;color:#99948C;border:1px solid #33333d;border-radius:3px;padding:1px 7px;background:#191920}
+.mrow{display:flex;align-items:center;gap:7px;padding:2px 0;font-size:12px}
+.tag{font-size:10px;border-radius:2px;padding:1px 5px;font-weight:500}
+.qw{position:relative;display:inline-block}
+.qw .tip{display:none;position:absolute;bottom:22px;right:-8px;background:#141419;border:1px solid #4d4d59;border-radius:4px;padding:8px 11px;width:210px;font-size:12px;color:#EBE6D9;z-index:5}
+.qw:hover .tip{display:block}
+details.sec summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:6px;padding:4px 6px;background:#26262e;border-radius:3px;margin-top:6px}
+details.sec summary::before{content:"\25B8";color:#99948C;font-size:11px}
+details.sec[open] summary::before{content:"\25BE"}
+</style></head><body>
+
+<div class="dw" style="width:392px">
+  <div class="dt"><span style="color:#595961">&#9660;</span><span style="color:#EBE6D9;font-weight:500">Missing &mdash; Blue Mage Loadouts</span><span style="margin-left:auto;color:#595961">&#10005;</span></div>
+  <div class="db">
+    <div style="font-size:12px"><span>Job: Blue Mage (Lv.80)</span> <span style="color:#99948C">&mdash; 96/124 learned</span></div>
+    <details class="sec" open>
+      <summary><span style="color:#D9A633;font-weight:500">Tank</span><span style="color:#99948C;font-size:12px;margin-left:auto">21/24 slotted &middot; 2 not learned</span></summary>
+      <div style="padding:4px 4px 2px 14px">
+        <div class="row" style="background:rgba(38,38,46,.6)"><span style="color:#33BF59">&#10004;</span><span>Diamondback</span><span style="color:#595961;font-size:11px;margin-left:auto">slotted</span></div>
+        <div class="row"><span style="color:#33BF59">&#10004;</span><span>Mighty Guard</span><span style="color:#595961;font-size:11px;margin-left:auto">slotted</span></div>
+        <div class="row" style="background:rgba(38,38,46,.6)"><span style="color:#D9BF1A">&#9679;</span><span>Devour</span><span style="color:#D9BF1A;font-size:11px;margin-left:auto">learned, not slotted</span></div>
+        <div class="row"><span style="color:#D94033">&#10008;</span><span>Dragon Force</span><span style="color:#99948C;font-size:11px;margin-left:auto">Duty: Containment Bay P1T6</span></div>
+        <div class="row" style="background:rgba(38,38,46,.6)"><span style="color:#D94033">&#10008;</span><span>Chelonian Gate</span><span style="color:#99948C;font-size:11px;margin-left:auto">Duty: Hells&#39; Lid</span></div>
+      </div>
+    </details>
+    <details class="sec"><summary><span style="color:#D9A633;font-weight:500">DPS</span><span style="color:#33BF59;font-size:12px;margin-left:auto">24/24 slotted</span></summary></details>
+    <details class="sec"><summary><span style="color:#D9A633;font-weight:500">Healer</span><span style="color:#99948C;font-size:12px;margin-left:auto">19/24 slotted &middot; 4 not learned</span></summary></details>
+  </div>
+</div>
+<div class="dw" style="width:250px">
+  <div class="dt"><span style="color:#595961">&#9660;</span><span style="color:#EBE6D9;font-weight:500">Nav Control</span><span style="margin-left:auto;color:#595961">&#10005;</span></div>
+  <div class="db">
+    <div class="sep">Movement</div>
+    <div class="cb"><span class="bx">&#10003;</span>Solo Position Lock <span class="q">(?)</span></div>
+    <div class="slr"><span class="sl"><i style="left:22%"></i></span><span style="font-size:12px">0.5 y</span></div>
+    <div style="color:#99948C;font-size:11px;margin-top:-2px">vNav Flex</div>
+    <div class="sep">Debug</div>
+    <div class="cb"><span class="bx"></span>Show Hitbox Rings</div>
+    <div class="sep">Tank</div>
+    <div class="cb"><span class="bx">&#10003;</span>Add Pull</div>
+    <div class="cb"><span class="bx"></span>Tank Mode: Add Puller</div>
+  </div>
+</div>
+</body></html>

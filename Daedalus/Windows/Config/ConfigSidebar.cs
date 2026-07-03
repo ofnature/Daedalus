@@ -70,10 +70,12 @@ public enum ConfigSection
 public sealed class ConfigSidebar
 {
     private const float SidebarWidth = 150f;
-    private static readonly Vector4 HeaderColor = new(0.7f, 0.7f, 0.7f, 1.0f);
-    private static readonly Vector4 SelectedColor = new(0.3f, 0.5f, 0.8f, 1.0f);
-    private static readonly Vector4 HoverColor = new(0.25f, 0.4f, 0.6f, 1.0f);
-    private static readonly Vector4 SearchMatchColor = new(1.0f, 0.9f, 0.4f, 1.0f);
+    // Daedalus identity (docs/ui-mockups/config-window.html): dim small-cap group headers, gold
+    // selection with a left accent bar over a faint gold wash — the old Olympus blue is gone.
+    private static readonly Vector4 HeaderColor = Daedalus.Windows.Common.DaedalusTheme.StatusGrey;
+    private static readonly Vector4 SelectedColor = Daedalus.Windows.Common.DaedalusTheme.AccentWash;
+    private static readonly Vector4 SelectedAccent = Daedalus.Windows.Common.DaedalusTheme.AccentGold;
+    private static readonly Vector4 SearchMatchColor = Daedalus.Windows.Common.DaedalusTheme.StatusYellow;
 
     private static readonly ConfigSection[] BehaviorSections    = [ConfigSection.General, ConfigSection.Targeting, ConfigSection.RoleActions, ConfigSection.Consumables, ConfigSection.Timeline];
     private static readonly ConfigSection[] VisualsSections     = [ConfigSection.Display, ConfigSection.DrawHelper, ConfigSection.ActionFeed, ConfigSection.DebugDisplay];
@@ -266,16 +268,15 @@ public sealed class ConfigSidebar
     {
         var isSelected = CurrentSection == section;
 
-        // Draw selection highlight
+        // Selection: faint gold wash + 2px gold accent bar on the left edge
         if (isSelected)
         {
             var cursorPos = ImGui.GetCursorScreenPos();
             var regionAvail = ImGui.GetContentRegionAvail();
             var drawList = ImGui.GetWindowDrawList();
-            drawList.AddRectFilled(
-                cursorPos,
-                new Vector2(cursorPos.X + regionAvail.X, cursorPos.Y + ImGui.GetTextLineHeightWithSpacing()),
-                ImGui.GetColorU32(SelectedColor));
+            var rowMax = new Vector2(cursorPos.X + regionAvail.X, cursorPos.Y + ImGui.GetTextLineHeightWithSpacing());
+            drawList.AddRectFilled(cursorPos, rowMax, ImGui.GetColorU32(SelectedColor));
+            drawList.AddRectFilled(cursorPos, new Vector2(cursorPos.X + 2f, rowMax.Y), ImGui.GetColorU32(SelectedAccent));
         }
 
         ImGui.Indent(10);
@@ -294,15 +295,15 @@ public sealed class ConfigSidebar
             }
         }
 
-        var textColor = color ?? new Vector4(1f, 1f, 1f, 1f);
+        var textColor = color ?? Daedalus.Windows.Common.DaedalusTheme.TextSecondary;
         if (isSelected)
-            textColor = new Vector4(1f, 1f, 1f, 1f);
+            textColor = SelectedAccent;
         else if (isSearchMatch)
             textColor = SearchMatchColor;
 
         ImGui.PushStyleColor(ImGuiCol.Text, textColor);
         ImGui.PushStyleColor(ImGuiCol.Header, SelectedColor);
-        ImGui.PushStyleColor(ImGuiCol.HeaderHovered, HoverColor);
+        ImGui.PushStyleColor(ImGuiCol.HeaderHovered, Daedalus.Windows.Common.DaedalusTheme.AccentWash);
         ImGui.PushStyleColor(ImGuiCol.HeaderActive, SelectedColor);
 
         var selectableWidth = hasIcon ? SidebarWidth - 45 : SidebarWidth - 25;

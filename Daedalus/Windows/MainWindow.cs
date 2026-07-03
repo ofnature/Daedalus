@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Numerics;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.Textures;
@@ -6,10 +6,10 @@ using Dalamud.Interface.Windowing;
 using Dalamud.Plugin.Services;
 using Daedalus.Config;
 using Daedalus.Data;
-using Daedalus.Windows.Config;
 using Daedalus.Localization;
 using Daedalus.Rotation;
 using Daedalus.Rotation.Common;
+using Daedalus.Windows.Common;
 
 namespace Daedalus.Windows;
 
@@ -29,12 +29,20 @@ public sealed class MainWindow : Window
     private readonly Action openNavControl;
     private readonly Action openRaid;
     private readonly Action openMissing;
+    private readonly string version;
 
     /// <summary>Opens the LAN party window. Null-tolerant: the button only renders when the LAN
     /// coordinator is enabled in Party Coordination settings.</summary>
     public Action? OpenLanParty { get; set; }
+
+    /// <summary>True while the LAN coordinator has live peers — draws the presence dot on the
+    /// LAN Party button. Optional; no dot when unset.</summary>
+    public Func<bool>? LanConnected { get; set; }
+
     private readonly RotationManager rotationManager;
     private readonly ITextureProvider textureProvider;
+    private readonly Daedalus.Services.ActionTracker? actionTracker;
+    private readonly Daedalus.Services.Content.IDutyContentService? dutyContent;
 
     public MainWindow(
         Configuration configuration,
@@ -51,8 +59,10 @@ public sealed class MainWindow : Window
         Action openMissing,
         string version,
         RotationManager rotationManager,
-        ITextureProvider textureProvider)
-        : base($"Daedalus v{version}", ImGuiWindowFlags.NoCollapse)
+        ITextureProvider textureProvider,
+        Daedalus.Services.ActionTracker? actionTracker = null,
+        Daedalus.Services.Content.IDutyContentService? dutyContent = null)
+        : base("Daedalus##Main", ImGuiWindowFlags.NoCollapse)
     {
         this.configuration = configuration;
         this.saveConfiguration = saveConfiguration;
@@ -66,33 +76,44 @@ public sealed class MainWindow : Window
         this.openNavControl = openNavControl;
         this.openRaid = openRaid;
         this.openMissing = openMissing;
+        this.version = version;
         this.rotationManager = rotationManager;
         this.textureProvider = textureProvider;
+        this.actionTracker = actionTracker;
+        this.dutyContent = dutyContent;
 
-        Size = new Vector2(250, 200);
+        Size = new Vector2(288, 240);
         SizeCondition = ImGuiCond.FirstUseEver;
     }
 
     public override void Draw()
     {
-        var statusColor = configuration.Enabled
-            ? new Vector4(0.0f, 1.0f, 0.0f, 1.0f)
-            : new Vector4(1.0f, 0.0f, 0.0f, 1.0f);
+        // Status row: state dot + active preset + last-fight GCD uptime (right-aligned)
+        var statusColor = configuration.Enabled ? DaedalusTheme.StatusGreen : DaedalusTheme.StatusGrey;
         var statusText = configuration.Enabled
-            ? Loc.T(LocalizedStrings.Main.Active, "ACTIVE")
-            : Loc.T(LocalizedStrings.Main.Inactive, "INACTIVE");
-
-        ImGui.TextColored(statusColor, statusText);
+            ? Loc.T(LocalizedStrings.Main.Active, "Enabled")
+            : Loc.T(LocalizedStrings.Main.Inactive, "Disabled");
+        DaedalusTheme.StatusDot(statusColor, statusText);
         ImGui.SameLine();
         ImGui.TextDisabled(PresetNames[(int)configuration.ActivePreset]);
 
-        // Show active rotation
+        if (actionTracker != null)
+        {
+            var uptime = actionTracker.GetGcdUptime();
+            if (uptime > 0f)
+            {
+                var label = $"{uptime:F0}% uptime";
+                ImGui.SameLine(ImGui.GetWindowWidth() - ImGui.CalcTextSize(label).X - ImGui.GetStyle().WindowPadding.X);
+                ImGui.TextColored(uptime >= 90f ? DaedalusTheme.StatusGreen : DaedalusTheme.TextSecondary, label);
+            }
+        }
+
+        // Active rotation: job icon + codename in gold + job in secondary
         var activeRotation = rotationManager.ActiveRotation;
         if (activeRotation != null)
         {
             var activeJobId = activeRotation.SupportedJobIds[0];
             var jobName = JobRegistry.GetJobName(activeJobId);
-            var activeColor = ConfigUIHelpers.AccentBlue;
 
             var iconId = JobRegistry.GetJobIconId(activeJobId);
             if (iconId != 0)
@@ -102,12 +123,19 @@ public sealed class MainWindow : Window
                 ImGui.SameLine();
             }
 
-            ImGui.TextColored(activeColor, $"{activeRotation.Name} ({jobName})");
+            ImGui.TextColored(DaedalusTheme.AccentGold, activeRotation.Name);
+            ImGui.SameLine();
+            ImGui.TextColored(DaedalusTheme.TextSecondary, $"({jobName})");
         }
         else
         {
-            ImGui.TextDisabled(Loc.T(LocalizedStrings.Main.SwitchToSupported, "No rotation \u2014 switch to a supported job"));
+            ImGui.TextDisabled(Loc.T(LocalizedStrings.Main.SwitchToSupported, "No rotation — switch to a supported job"));
         }
+
+        // Duty context line (open world shows nothing)
+        var dutyLabel = dutyContent?.DutyLabel;
+        if (!string.IsNullOrEmpty(dutyLabel))
+            ImGui.TextDisabled(dutyLabel);
 
         // Positional indicator — only shown for melee DPS jobs with an active target
         if (activeRotation is IHasPositionals posRotation)
@@ -115,19 +143,25 @@ public sealed class MainWindow : Window
             PositionalDisplayHelper.DrawMainWindow(posRotation.Positionals);
         }
 
-        ImGui.Separator();
+        ImGui.Spacing();
 
+        // The master switch — the one gold-filled control in the plugin.
         var enableDisableText = configuration.Enabled
             ? Loc.T(LocalizedStrings.Main.Disable, "Disable")
             : Loc.T(LocalizedStrings.Main.Enable, "Enable");
 
+        ImGui.PushStyleColor(ImGuiCol.Button, DaedalusTheme.AccentGold);
+        ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.95f, 0.75f, 0.30f, 1.00f));
+        ImGui.PushStyleColor(ImGuiCol.ButtonActive, DaedalusTheme.AccentDim);
+        ImGui.PushStyleColor(ImGuiCol.Text, DaedalusTheme.BgDeep);
         if (ImGui.Button(enableDisableText, new Vector2(-1, 28)))
         {
             configuration.Enabled = !configuration.Enabled;
             saveConfiguration();
         }
+        ImGui.PopStyleColor(4);
 
-        ImGui.Text(Loc.T(LocalizedStrings.Main.Preset, "Preset:"));
+        ImGui.TextColored(DaedalusTheme.TextSecondary, Loc.T(LocalizedStrings.Main.Preset, "Preset"));
         ImGui.SameLine();
         var currentPreset = (int)configuration.ActivePreset;
         ImGui.SetNextItemWidth(-1);
@@ -186,7 +220,7 @@ public sealed class MainWindow : Window
             openRaid();
         }
         // LAN party window — only offered while the LAN coordinator is enabled (Party Coordination
-        // settings); the window itself hosts the cross-machine roster/network UI.
+        // settings); a small green dot marks live peer presence.
         if (configuration.PartyCoordination.LanCoordinatorEnabled && OpenLanParty != null)
         {
             ImGui.SameLine();
@@ -194,26 +228,37 @@ public sealed class MainWindow : Window
             {
                 OpenLanParty();
             }
+            if (LanConnected?.Invoke() == true)
+            {
+                var max = ImGui.GetItemRectMax();
+                var min = ImGui.GetItemRectMin();
+                ImGui.GetWindowDrawList().AddCircleFilled(
+                    new Vector2(max.X - 7, min.Y + 7), 3f,
+                    ImGui.ColorConvertFloat4ToU32(DaedalusTheme.StatusGreen));
+            }
         }
 
-        // Footer links
+        // Footer links + version
         if (ImGui.SmallButton(Loc.T(LocalizedStrings.Main.Changelog, "Changelog")))
         {
             openChangelog();
         }
         ImGui.SameLine();
-        ImGui.Text("\u00B7");
+        ImGui.TextDisabled("·");
         ImGui.SameLine();
         if (ImGui.SmallButton(Loc.T(LocalizedStrings.Main.Debug, "Debug")))
         {
             openDebug();
         }
         ImGui.SameLine();
-        ImGui.Text("\u00B7");
+        ImGui.TextDisabled("·");
         ImGui.SameLine();
         if (ImGui.SmallButton(Loc.T(LocalizedStrings.Main.Missing, "Missing")))
         {
             openMissing();
         }
+        var versionLabel = $"v{version}";
+        ImGui.SameLine(ImGui.GetWindowWidth() - ImGui.CalcTextSize(versionLabel).X - ImGui.GetStyle().WindowPadding.X);
+        ImGui.TextDisabled(versionLabel);
     }
 }
