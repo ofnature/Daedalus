@@ -38,6 +38,8 @@ public sealed class FarmModeService : IDisposable
     private DateTime _arrivedAtSpotUtc;
     private DateTime _lastProgressUtc;
     private ulong _lastEngagedTargetId;
+    private ulong _approachTargetId;
+    private DateTime? _atTagRangeSinceUtc;
 
     /// <summary>User-facing progress/state notifications (Plugin routes these to chat).</summary>
     public event Action<string>? Notify;
@@ -176,8 +178,7 @@ public sealed class FarmModeService : IDisposable
         {
             _lastEngagedTargetId = target.GameObjectId;
             _lastProgressUtc = DateTime.UtcNow;
-            ApproachTarget(player, target.Position, target.HitboxRadius);
-            StatusLine = $"Fighting {target.Name}";
+            ApproachTarget(player, target);
             return;
         }
 
@@ -217,36 +218,70 @@ public sealed class FarmModeService : IDisposable
         }
     }
 
-    private void ApproachTarget(Dalamud.Game.ClientState.Objects.SubKinds.IPlayerCharacter player, Vector3 targetPosition, float targetHitbox)
+    /// <summary>
+    /// Farm-only pull tactic (deliberately not shared with any other movement system):
+    /// walk to ranged tag distance, stand still while the rotation tags the mob, let it run to
+    /// us and die on the way in (melee finishes when it arrives). If the tag window passes with
+    /// no engagement (kits without a ranged attack, e.g. MNK), walk to melee reach instead.
+    /// Uses only SimpleMove.PathfindAndMoveTo — the one vnavmesh endpoint proven on this install.
+    /// </summary>
+    private void ApproachTarget(
+        Dalamud.Game.ClientState.Objects.SubKinds.IPlayerCharacter player,
+        Dalamud.Game.ClientState.Objects.Types.IBattleNpc target)
     {
-        // Solo positional movement is suppressed by design elsewhere, so farm does its own
-        // approach: walk to the target's hitbox edge (melee reach for melee/tanks, cast range
-        // otherwise), then let the rotation take over. Re-path only when nav is idle (vNav
-        // stutter-step guard, same pattern as NinjaBurstApproachService).
-        // Uses PathfindAndMoveTo to a computed stop point — SimpleMove.PathfindAndMoveCloseTo
-        // is missing on older vnavmesh builds and failed silently in the field (the toon only
-        // moved when BMR AI happened to be on).
-        var stopDistance = FarmRoamPolicy.ApproachStopYalms(player.ClassJob.RowId);
-        var toPlayer = player.Position - targetPosition;
-        var distance = toPlayer.Length();
-        var edgeDistance = distance - targetHitbox - player.HitboxRadius;
+        // New target: reset the tag-window tracking.
+        if (target.GameObjectId != _approachTargetId)
+        {
+            _approachTargetId = target.GameObjectId;
+            _atTagRangeSinceUtc = null;
+        }
 
-        if (edgeDistance > stopDistance)
+        var toPlayer = player.Position - target.Position;
+        var distance = toPlayer.Length();
+        var edgeDistance = distance - target.HitboxRadius - player.HitboxRadius;
+
+        if (_atTagRangeSinceUtc == null && edgeDistance <= FarmRoamPolicy.TagRangeYalms)
+            _atTagRangeSinceUtc = DateTime.UtcNow;
+
+        // "Tagged" = the mob has turned on us (it targets the player) — from here it closes the
+        // distance itself while the rotation shoots it.
+        var engagedOnUs = target.TargetObjectId == player.GameObjectId;
+        var secondsAtTagRange = _atTagRangeSinceUtc.HasValue
+            ? (DateTime.UtcNow - _atTagRangeSinceUtc.Value).TotalSeconds
+            : 0;
+
+        switch (FarmRoamPolicy.DecideApproach(engagedOnUs, edgeDistance, secondsAtTagRange))
         {
-            if (!_vNav.IsPathRunning && !_vNav.IsPathfindInProgress)
-            {
-                var stopPoint = distance > 0.5f
-                    ? targetPosition + toPlayer / distance * (targetHitbox + player.HitboxRadius + stopDistance * 0.5f)
-                    : targetPosition;
-                var result = _vNav.PathfindAndMoveTo(_vNav.SnapToFloor(stopPoint));
-                if (result != VNavMoveResult.Queued)
-                    _log.Debug("[Farm] approach path not queued: {0}", result);
-            }
+            case FarmApproachAction.MoveToTagRange:
+                MoveTowardTarget(target.Position, toPlayer, distance, target.HitboxRadius, player.HitboxRadius, FarmRoamPolicy.TagRangeYalms * 0.85f);
+                StatusLine = $"Approaching {target.Name} (to tag range)";
+                break;
+
+            case FarmApproachAction.MoveToMelee:
+                MoveTowardTarget(target.Position, toPlayer, distance, target.HitboxRadius, player.HitboxRadius, FarmRoamPolicy.MeleeStopYalms * 0.6f);
+                StatusLine = $"Walking to {target.Name} (no ranged tag)";
+                break;
+
+            default:
+                if (_vNav.IsPathRunning)
+                    _vNav.Stop();
+                StatusLine = engagedOnUs ? $"Fighting {target.Name}" : $"Tagging {target.Name}";
+                break;
         }
-        else if (_vNav.IsPathRunning)
-        {
-            _vNav.Stop();
-        }
+    }
+
+    private void MoveTowardTarget(Vector3 targetPosition, Vector3 toPlayer, float distance, float targetHitbox, float playerHitbox, float stopEdgeYalms)
+    {
+        // Re-path only when nav is idle (vNav stutter-step guard).
+        if (_vNav.IsPathRunning || _vNav.IsPathfindInProgress)
+            return;
+
+        var stopPoint = distance > 0.5f
+            ? targetPosition + toPlayer / distance * (targetHitbox + playerHitbox + stopEdgeYalms)
+            : targetPosition;
+        var result = _vNav.PathfindAndMoveTo(_vNav.SnapToFloor(stopPoint));
+        if (result != VNavMoveResult.Queued)
+            _log.Debug("[Farm] approach path not queued: {0}", result);
     }
 
     private void Roam(Vector3 playerPosition, Vector3 spot)

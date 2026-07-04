@@ -1,5 +1,3 @@
-using Daedalus.Data;
-
 namespace Daedalus.Services.Farm;
 
 public enum FarmRoamAction
@@ -47,10 +45,53 @@ public static class FarmRoamPolicy
     public static bool IsComplete(uint itemCount, int targetCount)
         => targetCount > 0 && itemCount >= (uint)targetCount;
 
+    /// <summary>Edge distance at which every job can land a ranged tag (all casts/shots reach 25y).</summary>
+    public const float TagRangeYalms = 18f;
+
+    /// <summary>Melee-reach edge distance for the walk-in fallback.</summary>
+    public const float MeleeStopYalms = 2.5f;
+
     /// <summary>
-    /// How close the farm approach walks to the target's hitbox edge before letting the
-    /// rotation take over: melee reach for melee/tanks, comfortable cast range for everyone else.
+    /// How long to stand at tag range waiting for the rotation to tag the mob before walking to
+    /// melee instead (kits with no ranged attack — MNK — or ranged pulls disabled on tanks).
     /// </summary>
-    public static float ApproachStopYalms(uint jobId)
-        => JobRegistry.IsMeleeDps(jobId) || JobRegistry.IsTank(jobId) ? 2.5f : 18f;
+    public const double TagWindowSeconds = 4.0;
+
+    /// <summary>
+    /// Farm-only pull tactic (never shared with other movement systems): approach to ranged tag
+    /// distance, stand still and tag, let the mob run to us while the rotation shoots it, and
+    /// only walk to melee when the tag window expires without the mob engaging.
+    /// </summary>
+    public static FarmApproachAction DecideApproach(
+        bool targetEngagedOnUs,
+        float edgeDistanceYalms,
+        double secondsAtTagRange)
+    {
+        // Tagged: the mob is coming to us — stand and kill it on the way in.
+        if (targetEngagedOnUs)
+            return FarmApproachAction.Hold;
+
+        if (edgeDistanceYalms > TagRangeYalms)
+            return FarmApproachAction.MoveToTagRange;
+
+        if (edgeDistanceYalms <= MeleeStopYalms)
+            return FarmApproachAction.Hold;
+
+        // At tag range: give the rotation a window to land the ranged tag before walking in.
+        return secondsAtTagRange >= TagWindowSeconds
+            ? FarmApproachAction.MoveToMelee
+            : FarmApproachAction.Hold;
+    }
+}
+
+public enum FarmApproachAction
+{
+    /// <summary>Stand still (tagged mob incoming, standing in the tag window, or already in reach).</summary>
+    Hold,
+
+    /// <summary>Walk until the target is within ranged tag distance.</summary>
+    MoveToTagRange,
+
+    /// <summary>Tag window expired without engagement — walk to melee reach.</summary>
+    MoveToMelee,
 }

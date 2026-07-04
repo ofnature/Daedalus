@@ -59,15 +59,40 @@ public class FarmRoamPolicyTests
         Assert.False(FarmRoamPolicy.IsComplete(5, 0)); // unset target never completes
     }
 
-    [Theory]
-    [InlineData(19u, 2.5f)]  // PLD (tank)
-    [InlineData(34u, 2.5f)]  // SAM (melee)
-    [InlineData(23u, 18f)]   // BRD (ranged)
-    [InlineData(28u, 18f)]   // SCH (healer)
-    [InlineData(25u, 18f)]   // BLM (caster)
-    public void ApproachStopYalms_ByRole(uint jobId, float expected)
+    [Fact]
+    public void DecideApproach_EngagedMob_HoldsAtAnyDistance()
     {
-        Assert.Equal(expected, FarmRoamPolicy.ApproachStopYalms(jobId));
+        // Tagged mob is running to us — stand and shoot it on the way in.
+        Assert.Equal(FarmApproachAction.Hold, FarmRoamPolicy.DecideApproach(true, 30f, 0));
+        Assert.Equal(FarmApproachAction.Hold, FarmRoamPolicy.DecideApproach(true, 10f, 0));
+        Assert.Equal(FarmApproachAction.Hold, FarmRoamPolicy.DecideApproach(true, 1f, 99));
+    }
+
+    [Fact]
+    public void DecideApproach_FarTarget_MovesToTagRange()
+    {
+        Assert.Equal(FarmApproachAction.MoveToTagRange, FarmRoamPolicy.DecideApproach(false, 30f, 0));
+    }
+
+    [Fact]
+    public void DecideApproach_AtTagRange_HoldsThroughTagWindow()
+    {
+        // Standing at tag range: give the rotation time to land the ranged tag.
+        Assert.Equal(FarmApproachAction.Hold, FarmRoamPolicy.DecideApproach(false, 15f, 1.0));
+        Assert.Equal(FarmApproachAction.Hold, FarmRoamPolicy.DecideApproach(false, 15f, 3.9));
+    }
+
+    [Fact]
+    public void DecideApproach_TagWindowExpired_WalksToMelee()
+    {
+        // Kits with no ranged attack (MNK) never tag — walk in instead.
+        Assert.Equal(FarmApproachAction.MoveToMelee, FarmRoamPolicy.DecideApproach(false, 15f, 4.1));
+    }
+
+    [Fact]
+    public void DecideApproach_AlreadyInMeleeReach_Holds()
+    {
+        Assert.Equal(FarmApproachAction.Hold, FarmRoamPolicy.DecideApproach(false, 2f, 99));
     }
 
     [Fact]
