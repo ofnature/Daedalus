@@ -16,17 +16,18 @@ namespace Daedalus.Ipc;
 /// BossMod), and without one the quest just waits at the Combat step. This bridge reads
 /// Questionable's own read-side IPC (<c>Questionable.IsRunning</c> +
 /// <c>Questionable.GetCurrentStepData</c>): while a Combat step is active it holds the
-/// external-combat override AND acquires kill targets Henchman-style — nearest attackable enemy
-/// (engaged first, then idle mobs) becomes the hard target, the automation engage opens on it,
-/// and when it dies the next poll targets the next mob until the step advances.
+/// external-combat override AND acquires kill targets Henchman-style — enemies already fighting
+/// us first, then the nearest enemy the game has flagged with a quest nameplate icon; the
+/// automation engage opens on it, and when it dies the next poll targets the next mob until the
+/// step advances.
 /// </summary>
 /// <remarks>
-/// Questionable's step data does not expose the quest's kill-target data ids, so target selection
-/// is a nearest-hostile heuristic — Questionable navigates the player into the objective area, so
-/// the surrounding mobs are the quest mobs. If the user instead configures Questionable's combat
-/// module to "Rotation Solver Reborn", Questionable does its own (exact) targeting through
-/// <see cref="RsrCompatIpc"/> and this bridge simply re-asserts the same override alongside it.
-/// Fail-open: Questionable missing or IPC errors read as no combat step.
+/// Questionable's step data does not expose the quest's kill-target data ids, but the game itself
+/// marks objective mobs with a nameplate icon (the gold quest marker) — that is the targeting
+/// filter, so unrelated ambient mobs are never pulled. If the user instead configures
+/// Questionable's combat module to "Rotation Solver Reborn", Questionable does its own (exact)
+/// targeting through <see cref="RsrCompatIpc"/> and this bridge simply re-asserts the same
+/// override alongside it. Fail-open: Questionable missing or IPC errors read as no combat step.
 /// </remarks>
 public sealed class QuestionableIpc : IDisposable
 {
@@ -46,6 +47,10 @@ public sealed class QuestionableIpc : IDisposable
     private ICallGateSubscriber<bool>? _isRunning;
     private ICallGateSubscriber<StepData?>? _getStepData;
     private bool? _lastLoggedCombatStep;
+    private string _currentQuestId = "";
+
+    /// <summary>Quest id of the active Questionable combat step ("" when none) — for status display.</summary>
+    public string CurrentQuestId => _currentQuestId;
 
     /// <summary>Fired when this bridge flips the external-combat override.</summary>
     public event Action<bool>? OverrideChanged;
@@ -76,7 +81,7 @@ public sealed class QuestionableIpc : IDisposable
         var combatStep = ReadCombatStepActive();
         if (combatStep != _lastLoggedCombatStep)
         {
-            _log.Debug("[AutomationBridge:Questionable] combat step active={0}", combatStep);
+            _log.Debug("[AutomationBridge:Questionable] combat step active={0} (quest {1})", combatStep, _currentQuestId);
             _lastLoggedCombatStep = combatStep;
         }
 
@@ -109,8 +114,10 @@ public sealed class QuestionableIpc : IDisposable
 
     /// <summary>
     /// Henchman-style targeting: if the player has no live enemy target during a Questionable
-    /// combat step, hard-target the nearest attackable enemy so the automation engage opens on it.
-    /// Engaged enemies (something already attacking us) win over idle quest mobs.
+    /// combat step, hard-target the next kill candidate so the automation engage opens on it.
+    /// Priority: enemies already fighting us (finish the pull), then enemies the game has flagged
+    /// with a quest nameplate icon — the authoritative "counts for the objective" marker. Idle
+    /// unflagged mobs are never pulled (a nearest-anything fallback aggroed whole camps).
     /// </summary>
     private void TryAcquireKillTarget()
     {
@@ -122,7 +129,7 @@ public sealed class QuestionableIpc : IDisposable
             return;
 
         var candidate = _targetingService.FindNearbyEnemy(KillTargetScanRangeYalms, player)
-            ?? _targetingService.FindNearestTaggableEnemy(KillTargetScanRangeYalms, player);
+            ?? _targetingService.FindNearestQuestFlaggedEnemy(KillTargetScanRangeYalms, player);
         if (candidate == null)
             return;
 
@@ -133,6 +140,8 @@ public sealed class QuestionableIpc : IDisposable
 
     private bool ReadCombatStepActive()
     {
+        _currentQuestId = "";
+
         if (!IsQuestionableLoaded())
             return false;
 
@@ -144,7 +153,9 @@ public sealed class QuestionableIpc : IDisposable
 
             _getStepData ??= _pluginInterface.GetIpcSubscriber<StepData?>("Questionable.GetCurrentStepData");
             var step = _getStepData.InvokeFunc();
-            return string.Equals(step?.InteractionType, "Combat", StringComparison.OrdinalIgnoreCase);
+            var combat = string.Equals(step?.InteractionType, "Combat", StringComparison.OrdinalIgnoreCase);
+            _currentQuestId = combat ? step!.QuestId : "";
+            return combat;
         }
         catch (Exception ex)
         {

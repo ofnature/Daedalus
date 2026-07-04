@@ -548,7 +548,7 @@ public sealed class Plugin : IDalamudPlugin
             pluginInterface, configuration, log, targetManager, targetingService, objectTable);
         this.questionableIpc.OverrideChanged += enabled =>
             chatGui.Print(enabled
-                ? "Daedalus rotation started — Questionable kill step."
+                ? $"Daedalus rotation started — Questionable kill step (quest {this.questionableIpc.CurrentQuestId})."
                 : "Daedalus rotation stopped — Questionable kill step done.");
 
         if (fightSummaryService != null)

@@ -50,6 +50,14 @@ public interface ITargetingService
     IBattleNpc? FindNearestTaggableEnemy(float maxRange, IPlayerCharacter player);
 
     /// <summary>
+    /// Finds the nearest valid enemy the game has flagged with a nameplate icon — quest kill targets,
+    /// levequest mobs, treasure-hunt marks. The authoritative "this mob counts for my objective"
+    /// signal; ambient mobs are never flagged. Used by the Questionable kill-step bridge so quest
+    /// automation only pulls the mobs the quest actually wants.
+    /// </summary>
+    IBattleNpc? FindNearestQuestFlaggedEnemy(float maxRange, IPlayerCharacter player);
+
+    /// <summary>
     /// Counts the number of valid enemies within the specified radius of the player.
     /// </summary>
     int CountEnemiesInRange(float radius, IPlayerCharacter player);

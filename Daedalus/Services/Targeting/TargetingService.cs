@@ -354,6 +354,29 @@ public sealed class TargetingService : ITargetingService
         return nearest;
     }
 
+    public unsafe IBattleNpc? FindNearestQuestFlaggedEnemy(float maxRange, IPlayerCharacter player)
+    {
+        // Nameplate icon != 0 means the game has tagged this mob as belonging to the player's
+        // active quest / levequest / treasure hunt (RSR parity: ObjectHelper.GetNamePlateIcon).
+        // The authoritative "these are the mobs the quest wants dead" signal — no quest-data
+        // lookup needed, and it never flags unrelated ambient mobs.
+        IBattleNpc? nearest = null;
+        var nearestDist = float.MaxValue;
+        foreach (var enemy in GetValidEnemies(maxRange, player))
+        {
+            var obj = (FFXIVClientStructs.FFXIV.Client.Game.Object.GameObject*)enemy.Address;
+            if (obj == null || obj->NamePlateIconId == 0)
+                continue;
+            var dist = Vector3.DistanceSquared(player.Position, enemy.Position);
+            if (dist < nearestDist)
+            {
+                nearest = enemy;
+                nearestDist = dist;
+            }
+        }
+        return nearest;
+    }
+
     public IBattleNpc? FindNearestTaggableEnemy(float maxRange, IPlayerCharacter player)
     {
         // Nearest valid hostile in range that is NOT already focused on us — a pull/gather candidate.
