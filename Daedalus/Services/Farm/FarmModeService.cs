@@ -168,8 +168,11 @@ public sealed class FarmModeService : IDisposable
             ExternalCombatOverrideState.Source = "Farm";
         }
 
-        var target = _targetingService.GetUserEnemyTarget();
-        if (target != null)
+        // Raw hard-target check, deliberately NOT GetUserEnemyTarget(): that runs the
+        // attackability probe, which fails while the target is still out of range — the farm
+        // then never approached and only BMR AI (when enabled) happened to walk the toon in.
+        // The farm set this target itself; a live, targetable BattleNpc is enough to walk to.
+        if (_targetManager.Target is Dalamud.Game.ClientState.Objects.Types.IBattleNpc { IsDead: false, IsTargetable: true } target)
         {
             _lastEngagedTargetId = target.GameObjectId;
             _lastProgressUtc = DateTime.UtcNow;
