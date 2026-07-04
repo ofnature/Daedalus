@@ -65,8 +65,25 @@ public sealed class GeneralSection
         DrawModifierKeysSection();
         DrawResurrectionSection();
         DrawParserSection();
+        DrawFarmSection();
         DrawLanguageSection();
         DrawPrivacySection();
+    }
+
+    private void DrawFarmSection()
+    {
+        if (ConfigUIHelpers.SectionHeader("Farm", "Farm", false))
+        {
+            ConfigUIHelpers.BeginIndent();
+
+            ConfigUIHelpers.Toggle(
+                "Show Farm button on main window",
+                () => config.Farm.ShowFarmButton, v => config.Farm.ShowFarmButton = v,
+                "Adds a Farm button to the main window — kill selected mobs around your chosen spots until a target amount of an item is in your bag. Requires vnavmesh.",
+                save);
+
+            ConfigUIHelpers.EndIndent();
+        }
     }
 
     private void DrawParserSection()
@@ -360,11 +377,6 @@ public sealed class GeneralSection
 
             ConfigUIHelpers.Toggle(Loc.T(LocalizedStrings.Window.ShowDuringCutscenes, "Show window during cutscenes"), () => this.config.ShowDuringCutscenes, v => this.config.ShowDuringCutscenes = v,
                 Loc.T(LocalizedStrings.Window.ShowDuringCutsceneDesc, "When enabled, Daedalus windows stay visible during in-game cutscenes."), this.save);
-
-            ConfigUIHelpers.Spacing();
-
-            ConfigUIHelpers.Toggle("Show Farm button on main window", () => this.config.Farm.ShowFarmButton, v => this.config.Farm.ShowFarmButton = v,
-                "Adds a Farm button to the main window — kill selected mobs around your chosen spots until a target amount of an item is in your bag.", this.save);
 
             ConfigUIHelpers.Spacing();
 
