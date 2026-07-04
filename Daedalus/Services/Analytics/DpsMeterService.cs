@@ -345,6 +345,8 @@ public sealed class DpsMeterService : IDpsMeterService, IDisposable
     {
         while (pendingTicks.TryDequeue(out var tick))
         {
+            encounter.DotTicksProcessed++;
+
             if (tick.Amount <= 0 || tick.Amount > MaxPlausibleTickAmount)
                 continue;
 

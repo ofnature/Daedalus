@@ -102,6 +102,13 @@ public sealed class DpsEncounter
             UnattributedDotDamage += amount;
     }
 
+    /// <summary>
+    /// Raw HoT/DoT tick packets processed this encounter (before any attribution). Zero across a
+    /// DoT-heavy fight means the ActorControl hook isn't receiving ticks at all — pipeline
+    /// diagnosis, shown in the parser's "(?)" tooltip.
+    /// </summary>
+    public int DotTicksProcessed { get; internal set; }
+
     /// <summary>Name of the enemy that has received the most damage — the encounter title.</summary>
     public string TargetName { get; private set; } = "";
 
