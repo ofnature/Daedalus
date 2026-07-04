@@ -138,6 +138,14 @@ public sealed class GeneralSection
             ConfigUIHelpers.Spacing();
 
             ConfigUIHelpers.Toggle(
+                "Estimate shared DoT ticks",
+                () => config.Parser.EstimateSharedDotTicks, v => config.Parser.EstimateSharedDotTicks = v,
+                "The game merges every DoT on a target into one tick — with several casters DoTing (Trust allies) the owner is ambiguous. On: split it across casters by relative DoT potency (ACT-style estimate). Off: that damage only shows in the footer's \"+N DoT?\" counter.",
+                save);
+
+            ConfigUIHelpers.Spacing();
+
+            ConfigUIHelpers.Toggle(
                 Loc.T(LocalizedStrings.Parser.ScrambleNames, "Scramble names"),
                 () => config.Parser.ScrambleNames, v => config.Parser.ScrambleNames = v,
                 Loc.T(LocalizedStrings.Parser.ScrambleNamesDesc, "Replaces character names with mythological aliases — stream and screenshot safe, display only."),

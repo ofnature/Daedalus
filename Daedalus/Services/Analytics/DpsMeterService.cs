@@ -47,6 +47,12 @@ public sealed class DpsMeterService : IDpsMeterService, IDisposable
     /// <summary>Whether the tick's target is a hostile NPC (gates the unattributed counter). Injectable for tests.</summary>
     internal Func<uint, bool> IsHostileTargetLookup;
 
+    /// <summary>
+    /// Known DoT statuses on the target with their casters and relative tick-potency weights —
+    /// feeds the ACT-style split of aggregated multi-source ticks. Injectable for tests.
+    /// </summary>
+    internal Func<uint, IReadOnlyList<(uint SourceId, int Weight)>> DotSourcesLookup;
+
     // IPC/LAN self-report sharing (milestone 2) — null when party coordination is off.
     private CoordinationBus? bus;
     private readonly Func<ushort>? territoryProvider;
@@ -86,6 +92,7 @@ public sealed class DpsMeterService : IDpsMeterService, IDisposable
         this.StatusSourceLookup = DefaultStatusSourceLookup;
         this.SoleFriendlyStatusSourceLookup = DefaultSoleFriendlyStatusSourceLookup;
         this.IsHostileTargetLookup = DefaultIsHostileTarget;
+        this.DotSourcesLookup = DefaultDotSourcesLookup;
 
         combatEventService.OnDamageDealt += OnDamageDealt;
         combatEventService.OnDotTick += OnDotTick;
@@ -107,6 +114,7 @@ public sealed class DpsMeterService : IDpsMeterService, IDisposable
         this.StatusSourceLookup = (_, _) => 0;
         this.SoleFriendlyStatusSourceLookup = _ => 0;
         this.IsHostileTargetLookup = _ => true;
+        this.DotSourcesLookup = _ => Array.Empty<(uint, int)>();
 
         combatEventService.OnDamageDealt += OnDamageDealt;
         combatEventService.OnDotTick += OnDotTick;
@@ -343,8 +351,12 @@ public sealed class DpsMeterService : IDpsMeterService, IDisposable
             var resolved = TryAttributeTick(tick);
             if (resolved == null)
             {
-                // Only ticks on hostile targets count as "missing damage" — enemy DoTs on
-                // players and HoT ticks are correctly not ours and stay invisible.
+                // ACT-style estimate: split the merged tick across the known DoT statuses on the
+                // target by relative tick potency. Off, or no known DoTs found → count the drop
+                // (only on hostile targets — enemy DoTs on players / HoT ticks are correctly
+                // nobody's damage and stay invisible).
+                if (config.EstimateSharedDotTicks && TrySplitAggregatedTick(encounter, tick))
+                    continue;
                 if (IsHostileTargetLookup(tick.TargetEntityId))
                     encounter.AddUnattributedDot(tick.Amount);
                 continue;
@@ -444,6 +456,68 @@ public sealed class DpsMeterService : IDpsMeterService, IDisposable
     }
 
     private bool DefaultIsHostileTarget(uint targetId) => ResolveHostileTargetName(targetId) != null;
+
+    /// <summary>
+    /// Splits an aggregated multi-source tick across the target's known DoT casters by relative
+    /// tick potency. Returns false when nothing is known about the target's DoTs.
+    /// </summary>
+    private bool TrySplitAggregatedTick(DpsEncounter encounter, in DotTickEvent tick)
+    {
+        var sources = DotSourcesLookup(tick.TargetEntityId);
+        if (sources.Count == 0)
+            return false;
+
+        long totalWeight = 0;
+        foreach (var (_, weight) in sources)
+            totalWeight += weight;
+        if (totalWeight <= 0)
+            return false;
+
+        var remaining = tick.Amount;
+        for (var i = 0; i < sources.Count; i++)
+        {
+            var share = i == sources.Count - 1
+                ? remaining
+                : (int)((long)tick.Amount * sources[i].Weight / totalWeight);
+            remaining -= share;
+            if (share <= 0)
+                continue;
+
+            var resolved = resolver(sources[i].SourceId, tick.TargetEntityId);
+            if (resolved != null)
+                encounter.AddDotDamage(resolved.Value.Caster, resolved.Value.TargetName, share);
+            else
+                encounter.AddUnattributedDot(share);
+        }
+
+        return true;
+    }
+
+    /// <summary>Known DoT statuses on the target: (caster, relative tick weight) per status.</summary>
+    private IReadOnlyList<(uint SourceId, int Weight)> DefaultDotSourcesLookup(uint targetId)
+    {
+        var obj = objectTable?.SearchById(targetId);
+        if (obj is not IBattleChara chara)
+            return Array.Empty<(uint, int)>();
+
+        var statusList = chara.StatusList;
+        if (statusList == null)
+            return Array.Empty<(uint, int)>();
+
+        List<(uint, int)>? sources = null;
+        foreach (var status in statusList)
+        {
+            if (status == null || status.SourceId == 0)
+                continue;
+            if (!DotStatusWeights.TryGetWeight(status.StatusId, out var weight))
+                continue;
+
+            sources ??= new List<(uint, int)>(4);
+            sources.Add((status.SourceId, weight));
+        }
+
+        return sources ?? (IReadOnlyList<(uint, int)>)Array.Empty<(uint, int)>();
+    }
 
     private ResolvedDamage? DefaultResolve(uint casterId, uint targetId)
     {

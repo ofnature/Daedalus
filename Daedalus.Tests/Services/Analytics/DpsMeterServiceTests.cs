@@ -415,6 +415,44 @@ public sealed class DpsMeterServiceTests
     }
 
     [Fact]
+    public void Service_DotTick_AggregatedTick_SplitByPotencyWeights()
+    {
+        // Two casters DoTing the target (Biolysis-weight 75 vs 25): the merged 400 tick splits
+        // 300/100 by relative potency — the ACT-style estimate.
+        var (svc, ces, _, _) = MakeService();
+        svc.DotSourcesLookup = targetId => targetId == 100
+            ? new[] { (1u, 75), (2u, 25) }
+            : Array.Empty<(uint, int)>();
+
+        SetCombat(ces, true);
+        svc.Update();
+        ces.Raise(x => x.OnDotTick += null, new DotTickEvent(100, 0, 3, 400, PossibleSourceId: 0));
+        svc.Update();
+
+        var ranked = svc.Current!.GetRanked();
+        Assert.Equal(2, ranked.Count);
+        Assert.Equal(300, ranked[0].DotDamage); // Self, weight 75
+        Assert.Equal(100, ranked[1].DotDamage); // Ally, weight 25
+        Assert.Equal(0, svc.Current!.UnattributedDotDamage);
+    }
+
+    [Fact]
+    public void Service_DotTick_SplitDisabled_FallsBackToCounter()
+    {
+        var (svc, ces, cfg, _) = MakeService();
+        cfg.EstimateSharedDotTicks = false;
+        svc.DotSourcesLookup = _ => new[] { (1u, 75), (2u, 25) };
+
+        SetCombat(ces, true);
+        svc.Update();
+        ces.Raise(x => x.OnDotTick += null, new DotTickEvent(100, 0, 3, 400, PossibleSourceId: 0));
+        svc.Update();
+
+        Assert.Equal(0, svc.Current!.TotalDamage);
+        Assert.Equal(400, svc.Current!.UnattributedDotDamage);
+    }
+
+    [Fact]
     public void Service_DotTick_UnattributedCounter_IgnoresNonHostileTargets()
     {
         // Enemy DoTs on players / HoT ticks are correctly nobody's damage — they must not
