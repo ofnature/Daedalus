@@ -164,7 +164,7 @@ public sealed class Plugin : IDalamudPlugin
 
     private readonly DaedalusIpc DaedalusIpc;
     private readonly RsrCompatIpc rsrCompatIpc;
-    private readonly HenchmanIpc henchmanIpc;
+    private readonly AutomationBusyBridge[] automationBridges;
     private readonly UpdateCheckerService updateCheckerService;
 
     // Pull-intent state machine + consumable services (tincture automation)
@@ -520,14 +520,24 @@ public sealed class Plugin : IDalamudPlugin
         this.rsrCompatIpc.OverrideChanged += enabled =>
             chatGui.Print($"Daedalus rotation {(enabled ? "started" : "stopped")} by quest plugin.");
 
-        // Henchman bridge: Henchman selects its rotation plugin by internal name, so the RSR-compat
-        // gates can't hook it — instead we run while its Henchman.IsBusy IPC reports a task active
-        // (hunt logs, hunt bills, A/B rank farming). Henchman targets each mark itself.
-        this.henchmanIpc = new HenchmanIpc(pluginInterface, configuration, log);
-        this.henchmanIpc.OverrideChanged += enabled =>
-            chatGui.Print(enabled
-                ? "Daedalus rotation started for Henchman task."
-                : "Daedalus rotation stopped — Henchman task finished.");
+        // Automation bridges: Henchman and AutoDuty select their rotation plugin by installed
+        // internal name, so the RSR-compat gates can't hook them — instead we run while their
+        // state IPC reports a task active. Henchman covers overworld hunt farming (it targets
+        // each mark itself); AutoDuty covers duty runs, including the dungeons Henchman delegates
+        // to it for duty hunt-log marks.
+        this.automationBridges =
+        [
+            new AutomationBusyBridge(pluginInterface, configuration, log, "Henchman", "Henchman.IsBusy", busyGateValue: true),
+            new AutomationBusyBridge(pluginInterface, configuration, log, "AutoDuty", "AutoDuty.IsStopped", busyGateValue: false),
+        ];
+        foreach (var bridge in this.automationBridges)
+        {
+            var name = bridge.PluginName;
+            bridge.OverrideChanged += enabled =>
+                chatGui.Print(enabled
+                    ? $"Daedalus rotation started — {name} is running."
+                    : $"Daedalus rotation stopped — {name} finished.");
+        }
 
         if (fightSummaryService != null)
         {
@@ -1021,9 +1031,10 @@ public sealed class Plugin : IDalamudPlugin
                     utcNow: DateTime.UtcNow);
             }
 
-            // Poll the Henchman bridge (throttled internally): rotation runs while a Henchman
-            // task (hunt log / hunt bill / rank farm) is active. Must run before the enabled gate.
-            henchmanIpc.Update();
+            // Poll the automation bridges (throttled internally): rotation runs while a Henchman
+            // task or an AutoDuty run is active. Must run before the enabled gate.
+            foreach (var bridge in automationBridges)
+                bridge.Update();
 
             // Automation-driven combat only: never grind on a training dummy. If external targeting
             // somehow lands on a striking dummy, drop the target and end the IPC override (the
@@ -1148,7 +1159,8 @@ public sealed class Plugin : IDalamudPlugin
         windowSystem.RemoveAllWindows();
         DaedalusIpc.Dispose();
         rsrCompatIpc.Dispose();
-        henchmanIpc.Dispose();
+        foreach (var bridge in automationBridges)
+            bridge.Dispose();
         partyCoordinationIpc?.Dispose();
         fflogsService?.Dispose();
         telemetryService.Dispose();
