@@ -354,6 +354,58 @@ public sealed class TargetingService : ITargetingService
         return nearest;
     }
 
+    public unsafe IBattleNpc? FindNearestAggroedEnemy(float maxRange, IPlayerCharacter player)
+    {
+        // Game's enmity ("hater") list: entities with aggro on the local player specifically.
+        // Unlike the engaged/hostile scan, this never matches mobs fighting someone else, so
+        // automation cleanup can't steal targets or open on a stranger's pull.
+        Span<uint> haterIds = stackalloc uint[32];
+        var haterCount = 0;
+        try
+        {
+            var uiState = FFXIVClientStructs.FFXIV.Client.Game.UI.UIState.Instance();
+            if (uiState != null)
+            {
+                var count = Math.Min(uiState->Hater.HaterCount, 32);
+                for (var i = 0; i < count; i++)
+                    haterIds[haterCount++] = uiState->Hater.Haters[i].EntityId;
+            }
+        }
+        catch
+        {
+            haterCount = 0;
+        }
+
+        IBattleNpc? nearest = null;
+        var nearestDist = float.MaxValue;
+        foreach (var enemy in GetValidEnemies(maxRange, player))
+        {
+            var aggroedOnUs = enemy.TargetObjectId == player.GameObjectId;
+            if (!aggroedOnUs)
+            {
+                for (var i = 0; i < haterCount; i++)
+                {
+                    if (haterIds[i] == enemy.EntityId)
+                    {
+                        aggroedOnUs = true;
+                        break;
+                    }
+                }
+            }
+
+            if (!aggroedOnUs)
+                continue;
+
+            var dist = Vector3.DistanceSquared(player.Position, enemy.Position);
+            if (dist < nearestDist)
+            {
+                nearest = enemy;
+                nearestDist = dist;
+            }
+        }
+        return nearest;
+    }
+
     public unsafe IBattleNpc? FindNearestQuestFlaggedEnemy(float maxRange, IPlayerCharacter player)
     {
         // Nameplate icon != 0 means the game has tagged this mob as belonging to the player's

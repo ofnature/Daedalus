@@ -58,6 +58,14 @@ public interface ITargetingService
     IBattleNpc? FindNearestQuestFlaggedEnemy(float maxRange, IPlayerCharacter player);
 
     /// <summary>
+    /// Finds the nearest valid enemy that has aggro on the local player — from the game's enmity
+    /// ("hater") list plus mobs hard-targeting the player. Unlike the engaged/hostile scan this
+    /// never matches mobs fighting someone else. Used by automation aggro cleanup so the pull
+    /// chasing the player gets killed, in nearest-first order, without touching anyone else's mobs.
+    /// </summary>
+    IBattleNpc? FindNearestAggroedEnemy(float maxRange, IPlayerCharacter player);
+
+    /// <summary>
     /// Counts the number of valid enemies within the specified radius of the player.
     /// </summary>
     int CountEnemiesInRange(float radius, IPlayerCharacter player);

@@ -141,16 +141,16 @@ public sealed class QuestionableIpc : IDisposable
         if ((player.StatusFlags & Dalamud.Game.ClientState.Objects.Enums.StatusFlags.InCombat) == 0)
             return false;
 
-        return _targetingService.FindNearbyEnemy(CleanupScanRangeYalms, player) != null;
+        return _targetingService.FindNearestAggroedEnemy(CleanupScanRangeYalms, player) != null;
     }
 
     /// <summary>
     /// Henchman-style targeting: if the player has no live enemy target while this bridge is
     /// driving, hard-target the next kill candidate so the rotation opens on it. Priority:
-    /// enemies already fighting us (finish the pull); then — only during an actual Combat step —
-    /// enemies the game has flagged with a quest nameplate icon, the authoritative "counts for
-    /// the objective" marker. Idle unflagged mobs are never pulled (a nearest-anything fallback
-    /// aggroed whole camps).
+    /// nearest enemy aggroed on us (finish the pull — never someone else's mobs); then — only
+    /// during an actual Combat step — enemies the game has flagged with a quest nameplate icon,
+    /// the authoritative "counts for the objective" marker. Idle unflagged mobs are never pulled
+    /// (a nearest-anything fallback aggroed whole camps).
     /// </summary>
     private void TryAcquireKillTarget(bool allowQuestFlagged)
     {
@@ -161,7 +161,7 @@ public sealed class QuestionableIpc : IDisposable
         if (_targetingService.GetUserEnemyTarget() != null)
             return;
 
-        var candidate = _targetingService.FindNearbyEnemy(CleanupScanRangeYalms, player);
+        var candidate = _targetingService.FindNearestAggroedEnemy(CleanupScanRangeYalms, player);
         if (candidate == null && allowQuestFlagged)
             candidate = _targetingService.FindNearestQuestFlaggedEnemy(KillTargetScanRangeYalms, player);
         if (candidate == null)
