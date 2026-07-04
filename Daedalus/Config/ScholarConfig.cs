@@ -159,8 +159,10 @@ public sealed class ScholarConfig
 
     /// <summary>
     /// Number of Aetherflow stacks to reserve for emergency healing.
+    /// Default 0: reserving a stack is trial/raid tuning (those duty profiles set 1-2);
+    /// in dungeons and the open world every stack not needed for healing is Energy Drain fuel.
     /// </summary>
-    private int _aetherflowReserve = 1;
+    private int _aetherflowReserve = 0;
     public int AetherflowReserve
     {
         get => _aetherflowReserve;

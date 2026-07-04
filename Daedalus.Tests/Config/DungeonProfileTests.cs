@@ -35,4 +35,20 @@ public class DungeonProfileTests
         Assert.Equal(0, config.Scholar.AetherflowReserve);
         Assert.True(config.Scholar.EnableEnergyDrain);
     }
+
+    [Fact]
+    public void AetherflowReserve_IsTrialRaidTuning_NotTheBaseline()
+    {
+        // User rule: saving a stack for emergencies is a trial thing, not a dungeon thing.
+        // Baseline dumps every spare stack into Energy Drain; raid/trial profiles add the reserve.
+        Assert.Equal(0, new ScholarConfig().AetherflowReserve);
+
+        var raid = new Daedalus.Configuration();
+        ConfigurationPresets.ApplyRaidDutyProfile(raid);
+        Assert.True(raid.Scholar.AetherflowReserve >= 1);
+
+        var trial = new Daedalus.Configuration();
+        ConfigurationPresets.ApplyTrialDutyProfile(trial);
+        Assert.True(trial.Scholar.AetherflowReserve >= 1);
+    }
 }
