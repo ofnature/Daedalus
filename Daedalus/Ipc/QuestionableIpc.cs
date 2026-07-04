@@ -89,12 +89,18 @@ public sealed class QuestionableIpc : IDisposable
         // and mobs aggroed walking through camps between steps. Without this the override dropped
         // the instant the step advanced and the toon ran on with a train chewing on it.
         var cleanup = !combatStep && IsAggroCleanupNeeded();
-        var active = combatStep || cleanup;
+
+        // Flagged-mob hunt: kill-objective mobs (gold quest icon) don't always line up with an
+        // InteractionType == "Combat" step — Questionable can sit at "Step completed"/Wait with
+        // 4/8 slugs still flagged around the player. While Questionable is running, any flagged
+        // mob in range is a standing kill order: take them one at a time until no icons remain.
+        var flaggedHunt = !combatStep && !cleanup && HasQuestFlaggedMobNearby();
+        var active = combatStep || cleanup || flaggedHunt;
 
         if (active != _lastLoggedActive)
         {
-            _log.Debug("[AutomationBridge:Questionable] active={0} (combatStep={1}, cleanup={2}, quest {3})",
-                active, combatStep, cleanup, _currentQuestId);
+            _log.Debug("[AutomationBridge:Questionable] active={0} (combatStep={1}, cleanup={2}, flaggedHunt={3}, quest {4})",
+                active, combatStep, cleanup, flaggedHunt, _currentQuestId);
             _lastLoggedActive = active;
         }
 
@@ -105,7 +111,8 @@ public sealed class QuestionableIpc : IDisposable
                 {
                     _configuration.ExternalCombatOverride = true;
                     ExternalCombatOverrideState.Source = "Questionable";
-                    _log.Info("Questionable {0} — external-combat override on.", combatStep ? "combat step" : "aggro cleanup");
+                    _log.Info("Questionable {0} — external-combat override on.",
+                        combatStep ? "combat step" : cleanup ? "aggro cleanup" : "flagged objective mobs");
                     OverrideChanged?.Invoke(true);
                 }
                 break;
@@ -122,7 +129,20 @@ public sealed class QuestionableIpc : IDisposable
         }
 
         if (active)
-            TryAcquireKillTarget(allowQuestFlagged: combatStep);
+            TryAcquireKillTarget(allowQuestFlagged: combatStep || flaggedHunt);
+    }
+
+    /// <summary>True when a quest-flagged (gold icon) attackable mob is within kill range.</summary>
+    private bool HasQuestFlaggedMobNearby()
+    {
+        if (!_questionableRunning)
+            return false;
+
+        var player = _objectTable.LocalPlayer;
+        if (player == null || player.CurrentHp == 0)
+            return false;
+
+        return _targetingService.FindNearestQuestFlaggedEnemy(KillTargetScanRangeYalms, player) != null;
     }
 
     /// <summary>
