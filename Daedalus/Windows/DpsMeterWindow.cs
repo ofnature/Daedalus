@@ -230,10 +230,14 @@ public sealed class DpsMeterWindow : Window
 
             if (ImGui.IsMouseHoveringRect(rowMin, rowMax) && !configuration.Parser.ClickThrough)
             {
-                ImGui.SetTooltip(Loc.TFormat(
-                    LocalizedStrings.Parser.RowTooltip,
-                    "{0} — Total {1} · Crit {2:F1}% · DH {3:F1}%",
-                    name, FormatNumber(stats.EffectiveDamage), stats.CritPercent, stats.DirectHitPercent));
+                // Composed manually (not the localized 4-arg format) so the optional DoT segment
+                // can't garble translated format strings. DoT shown explicitly so "are my ticks
+                // tracked?" is answerable per row.
+                var tooltip = $"{name} — Total {FormatNumber(stats.EffectiveDamage)}";
+                if (stats.DotDamage > 0)
+                    tooltip += $" · DoT {FormatNumber(stats.DotDamage)}";
+                tooltip += $" · Crit {stats.CritPercent:F1}% · DH {stats.DirectHitPercent:F1}%";
+                ImGui.SetTooltip(tooltip);
             }
         }
     }
