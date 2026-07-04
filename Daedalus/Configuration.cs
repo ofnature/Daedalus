@@ -162,6 +162,9 @@ public sealed class Configuration : IPluginConfiguration
     // Job-specific configuration - Healers
     public HealerSharedConfig HealerShared { get; set; } = new();
     public ScholarConfig Scholar { get; set; } = new();
+
+    /// <summary>Farm mode (kill mobs at spots until X of an item is in the bag). See docs/farm-mode.md.</summary>
+    public FarmConfig Farm { get; set; } = new();
     public AstrologianConfig Astrologian { get; set; } = new();
     public SageConfig Sage { get; set; } = new();
 

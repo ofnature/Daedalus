@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using System.Numerics;
 using Dalamud.Game.ClientState.Objects.Enums;
 using Dalamud.Game.ClientState.Objects.SubKinds;
@@ -394,6 +395,37 @@ public sealed class TargetingService : ITargetingService
             }
 
             if (!aggroedOnUs)
+                continue;
+
+            var dist = Vector3.DistanceSquared(player.Position, enemy.Position);
+            if (dist < nearestDist)
+            {
+                nearest = enemy;
+                nearestDist = dist;
+            }
+        }
+        return nearest;
+    }
+
+    public IBattleNpc? FindNearestEnemyByNameIds(
+        IReadOnlyCollection<uint> nameIds,
+        float maxRange,
+        IPlayerCharacter player,
+        Vector3? anchor = null,
+        float anchorRadiusYalms = 0f)
+    {
+        if (nameIds.Count == 0)
+            return null;
+
+        var anchorRadiusSq = anchorRadiusYalms * anchorRadiusYalms;
+        IBattleNpc? nearest = null;
+        var nearestDist = float.MaxValue;
+        foreach (var enemy in GetValidEnemies(maxRange, player))
+        {
+            if (!nameIds.Contains(enemy.NameId))
+                continue;
+
+            if (anchor.HasValue && Vector3.DistanceSquared(anchor.Value, enemy.Position) > anchorRadiusSq)
                 continue;
 
             var dist = Vector3.DistanceSquared(player.Position, enemy.Position);

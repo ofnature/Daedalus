@@ -166,6 +166,8 @@ public sealed class Plugin : IDalamudPlugin
     private readonly RsrCompatIpc rsrCompatIpc;
     private readonly AutomationBusyBridge[] automationBridges;
     private readonly QuestionableIpc questionableIpc;
+    private readonly Daedalus.Services.Farm.FarmModeService farmModeService;
+    private readonly FarmWindow farmWindow;
     private readonly UpdateCheckerService updateCheckerService;
 
     // Pull-intent state machine + consumable services (tincture automation)
@@ -514,6 +516,15 @@ public sealed class Plugin : IDalamudPlugin
         this.mainWindow.OpenParser = () => this.dpsMeterWindow.Toggle();
         this.mainWindow.ParserActive = () => this.dpsMeterService.Current != null;
 
+        // Farm mode: Daedalus-driven grinding (kill profile mobs at spots until X items in bag).
+        this.farmModeService = new Daedalus.Services.Farm.FarmModeService(
+            configuration, objectTable, targetManager, targetingService, vNavService,
+            inventoryProbe, clientState, log);
+        this.farmModeService.Notify += message => chatGui.Print(message);
+        this.farmWindow = new FarmWindow(farmModeService, dataManager, targetManager, clientState, objectTable);
+        this.mainWindow.OpenFarm = () => this.farmWindow.Toggle();
+        this.mainWindow.FarmActive = () => this.farmModeService.IsRunning;
+
         // Telemetry service for anonymous usage tracking
         this.telemetryService = new TelemetryService(configuration, log);
 
@@ -589,6 +600,7 @@ public sealed class Plugin : IDalamudPlugin
         windowSystem.AddWindow(hintOverlay);
         windowSystem.AddWindow(overlayWindow);
         windowSystem.AddWindow(dpsMeterWindow);
+        windowSystem.AddWindow(farmWindow);
         overlayWindow.IsOpen = configuration.Overlay.IsVisible;
         windowSystem.AddWindow(actionFeedWindow);
         // Visibility is gated by DrawConditions via ActionFeed.IsVisible; keep the window open
@@ -1064,6 +1076,10 @@ public sealed class Plugin : IDalamudPlugin
                 bridge.Update();
             questionableIpc.Update();
 
+            // Farm mode driver (throttled internally): targets profile mobs, roams spots, holds
+            // the override while running. Also before the enabled gate.
+            farmModeService.Update();
+
             // Automation-driven combat only: never grind on a training dummy. If external targeting
             // somehow lands on a striking dummy, drop the target and end the IPC override (the
             // user's master switch is untouched — manual dummy testing still works).
@@ -1190,6 +1206,7 @@ public sealed class Plugin : IDalamudPlugin
         foreach (var bridge in automationBridges)
             bridge.Dispose();
         questionableIpc.Dispose();
+        farmModeService.Dispose();
         partyCoordinationIpc?.Dispose();
         fflogsService?.Dispose();
         telemetryService.Dispose();

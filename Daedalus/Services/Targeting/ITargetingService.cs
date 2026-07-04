@@ -66,6 +66,19 @@ public interface ITargetingService
     IBattleNpc? FindNearestAggroedEnemy(float maxRange, IPlayerCharacter player);
 
     /// <summary>
+    /// Finds the nearest valid enemy whose BNpcName row id is in <paramref name="nameIds"/> —
+    /// farm-mode mob selection (NameId is language-independent and stable across levels).
+    /// When <paramref name="anchor"/> is set, only enemies within <paramref name="anchorRadiusYalms"/>
+    /// of it qualify, leashing the farm to its spot so it never chases spawns across the zone.
+    /// </summary>
+    IBattleNpc? FindNearestEnemyByNameIds(
+        System.Collections.Generic.IReadOnlyCollection<uint> nameIds,
+        float maxRange,
+        IPlayerCharacter player,
+        System.Numerics.Vector3? anchor = null,
+        float anchorRadiusYalms = 0f);
+
+    /// <summary>
     /// Counts the number of valid enemies within the specified radius of the player.
     /// </summary>
     int CountEnemiesInRange(float radius, IPlayerCharacter player);

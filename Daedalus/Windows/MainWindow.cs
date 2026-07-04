@@ -42,6 +42,12 @@ public sealed class MainWindow : Window
     /// <summary>Opens the Parser (DPS meter) window.</summary>
     public Action? OpenParser { get; set; }
 
+    /// <summary>Opens the Farm window. Button only renders when Settings → General enables it.</summary>
+    public Action? OpenFarm { get; set; }
+
+    /// <summary>True while a farm run is active — draws the activity dot on the Farm button.</summary>
+    public Func<bool>? FarmActive { get; set; }
+
     /// <summary>True while a fight is being parsed — draws the activity dot on the Parser button.</summary>
     public Func<bool>? ParserActive { get; set; }
 
@@ -267,6 +273,23 @@ public sealed class MainWindow : Window
                 OpenLanParty();
             }
             if (LanConnected?.Invoke() == true)
+            {
+                var max = ImGui.GetItemRectMax();
+                var min = ImGui.GetItemRectMin();
+                ImGui.GetWindowDrawList().AddCircleFilled(
+                    new Vector2(max.X - 7, min.Y + 7), 3f,
+                    ImGui.ColorConvertFloat4ToU32(DaedalusTheme.StatusGreen));
+            }
+        }
+        // Farm window — hidden behind Settings → General like the LAN Party button; a green dot
+        // marks an active farm run.
+        if (configuration.Farm.ShowFarmButton && OpenFarm != null)
+        {
+            if (ImGui.Button("Farm", new Vector2(buttonWidth, 0)))
+            {
+                OpenFarm();
+            }
+            if (FarmActive?.Invoke() == true)
             {
                 var max = ImGui.GetItemRectMax();
                 var min = ImGui.GetItemRectMin();

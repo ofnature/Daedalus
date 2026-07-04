@@ -1,0 +1,219 @@
+using System;
+using System.Collections.Generic;
+using System.Numerics;
+using Dalamud.Game.ClientState.Objects;
+using Dalamud.Game.ClientState.Objects.Types;
+using Dalamud.Interface.Windowing;
+using Dalamud.Plugin.Services;
+using Dalamud.Bindings.ImGui;
+using Daedalus.Services.Farm;
+using Daedalus.Windows.Common;
+
+namespace Daedalus.Windows;
+
+/// <summary>
+/// Farm mode setup + control. The working profile is session-only by design (see docs/farm-mode.md);
+/// saved profiles come later via FarmConfig.SavedProfiles.
+/// </summary>
+public sealed class FarmWindow : Window
+{
+    private readonly FarmModeService _farm;
+    private readonly IDataManager _dataManager;
+    private readonly ITargetManager _targetManager;
+    private readonly IClientState _clientState;
+    private readonly IObjectTable _objectTable;
+
+    private string _itemSearch = "";
+    private string _lastItemSearch = "";
+    private readonly List<(uint Id, string Name)> _itemResults = new();
+    private int _targetCountInput = 1;
+
+    public FarmWindow(
+        FarmModeService farm,
+        IDataManager dataManager,
+        ITargetManager targetManager,
+        IClientState clientState,
+        IObjectTable objectTable)
+        : base("Daedalus Farm")
+    {
+        _farm = farm;
+        _dataManager = dataManager;
+        _targetManager = targetManager;
+        _clientState = clientState;
+        _objectTable = objectTable;
+
+        Size = new Vector2(360, 480);
+        SizeCondition = ImGuiCond.FirstUseEver;
+    }
+
+    public override void Draw()
+    {
+        var profile = _farm.Profile;
+
+        // ----- Status / control -----
+        if (_farm.IsRunning)
+        {
+            ImGui.TextColored(DaedalusTheme.StatusGreen, "● Farming");
+            ImGui.SameLine();
+            ImGui.TextDisabled(_farm.StatusLine);
+            ImGui.Text($"{profile.ItemName}: {_farm.CurrentItemCount} / {profile.TargetCount}");
+            ImGui.SameLine();
+            ImGui.TextDisabled($"({_farm.Kills} kills)");
+
+            if (ImGui.Button("Stop", new Vector2(-1, 26)))
+                _farm.Stop("stopped by user");
+
+            ImGui.Separator();
+        }
+
+        ImGui.BeginDisabled(_farm.IsRunning);
+
+        // ----- Item -----
+        ImGui.TextColored(DaedalusTheme.AccentGold, "Item");
+        if (profile.ItemId != 0)
+        {
+            ImGui.Text($"{profile.ItemName}");
+            ImGui.SameLine();
+            ImGui.TextDisabled($"(id {profile.ItemId}, in bag: {_farm.CurrentItemCount})");
+        }
+        ImGui.SetNextItemWidth(-1);
+        ImGui.InputTextWithHint("##farmItemSearch", "search item by name (3+ letters)...", ref _itemSearch, 64);
+        if (_itemSearch.Length >= 3 && _itemSearch != _lastItemSearch)
+        {
+            _lastItemSearch = _itemSearch;
+            RebuildItemResults();
+        }
+        if (_itemSearch.Length >= 3 && _itemResults.Count > 0)
+        {
+            if (ImGui.BeginListBox("##farmItemResults", new Vector2(-1, Math.Min(_itemResults.Count, 6) * ImGui.GetTextLineHeightWithSpacing())))
+            {
+                foreach (var (id, name) in _itemResults)
+                {
+                    if (ImGui.Selectable($"{name}##item{id}", profile.ItemId == id))
+                    {
+                        profile.ItemId = id;
+                        profile.ItemName = name;
+                        _itemSearch = "";
+                        _lastItemSearch = "";
+                    }
+                }
+                ImGui.EndListBox();
+            }
+        }
+
+        ImGui.SetNextItemWidth(120);
+        if (ImGui.InputInt("target count", ref _targetCountInput))
+            profile.TargetCount = Math.Max(1, _targetCountInput);
+        _targetCountInput = profile.TargetCount;
+
+        ImGui.Separator();
+
+        // ----- Mobs (session-only list) -----
+        ImGui.TextColored(DaedalusTheme.AccentGold, "Mobs to kill");
+        ImGui.SameLine();
+        ImGui.TextDisabled("(list is not saved — session only)");
+        if (ImGui.Button("Add current target"))
+        {
+            if (_targetManager.Target is IBattleNpc npc && npc.NameId != 0)
+                profile.AddMob(npc.NameId, npc.Name.ToString());
+        }
+        for (var i = 0; i < profile.Mobs.Count; i++)
+        {
+            var mob = profile.Mobs[i];
+            ImGui.Text($"• {mob.Name}");
+            ImGui.SameLine();
+            ImGui.TextDisabled($"(NameId {mob.NameId})");
+            ImGui.SameLine();
+            if (ImGui.SmallButton($"remove##mob{i}"))
+            {
+                profile.RemoveMobAt(i);
+                break;
+            }
+        }
+
+        ImGui.Separator();
+
+        // ----- Spots -----
+        ImGui.TextColored(DaedalusTheme.AccentGold, "Farm spots");
+        ImGui.SameLine();
+        ImGui.TextDisabled("(roams between them; first = anchor)");
+        if (ImGui.Button("Add spot (my position)"))
+        {
+            var player = _objectTable.LocalPlayer;
+            if (player != null)
+            {
+                profile.Spots.Add(player.Position);
+                profile.TerritoryId = (ushort)_clientState.TerritoryType;
+            }
+        }
+        for (var i = 0; i < profile.Spots.Count; i++)
+        {
+            var spot = profile.Spots[i];
+            var isActive = _farm.IsRunning && i == _farm.ActiveSpotIndex;
+            ImGui.Text($"{(isActive ? "▶" : "•")} spot {i + 1}: {spot.X:F0}, {spot.Y:F0}, {spot.Z:F0}");
+            ImGui.SameLine();
+            if (ImGui.SmallButton($"remove##spot{i}"))
+            {
+                profile.Spots.RemoveAt(i);
+                break;
+            }
+        }
+
+        var leash = profile.LeashRadiusYalms;
+        ImGui.SetNextItemWidth(180);
+        if (ImGui.SliderFloat("leash (yalms)", ref leash, 20f, 100f, "%.0f"))
+            profile.LeashRadiusYalms = leash;
+
+        ImGui.EndDisabled();
+
+        // ----- Start -----
+        if (!_farm.IsRunning)
+        {
+            ImGui.Separator();
+            ImGui.BeginDisabled(!profile.IsValid);
+            ImGui.PushStyleColor(ImGuiCol.Button, DaedalusTheme.AccentGold);
+            ImGui.PushStyleColor(ImGuiCol.Text, DaedalusTheme.BgDeep);
+            var start = ImGui.Button("Start farming", new Vector2(-1, 28));
+            ImGui.PopStyleColor(2);
+            ImGui.EndDisabled();
+            if (start)
+            {
+                var error = _farm.Start();
+                if (error != null)
+                    ImGui.OpenPopup("farmStartError");
+                _startError = error;
+            }
+            if (!profile.IsValid)
+                ImGui.TextDisabled("Need: item + count, ≥1 mob, ≥1 spot (all set in this zone).");
+
+            if (ImGui.BeginPopup("farmStartError"))
+            {
+                ImGui.TextColored(DaedalusTheme.StatusRed, _startError ?? "unknown error");
+                ImGui.EndPopup();
+            }
+        }
+    }
+
+    private string? _startError;
+
+    private void RebuildItemResults()
+    {
+        _itemResults.Clear();
+        var sheet = _dataManager.GetExcelSheet<Lumina.Excel.Sheets.Item>();
+        if (sheet == null)
+            return;
+
+        foreach (var row in sheet)
+        {
+            var name = row.Name.ExtractText();
+            if (name.Length == 0)
+                continue;
+            if (!name.Contains(_itemSearch, StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            _itemResults.Add((row.RowId, name));
+            if (_itemResults.Count >= 25)
+                break;
+        }
+    }
+}

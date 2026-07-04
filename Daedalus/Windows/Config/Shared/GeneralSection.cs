@@ -363,6 +363,11 @@ public sealed class GeneralSection
 
             ConfigUIHelpers.Spacing();
 
+            ConfigUIHelpers.Toggle("Show Farm button on main window", () => this.config.Farm.ShowFarmButton, v => this.config.Farm.ShowFarmButton = v,
+                "Adds a Farm button to the main window — kill selected mobs around your chosen spots until a target amount of an item is in your bag.", this.save);
+
+            ConfigUIHelpers.Spacing();
+
             ConfigUIHelpers.Toggle(Loc.T(LocalizedStrings.Overlay.ShowMechanicsForecast, "Show mechanic forecast in overlay"), () => this.config.Overlay.ShowMechanicsForecast, v => this.config.Overlay.ShowMechanicsForecast = v,
                 Loc.T(LocalizedStrings.Overlay.ShowMechanicsForecastDesc, "Displays upcoming fight mechanics (raidwides, tank busters, phases) with countdown timers in the overlay. Only visible when a fight timeline is loaded."), this.save);
 
