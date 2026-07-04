@@ -286,7 +286,11 @@ public sealed class RotationScheduler
                     var adjustedId = _actionService.GetAdjustedActionId(effective.ActionId);
                     if (!_actionService.CanExecuteActionId(adjustedId))
                     {
-                        RecordFail(candidate, "ActionStatus");
+                        // Include the raw LogMessage code (target-evaluated) — "ActionStatus"
+                        // alone cost a field session guessing mechanic-lockout vs real bug
+                        // (Lugae's toad phase reads identically to a targeting failure without it).
+                        var code = _actionService.GetActionStatusCode(adjustedId, candidate.TargetId);
+                        RecordFail(candidate, $"ActionStatus {code}{DescribeStatusCode(code)}");
                         continue;
                     }
                 }
@@ -339,6 +343,19 @@ public sealed class RotationScheduler
         if (_lastFailReasons.Count >= 16) return;
         _lastFailReasons.Add($"{candidate.Behavior.Action.Name}: {reason}");
     }
+
+    /// <summary>Human label for the GetActionStatus codes we've field-decoded (LogMessage ids).</summary>
+    private static string DescribeStatusCode(uint code) => code switch
+    {
+        562 => " (out of range)",
+        563 => " (no line of sight)",
+        565 => " (not unlocked)",
+        566 => " (facing)",
+        574 => " (wrong job / foreign id)",
+        582 => " (not ready / duplicate)",
+        583 => " (GCD rolling)",
+        _ => "",
+    };
 
     /// <summary>
     /// Explains why the game's UseAction refused a dispatch (the generic "DispatchRejected"). Checks
