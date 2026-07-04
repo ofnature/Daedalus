@@ -53,12 +53,12 @@
 - Solo-positional movement is suppressed by design elsewhere; farm does its own approach via vNav.
 - Patrol = user-placed spots (first spot is the anchor). No pathing intelligence between spawn clusters.
 
-## v2 (NEXT): GarlandTools autofill
-- Item search box → async Garland fetch (cache JSON on disk, MLH-style) → list droppers (mob, level,
-  zone) → one click adds mobs to the profile (name→NameId via Lumina BNpcName; ambiguous names: prefer
-  rows that exist in the current territory's BNpc layout, else all matches).
-- Wiki flag coords (rough) as a *suggested* anchor; user's feet remain ground truth.
-- Maybe: warn when the selected item's droppers live in a different zone than the player.
+## v2: GarlandTools autofill — PARTIALLY SHIPPED (95469f0, same day)
+- DONE: `GarlandDropSource` (async item-doc fetch, in-memory per-item cache, mob partials parsed,
+  name→NameId via English Lumina BNpcName sheet) + "Find droppers" button in the Farm window.
+- REMAINING: disk cache for lookups; zone display per dropper (Garland `obj.z` is their own
+  location id — needs Garland's core location table or a wiki fallback); warn when droppers live
+  in a different zone than the player; wiki flag coords as suggested anchor.
 
 ## v3 (LATER): quality of life
 - Mount between distant spots (Henchman pattern: mount action + vnav fly=false).
