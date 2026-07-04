@@ -95,10 +95,10 @@ public sealed class MainWindow : Window
     public override void Draw()
     {
         // Status row: state dot + active preset + last-fight GCD uptime (right-aligned)
-        var questDriven = !configuration.Enabled && configuration.QuestCombatOverride;
+        var autoDriven = !configuration.Enabled && configuration.ExternalCombatOverride;
         var statusColor = configuration.EffectiveEnabled ? DaedalusTheme.StatusGreen : DaedalusTheme.StatusGrey;
-        var statusText = questDriven
-            ? Loc.T(LocalizedStrings.Main.Active, "Enabled") + " (Quest)"
+        var statusText = autoDriven
+            ? Loc.T(LocalizedStrings.Main.Active, "Enabled") + " (Auto)"
             : configuration.Enabled
                 ? Loc.T(LocalizedStrings.Main.Active, "Enabled")
                 : Loc.T(LocalizedStrings.Main.Inactive, "Disabled");

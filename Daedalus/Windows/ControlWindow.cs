@@ -170,7 +170,7 @@ public sealed class ControlWindow : Window
         var statusText = configuration.EffectiveEnabled
             ? configuration.Enabled
                 ? Loc.T(LocalizedStrings.Main.Active, "ACTIVE")
-                : Loc.T(LocalizedStrings.Main.Active, "ACTIVE") + " (Quest)"
+                : Loc.T(LocalizedStrings.Main.Active, "ACTIVE") + " (Auto)"
             : Loc.T(LocalizedStrings.Main.Inactive, "INACTIVE");
 
         ImGui.TextColored(statusColor, statusText);

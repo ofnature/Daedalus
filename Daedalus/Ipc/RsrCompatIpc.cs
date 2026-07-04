@@ -16,7 +16,7 @@ namespace Daedalus.Ipc;
 /// so all Daedalus has to do is run the rotation while the override is active.
 /// </summary>
 /// <remarks>
-/// The override is transient (<see cref="Configuration.QuestCombatOverride"/>, never persisted):
+/// The override is transient (<see cref="Configuration.ExternalCombatOverride"/>, never persisted):
 /// a crash mid-quest must not leave the rotation permanently enabled, and the user's master
 /// switch / saved config is untouched by quest-driven starts and stops.
 /// Registration is skipped when the real RSR plugin is loaded — Dalamud call gates are global,
@@ -116,10 +116,10 @@ public sealed class RsrCompatIpc : IDisposable
         var enable = MapsToEnabled(stateCommand);
         _log.Debug("RSR-compat IPC ChangeOperatingMode: {0} -> override {1}", stateCommand, enable ? "on" : "off");
 
-        if (_configuration.QuestCombatOverride == enable)
+        if (_configuration.ExternalCombatOverride == enable)
             return;
 
-        _configuration.QuestCombatOverride = enable;
+        _configuration.ExternalCombatOverride = enable;
         OverrideChanged?.Invoke(enable);
     }
 
@@ -138,7 +138,7 @@ public sealed class RsrCompatIpc : IDisposable
 
     public void Dispose()
     {
-        _configuration.QuestCombatOverride = false;
+        _configuration.ExternalCombatOverride = false;
         _test?.UnregisterAction();
         _changeOperatingMode?.UnregisterAction();
     }

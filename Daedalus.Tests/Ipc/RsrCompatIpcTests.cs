@@ -60,31 +60,31 @@ public class RsrCompatIpcTests
         var config = new Configuration();
 
         config.Enabled = false;
-        config.QuestCombatOverride = false;
+        config.ExternalCombatOverride = false;
         Assert.False(config.EffectiveEnabled);
 
-        config.QuestCombatOverride = true;
+        config.ExternalCombatOverride = true;
         Assert.True(config.EffectiveEnabled);
 
         config.Enabled = true;
-        config.QuestCombatOverride = false;
+        config.ExternalCombatOverride = false;
         Assert.True(config.EffectiveEnabled);
 
-        config.QuestCombatOverride = true;
+        config.ExternalCombatOverride = true;
         Assert.True(config.EffectiveEnabled);
     }
 
     [Fact]
-    public void QuestCombatOverride_DefaultsOff_AndIsNotPersisted()
+    public void ExternalCombatOverride_DefaultsOff_AndIsNotPersisted()
     {
         var config = new Configuration();
-        Assert.False(config.QuestCombatOverride);
+        Assert.False(config.ExternalCombatOverride);
 
-        // Transient by design: a crash mid-quest must not leave the rotation enabled on next load.
+        // Transient by design: a crash mid-task must not leave the rotation enabled on next load.
         // Dalamud persists IPluginConfiguration via Newtonsoft — the override must never hit disk.
-        config.QuestCombatOverride = true;
+        config.ExternalCombatOverride = true;
         var json = Newtonsoft.Json.JsonConvert.SerializeObject(config);
-        Assert.DoesNotContain(nameof(Configuration.QuestCombatOverride), json);
+        Assert.DoesNotContain(nameof(Configuration.ExternalCombatOverride), json);
         Assert.DoesNotContain(nameof(Configuration.EffectiveEnabled), json);
     }
 }

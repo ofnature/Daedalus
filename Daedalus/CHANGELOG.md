@@ -5,10 +5,11 @@ All notable changes to Daedalus will be documented in this file.
 <!-- LATEST-START -->
 ## v0.1.1 — 2026-07-03
 
-### New — Questionable quest-combat integration
-- Daedalus can now be driven by the **Questionable** quest plugin for kill quests. Set Questionable's combat module to "Rotation Solver Reborn" — Daedalus answers the same plugin-to-plugin calls, so Questionable targets the quest mobs and starts/stops the rotation around each fight automatically. No setup in Daedalus needed; your Enable switch and saved settings are untouched (quest-driven combat shows as "Enabled (Quest)" on the main window)
-- Safety: if quest combat somehow lands on a striking dummy, Daedalus drops the target and stops the quest-driven rotation instead of hitting the dummy forever (manual dummy practice is unaffected)
-- If the real Rotation Solver Reborn plugin is loaded, Daedalus steps aside and leaves the integration to it
+### New — Questionable & Henchman automation bridges
+- Daedalus can now be driven by the **Questionable** quest plugin for kill quests. Set Questionable's combat module to "Rotation Solver Reborn" — Daedalus answers the same plugin-to-plugin calls, so Questionable targets the quest mobs and starts/stops the rotation around each fight automatically. No setup in Daedalus needed; your Enable switch and saved settings are untouched (automation-driven combat shows as "Enabled (Auto)" on the main window)
+- **Henchman** hunt farming works too: while a Henchman task is running (BumpOnALog hunt logs, OnYourMark hunt bills, Bring Your A/B Game rank farming), Daedalus runs the rotation automatically — Henchman targets each mark and handles the travel, Daedalus does the killing. Rotation starts when the task starts and stops when it finishes; no Henchman configuration needed (its "Auto Rotation Plugin" setting can stay on anything)
+- Safety: if automated combat somehow lands on a striking dummy, Daedalus drops the target and stops the automation-driven rotation instead of hitting the dummy forever (manual dummy practice is unaffected)
+- If the real Rotation Solver Reborn plugin is loaded, Daedalus steps aside and leaves the quest integration to it
 
 ### New — Built-in DPS parser
 - Daedalus now has its own parser — a **Parser** button on the main window opens an ACT-style damage meter that tracks **everyone**: your toons, other players (tagged HUMAN), and Trust/duty-support allies (tagged TRUST), with pet and summon damage merged into their owner's row. Rows show job, name, DPS, and damage share on a proportional bar; your own toon is highlighted in gold. Hover any row for total damage, crit%, and direct-hit%; the header shows the boss, fight timer, and party DPS, and a dropdown keeps your recent fights (configurable history)

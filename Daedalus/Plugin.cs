@@ -164,6 +164,7 @@ public sealed class Plugin : IDalamudPlugin
 
     private readonly DaedalusIpc DaedalusIpc;
     private readonly RsrCompatIpc rsrCompatIpc;
+    private readonly HenchmanIpc henchmanIpc;
     private readonly UpdateCheckerService updateCheckerService;
 
     // Pull-intent state machine + consumable services (tincture automation)
@@ -518,6 +519,15 @@ public sealed class Plugin : IDalamudPlugin
         this.rsrCompatIpc = new RsrCompatIpc(pluginInterface, configuration, log);
         this.rsrCompatIpc.OverrideChanged += enabled =>
             chatGui.Print($"Daedalus rotation {(enabled ? "started" : "stopped")} by quest plugin.");
+
+        // Henchman bridge: Henchman selects its rotation plugin by internal name, so the RSR-compat
+        // gates can't hook it — instead we run while its Henchman.IsBusy IPC reports a task active
+        // (hunt logs, hunt bills, A/B rank farming). Henchman targets each mark itself.
+        this.henchmanIpc = new HenchmanIpc(pluginInterface, configuration, log);
+        this.henchmanIpc.OverrideChanged += enabled =>
+            chatGui.Print(enabled
+                ? "Daedalus rotation started for Henchman task."
+                : "Daedalus rotation stopped — Henchman task finished.");
 
         if (fightSummaryService != null)
         {
@@ -1011,17 +1021,21 @@ public sealed class Plugin : IDalamudPlugin
                     utcNow: DateTime.UtcNow);
             }
 
-            // Quest-driven combat only: never grind on a training dummy. If the quest plugin's
-            // kill-step targeting somehow lands on a striking dummy, drop the target and end the
-            // IPC override (the user's master switch is untouched — manual dummy testing still works).
-            if (configuration.QuestCombatOverride
-                && targetManager.Target is IBattleChara questTarget
-                && RsrCompatIpc.IsTrainingDummy(questTarget.NameId))
+            // Poll the Henchman bridge (throttled internally): rotation runs while a Henchman
+            // task (hunt log / hunt bill / rank farm) is active. Must run before the enabled gate.
+            henchmanIpc.Update();
+
+            // Automation-driven combat only: never grind on a training dummy. If external targeting
+            // somehow lands on a striking dummy, drop the target and end the IPC override (the
+            // user's master switch is untouched — manual dummy testing still works).
+            if (configuration.ExternalCombatOverride
+                && targetManager.Target is IBattleChara autoTarget
+                && RsrCompatIpc.IsTrainingDummy(autoTarget.NameId))
             {
                 targetManager.Target = null;
-                configuration.QuestCombatOverride = false;
-                chatGui.Print("Daedalus: training dummy targeted during quest combat — target dropped, rotation stopped.");
-                log.Warning("Quest-combat override aborted: training dummy (NameId {0}) was targeted.", questTarget.NameId);
+                configuration.ExternalCombatOverride = false;
+                chatGui.Print("Daedalus: training dummy targeted during automated combat — target dropped, rotation stopped.");
+                log.Warning("External-combat override aborted: training dummy (NameId {0}) was targeted.", autoTarget.NameId);
             }
 
             if (!configuration.EffectiveEnabled)
@@ -1134,6 +1148,7 @@ public sealed class Plugin : IDalamudPlugin
         windowSystem.RemoveAllWindows();
         DaedalusIpc.Dispose();
         rsrCompatIpc.Dispose();
+        henchmanIpc.Dispose();
         partyCoordinationIpc?.Dispose();
         fflogsService?.Dispose();
         telemetryService.Dispose();

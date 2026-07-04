@@ -428,7 +428,7 @@ public abstract class BaseRotation<TContext, TModule> : IRotation, IDisposable
     protected virtual void HandleCriticalError(string errorType, Exception ex)
     {
         Configuration.Enabled = false;
-        Configuration.QuestCombatOverride = false;
+        Configuration.ExternalCombatOverride = false;
         Log.Error(ex, "{0} DISABLED due to {1} - memory access error", Name, errorType);
         _errorKeySeh ??= string.Concat(Name, ".Execute.", errorType);
         ErrorMetrics?.RecordError(_errorKeySeh, ex.Message);
