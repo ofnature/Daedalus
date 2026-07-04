@@ -142,10 +142,23 @@ public sealed class MainWindow : Window
             ImGui.TextDisabled(Loc.T(LocalizedStrings.Main.SwitchToSupported, "No rotation — switch to a supported job"));
         }
 
-        // Duty context line (open world shows nothing)
+        // Duty context line (open world shows nothing), plus which automation plugin is driving
+        // combat (Henchman / AutoDuty / Quest) while the external override is held.
         var dutyLabel = dutyContent?.DutyLabel;
+        var autoSource = configuration.ExternalCombatOverrideSource;
         if (!string.IsNullOrEmpty(dutyLabel))
+        {
             ImGui.TextDisabled(dutyLabel);
+            if (!string.IsNullOrEmpty(autoSource))
+            {
+                ImGui.SameLine();
+                ImGui.TextColored(DaedalusTheme.AccentGold, $"· {autoSource}");
+            }
+        }
+        else if (!string.IsNullOrEmpty(autoSource))
+        {
+            ImGui.TextColored(DaedalusTheme.AccentGold, autoSource);
+        }
 
         // Positional indicator — only shown for melee DPS jobs with an active target
         if (activeRotation is IHasPositionals posRotation)

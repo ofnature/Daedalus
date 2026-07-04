@@ -120,6 +120,7 @@ public sealed class RsrCompatIpc : IDisposable
             return;
 
         _configuration.ExternalCombatOverride = enable;
+        ExternalCombatOverrideState.Source = enable ? "Quest" : "";
         OverrideChanged?.Invoke(enable);
     }
 
@@ -139,6 +140,7 @@ public sealed class RsrCompatIpc : IDisposable
     public void Dispose()
     {
         _configuration.ExternalCombatOverride = false;
+        ExternalCombatOverrideState.Source = "";
         _test?.UnregisterAction();
         _changeOperatingMode?.UnregisterAction();
     }

@@ -34,6 +34,12 @@ public sealed class Configuration : IPluginConfiguration
     /// <summary>Rotation runs when the user's master switch OR the external-combat IPC override is on.</summary>
     [Newtonsoft.Json.JsonIgnore]
     public bool EffectiveEnabled => Enabled || ExternalCombatOverride;
+
+    /// <summary>Automation plugin currently holding the override ("Henchman", "AutoDuty", "Quest"); "" when none.</summary>
+    [Newtonsoft.Json.JsonIgnore]
+    public string ExternalCombatOverrideSource =>
+        ExternalCombatOverrideState.Active ? ExternalCombatOverrideState.Source : "";
+
     public bool MainWindowVisible { get; set; } = true;
     public bool IsDebugWindowOpen { get; set; } = false;
 
@@ -290,4 +296,7 @@ public sealed class Configuration : IPluginConfiguration
 internal static class ExternalCombatOverrideState
 {
     internal static bool Active;
+
+    /// <summary>Which automation plugin currently holds the override ("Henchman", "AutoDuty", "Quest"); "" when none.</summary>
+    internal static string Source = "";
 }

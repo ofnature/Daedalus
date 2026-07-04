@@ -88,6 +88,7 @@ public sealed class AutomationBusyBridge : IDisposable
                 if (!_configuration.ExternalCombatOverride)
                 {
                     _configuration.ExternalCombatOverride = true;
+                    ExternalCombatOverrideState.Source = _pluginInternalName;
                     _log.Info("{0} task running — external-combat override on.", _pluginInternalName);
                     OverrideChanged?.Invoke(true);
                 }
@@ -97,6 +98,7 @@ public sealed class AutomationBusyBridge : IDisposable
                 if (_configuration.ExternalCombatOverride)
                 {
                     _configuration.ExternalCombatOverride = false;
+                    ExternalCombatOverrideState.Source = "";
                     _log.Info("{0} task finished — external-combat override off.", _pluginInternalName);
                     OverrideChanged?.Invoke(false);
                 }
@@ -140,7 +142,10 @@ public sealed class AutomationBusyBridge : IDisposable
     {
         // Only release the override if this bridge is the one currently holding it.
         if (_tracker.Observe(false) == AutomationOverrideTracker.OverrideAction.Clear)
+        {
             _configuration.ExternalCombatOverride = false;
+            ExternalCombatOverrideState.Source = "";
+        }
     }
 }
 

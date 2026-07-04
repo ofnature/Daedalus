@@ -124,6 +124,14 @@ public sealed class OverlayWindow : Window
                 ? Loc.TFormat(LocalizedStrings.Overlay.DutyDetected, "Duty: {0}", _dutyContentService.DutyLabel)
                 : Loc.TFormat(LocalizedStrings.Overlay.DutyProfile, "Duty: {0} ({1})", _dutyContentService.DutyLabel, profile);
             ImGui.TextDisabled(text);
+
+            // Automation source (Henchman / AutoDuty / Quest) while the external override drives combat.
+            var autoSource = _configuration.ExternalCombatOverrideSource;
+            if (!string.IsNullOrEmpty(autoSource))
+            {
+                ImGui.SameLine();
+                ImGui.TextColored(ActionColor, $"· {autoSource}");
+            }
         }
     }
 
