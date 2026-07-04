@@ -165,6 +165,7 @@ public sealed class Plugin : IDalamudPlugin
     private readonly DaedalusIpc DaedalusIpc;
     private readonly RsrCompatIpc rsrCompatIpc;
     private readonly AutomationBusyBridge[] automationBridges;
+    private readonly QuestionableIpc questionableIpc;
     private readonly UpdateCheckerService updateCheckerService;
 
     // Pull-intent state machine + consumable services (tincture automation)
@@ -251,8 +252,8 @@ public sealed class Plugin : IDalamudPlugin
             partyList.Length);
         this.dutyConfigurationService.Refresh();
 
-        this.targetingService = new TargetingService(objectTable, partyList, targetManager, dutyConfigurationService.RotationConfiguration, gapCloserSafetyService);
         this.timeToKillService = new TimeToKillService();
+        this.targetingService = new TargetingService(objectTable, partyList, targetManager, dutyConfigurationService.RotationConfiguration, gapCloserSafetyService, timeToKillService);
         this.shieldTrackingService = new ShieldTrackingService(objectTable, partyList, log);
 
         // New action system services
@@ -538,6 +539,17 @@ public sealed class Plugin : IDalamudPlugin
                     ? $"Daedalus rotation started — {name} is running."
                     : $"Daedalus rotation stopped — {name} finished.");
         }
+
+        // Questionable kill-step bridge: without a combat module configured, Questionable never
+        // targets kill mobs itself — this reads its step IPC and does Henchman-style targeting
+        // (nearest attackable enemy) while a Combat step is active. Coexists with the RSR-compat
+        // path when the user configures Questionable's combat module instead.
+        this.questionableIpc = new QuestionableIpc(
+            pluginInterface, configuration, log, targetManager, targetingService, objectTable);
+        this.questionableIpc.OverrideChanged += enabled =>
+            chatGui.Print(enabled
+                ? "Daedalus rotation started — Questionable kill step."
+                : "Daedalus rotation stopped — Questionable kill step done.");
 
         if (fightSummaryService != null)
         {
@@ -1032,9 +1044,11 @@ public sealed class Plugin : IDalamudPlugin
             }
 
             // Poll the automation bridges (throttled internally): rotation runs while a Henchman
-            // task or an AutoDuty run is active. Must run before the enabled gate.
+            // task, an AutoDuty run, or a Questionable kill step is active. Must run before the
+            // enabled gate.
             foreach (var bridge in automationBridges)
                 bridge.Update();
+            questionableIpc.Update();
 
             // Automation-driven combat only: never grind on a training dummy. If external targeting
             // somehow lands on a striking dummy, drop the target and end the IPC override (the
@@ -1161,6 +1175,7 @@ public sealed class Plugin : IDalamudPlugin
         rsrCompatIpc.Dispose();
         foreach (var bridge in automationBridges)
             bridge.Dispose();
+        questionableIpc.Dispose();
         partyCoordinationIpc?.Dispose();
         fflogsService?.Dispose();
         telemetryService.Dispose();

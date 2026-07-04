@@ -265,6 +265,10 @@ public static class LocalizedStrings
         public const string MovementToleranceDesc = "config.targeting.movement_tolerance_desc";
         public const string PauseWhenNoTarget = "config.targeting.pause_when_no_target";
         public const string PauseWhenNoTargetDesc = "config.targeting.pause_when_no_target_desc";
+        public const string DotTtkCheck = "config.targeting.dot_ttk_check";
+        public const string DotTtkCheckDesc = "config.targeting.dot_ttk_check_desc";
+        public const string DotTtkThreshold = "config.targeting.dot_ttk_threshold";
+        public const string DotTtkThresholdDesc = "config.targeting.dot_ttk_threshold_desc";
         public const string SuppressDamageOnForcedMovement = "config.targeting.suppress_damage_on_forced_movement";
         public const string SuppressDamageOnForcedMovementDesc = "config.targeting.suppress_damage_on_forced_movement_desc";
         public const string PauseAllOnStandStillPunisher = "config.targeting.pause_all_on_stand_still_punisher";

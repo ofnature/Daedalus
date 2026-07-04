@@ -1,3 +1,4 @@
+using System;
 using Daedalus.Services.Targeting;
 
 namespace Daedalus.Config;
@@ -31,6 +32,24 @@ public sealed class TargetingConfig
     /// and live hostiles remain nearby — Daedalus auto-retargets instead.
     /// </summary>
     public bool PauseWhenNoTarget { get; set; } = true;
+
+    /// <summary>
+    /// When true, DoT applications are skipped on targets estimated to die within
+    /// <see cref="DotTimeToKillThresholdSeconds"/> (RSR TimeToKill parity). Prevents wasting a
+    /// 30s DoT plus its GCD on a mob two filler casts would finish. Fail-open: while TTK data is
+    /// insufficient (fresh pulls read as unknown), DoTs are never skipped. Default ON.
+    /// </summary>
+    public bool EnableDotTimeToKillCheck { get; set; } = true;
+
+    /// <summary>
+    /// Targets estimated to die within this many seconds are skipped for DoT application.
+    /// </summary>
+    private float _dotTimeToKillThresholdSeconds = 10f;
+    public float DotTimeToKillThresholdSeconds
+    {
+        get => _dotTimeToKillThresholdSeconds;
+        set => _dotTimeToKillThresholdSeconds = Math.Clamp(value, 0f, 30f);
+    }
 
     /// <summary>
     /// When true, damage module execution is suppressed while the player has any

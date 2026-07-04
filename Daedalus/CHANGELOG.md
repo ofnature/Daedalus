@@ -10,6 +10,15 @@ All notable changes to Daedalus will be documented in this file.
 - **Automation now opens on passive marks**: hunt-log and quest mobs usually won't attack first, and Daedalus previously waited for combat to start — so Henchman would target a mark and both plugins would stare at it forever. While automation is driving, a live attackable hard target now counts as "engage": Daedalus fires the opener the moment the driver targets the mob (and waits politely while you're mounted). Manual play is unchanged — Daedalus still never pulls on its own
 - The main window and overlay now show **who's driving** in gold next to the duty label — "Dungeon · Henchman" (or AutoDuty / Quest) — and the Debug window's Why Stuck tab gained an "Automation" line (override held? engaged? waiting on what?) plus a build stamp in the header
 
+### New — Questionable kill quests work without any combat module
+- Questionable only targets kill-quest mobs when one of its combat modules (RSR/Wrath/BossMod) is configured — without one it walks to the objective and waits forever. Daedalus now reads Questionable's quest-step data directly: while a kill step is active it starts the rotation AND picks the targets itself, Henchman-style — nearest attackable enemy first (enemies already attacking you win over idle mobs), next mob when one dies, stopping the moment the step completes. Zero Questionable configuration needed; if you do set its combat module to "Rotation Solver Reborn", its exact quest-mob targeting takes over seamlessly
+
+### Fix — no more wasted DoTs on dying enemies (all jobs)
+- Caught in a Scholar log: Biolysis applied to a mob at 4,550 HP that died two casts later — the DoT never ticks enough to beat just casting filler. DoT application now checks the target's estimated time-to-kill (RSR parity) and skips enemies about to die; fresh pulls are never skipped since their time-to-kill is unknown. Applies to every DoT that uses smart target selection — healer DoTs, Bard's Iron Jaws spread, Blue Mage bleeds. New toggle + threshold under Settings → General → Targeting ("Skip DoTs on dying enemies", default on, 10s)
+
+### Fix — Scholar: Summon Seraph no longer burned at full health
+- The default Seraph strategy was "on cooldown", so it fired seconds into a pull with nobody hurt. New default is "save for damage" (fires when average party HP drops below the Seraph threshold). Existing installs: flip it under Scholar settings if you saved config before this build
+
 ### Fix — the v0.1.2 bridges could switch Daedalus on but not make it act
 - Rotations read an internal snapshot of the settings (the duty-tuning overlay), and the automation on-switch never reached that snapshot — so Questionable/Henchman would report the rotation "started" while every module still saw itself as off. The switch is now visible to the rotation the same frame it flips. Validated end-to-end on overworld hunt-log farming: marks get targeted, opened on, and killed, and the task advances on its own
 <!-- LATEST-END -->

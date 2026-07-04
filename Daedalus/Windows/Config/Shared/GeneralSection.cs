@@ -190,6 +190,25 @@ public sealed class GeneralSection
             this.save);
 
         ConfigUIHelpers.Toggle(
+            Loc.T(LocalizedStrings.Targeting.DotTtkCheck, "Skip DoTs on dying enemies"),
+            () => this.config.Targeting.EnableDotTimeToKillCheck,
+            v => this.config.Targeting.EnableDotTimeToKillCheck = v,
+            Loc.T(LocalizedStrings.Targeting.DotTtkCheckDesc,
+                "Don't apply a DoT to an enemy that is about to die — the damage-over-time never ticks enough to beat just casting a normal spell. Fresh pulls are never skipped (their time-to-kill is unknown)."),
+            this.save);
+        if (this.config.Targeting.EnableDotTimeToKillCheck)
+        {
+            ConfigUIHelpers.FloatSlider(
+                Loc.T(LocalizedStrings.Targeting.DotTtkThreshold, "Dying threshold (seconds)"),
+                this.config.Targeting.DotTimeToKillThresholdSeconds,
+                0f, 30f, "%.0fs",
+                Loc.T(LocalizedStrings.Targeting.DotTtkThresholdDesc,
+                    "Enemies estimated to die within this many seconds don't get DoTs."),
+                this.save,
+                v => this.config.Targeting.DotTimeToKillThresholdSeconds = v);
+        }
+
+        ConfigUIHelpers.Toggle(
             Loc.T(LocalizedStrings.Targeting.SuppressDamageOnForcedMovement, "Pause damage during forced movement"),
             () => this.config.Targeting.SuppressDamageOnForcedMovement,
             v => this.config.Targeting.SuppressDamageOnForcedMovement = v,

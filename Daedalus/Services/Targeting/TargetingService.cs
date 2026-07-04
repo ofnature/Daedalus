@@ -23,6 +23,7 @@ public sealed class TargetingService : ITargetingService
     private readonly IPartyList _partyList;
     private readonly ITargetManager _targetManager;
     private readonly Configuration _configuration;
+    private readonly Daedalus.Services.Combat.ITimeToKillService? _timeToKillService;
 
     // Cache of enemy GameObjectIds in range — re-resolved via ObjectTable each use (no stale IBattleNpc refs).
     private readonly List<ulong> _cachedEnemyIds = new(32);
@@ -61,12 +62,14 @@ public sealed class TargetingService : ITargetingService
         IPartyList partyList,
         ITargetManager targetManager,
         Configuration configuration,
-        IGapCloserSafetyService gapCloserSafety)
+        IGapCloserSafetyService gapCloserSafety,
+        Daedalus.Services.Combat.ITimeToKillService? timeToKillService = null)
     {
         _objectTable = objectTable;
         _partyList = partyList;
         _targetManager = targetManager;
         _configuration = configuration;
+        _timeToKillService = timeToKillService;
         GapCloserSafety = gapCloserSafety;
         _cacheTimer.Start();
         _stickyClock.Start();
@@ -208,6 +211,10 @@ public sealed class TargetingService : ITargetingService
             if (!DistanceHelper.IsInRange(player.Position, explicitTarget.Position, maxRange + explicitTarget.HitboxRadius + player.HitboxRadius))
                 return null;
 
+            // RSR TimeToKill parity: never spend a DoT on a target about to die.
+            if (DotTtkGate.ShouldSkip(_timeToKillService, _configuration.Targeting, explicitTarget.GameObjectId))
+                return null;
+
             return GetDotDuration(explicitTarget, dotStatusId) < refreshThreshold ? explicitTarget : null;
         }
 
@@ -223,6 +230,11 @@ public sealed class TargetingService : ITargetingService
         };
 
         if (strategyTarget == null)
+            return null;
+
+        // RSR TimeToKill parity: never spend a DoT on a target about to die. Especially relevant
+        // on the LowestHp default strategy, which otherwise prefers exactly the dying mobs.
+        if (DotTtkGate.ShouldSkip(_timeToKillService, _configuration.Targeting, strategyTarget.GameObjectId))
             return null;
 
         return GetDotDuration(strategyTarget, dotStatusId) < refreshThreshold ? strategyTarget : null;

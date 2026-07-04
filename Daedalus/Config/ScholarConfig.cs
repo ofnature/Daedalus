@@ -263,7 +263,7 @@ public sealed class ScholarConfig
     /// <summary>
     /// When to use Summon Seraph.
     /// </summary>
-    public SeraphUsageStrategy SeraphStrategy { get; set; } = SeraphUsageStrategy.OnCooldown;
+    public SeraphUsageStrategy SeraphStrategy { get; set; } = SeraphUsageStrategy.SaveForDamage;
 
     /// <summary>
     /// Average party HP threshold to trigger Seraph.
