@@ -12,6 +12,19 @@ public sealed class Configuration : IPluginConfiguration
 
     // Runtime state
     public bool Enabled { get; set; } = false;
+
+    /// <summary>
+    /// Transient quest-combat override driven by quest plugins (Questionable) through the
+    /// RSR-compat IPC (<c>RotationSolverReborn.ChangeOperatingMode</c>): on at kill-step start,
+    /// off when the fight ends. Never persisted — a crash mid-quest must not leave the rotation
+    /// permanently enabled, and the user's master switch stays untouched.
+    /// </summary>
+    [Newtonsoft.Json.JsonIgnore]
+    public bool QuestCombatOverride { get; set; } = false;
+
+    /// <summary>Rotation runs when the user's master switch OR the quest-combat IPC override is on.</summary>
+    [Newtonsoft.Json.JsonIgnore]
+    public bool EffectiveEnabled => Enabled || QuestCombatOverride;
     public bool MainWindowVisible { get; set; } = true;
     public bool IsDebugWindowOpen { get; set; } = false;
 

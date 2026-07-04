@@ -163,6 +163,7 @@ public sealed class Plugin : IDalamudPlugin
     private readonly SmartAoEService smartAoEService;
 
     private readonly DaedalusIpc DaedalusIpc;
+    private readonly RsrCompatIpc rsrCompatIpc;
     private readonly UpdateCheckerService updateCheckerService;
 
     // Pull-intent state machine + consumable services (tincture automation)
@@ -510,6 +511,13 @@ public sealed class Plugin : IDalamudPlugin
             log,
             PluginVersion,
             () => rotationManager);
+
+        // RSR-compat gates: lets Questionable's kill-quest combat module (configured to
+        // "Rotation Solver Reborn") start/stop Daedalus around quest fights. Questionable
+        // targets the kill mobs itself; we just run while the transient override is on.
+        this.rsrCompatIpc = new RsrCompatIpc(pluginInterface, configuration, log);
+        this.rsrCompatIpc.OverrideChanged += enabled =>
+            chatGui.Print($"Daedalus rotation {(enabled ? "started" : "stopped")} by quest plugin.");
 
         if (fightSummaryService != null)
         {
@@ -882,7 +890,7 @@ public sealed class Plugin : IDalamudPlugin
     {
         try
         {
-            if (!configuration.Enabled)
+            if (!configuration.EffectiveEnabled)
             {
                 // Fully disabled — restore the player's original value if we ever overrode it.
                 if (_originalAutoFaceTarget.HasValue)
@@ -1003,7 +1011,20 @@ public sealed class Plugin : IDalamudPlugin
                     utcNow: DateTime.UtcNow);
             }
 
-            if (!configuration.Enabled)
+            // Quest-driven combat only: never grind on a training dummy. If the quest plugin's
+            // kill-step targeting somehow lands on a striking dummy, drop the target and end the
+            // IPC override (the user's master switch is untouched — manual dummy testing still works).
+            if (configuration.QuestCombatOverride
+                && targetManager.Target is IBattleChara questTarget
+                && RsrCompatIpc.IsTrainingDummy(questTarget.NameId))
+            {
+                targetManager.Target = null;
+                configuration.QuestCombatOverride = false;
+                chatGui.Print("Daedalus: training dummy targeted during quest combat — target dropped, rotation stopped.");
+                log.Warning("Quest-combat override aborted: training dummy (NameId {0}) was targeted.", questTarget.NameId);
+            }
+
+            if (!configuration.EffectiveEnabled)
                 return;
 
             if (localPlayer.CurrentHp == 0)
@@ -1013,7 +1034,7 @@ public sealed class Plugin : IDalamudPlugin
             partyCoordinationService?.Update(
                 localPlayer.EntityId,
                 localPlayer.ClassJob.RowId,
-                configuration.Enabled);
+                configuration.EffectiveEnabled);
 
             // Track player-to-target distance for gap closer safety heuristics.
             gapCloserSafetyService.Update(localPlayer, targetManager.Target as IBattleChara);
@@ -1112,6 +1133,7 @@ public sealed class Plugin : IDalamudPlugin
         actionFeedWindow.Dispose();
         windowSystem.RemoveAllWindows();
         DaedalusIpc.Dispose();
+        rsrCompatIpc.Dispose();
         partyCoordinationIpc?.Dispose();
         fflogsService?.Dispose();
         telemetryService.Dispose();

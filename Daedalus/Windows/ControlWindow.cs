@@ -164,11 +164,13 @@ public sealed class ControlWindow : Window
 
     private void DrawActiveRotationHeader()
     {
-        var statusColor = configuration.Enabled
+        var statusColor = configuration.EffectiveEnabled
             ? new Vector4(0.0f, 1.0f, 0.0f, 1.0f)
             : new Vector4(1.0f, 0.0f, 0.0f, 1.0f);
-        var statusText = configuration.Enabled
-            ? Loc.T(LocalizedStrings.Main.Active, "ACTIVE")
+        var statusText = configuration.EffectiveEnabled
+            ? configuration.Enabled
+                ? Loc.T(LocalizedStrings.Main.Active, "ACTIVE")
+                : Loc.T(LocalizedStrings.Main.Active, "ACTIVE") + " (Quest)"
             : Loc.T(LocalizedStrings.Main.Inactive, "INACTIVE");
 
         ImGui.TextColored(statusColor, statusText);

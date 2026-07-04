@@ -5,6 +5,11 @@ All notable changes to Daedalus will be documented in this file.
 <!-- LATEST-START -->
 ## v0.1.1 — 2026-07-03
 
+### New — Questionable quest-combat integration
+- Daedalus can now be driven by the **Questionable** quest plugin for kill quests. Set Questionable's combat module to "Rotation Solver Reborn" — Daedalus answers the same plugin-to-plugin calls, so Questionable targets the quest mobs and starts/stops the rotation around each fight automatically. No setup in Daedalus needed; your Enable switch and saved settings are untouched (quest-driven combat shows as "Enabled (Quest)" on the main window)
+- Safety: if quest combat somehow lands on a striking dummy, Daedalus drops the target and stops the quest-driven rotation instead of hitting the dummy forever (manual dummy practice is unaffected)
+- If the real Rotation Solver Reborn plugin is loaded, Daedalus steps aside and leaves the integration to it
+
 ### New — Built-in DPS parser
 - Daedalus now has its own parser — a **Parser** button on the main window opens an ACT-style damage meter that tracks **everyone**: your toons, other players (tagged HUMAN), and Trust/duty-support allies (tagged TRUST), with pet and summon damage merged into their owner's row. Rows show job, name, DPS, and damage share on a proportional bar; your own toon is highlighted in gold. Hover any row for total damage, crit%, and direct-hit%; the header shows the boss, fight timer, and party DPS, and a dropdown keeps your recent fights (configurable history)
 - **Borderless mode** (Settings → General → Parser) turns it into a compact semi-transparent overlay — bars, first names, and share % only — with optional click-through. A hide-out-of-combat toggle applies to both window modes, and a name scramble toggle swaps character names for mythological aliases for streaming
