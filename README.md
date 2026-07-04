@@ -63,6 +63,19 @@ Multibox across **multiple PCs** on the same network — UDP broadcast on your l
 
 Two-machine live testing is ongoing — expect rough edges.
 
+## Farm Mode *(work in progress)*
+
+Grind a material from specific overworld mobs, hands-free, until a target amount is in your bag. Daedalus pulls like a player would: walk to ranged tag distance, tag the mob, kill it while it runs at you, finish in melee, clear anything that aggroed you, then take the next — roaming between your farm spots while waiting on respawns. Single zone only (no teleporting). Requires **vnavmesh** for movement.
+
+**How to start:**
+1. Settings → General → Farm → enable **Show Farm button on main window**
+2. Click **Farm** on the main window
+3. Search the item by name and set your target count (current bag count shows live)
+4. Click **Find droppers** — every mob that drops the item (via GarlandTools, the same data Monster Loot Hunter shows) is listed with level and zone. Clicking one adds it to the kill list, flags its spawn on your map, and — if it lives in your current zone — adds a farm spot automatically. Or do it manually: target a mob → **Add current target**, stand where they spawn → **Add spot (my position)**
+5. **Start farming** — progress reports in chat, a green dot marks the active run, and it stops on its own when the target count is in your bag
+
+The mob/spot list is session-only for now (not saved on logout); saved farm profiles and further polish are on the roadmap — design notes live in `docs/farm-mode.md`.
+
 ## Supported Jobs (22/22)
 
 | Role | Jobs | Status |

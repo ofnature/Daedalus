@@ -3,21 +3,25 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
-## v0.1.4 — 2026-07-04
+## v0.1.5 — 2026-07-04
 
-### New — Farm mode (first cut)
-- Grind an item from specific mobs, hands-free: pick the item (search by name), a target count, the mobs (target one and click "Add current target"), and one or more farm spots ("Add spot at my position") — then Start. Daedalus kills your mobs around the spots (finishing anything that aggroes you first), roams between spots while waiting for respawns, and stops with a chat summary the moment the target count is in your bag. Everything stays in one zone — no teleporting
-- Enable the Farm button under Settings → General → Window Behavior ("Show Farm button on main window"); a green dot on the button marks an active run. Requires vnavmesh for movement
-- **"Find droppers"**: after picking the item, one click looks up which mobs drop it (GarlandTools — the same data Monster Loot Hunter shows) and adds them to your mob list with one click each
+### New — Farm mode (work in progress)
+- Grind an item from specific mobs, hands-free: pick the item (search by name), a target count, the mobs, and one or more farm spots — then Start. Daedalus kills your mobs around the spots, roams between them while waiting for respawns, and stops with a chat summary the moment the target count is in your bag. Everything stays in one zone — no teleporting
+- **Pulls like a player**: walks to ranged tag distance, stands still, tags the mob, and kills it while it runs in — melee finishes on arrival, and anything that aggroed you gets cleared before the next pull. Kits with no ranged attack walk to melee after a short tag window
+- **"Find droppers"**: after picking the item, one click looks up which mobs drop it (GarlandTools — the same data Monster Loot Hunter shows) with level and zone. Clicking a dropper adds it to your kill list, **flags its spawn on your map** (any zone), and adds a farm spot automatically when it lives in your current zone. Manual setup still works: target a mob → "Add current target", stand at the spawns → "Add spot (my position)"
+- Enable the Farm button under Settings → General → Farm ("Show Farm button on main window"); a green dot marks an active run. Requires vnavmesh for movement
 - The mob/spot list is session-only for now (not saved on logout) — saved farm profiles are planned next (see docs/farm-mode.md)
+
+### Fix — Bard: Quick Nock / Ladonsbite were fired at yourself
+- The AoE filler was dispatched at the player, but Quick Nock and Ladonsbite are targeted 12y cones (they require an enemy target) — the game refused every attempt ("invalid target" spam) and packs fell back to single-target shots. The cone now fires at the current enemy like Wide Volley/Shadowbite already did. This was costing Bard its entire AoE filler in every pack since the AoE rotation shipped
+<!-- LATEST-END -->
+
+## v0.1.4 — 2026-07-04
 
 ### New — Questionable kill quests work without any combat module
 - Questionable only targets kill-quest mobs when one of its combat modules (RSR/Wrath/BossMod) is configured — without one it walks to the objective and waits forever. Daedalus now reads Questionable's quest-step data directly: while a kill step is active it starts the rotation AND picks the targets itself — enemies already attacking you first, then **only mobs the game has flagged with the gold quest icon** (the same marker you see over objective mobs), so unrelated camps never get aggroed. Next mob when one dies, stopping the moment the step completes. Zero Questionable configuration needed; if you do set its combat module to "Rotation Solver Reborn", its exact quest-mob targeting takes over seamlessly
 - **Aggro cleanup**: leftovers that are still hitting you after the kill objective completes — or mobs that aggro while Questionable walks you through a camp — get killed before the rotation releases, instead of following you across the map as a train
 - **Flagged mobs are a standing kill order**: kill objectives don't always line up with the quest step Questionable reports (it can sit at "step completed" with 4/8 mobs still marked). While Questionable is running, any gold-icon mob in range now gets killed, one at a time, until no icons remain
-
-### Fix — Bard: Quick Nock / Ladonsbite were fired at yourself
-- The AoE filler was dispatched at the player, but Quick Nock and Ladonsbite are targeted 12y cones (they require an enemy target) — the game refused every attempt ("invalid target" spam) and packs fell back to single-target shots. The cone now fires at the current enemy like Wide Volley/Shadowbite already did. This was costing Bard its entire AoE filler in every pack since the AoE rotation shipped
 
 ### Fix — no more wasted DoTs on dying enemies (all jobs)
 - Caught in a Scholar log: Biolysis applied to a mob at 4,550 HP that died two casts later — the DoT never ticks enough to beat just casting filler. DoT application now checks the target's estimated time-to-kill (RSR parity) and skips enemies about to die; fresh pulls are never skipped since their time-to-kill is unknown. Applies to every DoT that uses smart target selection — healer DoTs, Bard's Iron Jaws spread, Blue Mage bleeds. New toggle + threshold under Settings → General → Targeting ("Skip DoTs on dying enemies", default on, 10s)
@@ -27,7 +31,6 @@ All notable changes to Daedalus will be documented in this file.
 
 ### Fix — AoE spells no longer flicker to single-target mid-pack (all jobs)
 - Caught in a Scholar log: Art of War hitting 5 enemies, then a lone hardcast Broil, then Art of War again — repeating. The AoE enemy count ran a line-of-sight raycast against every mob, which flickers at pack edges over uneven dungeon terrain, momentarily dropping the count below the AoE threshold. Point-blank AoE isn't blocked by bodies or props, so the hit count no longer raycasts (targeted-AoE counting already worked this way) — mid-pack AoE stays AoE
-<!-- LATEST-END -->
 
 ## v0.1.3 — 2026-07-04
 
