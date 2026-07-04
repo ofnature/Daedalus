@@ -16,12 +16,20 @@ public sealed class Configuration : IPluginConfiguration
     /// <summary>
     /// Transient combat override driven by external automation plugins: Questionable through the
     /// RSR-compat IPC (<c>RotationSolverReborn.ChangeOperatingMode</c>, on at kill-step start / off
-    /// at fight end) and Henchman through the <c>Henchman.IsBusy</c> poll (on while a hunt task
-    /// runs). Never persisted — a crash mid-task must not leave the rotation permanently enabled,
-    /// and the user's master switch stays untouched.
+    /// at fight end), Henchman through the <c>Henchman.IsBusy</c> poll, and AutoDuty through
+    /// <c>AutoDuty.IsStopped</c>. Never persisted — a crash mid-task must not leave the rotation
+    /// permanently enabled, and the user's master switch stays untouched.
+    /// Backed by process-wide state, NOT instance state: rotations run on a snapshot copy of this
+    /// object (<see cref="Services.Content.DutyConfigurationService.RotationConfiguration"/>) that
+    /// only refreshes on zone/settings changes — an instance flag written by the IPC bridges on the
+    /// saved config would never reach the rotation mid-task.
     /// </summary>
     [Newtonsoft.Json.JsonIgnore]
-    public bool ExternalCombatOverride { get; set; } = false;
+    public bool ExternalCombatOverride
+    {
+        get => ExternalCombatOverrideState.Active;
+        set => ExternalCombatOverrideState.Active = value;
+    }
 
     /// <summary>Rotation runs when the user's master switch OR the external-combat IPC override is on.</summary>
     [Newtonsoft.Json.JsonIgnore]
@@ -272,4 +280,14 @@ public sealed class Configuration : IPluginConfiguration
         PreventEscapeClose = preventEscapeClose;
         ShowDuringCutscenes = showDuringCutscenes;
     }
+}
+
+/// <summary>
+/// Process-wide holder for the transient external-automation combat override. See
+/// <see cref="Configuration.ExternalCombatOverride"/> for why this must not be instance state.
+/// Framework-thread access only (IPC callbacks and bridge polls both run there).
+/// </summary>
+internal static class ExternalCombatOverrideState
+{
+    internal static bool Active;
 }

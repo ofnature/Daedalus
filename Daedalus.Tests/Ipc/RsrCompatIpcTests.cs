@@ -59,32 +59,72 @@ public class RsrCompatIpcTests
     {
         var config = new Configuration();
 
-        config.Enabled = false;
-        config.ExternalCombatOverride = false;
-        Assert.False(config.EffectiveEnabled);
+        try
+        {
+            config.Enabled = false;
+            config.ExternalCombatOverride = false;
+            Assert.False(config.EffectiveEnabled);
 
-        config.ExternalCombatOverride = true;
-        Assert.True(config.EffectiveEnabled);
+            config.ExternalCombatOverride = true;
+            Assert.True(config.EffectiveEnabled);
 
-        config.Enabled = true;
-        config.ExternalCombatOverride = false;
-        Assert.True(config.EffectiveEnabled);
+            config.Enabled = true;
+            config.ExternalCombatOverride = false;
+            Assert.True(config.EffectiveEnabled);
 
-        config.ExternalCombatOverride = true;
-        Assert.True(config.EffectiveEnabled);
+            config.ExternalCombatOverride = true;
+            Assert.True(config.EffectiveEnabled);
+        }
+        finally
+        {
+            config.ExternalCombatOverride = false;
+        }
     }
 
     [Fact]
     public void ExternalCombatOverride_DefaultsOff_AndIsNotPersisted()
     {
         var config = new Configuration();
+        config.ExternalCombatOverride = false;
         Assert.False(config.ExternalCombatOverride);
 
-        // Transient by design: a crash mid-task must not leave the rotation enabled on next load.
-        // Dalamud persists IPluginConfiguration via Newtonsoft — the override must never hit disk.
-        config.ExternalCombatOverride = true;
-        var json = Newtonsoft.Json.JsonConvert.SerializeObject(config);
-        Assert.DoesNotContain(nameof(Configuration.ExternalCombatOverride), json);
-        Assert.DoesNotContain(nameof(Configuration.EffectiveEnabled), json);
+        try
+        {
+            // Transient by design: a crash mid-task must not leave the rotation enabled on next load.
+            // Dalamud persists IPluginConfiguration via Newtonsoft — the override must never hit disk.
+            config.ExternalCombatOverride = true;
+            var json = Newtonsoft.Json.JsonConvert.SerializeObject(config);
+            Assert.DoesNotContain(nameof(Configuration.ExternalCombatOverride), json);
+            Assert.DoesNotContain(nameof(Configuration.EffectiveEnabled), json);
+        }
+        finally
+        {
+            config.ExternalCombatOverride = false;
+        }
+    }
+
+    [Fact]
+    public void ExternalCombatOverride_VisibleThroughRotationConfigCopy()
+    {
+        // Rotations run on DutyConfigurationService's snapshot copy, which only refreshes on
+        // zone/settings changes. The override is process-wide state precisely so a flag set by the
+        // IPC bridges on the saved config is seen by the rotation copy the same frame — an instance
+        // flag here silently breaks the whole automation engage path (field-test regression).
+        var saved = new Configuration();
+        var rotationCopy = Daedalus.Config.ConfigurationCopier.CreateRotationCopy(saved);
+
+        try
+        {
+            saved.ExternalCombatOverride = true;
+            Assert.True(rotationCopy.ExternalCombatOverride);
+            Assert.True(rotationCopy.EffectiveEnabled);
+
+            saved.ExternalCombatOverride = false;
+            Assert.False(rotationCopy.ExternalCombatOverride);
+        }
+        finally
+        {
+            saved.ExternalCombatOverride = false;
+        }
     }
 }
