@@ -496,8 +496,11 @@ public sealed class TargetingService : ITargetingService
     {
         // Count only enemies that are engaged or hostile — passive mobs in nearby packs
         // must not inflate AoE thresholds before they're pulled.
+        // No LoS raycast (matches PassesEnemyNearPointFilters): PBAoE isn't body/prop-blocked,
+        // and the raycast flickers at pack edges — caught making SCH alternate Art of War with
+        // single-target Broil mid-pack because the count dipped below the AoE threshold.
         var count = 0;
-        foreach (var enemy in GetValidEnemies(radius, player))
+        foreach (var enemy in GetValidEnemies(radius, player, applyLineOfSightFilter: false))
         {
             if (IsEngagedOrHostile(enemy, player))
                 count++;
@@ -511,7 +514,7 @@ public sealed class TargetingService : ITargetingService
         // Same engaged/hostile filter as CountEnemiesInRange — feeds pack time-to-kill estimates
         // (e.g. MCH Queen hold), so passive unpulled packs must not inflate the total.
         long total = 0;
-        foreach (var enemy in GetValidEnemies(radius, player))
+        foreach (var enemy in GetValidEnemies(radius, player, applyLineOfSightFilter: false))
         {
             if (IsEngagedOrHostile(enemy, player))
                 total += enemy.CurrentHp;

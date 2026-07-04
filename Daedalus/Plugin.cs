@@ -221,6 +221,18 @@ public sealed class Plugin : IDalamudPlugin
 
         this.configuration = pluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
 
+        // One-time migration for changed defaults (Version 2 -> 3). Seraph "on cooldown" was the
+        // old shipped default that nobody chose deliberately — it burns a 120s healing cooldown at
+        // full party HP seconds into every pull (caught in SCH field logs). Users who re-pick
+        // OnCooldown after this migration keep their choice (Version stays 3).
+        if (configuration.Version < 3)
+        {
+            if (configuration.Scholar.SeraphStrategy == Daedalus.Config.SeraphUsageStrategy.OnCooldown)
+                configuration.Scholar.SeraphStrategy = Daedalus.Config.SeraphUsageStrategy.SaveForDamage;
+            configuration.Version = 3;
+            pluginInterface.SavePluginConfig(configuration);
+        }
+
         // Initialize localization (must be early, before UI construction)
         this.localization = new DaedalusLocalization(clientState, configuration, log);
         this.gameDataLocalizer = new GameDataLocalizer(dataManager);

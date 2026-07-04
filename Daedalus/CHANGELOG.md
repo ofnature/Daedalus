@@ -18,7 +18,10 @@ All notable changes to Daedalus will be documented in this file.
 - Caught in a Scholar log: Biolysis applied to a mob at 4,550 HP that died two casts later — the DoT never ticks enough to beat just casting filler. DoT application now checks the target's estimated time-to-kill (RSR parity) and skips enemies about to die; fresh pulls are never skipped since their time-to-kill is unknown. Applies to every DoT that uses smart target selection — healer DoTs, Bard's Iron Jaws spread, Blue Mage bleeds. New toggle + threshold under Settings → General → Targeting ("Skip DoTs on dying enemies", default on, 10s)
 
 ### Fix — Scholar: Summon Seraph no longer burned at full health
-- The default Seraph strategy was "on cooldown", so it fired seconds into a pull with nobody hurt. New default is "save for damage" (fires when average party HP drops below the Seraph threshold). Existing installs: flip it under Scholar settings if you saved config before this build
+- The default Seraph strategy was "on cooldown", so it fired seconds into a pull with nobody hurt. New default is "save for damage" (fires when average party HP drops below the Seraph threshold), and existing configs are migrated automatically — if you deliberately want on-cooldown Seraph, re-pick it once under Scholar settings and it sticks
+
+### Fix — AoE spells no longer flicker to single-target mid-pack (all jobs)
+- Caught in a Scholar log: Art of War hitting 5 enemies, then a lone hardcast Broil, then Art of War again — repeating. The AoE enemy count ran a line-of-sight raycast against every mob, which flickers at pack edges over uneven dungeon terrain, momentarily dropping the count below the AoE threshold. Point-blank AoE isn't blocked by bodies or props, so the hit count no longer raycasts (targeted-AoE counting already worked this way) — mid-pack AoE stays AoE
 
 ### Fix — the v0.1.2 bridges could switch Daedalus on but not make it act
 - Rotations read an internal snapshot of the settings (the duty-tuning overlay), and the automation on-switch never reached that snapshot — so Questionable/Henchman would report the rotation "started" while every module still saw itself as off. The switch is now visible to the rotation the same frame it flips. Validated end-to-end on overworld hunt-log farming: marks get targeted, opened on, and killed, and the task advances on its own
