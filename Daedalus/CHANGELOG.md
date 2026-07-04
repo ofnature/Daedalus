@@ -3,12 +3,7 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
-## v0.1.3 — 2026-07-04
-
-### New — Automation bridges, round two: AutoDuty + auto-engage
-- **AutoDuty** runs now auto-start the rotation — no more manually enabling Daedalus before a farming session. This also covers Henchman's duty hunt-log marks ("Solo Unsync Duty" / duty-support dungeons): Henchman hands those dungeons to AutoDuty, so Daedalus follows AutoDuty's running state and fights inside the instance
-- **Automation now opens on passive marks**: hunt-log and quest mobs usually won't attack first, and Daedalus previously waited for combat to start — so Henchman would target a mark and both plugins would stare at it forever. While automation is driving, a live attackable hard target now counts as "engage": Daedalus fires the opener the moment the driver targets the mob (and waits politely while you're mounted). Manual play is unchanged — Daedalus still never pulls on its own
-- The main window and overlay now show **who's driving** in gold next to the duty label — "Dungeon · Henchman" (or AutoDuty / Quest) — and the Debug window's Why Stuck tab gained an "Automation" line (override held? engaged? waiting on what?) plus a build stamp in the header
+## v0.1.4 — 2026-07-04
 
 ### New — Questionable kill quests work without any combat module
 - Questionable only targets kill-quest mobs when one of its combat modules (RSR/Wrath/BossMod) is configured — without one it walks to the objective and waits forever. Daedalus now reads Questionable's quest-step data directly: while a kill step is active it starts the rotation AND picks the targets itself — enemies already attacking you first, then **only mobs the game has flagged with the gold quest icon** (the same marker you see over objective mobs), so unrelated camps never get aggroed. Next mob when one dies, stopping the moment the step completes. Zero Questionable configuration needed; if you do set its combat module to "Rotation Solver Reborn", its exact quest-mob targeting takes over seamlessly
@@ -23,10 +18,17 @@ All notable changes to Daedalus will be documented in this file.
 
 ### Fix — AoE spells no longer flicker to single-target mid-pack (all jobs)
 - Caught in a Scholar log: Art of War hitting 5 enemies, then a lone hardcast Broil, then Art of War again — repeating. The AoE enemy count ran a line-of-sight raycast against every mob, which flickers at pack edges over uneven dungeon terrain, momentarily dropping the count below the AoE threshold. Point-blank AoE isn't blocked by bodies or props, so the hit count no longer raycasts (targeted-AoE counting already worked this way) — mid-pack AoE stays AoE
+<!-- LATEST-END -->
+
+## v0.1.3 — 2026-07-04
+
+### New — Automation bridges, round two: AutoDuty + auto-engage
+- **AutoDuty** runs now auto-start the rotation — no more manually enabling Daedalus before a farming session. This also covers Henchman's duty hunt-log marks ("Solo Unsync Duty" / duty-support dungeons): Henchman hands those dungeons to AutoDuty, so Daedalus follows AutoDuty's running state and fights inside the instance
+- **Automation now opens on passive marks**: hunt-log and quest mobs usually won't attack first, and Daedalus previously waited for combat to start — so Henchman would target a mark and both plugins would stare at it forever. While automation is driving, a live attackable hard target now counts as "engage": Daedalus fires the opener the moment the driver targets the mob (and waits politely while you're mounted). Manual play is unchanged — Daedalus still never pulls on its own
+- The main window and overlay now show **who's driving** in gold next to the duty label — "Dungeon · Henchman" (or AutoDuty / Quest) — and the Debug window's Why Stuck tab gained an "Automation" line (override held? engaged? waiting on what?) plus a build stamp in the header
 
 ### Fix — the v0.1.2 bridges could switch Daedalus on but not make it act
 - Rotations read an internal snapshot of the settings (the duty-tuning overlay), and the automation on-switch never reached that snapshot — so Questionable/Henchman would report the rotation "started" while every module still saw itself as off. The switch is now visible to the rotation the same frame it flips. Validated end-to-end on overworld hunt-log farming: marks get targeted, opened on, and killed, and the task advances on its own
-<!-- LATEST-END -->
 
 ## v0.1.2 — 2026-07-04
 
