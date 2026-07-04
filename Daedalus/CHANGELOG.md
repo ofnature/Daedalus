@@ -12,6 +12,10 @@ All notable changes to Daedalus will be documented in this file.
 - Enable the Farm button under Settings → General → Farm ("Show Farm button on main window"); a green dot marks an active run. Requires vnavmesh for movement
 - The mob/spot list is session-only for now (not saved on logout) — saved farm profiles are planned next (see docs/farm-mode.md)
 
+### Fix — Scholar: Energy Drain finally flows (gauge was read from the wrong memory)
+- The Aetherflow stack reader (and the Fairy Gauge reader) read raw bytes at the wrong offset of the job gauge — the count was garbage, so Energy Drain never fired and Aetherflow/Fey Union decisions ran on wrong numbers. Both now read the proper gauge fields. In a dungeon run this alone is roughly 9-10 Energy Drains per minute of Aetherflow cycle that Scholar was leaving on the table
+- Dungeon tuning: Art of War now requires 3 enemies (2 hits = 280 potency vs Broil's 310 — a pure loss with no utility rider), and Sage's Dyskrasia likewise stays at 3 (340 vs 380). Astrologian keeps its 2-target AoE (Gravity actually beats Fall Malefic there) and White Mage keeps 2 for Holy's stun
+
 ### Fix — Bard: Quick Nock / Ladonsbite were fired at yourself
 - The AoE filler was dispatched at the player, but Quick Nock and Ladonsbite are targeted 12y cones (they require an enemy target) — the game refused every attempt ("invalid target" spam) and packs fell back to single-target shots. The cone now fires at the current enemy like Wide Volley/Shadowbite already did. This was costing Bard its entire AoE filler in every pack since the AoE rotation shipped
 <!-- LATEST-END -->

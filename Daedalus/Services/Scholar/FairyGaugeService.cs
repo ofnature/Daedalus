@@ -68,21 +68,18 @@ public sealed class FairyGaugeService : IFairyGaugeService
 
     /// <summary>
     /// Gets the Fairy Gauge value from the game's job gauge.
+    /// Typed ClientStructs member, never raw byte offsets — the old rawGauge[1] read landed
+    /// inside the gauge's vtable pointer (see AetherflowTrackingService for the full story).
     /// </summary>
     private static unsafe int GetFairyGauge()
     {
         try
         {
-            var jobGauge = JobGaugeManager.Instance();
+            var jobGauge = Daedalus.Services.SafeGameAccess.GetJobGaugeManager();
             if (jobGauge == null)
                 return 0;
 
-            // Scholar job gauge stores Fairy Gauge in the second byte
-            var gaugeData = jobGauge->CurrentGauge;
-
-            // For SCH: byte 0 = Aetherflow stacks, byte 1 = Fairy Gauge
-            var rawGauge = (byte*)&gaugeData;
-            return rawGauge[1];
+            return jobGauge->Scholar.FairyGauge;
         }
         catch
         {

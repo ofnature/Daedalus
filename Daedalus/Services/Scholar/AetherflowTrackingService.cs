@@ -115,23 +115,19 @@ public sealed class AetherflowTrackingService : IAetherflowTrackingService
 
     /// <summary>
     /// Gets the Aetherflow stack count from the game's job gauge.
+    /// Typed ClientStructs member, never raw byte offsets: the first bytes of a job gauge are
+    /// its vtable pointer, so the old rawGauge[0] read returned pointer garbage — Energy Drain
+    /// and every stack decision keyed off a wrong count (same lesson as the MNK nadi mask).
     /// </summary>
     private static unsafe int GetAetherflowStacks()
     {
         try
         {
-            var jobGauge = JobGaugeManager.Instance();
+            var jobGauge = Daedalus.Services.SafeGameAccess.GetJobGaugeManager();
             if (jobGauge == null)
                 return 0;
 
-            // Scholar job gauge stores Aetherflow in the first byte
-            // The gauge structure varies by job, but SCH uses bytes for Aetherflow and Fairy Gauge
-            var gaugeData = jobGauge->CurrentGauge;
-
-            // For SCH: byte 0 = Aetherflow stacks, byte 1 = Fairy Gauge
-            // Access the raw gauge data
-            var rawGauge = (byte*)&gaugeData;
-            return rawGauge[0];
+            return jobGauge->Scholar.Aetherflow;
         }
         catch
         {

@@ -238,13 +238,16 @@ public static class ConfigurationPresets
         config.Resurrection.RaiseMode = RaiseExecutionMode.RaiseFirst;
         config.Resurrection.AllowHardcastRaise = true;
 
-        // Damage - lower AoE threshold for smaller pulls
+        // Damage - lower AoE threshold for smaller pulls. WHM stays at 2: Holy's stun is worth
+        // the small potency loss on dungeon trash (300 vs 340 at exactly 2 targets).
         config.Damage.AoEDamageMinTargets = 2;
 
-        // Scholar - aggressive DPS
+        // Scholar - aggressive DPS. Art of War stays at 3: 2×140 = 280 < Broil 310, and unlike
+        // Holy there is no utility rider — 2-target AoE is a pure loss for SCH.
         config.Scholar.AetherflowStrategy = AetherflowUsageStrategy.AggressiveDps;
         config.Scholar.AetherflowReserve = 0;
         config.Scholar.EnableEnergyDrain = true;
+        config.Scholar.AoEDamageMinTargets = 3;
 
         // Astrologian - DPS cards on cooldown, no raid burst hold in small content
         config.Astrologian.CardStrategy = CardPlayStrategy.DpsFocused;
@@ -255,11 +258,12 @@ public static class ConfigurationPresets
         config.Astrologian.AoEHealMinTargets = 2;
         config.Astrologian.EarthlyStarMinTargets = 2;
 
-        // Sage - dungeon tuning: lower AoE thresholds, tank-centered heal counts, no Addersgall reserve
+        // Sage - dungeon tuning: lower AoE heal threshold, tank-centered heal counts, no
+        // Addersgall reserve. Dyskrasia stays at the 3-target default: 2×170 = 340 < Dosis 380.
         config.Sage.AddersgallReserve = 0;
         config.Sage.PreventAddersgallCap = true;
         config.Sage.AoEHealMinTargets = 2;
-        config.Sage.AoEDamageMinTargets = 2;
+        config.Sage.AoEDamageMinTargets = 3;
         config.Sage.AoEHealCountMode = SageAoEHealCountMode.TankCentered;
         // AoEDamageCountMode no longer set: Dyskrasia is self-centered, count is always player-centered.
 
