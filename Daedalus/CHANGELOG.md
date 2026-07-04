@@ -3,13 +3,22 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.3 — 2026-07-04
+
+### New — Automation bridges, round two: AutoDuty + auto-engage
+- **AutoDuty** runs now auto-start the rotation — no more manually enabling Daedalus before a farming session. This also covers Henchman's duty hunt-log marks ("Solo Unsync Duty" / duty-support dungeons): Henchman hands those dungeons to AutoDuty, so Daedalus follows AutoDuty's running state and fights inside the instance
+- **Automation now opens on passive marks**: hunt-log and quest mobs usually won't attack first, and Daedalus previously waited for combat to start — so Henchman would target a mark and both plugins would stare at it forever. While automation is driving, a live attackable hard target now counts as "engage": Daedalus fires the opener the moment the driver targets the mob (and waits politely while you're mounted). Manual play is unchanged — Daedalus still never pulls on its own
+- The main window and overlay now show **who's driving** in gold next to the duty label — "Dungeon · Henchman" (or AutoDuty / Quest) — and the Debug window's Why Stuck tab gained an "Automation" line (override held? engaged? waiting on what?) plus a build stamp in the header
+
+### Fix — the v0.1.2 bridges could switch Daedalus on but not make it act
+- Rotations read an internal snapshot of the settings (the duty-tuning overlay), and the automation on-switch never reached that snapshot — so Questionable/Henchman would report the rotation "started" while every module still saw itself as off. The switch is now visible to the rotation the same frame it flips. Validated end-to-end on overworld hunt-log farming: marks get targeted, opened on, and killed, and the task advances on its own
+<!-- LATEST-END -->
+
 ## v0.1.2 — 2026-07-04
 
 ### New — Questionable & Henchman automation bridges
 - Daedalus can now be driven by the **Questionable** quest plugin for kill quests. Set Questionable's combat module to "Rotation Solver Reborn" — Daedalus answers the same plugin-to-plugin calls, so Questionable targets the quest mobs and starts/stops the rotation around each fight automatically. No setup in Daedalus needed; your Enable switch and saved settings are untouched (automation-driven combat shows as "Enabled (Auto)" on the main window)
 - **Henchman** hunt farming works too: while a Henchman task is running (BumpOnALog hunt logs, OnYourMark hunt bills, Bring Your A/B Game rank farming), Daedalus runs the rotation automatically — Henchman targets each mark and handles the travel, Daedalus does the killing. Rotation starts when the task starts and stops when it finishes; no Henchman configuration needed (its "Auto Rotation Plugin" setting can stay on anything)
-- **AutoDuty** runs now auto-start the rotation too — no more manually enabling Daedalus before a farming session. This also fixes Henchman's duty hunt-log marks ("Solo Unsync Duty" / duty-support dungeons): Henchman hands those dungeons to AutoDuty, so Daedalus now follows AutoDuty's running state and fights inside the instance
-- **Automation now opens on passive marks**: hunt-log and quest mobs usually won't attack first, and Daedalus previously waited for combat to start — so Henchman would target a mark and both plugins would stare at it forever. While automation is driving, a live attackable hard target now counts as "engage": Daedalus fires the opener the moment the driver targets the mob (and waits politely while you're mounted). Manual play is unchanged — Daedalus still never pulls on its own
 - Safety: if automated combat somehow lands on a striking dummy, Daedalus drops the target and stops the automation-driven rotation instead of hitting the dummy forever (manual dummy practice is unaffected)
 - If the real Rotation Solver Reborn plugin is loaded, Daedalus steps aside and leaves the quest integration to it
 
@@ -19,7 +28,6 @@ All notable changes to Daedalus will be documented in this file.
 ### Fix — Dragoon: the missing 4th and 5th combo hits (Lv56+)
 - Fang and Claw, Wheeling Thrust, and Drakesbane **never fired at any level** — every combo restarted after 3 hits (caught in a Lv68 boss log where the toon clearly had them). They were gated on the Fang-and-Claw-Bared / Wheel-in-Motion proc buffs, which Dawntrail removed when it turned these into plain combo continuations. The steps are now driven by the game's combo state: Full/Heavens' Thrust → Fang and Claw (flank), Chaos Thrust/Chaotic Spring → Wheeling Thrust (rear), either → Drakesbane at 64+ (which was also mislabeled as a "Lv92 replacement" — it's the Lv64 fifth hit). Both positionals are job-quest locked, so unlearned skills fall through to a combo restart instead of stalling. This is a large DPS gain at every level from 56 to 100
 - Life Surge's "big hit next" detection updated to match: it now correctly saves the guaranteed crit for Drakesbane or Heavens' Thrust
-<!-- LATEST-END -->
 
 ## v0.1.1 — 2026-07-03
 
