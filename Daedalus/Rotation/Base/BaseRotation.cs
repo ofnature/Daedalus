@@ -97,6 +97,9 @@ public abstract class BaseRotation<TContext, TModule> : IRotation, IDisposable
     private Vector3 _lastPosition;
     private DateTime _lastMovementTime = DateTime.MinValue;
 
+    // External-automation engage edge tracking (log once per activation, not per frame)
+    private bool _automationEngageActive;
+
     // Cached timestamp for current frame — set once at start of ExecuteInternal
     protected DateTime FrameTimestamp;
 
@@ -240,12 +243,22 @@ public abstract class BaseRotation<TContext, TModule> : IRotation, IDisposable
         // as combat while the override is on; manual play (override off) never auto-pulls.
         // Mounted guard: Henchman targets the mark before mounting toward it — don't submit
         // actions the game will refuse until the driver dismounts us at the mob.
+        var automationEngaged = false;
         if (!inCombat && Configuration.ExternalCombatOverride
             && !IsMounted()
             && TargetingService.GetUserEnemyTarget() is { IsDead: false })
         {
             inCombat = true;
+            automationEngaged = true;
         }
+        if (automationEngaged && !_automationEngageActive)
+            Log.Info("{0}: automation engage — opening on hard target (external override).", Name);
+        _automationEngageActive = automationEngaged;
+        DebugState.AutomationState = !Configuration.ExternalCombatOverride ? ""
+            : automationEngaged ? "override on — engaged (hard target)"
+            : inCombat ? "override on — in combat"
+            : IsMounted() ? "override on — waiting (mounted)"
+            : "override on — waiting (no live hard target)";
         UpdateCombatState(inCombat);
 
         // Job-specific service updates

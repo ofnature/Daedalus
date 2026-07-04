@@ -296,6 +296,7 @@ public sealed class DebugService
             TargetInfo = debug.TargetInfo,
             TargetDistanceInfo = TargetingDebugHelper.FormatTargetDistance(player, combatTarget),
             PauseReason = ComputeGlobalPauseReason(player),
+            AutomationState = debug.AutomationState,
             SecondsSinceLastAction = _actionService.SecondsSinceLastAction,
             VNavState = _vNav.IsPathRunning ? "Pathing (moving)"
                 : _vNav.IsPathfindInProgress ? "Finding path"

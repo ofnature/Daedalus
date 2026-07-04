@@ -174,6 +174,16 @@ public static class WhyStuckTab
             || rotation.VNavState.StartsWith("Finding", StringComparison.Ordinal);
         ImGui.TextColored(moving ? DebugColors.Warning : DebugColors.Dim, $"vNav: {rotation.VNavState}");
 
+        // External-automation bridge (Questionable/Henchman/AutoDuty): shows whether the override is
+        // held and whether the engage-on-hard-target substitute for InCombat is currently active.
+        if (!string.IsNullOrEmpty(rotation.AutomationState))
+        {
+            var autoColor = rotation.AutomationState.Contains("waiting", StringComparison.Ordinal)
+                ? DebugColors.Warning
+                : DebugColors.Success;
+            ImGui.TextColored(autoColor, $"Automation: {rotation.AutomationState}");
+        }
+
         // Enemies actually castable-at: in line of sight, and the subset in front (facing). If these are
         // 0 while enemies are engaged, that's why casts get rejected (LoS / facing).
         var losColor = rotation.EnemiesInLineOfSight > 0 ? DebugColors.Success : DebugColors.Warning;

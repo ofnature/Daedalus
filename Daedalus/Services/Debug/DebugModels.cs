@@ -80,6 +80,9 @@ public sealed class DebugRotationState
     /// <summary>Non-empty when the whole rotation is globally paused this frame (explains a full stall). All jobs.</summary>
     public string PauseReason { get; init; } = "";
 
+    /// <summary>External-automation (Questionable/Henchman/AutoDuty) override + engage state; "" when no override held.</summary>
+    public string AutomationState { get; init; } = "";
+
     /// <summary>Seconds since the last action (GCD or oGCD) was dispatched — the live idle timer.</summary>
     public double SecondsSinceLastAction { get; init; }
 

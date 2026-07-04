@@ -10,6 +10,9 @@ public abstract class BaseDebugState
     public string PlanningState { get; set; } = "Idle";
     public string PlannedAction { get; set; } = "None";
 
+    /// <summary>External-automation (Questionable/Henchman/AutoDuty) override + engage state; "" when no override held.</summary>
+    public string AutomationState { get; set; } = "";
+
     // Party info
     public float PlayerHpPercent { get; set; }
     public int PartyListCount { get; set; }
