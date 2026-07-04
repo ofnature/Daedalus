@@ -223,13 +223,25 @@ public sealed class FarmModeService : IDisposable
         // approach: walk to the target's hitbox edge (melee reach for melee/tanks, cast range
         // otherwise), then let the rotation take over. Re-path only when nav is idle (vNav
         // stutter-step guard, same pattern as NinjaBurstApproachService).
+        // Uses PathfindAndMoveTo to a computed stop point — SimpleMove.PathfindAndMoveCloseTo
+        // is missing on older vnavmesh builds and failed silently in the field (the toon only
+        // moved when BMR AI happened to be on).
         var stopDistance = FarmRoamPolicy.ApproachStopYalms(player.ClassJob.RowId);
-        var edgeDistance = Vector3.Distance(player.Position, targetPosition) - targetHitbox - player.HitboxRadius;
+        var toPlayer = player.Position - targetPosition;
+        var distance = toPlayer.Length();
+        var edgeDistance = distance - targetHitbox - player.HitboxRadius;
 
         if (edgeDistance > stopDistance)
         {
             if (!_vNav.IsPathRunning && !_vNav.IsPathfindInProgress)
-                _vNav.PathfindAndMoveCloseTo(targetPosition, Math.Max(stopDistance - 0.5f, 1.5f));
+            {
+                var stopPoint = distance > 0.5f
+                    ? targetPosition + toPlayer / distance * (targetHitbox + player.HitboxRadius + stopDistance * 0.5f)
+                    : targetPosition;
+                var result = _vNav.PathfindAndMoveTo(_vNav.SnapToFloor(stopPoint));
+                if (result != VNavMoveResult.Queued)
+                    _log.Debug("[Farm] approach path not queued: {0}", result);
+            }
         }
         else if (_vNav.IsPathRunning)
         {

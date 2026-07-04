@@ -81,8 +81,11 @@ public sealed class VNavService : IVNavService
         }
         catch (Exception ex)
         {
-            _log?.Warning(ex, "[VNavService] PathfindAndMoveCloseTo failed.");
-            return VNavMoveResult.PluginUnavailable;
+            // SimpleMove.PathfindAndMoveCloseTo is missing on older vnavmesh builds — fall back
+            // to a plain move to the destination so callers still get there (they computed the
+            // destination; the tolerance only relaxed the arrival point).
+            _log?.Warning(ex, "[VNavService] PathfindAndMoveCloseTo unavailable — falling back to PathfindAndMoveTo.");
+            return PathfindAndMoveTo(destination, fly);
         }
     }
 
