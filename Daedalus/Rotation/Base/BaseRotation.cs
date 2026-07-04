@@ -233,6 +233,19 @@ public abstract class BaseRotation<TContext, TModule> : IRotation, IDisposable
             inCombat = IsAutoAttacking();
         if (!inCombat && Configuration.EnableOnPartyInCombat)
             inCombat = PartyCombatHelper.IsAnyGroupMemberInCombat(player, PartyList, ObjectTable);
+        // External-automation engage (RSR Manual semantics): while a quest/farm plugin holds the
+        // combat override, it has hard-targeted a mob it wants dead and is waiting for us to kill
+        // it — passive hunt-log/quest marks never initiate, so every module gating on InCombat
+        // deadlocks against the driver's "wait for kill". A valid attackable hard target counts
+        // as combat while the override is on; manual play (override off) never auto-pulls.
+        // Mounted guard: Henchman targets the mark before mounting toward it — don't submit
+        // actions the game will refuse until the driver dismounts us at the mob.
+        if (!inCombat && Configuration.ExternalCombatOverride
+            && !IsMounted()
+            && TargetingService.GetUserEnemyTarget() is { IsDead: false })
+        {
+            inCombat = true;
+        }
         UpdateCombatState(inCombat);
 
         // Job-specific service updates
@@ -475,6 +488,18 @@ public abstract class BaseRotation<TContext, TModule> : IRotation, IDisposable
         try
         {
             return RotationServices.Condition?[Dalamud.Game.ClientState.Conditions.ConditionFlag.InCombat] ?? false;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static bool IsMounted()
+    {
+        try
+        {
+            return RotationServices.Condition?[Dalamud.Game.ClientState.Conditions.ConditionFlag.Mounted] ?? false;
         }
         catch
         {
