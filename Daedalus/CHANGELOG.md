@@ -16,6 +16,9 @@ All notable changes to Daedalus will be documented in this file.
 - **Aggro cleanup**: leftovers that are still hitting you after the kill objective completes — or mobs that aggro while Questionable walks you through a camp — get killed before the rotation releases, instead of following you across the map as a train
 - **Flagged mobs are a standing kill order**: kill objectives don't always line up with the quest step Questionable reports (it can sit at "step completed" with 4/8 mobs still marked). While Questionable is running, any gold-icon mob in range now gets killed, one at a time, until no icons remain
 
+### Fix — Bard: Quick Nock / Ladonsbite were fired at yourself
+- The AoE filler was dispatched at the player, but Quick Nock and Ladonsbite are targeted 12y cones (they require an enemy target) — the game refused every attempt ("invalid target" spam) and packs fell back to single-target shots. The cone now fires at the current enemy like Wide Volley/Shadowbite already did. This was costing Bard its entire AoE filler in every pack since the AoE rotation shipped
+
 ### Fix — no more wasted DoTs on dying enemies (all jobs)
 - Caught in a Scholar log: Biolysis applied to a mob at 4,550 HP that died two casts later — the DoT never ticks enough to beat just casting filler. DoT application now checks the target's estimated time-to-kill (RSR parity) and skips enemies about to die; fresh pulls are never skipped since their time-to-kill is unknown. Applies to every DoT that uses smart target selection — healer DoTs, Bard's Iron Jaws spread, Blue Mage bleeds. New toggle + threshold under Settings → General → Targeting ("Skip DoTs on dying enemies", default on, 10s)
 

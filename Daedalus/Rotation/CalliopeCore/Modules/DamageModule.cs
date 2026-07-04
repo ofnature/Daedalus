@@ -583,7 +583,9 @@ public sealed class DamageModule : ICalliopeModule
                 // NOTE: no early return after this push — the single-target filler below stays
                 // queued at lower priority as the fallback (combo-starter-fallback rule), so a
                 // dispatch-rejected AoE filler can never stall the GCD.
-                scheduler.PushGcd(aoeAbility, player.GameObjectId, priority: 8,
+                // Quick Nock/Ladonsbite are TARGETED 12y cones (Range 12y, CanTargetSelf false) —
+                // dispatching at self is refused by the game ("invalid target" spam in the field).
+                scheduler.PushGcd(aoeAbility, target.GameObjectId, priority: 8,
                     onDispatched: _ =>
                     {
                         context.Debug.PlannedAction = aoeAction.Name;
