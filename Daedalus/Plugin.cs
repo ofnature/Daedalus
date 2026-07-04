@@ -167,6 +167,7 @@ public sealed class Plugin : IDalamudPlugin
     private readonly AutomationBusyBridge[] automationBridges;
     private readonly QuestionableIpc questionableIpc;
     private readonly Daedalus.Services.Farm.FarmModeService farmModeService;
+    private readonly Daedalus.Services.Farm.GarlandDropSource garlandDropSource;
     private readonly FarmWindow farmWindow;
     private readonly UpdateCheckerService updateCheckerService;
 
@@ -521,7 +522,8 @@ public sealed class Plugin : IDalamudPlugin
             configuration, objectTable, targetManager, targetingService, vNavService,
             inventoryProbe, clientState, log);
         this.farmModeService.Notify += message => chatGui.Print(message);
-        this.farmWindow = new FarmWindow(farmModeService, dataManager, targetManager, clientState, objectTable);
+        this.garlandDropSource = new Daedalus.Services.Farm.GarlandDropSource(dataManager, log);
+        this.farmWindow = new FarmWindow(farmModeService, garlandDropSource, dataManager, targetManager, clientState, objectTable);
         this.mainWindow.OpenFarm = () => this.farmWindow.Toggle();
         this.mainWindow.FarmActive = () => this.farmModeService.IsRunning;
 
@@ -1207,6 +1209,7 @@ public sealed class Plugin : IDalamudPlugin
             bridge.Dispose();
         questionableIpc.Dispose();
         farmModeService.Dispose();
+        garlandDropSource.Dispose();
         partyCoordinationIpc?.Dispose();
         fflogsService?.Dispose();
         telemetryService.Dispose();

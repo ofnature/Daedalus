@@ -28,8 +28,11 @@ public sealed class FarmWindow : Window
     private readonly List<(uint Id, string Name)> _itemResults = new();
     private int _targetCountInput = 1;
 
+    private readonly GarlandDropSource _dropSource;
+
     public FarmWindow(
         FarmModeService farm,
+        GarlandDropSource dropSource,
         IDataManager dataManager,
         ITargetManager targetManager,
         IClientState clientState,
@@ -37,6 +40,7 @@ public sealed class FarmWindow : Window
         : base("Daedalus Farm")
     {
         _farm = farm;
+        _dropSource = dropSource;
         _dataManager = dataManager;
         _targetManager = targetManager;
         _clientState = clientState;
@@ -74,7 +78,7 @@ public sealed class FarmWindow : Window
         {
             ImGui.Text($"{profile.ItemName}");
             ImGui.SameLine();
-            ImGui.TextDisabled($"(id {profile.ItemId}, in bag: {_farm.CurrentItemCount})");
+            ImGui.TextDisabled($"(id {profile.ItemId}, in bag: {_farm.PeekItemCount(profile.ItemId)})");
         }
         ImGui.SetNextItemWidth(-1);
         ImGui.InputTextWithHint("##farmItemSearch", "search item by name (3+ letters)...", ref _itemSearch, 64);
@@ -116,6 +120,43 @@ public sealed class FarmWindow : Window
         {
             if (_targetManager.Target is IBattleNpc npc && npc.NameId != 0)
                 profile.AddMob(npc.NameId, npc.Name.ToString());
+        }
+
+        // GarlandTools dropper lookup (same source Monster Loot Hunter uses — it has no IPC).
+        if (profile.ItemId != 0)
+        {
+            ImGui.SameLine();
+            var cached = _dropSource.TryGetCached(profile.ItemId);
+            if (cached == null)
+            {
+                ImGui.BeginDisabled(_dropSource.IsBusy);
+                if (ImGui.Button(_dropSource.IsBusy ? "Looking up..." : "Find droppers"))
+                    _dropSource.BeginLookup(profile.ItemId);
+                ImGui.EndDisabled();
+                if (_dropSource.LastError != null)
+                    ImGui.TextColored(DaedalusTheme.StatusRed, _dropSource.LastError);
+            }
+            else if (cached.Count == 0)
+            {
+                ImGui.TextDisabled("GarlandTools lists no mob droppers for this item.");
+            }
+            else
+            {
+                ImGui.TextDisabled($"Drops from (GarlandTools):");
+                foreach (var candidate in cached)
+                {
+                    var label = candidate.Level > 0 ? $"{candidate.Name} (Lv{candidate.Level})" : candidate.Name;
+                    if (candidate.NameId != 0)
+                    {
+                        if (ImGui.SmallButton($"+ {label}##drop{candidate.Name}{candidate.Level}"))
+                            profile.AddMob(candidate.NameId, candidate.Name);
+                    }
+                    else
+                    {
+                        ImGui.TextDisabled($"   {label} (couldn't match to a game mob)");
+                    }
+                }
+            }
         }
         for (var i = 0; i < profile.Mobs.Count; i++)
         {

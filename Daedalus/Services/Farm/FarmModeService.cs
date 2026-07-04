@@ -44,6 +44,10 @@ public sealed class FarmModeService : IDisposable
 
     public FarmProfile Profile { get; } = new();
     public bool IsRunning { get; private set; }
+
+    /// <summary>Live bag count for any item — the setup UI shows this before a run starts
+    /// (<see cref="CurrentItemCount"/> only refreshes while running).</summary>
+    public uint PeekItemCount(uint itemId) => itemId == 0 ? 0 : _inventory.GetItemCount(itemId);
     public string StatusLine { get; private set; } = "Idle";
     public int Kills { get; private set; }
     public uint CurrentItemCount { get; private set; }
