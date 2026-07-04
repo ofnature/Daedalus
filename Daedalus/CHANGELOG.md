@@ -3,13 +3,23 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
-## v0.1.1 — 2026-07-03
+## v0.1.2 — 2026-07-04
 
 ### New — Questionable & Henchman automation bridges
 - Daedalus can now be driven by the **Questionable** quest plugin for kill quests. Set Questionable's combat module to "Rotation Solver Reborn" — Daedalus answers the same plugin-to-plugin calls, so Questionable targets the quest mobs and starts/stops the rotation around each fight automatically. No setup in Daedalus needed; your Enable switch and saved settings are untouched (automation-driven combat shows as "Enabled (Auto)" on the main window)
 - **Henchman** hunt farming works too: while a Henchman task is running (BumpOnALog hunt logs, OnYourMark hunt bills, Bring Your A/B Game rank farming), Daedalus runs the rotation automatically — Henchman targets each mark and handles the travel, Daedalus does the killing. Rotation starts when the task starts and stops when it finishes; no Henchman configuration needed (its "Auto Rotation Plugin" setting can stay on anything)
 - Safety: if automated combat somehow lands on a striking dummy, Daedalus drops the target and stops the automation-driven rotation instead of hitting the dummy forever (manual dummy practice is unaffected)
 - If the real Rotation Solver Reborn plugin is loaded, Daedalus steps aside and leaves the quest integration to it
+
+### Fix — Scholar: Fey Union guard checked a boss status
+- The "is a tether already running" check read status 1224 on the scholar — which is **Earthly Dominance**, a boss status that never appears on a player — so it never fired and Aetherpact could be re-pushed while a tether was live. The guard now checks the real Fey Union status on the scholar plus the RSR-style scan of party members for the tether
+
+### Fix — Dragoon: the missing 4th and 5th combo hits (Lv56+)
+- Fang and Claw, Wheeling Thrust, and Drakesbane **never fired at any level** — every combo restarted after 3 hits (caught in a Lv68 boss log where the toon clearly had them). They were gated on the Fang-and-Claw-Bared / Wheel-in-Motion proc buffs, which Dawntrail removed when it turned these into plain combo continuations. The steps are now driven by the game's combo state: Full/Heavens' Thrust → Fang and Claw (flank), Chaos Thrust/Chaotic Spring → Wheeling Thrust (rear), either → Drakesbane at 64+ (which was also mislabeled as a "Lv92 replacement" — it's the Lv64 fifth hit). Both positionals are job-quest locked, so unlearned skills fall through to a combo restart instead of stalling. This is a large DPS gain at every level from 56 to 100
+- Life Surge's "big hit next" detection updated to match: it now correctly saves the guaranteed crit for Drakesbane or Heavens' Thrust
+<!-- LATEST-END -->
+
+## v0.1.1 — 2026-07-03
 
 ### New — Built-in DPS parser
 - Daedalus now has its own parser — a **Parser** button on the main window opens an ACT-style damage meter that tracks **everyone**: your toons, other players (tagged HUMAN), and Trust/duty-support allies (tagged TRUST), with pet and summon damage merged into their owner's row. Rows show job, name, DPS, and damage share on a proportional bar; your own toon is highlighted in gold. Hover any row for total damage, crit%, and direct-hit%; the header shows the boss, fight timer, and party DPS, and a dropdown keeps your recent fights (configurable history)
@@ -22,13 +32,6 @@ All notable changes to Daedalus will be documented in this file.
 - **Wide Volley was never used**: the Lv25 AoE Hawk's Eye spender (the pre-72 Shadowbite) existed in the data but nothing referenced it, so on packs from 25–71 every proc was spent on the single-target shot. Packs now use Wide Volley, upgrading to Shadowbite at 72
 - **Bloodletter charges wasted below 84**: the overcap dump was hardcoded to 3 charges, but the cap is 2 until the Lv84 trait — outside Mage's Ballad and Raging Strikes the charges just sat full for the entire leveling range. The dump now uses the real charge cap for your level
 - Resilience: the AoE filler no longer suppresses the single-target filler fallback, so a rejected Quick Nock/Ladonsbite can never stall the GCD
-
-### Fix — Scholar: Fey Union guard checked a boss status
-- The "is a tether already running" check read status 1224 on the scholar — which is **Earthly Dominance**, a boss status that never appears on a player — so it never fired and Aetherpact could be re-pushed while a tether was live. The guard now checks the real Fey Union status on the scholar plus the RSR-style scan of party members for the tether
-
-### Fix — Dragoon: the missing 4th and 5th combo hits (Lv56+)
-- Fang and Claw, Wheeling Thrust, and Drakesbane **never fired at any level** — every combo restarted after 3 hits (caught in a Lv68 boss log where the toon clearly had them). They were gated on the Fang-and-Claw-Bared / Wheel-in-Motion proc buffs, which Dawntrail removed when it turned these into plain combo continuations. The steps are now driven by the game's combo state: Full/Heavens' Thrust → Fang and Claw (flank), Chaos Thrust/Chaotic Spring → Wheeling Thrust (rear), either → Drakesbane at 64+ (which was also mislabeled as a "Lv92 replacement" — it's the Lv64 fifth hit). Both positionals are job-quest locked, so unlearned skills fall through to a combo restart instead of stalling. This is a large DPS gain at every level from 56 to 100
-- Life Surge's "big hit next" detection updated to match: it now correctly saves the guaranteed crit for Drakesbane or Heavens' Thrust
 
 ### Fix — Dragoon: Life Surge no longer wasted on Piercing Talon
 - Caught in a Porta Decumana log: Life Surge was weaved after Vorpal Thrust while the boss was out of melee reach, so the guaranteed crit landed on Piercing Talon — the weakest hit in the kit — instead of the combo finisher. Life Surge now holds until the target is back in melee range
@@ -311,7 +314,6 @@ All notable changes to Daedalus will be documented in this file.
 - Live "Last action: Ns ago" idle timer, a PAUSED banner that names why the whole rotation is idle (including "no action in combat"), and per-ability reasons for why a GCD won't fire (cooldown, proc, combo, out of range, line-of-sight/facing). The tank tab also shows enemy counts (in PBAoE range vs aggroed within 25y)
 - Added a vNav movement state (Idle / Pathing / Finding path) and a live "In LoS / facing" enemy counter, so it's clear whether an idle is the character moving vs. no enemy actually being castable-at (line of sight / facing)
 - The "why a GCD won't fire" reason is now accurate for internal holds too (repeat-GCD guard, submit latch, submit backoff) instead of mislabeling them as line-of-sight/facing
-<!-- LATEST-END -->
 
 ## v0.0.3 — 2026-06-26
 
