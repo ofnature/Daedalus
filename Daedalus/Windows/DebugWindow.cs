@@ -24,6 +24,29 @@ public sealed class DebugWindow : Window
 
     private uint _selectedJobId; // 0 = unset; auto-selects active job on next Draw
 
+    /// <summary>Loaded-assembly write time — distinguishes which build is actually running in-game.</summary>
+    private static readonly string BuildStamp = ResolveBuildStamp();
+
+    private static string ResolveBuildStamp()
+    {
+        try
+        {
+            // MVID changes on every compile — works even when Dalamud byte-loads the assembly
+            // (empty Assembly.Location). The file write time is added when resolvable.
+            var assembly = typeof(DebugWindow).Assembly;
+            var mvid = assembly.ManifestModule.ModuleVersionId.ToString("N")[..8];
+
+            var path = assembly.Location;
+            return string.IsNullOrEmpty(path)
+                ? mvid
+                : $"{System.IO.File.GetLastWriteTime(path):yyyy-MM-dd HH:mm:ss} ({mvid})";
+        }
+        catch
+        {
+            return "unknown";
+        }
+    }
+
     // Ordered list for the Job Details combo. Advanced jobs only — no base classes.
     // Entries with JobId == 0 are non-selectable role group headers.
     private static readonly (uint JobId, string DisplayName)[] JobList =
@@ -84,6 +107,10 @@ public sealed class DebugWindow : Window
     public override void Draw()
     {
         var snapshot = _debugService.GetSnapshot();
+
+        // Build stamp: identifies exactly which DLL is loaded — rapid Debug rebuilds auto-reload
+        // in-game, and a missed reload otherwise looks like a code bug (stale-build test sessions).
+        ImGui.TextDisabled($"build {BuildStamp}");
 
         // Tab bar
         if (ImGui.BeginTabBar("DebugTabs"))
