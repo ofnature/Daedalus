@@ -109,14 +109,16 @@ public sealed class AthenaStatusHelper : BaseStatusHelper
     }
 
     /// <summary>
-    /// Checks if Fey Union is currently active (player has the channeling status).
-    /// The player gets status ID 1224 while channeling Fey Union.
+    /// Checks if Fey Union is currently active. The tether shows as Fey Union (1222 on the
+    /// scholar side, 1223 on the linked party member — RSR scans party members for 1223).
+    /// The OLD check read status 1224 on the player, which is "Earthly Dominance" — a BOSS
+    /// status that never appears on a scholar — so the guard never fired and Aetherpact
+    /// could be re-pushed while a tether was already running.
     /// </summary>
     public bool HasFeyUnionActive(IPlayerCharacter player)
     {
-        // Player gets Fey Union channeling status while active
-        const ushort FeyUnionChannelStatusId = 1224;
-        return HasStatus(player, FeyUnionChannelStatusId);
+        const ushort FeyUnionSelfStatusId = 1222;
+        return HasStatus(player, FeyUnionSelfStatusId);
     }
 
     /// <summary>

@@ -145,6 +145,13 @@ public sealed class FairyModule : IAthenaModule
         if (context.FairyGaugeService.CurrentGauge < config.FeyUnionMinGauge) return;
         if (context.StatusHelper.HasFeyUnionActive(player)) return;
 
+        // Authoritative tether check (RSR pattern): a linked party member carries
+        // Fey Union (1223) — never re-push Aetherpact while any tether is live.
+        foreach (var member in context.PartyHelper.GetAllPartyMembers(player))
+        {
+            if (context.StatusHelper.HasFeyUnion(member)) return;
+        }
+
         var target = context.PartyHelper.FindFeyUnionTarget(player, config.FeyUnionThreshold);
         if (target == null) return;
 
