@@ -78,14 +78,23 @@ public sealed class BuffModule : IZeusModule
             return;
         }
 
+        // Big-hit setups (one clock with the combo state — the old Bared/Wheel-in-Motion
+        // proc statuses were removed in Dawntrail 7.0): Drakesbane next (after F&C/WT at 64+),
+        // Full/Heavens' Thrust next (after Vorpal), or Coerthan Torment next in AoE.
+        var comboActive = context.ComboTimeRemaining > 0;
+        var drakesbaneNext = comboActive
+            && (context.LastComboAction == DRGActions.FangAndClaw.ActionId
+                || context.LastComboAction == DRGActions.WheelingThrust.ActionId)
+            && level >= DRGActions.Drakesbane.MinLevel
+            && context.ActionService.IsActionLearned(DRGActions.Drakesbane.ActionId);
+
         var shouldUseLifeSurge = false;
-        if (context.HasFangAndClawBared || context.HasWheelInMotion)
+        if (drakesbaneNext)
             shouldUseLifeSurge = true;
-        else if (context.LastComboAction == DRGActions.VorpalThrust.ActionId &&
-                 context.ComboTimeRemaining > 0)
+        else if (context.LastComboAction == DRGActions.VorpalThrust.ActionId && comboActive)
             shouldUseLifeSurge = true;
         else if (context.LastComboAction == DRGActions.SonicThrust.ActionId &&
-                 context.ComboTimeRemaining > 0 &&
+                 comboActive &&
                  level >= DRGActions.CoerthanTorment.MinLevel)
             shouldUseLifeSurge = true;
 
@@ -101,8 +110,8 @@ public sealed class BuffModule : IZeusModule
                 context.Debug.PlannedAction = DRGActions.LifeSurge.Name;
                 context.Debug.BuffState = "Activating Life Surge";
 
-                var procReason = context.HasFangAndClawBared ? "Fang and Claw ready" :
-                                 context.HasWheelInMotion ? "Wheeling Thrust ready" :
+                var procReason = context.LastComboAction == DRGActions.FangAndClaw.ActionId
+                                 || context.LastComboAction == DRGActions.WheelingThrust.ActionId ? "Drakesbane coming" :
                                  context.LastComboAction == DRGActions.VorpalThrust.ActionId ? "Heavens' Thrust coming" :
                                  "Coerthan Torment coming";
                 TrainingHelper.Decision(context.TrainingService)

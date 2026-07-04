@@ -493,42 +493,50 @@ public sealed class DamageModule : IZeusModule
 
     private void TryPushPositionalProcs(IZeusContext context, RotationScheduler scheduler, IBattleChara target)
     {
+        // Dawntrail 7.0: Fang and Claw (56, flank) / Wheeling Thrust (58, rear) / Drakesbane (64,
+        // no positional) are COMBO CONTINUATIONS driven by the game's combo action (RSR: ComboIds)
+        // — the old Bared / Wheel-in-Motion proc statuses were REMOVED in 7.0. Gating on them
+        // silenced combo steps 4-5 at every level 56+ (Lv68 boss log 2026-07-04: every combo
+        // capped at 3 hits). Learned gates matter: both positionals are HW job-quest locked.
         var level = context.Player.Level;
+        if (context.ComboTimeRemaining <= 0)
+            return;
+        var last = context.LastComboAction;
 
-        // Lv.92+: Drakesbane replaces Fang and Claw / Wheeling Thrust
-        if (level >= DRGActions.Drakesbane.MinLevel)
+        // Step 5: Drakesbane after EITHER positional (Lv64+, follows F&C/WT — not a replacement).
+        if ((last == DRGActions.FangAndClaw.ActionId || last == DRGActions.WheelingThrust.ActionId)
+            && level >= DRGActions.Drakesbane.MinLevel
+            && context.ActionService.IsActionLearned(DRGActions.Drakesbane.ActionId)
+            && context.ActionService.IsActionReady(DRGActions.Drakesbane.ActionId))
         {
-            if ((context.HasFangAndClawBared || context.HasWheelInMotion)
-                && context.ActionService.IsActionReady(DRGActions.Drakesbane.ActionId))
-            {
-                scheduler.PushGcd(ZeusAbilities.Drakesbane, target.GameObjectId, priority: 1,
-                    onDispatched: _ =>
-                    {
-                        context.Debug.PlannedAction = DRGActions.Drakesbane.Name;
-                        context.Debug.DamageState = "Drakesbane";
+            scheduler.PushGcd(ZeusAbilities.Drakesbane, target.GameObjectId, priority: 1,
+                onDispatched: _ =>
+                {
+                    context.Debug.PlannedAction = DRGActions.Drakesbane.Name;
+                    context.Debug.DamageState = "Drakesbane";
 
-                        TrainingHelper.Decision(context.TrainingService)
-                            .Action(DRGActions.Drakesbane.ActionId, DRGActions.Drakesbane.Name)
-                            .AsMeleeDamage()
-                            .Target(target.Name?.TextValue)
-                            .Reason("Drakesbane to consume positional proc",
-                                "At Lv.92+, Drakesbane replaces both Fang and Claw and Wheeling Thrust. " +
-                                "It is unlocked by either the Fang and Claw Bared or Wheel in Motion proc from your previous combo step. " +
-                                "Drakesbane has no positional requirement — use it as soon as the proc is active.")
-                            .Factors(new[] { "Positional proc active (Fang and Claw Bared or Wheel in Motion)", "No positional requirement at Lv.92+", "High-potency combo finisher" })
-                            .Alternatives(new[] { "Delay (risks dropping the combo)", "Skip (loses finisher damage)" })
-                            .Tip("Drakesbane is your primary combo finisher at Lv.92+. It replaces the positional finishers and grants Firstmind's Focus.")
-                            .Concept(DrgConcepts.Positionals)
-                            .Record();
-                        context.TrainingService?.RecordConceptApplication(DrgConcepts.Positionals, true, "Drakesbane finisher used");
-                    });
-            }
+                    TrainingHelper.Decision(context.TrainingService)
+                        .Action(DRGActions.Drakesbane.ActionId, DRGActions.Drakesbane.Name)
+                        .AsMeleeDamage()
+                        .Target(target.Name?.TextValue)
+                        .Reason("Drakesbane combo finisher (step 5)",
+                            "Drakesbane (Lv.64+) finishes both combo lines after Fang and Claw or Wheeling Thrust. " +
+                            "It has no positional requirement, grants Draconian Fire, and generates Firstmind's Focus.")
+                        .Factors(new[] { "Combo continued from Fang and Claw / Wheeling Thrust", "No positional requirement", "High-potency combo finisher" })
+                        .Alternatives(new[] { "Delay (risks dropping the combo)", "Skip (loses finisher damage)" })
+                        .Tip("Drakesbane is the 5th combo hit at Lv.64+. It grants Draconian Fire for Raiden Thrust.")
+                        .Concept(DrgConcepts.Positionals)
+                        .Record();
+                    context.TrainingService?.RecordConceptApplication(DrgConcepts.Positionals, true, "Drakesbane finisher used");
+                });
             return;
         }
 
-        // Pre-Drakesbane: separate Fang and Claw / Wheeling Thrust pushes — ProcBuff gates select active one
-        if (level >= DRGActions.FangAndClaw.MinLevel
-            && context.HasFangAndClawBared
+        // Step 4a: Fang and Claw after Full/Heavens' Thrust (flank). Game reports the EXECUTED
+        // step-3 id, so both the base and Lv86 morph ids must gate (the SAM starter lesson).
+        if ((last == DRGActions.FullThrust.ActionId || last == DRGActions.HeavensThrust.ActionId)
+            && level >= DRGActions.FangAndClaw.MinLevel
+            && context.ActionService.IsActionLearned(DRGActions.FangAndClaw.ActionId)
             && context.ActionService.IsActionReady(DRGActions.FangAndClaw.ActionId))
         {
             var positionalOk = context.IsAtFlank || context.HasTrueNorth || context.TargetHasPositionalImmunity;
@@ -551,18 +559,21 @@ public sealed class DamageModule : IZeusModule
                             "Position yourself at the target's flank (left or right side) to gain the bonus potency. " +
                             "Use True North if you cannot reach the correct position.")
                         .Factors(positionalOk
-                            ? new[] { "Fang and Claw Bared proc active", "Flank position achieved", "Bonus potency applied" }
-                            : new[] { "Fang and Claw Bared proc active", "Not at flank — positional missed", "Consider True North next time" })
+                            ? new[] { "Combo continued from Full/Heavens' Thrust", "Flank position achieved", "Bonus potency applied" }
+                            : new[] { "Combo continued from Full/Heavens' Thrust", "Not at flank — positional missed", "Consider True North next time" })
                         .Alternatives(new[] { "Use True North to guarantee flank (if off cooldown)", "Adjust position pre-emptively" })
                         .Tip("Fang and Claw requires flanking the target. Check your position before the Vorpal Thrust combo step.")
                         .Concept(DrgConcepts.Positionals)
                         .Record();
                     context.TrainingService?.RecordConceptApplication(DrgConcepts.Positionals, positionalOk, positionalOk ? "Flank positional hit" : "Flank positional missed");
                 });
+            return;
         }
 
-        if (level >= DRGActions.WheelingThrust.MinLevel
-            && context.HasWheelInMotion
+        // Step 4b: Wheeling Thrust after Chaos Thrust/Chaotic Spring (rear).
+        if ((last == DRGActions.ChaosThrust.ActionId || last == DRGActions.ChaoticSpring.ActionId)
+            && level >= DRGActions.WheelingThrust.MinLevel
+            && context.ActionService.IsActionLearned(DRGActions.WheelingThrust.ActionId)
             && context.ActionService.IsActionReady(DRGActions.WheelingThrust.ActionId))
         {
             var positionalOk = context.IsAtRear || context.HasTrueNorth || context.TargetHasPositionalImmunity;
@@ -585,8 +596,8 @@ public sealed class DamageModule : IZeusModule
                             "Position yourself at the target's rear to gain bonus potency. " +
                             "Use True North if you cannot reach the rear of the target.")
                         .Factors(positionalOk
-                            ? new[] { "Wheel in Motion proc active", "Rear position achieved", "Bonus potency applied" }
-                            : new[] { "Wheel in Motion proc active", "Not at rear — positional missed", "Consider True North next time" })
+                            ? new[] { "Combo continued from Chaos Thrust/Chaotic Spring", "Rear position achieved", "Bonus potency applied" }
+                            : new[] { "Combo continued from Chaos Thrust/Chaotic Spring", "Not at rear — positional missed", "Consider True North next time" })
                         .Alternatives(new[] { "Use True North to guarantee rear (if off cooldown)", "Adjust position pre-emptively" })
                         .Tip("Wheeling Thrust requires being at the target's rear. Coordinate with Chaos Thrust to manage rear positioning.")
                         .Concept(DrgConcepts.Positionals)

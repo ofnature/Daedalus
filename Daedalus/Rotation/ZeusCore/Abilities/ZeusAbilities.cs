@@ -46,20 +46,21 @@ public static class ZeusAbilities
         LevelReplacements = new[] { ((byte)86, DRGActions.ChaoticSpring) },
     };
 
-    // --- Positional procs ---
+    // --- Positional combo continuations (steps 4-5) ---
+    // NO ProcBuff gates: Dawntrail 7.0 REMOVED the Fang and Claw Bared / Wheel in Motion
+    // statuses — these are plain combo continuations now (RSR: ComboIds). Gating on the
+    // dead statuses silenced steps 4-5 at every level 56+.
 
     public static readonly AbilityBehavior FangAndClaw = new()
     {
         Action = DRGActions.FangAndClaw,
         Toggle = null,
-        ProcBuff = DRGActions.StatusIds.FangAndClawBared,
     };
 
     public static readonly AbilityBehavior WheelingThrust = new()
     {
         Action = DRGActions.WheelingThrust,
         Toggle = null,
-        ProcBuff = DRGActions.StatusIds.WheelInMotion,
     };
 
     public static readonly AbilityBehavior Drakesbane = new()

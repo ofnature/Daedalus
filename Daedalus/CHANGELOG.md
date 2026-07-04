@@ -17,6 +17,10 @@ All notable changes to Daedalus will be documented in this file.
 - **Bloodletter charges wasted below 84**: the overcap dump was hardcoded to 3 charges, but the cap is 2 until the Lv84 trait — outside Mage's Ballad and Raging Strikes the charges just sat full for the entire leveling range. The dump now uses the real charge cap for your level
 - Resilience: the AoE filler no longer suppresses the single-target filler fallback, so a rejected Quick Nock/Ladonsbite can never stall the GCD
 
+### Fix — Dragoon: the missing 4th and 5th combo hits (Lv56+)
+- Fang and Claw, Wheeling Thrust, and Drakesbane **never fired at any level** — every combo restarted after 3 hits (caught in a Lv68 boss log where the toon clearly had them). They were gated on the Fang-and-Claw-Bared / Wheel-in-Motion proc buffs, which Dawntrail removed when it turned these into plain combo continuations. The steps are now driven by the game's combo state: Full/Heavens' Thrust → Fang and Claw (flank), Chaos Thrust/Chaotic Spring → Wheeling Thrust (rear), either → Drakesbane at 64+ (which was also mislabeled as a "Lv92 replacement" — it's the Lv64 fifth hit). Both positionals are job-quest locked, so unlearned skills fall through to a combo restart instead of stalling. This is a large DPS gain at every level from 56 to 100
+- Life Surge's "big hit next" detection updated to match: it now correctly saves the guaranteed crit for Drakesbane or Heavens' Thrust
+
 ### Fix — Dragoon: Life Surge no longer wasted on Piercing Talon
 - Caught in a Porta Decumana log: Life Surge was weaved after Vorpal Thrust while the boss was out of melee reach, so the guaranteed crit landed on Piercing Talon — the weakest hit in the kit — instead of the combo finisher. Life Surge now holds until the target is back in melee range
 
