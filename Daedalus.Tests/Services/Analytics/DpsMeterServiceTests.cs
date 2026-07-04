@@ -381,7 +381,7 @@ public sealed class DpsMeterServiceTests
     }
 
     [Fact]
-    public void Service_DotTick_Unattributable_IsDroppedNotGuessed()
+    public void Service_DotTick_Unattributable_IsDroppedNotGuessed_ButCounted()
     {
         var (svc, ces, _, _) = MakeService();
 
@@ -391,6 +391,43 @@ public sealed class DpsMeterServiceTests
         svc.Update();
 
         Assert.Equal(0, svc.Current!.TotalDamage);
+        // The drop is visible, never silent — this is what the parser footer shows as "+N DoT?".
+        Assert.Equal(450, svc.Current!.UnattributedDotDamage);
+    }
+
+    [Fact]
+    public void Service_DotTick_AggregatedTick_AttributedToSoleFriendlySource()
+    {
+        // The game merges all DoTs on a target into one tick with no source and no effect id.
+        // When exactly one friendly has any status on the enemy, the tick can only be theirs.
+        var (svc, ces, _, _) = MakeService();
+        svc.SoleFriendlyStatusSourceLookup = targetId => targetId == 100 ? 1u : 0u;
+
+        SetCombat(ces, true);
+        svc.Update();
+        ces.Raise(x => x.OnDotTick += null, new DotTickEvent(100, 0, 3, 450, PossibleSourceId: 0));
+        svc.Update();
+
+        var stats = Assert.Single(svc.Current!.GetRanked());
+        Assert.Equal(Self.Key, stats.EntityId);
+        Assert.Equal(450, stats.DotDamage);
+        Assert.Equal(0, svc.Current!.UnattributedDotDamage);
+    }
+
+    [Fact]
+    public void Service_DotTick_UnattributedCounter_IgnoresNonHostileTargets()
+    {
+        // Enemy DoTs on players / HoT ticks are correctly nobody's damage — they must not
+        // inflate the "missing DoT" number.
+        var (svc, ces, _, _) = MakeService();
+        svc.IsHostileTargetLookup = _ => false;
+
+        SetCombat(ces, true);
+        svc.Update();
+        ces.Raise(x => x.OnDotTick += null, new DotTickEvent(100, 0, 3, 450, PossibleSourceId: 0));
+        svc.Update();
+
+        Assert.Equal(0, svc.Current!.UnattributedDotDamage);
     }
 
     [Fact]

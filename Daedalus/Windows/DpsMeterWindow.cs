@@ -261,11 +261,23 @@ public sealed class DpsMeterWindow : Window
             selectedIndex = 0;
         }
 
+        // Undercount visibility: aggregated multi-source DoT ticks (typical with Trust casters
+        // DoTing the same enemy) can't be attributed to a row — show the missing total so a
+        // low-looking DoT job is explainable at a glance.
+        var unattributed = entries[selectedIndex].UnattributedDotDamage;
+        if (unattributed > 0)
+        {
+            ImGui.SameLine();
+            ImGui.TextDisabled($"+{FormatNumber(unattributed)} DoT?");
+            if (ImGui.IsItemHovered() && !configuration.Parser.ClickThrough)
+                ImGui.SetTooltip("DoT tick damage that couldn't be attributed to anyone — the game merges all DoTs on a target into one tick, and with several casters DoTing (Trust allies) the source is ambiguous. Every DoT user's row is missing a share of this.");
+        }
+
         ImGui.SameLine();
         ImGui.SetCursorPosX(ImGui.GetCursorPosX() + ImGui.GetContentRegionAvail().X - ImGui.CalcTextSize("(?)").X);
         DaedalusTheme.HelpMarker(Loc.T(
             LocalizedStrings.Parser.LegendTooltip,
-            "Source dots:\n● gold — you (exact)\n● green — Daedalus toon, self-reported over IPC/LAN (exact)\n● grey — observed locally (Trusts, other players)\n\nDoT ticks are attributed to whoever applied the effect; a rare unattributable tick is dropped rather than guessed."));
+            "Source dots:\n● gold — you (exact)\n● green — Daedalus toon, self-reported over IPC/LAN (exact)\n● grey — observed locally (Trusts, other players)\n\nDoT ticks are attributed to whoever applied the effect; when several casters have DoTs on one target the merged tick is ambiguous — that damage shows as \"+N DoT?\" in the footer instead of being guessed into a row."));
     }
 
     private string EntryLabel(DpsEncounter encounter)

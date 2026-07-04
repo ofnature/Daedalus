@@ -87,6 +87,21 @@ public sealed class DpsEncounter
 
     public long TotalDamage { get; private set; }
 
+    /// <summary>
+    /// Damage from DoT ticks on enemies that could not be attributed to any caster — the game
+    /// aggregates all DoTs on a target into one tick, and when neither the packet source nor the
+    /// status list disambiguates it (several friendly DoT sources, typical with Trust casters),
+    /// the tick lands here instead of in a row. Non-zero means every DoT user's row is
+    /// undercounting; shown in the parser footer so the undercount is visible, never silent.
+    /// </summary>
+    public long UnattributedDotDamage { get; private set; }
+
+    public void AddUnattributedDot(int amount)
+    {
+        if (IsActive && amount > 0)
+            UnattributedDotDamage += amount;
+    }
+
     /// <summary>Name of the enemy that has received the most damage — the encounter title.</summary>
     public string TargetName { get; private set; } = "";
 

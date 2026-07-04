@@ -41,6 +41,12 @@ public sealed class DpsMeterService : IDpsMeterService, IDisposable
     /// </summary>
     internal Func<uint, uint, uint> StatusSourceLookup;
 
+    /// <summary>Sole friendly status source on the target (0 = none or ambiguous). Injectable for tests.</summary>
+    internal Func<uint, uint> SoleFriendlyStatusSourceLookup;
+
+    /// <summary>Whether the tick's target is a hostile NPC (gates the unattributed counter). Injectable for tests.</summary>
+    internal Func<uint, bool> IsHostileTargetLookup;
+
     // IPC/LAN self-report sharing (milestone 2) — null when party coordination is off.
     private CoordinationBus? bus;
     private readonly Func<ushort>? territoryProvider;
@@ -78,6 +84,8 @@ public sealed class DpsMeterService : IDpsMeterService, IDisposable
         this.resolver = DefaultResolve;
         this.IsPartyMemberName = name => IsInPartyList(partyList, name);
         this.StatusSourceLookup = DefaultStatusSourceLookup;
+        this.SoleFriendlyStatusSourceLookup = DefaultSoleFriendlyStatusSourceLookup;
+        this.IsHostileTargetLookup = DefaultIsHostileTarget;
 
         combatEventService.OnDamageDealt += OnDamageDealt;
         combatEventService.OnDotTick += OnDotTick;
@@ -97,6 +105,8 @@ public sealed class DpsMeterService : IDpsMeterService, IDisposable
         this.territoryProvider = territoryProvider;
         this.IsPartyMemberName = isPartyMemberName ?? (_ => true);
         this.StatusSourceLookup = (_, _) => 0;
+        this.SoleFriendlyStatusSourceLookup = _ => 0;
+        this.IsHostileTargetLookup = _ => true;
 
         combatEventService.OnDamageDealt += OnDamageDealt;
         combatEventService.OnDotTick += OnDotTick;
@@ -332,7 +342,13 @@ public sealed class DpsMeterService : IDpsMeterService, IDisposable
 
             var resolved = TryAttributeTick(tick);
             if (resolved == null)
+            {
+                // Only ticks on hostile targets count as "missing damage" — enemy DoTs on
+                // players and HoT ticks are correctly not ours and stay invisible.
+                if (IsHostileTargetLookup(tick.TargetEntityId))
+                    encounter.AddUnattributedDot(tick.Amount);
                 continue;
+            }
 
             encounter.AddDotDamage(resolved.Value.Caster, resolved.Value.TargetName, tick.Amount);
         }
@@ -340,9 +356,10 @@ public sealed class DpsMeterService : IDpsMeterService, IDisposable
 
     /// <summary>
     /// Attributes a DoT tick: the packet's source id when present (newer packets carry it),
-    /// otherwise whoever applied the ticking status on the target. The resolver's
-    /// friendly-caster/hostile-target rules apply either way, so enemy DoTs on players and
-    /// HoT ticks fall out naturally. Unattributable ticks are dropped, never guessed.
+    /// otherwise whoever applied the ticking status on the target; as a last resort, when
+    /// exactly ONE friendly combatant has any status on the enemy, an aggregated tick can only
+    /// be theirs. Multi-source aggregated ticks (typical with Trust casters DoTing alongside
+    /// you) are dropped and counted as unattributed — visible, never guessed.
     /// </summary>
     internal ResolvedDamage? TryAttributeTick(in DotTickEvent tick)
     {
@@ -359,6 +376,12 @@ public sealed class DpsMeterService : IDpsMeterService, IDisposable
             if (sourceId != 0)
                 return resolver(sourceId, tick.TargetEntityId);
         }
+
+        // Aggregated tick (no source, no effect id — the game rolls all DoTs on a target into
+        // one tick): if a single friendly is the only status source on this enemy, it's theirs.
+        var sole = SoleFriendlyStatusSourceLookup(tick.TargetEntityId);
+        if (sole != 0)
+            return resolver(sole, tick.TargetEntityId);
 
         return null;
     }
@@ -381,6 +404,46 @@ public sealed class DpsMeterService : IDpsMeterService, IDisposable
 
         return 0;
     }
+
+    /// <summary>
+    /// Returns the entity id of the ONLY friendly combatant with any status on the target, or 0
+    /// when there are none / several. Used to attribute aggregated DoT ticks in the solo case.
+    /// </summary>
+    private uint DefaultSoleFriendlyStatusSourceLookup(uint targetId)
+    {
+        var obj = objectTable?.SearchById(targetId);
+        if (obj is not IBattleChara chara)
+            return 0;
+
+        var statusList = chara.StatusList;
+        if (statusList == null)
+            return 0;
+
+        uint sole = 0;
+        foreach (var status in statusList)
+        {
+            if (status == null || status.SourceId == 0)
+                continue;
+
+            var sourceId = status.SourceId;
+            if (!casterCache.TryGetValue(sourceId, out var identity))
+            {
+                identity = ResolveCaster(sourceId);
+                casterCache[sourceId] = identity;
+            }
+            if (identity == null)
+                continue; // not a countable friendly (enemy self-buffs etc.)
+
+            if (sole == 0)
+                sole = sourceId;
+            else if (sole != sourceId)
+                return 0; // two-plus friendly sources — ambiguous, stay honest
+        }
+
+        return sole;
+    }
+
+    private bool DefaultIsHostileTarget(uint targetId) => ResolveHostileTargetName(targetId) != null;
 
     private ResolvedDamage? DefaultResolve(uint casterId, uint targetId)
     {
