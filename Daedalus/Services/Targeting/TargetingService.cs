@@ -1158,6 +1158,11 @@ public sealed class TargetingService : ITargetingService
             if (obj.YalmDistanceX > 15) continue;
             if (obj is not IBattleNpc npc) continue;
             if ((byte)npc.BattleNpcKind != Daedalus.Compat.BattleNpcKinds.Combatant && npc.SubKind != 0) continue;
+            // Attackability probe is MANDATORY here: story-ally NPCs (Lyse/Alisaie in Tower of
+            // Babil) are BattleNpcs with SubKind 0 and slip past the kind filter — LowestHp then
+            // preferred the 60k-HP ally over 130k mobs, and the rotation stalled spamming
+            // "Invalid target." at a friendly until the real mobs dropped below her HP.
+            if (!EnemyAttackability.IsPlayerAttackable(npc)) continue;
             if (_configuration.Targeting.EnableInvulnerabilityFiltering &&
                 HasInvulnerabilityStatus(npc))
                 continue;

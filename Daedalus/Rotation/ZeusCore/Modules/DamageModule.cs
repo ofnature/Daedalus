@@ -34,28 +34,36 @@ public sealed class DamageModule : IZeusModule
     private bool ShouldHoldForBurst(float thresholdSeconds = 8f) =>
         BurstHoldHelper.ShouldHoldForBurst(_burstWindowService, thresholdSeconds);
 
+    private static void SetGateState(IZeusContext context, string state)
+    {
+        // Synced into the common DebugState's DpsState by Zeus.SyncDebugState — one writer here.
+        context.Debug.DamageState = state;
+    }
+
     public bool TryExecute(IZeusContext context, bool isMoving) => false;
 
     public void UpdateDebugState(IZeusContext context) { }
 
     public void CollectCandidates(IZeusContext context, RotationScheduler scheduler, bool isMoving)
     {
+        // Gate states mirror into DpsState too — the Why tab's DPS row reads DpsState, and a
+        // silent "Idle" there cost a field session guessing which branch stalled the melee GCD.
         if (!context.InCombat)
         {
-            context.Debug.DamageState = "Not in combat";
+            SetGateState(context, "Not in combat");
             return;
         }
 
         if (context.TargetingService.IsDamageTargetingPaused())
         {
-            context.Debug.DamageState = "Paused (no target)";
+            SetGateState(context, "Paused (no target)");
             return;
         }
 
         if (context.Configuration.Targeting.SuppressDamageOnForcedMovement
             && PlayerSafetyHelper.IsForcedMovementActive(context.Player))
         {
-            context.Debug.DamageState = "Paused (forced movement)";
+            SetGateState(context, "Paused (forced movement)");
             return;
         }
 
@@ -67,7 +75,7 @@ public sealed class DamageModule : IZeusModule
 
         if (target == null)
         {
-            context.Debug.DamageState = "No target";
+            SetGateState(context, "No target");
             return;
         }
 
