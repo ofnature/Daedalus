@@ -145,11 +145,24 @@ public sealed class FarmWindow : Window
                 ImGui.TextDisabled($"Drops from (GarlandTools):");
                 foreach (var candidate in cached)
                 {
-                    var label = candidate.Level > 0 ? $"{candidate.Name} (Lv{candidate.Level})" : candidate.Name;
+                    var meta = candidate.LevelText.Length > 0 ? $"Lv{candidate.LevelText}" : "";
+                    if (candidate.ZoneName.Length > 0)
+                        meta = meta.Length > 0 ? $"{meta}, {candidate.ZoneName}" : candidate.ZoneName;
+                    var label = meta.Length > 0 ? $"{candidate.Name} ({meta})" : candidate.Name;
+
                     if (candidate.NameId != 0)
                     {
-                        if (ImGui.SmallButton($"+ {label}##drop{candidate.Name}{candidate.Level}"))
+                        if (ImGui.SmallButton($"+ {label}##drop{candidate.GarlandId}"))
+                        {
                             profile.AddMob(candidate.NameId, candidate.Name);
+                            // Auto-locate: flag the mob's spawn on the map, and add a farm spot
+                            // when it's in the current zone (resolved async from its Garland doc).
+                            if (candidate.GarlandId != 0)
+                            {
+                                _dropSource.BeginMobLocationLookup(candidate.GarlandId);
+                                _pendingLocations[candidate.GarlandId] = candidate.Name;
+                            }
+                        }
                     }
                     else
                     {
@@ -158,6 +171,10 @@ public sealed class FarmWindow : Window
                 }
             }
         }
+
+        ProcessPendingLocations(profile);
+        if (_locationStatus.Length > 0)
+            ImGui.TextDisabled(_locationStatus);
         for (var i = 0; i < profile.Mobs.Count; i++)
         {
             var mob = profile.Mobs[i];
@@ -236,6 +253,65 @@ public sealed class FarmWindow : Window
     }
 
     private string? _startError;
+    private readonly Dictionary<ulong, string> _pendingLocations = new();
+    private string _locationStatus = "";
+
+    /// <summary>
+    /// Completes async mob-location lookups on the draw thread: sets the in-game map flag at the
+    /// mob's spawn (any zone) and adds a farm spot when the mob lives in the current zone.
+    /// The spot's height is estimated from the player (vNav snaps to the floor when pathing).
+    /// </summary>
+    private void ProcessPendingLocations(Daedalus.Services.Farm.FarmProfile profile)
+    {
+        if (_pendingLocations.Count == 0)
+            return;
+
+        ulong? completed = null;
+        foreach (var (garlandId, mobName) in _pendingLocations)
+        {
+            if (!_dropSource.TryGetMobLocation(garlandId, out var location))
+                continue;
+            completed = garlandId;
+
+            if (location == null)
+            {
+                _locationStatus = $"{mobName}: no location data on GarlandTools.";
+                break;
+            }
+
+            var zone = Daedalus.Services.Farm.FarmLocationHelper.ResolveZoneByName(_dataManager, location.ZoneName);
+            if (zone == null)
+            {
+                _locationStatus = $"{mobName}: couldn't resolve zone \"{location.ZoneName}\".";
+                break;
+            }
+
+            var flagged = Daedalus.Services.Farm.FarmLocationHelper.SetMapFlag(zone.Value, location.MapX, location.MapY);
+
+            if (zone.Value.TerritoryId == _clientState.TerritoryType)
+            {
+                var player = _objectTable.LocalPlayer;
+                if (player != null)
+                {
+                    var worldX = Daedalus.Services.Farm.FarmLocationHelper.MapCoordToWorld(location.MapX, zone.Value.SizeFactor, zone.Value.OffsetX);
+                    var worldZ = Daedalus.Services.Farm.FarmLocationHelper.MapCoordToWorld(location.MapY, zone.Value.SizeFactor, zone.Value.OffsetY);
+                    profile.Spots.Add(new Vector3(worldX, player.Position.Y, worldZ));
+                    profile.TerritoryId = (ushort)_clientState.TerritoryType;
+                    _locationStatus = $"{mobName}: spot added at ({location.MapX:F1}, {location.MapY:F1}){(flagged ? " + map flag set" : "")}.";
+                }
+            }
+            else
+            {
+                _locationStatus = flagged
+                    ? $"{mobName} lives in {zone.Value.Name} — map flag set (farm spots must be in your current zone)."
+                    : $"{mobName} lives in {zone.Value.Name} ({location.MapX:F1}, {location.MapY:F1}).";
+            }
+            break;
+        }
+
+        if (completed.HasValue)
+            _pendingLocations.Remove(completed.Value);
+    }
 
     private void RebuildItemResults()
     {
