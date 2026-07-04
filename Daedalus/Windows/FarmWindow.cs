@@ -60,7 +60,8 @@ public sealed class FarmWindow : Window
             ImGui.TextColored(DaedalusTheme.StatusGreen, "● Farming");
             ImGui.SameLine();
             ImGui.TextDisabled(_farm.StatusLine);
-            ImGui.Text($"{profile.ItemName}: {_farm.CurrentItemCount} / {profile.TargetCount}");
+            // Live bag read (not the service's poll snapshot) so the display can never lag drops.
+            ImGui.Text($"{profile.ItemName}: {_farm.PeekItemCount(profile.ItemId)} / {profile.TargetCount}");
             ImGui.SameLine();
             ImGui.TextDisabled($"({_farm.Kills} kills)");
 

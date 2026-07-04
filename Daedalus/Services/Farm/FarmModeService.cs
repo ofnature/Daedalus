@@ -147,7 +147,13 @@ public sealed class FarmModeService : IDisposable
             return;
         }
 
-        CurrentItemCount = _inventory.GetItemCount(Profile.ItemId);
+        var newCount = _inventory.GetItemCount(Profile.ItemId);
+        if (newCount != CurrentItemCount)
+        {
+            _log.Debug("[Farm] bag count {0} -> {1} (target {2})", CurrentItemCount, newCount, Profile.TargetCount);
+            _lastProgressUtc = DateTime.UtcNow;
+        }
+        CurrentItemCount = newCount;
         if (FarmRoamPolicy.IsComplete(CurrentItemCount, Profile.TargetCount))
         {
             Stop("target count reached");
@@ -189,6 +195,10 @@ public sealed class FarmModeService : IDisposable
         if (candidate != null)
         {
             _targetManager.Target = candidate;
+            // Latch the kill at ACQUISITION: high-level toons one-shot farm mobs inside a single
+            // poll, so the "fighting" branch may never see the target alive — without this the
+            // kill counter reads 0 on every fast-kill run.
+            _lastEngagedTargetId = candidate.GameObjectId;
             if (_vNav.IsPathRunning)
                 _vNav.Stop();
             StatusLine = $"Targeting {candidate.Name}";
