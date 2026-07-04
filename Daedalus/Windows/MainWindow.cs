@@ -264,39 +264,48 @@ public sealed class MainWindow : Window
         {
             openRaid();
         }
+        // Optional buttons (LAN Party, Farm) flow into the 2-column grid: whichever renders
+        // second fills the right cell of the row the first one opened, instead of every
+        // conditional button starting its own left-aligned row.
+        var optionalOnLeft = false;
+        void PlaceOptionalButton()
+        {
+            if (optionalOnLeft)
+                ImGui.SameLine();
+            optionalOnLeft = !optionalOnLeft;
+        }
+        void DrawActivityDot()
+        {
+            var max = ImGui.GetItemRectMax();
+            var min = ImGui.GetItemRectMin();
+            ImGui.GetWindowDrawList().AddCircleFilled(
+                new Vector2(max.X - 7, min.Y + 7), 3f,
+                ImGui.ColorConvertFloat4ToU32(DaedalusTheme.StatusGreen));
+        }
+
         // LAN party window — only offered while the LAN coordinator is enabled (Party Coordination
         // settings); a small green dot marks live peer presence.
         if (configuration.PartyCoordination.LanCoordinatorEnabled && OpenLanParty != null)
         {
+            PlaceOptionalButton();
             if (ImGui.Button("LAN Party", new Vector2(buttonWidth, 0)))
             {
                 OpenLanParty();
             }
             if (LanConnected?.Invoke() == true)
-            {
-                var max = ImGui.GetItemRectMax();
-                var min = ImGui.GetItemRectMin();
-                ImGui.GetWindowDrawList().AddCircleFilled(
-                    new Vector2(max.X - 7, min.Y + 7), 3f,
-                    ImGui.ColorConvertFloat4ToU32(DaedalusTheme.StatusGreen));
-            }
+                DrawActivityDot();
         }
         // Farm window — hidden behind Settings → General like the LAN Party button; a green dot
         // marks an active farm run.
         if (configuration.Farm.ShowFarmButton && OpenFarm != null)
         {
+            PlaceOptionalButton();
             if (ImGui.Button("Farm", new Vector2(buttonWidth, 0)))
             {
                 OpenFarm();
             }
             if (FarmActive?.Invoke() == true)
-            {
-                var max = ImGui.GetItemRectMax();
-                var min = ImGui.GetItemRectMin();
-                ImGui.GetWindowDrawList().AddCircleFilled(
-                    new Vector2(max.X - 7, min.Y + 7), 3f,
-                    ImGui.ColorConvertFloat4ToU32(DaedalusTheme.StatusGreen));
-            }
+                DrawActivityDot();
         }
 
         // Footer links + version
