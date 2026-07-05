@@ -3,7 +3,23 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
-## v0.1.5 — 2026-07-04
+## v0.1.6 — 2026-07-04
+
+### Fix — Parser: DoT damage was invisible (the game moved the tick channel)
+- DoT ticks never reached the parser — the packet category the whole community documents for them (and that parsers like ACT read off the network) now only carries out-of-combat regen inside the game client. A live packet-capture session found the real channel, and it's better than the old one: the game reports each tick **per caster**, so your Biolysis/Dia/Thunder damage lands on your row exactly — no estimating. In the validation run, a quarter of Scholar's damage had been missing from the meter
+- Row tooltips show the DoT share explicitly ("· DoT 132.1k"), and the parser's (?) tooltip now reports the tick pipeline's health — if a future game patch moves the channel again, it says so right there instead of silently undercounting
+- For the curious (or the next patch): a "Raw packets" toggle in the Debug window's Debug Log tab dumps the raw combat packet stream — off by default, it's a firehose
+
+### Fix — Scholar: stop hoarding an Aetherflow stack in dungeons
+- Scholar always held one Aetherflow stack back "for emergencies", which is trial/raid tuning — in dungeon content it just meant one fewer Energy Drain per cycle, every cycle. Dungeons now spend every stack (Energy Drain damage beats a hypothetical emergency Lustrate that trash packs never need); trials keep 1 in reserve and high-end keeps 2, and your own saved value still wins if you've set one
+
+### Fix — melee no longer freezes staring at a story ally
+- Duty NPCs that walk with you through story dungeons (and quest-battle allies) could be picked as melee targets — the rotation would path to them, face them, and stall for 10+ seconds until a real enemy wandered close, because the game refuses every attack on them. All enemy scans now run the same attackability probe the targeting service already used elsewhere. Caught as repeated 14-second Dragoon idle windows in Trust runs
+
+### Diagnostics — "why is it stuck" now names the exact refusal
+- When an action can't fire, the Why Stuck tab shows the game's raw refusal code with a plain-word label (out of range, line of sight, not facing, not unlocked, GCD rolling…) instead of the bare word "ActionStatus"
+<!-- LATEST-END -->
+
 
 ### New — Farm mode (work in progress)
 - Grind an item from specific mobs, hands-free: pick the item (search by name), a target count, the mobs, and one or more farm spots — then Start. Daedalus kills your mobs around the spots, roams between them while waiting for respawns, and stops with a chat summary the moment the target count is in your bag. Everything stays in one zone — no teleporting
@@ -18,7 +34,6 @@ All notable changes to Daedalus will be documented in this file.
 
 ### Fix — Bard: Quick Nock / Ladonsbite were fired at yourself
 - The AoE filler was dispatched at the player, but Quick Nock and Ladonsbite are targeted 12y cones (they require an enemy target) — the game refused every attempt ("invalid target" spam) and packs fell back to single-target shots. The cone now fires at the current enemy like Wide Volley/Shadowbite already did. This was costing Bard its entire AoE filler in every pack since the AoE rotation shipped
-<!-- LATEST-END -->
 
 ## v0.1.4 — 2026-07-04
 
