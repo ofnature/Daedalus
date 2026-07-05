@@ -120,11 +120,11 @@ public sealed class ZeusStatusHelper : BaseStatusHelper
     }
 
     /// <summary>
-    /// Checks if Stardiver Ready is active.
+    /// Checks if Dragon's Flight is active (from Dragonfire Dive — enables Rise of the Dragon).
     /// </summary>
-    public bool HasStardiverReady(IBattleChara player)
+    public bool HasDragonsFlight(IBattleChara player)
     {
-        return HasStatus(player, DRGActions.StatusIds.StardiverReady);
+        return HasStatus(player, DRGActions.StatusIds.DragonsFlight);
     }
 
     /// <summary>

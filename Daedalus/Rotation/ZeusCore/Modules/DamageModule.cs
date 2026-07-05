@@ -222,7 +222,11 @@ public sealed class DamageModule : IZeusModule
     {
         if (!context.Configuration.Dragoon.EnableDragonfireDive) return;
         if (context.Player.Level < DRGActions.RiseOfTheDragon.MinLevel) return;
-        if (!context.HasDraconianFire) return;
+        // Dragon's Flight (from Dragonfire Dive) is the enabler — NOT Draconian Fire, which is
+        // the combo-starter morph buff (the wrong-status double kill, same class as the a202bc1
+        // combo bug: gate + ProcBuff both pointed at it, so RotD only fired when the combo
+        // position happened to overlap the dive window).
+        if (!context.HasDragonsFlight) return;
         if (!context.ActionService.IsActionReady(DRGActions.RiseOfTheDragon.ActionId)) return;
 
         scheduler.PushOgcd(ZeusAbilities.RiseOfTheDragon, targetId, priority: 1,
@@ -237,10 +241,10 @@ public sealed class DamageModule : IZeusModule
                     .Target(context.TargetingService.GetUserEnemyTarget()?.Name?.TextValue)
                     .Reason("Rise of the Dragon follow-up after Dragonfire Dive",
                         "Rise of the Dragon is an oGCD follow-up that becomes available after Dragonfire Dive (Lv.92+). " +
-                        "It grants the Draconian Fire proc and delivers significant AoE damage. Use it immediately after Dragonfire Dive.")
-                    .Factors(new[] { "Draconian Fire proc active (from Dragonfire Dive)", "High-potency AoE follow-up", "oGCD — weave with next GCD" })
+                        "Dragonfire Dive grants Dragon's Flight, which enables it. Use it immediately after Dragonfire Dive.")
+                    .Factors(new[] { "Dragon's Flight active (from Dragonfire Dive)", "High-potency AoE follow-up", "oGCD — weave with next GCD" })
                     .Alternatives(new[] { "Delay (risks proc expiry)", "Skip (wastes Dragonfire Dive value)" })
-                    .Tip("Rise of the Dragon is always the oGCD follow-up to Dragonfire Dive. Use it before the Draconian Fire proc expires.")
+                    .Tip("Rise of the Dragon is always the oGCD follow-up to Dragonfire Dive. Use it before Dragon's Flight expires.")
                     .Concept(DrgConcepts.DragonfireDive)
                     .Record();
                 context.TrainingService?.RecordConceptApplication(DrgConcepts.DragonfireDive, true, "Rise of the Dragon follow-up used");

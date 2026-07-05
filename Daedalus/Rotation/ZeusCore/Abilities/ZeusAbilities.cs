@@ -121,7 +121,8 @@ public static class ZeusAbilities
     {
         Action = DRGActions.RiseOfTheDragon,
         Toggle = cfg => cfg.Dragoon.EnableDragonfireDive,
-        ProcBuff = DRGActions.StatusIds.DraconianFire,
+        // Dragon's Flight from Dragonfire Dive — NOT Draconian Fire (the combo-starter morph).
+        ProcBuff = DRGActions.StatusIds.DragonsFlight,
     };
 
     // --- Life of the Dragon ---

@@ -44,7 +44,7 @@ public sealed class ZeusDebugState : IEnemyPackDebug
     public bool HasWheelInMotion { get; set; }
     public bool HasDraconianFire { get; set; }
     public bool HasNastrondReady { get; set; }
-    public bool HasStardiverReady { get; set; }
+    public bool HasDragonsFlight { get; set; }
     public bool HasStarcrossReady { get; set; }
 
     // DoT tracking

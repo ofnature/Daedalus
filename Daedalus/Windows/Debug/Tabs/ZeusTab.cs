@@ -213,12 +213,12 @@ public static class ZeusTab
             ImGui.TableNextColumn();
             DrawProcStatus(state.HasNastrondReady);
 
-            // Stardiver Ready
+            // Dragon's Flight (from Dragonfire Dive — enables Rise of the Dragon)
             ImGui.TableNextRow();
             ImGui.TableNextColumn();
-            ImGui.Text(Loc.T(LocalizedStrings.Debug.StardiverReady, "Stardiver Ready:"));
+            ImGui.Text(Loc.T(LocalizedStrings.Debug.DragonsFlight, "Dragon's Flight:"));
             ImGui.TableNextColumn();
-            DrawProcStatus(state.HasStardiverReady);
+            DrawProcStatus(state.HasDragonsFlight);
 
             // Starcross Ready
             ImGui.TableNextRow();

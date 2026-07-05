@@ -98,7 +98,7 @@ public sealed class ZeusContext : IZeusContext
     public bool HasWheelInMotion { get; }
     public bool HasDraconianFire { get; }
     public bool HasNastrondReady { get; }
-    public bool HasStardiverReady { get; }
+    public bool HasDragonsFlight { get; }
     public bool HasStarcrossReady { get; }
 
     // DoT
@@ -227,7 +227,7 @@ public sealed class ZeusContext : IZeusContext
         HasWheelInMotion = statusHelper.HasWheelInMotion(player);
         HasDraconianFire = statusHelper.HasDraconianFire(player);
         HasNastrondReady = statusHelper.HasNastrondReady(player);
-        HasStardiverReady = statusHelper.HasStardiverReady(player);
+        HasDragonsFlight = statusHelper.HasDragonsFlight(player);
         HasStarcrossReady = statusHelper.HasStarcrossReady(player);
 
         // Calculate party health metrics
@@ -309,7 +309,7 @@ public sealed class ZeusContext : IZeusContext
         Debug.HasWheelInMotion = HasWheelInMotion;
         Debug.HasDraconianFire = HasDraconianFire;
         Debug.HasNastrondReady = HasNastrondReady;
-        Debug.HasStardiverReady = HasStardiverReady;
+        Debug.HasDragonsFlight = HasDragonsFlight;
         Debug.HasStarcrossReady = HasStarcrossReady;
 
         // DoT

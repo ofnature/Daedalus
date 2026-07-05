@@ -57,7 +57,7 @@ public static class ZeusTestContext
         bool hasWheelInMotion = false,
         bool hasDraconianFire = false,
         bool hasNastrondReady = false,
-        bool hasStardiverReady = false,
+        bool hasDragonsFlight = false,
         bool hasStarcrossReady = false,
         bool hasDotOnTarget = false,
         float dotRemaining = 0f,
@@ -133,7 +133,7 @@ public static class ZeusTestContext
         mock.Setup(x => x.HasWheelInMotion).Returns(hasWheelInMotion);
         mock.Setup(x => x.HasDraconianFire).Returns(hasDraconianFire);
         mock.Setup(x => x.HasNastrondReady).Returns(hasNastrondReady);
-        mock.Setup(x => x.HasStardiverReady).Returns(hasStardiverReady);
+        mock.Setup(x => x.HasDragonsFlight).Returns(hasDragonsFlight);
         mock.Setup(x => x.HasStarcrossReady).Returns(hasStarcrossReady);
 
         // DoT state

@@ -130,7 +130,7 @@ public interface IZeusContext : IMeleeDpsRotationContext
     /// <summary>
     /// Whether Stardiver Ready is active (can use Stardiver).
     /// </summary>
-    bool HasStardiverReady { get; }
+    bool HasDragonsFlight { get; }
 
     /// <summary>
     /// Whether Starcross Ready is active (can use Starcross after Stardiver).

@@ -3049,7 +3049,7 @@ public static class LocalizedStrings
         public const string RightEye = "debug.dragoon.right_eye";
         public const string DiveReady = "debug.dragoon.dive_ready";
         public const string NastrondReady = "debug.dragoon.nastrond_ready";
-        public const string StardiverReady = "debug.dragoon.stardiver_ready";
+        public const string DragonsFlight = "debug.dragoon.dragons_flight";
         public const string StarcrossReady = "debug.dragoon.starcross_ready";
         public const string FangAndClaw = "debug.dragoon.fang_and_claw";
         public const string WheelInMotion = "debug.dragoon.wheel_in_motion";

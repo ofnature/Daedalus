@@ -137,7 +137,7 @@ public class DamageModuleSecondWindTests
         mock.Setup(x => x.HasWheelInMotion).Returns(false);
         mock.Setup(x => x.HasDraconianFire).Returns(false);
         mock.Setup(x => x.HasNastrondReady).Returns(false);
-        mock.Setup(x => x.HasStardiverReady).Returns(false);
+        mock.Setup(x => x.HasDragonsFlight).Returns(false);
         mock.Setup(x => x.HasStarcrossReady).Returns(false);
         // DoT defaults
         mock.Setup(x => x.HasDotOnTarget).Returns(false);

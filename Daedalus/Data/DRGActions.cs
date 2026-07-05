@@ -724,13 +724,13 @@ public static class DRGActions
         // Combo/Proc statuses
         public const uint FangAndClawBared = 802;   // Flank proc ready
         public const uint WheelInMotion = 803;      // Rear proc ready
-        public const uint DraconianFire = 1863;     // Enhanced Coerthan / Rise of the Dragon ready
+        public const uint DraconianFire = 1863;     // From combo 5th hit (76+) — morphs True Thrust → Raiden Thrust
+        public const uint DragonsFlight = 3845;     // From Dragonfire Dive — enables Rise of the Dragon (92+); RSR-verified
 
         // Life of the Dragon
         public const uint DiveReady = 1243;         // Can use Mirage Dive
-        public const uint LifeOfTheDragon = 2546;   // Life state active
+        public const uint LifeOfTheDragon = 3177;   // Life state active (RSR-verified; 2546 was wrong)
         public const uint NastrondReady = 3844;     // Can use Nastrond
-        public const uint StardiverReady = 3845;    // Can use Stardiver
         public const uint StarcrossReady = 3846;    // Can use Starcross
 
         // DoT effects

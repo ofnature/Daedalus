@@ -40,7 +40,7 @@ public class StatusHelperTests
             DRGActions.StatusIds.DraconianFire,
             DRGActions.StatusIds.DiveReady,
             DRGActions.StatusIds.NastrondReady,
-            DRGActions.StatusIds.StardiverReady,
+            DRGActions.StatusIds.DragonsFlight,
             DRGActions.StatusIds.StarcrossReady,
         };
 
@@ -60,7 +60,7 @@ public class StatusHelperTests
         Assert.NotEqual(0u, DRGActions.StatusIds.DraconianFire);
         Assert.NotEqual(0u, DRGActions.StatusIds.DiveReady);
         Assert.NotEqual(0u, DRGActions.StatusIds.NastrondReady);
-        Assert.NotEqual(0u, DRGActions.StatusIds.StardiverReady);
+        Assert.NotEqual(0u, DRGActions.StatusIds.DragonsFlight);
         Assert.NotEqual(0u, DRGActions.StatusIds.StarcrossReady);
         Assert.NotEqual(0u, DRGActions.StatusIds.ChaosThrust);
         Assert.NotEqual(0u, DRGActions.StatusIds.ChaoticSpring);
@@ -198,11 +198,11 @@ public class StatusHelperTests
     }
 
     [Fact]
-    public void HasStardiverReady_NullStatusList_ReturnsFalse()
+    public void HasDragonsFlight_NullStatusList_ReturnsFalse()
     {
         var mock = MockBuilders.CreateMockPlayerCharacter();
         mock.Setup(x => x.StatusList).Returns((Dalamud.Game.ClientState.Statuses.StatusList?)null!);
-        Assert.False(_helper.HasStardiverReady(mock.Object));
+        Assert.False(_helper.HasDragonsFlight(mock.Object));
     }
 
     [Fact]
