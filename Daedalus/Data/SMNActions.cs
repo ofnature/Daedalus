@@ -988,6 +988,7 @@ public static class SMNActions
         public const uint IfritsFavor = 2724;       // Enables Crimson Cyclone
         public const uint GarudasFavor = 2725;      // Enables Slipstream
         public const uint TitansFavor = 2853;       // Enables Mountain Buster
+        public const uint CrimsonStrikeReady = 4403; // Enables Crimson Strike (granted by Crimson Cyclone; RSR StatusNeed parity)
 
         // Demi states (tracked via gauge)
         public const uint EverlastingFlight = 16517; // Phoenix regen buff on party

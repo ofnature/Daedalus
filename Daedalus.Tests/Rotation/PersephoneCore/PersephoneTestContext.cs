@@ -71,6 +71,7 @@ public static class PersephoneTestContext
         bool hasSearingLight = false,
         float searingLightRemaining = 0f,
         bool hasIfritsFavor = false,
+        bool hasCrimsonStrikeReady = false,
         bool hasTitansFavor = false,
         bool hasGarudasFavor = false,
         bool hasRubysGlimmer = false,
@@ -170,6 +171,7 @@ public static class PersephoneTestContext
         mock.Setup(x => x.HasSearingLight).Returns(hasSearingLight);
         mock.Setup(x => x.SearingLightRemaining).Returns(searingLightRemaining);
         mock.Setup(x => x.HasIfritsFavor).Returns(hasIfritsFavor);
+        mock.Setup(x => x.HasCrimsonStrikeReady).Returns(hasCrimsonStrikeReady);
         mock.Setup(x => x.HasTitansFavor).Returns(hasTitansFavor);
         mock.Setup(x => x.HasGarudasFavor).Returns(hasGarudasFavor);
         mock.Setup(x => x.HasRubysGlimmer).Returns(hasRubysGlimmer);

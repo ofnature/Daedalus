@@ -269,6 +269,22 @@ public sealed class DamageModule : IPersephoneModule
         var player = context.Player;
         var level = player.Level;
 
+        // Crimson Strike — the melee follow-up Crimson Cyclone grants (status 4403). Never wired
+        // before: every Ifrit phase dashed in with Cyclone and walked away leaving the free instant
+        // unspent (Worqor Zormor SMN first-run log 2026-07-05). Range-guarded module-side so a
+        // knockback after the dash can't park the GCD on an unreachable melee push; the Ready buff
+        // rides until we're back in reach or it expires (ProcBuff gates dispatch as defense in depth).
+        if (context.HasCrimsonStrikeReady && level >= SMNActions.CrimsonStrike.MinLevel
+            && TankTargetingHelper.IsWithinMeleeReach(player, target))
+        {
+            scheduler.PushGcd(PersephoneAbilities.CrimsonStrike, target.GameObjectId, priority: 4,
+                onDispatched: _ =>
+                {
+                    context.Debug.PlannedAction = SMNActions.CrimsonStrike.Name;
+                    context.Debug.DamageState = "Crimson Strike (Cyclone follow-up)";
+                });
+        }
+
         // Crimson Cyclone
         if (context.HasIfritsFavor && level >= SMNActions.CrimsonCyclone.MinLevel)
         {

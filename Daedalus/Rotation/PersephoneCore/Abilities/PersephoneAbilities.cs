@@ -74,6 +74,9 @@ public static class PersephoneAbilities
 
     // --- Primal favor GCDs ---
     public static readonly AbilityBehavior CrimsonCyclone = new() { Action = SMNActions.CrimsonCyclone, Toggle = cfg => cfg.Summoner.EnablePrimalAbilities };
+    // ProcBuff = dispatch-level gate (Thunderhead pattern): Crimson Strike is only legal while the
+    // Crimson Strike Ready buff from Crimson Cyclone is up — a stale push can never park the GCD.
+    public static readonly AbilityBehavior CrimsonStrike = new() { Action = SMNActions.CrimsonStrike, Toggle = cfg => cfg.Summoner.EnablePrimalAbilities, ProcBuff = SMNActions.StatusIds.CrimsonStrikeReady };
     public static readonly AbilityBehavior Slipstream = new() { Action = SMNActions.Slipstream, Toggle = cfg => cfg.Summoner.EnablePrimalAbilities };
 
     // --- Carbuncle / Primal summons ---

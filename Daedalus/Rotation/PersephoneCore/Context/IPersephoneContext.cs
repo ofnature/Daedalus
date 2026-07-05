@@ -147,6 +147,11 @@ public interface IPersephoneContext : ICasterDpsRotationContext
     bool HasIfritsFavor { get; }
 
     /// <summary>
+    /// Whether Crimson Strike Ready is active (granted by Crimson Cyclone; enables the melee follow-up).
+    /// </summary>
+    bool HasCrimsonStrikeReady { get; }
+
+    /// <summary>
     /// Whether Titan's Favor buff is active (enables Mountain Buster).
     /// </summary>
     bool HasTitansFavor { get; }

@@ -58,6 +58,12 @@ public sealed class PersephoneStatusHelper : BaseStatusHelper
         => HasStatus(player, SMNActions.StatusIds.IfritsFavor);
 
     /// <summary>
+    /// Checks if Crimson Strike Ready is active (granted by Crimson Cyclone; enables the melee follow-up).
+    /// </summary>
+    public bool HasCrimsonStrikeReady(IBattleChara player)
+        => HasStatus(player, SMNActions.StatusIds.CrimsonStrikeReady);
+
+    /// <summary>
     /// Checks if Titan's Favor buff is active (enables Mountain Buster).
     /// </summary>
     public bool HasTitansFavor(IBattleChara player)

@@ -107,6 +107,7 @@ public sealed class PersephoneContext : IPersephoneContext
     public bool HasSearingLight { get; }
     public float SearingLightRemaining { get; }
     public bool HasIfritsFavor { get; }
+    public bool HasCrimsonStrikeReady { get; }
     public bool HasTitansFavor { get; }
     public bool HasGarudasFavor { get; }
     public bool HasRubysGlimmer { get; }
@@ -270,6 +271,7 @@ public sealed class PersephoneContext : IPersephoneContext
         HasSearingLight = statusHelper.HasSearingLight(player);
         SearingLightRemaining = statusHelper.GetSearingLightRemaining(player);
         HasIfritsFavor = statusHelper.HasIfritsFavor(player);
+        HasCrimsonStrikeReady = statusHelper.HasCrimsonStrikeReady(player);
         HasTitansFavor = statusHelper.HasTitansFavor(player);
         HasGarudasFavor = statusHelper.HasGarudasFavor(player);
         HasRubysGlimmer = statusHelper.HasRubysGlimmer(player);
