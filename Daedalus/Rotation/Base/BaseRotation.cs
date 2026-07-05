@@ -311,6 +311,11 @@ public abstract class BaseRotation<TContext, TModule> : IRotation, IDisposable
         if (RotationServices.VNav?.IsPathRunning == true)
             isMoving = true;
 
+        // BMR AI dodges by input injection — invisible to IsPathRunning, and position-based detection
+        // flickers across its micro-adjustments the same way. Hold hard-casts while BMR is steering.
+        if (RotationServices.MovementArbiter?.IsExternalMovementActive == true)
+            isMoving = true;
+
         return (isMoving, positionChanged);
     }
 
