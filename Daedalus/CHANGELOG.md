@@ -8,6 +8,9 @@ All notable changes to Daedalus will be documented in this file.
 ### Fix — Bard: DoTs no longer allowed to fall off before Iron Jaws (below Lv56)
 - Windbite and Venomous Bite were only recast after the DoT fully dropped, which in practice meant 3–8 seconds of DoT downtime every 45-second cycle (detection lag plus queue position). Below Iron Jaws the recast IS the refresh — it now fires when 3 seconds remain, keeping both DoTs rolling continuously through the leveling range. Caught in a Lv49 Aurum Vale log
 
+### Fix — Melee sometimes refused to walk into range (all melee jobs)
+- The walk-into-melee movement resolved its target through checks that ask the game "can I attack this?" — a probe that falsely says no while the mob is still out of range, which is exactly when you need to walk in. When it misfired, the character just stood there (with BossMod AI enabled its movement masked the gap, which made it look intermittent). Movement now falls back to your actual hard target with a probe-free check — a live, targetable, hostile mob is enough to walk toward. Applies to max-melee range keeping on every melee job, plus Ninja's burst approach. Combat targeting keeps the probe (it's what stops attacks on story allies)
+
 ### Fix — Black Mage: rotation froze trying to hard-cast Thunder without its proc
 - Every Thunder spell now requires the Thunderhead proc, but the ice phase kept an old "hard cast Thunder" fallback for when the DoT lapsed without a proc — the game refused every attempt ("Cannot use yet") and the rotation sat on it, freezing the GCD until the next phase swap granted a proc. Caught live in The Aitiascope ("Stuck — Thunder IV: ActionStatus 572"). The fallback is gone; the DoT now waits for the next Thunderhead and fillers carry the rotation. All six Thunder variants also gained a dispatch-level proc gate so nothing similar can slip through again, and refusal code 572 now shows a plain-word label in Why Stuck
 

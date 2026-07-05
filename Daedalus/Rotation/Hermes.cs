@@ -209,7 +209,10 @@ public sealed class Hermes : BaseMeleeDpsRotation<IHermesContext, IHermesModule>
         if (PositionalMovementService != null
             && !(burst.InBurstPrep && !burst.AlreadyInMelee && Configuration.Ninja.EnableBurstMeleeApproach))
         {
+            // Raw hard target before the strategy search: both GetUserEnemyTarget and FindEnemy
+            // run the attackability probe, which false-negatives at range — the walk-in case.
             var resolvedTarget = PositionalTarget
+                ?? TargetingService.GetRawEnemyHardTarget() as IBattleChara
                 ?? TargetingService.FindEnemy(
                     Configuration.Targeting.EnemyStrategy, 25f, ObjectTable.LocalPlayer!) as IBattleChara;
 
@@ -323,7 +326,10 @@ public sealed class Hermes : BaseMeleeDpsRotation<IHermesContext, IHermesModule>
             PositionalMovementConstants.BurstApproachTargetSearchFarYalms,
             player);
 
+        // Raw last — every resolver above runs the attackability probe, which false-negatives
+        // at range (the exact situation a burst APPROACH exists for).
         target ??= TargetingService.GetUserEnemyTarget();
+        target ??= TargetingService.GetRawEnemyHardTarget();
 
         return target as IBattleChara;
     }

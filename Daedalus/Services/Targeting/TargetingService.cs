@@ -119,6 +119,12 @@ public sealed class TargetingService : ITargetingService
         return ResolveUserStickyTarget();
     }
 
+    /// <inheritdoc />
+    public IBattleNpc? GetRawEnemyHardTarget()
+        => EnemyAttackability.IsMovementApproachable(_targetManager.Target)
+            ? (IBattleNpc)_targetManager.Target!
+            : null;
+
     /// <summary>
     /// Finds an enemy target using the specified strategy.
     /// </summary>

@@ -313,9 +313,12 @@ public abstract class BaseMeleeDpsRotation<TContext, TModule> : BaseRotation<TCo
         if (PositionalMovementService == null)
             return;
 
-        // Use the melee-range positional target when available; fall back to a wider search
-        // so vNav can path toward a target that's currently out of melee range.
+        // Use the melee-range positional target when available; then the player's RAW hard
+        // target (probe-free — the attackability probe false-negatives at range and parked
+        // melee outside walk-in distance); finally a wider strategy search so vNav can path
+        // toward a target that's currently out of melee range.
         var resolvedTarget = PositionalTarget
+            ?? TargetingService.GetRawEnemyHardTarget() as IBattleChara
             ?? TargetingService.FindEnemy(
                 Configuration.Targeting.EnemyStrategy, 25f, player) as IBattleChara;
 
@@ -376,7 +379,11 @@ public abstract class BaseMeleeDpsRotation<TContext, TModule> : BaseRotation<TCo
         if (!IsMaxMeleeMaintenanceAllowed())
             return null;
 
-        if (TargetingService.GetUserEnemyTarget() is not IBattleChara current)
+        // Probe-passing target preferred (includes the sticky-target continuity), but fall back
+        // to the raw hard target: the attackability probe false-negatives while the mob is out
+        // of range — exactly when max-melee maintenance needs to walk IN.
+        if ((TargetingService.GetUserEnemyTarget() ?? TargetingService.GetRawEnemyHardTarget())
+            is not IBattleChara current)
             return null;
 
         followsPlayer = current.TargetObjectId == player.GameObjectId;

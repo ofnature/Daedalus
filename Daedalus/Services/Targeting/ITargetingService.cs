@@ -175,6 +175,14 @@ public interface ITargetingService
     IBattleNpc? GetUserEnemyTarget();
 
     /// <summary>
+    /// The player's hard target as a live hostile BattleNpc WITHOUT the attackability probe —
+    /// for MOVEMENT decisions only. <see cref="GetUserEnemyTarget"/> runs CanUseActionOnTarget,
+    /// which false-negatives while the mob is still out of range; movement gated on it never
+    /// walks in (melee parked outside range). Never use this to dispatch actions.
+    /// </summary>
+    IBattleNpc? GetRawEnemyHardTarget();
+
+    /// <summary>
     /// Safety helper for gap closers. Exposed here so rotations can access it via the
     /// existing <c>context.TargetingService</c> field without plumbing a new dependency
     /// through every rotation context.
