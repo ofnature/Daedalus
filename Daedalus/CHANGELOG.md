@@ -3,6 +3,12 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.9 — 2026-07-05
+
+### New — low-level Gladiator/Marauder: walk to mobs you can't reach (pre-Lv15)
+- Below level 15 a tank has no ranged attack (Shield Lob/Tomahawk unlock at 15) and no gap closer — so a Gladiator facing a parked ranged or caster mob just stood there with no way to gather it. Tanks now walk into melee on the engage target when they have no ranged tool, using the same range-keeping movement melee jobs use (walk-in only, yields to BossMod, respects the vNav flex dead-band). At 15+ nothing changes — the ranged attack gathers as before. Toggle in Control → Tank ("Walk To Target (pre-Lv15)", on by default); Why Stuck names the state while walking
+<!-- LATEST-END -->
+
 ## v0.1.8 — 2026-07-05
 
 ### New — Boundary camping: melee positionals become a short hop (experimental, OFF by default)
@@ -29,10 +35,6 @@ All notable changes to Daedalus will be documented in this file.
 
 ### Fix — abilities no longer starve while the rotation is stalled (all jobs)
 - Off-GCD abilities only fire in the weave window during a rolling GCD — so whenever the GCD chain stalled (like the Black Mage MP freeze), every ability starved with it: Lucid Dreaming couldn't fire to fix the very MP shortage causing the stall, and defensives sat idle too. If the GCD sits unused for 1.5 seconds, the weave window now opens so abilities keep flowing during a stall
-
-### Fix — low-level Gladiator/Marauder: walk to mobs you can't reach (pre-Lv15)
-- Below level 15 a tank has no ranged attack (Shield Lob/Tomahawk unlock at 15) and no gap closer — so a Gladiator facing a parked ranged or caster mob just stood there with no way to gather it. Tanks now walk into melee on the engage target when they have no ranged tool, using the same range-keeping movement melee jobs use (walk-in only, yields to BossMod, respects the vNav flex dead-band). At 15+ nothing changes — the ranged attack gathers as before. Toggle in Control → Tank ("Walk To Target (pre-Lv15)", on by default); Why Stuck names the state while walking
-<!-- LATEST-END -->
 
 ## v0.1.7 — 2026-07-04
 
