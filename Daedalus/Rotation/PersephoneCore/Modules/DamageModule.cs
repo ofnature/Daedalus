@@ -413,6 +413,13 @@ public sealed class DamageModule : IPersephoneModule
         if (player.Level < SMNActions.Aethercharge.MinLevel) return;
         // If player opted out of demi during burst and we're in a burst window, defer
         if (!context.Configuration.Summoner.UseDemiDuringBurst && context.HasSearingLight) return;
+        // Pet-arrival gap guard: for 1-3s after a primal summon GCD the gauge reads attunement 0
+        // AND no primals ready (stacks arrive with the pet) — the "nothing left to do" gate below
+        // is briefly true and the demi fired INSIDE the primal window it just opened (field log
+        // 2026-07-05: Phoenix one GCD after Summon Garuda, Brand/Fountain interleaving Emerald
+        // Rites). Attunement is always spent before the next demi, so a primal summon as the
+        // last GCD means wait — the next gemshine breaks the block.
+        if (IsPrimalSummonPetArrivalGap(context)) return;
 
         var actionManager = SafeGameAccess.GetActionManager(null);
         if (actionManager == null) return;
@@ -430,6 +437,15 @@ public sealed class DamageModule : IPersephoneModule
             context.Debug.DamageState = "Demi-Summon";
         }
     }
+
+    /// <summary>
+    /// True while the last GCD was a primal summon — the window where the pet hasn't landed yet,
+    /// so attunement stacks read 0 and the demi-entry "nothing to do" gate would falsely open.
+    /// </summary>
+    internal static bool IsPrimalSummonPetArrivalGap(IPersephoneContext context)
+        => context.ActionService.WasLastGcd(SMNActions.SummonIfrit.ActionId)
+        || context.ActionService.WasLastGcd(SMNActions.SummonTitan.ActionId)
+        || context.ActionService.WasLastGcd(SMNActions.SummonGaruda.ActionId);
 
     private void TryPushRuin4(IPersephoneContext context, RotationScheduler scheduler, IBattleChara target)
     {

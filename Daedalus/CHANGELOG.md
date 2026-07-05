@@ -9,7 +9,11 @@ All notable changes to Daedalus will be documented in this file.
 - Below level 15 a tank has no ranged attack (Shield Lob/Tomahawk unlock at 15) and no gap closer — so a Gladiator facing a parked ranged or caster mob just stood there with no way to gather it. Tanks now walk into melee on the engage target when they have no ranged tool, using the same range-keeping movement melee jobs use (walk-in only, yields to BossMod, respects the vNav flex dead-band). At 15+ nothing changes — the ranged attack gathers as before. Toggle in Control → Tank ("Walk To Target (pre-Lv15)", on by default); Why Stuck names the state while walking
 
 ### Fix — Summoner: Crimson Strike was never used (Lv86+)
-- Crimson Cyclone's melee follow-up was missing from the rotation entirely — every Ifrit phase dashed in with Cyclone and walked away leaving the free instant unspent (caught in the first SMN validation run). Crimson Strike now follows Cyclone whenever the Crimson Strike Ready buff is up and the target is in melee reach; if a knockback throws you out after the dash, the follow-up waits until you're back in range instead of jamming the rotation
+- Crimson Cyclone's melee follow-up was missing from the rotation entirely — every Ifrit phase dashed in with Cyclone and walked away leaving the free instant unspent (caught in the first SMN validation run). Crimson Strike now follows Cyclone whenever the Crimson Strike Ready buff is up and the target is in melee reach; if a knockback throws you out after the dash, the follow-up waits until you're back in range instead of jamming the rotation. It also fires the very GCD after the dash (the only one guaranteed in melee) instead of letting a Ruby Rite cut in line
+
+### Fix — Summoner: demi summon no longer fires mid-primal, and Phoenix is never mistaken for Bahamut
+- Right after summoning a primal there's a 1–3 second gap before the pet lands where the gauge reads "nothing to do" — the demi summon fired into that gap, burying Phoenix inside the Garuda window it had just opened (Brand of Purgatory interleaving Emerald Rites in the validation logs). The demi entry now waits out the pet arrival
+- The demi-type detection latched once at summon start and a wrong read never corrected itself — one window submitted Enkindle Bahamut and Deathflare while the game was actually in Phoenix, losing the Rekindle heal. Detection now re-checks the Astral Flow button live every frame and corrects itself the moment it names a phase
 <!-- LATEST-END -->
 
 ## v0.1.8 — 2026-07-05

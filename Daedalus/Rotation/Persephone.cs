@@ -181,39 +181,41 @@ public sealed class Persephone : BaseCasterDpsRotation<IPersephoneContext, IPers
         // Track demi-summon phase changes
         if (_summonTimer > 0 && _lastDemiSummonTimer <= 0)
         {
-            // New demi-summon phase started - reset tracking and latch phase from Astral Flow slot
+            // New demi-summon phase started - reset per-phase usage tracking
             _hasUsedEnkindleThisPhase = false;
             _hasUsedAstralFlowThisPhase = false;
-            DetectDemiPhaseFromAstralFlow();
         }
-        else if (_summonTimer <= 0 && _lastDemiSummonTimer > 0)
-        {
-            // Demi-summon phase ended
-            _isBahamutActive = false;
-            _isPhoenixActive = false;
-            _isSolarBahamutActive = false;
-        }
-        else if (_summonTimer > 0
-                 && !_isBahamutActive && !_isPhoenixActive && !_isSolarBahamutActive)
-        {
-            // Latch missed at phase start (e.g. frame timing) — re-probe Astral Flow replacement
-            DetectDemiPhaseFromAstralFlow();
-        }
+
+        // Live re-probe every frame while the summon timer runs (RSR probes live, never latches):
+        // the old latch-once-at-phase-start could capture a stale Astral Flow button on the summon
+        // frame, and a WRONG latch never self-corrected — only a missing one did. Field log
+        // 2026-07-05: Enkindle Bahamut + Deathflare submitted during a real Phoenix window (game
+        // GCDs read Fountain of Fire), costing the Rekindle. The button names the phase
+        // definitively while its replacement is up; after Deathflare/Rekindle/Sunflare is spent it
+        // reverts, so a none-result keeps the last known phase for the rest of the window.
+        (_isBahamutActive, _isPhoenixActive, _isSolarBahamutActive) = UpdateDemiPhaseLatch(
+            timerActive: _summonTimer > 0,
+            actionService: ActionService,
+            current: (_isBahamutActive, _isPhoenixActive, _isSolarBahamutActive));
 
         _lastDemiSummonTimer = _summonTimer;
     }
 
     /// <summary>
-    /// Detects active demi-summon type from Astral Flow button replacement (RSR InBahamut/InPhoenix/InSolarBahamut).
-    /// Latched for the duration of the summon timer so phase stays correct after Deathflare/Rekindle/Sunflare are spent.
+    /// Pure latch step for the demi phase flags: while the timer runs, a definitive Astral Flow
+    /// probe result overwrites the flags; a none-result (button reverted after the flow ability
+    /// was spent) keeps them; timer down clears them.
     /// </summary>
-    private void DetectDemiPhaseFromAstralFlow()
+    internal static (bool Bahamut, bool Phoenix, bool SolarBahamut) UpdateDemiPhaseLatch(
+        bool timerActive,
+        IActionService actionService,
+        (bool Bahamut, bool Phoenix, bool SolarBahamut) current)
     {
-        SMNActions.ResolveDemiPhase(
-            ActionService,
-            out _isBahamutActive,
-            out _isPhoenixActive,
-            out _isSolarBahamutActive);
+        if (!timerActive)
+            return (false, false, false);
+
+        SMNActions.ResolveDemiPhase(actionService, out var bahamut, out var phoenix, out var solar);
+        return bahamut || phoenix || solar ? (bahamut, phoenix, solar) : current;
     }
 
     /// <summary>
