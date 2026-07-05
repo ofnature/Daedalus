@@ -41,7 +41,20 @@ public sealed class Configuration : IPluginConfiguration
         ExternalCombatOverrideState.Active ? ExternalCombatOverrideState.Source : "";
 
     public bool MainWindowVisible { get; set; } = true;
-    public bool IsDebugWindowOpen { get; set; } = false;
+
+    /// <summary>
+    /// Whether the Debug window is open — gates all per-frame debug-state syncing in the rotations.
+    /// Backed by process-wide state for the same reason as <see cref="ExternalCombatOverride"/>:
+    /// rotations run on a snapshot COPY of this object, so an instance flag set by the window
+    /// mid-duty never reached them — the Debug window read factory defaults ("Idle"/"None"/0)
+    /// until the next zone or settings refresh happened to recapture the flag.
+    /// </summary>
+    [Newtonsoft.Json.JsonIgnore]
+    public bool IsDebugWindowOpen
+    {
+        get => DebugWindowOpenState.IsOpen;
+        set => DebugWindowOpenState.IsOpen = value;
+    }
 
     /// <summary>
     /// When true, pressing Escape will not close the Daedalus main window.
@@ -302,4 +315,14 @@ internal static class ExternalCombatOverrideState
 
     /// <summary>Which automation plugin currently holds the override ("Henchman", "AutoDuty", "Quest"); "" when none.</summary>
     internal static string Source = "";
+}
+
+/// <summary>
+/// Process-wide holder for the Debug window open flag. See
+/// <see cref="Configuration.IsDebugWindowOpen"/> for why this must not be instance state.
+/// Framework-thread access only (window OnOpen/OnClose and rotation frames both run there).
+/// </summary>
+internal static class DebugWindowOpenState
+{
+    internal static bool IsOpen;
 }

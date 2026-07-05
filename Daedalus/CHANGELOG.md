@@ -8,6 +8,9 @@ All notable changes to Daedalus will be documented in this file.
 ### Fix — Bard: DoTs no longer allowed to fall off before Iron Jaws (below Lv56)
 - Windbite and Venomous Bite were only recast after the DoT fully dropped, which in practice meant 3–8 seconds of DoT downtime every 45-second cycle (detection lag plus queue position). Below Iron Jaws the recast IS the refresh — it now fires when 3 seconds remain, keeping both DoTs rolling continuously through the leveling range. Caught in a Lv49 Aurum Vale log
 
+### Fix — Debug window: opening it mid-duty showed frozen "Idle" state
+- The flag that turns on per-frame debug-state reporting lived on the saved settings object, but rotations run on a snapshot copy that only refreshes on zone or settings changes — so opening the Debug window mid-dungeon showed factory defaults (DPS State "Idle", Target "None", Engaged 0) for every job until something happened to refresh the snapshot. Same root cause as the v0.1.3 automation on-switch fix; the flag is now process-wide and the window reports live state the moment it opens
+
 ### Fix — Dragoon: Rise of the Dragon watched the wrong buff (Lv92+)
 - The Dragonfire Dive follow-up was gated on Draconian Fire — the combo buff from your 5th combo hit — instead of Dragon's Flight, the buff Dragonfire Dive actually grants. The follow-up only fired when your combo position happened to line up with the dive, wasting part of every 2-minute window. Found during the Lv90 validation run, fixed before it ever went live at 92. The stale Life of the Dragon status id was corrected in the same pass (RSR-verified)
 <!-- LATEST-END -->
