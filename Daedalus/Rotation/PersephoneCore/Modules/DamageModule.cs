@@ -274,10 +274,13 @@ public sealed class DamageModule : IPersephoneModule
         // unspent (Worqor Zormor SMN first-run log 2026-07-05). Range-guarded module-side so a
         // knockback after the dash can't park the GCD on an unreachable melee push; the Ready buff
         // rides until we're back in reach or it expires (ProcBuff gates dispatch as defense in depth).
+        // Priority 2 — above the gemshine attunement GCDs (3), RSR order: the GCD right after the
+        // Cyclone dash is the only one guaranteed in melee; first live run showed a Ruby Rite
+        // slipping in between while movement could have walked us back out.
         if (context.HasCrimsonStrikeReady && level >= SMNActions.CrimsonStrike.MinLevel
             && TankTargetingHelper.IsWithinMeleeReach(player, target))
         {
-            scheduler.PushGcd(PersephoneAbilities.CrimsonStrike, target.GameObjectId, priority: 4,
+            scheduler.PushGcd(PersephoneAbilities.CrimsonStrike, target.GameObjectId, priority: 2,
                 onDispatched: _ =>
                 {
                     context.Debug.PlannedAction = SMNActions.CrimsonStrike.Name;
