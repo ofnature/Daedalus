@@ -41,6 +41,7 @@ public abstract class BaseTankRotation<TContext, TModule> : BaseRotation<TContex
     protected readonly ITankCooldownService TankCooldownService;
     protected readonly ITimelineService? TimelineService;
     protected readonly IPartyCoordinationService? PartyCoordinationService;
+    protected readonly Daedalus.Services.Positional.Navigation.IPositionalMovementService? PositionalMovementService;
 
     #endregion
 
@@ -95,7 +96,8 @@ public abstract class BaseTankRotation<TContext, TModule> : BaseRotation<TContex
         IPartyCoordinationService? partyCoordinationService = null,
         IErrorMetricsService? errorMetrics = null,
         Daedalus.Services.Consumables.ITinctureDispatcher? tinctureDispatcher = null,
-        Daedalus.Services.Pull.IPullIntentService? pullIntentService = null)
+        Daedalus.Services.Pull.IPullIntentService? pullIntentService = null,
+        Daedalus.Services.Positional.Navigation.IPositionalMovementService? positionalMovementService = null)
         : base(
             log,
             actionTracker,
@@ -118,6 +120,7 @@ public abstract class BaseTankRotation<TContext, TModule> : BaseRotation<TContex
         TankCooldownService = tankCooldownService;
         TimelineService = timelineService;
         PartyCoordinationService = partyCoordinationService;
+        PositionalMovementService = positionalMovementService;
     }
 
     #endregion
@@ -175,6 +178,9 @@ public abstract class BaseTankRotation<TContext, TModule> : BaseRotation<TContex
         // Read combo state
         UpdateComboState();
 
+        // Pre-ranged walk-in (sub-15 GLD/MRD gathering)
+        UpdatePreRangedWalkIn(player, inCombat);
+
         // Update damage trend service with player entity ID (tanks track their own damage intake)
         if (inCombat)
         {
@@ -182,6 +188,61 @@ public abstract class BaseTankRotation<TContext, TModule> : BaseRotation<TContex
             _damageTrendIds.Add(player.EntityId);
             DamageTrendService.Update(1f / 60f, _damageTrendIds);
         }
+    }
+
+    /// <summary>
+    /// All four tank ranged GCDs (Shield Lob / Tomahawk / Unmend / Lightning Shot) unlock at 15;
+    /// below that a pre-job-stone GLD/MRD has NO tool for a mob outside melee.
+    /// </summary>
+    protected const byte TankRangedGcdMinLevel = 15;
+
+    /// <summary>
+    /// Below the ranged-GCD level, walk into melee on the engage target instead of standing there:
+    /// a sub-15 GLD/MRD facing a parked ranged/caster mob has no Shield Lob/Tomahawk to tag it, no
+    /// gap closer, and (unlike melee DPS) no max-melee walk-in — combat stalled until the mob
+    /// happened to wander in. Reuses the melee max-melee maintenance path: one-directional walk-in
+    /// with the vNav-flex dead-band, BMR destination/segment safety, and the movement arbiter's
+    /// yield-to-BossMod + churn guards. Inert at 15+ (the ranged GCD gathers as before).
+    /// </summary>
+    private void UpdatePreRangedWalkIn(IPlayerCharacter player, bool inCombat)
+    {
+        if (PositionalMovementService == null || !inCombat)
+            return;
+        if (player.Level >= TankRangedGcdMinLevel)
+            return;
+        if (!Configuration.EnableAutoMovement || !Configuration.Tank.WalkToTargetWithoutRangedTool)
+            return;
+
+        // Raw hard target first (probe-free — the attackability probe false-negatives at range,
+        // exactly when we need to walk in; same lesson as the melee walk-in fix), then the enemy
+        // strategy so a gathered add we aren't hard-targeting still pulls us over.
+        var target = TargetingService.GetRawEnemyHardTarget() as Dalamud.Game.ClientState.Objects.Types.IBattleChara
+            ?? TargetingService.FindEnemy(Configuration.Targeting.EnemyStrategy, 25f, player)
+                as Dalamud.Game.ClientState.Objects.Types.IBattleChara;
+        if (target == null)
+            return;
+
+        var snapshot = new Daedalus.Services.Positional.Navigation.PositionalMovementTarget(
+            target.Position,
+            target.HitboxRadius,
+            target.Rotation,
+            HasPositionalImmunity: true); // tanks have no positionals; arcs are disabled below anyway
+
+        var request = new Daedalus.Services.Positional.Navigation.PositionalMovementUpdateRequest(
+            AnticipationProvider: null,
+            AnticipationContext: default,
+            PlayerPosition: player.Position,
+            PlayerHitboxRadius: player.HitboxRadius,
+            Target: snapshot,
+            ActionService: ActionService,
+            InCombat: inCombat,
+            EnableMovement: false,
+            MaintainMaxMelee: true,
+            MaxMeleeTarget: snapshot,
+            MaxMeleeTargetFollowsPlayer: true,
+            VNavFlex: Configuration.Nav.VNavFlex);
+
+        PositionalMovementService.Update(in request);
     }
 
     /// <summary>

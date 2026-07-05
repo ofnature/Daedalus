@@ -86,7 +86,8 @@ public sealed class Themis : BaseTankRotation<IThemisContext, IThemisModule>
         IBurstWindowService? burstWindowService = null,
         Daedalus.Services.Consumables.ITinctureDispatcher? tinctureDispatcher = null,
         Daedalus.Services.Pull.IPullIntentService? pullIntentService = null,
-        ITimeToKillService? timeToKillService = null)
+        ITimeToKillService? timeToKillService = null,
+        Daedalus.Services.Positional.Navigation.IPositionalMovementService? positionalMovementService = null)
         : base(
             log,
             actionTracker,
@@ -107,7 +108,8 @@ public sealed class Themis : BaseTankRotation<IThemisContext, IThemisModule>
             partyCoordinationService,
             errorMetrics,
             tinctureDispatcher,
-            pullIntentService)
+            pullIntentService,
+            positionalMovementService)
     {
         _trainingService = trainingService;
         _burstWindowService = burstWindowService;

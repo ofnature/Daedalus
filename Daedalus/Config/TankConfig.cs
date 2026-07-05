@@ -656,6 +656,16 @@ public sealed class TankConfig
     public bool TransitRangedFiller { get; set; } = true;
 
     /// <summary>
+    /// Below the ranged-GCD level (all four tank ranged tools unlock at 15 — pre-job-stone GLD/MRD),
+    /// walk into melee when the engage target is out of reach. Without this a sub-15 tank facing a
+    /// parked ranged/caster mob has NO play at all: no Shield Lob/Tomahawk to tag it, no gap closer
+    /// (Intervene is 66), and no walk-in movement (that lived in the melee-DPS base only) — it just
+    /// stood there. Routes through the movement arbiter (yields to BossMod, deadband). At 15+ this
+    /// is inert; the ranged GCD gathers as before. Default true.
+    /// </summary>
+    public bool WalkToTargetWithoutRangedTool { get; set; } = true;
+
+    /// <summary>
     /// When a mob has slipped to another player (we lost aggro, it's now out of melee and targeting
     /// someone else), don't dash after it with the gap-closer. Provoke (25y, auto-fired by the
     /// EnmityModule) plus the ranged GCD reclaim it in place, so the tank stays on the pack and resumes

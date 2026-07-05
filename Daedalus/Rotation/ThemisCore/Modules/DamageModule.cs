@@ -101,6 +101,11 @@ public sealed class DamageModule : IThemisModule
                     TryPushIntervene(context, scheduler, engageTarget.GameObjectId);
             }
             TryPushShieldLob(context, scheduler, engageTarget.GameObjectId);
+            // Below Shield Lob (Lv15, pre-PLD Gladiator) there is nothing to push here — the base
+            // rotation's pre-ranged walk-in closes the distance instead. Name the state so the
+            // empty GCD doesn't read as a stall in Why Stuck.
+            if (player.Level < PLDActions.ShieldLob.MinLevel)
+                context.Debug.DamageState = "Out of melee — walking in (no ranged GCD until Lv15)";
             return;
         }
 

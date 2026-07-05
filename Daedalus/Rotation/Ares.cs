@@ -71,12 +71,13 @@ public sealed class Ares : BaseTankRotation<IAresContext, IAresModule>
         IErrorMetricsService? errorMetrics = null,
         IBurstWindowService? burstWindowService = null,
         Daedalus.Services.Consumables.ITinctureDispatcher? tinctureDispatcher = null,
-        Daedalus.Services.Pull.IPullIntentService? pullIntentService = null)
+        Daedalus.Services.Pull.IPullIntentService? pullIntentService = null,
+        Daedalus.Services.Positional.Navigation.IPositionalMovementService? positionalMovementService = null)
         : base(log, actionTracker, combatEventService, damageIntakeService, damageTrendService,
                configuration, objectTable, partyList, targetingService, hpPredictionService,
                actionService, playerStatsService, debuffDetectionService, enmityService,
                tankCooldownService, timelineService, partyCoordinationService, errorMetrics,
-               tinctureDispatcher, pullIntentService)
+               tinctureDispatcher, pullIntentService, positionalMovementService)
     {
         _trainingService = trainingService;
         _burstWindowService = burstWindowService;

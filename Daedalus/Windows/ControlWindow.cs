@@ -124,6 +124,18 @@ public sealed class ControlWindow : Window
             configuration.Tank.TransitRangedFiller = transitFiller;
         }
 
+        var walkNoRanged = configuration.Tank.WalkToTargetWithoutRangedTool;
+        if (ConfigUIHelpers.ToggleCheckbox(
+                "Walk To Target (pre-Lv15)",
+                ref walkNoRanged,
+                "Below level 15 (Gladiator/Marauder before the ranged GCD unlocks), walk into melee "
+                + "when the target is out of reach instead of standing there — a sub-15 tank has no "
+                + "other way to reach a parked ranged/caster mob. No effect at 15+.",
+                saveConfiguration))
+        {
+            configuration.Tank.WalkToTargetWithoutRangedTool = walkNoRanged;
+        }
+
         var ignoreAdds = configuration.Tank.IgnoreAddsWithCoTank;
         if (ConfigUIHelpers.ToggleCheckbox(
                 "Ignore Adds With Co-Tank",

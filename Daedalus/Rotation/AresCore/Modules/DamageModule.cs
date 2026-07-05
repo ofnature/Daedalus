@@ -85,6 +85,11 @@ public sealed class DamageModule : IAresModule
             if (lostToOther && !context.Configuration.Tank.SuppressGapCloserOnLostMob)
                 TryPushOnslaughtGapClose(context, scheduler, engageTarget.GameObjectId, engageTarget);
             TryPushTomahawk(context, scheduler, engageTarget.GameObjectId, engageTarget);
+            // Below Tomahawk (Lv15, pre-WAR Marauder) there is nothing to push here — the base
+            // rotation's pre-ranged walk-in closes the distance instead. Name the state so the
+            // empty GCD doesn't read as a stall in Why Stuck.
+            if (player.Level < WARActions.Tomahawk.MinLevel)
+                context.Debug.DamageState = "Out of melee — walking in (no ranged GCD until Lv15)";
             return;
         }
 
