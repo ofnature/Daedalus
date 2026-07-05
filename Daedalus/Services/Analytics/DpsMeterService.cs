@@ -141,6 +141,25 @@ public sealed class DpsMeterService : IDpsMeterService, IDisposable
 
     public IReadOnlyList<DpsEncounter> History => history;
 
+    public string DescribeTickPipeline()
+    {
+        if (!combatEventService.ActorControlHookActive)
+            return "DoT tick hook: NOT INSTALLED — check /xllog for the CombatEventService error.";
+
+        var seen = combatEventService.ActorControlInvocations;
+        var hotDot = combatEventService.ActorControlHotDotCount;
+        if (seen == 0)
+            return "DoT tick hook: installed but no ActorControl packets seen this session — hooked a dead code path.";
+
+        var histogram = combatEventService.DescribeActorControlCategories();
+        var screenLog = combatEventService.ScreenLogHookActive
+            ? $"\nFly-text hook: live — {combatEventService.ScreenLogInvocations} entr(ies), {combatEventService.ScreenLogHostileTargetCount} on enemies."
+            : "\nFly-text hook: NOT INSTALLED — check /xllog for the CombatEventService error.";
+        return $"DoT tick hook: live — {seen} ActorControl packet(s) this session, {hotDot} HoT/DoT."
+            + (histogram.Length > 0 ? $"\nCategories: {histogram}" : "")
+            + screenLog;
+    }
+
     /// <summary>
     /// Attaches the coordination bus so this toon broadcasts its own parse (~2s cadence in
     /// combat) and merges other Daedalus toons' authoritative self-reports.

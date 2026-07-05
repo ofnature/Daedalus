@@ -25,6 +25,10 @@ public sealed unsafe class CombatEventService : ICombatEventService, IDisposable
 {
     private readonly IPluginLog log;
     private readonly IObjectTable objectTable;
+    private readonly Configuration? configuration;
+
+    /// <summary>Raw packet dumps are opt-in — a diagnostic firehose, not normal-play logging.</summary>
+    private bool DumpRawPackets => configuration?.Debug.DumpRawCombatPackets == true;
     private readonly Hook<ActionEffectHandler.Delegates.Receive>? receiveHook;
     private readonly Hook<ProcessActorControlDelegate>? actorControlHook;
 
@@ -34,7 +38,20 @@ public sealed unsafe class CombatEventService : ICombatEventService, IDisposable
         uint p5, uint p6, uint p7, uint p8, ulong targetId, byte replaying);
 
     private const string ActorControlSignature = "E8 ?? ?? ?? ?? 0F B7 0B 83 E9 64";
+
+    // Legacy HoT/DoT category (community docs, BMR enum "HotDot=23"). Field-verified 2026-07-04:
+    // in the current patch this only carries out-of-combat self-regen ticks (p1=0, p2=kind,
+    // p3=amount, p4=source). Kept wired in case other content still uses it — player-targeted
+    // ticks are dropped downstream, so it can never double-count an enemy tick.
     private const uint ActorControlHotDot = 23;
+
+    // Current-patch DoT tick, field-verified 2026-07-04 (Worqor trash, SCH Biolysis): fires per
+    // SOURCE per target every ~3s server tick with p1 = status id (0 = source's DoTs aggregated),
+    // p2 = amount (matches Biolysis-only damage, crits included), p3 = source entity id,
+    // p4 = 0xFFFFFFFF. Sibling category 1540 is the HoT equivalent (p1 = status id, p2 = heal,
+    // p3 = source, p4 = 1) — deliberately NOT consumed: heals must never enter the damage meter,
+    // and hostile-target heal ticks would otherwise hit the attribution fallbacks.
+    private const uint ActorControlDotTick = 1541;
 
     /// <summary>
     /// Event raised when a healing effect from the local player lands.
@@ -163,10 +180,13 @@ public sealed unsafe class CombatEventService : ICombatEventService, IDisposable
     public static int DecodeEffectValue(ushort value, byte param3, byte param4)
         => value + ((param4 & LargeValueFlag) != 0 ? param3 * 0x10000 : 0);
 
-    public CombatEventService(IGameInteropProvider gameInterop, IPluginLog log, IObjectTable objectTable)
+    public CombatEventService(
+        IGameInteropProvider gameInterop, IPluginLog log, IObjectTable objectTable,
+        Configuration? configuration = null)
     {
         this.log = log;
         this.objectTable = objectTable;
+        this.configuration = configuration;
 
         try
         {
@@ -193,16 +213,147 @@ public sealed unsafe class CombatEventService : ICombatEventService, IDisposable
             // Fail-open: everything except DoT tick attribution works without this hook.
             log.Error(ex, "CombatEventService: Failed to create ActorControl hook — DoT ticks will not be attributed");
         }
+
+        try
+        {
+            addScreenLogHook = gameInterop.HookFromSignature<AddScreenLogDelegate>(
+                AddScreenLogSignature, AddScreenLogDetour);
+            addScreenLogHook.Enable();
+            log.Info("CombatEventService: AddScreenLog hook enabled (fly-text tick diagnostics)");
+        }
+        catch (Exception ex)
+        {
+            log.Error(ex, "CombatEventService: Failed to create AddScreenLog hook — fly-text tick capture unavailable");
+        }
+    }
+
+    // Fly-text feed (same hook DamageInfo uses). Field finding 2026-07-04: enemy DoT ticks never
+    // arrive as ActorControl 23 in the current patch — only self regen/HoT ticks do — yet the game
+    // renders the aggregated tick above the enemy, so this feed must carry it. Capped raw dumps
+    // to learn the tick discriminator (autos share fly-text kinds with ticks; autos duplicate
+    // ActionEffect amounts, ticks arrive ~3s cadence with no matching action).
+    private delegate void AddScreenLogDelegate(
+        Character* target, Character* source, int kind, int option,
+        int actionKind, int actionId, int val1, int val2, int val3, int val4);
+
+    private const string AddScreenLogSignature = "E8 ?? ?? ?? ?? BF ?? ?? ?? ?? EB 39";
+    private readonly Hook<AddScreenLogDelegate>? addScreenLogHook;
+    private long screenLogInvocations;
+    private long screenLogHostileTargetCount;
+    private long screenLogDumped;
+    private DateTime lastScreenLogDumpUtc;
+    private const long ScreenLogDumpCap = 150;
+    private const double ScreenLogDumpRearmSeconds = 30;
+
+    public bool ScreenLogHookActive => addScreenLogHook is { IsEnabled: true };
+    public long ScreenLogInvocations => Interlocked.Read(ref screenLogInvocations);
+    public long ScreenLogHostileTargetCount => Interlocked.Read(ref screenLogHostileTargetCount);
+
+    // Diagnostic dumps mirror into the in-game Debug Log tab (+ daedalus-debug.log) — /xllog's
+    // scrollback rotates too fast to catch a fight after the fact. Attached post-construction:
+    // DebugLogService is built later in the Plugin constructor.
+    private Debug.DebugLogService? debugLog;
+
+    public void AttachDebugLog(Debug.DebugLogService service) => debugLog = service;
+
+    private void AddScreenLogDetour(
+        Character* target, Character* source, int kind, int option,
+        int actionKind, int actionId, int val1, int val2, int val3, int val4)
+    {
+        Interlocked.Increment(ref screenLogInvocations);
+        try
+        {
+            var targetId = target != null ? target->GameObject.EntityId : 0u;
+            var sourceId = source != null ? source->GameObject.EntityId : 0u;
+
+            // BattleNpc entity-id range — fly text on enemies is where DoT ticks must live.
+            if (targetId is >= 0x40000000 and < 0x50000000)
+            {
+                Interlocked.Increment(ref screenLogHostileTargetCount);
+
+                // Budget re-arms after a quiet spell so the LATEST engagement always has fresh
+                // dumps in /xllog — a session-wide cap burned out before anyone could look.
+                var now = DateTime.UtcNow;
+                if (screenLogDumped >= ScreenLogDumpCap
+                    && (now - lastScreenLogDumpUtc).TotalSeconds > ScreenLogDumpRearmSeconds)
+                {
+                    screenLogDumped = 0;
+                }
+
+                if (DumpRawPackets && screenLogDumped < ScreenLogDumpCap)
+                {
+                    screenLogDumped++;
+                    lastScreenLogDumpUtc = now;
+                    var line = $"[ScreenLog] kind={kind} option={option} actionKind={actionKind} actionId={actionId} "
+                        + $"val1={val1} val2={val2} val3={val3} val4={val4} src={sourceId:X8} tgt={targetId:X8}";
+                    log.Info(line);
+                    debugLog?.Log(Debug.DebugLogCategory.General, Debug.DebugLogSeverity.Info, line);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            log.Error(ex, "CombatEventService: Error in AddScreenLog detour");
+        }
+
+        addScreenLogHook?.Original(target, source, kind, option, actionKind, actionId, val1, val2, val3, val4);
+    }
+
+    // Hook liveness diagnostics (parser "(?)" tooltip): zero invocations across a fight means
+    // the signature hooked a dead spot; invocations without HotDot means the category moved.
+    // Field finding 2026-07-04: hook live, category 23 nearly absent (2/session in a Biolysis
+    // fight that should tick ~every 3s) — the histogram + capped raw dumps below exist to find
+    // which category actually carries tick damage in the current patch.
+    private long actorControlInvocations;
+    private long actorControlHotDotCount;
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<uint, long> actorControlCategoryCounts = new();
+    private const long RawDumpPerCategoryCap = 5;
+
+    public bool ActorControlHookActive => actorControlHook is { IsEnabled: true };
+    public long ActorControlInvocations => System.Threading.Interlocked.Read(ref actorControlInvocations);
+    public long ActorControlHotDotCount => System.Threading.Interlocked.Read(ref actorControlHotDotCount);
+
+    /// <summary>Per-category packet counts this session, e.g. "17×204 34×41 23×2", highest first.</summary>
+    public string DescribeActorControlCategories()
+    {
+        var parts = new List<string>();
+        foreach (var pair in actorControlCategoryCounts)
+            parts.Add($"{pair.Key}×{pair.Value}");
+        parts.Sort((a, b) => long.Parse(b[(b.IndexOf('×') + 1)..]).CompareTo(long.Parse(a[(a.IndexOf('×') + 1)..])));
+        return string.Join(" ", parts);
     }
 
     private void ActorControlDetour(
         uint actorId, uint category, uint p1, uint p2, uint p3, uint p4,
         uint p5, uint p6, uint p7, uint p8, ulong targetId, byte replaying)
     {
+        System.Threading.Interlocked.Increment(ref actorControlInvocations);
         try
         {
+            var categoryCount = actorControlCategoryCounts.AddOrUpdate(category, 1, static (_, n) => n + 1);
+
+            // Raw param dumps: first few packets of every category, plus all tick packets.
+            if (DumpRawPackets
+                && (categoryCount <= RawDumpPerCategoryCap
+                    || category is ActorControlHotDot or ActorControlDotTick))
+            {
+                var line = $"[ActorControl] cat={category} actor={actorId:X8} p1={p1} p2={p2} p3={p3} p4={p4} "
+                    + $"p5={p5} p6={p6} p7={p7} p8={p8} target={targetId:X} replay={replaying}";
+                log.Info(line);
+                debugLog?.Log(Debug.DebugLogCategory.General, Debug.DebugLogSeverity.Info, line);
+            }
+
             if (category == ActorControlHotDot)
+            {
+                System.Threading.Interlocked.Increment(ref actorControlHotDotCount);
                 OnDotTick?.Invoke(new DotTickEvent(actorId, p1, p2, unchecked((int)p3), p4));
+            }
+            else if (category == ActorControlDotTick)
+            {
+                System.Threading.Interlocked.Increment(ref actorControlHotDotCount);
+                OnDotTick?.Invoke(new DotTickEvent(
+                    actorId, EffectId: p1, Kind: p4, Amount: unchecked((int)p2), PossibleSourceId: p3));
+            }
         }
         catch (Exception ex)
         {
@@ -622,6 +773,7 @@ public sealed unsafe class CombatEventService : ICombatEventService, IDisposable
     {
         receiveHook?.Dispose();
         actorControlHook?.Dispose();
+        addScreenLogHook?.Dispose();
         shadowHp.Clear();
         log.Info("CombatEventService: Disposed");
     }

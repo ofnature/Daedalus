@@ -40,6 +40,15 @@ public static class DebugLogTab
         ImGui.SameLine();
         ImGui.Checkbox("Auto-scroll", ref _autoScroll);
 
+        ImGui.SameLine();
+        var dumpPackets = config.Debug.DumpRawCombatPackets;
+        if (ImGui.Checkbox("Raw packets", ref dumpPackets))
+        {
+            config.Debug.DumpRawCombatPackets = dumpPackets;
+        }
+        if (ImGui.IsItemHovered())
+            ImGui.SetTooltip("Dump raw [ActorControl] and [ScreenLog] combat packets here and to the Dalamud log.\nDiagnostic firehose for re-deriving packet layouts after a game patch — noisy, keep off in normal play.");
+
         ImGui.SameLine(ImGui.GetContentRegionAvail().X - 130);
         if (ImGui.Button("Copy"))
         {

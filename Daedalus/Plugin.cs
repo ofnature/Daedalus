@@ -244,7 +244,7 @@ public sealed class Plugin : IDalamudPlugin
         HealingCalculator.LoadCalibration(configuration.Calibration);
 
         this.actionTracker = new ActionTracker(dataManager, configuration);
-        this.combatEventService = new CombatEventService(gameInteropProvider, log, objectTable);
+        this.combatEventService = new CombatEventService(gameInteropProvider, log, objectTable, configuration);
         this.damageIntakeService = new DamageIntakeService(combatEventService);
         this.dotTrackingService = new DoTTrackingService(combatEventService, damageIntakeService);
         this.healingIntakeService = new HealingIntakeService(combatEventService);
@@ -279,6 +279,7 @@ public sealed class Plugin : IDalamudPlugin
             damageTrendService);
         this.debugLogService = new Daedalus.Services.Debug.DebugLogService(
             configuration, pluginInterface.ConfigDirectory.FullName, log);
+        combatEventService.AttachDebugLog(debugLogService);
         this.actionService = new ActionService(actionTracker, objectTable: objectTable, dataManager: dataManager,
             debugLog: debugLogService);
         this.playerStatsService = new PlayerStatsService(log, dataManager);

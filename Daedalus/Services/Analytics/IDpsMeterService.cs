@@ -14,6 +14,13 @@ public interface IDpsMeterService
     /// <summary>Ended encounters, newest first. Capped at <see cref="Config.ParserConfig.FightHistoryCount"/>.</summary>
     IReadOnlyList<DpsEncounter> History { get; }
 
+    /// <summary>
+    /// One-line DoT-tick pipeline status for the parser tooltip: whether the ActorControl hook is
+    /// live and how many packets (total / HoT-DoT) it has seen this session. Distinguishes
+    /// "hook never installed" from "hook alive but no tick category arriving".
+    /// </summary>
+    string DescribeTickPipeline();
+
     /// <summary>Per-frame update: encounter segmentation + draining queued damage events.</summary>
     void Update();
 

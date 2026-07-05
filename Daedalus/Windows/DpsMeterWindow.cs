@@ -282,7 +282,8 @@ public sealed class DpsMeterWindow : Window
         DaedalusTheme.HelpMarker(Loc.T(
             LocalizedStrings.Parser.LegendTooltip,
             "Source dots:\n● gold — you (exact)\n● green — Daedalus toon, self-reported over IPC/LAN (exact)\n● grey — observed locally (Trusts, other players)\n\nDoT ticks are attributed to whoever applied the effect; ambiguous merged ticks are split by DoT potency (\"Estimate shared DoT ticks\" setting) or shown as \"+N DoT?\".")
-            + $"\n\nThis fight: {entries[selectedIndex].DotTicksProcessed} DoT/HoT tick packet(s) received.");
+            + $"\n\nThis fight: {entries[selectedIndex].DotTicksProcessed} DoT/HoT tick packet(s) received."
+            + $"\n{meter.DescribeTickPipeline()}");
     }
 
     private string EntryLabel(DpsEncounter encounter)

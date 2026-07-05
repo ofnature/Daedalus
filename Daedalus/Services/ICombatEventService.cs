@@ -31,6 +31,27 @@ public readonly record struct DotTickEvent(
 /// </summary>
 public interface ICombatEventService
 {
+    /// <summary>ActorControl hook installed and enabled (DoT tick source). Diagnostics.</summary>
+    bool ActorControlHookActive => false;
+
+    /// <summary>Total ActorControl packets seen by the hook this session. Diagnostics.</summary>
+    long ActorControlInvocations => 0;
+
+    /// <summary>ActorControl packets with the HoT/DoT category (23) this session. Diagnostics.</summary>
+    long ActorControlHotDotCount => 0;
+
+    /// <summary>Per-category ActorControl packet counts this session ("cat×count …"). Diagnostics.</summary>
+    string DescribeActorControlCategories() => "";
+
+    /// <summary>AddScreenLog (fly-text) hook installed and enabled. Diagnostics.</summary>
+    bool ScreenLogHookActive => false;
+
+    /// <summary>Total fly-text entries seen by the AddScreenLog hook this session. Diagnostics.</summary>
+    long ScreenLogInvocations => 0;
+
+    /// <summary>Fly-text entries targeting hostile NPCs this session (where DoT ticks live). Diagnostics.</summary>
+    long ScreenLogHostileTargetCount => 0;
+
     /// <summary>
     /// Event raised when a healing effect from the local player lands.
     /// The uint parameter is the target entity ID that received the heal.

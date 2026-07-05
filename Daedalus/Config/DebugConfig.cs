@@ -24,6 +24,13 @@ public sealed class DebugConfig
     public bool EnableDebugLogFile { get; set; } = true;
 
     /// <summary>
+    /// Dump raw combat packets ([ActorControl] / [ScreenLog] fly-text lines) to the Debug Log and
+    /// Dalamud log. Diagnostic firehose for re-deriving packet layouts after a game patch (this is
+    /// how the cat-1541 DoT tick channel was found) — noisy, keep off in normal play.
+    /// </summary>
+    public bool DumpRawCombatPackets { get; set; } = false;
+
+    /// <summary>
     /// Visibility settings for debug window sections.
     /// Key is section name, value is whether it's visible.
     /// </summary>
