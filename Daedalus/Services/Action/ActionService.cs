@@ -118,6 +118,26 @@ public sealed unsafe class ActionService : IActionService
     private const double PartialRecastStaleSeconds = 1.5;
     private const double FailedSubmitBackoffSeconds = 0.1;
 
+    /// <summary>
+    /// How long the GCD may sit idle (ready, nothing casting, no action executed) before the weave
+    /// window opens for oGCDs anyway. Normally a ready GCD fires within a frame or two, so weave
+    /// slots stay tied to a rolling GCD — but when the GCD chain stalls (no castable/affordable GCD,
+    /// e.g. BLM out of MP), oGCDs must still flow: Lucid Dreaming, defensives, and utility all sit
+    /// behind IsInWeaveWindow. Long enough to never trigger during normal rotation, short next to
+    /// any real stall.
+    /// </summary>
+    private const double GcdStallWeaveSeconds = 1.5;
+
+    /// <summary>
+    /// How long the GCD may read Ready with an accepted-but-uncommitted submit before we treat the queued
+    /// action as dropped at fire time (knockback / boss strafe at the rollover instant) and requeue. A
+    /// committed queue submit starts its recast within 1-2 frames of rollover, so ~9 frames of Ready is
+    /// conclusive; the 0.5s-from-submit stale guard cost up to 0.6s of dead GCD per drop (4-8% boss
+    /// uptime at the observed drop rates, Dotoli Ciloc / Tozol Huatotl field logs 2026-07-05).
+    /// </summary>
+    private const double ReadyUncommittedGraceSeconds = 0.15;
+    private DateTime _readyUncommittedSinceUtc = DateTime.MinValue;
+
     /// <summary>Current GCD state.</summary>
     public GcdState CurrentGcdState { get; private set; } = GcdState.Ready;
 
@@ -269,6 +289,7 @@ public sealed unsafe class ActionService : IActionService
         if (recastActive && _gcdSubmittedThisCycle && recastDetail is not null)
         {
             _gcdRecastSeenSinceSubmit = true;
+            _readyUncommittedSinceUtc = DateTime.MinValue;
             if (recastDetail->Elapsed > _peakRecastElapsedSinceSubmit)
                 _peakRecastElapsedSinceSubmit = recastDetail->Elapsed;
             if (recastDetail->Total > _peakRecastTotalSinceSubmit)
@@ -319,20 +340,7 @@ public sealed unsafe class ActionService : IActionService
         {
             _gcdSubmittedThisCycle = false;
             _nextGcdAttemptAllowed = DateTime.UtcNow.AddSeconds(FailedSubmitBackoffSeconds);
-
-            if (_lastSubmittedTargetId != 0)
-            {
-                var status = GetActionStatusCode(_lastSubmittedDispatchId, _lastSubmittedTargetId);
-                var reason = DescribeStatusReason(status);
-                _lastGcdRejectReason = reason is not null
-                    ? $"submitted but not cast — {reason}"
-                    : status != 0
-                        ? $"submitted but not cast (game status {status})"
-                        : "submitted but not cast (line-of-sight / facing / moving?)";
-                TryFaceRecovery(_lastSubmittedDispatchId, _lastSubmittedTargetId);
-                LogCastRefusal(_lastSubmittedActionName, _lastSubmittedDispatchId, _lastSubmittedTargetId,
-                    submittedNotCast: true);
-            }
+            ReportDroppedQueuedGcd();
         }
 
         // Stale guard: recast blip without a full roll (guard would otherwise stay latched indefinitely).
@@ -396,13 +404,31 @@ public sealed unsafe class ActionService : IActionService
             _ogcdsUsedThisCycle = 0;
             // Normally clear the submit latch so the next GCD can fire. EXCEPTION: a submit was accepted
             // this cycle but no recast has started (the action was queued but rejected at execution —
-            // facing / LoS / range). Clearing here every frame is what let it re-submit ~5x/second (the
-            // multi-mob "Fire in Red" spam). Hold the latch through the uncommitted grace so the stale
-            // guard below clears it once (with backoff + face recovery) instead of spamming.
-            var submitUncommitted = _gcdSubmittedThisCycle && !_gcdRecastSeenSinceSubmit
-                && (DateTime.UtcNow - _lastExecuteTime).TotalSeconds <= UncommittedSubmitStaleSeconds;
-            if (!submitUncommitted)
+            // facing / LoS / range / knockback). Clearing every frame let it re-submit ~5x/second (the
+            // multi-mob "Fire in Red" spam), so hold the latch through a short grace — but only a SHORT
+            // one, measured from when the GCD first read Ready: a committed queue submit starts its
+            // recast within 1-2 frames of rollover, so Ready+uncommitted past the grace means the game
+            // dropped the queued action at fire time. The old path waited for the 0.5s-from-submit stale
+            // guard, costing up to 0.6s of dead GCD per drop on knockback-heavy bosses.
+            var submitUncommitted = _gcdSubmittedThisCycle && !_gcdRecastSeenSinceSubmit;
+            if (submitUncommitted)
+            {
+                if (_readyUncommittedSinceUtc == DateTime.MinValue)
+                    _readyUncommittedSinceUtc = DateTime.UtcNow;
+
+                if ((DateTime.UtcNow - _readyUncommittedSinceUtc).TotalSeconds > ReadyUncommittedGraceSeconds)
+                {
+                    _gcdSubmittedThisCycle = false;
+                    _nextGcdAttemptAllowed = DateTime.UtcNow.AddSeconds(FailedSubmitBackoffSeconds);
+                    _readyUncommittedSinceUtc = DateTime.MinValue;
+                    ReportDroppedQueuedGcd();
+                }
+            }
+            else
+            {
+                _readyUncommittedSinceUtc = DateTime.MinValue;
                 _gcdSubmittedThisCycle = false;
+            }
             // Recast is fully done — a new GCD cycle. Release the repeat-GCD block here too, not only on
             // the single recast roll-over frame: if that frame's clear was missed (e.g. _gcdSubmittedThisCycle
             // was still latched) AND no further GCD fires, the roll-over never recurs and the block would
@@ -491,6 +517,7 @@ public sealed unsafe class ActionService : IActionService
             _blockedRepeatGcdDispatchId = dispatchId;
             RecordChargeBasedGcdSubmit(dispatchId);
             _gcdRecastSeenSinceSubmit = false;
+            _readyUncommittedSinceUtc = DateTime.MinValue;
             _peakRecastElapsedSinceSubmit = 0;
             _peakRecastTotalSinceSubmit = 0;
 
@@ -633,6 +660,7 @@ public sealed unsafe class ActionService : IActionService
             _blockedRepeatGcdDispatchId = actionManager->GetAdjustedActionId(rawDispatchId);
             RecordChargeBasedGcdSubmit(rawDispatchId);
             _gcdRecastSeenSinceSubmit = false;
+            _readyUncommittedSinceUtc = DateTime.MinValue;
             _peakRecastElapsedSinceSubmit = 0;
             _peakRecastTotalSinceSubmit = 0;
 
@@ -1012,6 +1040,28 @@ public sealed unsafe class ActionService : IActionService
     /// the hard target fixes it. Fire on 566 (explicit) AND 0 (the real case); skip 562/563 (range / LoS),
     /// which need movement, not facing.
     /// </summary>
+    /// <summary>
+    /// A queue-accepted GCD never started its recast — the game dropped it at fire time. Enrich the
+    /// reject reason from a fresh status probe, attempt face recovery, and log the refusal. Shared by
+    /// the fast Ready-state detector and the 0.5s stale-guard fallback.
+    /// </summary>
+    private void ReportDroppedQueuedGcd()
+    {
+        if (_lastSubmittedTargetId == 0)
+            return;
+
+        var status = GetActionStatusCode(_lastSubmittedDispatchId, _lastSubmittedTargetId);
+        var reason = DescribeStatusReason(status);
+        _lastGcdRejectReason = reason is not null
+            ? $"submitted but not cast — {reason}"
+            : status != 0
+                ? $"submitted but not cast (game status {status})"
+                : "submitted but not cast (line-of-sight / facing / moving?)";
+        TryFaceRecovery(_lastSubmittedDispatchId, _lastSubmittedTargetId);
+        LogCastRefusal(_lastSubmittedActionName, _lastSubmittedDispatchId, _lastSubmittedTargetId,
+            submittedNotCast: true);
+    }
+
     private void TryFaceRecovery(uint dispatchId, ulong targetId)
     {
         if (FaceTargetOnStuck is null || targetId == 0)
@@ -1055,6 +1105,16 @@ public sealed unsafe class ActionService : IActionService
     {
         if (AnimationLockRemaining > FFXIVConstants.WeaveWindowBuffer || _lastIsCasting)
             return 0;
+
+        // GCD idle stall: with the GCD ready and nothing rolling, the arithmetic below yields 0
+        // slots — correct while a GCD fires immediately, but when the GCD chain stalls (e.g. BLM
+        // parked on "Waiting for MP") it starved EVERY oGCD for the whole stall, since dispatch
+        // is gated on IsInWeaveWindow: Lucid Dreaming never fired to fix the very MP deficit
+        // causing the stall (Origenics field report 2026-07-05). Once the GCD has sat idle past
+        // the stall threshold, keep one weave slot open; the animation-lock gate above still
+        // spaces consecutive oGCDs, and each execute resets the idle timer.
+        if (GcdRemaining <= 0f && SecondsSinceLastAction >= GcdStallWeaveSeconds)
+            return _ogcdsUsedThisCycle + 1;
 
         // Each oGCD takes ~0.7s animation lock. Reserve the queue window at the tail of the GCD for the next
         // GCD's early submission so a weaved oGCD can never clip into it.
