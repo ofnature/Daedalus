@@ -3,6 +3,34 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.8 — 2026-07-05
+
+### New — Boundary camping: melee positionals become a short hop (experimental, OFF by default)
+- Opt-in via Nav Control → "Boundary Camping (experimental)": melee stands just inside the required flank/rear zone, right next to the 135° boundary between them — so when the rotation swaps from a flank positional to a rear one (Armor Crush ↔ Aeolian Edge), the character hops ~2 yalms across the line instead of running a quarter circle around the target. A bias slider (0–30°, default 10°) tunes how far inside the zone to stand
+- With Auto-Manage BMR AI on, BossMod is told "any positional" for melee while camping is active — BossMod keeps range and dodges, Daedalus owns the standing angle. The hop may run while BossMod's AI is merely follow-steering, never during live danger
+- Ninja is the pilot job; other melee stay on their current movement until validated. Ships OFF while the movement cadence is field-tested — leave it off if you see any movement misbehavior
+
+### Fix — Dropped GCDs recover ~3× faster (knockback-heavy bosses)
+- When the game accepts a queued weaponskill but then drops it at fire time — a knockback or the boss strafing out of reach at the exact rollover instant — the rotation used to sit on the dead queue for up to 0.6 seconds before retrying. It now detects the drop within a tenth of a second of the GCD reading Ready and resubmits. On knockback-heavy bosses this was worth several percent of uptime ("submitted but not cast" entries in the debug log are this event)
+
+### Fix — Smoother chasing of moving packs
+- While chasing a pack that's running to its camp, movement re-pathed up to three times a second toward destinations centimeters apart — visible micro-jerks. The arbiter now remembers where it last sent you for a second and skips near-identical re-paths; genuine direction changes still go through instantly
+
+### Fix — Movement no longer fights BossMod (screen stutter during dodges)
+- Daedalus pathing and BossMod's AI dodging were steering the character at the same time: BossMod pauses itself whenever a vnavmesh path runs, so every short Daedalus move interrupted the dodge mid-step, then BossMod snapped back the moment the path ended — a visible tug-of-war stutter near AoE telegraphs. A new movement arbiter now yields the character to BossMod whenever it's dodging or danger zones are up (plus a short cooldown after they clear), and rate-limits Daedalus's own path submissions so no movement source can machine-gun vnavmesh. Kill-switch in Nav Control ("Yield movement to BossMod", on by default), with a live status line showing who owns movement and why pathing is held
+- Casters now also hold hard-casts while BossMod's AI is actively steering — its input-injection movement was invisible to the "am I moving" check, so casts could start mid-dodge and get interrupted
+
+### Fix — Ninja: removed the special burst movement (the worst stutter case)
+- Ninja was the only job with a second movement driver — a dedicated "burst approach" that walked into melee during Suiton prep and canceled the regular positioning path to do it. At the melee boundary the two drivers flip-flopped every frame (cancel, re-path, cancel), the exact stutter loop players saw. The burst approach is gone; Ninja now uses the same max-melee range keeping as every other melee job, which already walks into range for Kunai's Bane (requires "Maintain max melee", on by default). The "Burst Melee Approach" toggle is removed
+
+### Fix — Black Mage: rotation idled for a minute+ "Waiting for MP"
+- Umbral Ice no longer restores MP over time on the current patch — the refill happens when you **cast** an ice spell (a Blizzard or Blizzard IV at Umbral Ice III refills the whole bar). The ice phase still waited passively, so a pull entered with 3 leftover Umbral Hearts (Blizzard IV skipped) and a Despair-emptied bar just stood there while natural regen crawled — 60–90 second freezes in Origenics, one pull at 21% uptime. The ice phase now casts Blizzard IV (Blizzard below Lv58, Freeze in AoE) to trigger the refill instead of waiting
+- The "go back to fire" gate also demanded a 99% bar — one regen tick more than a stalled bar ever reaches ("Waiting for MP (98%)" for 24s+). It now transitions at 9600 MP, matching RSR
+
+### Fix — abilities no longer starve while the rotation is stalled (all jobs)
+- Off-GCD abilities only fire in the weave window during a rolling GCD — so whenever the GCD chain stalled (like the Black Mage MP freeze), every ability starved with it: Lucid Dreaming couldn't fire to fix the very MP shortage causing the stall, and defensives sat idle too. If the GCD sits unused for 1.5 seconds, the weave window now opens so abilities keep flowing during a stall
+<!-- LATEST-END -->
+
 ## v0.1.7 — 2026-07-04
 
 ### Fix — Bard: DoTs no longer allowed to fall off before Iron Jaws (below Lv56)
@@ -19,7 +47,6 @@ All notable changes to Daedalus will be documented in this file.
 
 ### Fix — Dragoon: Rise of the Dragon watched the wrong buff (Lv92+)
 - The Dragonfire Dive follow-up was gated on Draconian Fire — the combo buff from your 5th combo hit — instead of Dragon's Flight, the buff Dragonfire Dive actually grants. The follow-up only fired when your combo position happened to line up with the dive, wasting part of every 2-minute window. Found during the Lv90 validation run, fixed before it ever went live at 92. The stale Life of the Dragon status id was corrected in the same pass (RSR-verified)
-<!-- LATEST-END -->
 
 ## v0.1.6 — 2026-07-04
 

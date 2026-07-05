@@ -34,6 +34,9 @@ public sealed class DamageModule : IHecateModule
 
     private const int DespairMpCost = 800;
     private const float ElementRefreshThreshold = 6f;
+    // RSR-aligned fire-transition gate (9600, not a full bar). The old MpPercent >= 0.99f
+    // demanded 9900+ MP, which natural regen alone can never reliably cross mid-stall.
+    private const int FireTransitionMpThreshold = 9600;
 
     public bool TryExecute(IHecateContext context, bool isMoving) => false;
 
@@ -773,12 +776,12 @@ public sealed class DamageModule : IHecateModule
             return;
         }
 
-        if (context.MpPercent >= 0.99f && context.UmbralHearts >= 3)
+        if (context.CurrentMp >= FireTransitionMpThreshold && context.UmbralHearts >= 3)
         {
             TryPushFireTransition(context, scheduler, target);
             return;
         }
-        if (context.MpPercent >= 0.99f && level < BLMActions.Blizzard4.MinLevel)
+        if (context.CurrentMp >= FireTransitionMpThreshold && level < BLMActions.Blizzard4.MinLevel)
         {
             TryPushFireTransition(context, scheduler, target);
             return;
@@ -808,7 +811,31 @@ public sealed class DamageModule : IHecateModule
             }
         }
 
-        context.Debug.DamageState = $"Waiting for MP ({context.MpPercent * 100:F0}%)";
+        // MP below the transition gate with nothing else queued. Umbral Ice does NOT passively
+        // regenerate MP on the current patch — the refill triggers on CASTING an ice spell (full
+        // refill from Blizzard/Blizzard IV at UI3). Idling here deadlocked the rotation whenever
+        // a pull started with 3 carried-over Umbral Hearts (Blizzard IV branch skipped) and
+        // Despair-emptied MP: 60-90s "Waiting for MP" stalls with only natural regen crawling
+        // (Origenics field report 2026-07-05). Reaching this point means UI stacks are 3 (the
+        // build-to-UI3 branch above returns otherwise), so cast an ice GCD to trigger the refill.
+        var refillAction = useAoe && level >= BLMActions.Freeze.MinLevel ? BLMActions.Freeze
+            : level >= BLMActions.Blizzard4.MinLevel ? BLMActions.Blizzard4
+            : BLMActions.Blizzard;
+        var refillAbility = refillAction == BLMActions.Freeze ? HecateAbilities.Freeze
+            : refillAction == BLMActions.Blizzard4 ? HecateAbilities.Blizzard4
+            : HecateAbilities.Blizzard;
+        var refillCastTime = context.HasInstantCast ? 0f : refillAction.CastTime;
+        if (MechanicCastGate.ShouldBlock(context, refillCastTime))
+        {
+            context.Debug.DamageState = MechanicCastGate.FormatBlockedState(context);
+            return;
+        }
+        scheduler.PushGcd(refillAbility, target!.GameObjectId, priority: 8,
+            onDispatched: _ =>
+            {
+                context.Debug.PlannedAction = refillAction.Name;
+                context.Debug.DamageState = $"{refillAction.Name} (MP refill)";
+            });
     }
 
     private void TryPushFireTransition(IHecateContext context, RotationScheduler scheduler, IBattleChara target)
