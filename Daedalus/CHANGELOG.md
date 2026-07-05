@@ -8,6 +8,9 @@ All notable changes to Daedalus will be documented in this file.
 ### Fix — Bard: DoTs no longer allowed to fall off before Iron Jaws (below Lv56)
 - Windbite and Venomous Bite were only recast after the DoT fully dropped, which in practice meant 3–8 seconds of DoT downtime every 45-second cycle (detection lag plus queue position). Below Iron Jaws the recast IS the refresh — it now fires when 3 seconds remain, keeping both DoTs rolling continuously through the leveling range. Caught in a Lv49 Aurum Vale log
 
+### Fix — Black Mage: rotation froze trying to hard-cast Thunder without its proc
+- Every Thunder spell now requires the Thunderhead proc, but the ice phase kept an old "hard cast Thunder" fallback for when the DoT lapsed without a proc — the game refused every attempt ("Cannot use yet") and the rotation sat on it, freezing the GCD until the next phase swap granted a proc. Caught live in The Aitiascope ("Stuck — Thunder IV: ActionStatus 572"). The fallback is gone; the DoT now waits for the next Thunderhead and fillers carry the rotation. All six Thunder variants also gained a dispatch-level proc gate so nothing similar can slip through again, and refusal code 572 now shows a plain-word label in Why Stuck
+
 ### Fix — Debug window: opening it mid-duty showed frozen "Idle" state
 - The flag that turns on per-frame debug-state reporting lived on the saved settings object, but rotations run on a snapshot copy that only refreshes on zone or settings changes — so opening the Debug window mid-dungeon showed factory defaults (DPS State "Idle", Target "None", Engaged 0) for every job until something happened to refresh the snapshot. Same root cause as the v0.1.3 automation on-switch fix; the flag is now process-wide and the window reports live state the moment it opens
 

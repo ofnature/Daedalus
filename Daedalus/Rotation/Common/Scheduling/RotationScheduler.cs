@@ -351,6 +351,7 @@ public sealed class RotationScheduler
         563 => " (no line of sight)",
         565 => " (not unlocked)",
         566 => " (facing)",
+        572 => " (requirements not met — \"Cannot use yet\")",
         574 => " (wrong job / foreign id)",
         582 => " (not ready / duplicate)",
         583 => " (GCD rolling)",

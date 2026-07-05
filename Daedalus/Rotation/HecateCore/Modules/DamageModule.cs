@@ -743,24 +743,12 @@ public sealed class DamageModule : IHecateModule
                     });
                 return;
             }
-            else if (level >= BLMActions.Thunder.MinLevel)
-            {
-                var thunderAction = useAoe ? BLMActions.GetThunderAoe(level, context.ActionService) : BLMActions.GetThunderST(level, context.ActionService);
-                var ability = MapThunderAbility(thunderAction);
-                var castTime = context.HasInstantCast ? 0f : thunderAction.CastTime;
-                if (MechanicCastGate.ShouldBlock(context, castTime))
-                {
-                    context.Debug.DamageState = MechanicCastGate.FormatBlockedState(context);
-                    return;
-                }
-                scheduler.PushGcd(ability, target.GameObjectId, priority: 7,
-                    onDispatched: _ =>
-                    {
-                        context.Debug.PlannedAction = thunderAction.Name;
-                        context.Debug.DamageState = "Thunder (hard cast)";
-                    });
-                return;
-            }
+            // No Thunderhead → no Thunder, period. The old "hard cast" fallback here was a
+            // pre-Dawntrail relic: every Thunder spell now REQUIRES the Thunderhead proc, so the
+            // push could never execute — the game refused each attempt with "Cannot use yet"
+            // (572) and the stuck candidate held the GCD hostage until a proc arrived (caught
+            // live in Aitiascope, "Stuck — Thunder IV: ActionStatus 572"). The DoT waits for the
+            // next phase swap's Thunderhead; fillers below carry the GCD.
         }
 
         // Paradox in Ice

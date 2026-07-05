@@ -27,12 +27,15 @@ public static class HecateAbilities
     public static readonly AbilityBehavior Freeze = new() { Action = BLMActions.Freeze, Toggle = cfg => cfg.BlackMage.EnableAoERotation };
 
     // --- Thunder ---
-    public static readonly AbilityBehavior Thunder = new() { Action = BLMActions.Thunder };
-    public static readonly AbilityBehavior Thunder3 = new() { Action = BLMActions.Thunder3 };
-    public static readonly AbilityBehavior HighThunder = new() { Action = BLMActions.HighThunder };
-    public static readonly AbilityBehavior Thunder2 = new() { Action = BLMActions.Thunder2, Toggle = cfg => cfg.BlackMage.EnableAoERotation };
-    public static readonly AbilityBehavior Thunder4 = new() { Action = BLMActions.Thunder4, Toggle = cfg => cfg.BlackMage.EnableAoERotation };
-    public static readonly AbilityBehavior HighThunder2 = new() { Action = BLMActions.HighThunder2, Toggle = cfg => cfg.BlackMage.EnableAoERotation };
+    // Current patch: EVERY Thunder spell requires the Thunderhead proc (the game refuses with
+    // "Cannot use yet", status 572, without it) — the ProcBuff gate stops any push that slips
+    // through a missing module-level check from stalling the GCD on an impossible cast.
+    public static readonly AbilityBehavior Thunder = new() { Action = BLMActions.Thunder, ProcBuff = BLMActions.StatusIds.Thunderhead };
+    public static readonly AbilityBehavior Thunder3 = new() { Action = BLMActions.Thunder3, ProcBuff = BLMActions.StatusIds.Thunderhead };
+    public static readonly AbilityBehavior HighThunder = new() { Action = BLMActions.HighThunder, ProcBuff = BLMActions.StatusIds.Thunderhead };
+    public static readonly AbilityBehavior Thunder2 = new() { Action = BLMActions.Thunder2, Toggle = cfg => cfg.BlackMage.EnableAoERotation, ProcBuff = BLMActions.StatusIds.Thunderhead };
+    public static readonly AbilityBehavior Thunder4 = new() { Action = BLMActions.Thunder4, Toggle = cfg => cfg.BlackMage.EnableAoERotation, ProcBuff = BLMActions.StatusIds.Thunderhead };
+    public static readonly AbilityBehavior HighThunder2 = new() { Action = BLMActions.HighThunder2, Toggle = cfg => cfg.BlackMage.EnableAoERotation, ProcBuff = BLMActions.StatusIds.Thunderhead };
 
     // --- Polyglot ---
     public static readonly AbilityBehavior Xenoglossy = new() { Action = BLMActions.Xenoglossy, Toggle = cfg => cfg.BlackMage.EnableXenoglossy };
