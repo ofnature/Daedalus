@@ -229,16 +229,6 @@ public sealed class ControlWindow : Window
                     configuration.Ninja.EnablePositionalMovement = positional;
                 }
 
-                var approach = configuration.Ninja.EnableBurstMeleeApproach;
-                if (ConfigUIHelpers.ToggleCheckbox(
-                        "Burst Melee Approach",
-                        ref approach,
-                        "Move into melee range during burst prep (Suiton + Kunai's Bane ready).",
-                        saveConfiguration))
-                {
-                    configuration.Ninja.EnableBurstMeleeApproach = approach;
-                }
-
                 break;
             }
 

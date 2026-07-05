@@ -25,11 +25,13 @@ public static class BmrAiConfigPolicy
     /// <summary>
     /// Maps Daedalus's next required positional to BMR's <c>Positional</c> enum name. Backline jobs and
     /// "no requirement" → <c>Any</c> (don't force a positional). Beats a static single positional because
-    /// it follows the rotation's actual next GCD (RPR Gibbet↔Gallows, MNK forms, NIN).
+    /// it follows the rotation's actual next GCD (RPR Gibbet↔Gallows, MNK forms, NIN). When boundary
+    /// camping is live, melee also gets <c>Any</c>: Daedalus owns the standing angle via positional arcs,
+    /// BMR only keeps range and dodges — feeding it a positional would have it fight us over the angle.
     /// </summary>
-    public static string ResolveDesiredPositional(uint jobId, PositionalType? requiredPositional)
+    public static string ResolveDesiredPositional(uint jobId, PositionalType? requiredPositional, bool boundaryCampingActive)
     {
-        if (IsBacklineJob(jobId))
+        if (IsBacklineJob(jobId) || boundaryCampingActive)
             return "Any";
 
         return requiredPositional switch

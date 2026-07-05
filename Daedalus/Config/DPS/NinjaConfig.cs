@@ -181,11 +181,6 @@ public sealed class NinjaConfig
     public bool EnablePositionalMovement { get; set; } = true;
 
     /// <summary>
-    /// Move into melee range during burst prep (Shadow Walker + Kunai's Bane ready).
-    /// </summary>
-    public bool EnableBurstMeleeApproach { get; set; } = true;
-
-    /// <summary>
     /// Whether to enforce positional requirements.
     /// </summary>
     public bool EnforcePositionals { get; set; } = false;

@@ -6,6 +6,7 @@ using Dalamud.Game.ClientState.Objects.Types;
 using Dalamud.Plugin.Services;
 using Daedalus.Data;
 using Daedalus.Models;
+using Daedalus.Services.Positional.Navigation;
 using Daedalus.Rotation;
 using Daedalus.Rotation.ApolloCore.Context;
 using Daedalus.Rotation.Common;
@@ -61,6 +62,7 @@ public sealed class DebugService
     private readonly IDataManager _dataManager;
     private readonly Configuration _configuration;
     private readonly Daedalus.Services.Positional.Navigation.IVNavService _vNav;
+    private readonly Daedalus.Services.Positional.Navigation.IMovementArbiter? _movementArbiter;
     private readonly DebugLogService? _debugLog;
 
     // Cached snapshot - updated on demand
@@ -82,7 +84,8 @@ public sealed class DebugService
         IDataManager dataManager,
         Configuration configuration,
         Daedalus.Services.Positional.Navigation.IVNavService vNav,
-        DebugLogService? debugLog = null)
+        DebugLogService? debugLog = null,
+        Daedalus.Services.Positional.Navigation.IMovementArbiter? movementArbiter = null)
     {
         _actionTracker = actionTracker;
         _actionService = actionService;
@@ -97,8 +100,39 @@ public sealed class DebugService
         _dataManager = dataManager;
         _configuration = configuration;
         _vNav = vNav;
+        _movementArbiter = movementArbiter;
         _debugLog = debugLog;
     }
+
+    /// <summary>
+    /// vNav line for Why-Stuck: raw path state, plus the movement-arbiter verdict when it is
+    /// suppressing Daedalus movement (yielded to BossMod / cadence cooldowns).
+    /// </summary>
+    private string FormatVNavState()
+    {
+        var baseState = _vNav.IsPathRunning ? "Pathing (moving)"
+            : _vNav.IsPathfindInProgress ? "Finding path"
+            : "Idle (not moving)";
+
+        if (_movementArbiter?.Snapshot is not { } snap)
+            return baseState;
+
+        return snap.Suppression switch
+        {
+            MovementSuppression.BmrDanger =>
+                $"{baseState} — yielded to BossMod ({snap.ForbiddenZonesCount} zones, damage {FormatSeconds(snap.NextDamageInSeconds)}, zone {FormatSeconds(snap.ForbiddenZoneInSeconds)})",
+            MovementSuppression.BmrNavigating =>
+                $"{baseState} — yielded to BossMod (AI steering)",
+            MovementSuppression.RegrabCooldown =>
+                $"{baseState} — regrab cooldown {snap.RegrabCooldownRemainingSeconds:0.0}s",
+            MovementSuppression.RepathInterval or MovementSuppression.PathCommitment or MovementSuppression.DestinationDelta =>
+                $"{baseState} — repath held ({snap.Suppression})",
+            _ => baseState,
+        };
+    }
+
+    private static string FormatSeconds(float seconds)
+        => seconds >= float.MaxValue * 0.5f ? "—" : $"{seconds:0.0}s";
 
     /// <summary>Idle seconds (in combat, enemies engaged) before a no-dispatch stall is logged. Tunable.</summary>
     private const double StallLogThresholdSeconds = 4.0;
@@ -298,9 +332,7 @@ public sealed class DebugService
             PauseReason = ComputeGlobalPauseReason(player),
             AutomationState = debug.AutomationState,
             SecondsSinceLastAction = _actionService.SecondsSinceLastAction,
-            VNavState = _vNav.IsPathRunning ? "Pathing (moving)"
-                : _vNav.IsPathfindInProgress ? "Finding path"
-                : "Idle (not moving)",
+            VNavState = FormatVNavState(),
             EnemiesInLineOfSight = losCount,
             EnemiesFacing = facingCount,
 

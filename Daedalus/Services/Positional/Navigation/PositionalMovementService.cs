@@ -9,10 +9,10 @@ namespace Daedalus.Services.Positional.Navigation;
 /// </summary>
 public sealed class PositionalMovementService : IPositionalMovementService
 {
-    private readonly IVNavService _vNav;
+    private readonly IMovementArbiter _vNav;
     private readonly IBossModSafetyService _bossModSafety;
 
-    public PositionalMovementService(IVNavService vNav, IBossModSafetyService bossModSafety)
+    public PositionalMovementService(IMovementArbiter vNav, IBossModSafetyService bossModSafety)
     {
         _vNav = vNav;
         _bossModSafety = bossModSafety;
@@ -39,11 +39,40 @@ public sealed class PositionalMovementService : IPositionalMovementService
         // Skip reason to fall back on if neither a positional arc nor a max-melee back-off moves us.
         string? idleReason = null;
 
-        // --- Positional flank/rear arc — DISABLED pending per-job rotation validation.
-        // Re-enable by removing this comment block and restoring the block below.
-        // if (request.EnableMovement
-        //     && request.AnticipationProvider?.GetAnticipatedPositional(request.AnticipationContext) is { } anticipation)
-        // { ... }
+        // --- Positional flank/rear arc (boundary camping; per-job rollout via IsPositionalArcRolloutEnabled) ---
+        if (request.EnableMovement
+            && request.AnticipationProvider?.GetAnticipatedPositional(request.AnticipationContext) is { } anticipation)
+        {
+            if (target.HasPositionalImmunity)
+            {
+                idleReason = "target positional immunity";
+            }
+            else if (IsAlreadyCorrect(anticipation.Required, request.AnticipationContext))
+            {
+                idleReason = "already at positional";
+            }
+            else if (!request.AllowMovementDuringActionLock && WouldClipGcd(
+                request.ActionService,
+                request.PlayerPosition,
+                request.PlayerHitboxRadius,
+                target,
+                anticipation.Required,
+                false,
+                request.PositionalBoundaryBiasRadians))
+            {
+                SetSkipped("would clip GCD");
+                return;
+            }
+            else if (TryQueuePositionalArc(in request, target, anticipation.Required))
+            {
+                return;
+            }
+            else
+            {
+                // TryQueuePositionalArc set the skip reason (unsafe / vNav unavailable) and returns false.
+                return;
+            }
+        }
 
         // --- Max-melee maintenance (all melee jobs; independent of positional repositioning and party state) ---
         // Anchored to the player's current target (request.MaxMeleeTarget) so we keep range on the mob we're
@@ -73,6 +102,7 @@ public sealed class PositionalMovementService : IPositionalMovementService
             TargetRotationRadians: target.RotationRadians,
             RequiredPositional: required,
             GcdRemainingSeconds: ResolveGcdBudgetSeconds(request.ActionService.GcdRemaining),
+            StandRadiusOffset: ArcStandRadiusOffset(request.PlayerHitboxRadius),
             BoundaryBiasRadians: request.PositionalBoundaryBiasRadians);
 
         var destination = _vNav.SnapToFloor(PositionalStandCalculator.Calculate(in standRequest));
@@ -105,11 +135,13 @@ public sealed class PositionalMovementService : IPositionalMovementService
 
         var moveResult = _vNav.PathfindAndMoveCloseTo(
             destination,
-            fly: false,
-            toleranceYalms: PositionalMovementConstants.PositionalArrivalToleranceYalms);
+            PositionalMovementConstants.PositionalArrivalToleranceYalms,
+            MovementIntent.PositionalArc);
         if (moveResult != VNavMoveResult.Queued)
         {
-            SetSkipped($"vNav unavailable ({moveResult})");
+            SetSkipped(moveResult == VNavMoveResult.Suppressed
+                ? "movement yielded to BossMod"
+                : $"vNav unavailable ({moveResult})");
             return false;
         }
 
@@ -186,6 +218,15 @@ public sealed class PositionalMovementService : IPositionalMovementService
             destination,
             fly: false,
             toleranceYalms: PositionalMovementConstants.PositionalArrivalToleranceYalms);
+        if (moveResult == VNavMoveResult.Suppressed)
+        {
+            // Arbiter denied (yielded to BossMod or rate-limited). Mark skipped WITHOUT the usual
+            // SetSkipped Stop() — stopping here would churn against whatever the arbiter is protecting.
+            State = new PositionalMovementState(
+                PositionalMovementPhase.Skipped, SkipReason: "movement yielded to BossMod");
+            return true;
+        }
+
         if (moveResult != VNavMoveResult.Queued)
             return false;
 
@@ -277,6 +318,7 @@ public sealed class PositionalMovementService : IPositionalMovementService
             TargetRotationRadians: target.RotationRadians,
             RequiredPositional: required,
             GcdRemainingSeconds: actionService.GcdRemaining,
+            StandRadiusOffset: ArcStandRadiusOffset(playerHitboxRadius),
             BoundaryBiasRadians: boundaryBiasRadians);
 
         var distToIdeal = PositionalStandCalculator.ComputeIdealHorizontalDistance(in standRequest);
@@ -289,6 +331,17 @@ public sealed class PositionalMovementService : IPositionalMovementService
         // Capped path must finish before the GCD queue window (partial moves allowed when ideal is farther).
         return moveDuration > actionService.GcdRemaining - PositionalMovementConstants.GcdClipBufferSeconds;
     }
+
+    /// <summary>
+    /// Arc stand-ring offset from target center, matched to the max-melee maintenance ring
+    /// (targetHitbox + playerHitbox + reach − safety buffer). The default arc offset (3.5y) sits 0.5y
+    /// OUTSIDE the maintenance ring, so every completed hop would immediately trigger a max-melee
+    /// walk-in at small vNav Flex — identical rings make the hop destination land inside the dead-band.
+    /// </summary>
+    private static float ArcStandRadiusOffset(float playerHitboxRadius)
+        => playerHitboxRadius
+            + PositionalMovementConstants.MeleeActionRangeYalms
+            - PositionalMovementConstants.MaxMeleeSafetyBufferYalms;
 
     /// <summary>
     /// When the GCD queue window is open, budget the full positional arc instead of zero movement.

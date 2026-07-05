@@ -67,15 +67,6 @@ public static class PositionalStandCalculator
     }
 
     /// <summary>
-    /// Full-distance melee stand for burst gap-close — vNav runs the entire path in one queue.
-    /// </summary>
-    public static Vector3 CalculateBurstMeleeApproach(in MeleeApproachStandRequest request)
-    {
-        var ideal = ComputeMeleeApproachPoint(in request);
-        return SnapToFloorPlane(ideal, request.TargetPosition.Y);
-    }
-
-    /// <summary>
     /// Max-melee maintenance stand point: the point on the current target→player bearing at the safe
     /// max-melee distance. Unlike <see cref="ComputeMeleeApproachPoint"/> this always projects to the stand
     /// ring in either direction — backing the character out when hugging and pulling it in when drifted out

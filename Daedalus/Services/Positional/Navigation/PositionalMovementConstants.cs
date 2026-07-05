@@ -67,12 +67,75 @@ public static class PositionalMovementConstants
     /// </summary>
     public const float PositionalArrivalToleranceYalms = 0.35f;
 
-    /// <summary>vNav arrival tolerance for burst gap-close (slightly looser than positional arcs).</summary>
-    public const float BurstApproachArrivalToleranceYalms = 0.5f;
+    // --- MovementArbiter cadence (yield-to-BMR + vNav churn protection) ---
 
-    /// <summary>Primary enemy search radius for burst melee approach target resolution.</summary>
-    public const float BurstApproachTargetSearchNearYalms = 25f;
+    /// <summary>
+    /// Danger horizon (seconds) at which Daedalus cedes the input pipeline to BMR. Tighter than
+    /// <see cref="DefaultImminentWindowSeconds"/> (which gates destination *selection*): the arbiter only
+    /// needs vNav idle by the time BMR starts steering, and 1.5s covers BMR's pathfind + reaction latency
+    /// without freezing Daedalus movement for whole mechanic cycles.
+    /// </summary>
+    public const float BmrYieldWindowSeconds = 1.5f;
 
-    /// <summary>Extended search when the player is out of melee but still engaged on a distant target.</summary>
-    public const float BurstApproachTargetSearchFarYalms = 50f;
+    /// <summary>
+    /// Base cooldown (seconds) after BMR danger clears before Daedalus may issue movement again. Grabbing
+    /// control the frame a zone expires is the second half of the tug-of-war — BMR often takes a few
+    /// hundred ms to settle on / finish reaching its safe spot.
+    /// </summary>
+    public const float BmrRegrabCooldownSeconds = 0.75f;
+
+    /// <summary>
+    /// If danger re-appears within this many seconds of a granted path, that grab was a mid-mechanic
+    /// mistake (staggered effects — we regrabbed in a calm gap and froze BMR's next dodge). The regrab
+    /// cooldown doubles on each such interruption, up to <see cref="BmrRegrabCooldownMaxSeconds"/>.
+    /// </summary>
+    public const float BmrRegrabBackoffTriggerSeconds = 2f;
+
+    /// <summary>Cap for the escalated regrab cooldown during multi-effect sequences.</summary>
+    public const float BmrRegrabCooldownMaxSeconds = 3f;
+
+    /// <summary>
+    /// BMR counts as "steering" for this long after the last frame its AI had a nav target. The raw
+    /// AI.IsNavigating signal flickers per-frame while BMR micro-adjusts follow distance (field log
+    /// 2026-07-05: onset→clear cycles within 300ms), and each flicker edge caused a stop/grant against
+    /// BMR's input injection — the residual stutter. With BMR AI on it re-steers well inside this window,
+    /// so Daedalus movement stands down entirely; with BMR AI off the signal never fires and Daedalus
+    /// moves freely.
+    /// </summary>
+    public const float BmrSteeringStickySeconds = 3f;
+
+    /// <summary>
+    /// Continuous calm (seconds, no danger) after which the escalated regrab cooldown resets to base —
+    /// the mechanic sequence is over.
+    /// </summary>
+    public const float BmrRegrabResetCalmSeconds = 5f;
+
+    /// <summary>
+    /// Minimum interval (seconds) between vNav submissions. Kills per-frame re-path churn loops while
+    /// staying below perceptible sluggishness (~2 legitimate re-paths per GCD max).
+    /// </summary>
+    public const float MinRepathIntervalSeconds = 0.30f;
+
+    /// <summary>
+    /// A Daedalus-owned path younger than this cannot be *replaced* by a new submission — long enough for
+    /// vNav to make visible progress, short enough not to fight the GCD-budgeted arc logic. Telegraph
+    /// aborts bypass this because <c>Stop()</c> is never gated.
+    /// </summary>
+    public const float PathCommitmentSeconds = 0.50f;
+
+    /// <summary>
+    /// Minimum destination change (yalms) for a new submission to replace a running path. Below this it's
+    /// pure jitter from mob micro-movement; above the 0.35/0.5y arrival tolerances so legitimate
+    /// corrections still pass.
+    /// </summary>
+    public const float MinDestinationDeltaYalms = 0.75f;
+
+    /// <summary>
+    /// How long after a grant the destination-delta rule keeps applying even once the path has completed.
+    /// Short hops finish inside the repath interval, clearing path ownership — without this memory,
+    /// max-melee maintenance machine-gunned near-identical destinations at ~3Hz while chasing a drifting
+    /// pack (field log 2026-07-05: "granted ×14/×18/×22"). Real chases accumulate &gt;0.75y within the
+    /// window and re-path immediately.
+    /// </summary>
+    public const float DestinationMemorySeconds = 1.0f;
 }

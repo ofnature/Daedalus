@@ -12,4 +12,10 @@ public static class RotationServices
 
     /// <summary>vNav adapter — used to treat plugin-driven pathing as "moving" so hard-casts hold.</summary>
     public static IVNavService? VNav { get; set; }
+
+    /// <summary>
+    /// Movement arbiter — exposes BMR AI steering (input injection, invisible to <see cref="IVNavService.IsPathRunning"/>)
+    /// so hard-casts also hold while BossMod is dodging.
+    /// </summary>
+    public static IMovementArbiter? MovementArbiter { get; set; }
 }

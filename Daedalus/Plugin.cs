@@ -94,13 +94,13 @@ public sealed class Plugin : IDalamudPlugin
     // Melee DPS services
     private readonly PositionalService positionalService;
     private readonly VNavService vNavService;
+    private readonly MovementArbiter movementArbiter;
     private readonly BossModSafetyService bossModSafetyService;
     private readonly BossModForecastService bossModForecastService;
     private readonly PositionalMovementService positionalMovementService;
     private readonly BmrAiConfigService bmrAiConfigService;
     private readonly SamuraiPositionalAnticipationProvider samuraiPositionalAnticipationProvider;
     private readonly NinjaPositionalAnticipationProvider ninjaPositionalAnticipationProvider;
-    private readonly NinjaBurstApproachService ninjaBurstApproachService;
 
     // Burst window tracking for DPS rotations
     private readonly BurstWindowService burstWindowService;
@@ -314,14 +314,17 @@ public sealed class Plugin : IDalamudPlugin
         // Melee DPS services
         this.positionalService = new PositionalService();
         this.vNavService = new VNavService(pluginInterface, log);
-        Rotation.Base.RotationServices.VNav = vNavService;
         this.bossModSafetyService = new BossModSafetyService(pluginInterface, log);
+        this.movementArbiter = new MovementArbiter(
+            vNavService, bossModSafetyService, () => configuration.Nav.YieldToBmrMovement,
+            debugLog: debugLogService);
+        Rotation.Base.RotationServices.VNav = movementArbiter;
+        Rotation.Base.RotationServices.MovementArbiter = movementArbiter;
         this.bossModForecastService = new BossModForecastService(pluginInterface, log);
-        this.positionalMovementService = new PositionalMovementService(vNavService, bossModSafetyService);
+        this.positionalMovementService = new PositionalMovementService(movementArbiter, bossModSafetyService);
         this.bmrAiConfigService = new BmrAiConfigService(pluginInterface, bossModSafetyService, log, debugLogService);
         this.samuraiPositionalAnticipationProvider = new SamuraiPositionalAnticipationProvider();
         this.ninjaPositionalAnticipationProvider = new NinjaPositionalAnticipationProvider();
-        this.ninjaBurstApproachService = new NinjaBurstApproachService(vNavService, bossModSafetyService);
 
         // Party coordination service (multi-Daedalus IPC)
         if (configuration.PartyCoordination.EnablePartyCoordination)
@@ -487,15 +490,16 @@ public sealed class Plugin : IDalamudPlugin
             objectTable,
             dataManager,
             configuration,
-            vNavService,
-            debugLogService);
+            movementArbiter,
+            debugLogService,
+            movementArbiter);
 
         this.drawingService = new DrawingService(pluginInterface, configuration.DrawHelper, gameGui, log);
         this.drawCanvas = new DrawCanvas(drawingService, configuration, objectTable, clientState, targetManager, gameGui, positionalService, rotationManager, partyList);
         this.updateCheckerService = new UpdateCheckerService(PluginVersion, notificationManager, log);
         this.configWindow = new ConfigWindow(configuration, SaveConfiguration, updateCheckerService, textureProvider, dutyContentService);
         this.controlWindow = new ControlWindow(configuration, SaveConfiguration, rotationManager, textureProvider);
-        this.navControlWindow = new NavControlWindow(configuration, SaveConfiguration, bmrAiConfigService);
+        this.navControlWindow = new NavControlWindow(configuration, SaveConfiguration, bmrAiConfigService, movementArbiter);
         this.raidWindow = new RaidWindow(configuration, SaveConfiguration, dutyContentService);
         this.missingWindow = new MissingWindow(debugService, bluLoadoutService);
         if (coordinationBus != null && lanCoordinator != null)
@@ -520,7 +524,7 @@ public sealed class Plugin : IDalamudPlugin
 
         // Farm mode: Daedalus-driven grinding (kill profile mobs at spots until X items in bag).
         this.farmModeService = new Daedalus.Services.Farm.FarmModeService(
-            configuration, objectTable, targetManager, targetingService, vNavService,
+            configuration, objectTable, targetManager, targetingService, movementArbiter,
             inventoryProbe, clientState, log);
         this.farmModeService.Notify += message => chatGui.Print(message);
         this.garlandDropSource = new Daedalus.Services.Farm.GarlandDropSource(dataManager, log);
@@ -708,7 +712,8 @@ public sealed class Plugin : IDalamudPlugin
         container.Register<ITankCooldownService, TankCooldownService>(tankCooldownService);
         // Melee DPS services
         container.Register<IPositionalService, PositionalService>(positionalService);
-        container.Register<IVNavService, VNavService>(vNavService);
+        container.Register<IVNavService, MovementArbiter>(movementArbiter);
+        container.Register<IMovementArbiter, MovementArbiter>(movementArbiter);
         container.Register<IBossModSafetyService, BossModSafetyService>(bossModSafetyService);
         container.Register<IBossModForecastService, BossModForecastService>(bossModForecastService);
         container.Register<IDpsMeterService, DpsMeterService>(dpsMeterService);
@@ -716,7 +721,6 @@ public sealed class Plugin : IDalamudPlugin
         container.Register<IPositionalMovementService, PositionalMovementService>(positionalMovementService);
         container.Register(samuraiPositionalAnticipationProvider);
         container.Register(ninjaPositionalAnticipationProvider);
-        container.Register(ninjaBurstApproachService);
 
         // DPS burst window service
         container.Register<IBurstWindowService, BurstWindowService>(burstWindowService);
@@ -990,6 +994,10 @@ public sealed class Plugin : IDalamudPlugin
             // Always update debug service frame counter
             debugService.Update();
 
+            // Movement arbiter frame sample (BMR yield state) — must run before rotation execution so
+            // gating decisions are at most one frame old when movement services submit paths.
+            movementArbiter.BeginFrame();
+
             // LAN coordination pump: drains the socket-thread inbox, sends the 2s heartbeat,
             // ages the roster. Framework thread only — the receive thread never touches game state.
             coordinationBus?.Update();
@@ -1138,15 +1146,20 @@ public sealed class Plugin : IDalamudPlugin
     /// </summary>
     private void UpdateBmrAiConfig(uint jobId)
     {
-        var requiredPositional = rotationManager.ActiveRotation is Daedalus.Rotation.Common.IHasPositionals hp
-            ? hp.Positionals.RequiredPositional
-            : null;
+        PositionalType? requiredPositional = null;
+        var boundaryCamping = false;
+        if (rotationManager.ActiveRotation is Daedalus.Rotation.Common.IHasPositionals hp)
+        {
+            requiredPositional = hp.Positionals.RequiredPositional;
+            boundaryCamping = hp.Positionals.BoundaryCampingActive;
+        }
 
         bmrAiConfigService.Update(new BmrAiConfigService.Request(
             Enabled: configuration.Nav.AutoManageBmrAi,
             JobId: jobId,
             RequiredPositional: requiredPositional,
-            RangedStandDistance: configuration.Nav.BmrRangedStandDistance));
+            RangedStandDistance: configuration.Nav.BmrRangedStandDistance,
+            BoundaryCampingActive: boundaryCamping));
     }
 
     /// <summary>

@@ -16,13 +16,19 @@ public sealed class NavControlWindow : Window
     private readonly Configuration configuration;
     private readonly Action saveConfiguration;
     private readonly BmrAiConfigService bmrAiConfigService;
+    private readonly IMovementArbiter? movementArbiter;
 
-    public NavControlWindow(Configuration configuration, Action saveConfiguration, BmrAiConfigService bmrAiConfigService)
+    public NavControlWindow(
+        Configuration configuration,
+        Action saveConfiguration,
+        BmrAiConfigService bmrAiConfigService,
+        IMovementArbiter? movementArbiter = null)
         : base("Nav Control", ImGuiWindowFlags.NoCollapse)
     {
         this.configuration = configuration;
         this.saveConfiguration = saveConfiguration;
         this.bmrAiConfigService = bmrAiConfigService;
+        this.movementArbiter = movementArbiter;
 
         Size = new Vector2(340, 280);
         SizeCondition = ImGuiCond.FirstUseEver;
@@ -45,6 +51,34 @@ public sealed class NavControlWindow : Window
             + "moves (less twitching); smaller = tighter range-keeping.",
             saveConfiguration);
 
+        var camping = nav.EnableBoundaryCamping;
+        if (ConfigUIHelpers.ToggleCheckbox(
+                "Boundary Camping (experimental)",
+                ref camping,
+                "Melee stands just inside the required flank/rear zone next to the 135° boundary, so a "
+                + "positional swap is a short hop instead of a quarter-circle run. With Auto-Manage BMR "
+                + "AI on, BossMod is told 'any positional' while this is active (it keeps range, Daedalus "
+                + "owns the angle). OFF by default while the movement cadence is being validated.",
+                saveConfiguration))
+        {
+            nav.EnableBoundaryCamping = camping;
+        }
+
+        if (nav.EnableBoundaryCamping)
+        {
+            ImGui.Indent();
+            nav.PositionalBoundaryBiasDegrees = ConfigUIHelpers.FloatSlider(
+                "Positional Boundary Bias (deg)",
+                nav.PositionalBoundaryBiasDegrees,
+                0.0f,
+                30.0f,
+                "%.0f",
+                "How many degrees inside the required arc to stand from the flank/rear boundary. "
+                + "0 = stand at arc centers (old behavior).",
+                saveConfiguration);
+            ImGui.Unindent();
+        }
+
         var soloLock = nav.SoloPositionLock;
         if (ConfigUIHelpers.ToggleCheckbox(
                 "Solo Position Lock",
@@ -65,6 +99,26 @@ public sealed class NavControlWindow : Window
         {
             nav.MaxMeleeDebugRings = rings;
         }
+
+        ImGui.Spacing();
+        ImGui.TextDisabled("Movement Cadence");
+        ImGui.Separator();
+
+        var yield = nav.YieldToBmrMovement;
+        if (ConfigUIHelpers.ToggleCheckbox(
+                "Yield movement to BossMod",
+                ref yield,
+                "Pause Daedalus pathing while BossMod is dodging or danger zones are up, and for a short "
+                + "cooldown after they clear. BMR steers by input injection and defers to vNav whenever a "
+                + "path runs — without this the two systems fight and stutter the screen. With Auto-Manage "
+                + "BMR AI on, BMR owns positioning near-full-time and Daedalus movement stays quiet. Does "
+                + "nothing when BossMod isn't loaded. Leave ON.",
+                saveConfiguration))
+        {
+            nav.YieldToBmrMovement = yield;
+        }
+
+        DrawArbiterStatus();
 
         ImGui.Spacing();
         ImGui.TextDisabled("Auto-Manage BossMod AI (groups — experimental)");
@@ -166,6 +220,45 @@ public sealed class NavControlWindow : Window
         }
 
         ImGui.TextDisabled("Enable BMR AI itself with /bmrai.");
+        ImGui.Unindent();
+    }
+
+    /// <summary>Two-line live view of the movement arbiter: who owns steering, and why we're held back.</summary>
+    private void DrawArbiterStatus()
+    {
+        if (movementArbiter is not { } arbiter)
+            return;
+
+        var snap = arbiter.Snapshot;
+
+        ImGui.Indent();
+
+        var (ownerText, ownerColor) = snap.Owner switch
+        {
+            MovementOwner.BossMod => ("BossMod (dodging / danger)", Yellow),
+            MovementOwner.Daedalus => (
+                snap.LastGrantIntent == MovementIntent.PositionalArc
+                    ? "Daedalus (positional arc)"
+                    : "Daedalus (vNav path running)", Green),
+            _ => ("idle", Green),
+        };
+        ImGui.TextColored(ownerColor, $"Movement owner: {ownerText}");
+
+        var suppressionText = snap.Suppression switch
+        {
+            MovementSuppression.BmrDanger =>
+                $"held: BMR danger ({snap.ForbiddenZonesCount} zones)",
+            MovementSuppression.BmrNavigating => "held: BMR AI steering",
+            MovementSuppression.RegrabCooldown =>
+                $"held: re-grab cooldown {snap.RegrabCooldownRemainingSeconds:0.0}s",
+            MovementSuppression.RepathInterval => "held: re-path interval",
+            MovementSuppression.PathCommitment => "held: path commitment",
+            MovementSuppression.DestinationDelta => "held: destination unchanged",
+            _ => "free",
+        };
+        ImGui.TextColored(snap.Suppression == MovementSuppression.None ? Green : Yellow,
+            $"Daedalus pathing: {suppressionText}");
+
         ImGui.Unindent();
     }
 }

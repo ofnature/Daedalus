@@ -9,7 +9,7 @@ namespace Daedalus.Tests.Services.Positional.Navigation;
 
 public class PositionalMovementServiceTests
 {
-    private readonly Mock<IVNavService> _vNav = new();
+    private readonly Mock<IMovementArbiter> _vNav = new();
     private readonly Mock<IBossModSafetyService> _bossMod = new();
     private readonly Mock<IActionService> _action = new();
     private readonly TestAnticipationProvider _anticipation = new();
@@ -30,6 +30,8 @@ public class PositionalMovementServiceTests
         _vNav.Setup(x => x.SnapToFloor(It.IsAny<Vector3>())).Returns<Vector3>(v => v);
         _vNav.Setup(x => x.PathfindAndMoveCloseTo(It.IsAny<Vector3>(), It.IsAny<float>(), It.IsAny<bool>()))
             .Returns(VNavMoveResult.Queued);
+        _vNav.Setup(x => x.PathfindAndMoveCloseTo(It.IsAny<Vector3>(), It.IsAny<float>(), It.IsAny<MovementIntent>(), It.IsAny<bool>()))
+            .Returns(VNavMoveResult.Queued);
     }
 
     [Fact]
@@ -43,7 +45,7 @@ public class PositionalMovementServiceTests
         _bossMod.Verify(x => x.BeginUpdateSnapshot(), Times.Once);
     }
 
-    [Fact(Skip = "Positional arc disabled — re-enable when arc block is restored")]
+    [Fact]
     public void Update_WhenAnticipatedAndSafe_QueuesVNavMove()
     {
         var service = CreateService();
@@ -52,7 +54,7 @@ public class PositionalMovementServiceTests
         service.Update(CreateRequest());
 
         Assert.Equal(PositionalMovementPhase.Moving, service.State.Phase);
-        _vNav.Verify(x => x.PathfindAndMoveCloseTo(It.IsAny<Vector3>(), It.IsAny<float>(), false), Times.Once);
+        _vNav.Verify(x => x.PathfindAndMoveCloseTo(It.IsAny<Vector3>(), It.IsAny<float>(), MovementIntent.PositionalArc, false), Times.Once);
     }
 
     [Fact]
@@ -67,9 +69,10 @@ public class PositionalMovementServiceTests
 
         Assert.Equal(PositionalMovementPhase.Skipped, service.State.Phase);
         _vNav.Verify(x => x.PathfindAndMoveCloseTo(It.IsAny<Vector3>(), It.IsAny<float>(), It.IsAny<bool>()), Times.Never);
+        _vNav.Verify(x => x.PathfindAndMoveCloseTo(It.IsAny<Vector3>(), It.IsAny<float>(), It.IsAny<MovementIntent>(), It.IsAny<bool>()), Times.Never);
     }
 
-    [Fact(Skip = "Positional arc disabled — re-enable when arc block is restored")]
+    [Fact]
     public void Update_WhenGcdBudgetExhausted_SkipsMove()
     {
         var service = CreateService();
@@ -82,7 +85,7 @@ public class PositionalMovementServiceTests
         Assert.Equal("would clip GCD", service.State.SkipReason);
     }
 
-    [Fact(Skip = "Positional arc disabled — re-enable when arc block is restored")]
+    [Fact]
     public void Update_WhenGcdReady_QueuesPositionalMove()
     {
         var service = CreateService();
@@ -92,10 +95,10 @@ public class PositionalMovementServiceTests
         service.Update(CreateRequest());
 
         Assert.Equal(PositionalMovementPhase.Moving, service.State.Phase);
-        _vNav.Verify(x => x.PathfindAndMoveCloseTo(It.IsAny<Vector3>(), It.IsAny<float>(), false), Times.Once);
+        _vNav.Verify(x => x.PathfindAndMoveCloseTo(It.IsAny<Vector3>(), It.IsAny<float>(), MovementIntent.PositionalArc, false), Times.Once);
     }
 
-    [Fact(Skip = "Positional arc disabled — re-enable when arc block is restored")]
+    [Fact]
     public void Update_WhenAnimationLockHigh_AllowsMoveForInstantCastJob()
     {
         var service = CreateService();
@@ -105,7 +108,7 @@ public class PositionalMovementServiceTests
         service.Update(CreateRequest(allowMovementDuringActionLock: true));
 
         Assert.Equal(PositionalMovementPhase.Moving, service.State.Phase);
-        _vNav.Verify(x => x.PathfindAndMoveCloseTo(It.IsAny<Vector3>(), It.IsAny<float>(), false), Times.Once);
+        _vNav.Verify(x => x.PathfindAndMoveCloseTo(It.IsAny<Vector3>(), It.IsAny<float>(), MovementIntent.PositionalArc, false), Times.Once);
     }
 
     [Fact]
@@ -120,7 +123,7 @@ public class PositionalMovementServiceTests
         _vNav.Verify(x => x.Stop(), Times.Never);
     }
 
-    [Fact(Skip = "Positional arc disabled — re-enable when arc block is restored")]
+    [Fact]
     public void Update_WhenLeavingCombat_StopsOwnedVNavPath()
     {
         var service = CreateService();
@@ -148,7 +151,7 @@ public class PositionalMovementServiceTests
         _vNav.Verify(x => x.Stop(), Times.Once);
     }
 
-    [Fact(Skip = "Positional arc disabled — re-enable when arc block is restored")]
+    [Fact]
     public void Update_WhenAlreadyAtRear_SkipsMove()
     {
         var service = CreateService();
@@ -386,7 +389,48 @@ public class PositionalMovementServiceTests
         _vNav.Verify(x => x.Stop(), Times.Never);
     }
 
-    [Fact(Skip = "Positional arc disabled — re-enable when arc block is restored")]
+    [Fact]
+    public void Update_WhenArbiterSuppresses_SkipsWithoutStopChurn()
+    {
+        var service = CreateService();
+        _anticipation.Next = null;
+
+        // Arbiter yields to BMR: the submission is denied. The service must mark Skipped with the yield
+        // reason and NOT call Stop() — stopping would churn against whatever the arbiter is protecting.
+        _vNav.Setup(x => x.PathfindAndMoveCloseTo(It.IsAny<Vector3>(), It.IsAny<float>(), It.IsAny<bool>()))
+            .Returns(VNavMoveResult.Suppressed);
+
+        service.Update(CreateRequest() with { MaintainMaxMelee = true, PlayerPosition = new Vector3(0f, 0f, 8f) });
+
+        Assert.Equal(PositionalMovementPhase.Skipped, service.State.Phase);
+        Assert.Equal("movement yielded to BossMod", service.State.SkipReason);
+        _vNav.Verify(x => x.Stop(), Times.Never);
+    }
+
+    [Fact]
+    public void Update_AfterSuppressionLifts_ResumesApproach()
+    {
+        var service = CreateService();
+        _anticipation.Next = null;
+        var request = CreateRequest() with { MaintainMaxMelee = true, PlayerPosition = new Vector3(0f, 0f, 8f) };
+
+        // Frame 1: arbiter denies (yielded).
+        _vNav.Setup(x => x.PathfindAndMoveCloseTo(It.IsAny<Vector3>(), It.IsAny<float>(), It.IsAny<bool>()))
+            .Returns(VNavMoveResult.Suppressed);
+        service.Update(request);
+        Assert.Equal(PositionalMovementPhase.Skipped, service.State.Phase);
+
+        // Frame 2: danger cleared, arbiter grants — the walk-in resumes normally (the NIN Kunai's Bane
+        // scenario: closing from 8y through the shared max-melee maintenance path).
+        _vNav.Setup(x => x.PathfindAndMoveCloseTo(It.IsAny<Vector3>(), It.IsAny<float>(), It.IsAny<bool>()))
+            .Returns(VNavMoveResult.Queued);
+        service.Update(request);
+
+        Assert.Equal(PositionalMovementPhase.Moving, service.State.Phase);
+        _vNav.Verify(x => x.PathfindAndMoveCloseTo(It.IsAny<Vector3>(), It.IsAny<float>(), false), Times.Exactly(2));
+    }
+
+    [Fact]
     public void Update_WhenMaxMeleePathRunning_ReplacesWithPositionalArc()
     {
         var service = CreateService();
@@ -409,8 +453,68 @@ public class PositionalMovementServiceTests
         service.Update(CreateRequest());
 
         _vNav.Verify(x => x.Stop(), Times.Once);
-        _vNav.Verify(x => x.PathfindAndMoveCloseTo(It.IsAny<Vector3>(), It.IsAny<float>(), false), Times.Once);
+        _vNav.Verify(x => x.PathfindAndMoveCloseTo(It.IsAny<Vector3>(), It.IsAny<float>(), MovementIntent.PositionalArc, false), Times.Once);
         Assert.Equal(PositionalType.Rear, service.State.TargetZone);
+    }
+
+    [Fact]
+    public void Update_ArcSuppressedByArbiter_SkipsWithYieldReason()
+    {
+        var service = CreateService();
+        _anticipation.Next = new PositionalAnticipation(PositionalType.Rear, 7481, PositionalAnticipationReason.ComboSetup);
+        _vNav.Setup(x => x.PathfindAndMoveCloseTo(It.IsAny<Vector3>(), It.IsAny<float>(), It.IsAny<MovementIntent>(), It.IsAny<bool>()))
+            .Returns(VNavMoveResult.Suppressed);
+
+        service.Update(CreateRequest());
+
+        Assert.Equal(PositionalMovementPhase.Skipped, service.State.Phase);
+        Assert.Equal("movement yielded to BossMod", service.State.SkipReason);
+    }
+
+    [Fact]
+    public void Update_ArcDestination_MatchesMaxMeleeRing()
+    {
+        // Ring reconciliation: the arc stand ring must equal the max-melee maintenance ring
+        // (targetHitbox + playerHitbox + reach − buffer = 5.0y here), or every completed hop would
+        // immediately trigger a max-melee walk-in at small vNav Flex.
+        Vector3? queued = null;
+        _vNav.Setup(x => x.PathfindAndMoveCloseTo(It.IsAny<Vector3>(), It.IsAny<float>(), It.IsAny<MovementIntent>(), It.IsAny<bool>()))
+            .Callback<Vector3, float, MovementIntent, bool>((d, _, _, _) => queued = d)
+            .Returns(VNavMoveResult.Queued);
+
+        var service = CreateService();
+        _anticipation.Next = new PositionalAnticipation(PositionalType.Rear, 7481, PositionalAnticipationReason.ComboSetup);
+        _action.Setup(x => x.GcdRemaining).Returns(0f);
+
+        service.Update(CreateRequest());
+
+        Assert.NotNull(queued);
+        var maxMeleeRing = PositionalStandCalculator.MaxMeleeStandDistance(2f, 0.5f);
+        Assert.Equal(maxMeleeRing, queued!.Value.Length(), 0.01f);
+    }
+
+    [Fact]
+    public void Update_WithBoundaryBias_ArcDestinationNearBoundary()
+    {
+        // 10° bias, player on the target's right (+X): rear stand lands at 145° off facing, not 180°.
+        Vector3? queued = null;
+        _vNav.Setup(x => x.PathfindAndMoveCloseTo(It.IsAny<Vector3>(), It.IsAny<float>(), It.IsAny<MovementIntent>(), It.IsAny<bool>()))
+            .Callback<Vector3, float, MovementIntent, bool>((d, _, _, _) => queued = d)
+            .Returns(VNavMoveResult.Queued);
+
+        var service = CreateService();
+        _anticipation.Next = new PositionalAnticipation(PositionalType.Rear, 7481, PositionalAnticipationReason.ComboSetup);
+        _action.Setup(x => x.GcdRemaining).Returns(0f);
+
+        service.Update(CreateRequest() with
+        {
+            PlayerPosition = new Vector3(5f, 0f, 0f),
+            PositionalBoundaryBiasRadians = MathF.PI / 18f,
+        });
+
+        Assert.NotNull(queued);
+        var angleDeg = MathF.Atan2(queued!.Value.X, queued.Value.Z) * 180f / MathF.PI;
+        Assert.Equal(145f, angleDeg, 0.5f);
     }
 
     private sealed class TestAnticipationProvider : IPositionalAnticipationProvider

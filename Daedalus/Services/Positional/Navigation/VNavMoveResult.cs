@@ -7,4 +7,7 @@ public enum VNavMoveResult
     Busy,
     NavmeshNotReady,
     PluginUnavailable,
+
+    /// <summary>Denied by the <see cref="MovementArbiter"/> (yielded to BossMod or rate-limited).</summary>
+    Suppressed,
 }

@@ -28,6 +28,13 @@ public readonly struct PositionalSnapshot
     /// Set by the rotation when it knows what action comes next.
     /// </summary>
     public PositionalType? RequiredPositional { get; init; }
+
+    /// <summary>
+    /// Boundary-camping positional movement is live for this job (arc rollout enabled + positional
+    /// movement on + auto-movement allowed + bias &gt; 0). When true, Auto-Manage BMR AI pushes
+    /// DesiredPositional=Any so BMR keeps range while Daedalus owns the standing angle.
+    /// </summary>
+    public bool BoundaryCampingActive { get; init; }
 }
 
 /// <summary>

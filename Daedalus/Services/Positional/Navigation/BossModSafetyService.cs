@@ -21,6 +21,9 @@ public sealed class BossModSafetyService : IBossModSafetyService
     private ICallGateSubscriber<Vector3, Vector3, bool>? _isDashSafe;
     private ICallGateSubscriber<float>? _nextDamageIn;
     private ICallGateSubscriber<float>? _forbiddenZonesNextActivation;
+    private ICallGateSubscriber<int>? _forbiddenZonesCount;
+    private ICallGateSubscriber<bool>? _aiIsNavigating;
+    private ICallGateSubscriber<Vector3?>? _aiNaviTargetPos;
 
     private float _snapshotNextDamageIn = float.MaxValue;
     private float _snapshotForbiddenZoneIn = float.MaxValue;
@@ -36,6 +39,66 @@ public sealed class BossModSafetyService : IBossModSafetyService
     public float NextDamageInSeconds => ReadNextDamageIn();
 
     public float ForbiddenZoneActivationInSeconds => ReadForbiddenZoneActivationIn();
+
+    public int ForbiddenZonesCount
+    {
+        get
+        {
+            if (!IsAvailable)
+                return 0;
+
+            EnsureSubscribers();
+
+            try
+            {
+                return _forbiddenZonesCount?.InvokeFunc() ?? 0;
+            }
+            catch
+            {
+                return 0;
+            }
+        }
+    }
+
+    public bool IsBmrNavigating
+    {
+        get
+        {
+            if (!IsAvailable)
+                return false;
+
+            EnsureSubscribers();
+
+            try
+            {
+                return _aiIsNavigating?.InvokeFunc() ?? false;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+    }
+
+    public Vector3? BmrNaviTarget
+    {
+        get
+        {
+            if (!IsAvailable)
+                return null;
+
+            EnsureSubscribers();
+
+            try
+            {
+                return _aiNaviTargetPos?.InvokeFunc();
+            }
+            catch
+            {
+                return null;
+            }
+        }
+    }
 
     public void BeginUpdateSnapshot()
     {
@@ -148,6 +211,9 @@ public sealed class BossModSafetyService : IBossModSafetyService
         _isDashSafe ??= _pluginInterface.GetIpcSubscriber<Vector3, Vector3, bool>("BossMod.Hints.IsDashSafe");
         _nextDamageIn ??= _pluginInterface.GetIpcSubscriber<float>("BossMod.Hints.NextDamageIn");
         _forbiddenZonesNextActivation ??= _pluginInterface.GetIpcSubscriber<float>("BossMod.Hints.ForbiddenZonesNextActivation");
+        _forbiddenZonesCount ??= _pluginInterface.GetIpcSubscriber<int>("BossMod.Hints.ForbiddenZonesCount");
+        _aiIsNavigating ??= _pluginInterface.GetIpcSubscriber<bool>("BossMod.AI.IsNavigating");
+        _aiNaviTargetPos ??= _pluginInterface.GetIpcSubscriber<Vector3?>("BossMod.AI.NaviTargetPos");
     }
 
     private bool IsPluginLoaded(string internalName)

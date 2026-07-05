@@ -192,24 +192,6 @@ public class PositionalStandCalculatorTests
     }
 
     [Fact]
-    public void CalculateBurstMeleeApproach_ReachesFullMeleeStandPoint()
-    {
-        var request = new MeleeApproachStandRequest(
-            PlayerPosition: new Vector3(0f, 0f, 30f),
-            PlayerHitboxRadius: 0.5f,
-            TargetPosition: Vector3.Zero,
-            TargetHitboxRadius: 2f,
-            GcdRemainingSeconds: 2.5f);
-
-        var clamped = PositionalStandCalculator.CalculateMeleeApproach(in request);
-        var full = PositionalStandCalculator.CalculateBurstMeleeApproach(in request);
-
-        Assert.True(clamped.Z > full.Z + 5f, "GCD-clamped step should stop short of full melee stand");
-        // Safe max melee: hitbox 2 + player hitbox 0.5 + reach 3 - safety buffer 0.5 = 5.0.
-        Assert.Equal(5.0f, full.Z, Epsilon);
-    }
-
-    [Fact]
     public void CalculateMaxMeleeBackoff_WhenHugging_BacksOutToSafeMaxMelee()
     {
         // Player standing almost on top of the target (z = 1) should be pushed out to the stand ring.
@@ -239,5 +221,77 @@ public class PositionalStandCalculatorTests
 
         Assert.Equal(5.0f, result.X, Epsilon);
         Assert.Equal(0f, result.Z, Epsilon);
+    }
+
+    // ── Boundary camping (BoundaryBiasRadians) ─────────────────────────────────────────────────────────
+
+    private const float TenDegrees = MathF.PI / 18f;
+
+    /// <summary>Bearing of a point around the target, degrees off its facing (+Z when rotation 0).</summary>
+    private static float AngleOffFacingDeg(Vector3 point)
+        => MathF.Atan2(point.X, point.Z) * 180f / MathF.PI;
+
+    private static PositionalStandRequest BiasRequest(
+        PositionalType required, Vector3 playerPosition, float biasRadians)
+        => new(
+            PlayerPosition: playerPosition,
+            PlayerHitboxRadius: 0.5f,
+            TargetPosition: Vector3.Zero,
+            TargetHitboxRadius: 2f,
+            TargetRotationRadians: 0f,
+            RequiredPositional: required,
+            GcdRemainingSeconds: float.NaN,
+            FloorY: 0f,
+            BoundaryBiasRadians: biasRadians);
+
+    [Fact]
+    public void Calculate_RearBias_RightSide_LandsAtBoundaryPlusBias()
+    {
+        // Player on the target's right (+X): boundary at +135°, rear-biased → 145° off facing.
+        var request = BiasRequest(PositionalType.Rear, new Vector3(5f, 0f, 0f), TenDegrees);
+        var result = PositionalStandCalculator.Calculate(in request);
+
+        Assert.Equal(145f, AngleOffFacingDeg(result), 0.5f);
+    }
+
+    [Fact]
+    public void Calculate_RearBias_LeftSide_LandsAtMirroredBoundary()
+    {
+        var request = BiasRequest(PositionalType.Rear, new Vector3(-5f, 0f, 0f), TenDegrees);
+        var result = PositionalStandCalculator.Calculate(in request);
+
+        Assert.Equal(-145f, AngleOffFacingDeg(result), 0.5f);
+    }
+
+    [Fact]
+    public void Calculate_FlankBias_LandsAtBoundaryMinusBias()
+    {
+        // Flank-biased on the right side: 135° − 10° = 125° off facing (inside the 45–135° flank arc).
+        var request = BiasRequest(PositionalType.Flank, new Vector3(5f, 0f, 0f), TenDegrees);
+        var result = PositionalStandCalculator.Calculate(in request);
+
+        Assert.Equal(125f, AngleOffFacingDeg(result), 0.5f);
+    }
+
+    [Fact]
+    public void Calculate_FlankToRearSwap_TravelIsShortChord()
+    {
+        // The whole point of boundary camping: at 10° bias the flank↔rear swap is a ~1.9y chord
+        // (2·r·sin(10°), r = 5.5), not a quarter-circle run.
+        var flank = PositionalStandCalculator.Calculate(BiasRequest(PositionalType.Flank, new Vector3(5f, 0f, 0f), TenDegrees));
+        var rear = PositionalStandCalculator.Calculate(BiasRequest(PositionalType.Rear, new Vector3(5f, 0f, 0f), TenDegrees));
+
+        Assert.True(Vector3.Distance(flank, rear) < 2.5f,
+            $"swap chord {Vector3.Distance(flank, rear):0.00}y should be < 2.5y");
+    }
+
+    [Fact]
+    public void Calculate_ZeroBias_UsesArcCenter()
+    {
+        // Slider at 0 restores the old arc-center behavior: rear = straight behind (180°).
+        var request = BiasRequest(PositionalType.Rear, new Vector3(5f, 0f, 0f), 0f);
+        var result = PositionalStandCalculator.Calculate(in request);
+
+        Assert.Equal(180f, MathF.Abs(AngleOffFacingDeg(result)), 0.5f);
     }
 }

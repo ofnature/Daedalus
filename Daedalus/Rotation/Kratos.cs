@@ -237,13 +237,6 @@ public sealed class Kratos : BaseMeleeDpsRotation<IKratosContext, IKratosModule>
         => Configuration.Monk.EnablePositionalMovement || Configuration.Monk.EnforcePositionals;
 
     /// <summary>
-    /// MNK has back-to-back Rear/Flank/Rear form switches with no buffer GCD.
-    /// Targeting 10° inside each arc from the flank/rear boundary keeps both stand points ~2-3y apart,
-    /// well within one GCD of movement, vs. ~90° (11y) center-to-center.
-    /// </summary>
-    protected override float PositionalBoundaryBiasRadians => MathF.PI / 18f; // 10°
-
-    /// <summary>
     /// Updates MP forecast. Monks don't use MP for abilities.
     /// </summary>
     protected override void UpdateMpForecast(IPlayerCharacter player)

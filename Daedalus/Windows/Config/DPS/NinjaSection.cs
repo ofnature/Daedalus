@@ -230,12 +230,6 @@ public sealed class NinjaSection
                 Loc.T(LocalizedStrings.Ninja.EnablePositionalMovementDesc, "Use vNav to reposition before Aeolian Edge / Armor Crush"), save);
 
             ConfigUIHelpers.Toggle(
-                Loc.T(LocalizedStrings.Ninja.EnableBurstMeleeApproach, "Enable Burst Melee Approach"),
-                () => config.Ninja.EnableBurstMeleeApproach,
-                v => config.Ninja.EnableBurstMeleeApproach = v,
-                Loc.T(LocalizedStrings.Ninja.EnableBurstMeleeApproachDesc, "Move into melee during burst prep (Shadow Walker + Kunai's Bane ready)"), save);
-
-            ConfigUIHelpers.Toggle(
                 Loc.T(LocalizedStrings.Ninja.AllowPositionalLoss, "Allow Positional Loss"),
                 () => config.Ninja.AllowPositionalLoss,
                 v => config.Ninja.AllowPositionalLoss = v,

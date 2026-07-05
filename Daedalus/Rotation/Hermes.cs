@@ -85,7 +85,6 @@ public sealed class Hermes : BaseMeleeDpsRotation<IHermesContext, IHermesModule>
     private readonly RotationScheduler _scheduler;
 
     private readonly NinjaPositionalAnticipationProvider _positionalAnticipationProvider;
-    private readonly NinjaBurstApproachService _burstApproachService;
 
     // Downtime probe — session accumulators reset on combat entry
     private bool _wasInCombatLastFrame;
@@ -109,7 +108,6 @@ public sealed class Hermes : BaseMeleeDpsRotation<IHermesContext, IHermesModule>
         IDebuffDetectionService debuffDetectionService,
         IPositionalService positionalService,
         NinjaPositionalAnticipationProvider ninjaPositionalAnticipationProvider,
-        NinjaBurstApproachService ninjaBurstApproachService,
         IJobGauges jobGauges,
         IPositionalMovementService? positionalMovementService = null,
         ITimelineService? timelineService = null,
@@ -141,7 +139,6 @@ public sealed class Hermes : BaseMeleeDpsRotation<IHermesContext, IHermesModule>
             pullIntentService: pullIntentService)
     {
         _positionalAnticipationProvider = ninjaPositionalAnticipationProvider;
-        _burstApproachService = ninjaBurstApproachService;
         _timelineService = timelineService;
         _partyCoordinationService = partyCoordinationService;
         _trainingService = trainingService;
@@ -186,6 +183,10 @@ public sealed class Hermes : BaseMeleeDpsRotation<IHermesContext, IHermesModule>
     protected override bool IsPositionalMovementEnabled()
         => Configuration.Ninja.EnablePositionalMovement || Configuration.Ninja.EnforcePositionals;
 
+    /// <summary>NIN is the boundary-camping pilot: Armor Crush(flank)/Aeolian Edge(rear) swaps are
+    /// back-to-back with no filler GCD to travel in. Other melee flip their gate after validation.</summary>
+    protected override bool IsPositionalArcRolloutEnabled => true;
+
     /// <summary>
     /// NIN positionals: Aeolian Edge = rear, Armor Crush = flank.
     /// After Gust Slash, pick based on Kazematoi stacks.
@@ -201,145 +202,10 @@ public sealed class Hermes : BaseMeleeDpsRotation<IHermesContext, IHermesModule>
     protected override PositionalAnticipationContext CreatePositionalAnticipationContext(IPlayerCharacter player)
         => base.CreatePositionalAnticipationContext(player) with { Kazematoi = _kazematoi };
 
-    /// <inheritdoc />
-    protected override void UpdatePositionalMovement(IPlayerCharacter player, bool inCombat)
-    {
-        var burst = EvaluateBurstApproachContext(player);
-
-        if (PositionalMovementService != null
-            && !(burst.InBurstPrep && !burst.AlreadyInMelee && Configuration.Ninja.EnableBurstMeleeApproach))
-        {
-            // Raw hard target before the strategy search: both GetUserEnemyTarget and FindEnemy
-            // run the attackability probe, which false-negatives at range — the walk-in case.
-            var resolvedTarget = PositionalTarget
-                ?? TargetingService.GetRawEnemyHardTarget() as IBattleChara
-                ?? TargetingService.FindEnemy(
-                    Configuration.Targeting.EnemyStrategy, 25f, ObjectTable.LocalPlayer!) as IBattleChara;
-
-            PositionalMovementTarget? movementTarget = resolvedTarget is { } t
-                ? new PositionalMovementTarget(
-                    t.Position,
-                    t.HitboxRadius,
-                    t.Rotation,
-                    PositionalService.HasPositionalImmunity(t))
-                : null;
-
-            var request = new PositionalMovementUpdateRequest(
-                AnticipationProvider: GetPositionalAnticipationProvider(),
-                AnticipationContext: CreatePositionalAnticipationContext(player),
-                PlayerPosition: player.Position,
-                PlayerHitboxRadius: player.HitboxRadius,
-                Target: movementTarget,
-                ActionService: ActionService,
-                InCombat: inCombat,
-                EnableMovement: IsPositionalMovementEnabled() && IsAutoMovementAllowed() && ShouldApplyPositionalRequirements(player),
-                AllowMovementDuringActionLock: true,
-                MaintainMaxMelee: IsMaxMeleeMaintenanceAllowed(),
-                MaxMeleeTarget: ResolveMaxMeleeTarget(player, out var maxMeleeFollowsPlayer),
-                MaxMeleeTargetFollowsPlayer: maxMeleeFollowsPlayer,
-                VNavFlex: Configuration.Nav.VNavFlex);
-
-            PositionalMovementService.Update(in request);
-        }
-
-        UpdateBurstMeleeApproach(player, inCombat, burst);
-    }
-
-    private readonly record struct BurstApproachContext(
-        bool InBurstPrep,
-        bool AlreadyInMelee,
-        IBattleChara? Target,
-        uint KunaisBaneActionId);
-
-    private BurstApproachContext EvaluateBurstApproachContext(IPlayerCharacter player)
-    {
-        var kunaisBaneActionId = player.Level >= NINActions.KunaisBane.MinLevel
-            ? NINActions.KunaisBane.ActionId
-            : NINActions.TrickAttack.ActionId;
-
-        var target = ResolveBurstApproachTarget(player);
-        var alreadyInMelee = target != null
-            && DistanceHelper.IsActionInRange(kunaisBaneActionId, player, target);
-
-        var kunaisBaneReady = HermesBurstPrepHelper.IsKunaisBaneOrTrickReady(ActionService, player.Level);
-        var inBurstPrep = _statusHelper.HasSuiton(player)
-            || _mudraHelper.HasSuitonBurstLatch
-            || (kunaisBaneReady && !alreadyInMelee && !_statusHelper.HasSuiton(player));
-
-        return new BurstApproachContext(inBurstPrep, alreadyInMelee, target, kunaisBaneActionId);
-    }
-
-    private void UpdateBurstMeleeApproach(IPlayerCharacter player, bool inCombat, BurstApproachContext burst)
-    {
-        _hermesDebugState.BurstApproachInBurstPrep = burst.InBurstPrep;
-        _hermesDebugState.BurstApproachKbInRange = burst.AlreadyInMelee;
-        _hermesDebugState.BurstApproachHasTarget = burst.Target != null;
-        _hermesDebugState.BurstApproachTargetName = burst.Target?.Name?.TextValue ?? "";
-
-        if (burst.InBurstPrep && !burst.AlreadyInMelee
-            && PositionalMovementService?.State.Phase == PositionalMovementPhase.Moving)
-        {
-            PositionalMovementService.Cancel("burst prep — closing for Kunai's Bane");
-        }
-
-        var positionalPathActive = PositionalMovementService?.State.Phase == PositionalMovementPhase.Moving;
-
-        PositionalMovementTarget? movementTarget = burst.Target is { } battleTarget
-            ? new PositionalMovementTarget(
-                battleTarget.Position,
-                battleTarget.HitboxRadius,
-                battleTarget.Rotation,
-                PositionalService.HasPositionalImmunity(battleTarget))
-            : null;
-
-        var request = new NinjaBurstApproachRequest(
-            Enabled: Configuration.Ninja.EnableBurstMeleeApproach && IsAutoMovementAllowed(),
-            InCombat: inCombat,
-            BurstPrepActive: burst.InBurstPrep,
-            AlreadyInMeleeRange: burst.AlreadyInMelee,
-            PositionalPathActive: positionalPathActive,
-            PlayerPosition: player.Position,
-            PlayerHitboxRadius: player.HitboxRadius,
-            Target: movementTarget,
-            ActionService: ActionService);
-
-        _burstApproachService.Update(in request);
-
-        SyncMovementDebugState();
-    }
-
-    /// <summary>
-    /// Resolves a burst approach destination target even when the player is beyond melee range.
-    /// Falls back to the hard target so vNav can close distance for Kunai's Bane.
-    /// </summary>
-    private IBattleChara? ResolveBurstApproachTarget(IPlayerCharacter player)
-    {
-        var strategy = Configuration.Targeting.EnemyStrategy;
-
-        var target = TargetingService.FindEnemy(
-            strategy,
-            PositionalMovementConstants.BurstApproachTargetSearchNearYalms,
-            player);
-
-        target ??= TargetingService.FindEnemy(
-            strategy,
-            PositionalMovementConstants.BurstApproachTargetSearchFarYalms,
-            player);
-
-        // Raw last — every resolver above runs the attackability probe, which false-negatives
-        // at range (the exact situation a burst APPROACH exists for).
-        target ??= TargetingService.GetUserEnemyTarget();
-        target ??= TargetingService.GetRawEnemyHardTarget();
-
-        return target as IBattleChara;
-    }
-
     private void SyncMovementDebugState()
     {
         _hermesDebugState.PositionalMovementPhase = PositionalMovementService?.State.Phase.ToString() ?? "—";
         _hermesDebugState.PositionalMovementSkipReason = PositionalMovementService?.State.SkipReason ?? "";
-        _hermesDebugState.BurstApproachPhase = _burstApproachService.State.Phase.ToString();
-        _hermesDebugState.BurstApproachSkipReason = _burstApproachService.State.SkipReason ?? "";
     }
 
     /// <inheritdoc />
@@ -538,6 +404,8 @@ public sealed class Hermes : BaseMeleeDpsRotation<IHermesContext, IHermesModule>
 
         _debugState.PlayerHpPercent = (float)context.Player.CurrentHp / context.Player.MaxHp;
         _debugState.PartyListCount = context.PartyList.Length;
+
+        SyncMovementDebugState();
     }
 
     /// <inheritdoc />

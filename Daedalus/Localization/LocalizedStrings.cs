@@ -1406,8 +1406,6 @@ public static class LocalizedStrings
         public const string AllowPositionalLossDesc = "config.job.nin.allow_positional_loss_desc";
         public const string EnablePositionalMovement = "config.job.nin.enable_positional_movement";
         public const string EnablePositionalMovementDesc = "config.job.nin.enable_positional_movement_desc";
-        public const string EnableBurstMeleeApproach = "config.job.nin.enable_burst_melee_approach";
-        public const string EnableBurstMeleeApproachDesc = "config.job.nin.enable_burst_melee_approach_desc";
         public const string RoleActionsSection = "config.job.nin.role_actions_section";
         public const string EnableFeint = "config.job.nin.enable_feint";
     }

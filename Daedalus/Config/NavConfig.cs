@@ -23,6 +23,35 @@ public sealed class NavConfig
     }
 
     /// <summary>
+    /// Master switch for boundary-camping positional movement (the vNav flank/rear hop arcs + the
+    /// BMR DesiredPositional=Any handoff). EXPERIMENTAL — default OFF: field testing 2026-07-05 still
+    /// showed movement misbehavior with it live, so it ships opt-in until the cadence is proven.
+    /// </summary>
+    public bool EnableBoundaryCamping { get; set; } = false;
+
+    private float _positionalBoundaryBiasDegrees = 10f;
+
+    /// <summary>
+    /// Degrees inside the required positional arc from the ±135° flank/rear boundary where melee stands
+    /// ("boundary camping") — a flank↔rear swap becomes a short chord hop (2·r·sin(bias)) instead of a
+    /// quarter-circle run. 10° (not smaller) absorbs server↔client facing desync so the finisher still
+    /// lands inside the arc. 0 = stand at arc centers (pre-camping behavior). Range 0–30, default 10.
+    /// </summary>
+    public float PositionalBoundaryBiasDegrees
+    {
+        get => _positionalBoundaryBiasDegrees;
+        set => _positionalBoundaryBiasDegrees = Math.Clamp(value, 0f, 30f);
+    }
+
+    /// <summary>
+    /// Yield movement to BossMod: while BMR is dodging or danger zones are live/imminent, Daedalus stops
+    /// its own vNav pathing and stays hands-off until the danger clears plus a short cooldown. BMR steers
+    /// by input injection and defers to vNav whenever a path runs — without this, the two systems
+    /// tug-of-war and stutter. Fail-open when BMR isn't loaded. Default true (kill-switch only).
+    /// </summary>
+    public bool YieldToBmrMovement { get; set; } = true;
+
+    /// <summary>
     /// Disable max-melee positioning while solo (in a solo duty or with no party members present).
     /// Default false.
     /// </summary>

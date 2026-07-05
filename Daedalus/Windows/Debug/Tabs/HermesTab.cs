@@ -430,22 +430,6 @@ public static class HermesTab
                 ? "—"
                 : $"{state.PositionalMovementPhase} {state.PositionalMovementSkipReason}".Trim());
 
-            ImGui.TableNextRow();
-            ImGui.TableNextColumn();
-            ImGui.Text("Burst approach:");
-            ImGui.TableNextColumn();
-            ImGui.TextWrapped(string.IsNullOrEmpty(state.BurstApproachPhase)
-                ? "—"
-                : $"{state.BurstApproachPhase} {state.BurstApproachSkipReason}".Trim());
-            ImGui.TableNextRow();
-            ImGui.TableNextColumn();
-            ImGui.Text("Burst approach gates:");
-            ImGui.TableNextColumn();
-            ImGui.TextWrapped(
-                $"prep={state.BurstApproachInBurstPrep} | " +
-                $"KB in range={state.BurstApproachKbInRange} | " +
-                $"target={(state.BurstApproachHasTarget ? state.BurstApproachTargetName : "none")}");
-
             // Target
             ImGui.TableNextRow();
             ImGui.TableNextColumn();

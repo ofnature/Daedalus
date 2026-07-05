@@ -119,12 +119,6 @@ public sealed class HermesDebugState : IEnemyPackDebug
     public bool TargetHasPositionalImmunity { get; set; }
     public string PositionalMovementPhase { get; set; } = "";
     public string PositionalMovementSkipReason { get; set; } = "";
-    public string BurstApproachPhase { get; set; } = "";
-    public string BurstApproachSkipReason { get; set; } = "";
-    public bool BurstApproachInBurstPrep { get; set; }
-    public bool BurstApproachKbInRange { get; set; }
-    public bool BurstApproachHasTarget { get; set; }
-    public string BurstApproachTargetName { get; set; } = "";
 
     // Targeting
     public string CurrentTarget { get; set; } = "";

@@ -49,7 +49,8 @@ public sealed class BmrAiConfigService
         bool Enabled,
         uint JobId,
         PositionalType? RequiredPositional,
-        float RangedStandDistance);
+        float RangedStandDistance,
+        bool BoundaryCampingActive = false);
 
     // ── UI status (read by the Nav Control panel) ─────────────────────────────────────────────────────
     /// <summary>BossMod Reborn is installed and loaded.</summary>
@@ -110,7 +111,7 @@ public sealed class BmrAiConfigService
             pushed = true;
         }
 
-        var positional = BmrAiConfigPolicy.ResolveDesiredPositional(req.JobId, req.RequiredPositional);
+        var positional = BmrAiConfigPolicy.ResolveDesiredPositional(req.JobId, req.RequiredPositional, req.BoundaryCampingActive);
         if (_lastPositional != positional)
         {
             PushConfig("DesiredPositional", positional);

@@ -232,6 +232,11 @@ public abstract class BaseMeleeDpsRotation<TContext, TModule> : BaseRotation<TCo
             TargetHasImmunity = TargetHasPositionalImmunity,
             HasTarget = true,
             RequiredPositional = (TargetHasPositionalImmunity || hasTrueNorth) ? null : ResolveNextRequiredPositional(player),
+            // Boundary camping live → BMR gets DesiredPositional=Any (it keeps range/dodges, Daedalus
+            // owns the angle). Deliberately WITHOUT the single-enemy check so BMR ownership doesn't
+            // flap per pack.
+            BoundaryCampingActive = IsBoundaryCampingEnabled
+                && IsAutoMovementAllowed() && PositionalBoundaryBiasRadians > 0f,
         };
     }
 
@@ -270,11 +275,30 @@ public abstract class BaseMeleeDpsRotation<TContext, TModule> : BaseRotation<TCo
     protected virtual bool IsPositionalMovementEnabled() => false;
 
     /// <summary>
-    /// When > 0, stand points target the flank/rear boundary ± this margin instead of the arc center.
-    /// Override for jobs with back-to-back Rear/Flank switches (e.g. MNK) to minimize repositioning distance.
-    /// Default 0 = center of arc (SAM/NIN behaviour).
+    /// When > 0, stand points target the flank/rear boundary ± this margin instead of the arc center
+    /// ("boundary camping" — a flank↔rear swap becomes a short chord hop). Global user tuning via the
+    /// Nav Control slider; 0 = center of arc (pre-camping behavior).
     /// </summary>
-    protected virtual float PositionalBoundaryBiasRadians => 0f;
+    protected virtual float PositionalBoundaryBiasRadians
+        => Configuration.Nav.PositionalBoundaryBiasDegrees * System.MathF.PI / 180f;
+
+    /// <summary>
+    /// Per-job validation gate for the restored positional arc queue. The user-facing per-job
+    /// EnablePositionalMovement toggles are persisted true everywhere, so re-enabling the arc block
+    /// would otherwise flip arcs on for every melee at once — flip this per job after its Trust
+    /// validation pass. NIN first (back-to-back finisher swaps, no filler GCD to travel in).
+    /// </summary>
+    protected virtual bool IsPositionalArcRolloutEnabled => false;
+
+    /// <summary>
+    /// Boundary camping is live for this job: global experimental switch (default OFF) AND the per-job
+    /// rollout gate AND the per-job positional-movement toggle. Gates both the vNav hop arcs and the
+    /// BMR DesiredPositional=Any handoff.
+    /// </summary>
+    protected bool IsBoundaryCampingEnabled
+        => Configuration.Nav.EnableBoundaryCamping
+            && IsPositionalArcRolloutEnabled
+            && IsPositionalMovementEnabled();
 
     /// <summary>
     /// Whether vNav-driven auto movement (positional reposition, burst approach) is permitted right
@@ -338,7 +362,8 @@ public abstract class BaseMeleeDpsRotation<TContext, TModule> : BaseRotation<TCo
             Target: movementTarget,
             ActionService: ActionService,
             InCombat: inCombat,
-            EnableMovement: IsPositionalMovementEnabled() && IsAutoMovementAllowed() && ShouldApplyPositionalRequirements(player),
+            EnableMovement: IsBoundaryCampingEnabled
+                && IsAutoMovementAllowed() && ShouldApplyPositionalRequirements(player),
             AllowMovementDuringActionLock: true,
             MaintainMaxMelee: IsMaxMeleeMaintenanceAllowed(),
             MaxMeleeTarget: ResolveMaxMeleeTarget(player, out var maxMeleeFollowsPlayer),

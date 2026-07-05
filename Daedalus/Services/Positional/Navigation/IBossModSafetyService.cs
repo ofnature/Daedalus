@@ -34,4 +34,13 @@ public interface IBossModSafetyService
 
     /// <summary><c>BossMod.Hints.ForbiddenZonesNextActivation</c> in seconds, or <see cref="float.MaxValue"/> when unavailable.</summary>
     float ForbiddenZoneActivationInSeconds { get; }
+
+    /// <summary><c>BossMod.Hints.ForbiddenZonesCount</c> — live danger zones; 0 when unavailable (fail-open).</summary>
+    int ForbiddenZonesCount { get; }
+
+    /// <summary><c>BossMod.AI.IsNavigating</c> — BMR AI has a nav target (actively steering); false when unavailable.</summary>
+    bool IsBmrNavigating { get; }
+
+    /// <summary><c>BossMod.AI.NaviTargetPos</c> — where BMR AI is steering to; null when idle or unavailable. Observability only.</summary>
+    Vector3? BmrNaviTarget { get; }
 }

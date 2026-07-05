@@ -40,17 +40,34 @@ public sealed class BmrAiConfigPolicyTests
     [InlineData(PositionalType.Flank, "Flank")]
     [InlineData(PositionalType.Front, "Front")]
     public void ResolveDesiredPositional_Melee_FollowsNextGcd(PositionalType required, string expected) =>
-        Assert.Equal(expected, BmrAiConfigPolicy.ResolveDesiredPositional(JobRegistry.Reaper, required));
+        Assert.Equal(expected, BmrAiConfigPolicy.ResolveDesiredPositional(JobRegistry.Reaper, required, boundaryCampingActive: false));
 
     [Fact]
     public void ResolveDesiredPositional_Melee_NoRequirement_IsAny() =>
-        Assert.Equal("Any", BmrAiConfigPolicy.ResolveDesiredPositional(JobRegistry.Reaper, null));
+        Assert.Equal("Any", BmrAiConfigPolicy.ResolveDesiredPositional(JobRegistry.Reaper, null, boundaryCampingActive: false));
 
     [Fact]
     public void ResolveDesiredPositional_Backline_AlwaysAny()
     {
         // Backline jobs have no positionals — never force one even if a value slips through.
-        Assert.Equal("Any", BmrAiConfigPolicy.ResolveDesiredPositional(JobRegistry.WhiteMage, PositionalType.Rear));
-        Assert.Equal("Any", BmrAiConfigPolicy.ResolveDesiredPositional(JobRegistry.Bard, null));
+        Assert.Equal("Any", BmrAiConfigPolicy.ResolveDesiredPositional(JobRegistry.WhiteMage, PositionalType.Rear, boundaryCampingActive: false));
+        Assert.Equal("Any", BmrAiConfigPolicy.ResolveDesiredPositional(JobRegistry.Bard, null, boundaryCampingActive: false));
     }
+
+    [Theory]
+    [InlineData(PositionalType.Rear)]
+    [InlineData(PositionalType.Flank)]
+    [InlineData(PositionalType.Front)]
+    public void ResolveDesiredPositional_MeleeCamping_ReturnsAny(PositionalType required) =>
+        // Boundary camping live: Daedalus owns the angle via positional arcs, BMR only keeps range —
+        // a pushed positional would have BMR fight us over the standing angle.
+        Assert.Equal("Any", BmrAiConfigPolicy.ResolveDesiredPositional(JobRegistry.Ninja, required, boundaryCampingActive: true));
+
+    [Fact]
+    public void ResolveDesiredPositional_MeleeNotCamping_KeepsLivePositional() =>
+        Assert.Equal("Rear", BmrAiConfigPolicy.ResolveDesiredPositional(JobRegistry.Ninja, PositionalType.Rear, boundaryCampingActive: false));
+
+    [Fact]
+    public void ResolveDesiredPositional_BacklineCamping_StillAny() =>
+        Assert.Equal("Any", BmrAiConfigPolicy.ResolveDesiredPositional(JobRegistry.WhiteMage, PositionalType.Rear, boundaryCampingActive: true));
 }
