@@ -191,24 +191,29 @@ public abstract class BaseTankRotation<TContext, TModule> : BaseRotation<TContex
     }
 
     /// <summary>
-    /// All four tank ranged GCDs (Shield Lob / Tomahawk / Unmend / Lightning Shot) unlock at 15;
-    /// below that a pre-job-stone GLD/MRD has NO tool for a mob outside melee.
+    /// The job's ranged GCD (Shield Lob / Tomahawk / Unmend / Lightning Shot — all unlock at 15).
+    /// Jobs override to enable the pre-ranged walk-in; null keeps it disabled. Availability is
+    /// checked via <see cref="ActionAvailability.MeetsLevelAndLearned"/>, NOT a raw level compare,
+    /// so level sync and any learned-state quirk gate the same way the actual push does.
     /// </summary>
-    protected const byte TankRangedGcdMinLevel = 15;
+    protected virtual Daedalus.Models.Action.ActionDefinition? RangedGcdAction => null;
 
     /// <summary>
-    /// Below the ranged-GCD level, walk into melee on the engage target instead of standing there:
-    /// a sub-15 GLD/MRD facing a parked ranged/caster mob has no Shield Lob/Tomahawk to tag it, no
-    /// gap closer, and (unlike melee DPS) no max-melee walk-in — combat stalled until the mob
-    /// happened to wander in. Reuses the melee max-melee maintenance path: one-directional walk-in
-    /// with the vNav-flex dead-band, BMR destination/segment safety, and the movement arbiter's
-    /// yield-to-BossMod + churn guards. Inert at 15+ (the ranged GCD gathers as before).
+    /// While the ranged GCD is not yet available, walk into melee on the engage target instead of
+    /// standing there: a sub-15 GLD/MRD facing a parked ranged/caster mob has no Shield Lob/Tomahawk
+    /// to tag it, no gap closer, and (unlike melee DPS) no max-melee walk-in — combat stalled until
+    /// the mob happened to wander in. Reuses the melee max-melee maintenance path: one-directional
+    /// walk-in with the vNav-flex dead-band, BMR destination/segment safety, and the movement
+    /// arbiter's yield-to-BossMod + churn guards. Inert once the ranged GCD is usable (it gathers
+    /// as before).
     /// </summary>
     private void UpdatePreRangedWalkIn(IPlayerCharacter player, bool inCombat)
     {
         if (PositionalMovementService == null || !inCombat)
             return;
-        if (player.Level >= TankRangedGcdMinLevel)
+        if (RangedGcdAction is not { } rangedGcd)
+            return;
+        if (ActionAvailability.MeetsLevelAndLearned(player.Level, ActionService, rangedGcd))
             return;
         if (!Configuration.EnableAutoMovement || !Configuration.Tank.WalkToTargetWithoutRangedTool)
             return;

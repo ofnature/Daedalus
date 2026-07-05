@@ -139,6 +139,9 @@ public sealed class Themis : BaseTankRotation<IThemisContext, IThemisModule>
     #region Abstract Implementation
 
     /// <inheritdoc />
+    protected override Daedalus.Models.Action.ActionDefinition? RangedGcdAction => PLDActions.ShieldLob;
+
+    /// <inheritdoc />
     protected override int ReadGaugeValue()
     {
         return SafeGameAccess.GetPldOathGauge(ErrorMetrics);

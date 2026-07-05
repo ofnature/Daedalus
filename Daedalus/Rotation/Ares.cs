@@ -98,6 +98,8 @@ public sealed class Ares : BaseTankRotation<IAresContext, IAresModule>
         _modules.Sort((a, b) => a.Priority.CompareTo(b.Priority));
     }
 
+    protected override Daedalus.Models.Action.ActionDefinition? RangedGcdAction => WARActions.Tomahawk;
+
     protected override int ReadGaugeValue()
     {
         return SafeGameAccess.GetWarBeastGauge(ErrorMetrics);

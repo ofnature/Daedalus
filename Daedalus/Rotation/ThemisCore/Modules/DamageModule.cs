@@ -7,6 +7,7 @@ using Daedalus.Rotation.Common.Helpers;
 using Daedalus.Rotation.Common.Scheduling;
 using Daedalus.Rotation.ThemisCore.Abilities;
 using Daedalus.Rotation.ThemisCore.Context;
+using Daedalus.Services.Action;
 using Daedalus.Services.Training;
 using ThemisRotation = Daedalus.Rotation.Themis;
 
@@ -101,10 +102,10 @@ public sealed class DamageModule : IThemisModule
                     TryPushIntervene(context, scheduler, engageTarget.GameObjectId);
             }
             TryPushShieldLob(context, scheduler, engageTarget.GameObjectId);
-            // Below Shield Lob (Lv15, pre-PLD Gladiator) there is nothing to push here — the base
-            // rotation's pre-ranged walk-in closes the distance instead. Name the state so the
-            // empty GCD doesn't read as a stall in Why Stuck.
-            if (player.Level < PLDActions.ShieldLob.MinLevel)
+            // Without Shield Lob (Lv15, pre-PLD Gladiator — level+learned, matching the base
+            // rotation's walk-in gate) there is nothing to push here — the pre-ranged walk-in
+            // closes the distance instead. Name the state so the empty GCD doesn't read as a stall.
+            if (!ActionAvailability.MeetsLevelAndLearned(player.Level, context.ActionService, PLDActions.ShieldLob))
                 context.Debug.DamageState = "Out of melee — walking in (no ranged GCD until Lv15)";
             return;
         }

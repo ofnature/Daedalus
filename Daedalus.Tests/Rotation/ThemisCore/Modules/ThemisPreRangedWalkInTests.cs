@@ -109,6 +109,27 @@ public sealed class ThemisPreRangedWalkInTests
     }
 
     [Fact]
+    public void Gladiator_At15_ButShieldLobNotLearned_StillNamesWalkInState()
+    {
+        // The gate is level+learned (ActionAvailability.MeetsLevelAndLearned), not a raw level
+        // compare — if the game says the skill isn't usable, the walk-in owns the gap even at 15+.
+        var enemy = CreateMockEnemy();
+        var targeting = BuildOutOfMeleeTargeting(enemy.Object);
+        var actionService = MockBuilders.CreateMockActionService();
+        actionService.Setup(x => x.IsActionLearned(Daedalus.Data.PLDActions.ShieldLob.ActionId)).Returns(false);
+        var scheduler = SchedulerFactory.CreateForTest(actionService: actionService);
+        var context = ThemisTestContext.Create(
+            actionService: actionService,
+            targetingService: targeting,
+            enmityService: NoLostAggro(),
+            level: 15);
+
+        _module.CollectCandidates(context, scheduler, isMoving: false);
+
+        Assert.Contains("walking in", context.Debug.DamageState);
+    }
+
+    [Fact]
     public void WalkToTargetWithoutRangedTool_DefaultsOn()
     {
         // The walk-in is the only recovery a sub-15 tank has — it must be on out of the box.
