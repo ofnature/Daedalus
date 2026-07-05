@@ -20,6 +20,13 @@ public sealed class DamageModule : ICalliopeModule
     public int Priority => 30;
     public string Name => "Damage";
 
+    /// <summary>
+    /// Pre-Iron-Jaws (sub-56) hardcast DoT refresh window: recast Windbite/Venomous Bite when
+    /// this much duration remains. Tight on purpose — recasting early wastes remaining ticks,
+    /// but waiting for the status to fully drop costs seconds of downtime per cycle.
+    /// </summary>
+    internal const float HardcastDotRefreshSeconds = 3f;
+
     private readonly IBurstWindowService? _burstWindowService;
     private readonly ISmartAoEService? _smartAoEService;
 
@@ -423,8 +430,18 @@ public sealed class DamageModule : ICalliopeModule
         var level = context.Player.Level;
         if (target.MaxHp > 0 && (float)target.CurrentHp / target.MaxHp < context.Configuration.Bard.DotMinTargetHp) return;
 
+        // Below Iron Jaws (Lv56) the hardcast IS the refresh — start it while the DoT is about
+        // to drop, not after it's gone: waiting for the status to vanish costs 3-8s of DoT
+        // downtime every 45s cycle (status-poll latency + GCD queue position; field log
+        // 2026-07-04, Lv49 Aurum Vale). At 56+ Iron Jaws owns refresh; apply-when-missing only.
+        var canIronJaws = level >= BRDActions.IronJaws.MinLevel;
+        var stormbiteNeeded = !context.HasStormbite
+            || (!canIronJaws && context.StormbiteRemaining <= HardcastDotRefreshSeconds);
+        var causticNeeded = !context.HasCausticBite
+            || (!canIronJaws && context.CausticBiteRemaining <= HardcastDotRefreshSeconds);
+
         // Stormbite first
-        if (!context.HasStormbite && context.Configuration.Bard.EnableStormbite && level >= BRDActions.Windbite.MinLevel)
+        if (stormbiteNeeded && context.Configuration.Bard.EnableStormbite && level >= BRDActions.Windbite.MinLevel)
         {
             var action = BRDActions.GetStormbite((byte)level, context.ActionService);
             var ability = action == BRDActions.Stormbite ? CalliopeAbilities.Stormbite : CalliopeAbilities.Windbite;
@@ -461,7 +478,7 @@ public sealed class DamageModule : ICalliopeModule
         }
 
         // Caustic Bite
-        if (!context.HasCausticBite && context.Configuration.Bard.EnableCausticBite && level >= BRDActions.VenomousBite.MinLevel)
+        if (causticNeeded && context.Configuration.Bard.EnableCausticBite && level >= BRDActions.VenomousBite.MinLevel)
         {
             var action = BRDActions.GetCausticBite((byte)level, context.ActionService);
             var ability = action == BRDActions.CausticBite ? CalliopeAbilities.CausticBite : CalliopeAbilities.VenomousBite;

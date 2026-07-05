@@ -3,6 +3,12 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.7 — 2026-07-04
+
+### Fix — Bard: DoTs no longer allowed to fall off before Iron Jaws (below Lv56)
+- Windbite and Venomous Bite were only recast after the DoT fully dropped, which in practice meant 3–8 seconds of DoT downtime every 45-second cycle (detection lag plus queue position). Below Iron Jaws the recast IS the refresh — it now fires when 3 seconds remain, keeping both DoTs rolling continuously through the leveling range. Caught in a Lv49 Aurum Vale log
+<!-- LATEST-END -->
+
 ## v0.1.6 — 2026-07-04
 
 ### Fix — Parser: DoT damage was invisible (the game moved the tick channel)
@@ -18,8 +24,8 @@ All notable changes to Daedalus will be documented in this file.
 
 ### Diagnostics — "why is it stuck" now names the exact refusal
 - When an action can't fire, the Why Stuck tab shows the game's raw refusal code with a plain-word label (out of range, line of sight, not facing, not unlocked, GCD rolling…) instead of the bare word "ActionStatus"
-<!-- LATEST-END -->
 
+## v0.1.5 — 2026-07-04
 
 ### New — Farm mode (work in progress)
 - Grind an item from specific mobs, hands-free: pick the item (search by name), a target count, the mobs, and one or more farm spots — then Start. Daedalus kills your mobs around the spots, roams between them while waiting for respawns, and stops with a chat summary the moment the target count is in your bag. Everything stays in one zone — no teleporting
