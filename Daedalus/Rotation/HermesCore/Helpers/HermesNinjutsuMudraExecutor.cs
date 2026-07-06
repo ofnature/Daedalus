@@ -24,6 +24,9 @@ internal enum HermesMudraStepResult
 /// </summary>
 internal static class HermesNinjutsuMudraExecutor
 {
+    /// <summary>Mudra recast is 0.5s; the game rejects/garbles a sign submitted before it elapses.</summary>
+    internal const double MinSecondsBetweenMudraPresses = 0.5;
+
     private static ulong _collectFrameNumber;
     private static int _callsThisCollectFrame;
 
@@ -288,6 +291,20 @@ internal static class HermesNinjutsuMudraExecutor
                 callIndex, canExecuteGcd, slotId, slotBranch, wasLastTen, wasLastChi, wasLastJin,
                 "Waiting for GCD", result: "WaitingForGcd");
             return HermesMudraStepResult.WaitingForGcd;
+        }
+
+        // Inter-press pacing: the 0.5s mudra GCD sits inside the queue window, so CanExecuteGcd
+        // reads true almost immediately after a press — a same-slot fast acknowledge then let the
+        // next sign submit 0.30s later, racing the game's combo-state write into a duplicate sign
+        // and Rabbit Medium (two rabbits in three Lv60 pulls, both at pull open; clean sequences
+        // space 0.7-0.8s). Hold the next step until the mudra recast has actually elapsed.
+        if (context.MudraHelper.SecondsSinceLastPress < MinSecondsBetweenMudraPresses)
+        {
+            debugState = FormatDebugState(
+                callIndex, canExecuteGcd, slotId, slotBranch, wasLastTen, wasLastChi, wasLastJin,
+                $"Pacing ({context.MudraHelper.SecondsSinceLastPress:0.00}s since last sign)",
+                result: "WaitingForAcknowledge");
+            return HermesMudraStepResult.WaitingForAcknowledge;
         }
 
         if (intent.NinjutsuToExecute != null)

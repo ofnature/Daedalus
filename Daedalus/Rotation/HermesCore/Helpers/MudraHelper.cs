@@ -116,8 +116,23 @@ public sealed class MudraHelper
     public double SequenceElapsedSeconds =>
         _sequenceTimer.IsRunning ? _sequenceTimer.Elapsed.TotalSeconds : 0;
 
+    private DateTime _lastPressUtc = DateTime.MinValue;
+
+    /// <summary>
+    /// Seconds since the last raw mudra press. Used to pace hand-sign submits: pressing the next
+    /// mudra faster than the 0.5s mudra recast races the game's combo-state write and lands as a
+    /// duplicate/invalid sign — the Rabbit Medium at Lv60 pull opens showed a 0.30s Ten→Chi gap
+    /// where every clean sequence spaces 0.7-0.8s.
+    /// </summary>
+    public double SecondsSinceLastPress =>
+        _lastPressUtc == DateTime.MinValue ? double.MaxValue : (DateTime.UtcNow - _lastPressUtc).TotalSeconds;
+
     /// <summary>RSR slot-step: record a successful mudra press without legacy state-machine AdvanceSequence.</summary>
-    public void NotifyMudraPressed() => MudraCount++;
+    public void NotifyMudraPressed()
+    {
+        MudraCount++;
+        _lastPressUtc = DateTime.UtcNow;
+    }
 
     /// <summary>
     /// Whether we're ready to execute the Ninjutsu (all mudras input).

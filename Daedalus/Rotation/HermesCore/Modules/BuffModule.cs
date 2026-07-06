@@ -271,6 +271,11 @@ public sealed class BuffModule : IHermesModule
         var player = context.Player;
         if (player.Level < NINActions.Kassatsu.MinLevel) return;
         if (context.HasKassatsu) return;
+        // Never mid-sequence: Kassatsu flips HasKassatsu, which feeds the mudra step resolver —
+        // landing it between signs re-resolves the remaining steps under the new state (Lv60 field
+        // log: Kassatsu weaved between Chi and Jin, next sign came out wrong, Rabbit Medium).
+        // The correct slot is BEFORE starting the enhanced sequence, which the next frame takes.
+        if (context.MudraHelper.IsSequenceActive || context.HasGameMudraStatus) return;
         if (!context.ActionService.IsActionReady(NINActions.Kassatsu.ActionId)) return;
 
         scheduler.PushOgcd(HermesAbilities.Kassatsu, player.GameObjectId, priority: 3,

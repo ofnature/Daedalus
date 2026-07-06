@@ -119,6 +119,12 @@ public sealed unsafe class ActionService : IActionService
     private const double FailedSubmitBackoffSeconds = 0.1;
 
     /// <summary>
+    /// Uptime-credit floor for sub-1s GCDs (NIN mudra signs): animation lock + latency bound the
+    /// real chaining cadence to ~0.75s regardless of the 0.5s recast.
+    /// </summary>
+    private const float ShortGcdEffectiveCadenceSeconds = 0.75f;
+
+    /// <summary>
     /// How long the GCD may sit idle (ready, nothing casting, no action executed) before the weave
     /// window opens for oGCDs anyway. Normally a ready GCD fires within a frame or two, so weave
     /// slots stay tied to a rolling GCD — but when the GCD chain stalls (no castable/affordable GCD,
@@ -226,6 +232,12 @@ public sealed unsafe class ActionService : IActionService
             {
                 var recastActionId = recordActionId != 0 ? recordActionId : action.ActionId;
                 var gcdDuration = actionManager->GetRecastTime(ActionType.Action, recastActionId);
+                // Sub-1s GCDs (NIN mudra signs, 0.5s recast) can't actually be chained faster than
+                // the ~0.6s animation lock + latency — real clean cadence is 0.7-0.8s/sign. Crediting
+                // the raw 0.5s recast made frame-tight NIN read 75-83% uptime (documented metric
+                // quirk); floor the credit at the achievable cadence so the % reflects real play.
+                if (gcdDuration > 0f && gcdDuration < 1f)
+                    gcdDuration = Math.Max(gcdDuration, ShortGcdEffectiveCadenceSeconds);
                 _actionTracker.LogGcdCast(gcdDuration);
             }
         }
