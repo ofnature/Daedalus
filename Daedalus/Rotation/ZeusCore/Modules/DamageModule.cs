@@ -629,8 +629,11 @@ public sealed class DamageModule : IZeusModule
         var lastAction = context.LastComboAction;
         var comboActive = context.ComboTimeRemaining > 0;
 
-        // Step 3 (Vorpal line): Heavens' Thrust / Full Thrust
-        if (comboActive && lastAction == DRGActions.VorpalThrust.ActionId)
+        // Step 3 (Vorpal line): Heavens' Thrust / Full Thrust. Game reports the EXECUTED step-2
+        // id — Lance Barrage (Lv96 upgrade) must match too or the branch dies at 96+ (the
+        // Spiral Blow loop, Lv100 field log 2026-07-05).
+        if (comboActive && (lastAction == DRGActions.VorpalThrust.ActionId
+            || lastAction == DRGActions.LanceBarrage.ActionId))
         {
             var finisher = DRGActions.GetVorpalFinisher((byte)level, context.ActionService);
             // Below Full Thrust the resolver falls back to Vorpal Thrust itself — there IS no
@@ -668,8 +671,11 @@ public sealed class DamageModule : IZeusModule
             }
         }
 
-        // Step 3 (Disembowel line): Chaotic Spring / Chaos Thrust
-        if (comboActive && lastAction == DRGActions.Disembowel.ActionId)
+        // Step 3 (Disembowel line): Chaotic Spring / Chaos Thrust. Spiral Blow (Lv96 upgrade)
+        // is what the game reports at 96+ — the missing id looped TT→Disembowel for a whole
+        // Lv100 dungeon (field log 2026-07-05, 46-74% uptime).
+        if (comboActive && (lastAction == DRGActions.Disembowel.ActionId
+            || lastAction == DRGActions.SpiralBlow.ActionId))
         {
             var finisher = DRGActions.GetDisembowelFinisher((byte)level, context.ActionService);
             var hasRealFinisher = finisher.ActionId != DRGActions.Disembowel.ActionId;

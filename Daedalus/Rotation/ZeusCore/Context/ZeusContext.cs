@@ -204,9 +204,11 @@ public sealed class ZeusContext : IZeusContext
         IsLifeOfDragonActive = isLifeOfDragonActive;
         LifeOfDragonRemaining = lifeOfDragonRemaining;
 
-        // Determine combo state from last action
+        // Determine combo state from last action (upgrade ids included — the game reports the
+        // EXECUTED id, so Spiral Blow (Lv96) must count as the Disembowel step)
         IsInVorpalCombo = lastComboAction == DRGActions.TrueThrust.ActionId && comboStep == 1;
         IsInDisembowelCombo = lastComboAction == DRGActions.Disembowel.ActionId ||
+                              lastComboAction == DRGActions.SpiralBlow.ActionId ||
                               (lastComboAction == DRGActions.TrueThrust.ActionId && comboStep == 1);
         IsInAoeCombo = lastComboAction == DRGActions.DoomSpike.ActionId ||
                        lastComboAction == DRGActions.SonicThrust.ActionId;

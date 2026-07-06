@@ -91,7 +91,8 @@ public sealed class BuffModule : IZeusModule
         var shouldUseLifeSurge = false;
         if (drakesbaneNext)
             shouldUseLifeSurge = true;
-        else if (context.LastComboAction == DRGActions.VorpalThrust.ActionId && comboActive)
+        else if ((context.LastComboAction == DRGActions.VorpalThrust.ActionId
+                  || context.LastComboAction == DRGActions.LanceBarrage.ActionId) && comboActive)
             shouldUseLifeSurge = true;
         else if (context.LastComboAction == DRGActions.SonicThrust.ActionId &&
                  comboActive &&
@@ -112,7 +113,8 @@ public sealed class BuffModule : IZeusModule
 
                 var procReason = context.LastComboAction == DRGActions.FangAndClaw.ActionId
                                  || context.LastComboAction == DRGActions.WheelingThrust.ActionId ? "Drakesbane coming" :
-                                 context.LastComboAction == DRGActions.VorpalThrust.ActionId ? "Heavens' Thrust coming" :
+                                 context.LastComboAction == DRGActions.VorpalThrust.ActionId
+                                 || context.LastComboAction == DRGActions.LanceBarrage.ActionId ? "Heavens' Thrust coming" :
                                  "Coerthan Torment coming";
                 TrainingHelper.Decision(context.TrainingService)
                     .Action(DRGActions.LifeSurge.ActionId, DRGActions.LifeSurge.Name)

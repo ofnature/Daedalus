@@ -91,6 +91,27 @@ public static class DRGActions
     };
 
     /// <summary>
+    /// Lance Barrage - Vorpal Thrust upgrade (Lv.96, Dawntrail).
+    /// The game reports THIS id as the combo action once upgraded — combo-step
+    /// reads and step-3 branch selection must accept both ids.
+    /// </summary>
+    public static readonly ActionDefinition LanceBarrage = new()
+    {
+        ActionId = 36954,
+        Name = "Lance Barrage",
+        MinLevel = 96,
+        Category = ActionCategory.GCD,
+        TargetType = ActionTargetType.SingleEnemy,
+        EffectTypes = ActionEffectType.Damage,
+        CastTime = 0f,
+        RecastTime = 2.5f,
+        Range = 3f,
+        MpCost = 0,
+        DamagePotency = 340
+        // Combo from True Thrust
+    };
+
+    /// <summary>
     /// Full Thrust - Third combo action (Lv.26)
     /// High damage finisher
     /// Replaced by Heavens' Thrust at Lv.86
@@ -148,6 +169,29 @@ public static class DRGActions
         Range = 3f,
         MpCost = 0,
         DamagePotency = 250,
+        AppliedStatusId = StatusIds.PowerSurge,
+        AppliedStatusDuration = 30f
+        // Combo from True Thrust
+    };
+
+    /// <summary>
+    /// Spiral Blow - Disembowel upgrade (Lv.96, Dawntrail).
+    /// The game reports THIS id as the combo action once upgraded — combo-step
+    /// reads and step-3 branch selection must accept both ids.
+    /// </summary>
+    public static readonly ActionDefinition SpiralBlow = new()
+    {
+        ActionId = 36955,
+        Name = "Spiral Blow",
+        MinLevel = 96,
+        Category = ActionCategory.GCD,
+        TargetType = ActionTargetType.SingleEnemy,
+        EffectTypes = ActionEffectType.Damage | ActionEffectType.Buff,
+        CastTime = 0f,
+        RecastTime = 2.5f,
+        Range = 3f,
+        MpCost = 0,
+        DamagePotency = 300,
         AppliedStatusId = StatusIds.PowerSurge,
         AppliedStatusDuration = 30f
         // Combo from True Thrust

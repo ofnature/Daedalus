@@ -212,10 +212,13 @@ public sealed class Zeus : BaseMeleeDpsRotation<IZeusContext, IZeusModule>
         // Determine combo step based on last action
         return comboAction switch
         {
-            // Single-target combo
+            // Single-target combo — every step must list base AND upgrade ids: the game reports
+            // the EXECUTED id, and a missing upgrade id resets the combo at that step (Lv100
+            // field log 2026-07-05: TT→Disembowel looped forever because Spiral Blow (96+)
+            // wasn't mapped — step 3 never fired for the entire dungeon).
             75 or 16479 => 1,     // True Thrust / Raiden Thrust (proc'd starter — game reports this id)
-            78 => 2,     // Vorpal Thrust
-            87 => 2,     // Disembowel
+            78 or 36954 => 2,     // Vorpal Thrust / Lance Barrage (Lv96 upgrade)
+            87 or 36955 => 2,     // Disembowel / Spiral Blow (Lv96 upgrade)
             84 or 25771 => 3,  // Full Thrust / Heavens' Thrust
             88 or 25772 => 3,  // Chaos Thrust / Chaotic Spring
 

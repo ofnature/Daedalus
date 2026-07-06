@@ -14,6 +14,9 @@ All notable changes to Daedalus will be documented in this file.
 ### Fix — Summoner: demi summon no longer fires mid-primal, and Phoenix is never mistaken for Bahamut
 - Right after summoning a primal there's a 1–3 second gap before the pet lands where the gauge reads "nothing to do" — the demi summon fired into that gap, burying Phoenix inside the Garuda window it had just opened (Brand of Purgatory interleaving Emerald Rites in the validation logs). The demi entry now waits out the pet arrival
 - The demi-type detection latched once at summon start and a wrong read never corrected itself — one window submitted Enkindle Bahamut and Deathflare while the game was actually in Phoenix, losing the Rekindle heal. Detection now re-checks the Astral Flow button live every frame and corrects itself the moment it names a phase
+
+### Fix — Dragoon: combo died at step 2 from level 96 (whole dungeons of True Thrust → Disembowel)
+- At level 96 the second combo hits upgrade — Disembowel becomes Spiral Blow and Vorpal Thrust becomes Lance Barrage — and the game reports the upgraded id in the combo state. The combo tracking didn't know the new ids, so from 96 on every combo reset after the second hit: no Chaotic Spring, no Heavens' Thrust, no positionals, no Drakesbane, entire dungeons of two-hit combos (caught at Lv100, 46–74% uptime). Both upgraded ids now drive the combo everywhere they're read, including Life Surge's "big hit next" timing. Same class of bug as the earlier 4th/5th-hit fix, one step earlier in the chain
 <!-- LATEST-END -->
 
 ## v0.1.8 — 2026-07-05
