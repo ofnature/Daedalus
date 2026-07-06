@@ -67,6 +67,67 @@
 - Rate stats: kills, items/hour, ETA in the Farm window; session summary on stop.
 - Optional: HQ counting, retainer-aware "stop at N total across bags".
 
+## v4: mounted travel + 100y acquisition (PLANNED 2026-07-06 — full spec, execute as written)
+
+**Goal**: spot-to-spot travel happens mounted (fly where legal), and mob acquisition scans out to
+~100y instead of the current engage-range scan, issuing movement to the nearest profile mob.
+
+### 1. Mount handling (`FarmMountHelper`, new)
+- Config: `FarmConfig.MountMode { Roulette, Specific }` (default Roulette) +
+  `FarmConfig.SpecificMountId` (uint). UI: radio + a dropdown of UNLOCKED mounts
+  (`PlayerState.Instance()->IsMountUnlocked(id)` over the Mount sheet, name + id — cache the list
+  per session). Specific mount not unlocked → warn once, fall back to Roulette.
+- Cast: Roulette = `UseAction(ActionType.GeneralAction, 9)` (Mount Roulette); Specific =
+  `UseAction(ActionType.Mount, mountId)`. Gates before casting: not InCombat, not already mounted
+  (`Condition[ConditionFlag.Mounted]`), zone allows mounts (`Condition` / TerritoryType — open
+  world farm zones all do; sanity-gate anyway), standing still (mount cast is 1s and breaks on
+  move — pause vNav for the cast, the arbiter's Stop path).
+- Wait state: after UseAction, poll `ConditionFlag.Mounted` (timeout ~3s → retry once → give up
+  and walk; never loop-cast).
+- **Trigger**: distance to next destination (spot or acquired mob) > `MountDistanceThreshold`
+  (config, default 40y). Below it, walk — mounting for a 20y hop is slower.
+- **Dismount**: when within `DismountRange` (default ~15y) of the target mob, or before issuing
+  the engage/first attack — `UseAction(ActionType.GeneralAction, 23)` (Dismount) while airborne
+  descends first; poll un-mounted before combat starts (attacks fizzle mounted). Flying dismount:
+  vNav land — pathfind with fly=false to a ground point near the mob, THEN dismount (avoid mid-air
+  dismount fall damage / stuck-floating).
+- **Flying**: pass `fly: true` to the arbiter's `PathfindAndMoveTo` when mounted AND the zone has
+  flight unlocked (`PlayerState` aether-current completion for the territory — expose via a small
+  probe; if unknown, try fly and fall back to ground on vNav pathfind failure). Ground mounts in
+  no-fly zones: fly=false, everything else identical.
+
+### 2. 100y acquisition scan
+- Extend the FarmModeService mob scan radius: config `FarmConfig.ScanRadiusYalms` (default 50,
+  max 100 — the object table reliably covers ~100y in open world; beyond that entries pop in/out).
+- Match by the profile's existing mob identity (BNpcName/name match as v1 does), filter alive +
+  targetable; **nearest first** (squared distance). Keep the v1 hater/claimed filtering.
+- Acquired target beyond engage range → movement: mounted travel per §1 when > threshold, else
+  vNav walk (all through the MovementArbiter as today — farm mode already routes through it).
+- No match within radius → existing spot-roam behavior (this feature only widens the funnel).
+
+### 3. Loop integration (state machine addition)
+v1 loop gains two states: `Traveling(Mounted)` and `Dismounting`. Full cycle:
+`ScanAtSpot(100y) → [match] MountIfFar → Travel → Dismount@15y → Engage/Kill (rotation owns
+combat) → loot → Scan again → [no match] NextSpot (mounted if far)`. Combat interrupts any travel
+state (aggro while mounted → dismount immediately, fight, resume). Inventory-full / target-count
+reached → existing stop behavior unchanged.
+
+### 4. Tests (pure logic; game reads mocked)
+Mount-mode fallback (specific-not-unlocked → roulette), distance-threshold mount/walk decision,
+dismount-range trigger, nearest-of-N selection with claimed/hater filtering at 100y, no-match →
+spot-roam fallthrough, combat-interrupt state reset.
+
+### Gotchas specific to this feature
+- Mount/dismount are GeneralActions — the ActionStatus pre-gate patterns differ from combat
+  actions; probe `GetActionStatus(ActionType.GeneralAction, ...)` before casting (mounted-state
+  errors are silent otherwise).
+- Never mount while a profile mob has aggro (combat check BEFORE the mount cast, not just at
+  trigger evaluation — the gap between decision and cast bit the SMN demi timing; re-check at cast).
+- vNav fly pathing needs the mesh loaded for the zone; `IsPathfindInProgress` can run long on
+  first fly query — the arbiter's churn guards already rate-limit, don't add another layer.
+- The 1s mount cast under the arbiter: issue Stop, cast, wait mounted, THEN pathfind — do not
+  fight the movement pipeline mid-cast.
+
 ## Gotchas for whoever picks this up
 - Rotations read `DutyConfigurationService.RotationConfiguration` (a COPY) — live flags must be
   process-wide statics (see `ExternalCombatOverrideState`), never Configuration instance members.
