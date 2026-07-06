@@ -18,7 +18,20 @@ internal static class HermesMudraGate
             return true;
 
         if (!context.MudraHelper.IsSequenceActive)
+        {
+            // Orphaned live signs: the module-side sequence aborted (stuck counter / slot desync),
+            // but the GAME still holds registered signs — mudra status up and the ninjutsu slot
+            // showing a pending chain. Any weaponskill now invalidates that chain into Rabbit
+            // Medium (Lv60 field logs: Death Blossom 1.0s after an orphaned Ten; Throwing Dagger
+            // over a completed Ten-Chi-Jin pending Suiton). Hold combo GCDs until
+            // TryResumeOrphanedMudraSlot re-adopts the chain or the signs expire.
+            if (context.HasGameMudraStatus
+                && !HermesNinjutsuSlotProbe.IsNoActiveNinjutsu(
+                    HermesNinjutsuSlotProbe.GetEffectiveSlotId(context.ActionService)))
+                return true;
+
             return false;
+        }
 
         var aim = context.MudraHelper.TargetNinjutsu;
         if (aim == NINActions.NinjutsuType.None)

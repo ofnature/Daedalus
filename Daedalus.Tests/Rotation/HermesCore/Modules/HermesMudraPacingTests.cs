@@ -66,6 +66,58 @@ public class HermesMudraPacingTests
     }
 
     [Fact]
+    public void OrphanedLiveSigns_BlockComboGcds()
+    {
+        // Second field round (Sohm Al logs): the module sequence aborted but the GAME still held
+        // registered signs — Death Blossom fired 1.0s after an orphaned Ten and Throwing Dagger
+        // fired over a pending Suiton, both ending in Rabbit Medium. Mudra status + a pending
+        // ninjutsu slot must hold combo GCDs even with no module-side sequence active.
+        var actionService = MockBuilders.CreateMockActionService();
+        actionService.Setup(x => x.GetAdjustedActionId(NINActions.Ninjutsu.ActionId))
+            .Returns(NINActions.Raiton.ActionId);
+        var context = HermesTestContext.Create(
+            actionService: actionService,
+            hasGameMudraStatus: true,
+            isMudraSequenceActive: false,
+            level: 60);
+
+        Assert.True(HermesMudraGate.ShouldBlockComboGcds(context));
+    }
+
+    [Fact]
+    public void IdleSlot_NoSequence_DoesNotBlockComboGcds()
+    {
+        // Guard the normal case: no signs anywhere — combo flows.
+        var actionService = MockBuilders.CreateMockActionService();
+        actionService.Setup(x => x.GetAdjustedActionId(NINActions.Ninjutsu.ActionId))
+            .Returns(NINActions.Ninjutsu.ActionId);
+        var context = HermesTestContext.Create(
+            actionService: actionService,
+            hasGameMudraStatus: false,
+            isMudraSequenceActive: false,
+            level: 60);
+
+        Assert.False(HermesMudraGate.ShouldBlockComboGcds(context));
+    }
+
+    [Fact]
+    public void PendingSlotWithoutMudraStatus_DoesNotBlockComboGcds()
+    {
+        // Bounded by the mudra status: once the signs expire the status drops, and a stale slot
+        // read alone must not freeze the combo.
+        var actionService = MockBuilders.CreateMockActionService();
+        actionService.Setup(x => x.GetAdjustedActionId(NINActions.Ninjutsu.ActionId))
+            .Returns(NINActions.Raiton.ActionId);
+        var context = HermesTestContext.Create(
+            actionService: actionService,
+            hasGameMudraStatus: false,
+            isMudraSequenceActive: false,
+            level: 60);
+
+        Assert.False(HermesMudraGate.ShouldBlockComboGcds(context));
+    }
+
+    [Fact]
     public void Kassatsu_StillFires_WhenNoSequenceActive()
     {
         var actionService = MockBuilders.CreateMockActionService();
