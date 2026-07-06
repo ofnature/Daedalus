@@ -161,6 +161,19 @@ public sealed class NinjaConfig
     }
 
     /// <summary>
+    /// Hold Trick Attack / Kunai's Bane when the target is below this HP fraction — the TTK
+    /// estimator's rate window reads flat during untargetable/add phases (no estimate → no hold),
+    /// which let Trick land on a 0.25% boss one second before the kill (Xelphatol turret phase,
+    /// 2026-07-06). Same complementary pair as the MCH Queen holds. 0 disables.
+    /// </summary>
+    private float _trickHoldTargetHpPercent = 0.05f;
+    public float TrickHoldTargetHpPercent
+    {
+        get => _trickHoldTargetHpPercent;
+        set => _trickHoldTargetHpPercent = Math.Clamp(value, 0f, 0.25f);
+    }
+
+    /// <summary>
     /// Save Ninki for burst windows.
     /// </summary>
     public bool SaveNinkiForBurst { get; set; } = false;

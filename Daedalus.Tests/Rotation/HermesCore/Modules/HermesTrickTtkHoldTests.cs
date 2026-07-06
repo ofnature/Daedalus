@@ -113,4 +113,46 @@ public class HermesTrickTtkHoldTests
     {
         Assert.Equal(6, new Daedalus.Configuration().Ninja.TrickMinPackTtkSeconds);
     }
+
+    [Fact]
+    public void DyingTarget_HeldEvenWithoutTtkEstimate()
+    {
+        // Xelphatol turret phase: the boss wasn't being damaged during the add phase, so the
+        // rate window read flat (no estimate, no TTK hold) — and Trick landed on a 0.25% boss
+        // one second before the kill. The target-HP floor must catch what the rate can't.
+        var (module, context, scheduler) = Setup(new PackTtkEstimator(), currentPackHp: 500_000);
+        SetTargetHp(context, currentHp: 1_500, maxHp: 600_000);
+
+        module.CollectCandidates(context, scheduler, isMoving: false);
+
+        Assert.DoesNotContain(scheduler.InspectOgcdQueue(), c => c.Behavior == HermesAbilities.TrickAttack);
+        Assert.Contains("HP", context.Debug.BuffState);
+    }
+
+    [Fact]
+    public void HealthyTarget_HpFloorDoesNotHold()
+    {
+        var (module, context, scheduler) = Setup(new PackTtkEstimator(), currentPackHp: 500_000);
+        SetTargetHp(context, currentHp: 300_000, maxHp: 600_000);
+
+        module.CollectCandidates(context, scheduler, isMoving: false);
+
+        Assert.Contains(scheduler.InspectOgcdQueue(), c => c.Behavior == HermesAbilities.TrickAttack);
+    }
+
+    private static void SetTargetHp(
+        Daedalus.Rotation.HermesCore.Context.IHermesContext context, uint currentHp, uint maxHp)
+    {
+        var enemy = new Mock<IBattleNpc>();
+        enemy.Setup(x => x.GameObjectId).Returns(4242UL);
+        enemy.Setup(x => x.CurrentHp).Returns(currentHp);
+        enemy.Setup(x => x.MaxHp).Returns(maxHp);
+        var targeting = Mock.Get(context.TargetingService);
+        targeting.Setup(x => x.FindEnemyForAction(
+                It.IsAny<EnemyTargetingStrategy>(), It.IsAny<uint>(), It.IsAny<IPlayerCharacter>()))
+            .Returns(enemy.Object);
+        targeting.Setup(x => x.FindEnemy(
+                It.IsAny<EnemyTargetingStrategy>(), It.IsAny<float>(), It.IsAny<IPlayerCharacter>()))
+            .Returns(enemy.Object);
+    }
 }

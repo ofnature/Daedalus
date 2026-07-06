@@ -172,6 +172,13 @@ public sealed class NinjaSection
                 + "seconds — Shadow Walker rides to the next pack and the burst opens there instead. 0 disables.",
                 save, v => config.Ninja.TrickMinPackTtkSeconds = v);
 
+            config.Ninja.TrickHoldTargetHpPercent = ConfigUIHelpers.FloatSlider(
+                "Trick Hold Target HP",
+                config.Ninja.TrickHoldTargetHpPercent, 0f, 0.25f, "%.2f",
+                "Also hold Trick when the target is below this HP fraction — catches dying bosses "
+                + "the pack-TTK estimate misses after untargetable phases. 0 disables.",
+                save, v => config.Ninja.TrickHoldTargetHpPercent = v);
+
             ConfigUIHelpers.Spacing();
 
             ConfigUIHelpers.Toggle(

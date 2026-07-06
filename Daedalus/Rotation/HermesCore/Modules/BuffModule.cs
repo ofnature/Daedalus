@@ -197,6 +197,18 @@ public sealed class BuffModule : IHermesModule
             return;
         }
 
+        // Dying-target floor: the TTK window reads FLAT during untargetable/add phases (boss not
+        // being damaged → no estimate → no hold), which let Trick land on a 0.25% boss one second
+        // before the kill (Xelphatol turret phase). The HP% check catches what the rate can't —
+        // the same complementary pair as the MCH Queen holds.
+        var hpFloor = context.Configuration.Ninja.TrickHoldTargetHpPercent;
+        if (hpFloor > 0f && target.MaxHp > 0
+            && (float)target.CurrentHp / target.MaxHp < hpFloor)
+        {
+            context.Debug.BuffState = $"Holding {action.Name} (target {(float)target.CurrentHp / target.MaxHp:P0} HP)";
+            return;
+        }
+
         var ability = action == NINActions.KunaisBane ? HermesAbilities.KunaisBane : HermesAbilities.TrickAttack;
 
         scheduler.PushOgcd(ability, target.GameObjectId, priority: 1,
