@@ -83,6 +83,39 @@ Record results in the LAN memory; any failure here is a transport bug and preemp
   sync, Gobskin/Cactguard coordination, Final Sting, Coil assignments). Implement after Phase 1
   and BLU v2.
 
+## Architecture critique — hardening decisions (review pass, 2026-07-06)
+
+Reviewed against the shipped transport. These are DECISIONS the implementing session applies;
+none require redesign.
+
+1. **UDP is fire-and-forget and BurstFire/CountdownStart/ExecuteSting are one-shot critical.**
+   A lost datagram silently desyncs one toon's burst. Decision: critical messages repeat-broadcast
+   ×3 at ~100–150ms spacing with an IDENTICAL Timestamp — the existing (SenderId,Timestamp,Type)
+   dedup ring makes consumers idempotent for free. Heartbeats/roster stay single-shot (self-healing
+   at 2s cadence). Do NOT build acks or TCP (spec non-goal stands).
+2. **Coordinator election can flap** (alphabetically-first FRESH toon — zoning/grey flips it).
+   Decision: election is evaluated at fire time only, never mid-choreography; a BurstFire already
+   broadcast is valid regardless of who sent it (consumers don't verify coordinatorship). Document
+   that two coordinators firing within the dedup window is harmless (identical effect, idempotent).
+3. **Identity**: SenderId Name@World is unique per character; running the SAME character twice is
+   unsupported (roster would merge) — acceptable, document. MachineId only groups the UI.
+4. **Trust model**: port 47200 accepts any LAN JSON. Threat model is a home VLAN — no auth/crypto
+   (decision), but harden parsing: strict message-type enum (unknown → drop), bounded datagram
+   size (drop >8KB), version field checked, and NEVER dispatch game actions from network-supplied
+   ids without a whitelist (BurstFire opens a state machine, ExecuteSting picks from slotted-set —
+   both already indirect; keep that property for every future message).
+5. **Clock skew (Phase 2)**: T0 scheduling assumes NTP-synced Windows clocks (default-on) +
+   heartbeat-measured latency. Decision: reject CountdownStart with |T0 − now| > 30s (log loudly),
+   no NTP implementation of our own.
+6. **Broadcast scope**: 255.255.255.255 does not cross VLANs/subnets — all machines must share the
+   flat LAN segment (user's UniFi setup: same VLAN). If that ever changes, the fallback is a
+   configured peer-IP list (unicast fan-out), not multicast — note only, do not build.
+7. **Frame-thread pump flood**: bound the per-frame inbox drain (e.g. 64 messages/frame, rest wait)
+   so a misbehaving peer can't stall the framework thread.
+8. **Heartbeat capability bitfield** (`cap`, additive JSON): slotted key-spell flags feeding the
+   BLU capability-driven assignment (proteus-v2-v3-plan §V3.1b). Generalizes later to non-BLU
+   capabilities (e.g. "has Phoenix Down in bag" for Phase 3 carrier election).
+
 ## Order & effort
 Phase 0 (manual, 30 min with both PCs) → Phase 1 (small) → Phase 2 (medium; pot-only cut first)
 → Phase 5 with BLU v3 → Phase 3 (small) → Phase 4 (on demand).
