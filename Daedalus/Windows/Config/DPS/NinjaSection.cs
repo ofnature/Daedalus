@@ -165,6 +165,13 @@ public sealed class NinjaSection
                 config.Ninja.KunaisBaneHoldTime, 0f, 10f, "%.1f s",
                 Loc.T(LocalizedStrings.Ninja.KunaisBaneHoldTimeDesc, "Max seconds to hold waiting for party buffs"), save, v => config.Ninja.KunaisBaneHoldTime = v);
 
+            config.Ninja.TrickMinPackTtkSeconds = ConfigUIHelpers.IntSlider(
+                "Trick Min Pack TTK",
+                config.Ninja.TrickMinPackTtkSeconds, 0, 20,
+                "Hold Trick Attack / Kunai's Bane when the pack is estimated to die within this many "
+                + "seconds — Shadow Walker rides to the next pack and the burst opens there instead. 0 disables.",
+                save, v => config.Ninja.TrickMinPackTtkSeconds = v);
+
             ConfigUIHelpers.Spacing();
 
             ConfigUIHelpers.Toggle(

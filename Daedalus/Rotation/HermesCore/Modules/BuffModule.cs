@@ -1,3 +1,4 @@
+using System;
 using Daedalus.Data;
 using Daedalus.Rotation.Common.Helpers;
 using Daedalus.Rotation.Common.RoleActionHelpers;
@@ -21,13 +22,17 @@ public sealed class BuffModule : IHermesModule
     public string Name => "Buff";
 
     private readonly IBurstWindowService? _burstWindowService;
+    private readonly Daedalus.Rotation.PrometheusCore.Helpers.PackTtkEstimator _packTtk;
     private const int NinkiThreshold = 50;
     private const int NinkiForceDumpThreshold = 100;
     private const float BunshinOpenerDelaySeconds = 5f;
 
-    public BuffModule(IBurstWindowService? burstWindowService = null)
+    public BuffModule(
+        IBurstWindowService? burstWindowService = null,
+        Daedalus.Rotation.PrometheusCore.Helpers.PackTtkEstimator? packTtk = null)
     {
         _burstWindowService = burstWindowService;
+        _packTtk = packTtk ?? new Daedalus.Rotation.PrometheusCore.Helpers.PackTtkEstimator();
     }
 
     private bool ShouldHoldForBurst(float thresholdSeconds = 8f) =>
@@ -43,9 +48,15 @@ public sealed class BuffModule : IHermesModule
 
         if (!context.InCombat)
         {
+            _packTtk.Reset();
             context.Debug.BuffState = "Not in combat";
             return;
         }
+
+        // Keep the pack-TTK window fed every frame so the estimate is warm when Trick comes up.
+        _packTtk.Sample(
+            context.TargetingService.SumEnemyCurrentHpInRange(FFXIVConstants.RangedTargetingRange, context.Player),
+            DateTime.UtcNow);
         if (context.HasGameMudraStatus && context.MudraHelper.IsSequenceActive
             && !HermesNinjutsuMudraExecutor.IsRabbitFailureSlot(context))
         {
@@ -144,6 +155,19 @@ public sealed class BuffModule : IHermesModule
                    : level >= NINActions.TrickAttack.MinLevel ? NINActions.TrickAttack : null;
         if (action == null) return;
         if (!context.ActionService.IsActionReady(action.ActionId)) return;
+
+        // End-of-pack guard (MCH Queen TTK lesson): a +10% window on a pack that dies in seconds
+        // wastes the 60s cooldown — four field occurrences of Trick landing on sub-10%-HP mobs as
+        // combat ended (Xelphatol Lv60 logs 2026-07-05/06). Shadow Walker lasts 20s, so holding
+        // rides the buff through transit and opens the NEXT pack with Trick at full value (seen
+        // working accidentally in the field). Fresh pulls have no estimate → no hold.
+        var ttkThreshold = context.Configuration.Ninja.TrickMinPackTtkSeconds;
+        if (ttkThreshold > 0 && _packTtk.EstimateTtkSeconds() is { } packTtk && packTtk < ttkThreshold)
+        {
+            context.Debug.BuffState = $"Holding {action.Name} (pack TTK {packTtk:0.0}s)";
+            return;
+        }
+
         if (BurstHoldHelper.ShouldHoldForPhaseTransition(context.TimelineService))
         {
             context.Debug.BuffState = $"Holding {action.Name} (phase soon)";

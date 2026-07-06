@@ -20,6 +20,9 @@ All notable changes to Daedalus will be documented in this file.
 - Kassatsu could weave in *between* hand signs, which flips the state the sign resolver reads mid-sequence and derails the remaining signs (the second Rabbit's cause). It now waits for the sequence to finish — the next window picks it up and the enhanced ninjutsu follows as intended
 - The uptime counter credited each mudra sign only its 0.5s recast, though signs physically can't chain faster than ~0.75s — frame-tight Ninja play read as 75–83% "uptime" and sent people bug-hunting. Sub-second GCDs now credit their real achievable cadence, so Ninja percentages finally mean what they say
 
+### Fix — Ninja: Trick Attack no longer burned on dying packs
+- Trick Attack / Kunai's Bane kept landing on mobs seconds from death at the end of a pull — a +10% window on a dying pack wastes the 60-second cooldown. The rotation now estimates the pack's time-to-kill from the recent damage rate (the same logic that holds the Machinist Queen) and holds the burst when the pack is about to melt; Shadow Walker lasts 20 seconds, so the buff rides through the transit and Trick opens the **next** pack at full value instead. Tunable in Ninja config ("Trick Min Pack TTK", default 6s, 0 disables)
+
 ### Fix — Dragoon: combo died at step 2 from level 96 (whole dungeons of True Thrust → Disembowel)
 - At level 96 the second combo hits upgrade — Disembowel becomes Spiral Blow and Vorpal Thrust becomes Lance Barrage — and the game reports the upgraded id in the combo state. The combo tracking didn't know the new ids, so from 96 on every combo reset after the second hit: no Chaotic Spring, no Heavens' Thrust, no positionals, no Drakesbane, entire dungeons of two-hit combos (caught at Lv100, 46–74% uptime). Both upgraded ids now drive the combo everywhere they're read, including Life Surge's "big hit next" timing. Same class of bug as the earlier 4th/5th-hit fix, one step earlier in the chain
 <!-- LATEST-END -->

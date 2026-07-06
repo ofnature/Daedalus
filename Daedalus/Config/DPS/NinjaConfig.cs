@@ -147,6 +147,20 @@ public sealed class NinjaConfig
     }
 
     /// <summary>
+    /// Hold Trick Attack / Kunai's Bane when the engaged pack's estimated time-to-kill (recent
+    /// damage rate) is below this many seconds — a +10% debuff on a pack that dies in 3s is a
+    /// wasted 60s cooldown, and Shadow Walker (20s) rides through the transit so the burst opens
+    /// the NEXT pack at full value instead. 0 disables. Same TTK lesson as the MCH Queen hold:
+    /// trash doesn't get low, it melts.
+    /// </summary>
+    private int _trickMinPackTtkSeconds = 6;
+    public int TrickMinPackTtkSeconds
+    {
+        get => _trickMinPackTtkSeconds;
+        set => _trickMinPackTtkSeconds = Math.Clamp(value, 0, 20);
+    }
+
+    /// <summary>
     /// Save Ninki for burst windows.
     /// </summary>
     public bool SaveNinkiForBurst { get; set; } = false;

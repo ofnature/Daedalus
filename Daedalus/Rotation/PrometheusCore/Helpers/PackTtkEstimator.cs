@@ -11,7 +11,7 @@ namespace Daedalus.Rotation.PrometheusCore.Helpers;
 /// ~5s ramp pays off. A new pull (total HP jumping UP) makes the rate negative → no estimate → no
 /// hold, so the window self-heals across pulls.
 /// </summary>
-internal sealed class PackTtkEstimator
+public sealed class PackTtkEstimator
 {
     private const float WindowSeconds = 6f;
     private const float MinSpanSeconds = 2f;
