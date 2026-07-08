@@ -71,7 +71,7 @@ public sealed class AsclepiusStatusHelper : BaseStatusHelper
         TryReadStatusFromList(player, SGEActions.KardiaStatusId);
 
     /// <summary>
-    /// Checks if a target has Kardion (2604) on any status scan candidate.
+    /// Checks if a target has Kardion (2605) on any status scan candidate.
     /// </summary>
     public static bool HasKardion(
         IBattleChara target,
@@ -96,7 +96,7 @@ public sealed class AsclepiusStatusHelper : BaseStatusHelper
         HasStatusFromSource(target, SGEActions.KardionStatusId, sageEntityId);
 
     /// <summary>
-    /// True when the tank currently bears Kardion (2604). Primary pre-pull / placement signal.
+    /// True when the tank currently bears Kardion (2605). Primary pre-pull / placement signal.
     /// </summary>
     public static bool TankHasKardion(
         IPlayerCharacter player,
@@ -118,7 +118,7 @@ public sealed class AsclepiusStatusHelper : BaseStatusHelper
     }
 
     /// <summary>
-    /// Resolves the ally bearing Kardion (2604). Party-list scan first so it matches the party UI.
+    /// Resolves the ally bearing Kardion (2605). Party-list scan first so it matches the party UI.
     /// </summary>
     public static bool TryFindKardionBearer(
         IPlayerCharacter player,
@@ -224,7 +224,7 @@ public sealed class AsclepiusStatusHelper : BaseStatusHelper
     }
 
     /// <summary>
-    /// Resolves the ally carrying Kardion (2604).
+    /// Resolves the ally carrying Kardion (2605).
     /// </summary>
     public static ulong FindKardionTargetId(
         IPlayerCharacter player,

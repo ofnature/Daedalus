@@ -92,13 +92,13 @@ public class StatusHelperTests
     [Fact]
     public void StatusIds_Kardia_MatchesGameData()
     {
-        Assert.Equal(2605u, (uint)SGEActions.KardiaStatusId);
+        Assert.Equal(2604u, (uint)SGEActions.KardiaStatusId);
     }
 
     [Fact]
     public void StatusIds_Kardion_MatchesGameData()
     {
-        Assert.Equal(2604u, (uint)SGEActions.KardionStatusId);
+        Assert.Equal(2605u, (uint)SGEActions.KardionStatusId);
     }
 
     [Fact]

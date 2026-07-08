@@ -637,7 +637,7 @@ public static class SGEActions
         RecastTime = 5f, // 5s swap cooldown
         Range = 30f,
         MpCost = 0,
-        AppliedStatusId = 2604, // Kardion on target
+        AppliedStatusId = 2605, // Kardion on target
         AppliedStatusDuration = 0f // Permanent until changed
     };
 
@@ -906,14 +906,14 @@ public static class SGEActions
     #region Status IDs
 
     /// <summary>
-    /// Kardion (Kardia target) status ID.
+    /// Kardion (Kardia target) status ID — the buff placed on the healed ally.
     /// </summary>
-    public const ushort KardionStatusId = 2604;
+    public const ushort KardionStatusId = 2605;
 
     /// <summary>
-    /// Kardia (self buff indicating Kardia is placed) status ID.
+    /// Kardia (self buff indicating Kardia is placed) status ID — sits on the Sage.
     /// </summary>
-    public const ushort KardiaStatusId = 2605;
+    public const ushort KardiaStatusId = 2604;
 
     /// <summary>
     /// Eukrasia buff status ID.

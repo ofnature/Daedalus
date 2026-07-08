@@ -3,6 +3,12 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.10 — 2026-07-07
+
+### Fix — Sage: Kardia now lands on a real-player tank (multibox/party)
+- Kardia would get stuck on the Sage and never move onto a live party tank — it worked in Trust but silently failed with a real tank. The two status IDs Kardia uses to tell "is Kardia on me" apart from "is Kardion on my target" were swapped, so when Kardia sat on the Sage the rotation wrongly concluded it was already on the tank and suppressed every placement. Corrected the IDs; Kardia now tracks and places on the tank the same way in parties as it does in Trust
+<!-- LATEST-END -->
+
 ## v0.1.9 — 2026-07-05
 
 ### New — low-level Gladiator/Marauder: walk to mobs you can't reach (pre-Lv15)
@@ -26,7 +32,6 @@ All notable changes to Daedalus will be documented in this file.
 
 ### Fix — Dragoon: combo died at step 2 from level 96 (whole dungeons of True Thrust → Disembowel)
 - At level 96 the second combo hits upgrade — Disembowel becomes Spiral Blow and Vorpal Thrust becomes Lance Barrage — and the game reports the upgraded id in the combo state. The combo tracking didn't know the new ids, so from 96 on every combo reset after the second hit: no Chaotic Spring, no Heavens' Thrust, no positionals, no Drakesbane, entire dungeons of two-hit combos (caught at Lv100, 46–74% uptime). Both upgraded ids now drive the combo everywhere they're read, including Life Surge's "big hit next" timing. Same class of bug as the earlier 4th/5th-hit fix, one step earlier in the chain
-<!-- LATEST-END -->
 
 ## v0.1.8 — 2026-07-05
 

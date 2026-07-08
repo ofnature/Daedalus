@@ -61,7 +61,7 @@ public sealed class KardiaManager : IKardiaManager
     public ulong CurrentKardiaTarget => _lastKnownKardiaTarget;
 
     /// <summary>
-    /// Returns true if Kardion (2604) is on a tracked ally.
+    /// Returns true if Kardion (2605) is on a tracked ally.
     /// </summary>
     public bool HasKardia => _hasKardionPlaced;
 
@@ -302,7 +302,7 @@ public sealed class KardiaManager : IKardiaManager
             return true;
         }
 
-        // Trust allies often omit Kardion (2604) from status lists. The Sage Kardia buff (2605)
+        // Trust allies often omit Kardion (2605) from status lists. The Sage Kardia buff (2604)
         // is always readable — when it is up and we are placing on the tank, do not recast.
         if (tank != null
             && target.EntityId == tank.EntityId
@@ -338,7 +338,7 @@ public sealed class KardiaManager : IKardiaManager
         if (target.EntityId == player.EntityId)
         {
             // Solo (no party, no trust): the only valid Kardia target is the Sage.
-            // The Kardia self-buff (2605) is the placement signal, so suppress respam once it is up.
+            // The Kardia self-buff (2604) is the placement signal, so suppress respam once it is up.
             return IsSolo(player) && AsclepiusStatusHelper.HasKardia(player);
         }
 
