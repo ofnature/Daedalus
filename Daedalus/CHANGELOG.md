@@ -5,6 +5,10 @@ All notable changes to Daedalus will be documented in this file.
 <!-- LATEST-START -->
 ## v0.1.11 — 2026-07-07
 
+### New — Party Coordination window: party-wide target modes, alerts, and burst control
+- The LAN Party Coordination window is now a control surface, not just a roster. **Target modes** steer the whole party's targeting from one place: **Focus** (everyone burns one enemy you pick — click it in the window or use your in-game target — and ignores adds), **Split** (DPS spread across the pack, balanced by time-to-kill so everything dies together), and **Kill Adds** (DPS and a designated off-tank peel to adds). The Main Tank is never pulled off the boss — that's a hard guarantee; nominate an off-tank explicitly if you want one moving to adds
+- New at-a-glance signals in the window: an **alert feed** (all-healers-down, tank swap, add spawn, raise incoming), a **DEAD** flag with a raise marker, per-toon **burst-ready pips** plus a **Force Burst** button to align a burst on demand, and a **target-agreement** line showing whether your DPS are focused or split and who's off-target
+
 ### Fix — Samurai: throws Enpi when knocked out of melee instead of idling
 - When Samurai was pushed out of melee range (knockback, a mechanic, or repositioning) it just stood there doing nothing until it walked back in, dropping GCDs the whole time. It now throws Enpi to keep the GCD rolling until it's back in melee — the same ranged-filler behavior Ninja already has with Throwing Dagger, and it uses the enhanced Enpi proc (from Hissatsu: Yaten) when that's up. In melee nothing changes: the check is position-based so it never diverts a real combo to Enpi while you're in range
 <!-- LATEST-END -->

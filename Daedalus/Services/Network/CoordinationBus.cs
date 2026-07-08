@@ -2,6 +2,7 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Numerics;
 using Dalamud.Plugin.Services;
 using Daedalus.Ipc;
 using Daedalus.Services.Party;
@@ -19,6 +20,12 @@ public sealed class LanPeerInfo
     public float HpPercent;
     public string Role = "";
     public string Status = "";
+    /// <summary>Current enemy target GameObjectId (0 = none) — for target-agreement display.</summary>
+    public ulong TargetId;
+    /// <summary>Whether this toon is currently in combat.</summary>
+    public bool InCombat;
+    /// <summary>World position (~2s stale) — used by the Split assigner's locality term.</summary>
+    public Vector3 Position;
     /// <summary>Assigned slot after role negotiation: "Tank 1", "Healer 2", "DPS 3"...</summary>
     public string AssignedSlot = "";
     public DateTime LastSeenUtc;
@@ -64,6 +71,17 @@ public sealed class CoordinationBus : IDisposable
     private DateTime _roleCollectUntil = DateTime.MinValue;
     private readonly Dictionary<string, LanRolePayload> _roleResponses = new();
 
+    // Party target mode (Focus / Split / Kill Adds). Sticky while its setter keeps refreshing it;
+    // auto-clears if the setter goes silent so a crashed master never leaves toons locked.
+    private PartyTargetMode _targetMode = PartyTargetMode.None;
+    private ulong _focusTargetId;
+    private string _offTankSenderId = "";
+    private string _targetModeOwner = "";
+    private DateTime _targetModeFreshUntil = DateTime.MinValue;
+    private DateTime _lastTargetModeSent = DateTime.MinValue;
+    private const float TargetModeTimeoutSeconds = 10f;
+    private const float TargetModeRebroadcastSeconds = 2f;
+
     /// <summary>Supplies the local toon's heartbeat payload each interval (null = not logged in).</summary>
     public Func<LanHeartbeatPayload?>? HeartbeatProvider { get; set; }
 
@@ -74,6 +92,9 @@ public sealed class CoordinationBus : IDisposable
     public event System.Action<string /*sender*/, LanMessage>? OnBurnSignal;
     public event System.Action? OnBurstFire;
     public event System.Action<IReadOnlyDictionary<string, LanRolePayload>>? OnRolesAssigned;
+
+    /// <summary>Raised whenever the party target mode / focus / off-tank changes (local set or remote).</summary>
+    public event System.Action? OnTargetModeChanged;
 
     /// <summary>A remote toon's DPS self-report (framework thread — raised from <see cref="Update"/>).</summary>
     public event System.Action<string /*sender*/, LanDpsReportPayload>? OnDpsReport;
@@ -120,6 +141,18 @@ public sealed class CoordinationBus : IDisposable
     }
 
     public string LocalMachineId => _localMachineId;
+
+    /// <summary>The local toon's sender id ("Character@World").</summary>
+    public string LocalSenderId => _lan.SenderId;
+
+    /// <summary>The active party targeting mode (auto-clears to None if the setter goes silent).</summary>
+    public PartyTargetMode CurrentTargetMode => _targetMode;
+
+    /// <summary>Focus-mode chosen enemy GameObjectId (0 when not in Focus / none picked).</summary>
+    public ulong FocusTargetId => _focusTargetId;
+
+    /// <summary>SenderId of the designated off-tank (empty = none; every tank protected).</summary>
+    public string OffTankSenderId => _offTankSenderId;
 
     /// <summary>Distinct REMOTE machines with a fresh heartbeat.</summary>
     public int PeerMachineCount
@@ -213,6 +246,35 @@ public sealed class CoordinationBus : IDisposable
             _roleCollectUntil = DateTime.MinValue;
             AssignRoleSlots();
         }
+
+        UpdateTargetMode(now);
+    }
+
+    private void UpdateTargetMode(DateTime now)
+    {
+        if (_targetMode == PartyTargetMode.None)
+            return;
+
+        // We own the mode: keep it alive for the party (and refresh our own expiry).
+        if (_targetModeOwner == _lan.SenderId)
+        {
+            if ((now - _lastTargetModeSent).TotalSeconds >= TargetModeRebroadcastSeconds)
+            {
+                _targetModeFreshUntil = now.AddSeconds(TargetModeTimeoutSeconds);
+                SendTargetMode();
+            }
+            return;
+        }
+
+        // A remote owner set it — auto-clear if they've gone silent (crash / disconnect).
+        if (now > _targetModeFreshUntil)
+        {
+            _targetMode = PartyTargetMode.None;
+            _focusTargetId = 0;
+            _offTankSenderId = "";
+            _targetModeOwner = "";
+            OnTargetModeChanged?.Invoke();
+        }
     }
 
     #endregion
@@ -291,6 +353,12 @@ public sealed class CoordinationBus : IDisposable
                 if (report != null)
                     OnDpsReport?.Invoke(msg.SenderId, report);
                 break;
+
+            case LanMessageType.TargetMode:
+                var tm = LanTargetModePayload.FromJson(msg.Payload);
+                if (tm != null)
+                    ApplyTargetModeState(tm.Mode, tm.FocusTargetId, tm.OffTankSenderId, owner: msg.SenderId);
+                break;
         }
     }
 
@@ -331,6 +399,9 @@ public sealed class CoordinationBus : IDisposable
             peer.HpPercent = hb.HpPercent;
             peer.Role = hb.Role;
             peer.Status = hb.Status;
+            peer.TargetId = hb.TargetId;
+            peer.InCombat = hb.InCombat;
+            peer.Position = new Vector3(hb.PosX, hb.PosY, hb.PosZ);
             peer.LastSeenUtc = now;
             if (latencyMs > 0) peer.LatencyMs = latencyMs;
         }
@@ -418,12 +489,66 @@ public sealed class CoordinationBus : IDisposable
     public void BroadcastDpsReport(LanDpsReportPayload payload)
         => _lan.Send(new LanMessage { Type = LanMessageType.DpsReport, Payload = payload.ToJson() });
 
+    /// <summary>
+    /// Set + broadcast the party targeting mode from the coordination window. This toon becomes the
+    /// mode's owner and keeps it alive via periodic rebroadcast (see <see cref="Update"/>).
+    /// </summary>
+    public void BroadcastTargetMode(PartyTargetMode mode, ulong focusTargetId, string offTankSenderId)
+    {
+        ApplyTargetModeState(mode, focusTargetId, offTankSenderId, owner: _lan.SenderId);
+        SendTargetMode();
+    }
+
+    private void SendTargetMode()
+    {
+        _lastTargetModeSent = DateTime.UtcNow;
+        _lan.Send(new LanMessage
+        {
+            Type = LanMessageType.TargetMode,
+            Payload = new LanTargetModePayload
+            {
+                Mode = _targetMode,
+                FocusTargetId = _focusTargetId,
+                OffTankSenderId = _offTankSenderId,
+            }.ToJson(),
+        });
+    }
+
+    private void ApplyTargetModeState(PartyTargetMode mode, ulong focusTargetId, string offTankSenderId, string owner)
+    {
+        var changed = _targetMode != mode || _focusTargetId != focusTargetId || _offTankSenderId != offTankSenderId;
+        _targetMode = mode;
+        _focusTargetId = focusTargetId;
+        _offTankSenderId = offTankSenderId ?? "";
+        _targetModeOwner = owner;
+        _targetModeFreshUntil = DateTime.UtcNow.AddSeconds(TargetModeTimeoutSeconds);
+        if (changed)
+            OnTargetModeChanged?.Invoke();
+    }
+
     #endregion
 
     #region Burst coordination
 
     /// <summary>True while a coordinated burst window is open (3s after BurstFire).</summary>
     public bool IsBurstFireActive => DateTime.UtcNow < _burstFireUntil;
+
+    /// <summary>
+    /// Senders that have signaled burst-ready this cycle (drives the window's ⚡ readiness pips).
+    /// All access is on the framework thread, so a plain snapshot is safe.
+    /// </summary>
+    public IReadOnlyCollection<string> BurstReadySenders => _burstReadySenders.ToArray();
+
+    /// <summary>
+    /// Operator-triggered manual burst: dump now regardless of who has reported ready, so a burst can
+    /// be aligned on demand from the Party Coordination window. Mirrors the fire path in
+    /// <see cref="TryFireBurst"/> without the all-ready gate.
+    /// </summary>
+    public void ForceBurstFire()
+    {
+        _lan.Send(new LanMessage { Type = LanMessageType.BurstFire });
+        ActivateBurstFire(null);
+    }
 
     private void TryFireBurst()
     {

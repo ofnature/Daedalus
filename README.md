@@ -54,9 +54,10 @@ A damage meter that needs no external tools:
 
 Multibox across **multiple PCs** on the same network — UDP broadcast on your local VLAN, unified with same-machine IPC through one coordination bus:
 
-- **Party Coordination window** — every toon across all machines with online status, job, HP, role slot, heartbeat health, and latency
+- **Party Coordination window** — every toon across all machines with online status, job, HP, role slot, heartbeat health, and latency, plus a live alert feed (all-healers-down, tank swap, add spawn, raise incoming), a DEAD/raise marker, and a target-agreement line
+- **Party target modes** — steer the whole party's targeting from the window: **Focus** (everyone burns one enemy you pick and ignores adds), **Split** (DPS spread across the pack, balanced by time-to-kill so the pack dies together), and **Kill Adds** (DPS + a designated off-tank peel to adds). The Main Tank is never pulled off the boss — protection is the default, and you nominate an off-tank explicitly
 - **Role negotiation on zone-in** — tanks/healers/DPS slotted identically on every machine, automatically
-- **Coordinated burst** — all toons open their burst windows simultaneously on signal
+- **Coordinated burst** — all toons open their burst windows simultaneously on signal, with per-toon burst-ready pips and a Force Burst button to align one on demand
 - **Healer-down detection** — broadcasts when every healer is dead so a designated toon can respond
 - **DPS report sharing** — feeds the parser exact per-toon numbers (see above)
 - Name scrambling for stream-safe screenshots

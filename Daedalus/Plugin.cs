@@ -42,7 +42,7 @@ namespace Daedalus;
 
 public sealed class Plugin : IDalamudPlugin
 {
-    public const string PluginVersion = "0.1.10";
+    public const string PluginVersion = "0.1.11";
     private const string CommandName = "/daedalus";
     private const string CommandAlias = "/dae";
 
@@ -116,6 +116,7 @@ public sealed class Plugin : IDalamudPlugin
     private readonly PartyCoordinationIpc? partyCoordinationIpc;
     private readonly Daedalus.Services.Network.LanCoordinator? lanCoordinator;
     private readonly Daedalus.Services.Network.CoordinationBus? coordinationBus;
+    private readonly Daedalus.Services.Targeting.PartyTargetingCoordinator? partyTargetingCoordinator;
     private readonly LanPartyWindow? lanPartyWindow;
 
     // Performance analytics
@@ -398,6 +399,18 @@ public sealed class Plugin : IDalamudPlugin
         if (this.coordinationBus != null)
             this.dpsMeterService.AttachCoordinationBus(this.coordinationBus);
 
+        // Party-wide target-mode enforcement (Focus / Split / Kill Adds). Reads mode/focus/off-tank
+        // from the bus; MT-invariant role gating lives in the coordinator. The overlay reapplies the
+        // effective targeting config, re-run whenever the mode changes.
+        if (this.coordinationBus != null)
+        {
+            this.partyTargetingCoordinator = new Daedalus.Services.Targeting.PartyTargetingCoordinator(
+                this.coordinationBus, objectTable, targetManager, this.dpsMeterService);
+            this.dutyConfigurationService.PartyModeOverlayProvider =
+                this.partyTargetingCoordinator.BuildTargetingOverlay;
+            this.coordinationBus.OnTargetModeChanged += () => this.dutyConfigurationService.Refresh();
+        }
+
         // FFLogs integration
         this.fflogsService = new FFlogsService(configuration.FFLogs, log);
 
@@ -503,7 +516,7 @@ public sealed class Plugin : IDalamudPlugin
         this.raidWindow = new RaidWindow(configuration, SaveConfiguration, dutyContentService);
         this.missingWindow = new MissingWindow(debugService, bluLoadoutService);
         if (coordinationBus != null && lanCoordinator != null)
-            this.lanPartyWindow = new LanPartyWindow(coordinationBus, lanCoordinator, configuration, SaveConfiguration);
+            this.lanPartyWindow = new LanPartyWindow(coordinationBus, lanCoordinator, configuration, SaveConfiguration, objectTable, targetManager);
         this.mainWindow = new MainWindow(configuration, SaveConfiguration, OpenConfigUI, OpenDebugUI, OpenAnalyticsUI, OpenTrainingUI, OpenChangelogUI, OpenOverlayUI, OpenControlUI, OpenNavControlUI, OpenRaidUI, OpenMissingUI, PluginVersion, rotationManager, textureProvider,
             actionTracker: actionTracker, dutyContent: dutyContentService);
         this.mainWindow.LanConnected = () => this.lanCoordinator?.Status == Daedalus.Services.Network.LanStatus.Connected;
@@ -760,6 +773,8 @@ public sealed class Plugin : IDalamudPlugin
 
         var jobId = player.ClassJob.RowId;
         var role = JobRegistry.IsTank(jobId) ? "Tank" : JobRegistry.IsHealer(jobId) ? "Healer" : "DPS";
+        var inCombat = (player.StatusFlags & Dalamud.Game.ClientState.Objects.Enums.StatusFlags.InCombat) != 0;
+        var enemyTarget = targetManager.Target as Dalamud.Game.ClientState.Objects.Types.IBattleNpc;
         return new Daedalus.Services.Network.LanHeartbeatPayload
         {
             CharacterName = player.Name.TextValue,
@@ -768,6 +783,11 @@ public sealed class Plugin : IDalamudPlugin
             HpPercent = player.MaxHp > 0 ? (float)player.CurrentHp / player.MaxHp : 0f,
             Role = role,
             Status = clientState.IsPvP ? "PvP" : "OK",
+            TargetId = enemyTarget?.GameObjectId ?? 0,
+            InCombat = inCombat,
+            PosX = player.Position.X,
+            PosY = player.Position.Y,
+            PosZ = player.Position.Z,
         };
     }
 
@@ -1004,6 +1024,10 @@ public sealed class Plugin : IDalamudPlugin
             if (coordinationBus != null)
                 UpdateLanHealerDownDetector();
 
+            // Enforce the party target mode (Focus / Split / Kill Adds) after the bus pump so mode
+            // state is current this frame. Role-gated; no-op unless a mode is active and eligible.
+            partyTargetingCoordinator?.Tick();
+
             // Always update shield tracking for accurate HP predictions
             shieldTrackingService.Update();
 
@@ -1216,6 +1240,7 @@ public sealed class Plugin : IDalamudPlugin
         pluginInterface.UiBuilder.OpenMainUi -= OpenMainUI;
 
         actionFeedWindow.Dispose();
+        lanPartyWindow?.Dispose();
         windowSystem.RemoveAllWindows();
         DaedalusIpc.Dispose();
         rsrCompatIpc.Dispose();

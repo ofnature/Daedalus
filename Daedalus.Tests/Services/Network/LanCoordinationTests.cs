@@ -1,6 +1,8 @@
 using System;
 using System.Linq;
+using Dalamud.Plugin.Services;
 using Daedalus.Services.Network;
+using Moq;
 using Xunit;
 
 namespace Daedalus.Tests.Services.Network;
@@ -68,6 +70,22 @@ public class LanCoordinationTests
     }
 
     [Fact]
+    public void HeartbeatPayload_TargetAndCombatFields_RoundTrip_AndDefault()
+    {
+        var hb = new LanHeartbeatPayload { TargetId = 0x4000_1234u, InCombat = true };
+        var parsed = LanHeartbeatPayload.FromJson(hb.ToJson());
+        Assert.NotNull(parsed);
+        Assert.Equal(0x4000_1234u, parsed!.TargetId);
+        Assert.True(parsed.InCombat);
+
+        // Older clients omit the fields — must default (0 / false), never fail.
+        var legacy = LanHeartbeatPayload.FromJson("{\"n\":\"X\",\"hp\":1.0}");
+        Assert.NotNull(legacy);
+        Assert.Equal(0u, legacy!.TargetId);
+        Assert.False(legacy.InCombat);
+    }
+
+    [Fact]
     public void RolePayload_RoundTrip()
     {
         var role = new LanRolePayload { CharacterName = "Lyria", JobId = 33, Role = "Healer" };
@@ -122,6 +140,98 @@ public class LanCoordinationTests
 
         peer.LastSeenUtc = now.AddSeconds(-6);
         Assert.True(peer.IsStale(now));
+    }
+
+    private static CoordinationBus NewBus()
+    {
+        var log = new Mock<IPluginLog>().Object;
+        // Coordinator is never Start()ed, so Send() no-ops (no socket bind) — safe for unit tests.
+        var lan = new LanCoordinator(log, "machine-A", 47200) { SenderId = "Self@World" };
+        return new CoordinationBus(log, lan, partyService: null, localMachineId: "machine-A");
+    }
+
+    [Fact]
+    public void ForceBurstFire_OpensBurstWindow_AndRaisesOnBurstFire()
+    {
+        var bus = NewBus();
+        var fired = false;
+        bus.OnBurstFire += () => fired = true;
+
+        Assert.False(bus.IsBurstFireActive);
+        bus.ForceBurstFire();
+
+        Assert.True(fired);
+        Assert.True(bus.IsBurstFireActive);
+        // Force clears the readiness set, same as a normal fire.
+        Assert.Empty(bus.BurstReadySenders);
+    }
+
+    [Fact]
+    public void BurstReadySenders_EmptyByDefault_AndSnapshotIsDetached()
+    {
+        var bus = NewBus();
+
+        // Fresh bus: nothing ready.
+        Assert.Empty(bus.BurstReadySenders);
+
+        // Snapshot must be a detached copy, not a live view that could mutate under the UI.
+        var snapshot = bus.BurstReadySenders;
+        bus.ForceBurstFire();
+        Assert.Empty(snapshot);
+    }
+
+    [Fact]
+    public void BroadcastBurstReady_Solo_FiresImmediately()
+    {
+        // With a one-toon roster the local sender is both the coordinator and the only required
+        // ready signal, so readiness resolves to an immediate fire (and clears the ready set).
+        var bus = NewBus();
+        var fired = false;
+        bus.OnBurstFire += () => fired = true;
+
+        bus.BroadcastBurstReady();
+
+        Assert.True(fired);
+        Assert.True(bus.IsBurstFireActive);
+        Assert.Empty(bus.BurstReadySenders);
+    }
+
+    [Fact]
+    public void TargetModePayload_RoundTrip()
+    {
+        var payload = new LanTargetModePayload
+        {
+            Mode = PartyTargetMode.Focus,
+            FocusTargetId = 0x4000_5678u,
+            OffTankSenderId = "OffTank@World",
+        };
+
+        var parsed = LanTargetModePayload.FromJson(payload.ToJson());
+
+        Assert.NotNull(parsed);
+        Assert.Equal(PartyTargetMode.Focus, parsed!.Mode);
+        Assert.Equal(0x4000_5678u, parsed.FocusTargetId);
+        Assert.Equal("OffTank@World", parsed.OffTankSenderId);
+    }
+
+    [Fact]
+    public void BroadcastTargetMode_SetsState_AndRaisesChangedEvent()
+    {
+        var bus = NewBus();
+        var changed = 0;
+        bus.OnTargetModeChanged += () => changed++;
+
+        Assert.Equal(PartyTargetMode.None, bus.CurrentTargetMode);
+
+        bus.BroadcastTargetMode(PartyTargetMode.KillAdds, focusTargetId: 0, offTankSenderId: "OT@W");
+
+        Assert.Equal(PartyTargetMode.KillAdds, bus.CurrentTargetMode);
+        Assert.Equal("OT@W", bus.OffTankSenderId);
+        Assert.Equal(1, changed);
+
+        // Re-broadcasting the same state must not re-raise the change event.
+        bus.BroadcastTargetMode(PartyTargetMode.KillAdds, focusTargetId: 0, offTankSenderId: "OT@W");
+        Assert.Equal(1, changed);
     }
 
     [Fact]

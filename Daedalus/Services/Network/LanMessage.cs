@@ -43,6 +43,29 @@ public enum LanMessageType
 
     /// <summary>Per-toon DPS self-report for the parser (~2s cadence in combat + final on end).</summary>
     DpsReport = 10,
+
+    /// <summary>Party-wide targeting mode (Focus / Split / Kill Adds) set from the coordination window.</summary>
+    TargetMode = 11,
+}
+
+/// <summary>
+/// Party-wide targeting intent set from the Party Coordination window and enforced by
+/// <c>PartyTargetingCoordinator</c> on every eligible toon. <see cref="None"/> = normal per-job
+/// targeting.
+/// </summary>
+public enum PartyTargetMode
+{
+    /// <summary>No override — each toon targets normally.</summary>
+    None = 0,
+
+    /// <summary>Everyone converges on one chosen enemy and ignores adds (single-target burn).</summary>
+    Focus = 1,
+
+    /// <summary>DPS spread across mobs, TTK-balanced so the pack dies together.</summary>
+    Split = 2,
+
+    /// <summary>Eligible toons (DPS + off-tank) prioritize adds while the MT holds the boss.</summary>
+    KillAdds = 3,
 }
 
 /// <summary>
@@ -119,6 +142,25 @@ public sealed class LanHeartbeatPayload
     [JsonPropertyName("st")]
     public string Status { get; set; } = "";
 
+    /// <summary>Current enemy target GameObjectId (0 = none). Shared across clients in one instance,
+    /// so the window can resolve/compare it for target-agreement display. Additive/back-compat.</summary>
+    [JsonPropertyName("tg")]
+    public ulong TargetId { get; set; }
+
+    /// <summary>Whether this toon is currently in combat. Additive/back-compat (defaults false).</summary>
+    [JsonPropertyName("ic")]
+    public bool InCombat { get; set; }
+
+    /// <summary>World position — used by the Split assigner's locality term. Additive/back-compat.</summary>
+    [JsonPropertyName("px")]
+    public float PosX { get; set; }
+
+    [JsonPropertyName("py")]
+    public float PosY { get; set; }
+
+    [JsonPropertyName("pz")]
+    public float PosZ { get; set; }
+
     /// <summary>Echo of the newest remote timestamp we've seen — latency = now - echo (one-way-ish).</summary>
     [JsonPropertyName("e")]
     public long EchoTimestamp { get; set; }
@@ -182,6 +224,29 @@ public sealed class LanDpsReportPayload
     public static LanDpsReportPayload? FromJson(string json)
     {
         try { return JsonSerializer.Deserialize<LanDpsReportPayload>(json); }
+        catch { return null; }
+    }
+}
+
+/// <summary>TargetMode payload — the party-wide targeting intent set from the coordination window.</summary>
+public sealed class LanTargetModePayload
+{
+    [JsonPropertyName("md")]
+    public PartyTargetMode Mode { get; set; }
+
+    /// <summary>Focus mode: the chosen enemy's GameObjectId (0 otherwise).</summary>
+    [JsonPropertyName("f")]
+    public ulong FocusTargetId { get; set; }
+
+    /// <summary>SenderId of the designated off-tank (empty = none; all tanks protected).</summary>
+    [JsonPropertyName("ot")]
+    public string OffTankSenderId { get; set; } = "";
+
+    public string ToJson() => JsonSerializer.Serialize(this);
+
+    public static LanTargetModePayload? FromJson(string json)
+    {
+        try { return JsonSerializer.Deserialize<LanTargetModePayload>(json); }
         catch { return null; }
     }
 }
