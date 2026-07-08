@@ -21,7 +21,6 @@
   "ui.main.positional_immune": "Immune",
   "ui.main.preset": "Preset:",
   "config.window_title": "Daedalus 設定",
-  "config.join_discord": "Discordに参加",
   "config.enable_rotation": "ローテーション有効",
   "config.enable_rotation_desc": "有効にすると、ローテーションが自動的にスキルを発動します。",
   "config.preset": "設定プリセット",

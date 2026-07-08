@@ -22,7 +22,6 @@
   "ui.main.preset": "Preset:",
 
   "config.window_title": "Daedalus Settings",
-  "config.join_discord": "Join Discord",
   "config.enable_rotation": "Enable Rotation",
   "config.enable_rotation_desc": "When enabled, the rotation will automatically cast spells.",
   "config.preset": "Configuration Preset",
@@ -2486,7 +2485,6 @@
   "ui.welcome.lets_go": "Let's Go!",
   "ui.welcome.back": "← Back",
   "ui.welcome.next": "Next →",
-  "ui.welcome.join_discord": "Join Discord",
 
   "config.sidebar.party_coordination": "Party Coordination",
   "config.party_coord.enable": "Enable Party Coordination",

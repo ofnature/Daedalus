@@ -21,7 +21,6 @@
   "ui.main.positional_immune": "Immune",
   "ui.main.preset": "Preset:",
   "config.window_title": "奥林匹斯设置",
-  "config.join_discord": "加入Discord",
   "config.enable_rotation": "启用循环",
   "config.enable_rotation_desc": "启用/禁用自动循环执行",
   "config.preset": "预设",

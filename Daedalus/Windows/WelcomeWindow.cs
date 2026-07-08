@@ -10,16 +10,13 @@ namespace Daedalus.Windows;
 
 public sealed class WelcomeWindow : Window
 {
-    private const string DiscordUrl = "https://discord.gg/3gXYyqbdaU";
-
     private readonly Configuration _configuration;
     private readonly Action _saveConfiguration;
     private readonly Action _openSettings;
 
     private static readonly string[] PresetNames = Enum.GetNames<ConfigurationPreset>();
 
-    private static readonly Vector4 GoldColor    = new(1.0f, 0.84f, 0.0f, 1.0f);
-    private static readonly Vector4 DiscordColor = new(88f / 255f, 101f / 255f, 242f / 255f, 1.0f);
+    private static readonly Vector4 GoldColor = new(1.0f, 0.84f, 0.0f, 1.0f);
 
     private const int PageCount = 3;
     private int _page;
@@ -161,16 +158,6 @@ public sealed class WelcomeWindow : Window
 
         ImGui.Spacing();
         ImGui.Separator();
-        ImGui.Spacing();
-
-        // Discord button
-        ImGui.PushStyleColor(ImGuiCol.Button,        DiscordColor);
-        ImGui.PushStyleColor(ImGuiCol.ButtonHovered, DiscordColor * 1.15f);
-        ImGui.PushStyleColor(ImGuiCol.ButtonActive,  DiscordColor * 0.85f);
-        if (ImGui.Button(Loc.T(LocalizedStrings.Welcome.JoinDiscord, "Join Discord"), new Vector2(-1, 0)))
-            Util.OpenLink(DiscordUrl);
-        ImGui.PopStyleColor(3);
-
         ImGui.Spacing();
 
         DrawPageIndicator();

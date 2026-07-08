@@ -38,6 +38,9 @@ public sealed class UpdateCheckerService : IDisposable
     public UpdateCheckStatus Status { get; private set; } = UpdateCheckStatus.Unknown;
     public string? LatestVersion { get; private set; }
 
+    /// <summary>The locally running plugin version — what "up to date" should display.</summary>
+    public string CurrentVersion => _currentVersion;
+
     public UpdateCheckerService(
         string currentVersion,
         INotificationManager notificationManager,
@@ -129,7 +132,11 @@ public sealed class UpdateCheckerService : IDisposable
 
     private async Task<string?> FetchLatestVersionAsync(CancellationToken ct)
     {
-        using var response = await _httpClient.GetAsync(RepoJsonUrl, ct).ConfigureAwait(false);
+        // Cache-buster: raw.githubusercontent sits behind a CDN with a ~5 min cache window keyed on
+        // the full URL — right after a release, the plain URL serves the PREVIOUS repo.json and the
+        // manual "check for updates" reads stale. A unique query string forces a fresh fetch.
+        var url = $"{RepoJsonUrl}?t={DateTimeOffset.UtcNow.ToUnixTimeSeconds()}";
+        using var response = await _httpClient.GetAsync(url, ct).ConfigureAwait(false);
         response.EnsureSuccessStatusCode();
         var json = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
         using var doc = JsonDocument.Parse(json);

@@ -3,6 +3,13 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.13 — 2026-07-08
+
+### Fix — Settings: job validation chips match reality, update checker reads fresh and shows your version
+- The per-job validation chips in Settings had fallen behind: Scholar, Dragoon, Black Mage, and Summoner all completed their full in-game validation passes but still showed "untested"/"pending" — now marked **validated**. Bard moves to **pending** (real mid-level pass done, higher-level milestones remain) and Sage moves to **pending** until the new Kardia behavior gets its live run
+- "Check for Updates" could read a cached copy of the version manifest for up to ~5 minutes after a release, and its "Up to date" label printed the *remote* version — so right after an update it could claim "up to date (v0.1.11.0)" while you were already running v0.1.12. Every check now fetches fresh, and "Up to date" shows the version you're actually running
+<!-- LATEST-END -->
+
 ## v0.1.12 — 2026-07-07
 
 ### Improved — Party Coordination window: mock-parity layout, scrambled machine names, sturdier mode sync
@@ -14,7 +21,6 @@ All notable changes to Daedalus will be documented in this file.
 - When the tank left the zone mid-session (left party, disconnected, teleported away), the Sage would re-cast Kardia every couple of seconds forever instead of settling on a fallback target. The internal "Kardia is on the tank" lock was only ever cleared on a zone change — never when the tank itself disappeared — so the rotation kept asserting a placement that no longer existed while churning targets underneath. The lock now drops when its bearer dies (instantly — the buff strips on death) or has been gone for a few seconds, and every new placement locks onto its actual target so one cast settles it
 - Kardia's smart swap now really works: with "Kardia swap" enabled, Kardion moves to the most injured party member below your swap threshold during combat, then returns to the tank once they've recovered — respecting the 5s swap cooldown so it never thrashes. This logic existed as a setting but was never wired into the rotation; Kardia was tank-or-nothing in practice
 - New fallback order when there is no tank at all: the hardest-hitting DPS ally (ranked by the built-in parser mid-fight — they're holding the aggro), then yourself. Previously it churned on whoever was lowest HP at that moment
-<!-- LATEST-END -->
 
 ## v0.1.11 — 2026-07-07
 

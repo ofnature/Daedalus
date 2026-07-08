@@ -21,7 +21,6 @@
   "ui.main.positional_immune": "Immune",
   "ui.main.preset": "Preset:",
   "config.window_title": "Daedalus Settings",
-  "config.join_discord": "Join Discord",
   "config.enable_rotation": "Enable Rotation",
   "config.enable_rotation_desc": "When enabled, the rotation will automatically cast spells.",
   "config.preset": "Configuration Preset",

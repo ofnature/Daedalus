@@ -219,19 +219,6 @@ public sealed class ConfigWindow : Window
 
     private void DrawHeader()
     {
-        // Discord community button
-        var discordColor = new Vector4(88f / 255f, 101f / 255f, 242f / 255f, 1.0f);
-        ImGui.PushStyleColor(ImGuiCol.Button, discordColor);
-        ImGui.PushStyleColor(ImGuiCol.ButtonHovered, discordColor * 1.1f);
-        ImGui.PushStyleColor(ImGuiCol.ButtonActive, discordColor * 0.9f);
-        if (ImGui.Button(Loc.T(LocalizedStrings.Config.JoinDiscord, "Join Discord"), new Vector2(100, 0)))
-        {
-            Util.OpenLink("https://discord.gg/3gXYyqbdaU");
-        }
-        ImGui.PopStyleColor(3);
-
-        ImGui.SameLine();
-
         var enabled = configuration.Enabled;
         if (ImGui.Checkbox(Loc.T(LocalizedStrings.Config.EnableRotation, "Enable Rotation"), ref enabled))
         {
@@ -459,8 +446,10 @@ public sealed class ConfigWindow : Window
                 break;
             case UpdateCheckStatus.UpToDate:
                 ImGui.SameLine();
+                // Show the LOCAL version — printing the remote's version here made a stale CDN
+                // read look like the plugin itself was behind ("up to date (v0.1.11.0)" on v0.1.12).
                 ImGui.TextColored(new Vector4(0.4f, 1f, 0.4f, 1f),
-                    $"{Loc.T(LocalizedStrings.Config.UpToDate, "Up to date")} (v{updateCheckerService.LatestVersion})");
+                    $"{Loc.T(LocalizedStrings.Config.UpToDate, "Up to date")} (v{updateCheckerService.CurrentVersion})");
                 break;
             case UpdateCheckStatus.UpdateAvailable:
                 ImGui.SameLine();

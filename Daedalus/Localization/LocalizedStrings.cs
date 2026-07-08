@@ -84,7 +84,6 @@ public static class LocalizedStrings
     public static class Config
     {
         public const string WindowTitle = "config.window_title";
-        public const string JoinDiscord = "config.join_discord";
         public const string EnableRotation = "config.enable_rotation";
         public const string EnableRotationDesc = "config.enable_rotation_desc";
         public const string ConfigPreset = "config.preset";
@@ -3541,7 +3540,6 @@ public static class LocalizedStrings
         public const string LetsGo = "ui.welcome.lets_go";
         public const string Back = "ui.welcome.back";
         public const string Next = "ui.welcome.next";
-        public const string JoinDiscord = "ui.welcome.join_discord";
     }
 
     #endregion
