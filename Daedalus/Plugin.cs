@@ -42,7 +42,7 @@ namespace Daedalus;
 
 public sealed class Plugin : IDalamudPlugin
 {
-    public const string PluginVersion = "0.1.11";
+    public const string PluginVersion = "0.1.12";
     private const string CommandName = "/daedalus";
     private const string CommandAlias = "/dae";
 
@@ -409,6 +409,9 @@ public sealed class Plugin : IDalamudPlugin
             this.dutyConfigurationService.PartyModeOverlayProvider =
                 this.partyTargetingCoordinator.BuildTargetingOverlay;
             this.coordinationBus.OnTargetModeChanged += () => this.dutyConfigurationService.Refresh();
+            // Also refresh on eligibility flips (job change mid-mode, login) — mode alone isn't
+            // enough to keep the overlay honest.
+            this.partyTargetingCoordinator.OnEnforcementStateChanged += () => this.dutyConfigurationService.Refresh();
         }
 
         // FFLogs integration

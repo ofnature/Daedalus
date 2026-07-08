@@ -36,6 +36,7 @@ public sealed class AsclepiusContext : BaseHealerContext, IAsclepiusContext
     public IAdderstingTrackingService AdderstingService { get; }
     public IKardiaManager KardiaManager { get; }
     public IEukrasiaStateService EukrasiaService { get; }
+    public Daedalus.Services.Analytics.IDpsMeterService? DpsMeter { get; }
 
     #endregion
 
@@ -115,7 +116,8 @@ public sealed class AsclepiusContext : BaseHealerContext, IAsclepiusContext
         ITimelineService? timelineService = null,
         ITrainingService? trainingService = null,
         AsclepiusDebugState? debugState = null,
-        IPluginLog? log = null)
+        IPluginLog? log = null,
+        Daedalus.Services.Analytics.IDpsMeterService? dpsMeter = null)
         : base(player, inCombat, isMoving, canExecuteGcd, canExecuteOgcd,
                actionService, actionTracker, combatEventService, damageIntakeService, damageTrendService,
                frameCache, configuration, debuffDetectionService, hpPredictionService, mpForecastService,
@@ -129,6 +131,7 @@ public sealed class AsclepiusContext : BaseHealerContext, IAsclepiusContext
         AdderstingService = adderstingService;
         KardiaManager = kardiaManager;
         EukrasiaService = eukrasiaService;
+        DpsMeter = dpsMeter;
         StatusHelper = statusHelper;
         PartyHelper = partyHelper;
         Debug = debugState ?? new AsclepiusDebugState();

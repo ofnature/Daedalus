@@ -36,6 +36,12 @@ public sealed class LanPartyWindow : Window, IDisposable
         "Maia", "Clio", "Erato", "Thalia", "Urania", "Calliope", "Astraea", "Hemera",
     ];
 
+    // Greek places for machine names under the scramble toggle (hostnames identify the PC).
+    private static readonly string[] MachineAliasPool =
+    [
+        "Olympus", "Delphi", "Ithaca", "Crete", "Rhodes", "Sparta", "Argos", "Thebes",
+    ];
+
     private readonly CoordinationBus _bus;
     private readonly LanCoordinator _lan;
     private readonly Configuration _config;
@@ -43,6 +49,7 @@ public sealed class LanPartyWindow : Window, IDisposable
     private readonly IObjectTable _objectTable;
     private readonly ITargetManager _targetManager;
     private readonly Dictionary<string, string> _aliases = new();
+    private readonly Dictionary<string, string> _machineAliases = new();
 
     /// <summary>One coordination event surfaced in the alert feed.</summary>
     private readonly record struct AlertEntry(DateTime Time, string Text, Vector4 Color);
@@ -143,8 +150,8 @@ public sealed class LanPartyWindow : Window, IDisposable
         else
             DrawRoster(roster, now, cfg, burstReady);
 
-        DrawAgreement(distinctTargets, eligibleDps);
-        DrawBurstStrip(burstReady.Count);
+        DrawAgreement(roster, now, distinctTargets, eligibleDps);
+        DrawBurstStrip(roster, now, burstReady);
         DrawAlerts(now);
 
         ImGui.Spacing();
@@ -186,33 +193,127 @@ public sealed class LanPartyWindow : Window, IDisposable
         return (majority, counts.Count, eligible);
     }
 
-    private void DrawAgreement(int distinctTargets, int eligibleDps)
+    /// <summary>
+    /// Mode-aware compliance line: under Focus it reads "Focus: X/N DPS on {enemy} · {toon} down ·
+    /// MT holds boss"; without a mode it falls back to the focused/split summary.
+    /// </summary>
+    private void DrawAgreement(LanPeerInfo[] roster, DateTime now, int distinctTargets, int eligibleDps)
     {
-        if (eligibleDps == 0)
+        var mode = _bus.CurrentTargetMode;
+        var deadName = FindDeadToonName(roster, now);
+
+        if (mode == PartyTargetMode.None && eligibleDps == 0 && deadName == null)
             return;
 
         ImGui.Spacing();
-        if (distinctTargets <= 1)
-            ImGui.TextColored(Green, $"focused — {eligibleDps} DPS on one target");
-        else
-            ImGui.TextColored(Yellow, $"split — {distinctTargets} targets across {eligibleDps} DPS");
+
+        if (mode == PartyTargetMode.Focus && _bus.FocusTargetId != 0)
+        {
+            var onFocus = roster.Count(p =>
+                !p.IsStale(now) && p.InCombat && IsDpsRole(p.Role) && p.TargetId == _bus.FocusTargetId);
+            var totalDps = roster.Count(p => !p.IsStale(now) && IsDpsRole(p.Role));
+            var focusName = _objectTable.SearchById(_bus.FocusTargetId)?.Name.TextValue ?? "target";
+            ImGui.TextColored(DaedalusTheme.AccentGold, $"Focus: {onFocus}/{Math.Max(totalDps, onFocus)} DPS on {focusName}");
+        }
+        else if (mode == PartyTargetMode.Split && eligibleDps > 0)
+        {
+            ImGui.TextColored(DaedalusTheme.AccentGold,
+                $"Split: {eligibleDps} DPS across {Math.Max(distinctTargets, 1)} targets");
+        }
+        else if (mode == PartyTargetMode.KillAdds)
+        {
+            ImGui.TextColored(DaedalusTheme.AccentGold, "Kill adds");
+        }
+        else if (eligibleDps > 0)
+        {
+            if (distinctTargets <= 1)
+                ImGui.TextColored(Green, $"focused — {eligibleDps} DPS on one target");
+            else
+                ImGui.TextColored(Yellow, $"split — {distinctTargets} targets across {eligibleDps} DPS");
+        }
+
+        if (deadName != null)
+        {
+            ImGui.SameLine();
+            ImGui.TextColored(Dim, " · ");
+            ImGui.SameLine();
+            ImGui.TextColored(Red, $"{deadName} down");
+        }
+
+        if (mode != PartyTargetMode.None && HasProtectedTank(roster, now))
+        {
+            ImGui.SameLine();
+            ImGui.TextColored(Dim, " · MT holds boss");
+        }
     }
 
-    private void DrawBurstStrip(int readyCount)
+    private string? FindDeadToonName(LanPeerInfo[] roster, DateTime now)
     {
-        if (_bus.IsBurstFireActive)
+        foreach (var peer in roster)
         {
-            ImGui.Spacing();
-            ImGui.TextColored(DaedalusTheme.AccentGold, "⚡ BURST WINDOW OPEN");
-            return;
+            if (!peer.IsStale(now) && peer.HpPercent <= 0f && (peer.Role.Length > 0 || peer.JobAbbrev.Length > 0))
+                return _config.PartyCoordination.LanScrambleNames ? AliasFor(peer.SenderId) : peer.CharacterName;
         }
 
-        if (readyCount > 0)
+        return null;
+    }
+
+    private bool HasProtectedTank(LanPeerInfo[] roster, DateTime now) =>
+        roster.Any(p => !p.IsStale(now) && p.Role == "Tank" && p.SenderId != _bus.OffTankSenderId);
+
+    /// <summary>
+    /// Bordered burst strip (mock parity): readiness count + per-toon pips + a gold Force button.
+    /// Shown whenever there is a roster; flips to a BURST OPEN banner while the window is live.
+    /// </summary>
+    private void DrawBurstStrip(LanPeerInfo[] roster, DateTime now, HashSet<string> burstReady)
+    {
+        if (roster.Length == 0)
+            return;
+
+        ImGui.Spacing();
+        var height = ImGui.GetFrameHeightWithSpacing() + ImGui.GetStyle().WindowPadding.Y * 2f - ImGui.GetStyle().ItemSpacing.Y;
+        ImGui.PushStyleColor(ImGuiCol.Border, DaedalusTheme.AccentDim);
+        ImGui.BeginChild("burststrip", new Vector2(0f, height), true);
+
+        var fresh = roster.Where(p => !p.IsStale(now)).ToArray();
+        var readyCount = fresh.Count(p => burstReady.Contains(p.SenderId));
+
+        ImGui.AlignTextToFramePadding();
+        if (_bus.IsBurstFireActive)
         {
-            var total = Math.Max(readyCount, _bus.Roster.Count);
-            ImGui.Spacing();
-            ImGui.TextColored(Yellow, $"⚡ Burst readiness {readyCount}/{total}");
+            ImGui.TextColored(DaedalusTheme.AccentGold, "⚡ BURST WINDOW OPEN");
         }
+        else
+        {
+            ImGui.TextColored(DaedalusTheme.AccentGold, "⚡ Burst readiness");
+            ImGui.SameLine();
+            ImGui.Text($"{readyCount}/{Math.Max(fresh.Length, 1)}");
+            ImGui.SameLine(0f, 10f);
+            foreach (var peer in fresh)
+            {
+                ImGui.TextColored(burstReady.Contains(peer.SenderId) ? DaedalusTheme.AccentGold : DaedalusTheme.TextDisabled, "⚡");
+                ImGui.SameLine(0f, 2f);
+            }
+        }
+
+        // Gold Force button flush right, like the mock.
+        const string forceLabel = "Force burst now";
+        var buttonWidth = ImGui.CalcTextSize(forceLabel).X + ImGui.GetStyle().FramePadding.X * 2f;
+        var rightX = ImGui.GetWindowContentRegionMax().X - buttonWidth;
+        if (rightX > ImGui.GetCursorPosX())
+            ImGui.SameLine(rightX);
+        else
+            ImGui.SameLine();
+        ImGui.PushStyleColor(ImGuiCol.Button, DaedalusTheme.AccentGold);
+        ImGui.PushStyleColor(ImGuiCol.ButtonHovered, DaedalusTheme.AccentGold);
+        ImGui.PushStyleColor(ImGuiCol.ButtonActive, DaedalusTheme.AccentDim);
+        ImGui.PushStyleColor(ImGuiCol.Text, DaedalusTheme.BgDeep);
+        if (ImGui.Button(forceLabel))
+            _bus.ForceBurstFire();
+        ImGui.PopStyleColor(4);
+
+        ImGui.EndChild();
+        ImGui.PopStyleColor();
     }
 
     private void DrawAlerts(DateTime now)
@@ -222,10 +323,13 @@ public sealed class LanPartyWindow : Window, IDisposable
 
         ImGui.Spacing();
         ImGui.TextColored(DaedalusTheme.TextDisabled, "Alerts");
+        var scramble = _config.PartyCoordination.LanScrambleNames;
         foreach (var alert in _alerts)
         {
             var age = (int)Math.Max(0, (now - alert.Time).TotalSeconds);
-            ImGui.TextColored(alert.Color, alert.Text);
+            // Alerts capture raw names at event time; scramble is applied at draw so the toggle
+            // covers alerts that fired before it was switched on.
+            ImGui.TextColored(alert.Color, scramble ? ScrambleNamesIn(alert.Text) : alert.Text);
             ImGui.SameLine();
             ImGui.TextColored(DaedalusTheme.TextDisabled, $"{age}s ago");
         }
@@ -247,11 +351,17 @@ public sealed class LanPartyWindow : Window, IDisposable
         ImGui.SameLine();
         ImGui.TextColored(Dim, $"  Peers: {_bus.PeerToonCount}  Port: {_config.PartyCoordination.LanPort}");
 
+        // Latency sits flush right, like the mock.
         var latency = _bus.RemoteLatencyMs;
         if (latency > 0)
         {
-            ImGui.SameLine();
-            ImGui.TextColored(latency < 50 ? Green : Dim, $"  {latency:F0} ms");
+            var text = $"{latency:F0} ms";
+            var rightX = ImGui.GetWindowContentRegionMax().X - ImGui.CalcTextSize(text).X;
+            if (rightX > ImGui.GetCursorPosX())
+                ImGui.SameLine(rightX);
+            else
+                ImGui.SameLine();
+            ImGui.TextColored(latency < 50 ? Green : Dim, text);
         }
     }
 
@@ -488,7 +598,8 @@ public sealed class LanPartyWindow : Window, IDisposable
 
                 currentMachine = peer.MachineId;
                 ImGui.Spacing();
-                ImGui.TextColored(isLocal ? DaedalusTheme.AccentGold : DaedalusTheme.AccentDim, $"■ {peer.MachineId}");
+                var machineLabel = cfg.LanScrambleNames ? MachineAliasFor(peer.MachineId) : peer.MachineId;
+                ImGui.TextColored(isLocal ? DaedalusTheme.AccentGold : DaedalusTheme.AccentDim, $"■ {machineLabel}");
                 ImGui.SameLine();
                 ImGui.TextColored(DaedalusTheme.TextDisabled, isLocal ? "(Local)" : "(Remote)");
 
@@ -526,7 +637,7 @@ public sealed class LanPartyWindow : Window, IDisposable
         ImGui.TableNextRow();
 
         ImGui.TableNextColumn();
-        DrawRoleSyncIcon(peer.Role, state, stateColor);
+        DrawRoleSyncIcon(peer.Role, state, isDead ? Red : stateColor);
 
         ImGui.TableNextColumn();
         var name = scramble ? AliasFor(peer.SenderId) : peer.CharacterName;
@@ -540,9 +651,9 @@ public sealed class LanPartyWindow : Window, IDisposable
         ImGui.TableNextColumn();
         if (isDead)
         {
-            // A synced toon at 0 HP is dead — call it out instead of an empty green bar.
-            ImGui.PushStyleColor(ImGuiCol.PlotHistogram, Red);
-            ImGui.ProgressBar(1f, new Vector2(-1f, 14f), "DEAD");
+            // A synced toon at 0 HP is dead — dark empty bar with red DEAD text (mock parity).
+            ImGui.PushStyleColor(ImGuiCol.Text, Red);
+            ImGui.ProgressBar(0f, new Vector2(-1f, 14f), "DEAD");
             ImGui.PopStyleColor();
         }
         else if (showHp && !compact)
@@ -578,6 +689,16 @@ public sealed class LanPartyWindow : Window, IDisposable
         if (isDead)
         {
             ImGui.TextColored(Red, "raise");
+            return;
+        }
+
+        // Focus compliance marker: a DPS actually on the party focus target (mock's "→ focus").
+        if (_bus.CurrentTargetMode == PartyTargetMode.Focus
+            && _bus.FocusTargetId != 0
+            && IsDpsRole(peer.Role)
+            && peer.TargetId == _bus.FocusTargetId)
+        {
+            ImGui.TextColored(DaedalusTheme.AccentGold, "→ focus");
             return;
         }
 
@@ -664,10 +785,6 @@ public sealed class LanPartyWindow : Window, IDisposable
         if (ImGui.Checkbox("Compact", ref compactMode)) { cfg.LanCompactMode = compactMode; changed = true; }
         ImGui.SameLine();
 
-        if (ImGui.Button("Force Burst"))
-            _bus.ForceBurstFire();
-        ImGui.SameLine();
-
         if (ImGui.Button("Copy Party Data"))
             ImGui.SetClipboardText(BuildPartyDataText());
 
@@ -710,5 +827,34 @@ public sealed class LanPartyWindow : Window, IDisposable
 
         _aliases[senderId] = alias;
         return alias;
+    }
+
+    /// <summary>Session-consistent machine alias — hostnames identify the PC, so scramble covers them too.</summary>
+    private string MachineAliasFor(string machineId)
+    {
+        if (_machineAliases.TryGetValue(machineId, out var alias))
+            return alias;
+
+        alias = MachineAliasPool[_machineAliases.Count % MachineAliasPool.Length];
+        if (_machineAliases.Count >= MachineAliasPool.Length)
+            alias += $" {_machineAliases.Count / MachineAliasPool.Length + 1}";
+
+        _machineAliases[machineId] = alias;
+        return alias;
+    }
+
+    /// <summary>
+    /// Replaces every known roster character name in <paramref name="text"/> with its alias.
+    /// Applied at DRAW time so alerts captured before the scramble toggle flipped stay covered.
+    /// </summary>
+    private string ScrambleNamesIn(string text)
+    {
+        foreach (var peer in _bus.Roster)
+        {
+            if (peer.CharacterName.Length > 0 && text.Contains(peer.CharacterName, StringComparison.Ordinal))
+                text = text.Replace(peer.CharacterName, AliasFor(peer.SenderId), StringComparison.Ordinal);
+        }
+
+        return text;
     }
 }

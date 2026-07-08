@@ -3,6 +3,19 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.12 — 2026-07-07
+
+### Improved — Party Coordination window: mock-parity layout, scrambled machine names, sturdier mode sync
+- The burst readiness strip is now a proper bordered panel with per-toon lightning pips and a gold **Force burst now** button; the status summary line is mode-aware (e.g. `Focus: 2/3 DPS on Gate Sentry · Rosa down · MT holds boss`), rows show a gold `→ focus` marker for DPS actually on the party focus target, dead toons get a dark DEAD bar with a red role chip, and latency sits flush right
+- **Scramble Names** now also covers machine names (hostnames become Greek places like `Olympus`, `Delphi`) and the alert feed — alerts substitute toon aliases at display time, so even alerts that fired *before* you flipped the toggle are covered in screenshots
+- Two sync robustness fixes: switching the target mode back to **None** is re-announced for a few seconds so a single lost network packet can't leave other PCs enforcing a dead mode, and the targeting override now applies/clears immediately on job changes or login instead of waiting for a zone change
+
+### Fix — Sage: Kardia no longer chain-casts when the tank leaves, and actually moves to hurt allies
+- When the tank left the zone mid-session (left party, disconnected, teleported away), the Sage would re-cast Kardia every couple of seconds forever instead of settling on a fallback target. The internal "Kardia is on the tank" lock was only ever cleared on a zone change — never when the tank itself disappeared — so the rotation kept asserting a placement that no longer existed while churning targets underneath. The lock now drops when its bearer dies (instantly — the buff strips on death) or has been gone for a few seconds, and every new placement locks onto its actual target so one cast settles it
+- Kardia's smart swap now really works: with "Kardia swap" enabled, Kardion moves to the most injured party member below your swap threshold during combat, then returns to the tank once they've recovered — respecting the 5s swap cooldown so it never thrashes. This logic existed as a setting but was never wired into the rotation; Kardia was tank-or-nothing in practice
+- New fallback order when there is no tank at all: the hardest-hitting DPS ally (ranked by the built-in parser mid-fight — they're holding the aggro), then yourself. Previously it churned on whoever was lowest HP at that moment
+<!-- LATEST-END -->
+
 ## v0.1.11 — 2026-07-07
 
 ### New — Party Coordination window: party-wide target modes, alerts, and burst control
@@ -11,7 +24,6 @@ All notable changes to Daedalus will be documented in this file.
 
 ### Fix — Samurai: throws Enpi when knocked out of melee instead of idling
 - When Samurai was pushed out of melee range (knockback, a mechanic, or repositioning) it just stood there doing nothing until it walked back in, dropping GCDs the whole time. It now throws Enpi to keep the GCD rolling until it's back in melee — the same ranged-filler behavior Ninja already has with Throwing Dagger, and it uses the enhanced Enpi proc (from Hissatsu: Yaten) when that's up. In melee nothing changes: the check is position-based so it never diverts a real combo to Enpi while you're in range
-<!-- LATEST-END -->
 
 ## v0.1.10 — 2026-07-07
 

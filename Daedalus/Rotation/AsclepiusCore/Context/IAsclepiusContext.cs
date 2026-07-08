@@ -40,6 +40,12 @@ public interface IAsclepiusContext : IHealerRotationContext
     /// </summary>
     IEukrasiaStateService EukrasiaService { get; }
 
+    /// <summary>
+    /// Live DPS parser — used to rank allies for the no-tank Kardia fallback (highest DPS holds
+    /// de-facto aggro). Null when the parser is unavailable; consumers must fail open.
+    /// </summary>
+    Daedalus.Services.Analytics.IDpsMeterService? DpsMeter { get; }
+
     #endregion
 
     #region SGE-Specific Helpers

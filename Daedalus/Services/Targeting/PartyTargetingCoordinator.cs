@@ -31,6 +31,15 @@ public sealed class PartyTargetingCoordinator
 
     private DateTime _lastSplitCompute = DateTime.MinValue;
     private ulong _splitAssignedId;
+    private (PartyTargetMode mode, bool eligible) _lastEnforcementState = (PartyTargetMode.None, false);
+
+    /// <summary>
+    /// Raised when the local enforcement state changes — mode transitions AND eligibility flips
+    /// (job change mid-mode, login after the mode was set). The plugin wires this to
+    /// DutyConfigurationService.Refresh so the targeting overlay is applied/removed promptly
+    /// instead of lingering until the next zone change.
+    /// </summary>
+    public event System.Action? OnEnforcementStateChanged;
 
     public PartyTargetingCoordinator(
         CoordinationBus bus,
@@ -48,14 +57,25 @@ public sealed class PartyTargetingCoordinator
     public void Tick()
     {
         var mode = _bus.CurrentTargetMode;
+        var player = _objectTable.LocalPlayer;
+        var eligible = player != null && IsLocalEligible(mode, player);
+
+        // Overlay hygiene: notify on mode/eligibility transitions so the effective targeting
+        // config is rebuilt (applied on enter, removed on exit/job change) without waiting for a
+        // territory change.
+        if ((mode, eligible) != _lastEnforcementState)
+        {
+            _lastEnforcementState = (mode, eligible);
+            OnEnforcementStateChanged?.Invoke();
+        }
+
         if (mode == PartyTargetMode.None)
         {
             _splitAssignedId = 0;
             return;
         }
 
-        var player = _objectTable.LocalPlayer;
-        if (player == null || !IsLocalEligible(mode, player))
+        if (player == null || !eligible)
             return;
 
         switch (mode)

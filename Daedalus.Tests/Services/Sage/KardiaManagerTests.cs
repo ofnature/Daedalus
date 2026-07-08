@@ -157,6 +157,87 @@ public class KardiaManagerTests
     }
 
     [Fact]
+    public void UpdateKardiaTarget_BearerUnresolvable_KeepsLatchDuringGrace()
+    {
+        var partyList = MockBuilders.CreateMockPartyList();
+        var objectTable = MockBuilders.CreateMockObjectTable(); // SearchByEntityId → null (absent)
+        var tank = MockBuilders.CreateMockBattleChara(entityId: 42u, currentHp: 100000, maxHp: 100000);
+        var player = MockBuilders.CreateMockPlayerCharacter(level: 90);
+
+        var manager = new KardiaManager(partyList.Object, objectTable.Object);
+        manager.ConfirmTankKardion(tank.Object);
+
+        // First frame of absence only STARTS the grace timer — object-table flicker must not
+        // instantly kill the latch.
+        manager.UpdateKardiaTarget(player.Object);
+
+        Assert.True(manager.IsTankKardionLatched(42u));
+        Assert.True(manager.HasKardia);
+    }
+
+    [Fact]
+    public void UpdateKardiaTarget_BearerGonePastGrace_DropsLatch()
+    {
+        var partyList = MockBuilders.CreateMockPartyList();
+        var objectTable = MockBuilders.CreateMockObjectTable(); // SearchByEntityId → null (left zone)
+        var tank = MockBuilders.CreateMockBattleChara(entityId: 42u, currentHp: 100000, maxHp: 100000);
+        var player = MockBuilders.CreateMockPlayerCharacter(level: 90);
+
+        var manager = new KardiaManager(partyList.Object, objectTable.Object);
+        manager.ConfirmTankKardion(tank.Object);
+        manager.UpdateKardiaTarget(player.Object); // starts the absence timer
+
+        typeof(KardiaManager)
+            .GetField("_bearerAbsentSinceUtc", BindingFlags.Instance | BindingFlags.NonPublic)!
+            .SetValue(manager, DateTime.Now.AddSeconds(-(KardiaManager.BearerAbsenceGraceSeconds + 0.1)));
+
+        // Tank left the zone: the latch must drop and the manager must stop asserting a phantom
+        // placement (the chain-cast bug was this latch surviving forever mid-zone).
+        manager.UpdateKardiaTarget(player.Object);
+
+        Assert.False(manager.IsTankKardionLatched(42u));
+        Assert.False(manager.HasKardia);
+        Assert.Equal(0ul, manager.CurrentKardiaTarget);
+    }
+
+    [Fact]
+    public void UpdateKardiaTarget_BearerDead_DropsLatchImmediately()
+    {
+        var partyList = MockBuilders.CreateMockPartyList();
+        var objectTable = MockBuilders.CreateMockObjectTable();
+        var deadTank = MockBuilders.CreateMockBattleChara(entityId: 42u, currentHp: 0, maxHp: 100000);
+        objectTable.Setup(x => x.SearchByEntityId(42u)).Returns(deadTank.Object);
+        var player = MockBuilders.CreateMockPlayerCharacter(level: 90);
+
+        var manager = new KardiaManager(partyList.Object, objectTable.Object);
+        manager.ConfirmTankKardion(deadTank.Object);
+
+        // Kardion strips on death — no grace period, the placement is gone with certainty.
+        manager.UpdateKardiaTarget(player.Object);
+
+        Assert.False(manager.IsTankKardionLatched(42u));
+        Assert.False(manager.HasKardia);
+    }
+
+    [Fact]
+    public void UpdateKardiaTarget_BearerAliveAndPresent_KeepsLatch()
+    {
+        var partyList = MockBuilders.CreateMockPartyList();
+        var objectTable = MockBuilders.CreateMockObjectTable();
+        var tank = MockBuilders.CreateMockBattleChara(entityId: 42u, currentHp: 90000, maxHp: 100000);
+        objectTable.Setup(x => x.SearchByEntityId(42u)).Returns(tank.Object);
+        var player = MockBuilders.CreateMockPlayerCharacter(level: 90);
+
+        var manager = new KardiaManager(partyList.Object, objectTable.Object);
+        manager.ConfirmTankKardion(tank.Object);
+
+        manager.UpdateKardiaTarget(player.Object);
+
+        Assert.True(manager.IsTankKardionLatched(42u));
+        Assert.True(manager.HasKardia);
+    }
+
+    [Fact]
     public void IsKardionOnTarget_SelfInParty_ReturnsFalse()
     {
         var partyList = MockBuilders.CreateMockPartyList(length: 4);

@@ -75,6 +75,9 @@ public sealed class Asclepius : BaseHealerRotation<IAsclepiusContext, IAsclepius
     // Training mode
     private readonly ITrainingService? _trainingService;
 
+    // Live parser — ranks allies for the no-tank Kardia fallback (null-safe, fail-open)
+    private readonly Daedalus.Services.Analytics.IDpsMeterService? _dpsMeterService;
+
     // Modules (sorted by priority)
     private readonly List<IAsclepiusModule> _modules;
 
@@ -104,7 +107,8 @@ public sealed class Asclepius : BaseHealerRotation<IAsclepiusContext, IAsclepius
         ITrainingService? trainingService = null,
         IErrorMetricsService? errorMetrics = null,
         Daedalus.Services.Consumables.ITinctureDispatcher? tinctureDispatcher = null,
-        Daedalus.Services.Pull.IPullIntentService? pullIntentService = null)
+        Daedalus.Services.Pull.IPullIntentService? pullIntentService = null,
+        Daedalus.Services.Analytics.IDpsMeterService? dpsMeterService = null)
         : base(
             log,
             actionTracker,
@@ -132,6 +136,9 @@ public sealed class Asclepius : BaseHealerRotation<IAsclepiusContext, IAsclepius
 
         // Store training service
         _trainingService = trainingService;
+
+        // Store parser (Kardia no-tank fallback ranking)
+        _dpsMeterService = dpsMeterService;
 
         // Initialize scheduler
         _scheduler = new RotationScheduler(actionService, jobGauges, configuration, timelineService, errorMetrics);
@@ -313,7 +320,8 @@ public sealed class Asclepius : BaseHealerRotation<IAsclepiusContext, IAsclepius
             timelineService: _timelineService,
             trainingService: _trainingService,
             debugState: _debugState,
-            log: Log);
+            log: Log,
+            dpsMeter: _dpsMeterService);
     }
 
     /// <summary>

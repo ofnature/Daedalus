@@ -58,7 +58,8 @@ public static class AsclepiusTestContext
         bool canSwapKardia = true,
         bool hasSoteria = false,
         bool hasPhilosophia = false,
-        AsclepiusDebugState? debugState = null)
+        AsclepiusDebugState? debugState = null,
+        Daedalus.Services.Analytics.IDpsMeterService? dpsMeter = null)
     {
         config ??= CreateDefaultSageConfiguration();
 
@@ -147,7 +148,8 @@ public static class AsclepiusTestContext
             eukrasiaService.Object,
             statusHelper,
             partyHelper.Object,
-            debugState: debugState ?? new AsclepiusDebugState());
+            debugState: debugState ?? new AsclepiusDebugState(),
+            dpsMeter: dpsMeter);
     }
 
     /// <summary>

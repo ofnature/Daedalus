@@ -79,8 +79,12 @@ public sealed class CoordinationBus : IDisposable
     private string _targetModeOwner = "";
     private DateTime _targetModeFreshUntil = DateTime.MinValue;
     private DateTime _lastTargetModeSent = DateTime.MinValue;
+    // After switching to None the owner keeps rebroadcasting for a short tail — a single lost UDP
+    // datagram must not leave remote boxes enforcing a dead mode until the 10s timeout.
+    private DateTime _noneRebroadcastUntil = DateTime.MinValue;
     private const float TargetModeTimeoutSeconds = 10f;
     private const float TargetModeRebroadcastSeconds = 2f;
+    private const float NoneRebroadcastTailSeconds = 6f;
 
     /// <summary>Supplies the local toon's heartbeat payload each interval (null = not logged in).</summary>
     public Func<LanHeartbeatPayload?>? HeartbeatProvider { get; set; }
@@ -253,7 +257,18 @@ public sealed class CoordinationBus : IDisposable
     private void UpdateTargetMode(DateTime now)
     {
         if (_targetMode == PartyTargetMode.None)
+        {
+            // Owner tail: re-announce None a few times so one lost datagram can't strand remote
+            // boxes on the old mode until their freshness timeout.
+            if (_targetModeOwner == _lan.SenderId
+                && now < _noneRebroadcastUntil
+                && (now - _lastTargetModeSent).TotalSeconds >= TargetModeRebroadcastSeconds)
+            {
+                SendTargetMode();
+            }
+
             return;
+        }
 
         // We own the mode: keep it alive for the party (and refresh our own expiry).
         if (_targetModeOwner == _lan.SenderId)
@@ -517,6 +532,8 @@ public sealed class CoordinationBus : IDisposable
     private void ApplyTargetModeState(PartyTargetMode mode, ulong focusTargetId, string offTankSenderId, string owner)
     {
         var changed = _targetMode != mode || _focusTargetId != focusTargetId || _offTankSenderId != offTankSenderId;
+        if (changed && mode == PartyTargetMode.None && owner == _lan.SenderId)
+            _noneRebroadcastUntil = DateTime.UtcNow.AddSeconds(NoneRebroadcastTailSeconds);
         _targetMode = mode;
         _focusTargetId = focusTargetId;
         _offTankSenderId = offTankSenderId ?? "";

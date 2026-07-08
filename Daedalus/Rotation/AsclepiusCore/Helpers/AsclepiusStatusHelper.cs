@@ -97,6 +97,8 @@ public sealed class AsclepiusStatusHelper : BaseStatusHelper
 
     /// <summary>
     /// True when the tank currently bears Kardion (2605). Primary pre-pull / placement signal.
+    /// When <paramref name="knownBearerId"/> names a DIFFERENT ally (post smart-swap), inference is
+    /// contradicted by tracked state and only a direct status detection counts.
     /// </summary>
     public static bool TankHasKardion(
         IPlayerCharacter player,
@@ -111,14 +113,17 @@ public sealed class AsclepiusStatusHelper : BaseStatusHelper
         if (TryDetectKardionOn(tank, player, objectTable, partyList, out _))
             return true;
 
-        if (knownBearerId != 0 && knownBearerId == tank.GameObjectId)
-            return true;
+        if (knownBearerId != 0)
+            return knownBearerId == tank.GameObjectId;
 
         return InferKardionOnTank(player, tank, objectTable, partyList);
     }
 
     /// <summary>
     /// Resolves the ally bearing Kardion (2605). Party-list scan first so it matches the party UI.
+    /// Direct status detections always win; the trailing INFERENCE fallbacks ("nobody visibly bears
+    /// it, assume the tank") are skipped when <paramref name="knownBearerId"/> names a different
+    /// ally — tracked state contradicts the assumption (post smart-swap).
     /// </summary>
     public static bool TryFindKardionBearer(
         IPlayerCharacter player,
@@ -126,7 +131,8 @@ public sealed class AsclepiusStatusHelper : BaseStatusHelper
         IPartyList partyList,
         IEnumerable<IBattleChara> allies,
         IBattleChara? preferredAlly,
-        out ulong bearerGameObjectId)
+        out ulong bearerGameObjectId,
+        ulong knownBearerId = 0)
     {
         bearerGameObjectId = 0;
 
@@ -165,7 +171,9 @@ public sealed class AsclepiusStatusHelper : BaseStatusHelper
             }
         }
 
-        if (preferredAlly != null && InferKardionOnTank(player, preferredAlly, objectTable, partyList))
+        if (preferredAlly != null
+            && (knownBearerId == 0 || knownBearerId == preferredAlly.GameObjectId)
+            && InferKardionOnTank(player, preferredAlly, objectTable, partyList))
         {
             bearerGameObjectId = preferredAlly.GameObjectId;
             return true;
@@ -176,6 +184,9 @@ public sealed class AsclepiusStatusHelper : BaseStatusHelper
             foreach (var ally in allies)
             {
                 if (ally.EntityId == player.EntityId)
+                    continue;
+
+                if (knownBearerId != 0 && knownBearerId != ally.GameObjectId)
                     continue;
 
                 if (!JobRegistry.IsTank(TrustPartyRoleHelper.ResolveJobId(ally, partyList)))
@@ -231,8 +242,9 @@ public sealed class AsclepiusStatusHelper : BaseStatusHelper
         IObjectTable objectTable,
         IPartyList partyList,
         IEnumerable<IBattleChara> allies,
-        IBattleChara? preferredAlly = null) =>
-        TryFindKardionBearer(player, objectTable, partyList, allies, preferredAlly, out var id) ? id : 0;
+        IBattleChara? preferredAlly = null,
+        ulong knownBearerId = 0) =>
+        TryFindKardionBearer(player, objectTable, partyList, allies, preferredAlly, out var id, knownBearerId) ? id : 0;
 
     private static bool TryScanKardion(
         IBattleChara ally,

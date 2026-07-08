@@ -1,6 +1,8 @@
 # SGE Kardia — chain-cast-on-tank-leave fix + smart low-HP placement
 
-*Status: PLAN — not implemented. Written 2026-07-07. Covers two linked items: (1) a correctness bug — Kardia chain-casts when the tank leaves the zone instead of settling on a fallback; (2) a missing feature — actively swap Kardion to any player under a HP% until they recover, then return it to the tank.*
+*Status: **IMPLEMENTED 2026-07-07** (same session as the plan, Fable). Both problems fixed as designed, plus one requirement added during implementation: the no-tank fallback is **highest-DPS ally (live parser rank, party-order pre-pull) → self**, not lowest-HP. Key deltas from the plan: the latch invalidation uses a 3s absence grace (immediate on death — Kardion strips); the latch kept its public names (`ConfirmTankKardion`/`IsTankKardionLatched`) but is semantically a BEARER latch now (docs updated, `OnKardiaDispatched` confirms any target); a cross-cutting "inference yields to a tracked bearer" guard was needed in four places (`TankHasKardion`, `TryFindKardionBearer` fallbacks, `ShouldBlockKardiaRecast` trust-inference branch, `PrimeTankKardionLatch`) so post-swap return-home casts aren't vetoed by "Kardion must be on the tank" inference; swaps bypass `ShouldSuppressKardiaRecast` (which is bearer-keyed by design) and only check `IsKardionOnTarget` on the destination. `IDpsMeterService` threaded into `IAsclepiusContext` (factory auto-injects). +11 tests (latch lifecycle in KardiaManagerTests, KardiaModuleSmartSwapTests). NOT unit-testable (mock limits): DPS-role filter (ClassJob) and parser-rank matching (Name.TextValue) — needs the in-game validation pass below.*
+
+*Original plan follows for reference.*
 
 Codename: **Asclepius** (SGE). Files: `Daedalus/Rotation/AsclepiusCore/Modules/KardiaModule.cs`, `Daedalus/Services/Sage/KardiaManager.cs`, `Daedalus/Config/SageConfig.cs`.
 

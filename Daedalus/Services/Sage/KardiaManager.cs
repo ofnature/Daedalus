@@ -23,8 +23,11 @@ public sealed class KardiaManager : IKardiaManager
     private DateTime _sessionResetTime = DateTime.MinValue;
     private ulong _lastKnownKardiaTarget;
     private uint _lastKnownEntityId;
+    // Bearer latch: set once Kardion is confirmed on an ally (usually the tank, but any bearer after
+    // a smart swap). Survives Trust status-scan flicker; invalidated when the bearer leaves/dies.
     private bool _tankKardionConfirmed;
     private uint _confirmedTankEntityId;
+    private DateTime _bearerAbsentSinceUtc = DateTime.MinValue;
 
     /// <summary>
     /// Cooldown between Kardia target swaps.
@@ -37,6 +40,14 @@ public sealed class KardiaManager : IKardiaManager
     /// on self (or a stale target) during the zone-in window.
     /// </summary>
     public const float PostZoneWarmupSeconds = 5f;
+
+    /// <summary>
+    /// How long the confirmed bearer must be continuously unresolvable (object table + party list)
+    /// before the latch is dropped. Absorbs single-frame object-table flicker during transitions
+    /// while still catching a bearer that actually left the zone. A DEAD bearer invalidates
+    /// immediately — Kardion strips on death.
+    /// </summary>
+    public const float BearerAbsenceGraceSeconds = 3f;
 
     /// <summary>
     /// Kardia heal potency per damage action.
@@ -99,12 +110,17 @@ public sealed class KardiaManager : IKardiaManager
             return;
         }
 
+        // The latch asserts "Kardion is on the confirmed bearer" — verify that bearer still exists
+        // BEFORE trusting it. Without this, a tank leaving the zone left a phantom latch that kept
+        // reporting placement while dispatch churned over fallback targets (chain-cast bug).
+        InvalidateLatchIfBearerGone(player);
+
         var tank = FindTankAlly(player);
         var allies = EnumerateAllies(player);
 
         if (_tankKardionConfirmed)
         {
-            // Latched tank placement survives Trust status scan failures and Kardia recast windows.
+            // Latched bearer placement survives Trust status scan failures and Kardia recast windows.
             _hasKardionPlaced = true;
             if (_lastKnownKardiaTarget == 0 && tank != null)
                 RememberBearer(tank.GameObjectId, tank.EntityId);
@@ -175,12 +191,74 @@ public sealed class KardiaManager : IKardiaManager
     /// <summary>Clears latched tank state (duty exit, disconnect, etc.).</summary>
     public void ResetSession()
     {
+        ClearBearerState();
+        _sessionResetTime = DateTime.Now;
+    }
+
+    private void ClearBearerState()
+    {
         _tankKardionConfirmed = false;
         _confirmedTankEntityId = 0;
         _hasKardionPlaced = false;
         _lastKnownKardiaTarget = 0;
         _lastKnownEntityId = 0;
-        _sessionResetTime = DateTime.Now;
+        _bearerAbsentSinceUtc = DateTime.MinValue;
+    }
+
+    /// <summary>
+    /// Mid-zone latch invalidation: drops the bearer latch (and the placement memory built on it)
+    /// when the confirmed bearer is dead (Kardion strips on death — immediate) or has been
+    /// unresolvable for <see cref="BearerAbsenceGraceSeconds"/> (left the zone / despawned; the
+    /// grace absorbs object-table flicker). Without this the latch was only cleared on territory
+    /// change, so a tank leaving mid-zone left the manager asserting a phantom placement.
+    /// </summary>
+    private void InvalidateLatchIfBearerGone(IPlayerCharacter player)
+    {
+        if (!_tankKardionConfirmed || _confirmedTankEntityId == 0)
+        {
+            _bearerAbsentSinceUtc = DateTime.MinValue;
+            return;
+        }
+
+        var bearer = ResolveConfirmedBearer(player);
+        if (bearer != null)
+        {
+            if (bearer.CurrentHp > 0)
+            {
+                _bearerAbsentSinceUtc = DateTime.MinValue;
+                return;
+            }
+
+            // Dead bearer: the buff is gone with certainty — no grace needed.
+            ClearBearerState();
+            return;
+        }
+
+        if (_bearerAbsentSinceUtc == DateTime.MinValue)
+        {
+            _bearerAbsentSinceUtc = DateTime.Now;
+            return;
+        }
+
+        if ((DateTime.Now - _bearerAbsentSinceUtc).TotalSeconds >= BearerAbsenceGraceSeconds)
+            ClearBearerState();
+    }
+
+    private IBattleChara? ResolveConfirmedBearer(IPlayerCharacter player)
+    {
+        if (player.EntityId == _confirmedTankEntityId)
+            return player;
+
+        if (_partyList.Length > 0)
+        {
+            foreach (var member in _partyList)
+            {
+                if (member?.EntityId == _confirmedTankEntityId && member.GameObject is IBattleChara fromParty)
+                    return fromParty;
+            }
+        }
+
+        return _objectTable.SearchByEntityId(_confirmedTankEntityId) as IBattleChara;
     }
 
     /// <summary>
@@ -240,8 +318,10 @@ public sealed class KardiaManager : IKardiaManager
     }
 
     /// <summary>
-    /// Latches pre-pull / OOC suppression once Kardion on the tank is confirmed.
-    /// Survives brief status-scan flicker on trust allies between frames.
+    /// Latches recast suppression once Kardion is confirmed on a bearer (the tank in the normal
+    /// case, but any ally after a smart swap — the name is historical). Survives brief status-scan
+    /// flicker on trust allies between frames; invalidated when the bearer dies or leaves the zone
+    /// (see <see cref="InvalidateLatchIfBearerGone"/>).
     /// </summary>
     public void ConfirmTankKardion(IBattleChara tank)
     {
@@ -250,6 +330,7 @@ public sealed class KardiaManager : IKardiaManager
 
         _tankKardionConfirmed = true;
         _confirmedTankEntityId = tank.EntityId;
+        _bearerAbsentSinceUtc = DateTime.MinValue;
         RememberBearer(tank.GameObjectId, tank.EntityId);
     }
 
@@ -304,8 +385,11 @@ public sealed class KardiaManager : IKardiaManager
 
         // Trust allies often omit Kardion (2605) from status lists. The Sage Kardia buff (2604)
         // is always readable — when it is up and we are placing on the tank, do not recast.
+        // Inference yields to a tracked bearer: when memory says Kardion sits on someone ELSE
+        // (post smart-swap), "must be on the tank" is contradicted and must not block the cast.
         if (tank != null
             && target.EntityId == tank.EntityId
+            && (_lastKnownKardiaTarget == 0 || _lastKnownKardiaTarget == target.GameObjectId)
             && AsclepiusStatusHelper.HasKardia(player)
             && AsclepiusStatusHelper.InferKardionOnTank(player, tank, objectTable, partyList))
         {
