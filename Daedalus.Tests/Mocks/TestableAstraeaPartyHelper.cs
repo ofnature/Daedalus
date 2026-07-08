@@ -23,7 +23,10 @@ public sealed class TestableAstraeaPartyHelper : AstraeaPartyHelper
 
     public TestableAstraeaPartyHelper(IEnumerable<IBattleChara> members, Configuration? config = null)
         : base(
-            new Mock<IObjectTable>().Object,
+            // Use the shared object-table mock (empty but enumerable). A bare Mock<IObjectTable>
+            // returns a null enumerator, which NREs any code that iterates the table — e.g.
+            // FindTankInParty's aggro fallback. In-game the object table is always enumerable.
+            MockBuilders.CreateMockObjectTable().Object,
             new Mock<IPartyList>().Object,
             CreateHpPredictionService(),
             config ?? new Configuration(),

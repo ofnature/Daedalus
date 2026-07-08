@@ -9,6 +9,12 @@ namespace Daedalus.Rotation.NikeCore.Abilities;
 /// </summary>
 public static class NikeAbilities
 {
+    // --- Ranged filler ---
+    // Plain-GCD dagger-toss equivalent: keep GCD uptime when out of melee range instead of
+    // idling until we walk back in (NIN Throwing Dagger parity). No Toggle — uptime filler is
+    // never something to switch off; the module gates it purely on range + level + readiness.
+    public static readonly AbilityBehavior Enpi = new() { Action = SAMActions.Enpi };
+
     // --- Combo starters ---
     public static readonly AbilityBehavior Hakaze = new() { Action = SAMActions.Hakaze };
     public static readonly AbilityBehavior Gyofu = new() { Action = SAMActions.Gyofu };

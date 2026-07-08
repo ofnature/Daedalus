@@ -3,11 +3,16 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.11 — 2026-07-07
+
+### Fix — Samurai: throws Enpi when knocked out of melee instead of idling
+- When Samurai was pushed out of melee range (knockback, a mechanic, or repositioning) it just stood there doing nothing until it walked back in, dropping GCDs the whole time. It now throws Enpi to keep the GCD rolling until it's back in melee — the same ranged-filler behavior Ninja already has with Throwing Dagger, and it uses the enhanced Enpi proc (from Hissatsu: Yaten) when that's up. In melee nothing changes: the check is position-based so it never diverts a real combo to Enpi while you're in range
+<!-- LATEST-END -->
+
 ## v0.1.10 — 2026-07-07
 
 ### Fix — Sage: Kardia now lands on a real-player tank (multibox/party)
 - Kardia would get stuck on the Sage and never move onto a live party tank — it worked in Trust but silently failed with a real tank. The two status IDs Kardia uses to tell "is Kardia on me" apart from "is Kardion on my target" were swapped, so when Kardia sat on the Sage the rotation wrongly concluded it was already on the tank and suppressed every placement. Corrected the IDs; Kardia now tracks and places on the tank the same way in parties as it does in Trust
-<!-- LATEST-END -->
 
 ## v0.1.9 — 2026-07-05
 

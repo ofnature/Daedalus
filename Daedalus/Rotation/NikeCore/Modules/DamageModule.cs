@@ -1,6 +1,7 @@
 using Dalamud.Game.ClientState.Objects.Types;
 using Daedalus.Data;
 using Daedalus.Models.Action;
+using Daedalus.Rotation.ApolloCore.Helpers;
 using Daedalus.Rotation.Common.Helpers;
 using Daedalus.Rotation.Common.RoleActionHelpers;
 using Daedalus.Rotation.Common.Scheduling;
@@ -604,7 +605,21 @@ public sealed class DamageModule : INikeModule
 
     private void TryPushComboRotation(INikeContext context, RotationScheduler scheduler, IBattleChara target, int enemyCount, bool useAoE)
     {
-        var level = context.Player.Level;
+        var player = context.Player;
+        var level = player.Level;
+
+        // Out of melee range: throw Enpi to keep uptime instead of idling until we walk back in
+        // (NIN Throwing Dagger parity). Position-based (rather than the native range check) so the
+        // gate fails open in range — it must never divert a valid melee combo to a weak ranged toss
+        // when we are actually in melee. Higher-priority GCDs (Iaijutsu/Ogi/Kaeshi/Tsubame) are pushed
+        // earlier in CollectCandidates, so they still take precedence when their own gates open.
+        var meleeReach = SAMActions.Hakaze.Range + target.HitboxRadius + player.HitboxRadius;
+        if (level >= SAMActions.Enpi.MinLevel
+            && !DistanceHelper.IsInRange(player.Position, target.Position, meleeReach))
+        {
+            TryPushEnpi(context, scheduler, target);
+            return;
+        }
 
         // Continue an in-progress AoE combo even if the enemy count dropped below threshold mid-chain.
         if (!useAoE && enemyCount > 0 && IsInAoeCombo(context))
@@ -612,6 +627,32 @@ public sealed class DamageModule : INikeModule
 
         if (useAoE) TryPushAoeCombo(context, scheduler, target);
         else TryPushSingleTargetCombo(context, scheduler, target);
+    }
+
+    private void TryPushEnpi(INikeContext context, RotationScheduler scheduler, IBattleChara target)
+    {
+        if (!context.ActionService.IsActionReady(SAMActions.Enpi.ActionId)) return;
+
+        scheduler.PushGcd(NikeAbilities.Enpi, target.GameObjectId, priority: 7,
+            onDispatched: _ =>
+            {
+                var enhanced = context.StatusHelper.HasEnhancedEnpi(context.Player);
+                context.Debug.PlannedAction = SAMActions.Enpi.Name;
+                context.Debug.DamageState = enhanced ? "Enpi (Enhanced — out of melee range)" : "Enpi (out of melee range)";
+
+                TrainingHelper.Decision(context.TrainingService)
+                    .Action(SAMActions.Enpi.ActionId, SAMActions.Enpi.Name)
+                    .AsRangedDamage()
+                    .Target(target.Name?.TextValue ?? "Target")
+                    .Reason("Enpi — target out of melee range",
+                        "Keep GCD uptime with the ranged attack until back in melee instead of idling. " +
+                        "Enhanced Enpi (from Hissatsu: Yaten) hits far harder — use the proc if it is up.")
+                    .Factors(new[] { "Target beyond melee range", enhanced ? "Enhanced Enpi proc active" : "No Enpi proc" })
+                    .Alternatives(new[] { "Close the gap (movement)" })
+                    .Tip("Enpi is weak filler — return to melee as soon as possible.")
+                    .Concept("sam_combo_rotation")
+                    .Record();
+            });
     }
 
     private static bool IsInAoeCombo(INikeContext context)
