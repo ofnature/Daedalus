@@ -874,12 +874,6 @@ public sealed class LanPartyWindow : Window, IDisposable
         if (ImGui.Checkbox("Compact", ref compactMode)) { cfg.LanCompactMode = compactMode; changed = true; }
         ImGui.SameLine();
 
-        var autoAccept = cfg.AutoAcceptRosterInvites;
-        if (ImGui.Checkbox("Auto-accept", ref autoAccept)) { cfg.AutoAcceptRosterInvites = autoAccept; changed = true; }
-        if (ImGui.IsItemHovered())
-            ImGui.SetTooltip("Automatically accept party invites coming from toons in this roster\n(only while solo; exact names only). One-click grouping's receive half.");
-        ImGui.SameLine();
-
         if (ImGui.Button("Copy Party Data"))
             ImGui.SetClipboardText(BuildPartyDataText());
 

@@ -3,6 +3,12 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.15 — 2026-07-09
+
+### Maintenance — Backend maintenance
+- Internal coordination-layer cleanup; no gameplay changes
+<!-- LATEST-END -->
+
 ## v0.1.14 — 2026-07-08
 
 ### New — Coordinated tank swaps (all four tanks)
@@ -13,7 +19,6 @@ All notable changes to Daedalus will be documented in this file.
 
 ### New — One-click multibox grouping
 - An **invite button** appears next to any roster toon not in your party — it uses the game's native invite (multi-word names and cross-world within your data center both work, unlike the /invite text command)
-- **Auto-accept** toggle in the Party Coordination window: boxes automatically accept party invites coming from toons in the LAN roster (only while solo, exact names only) — click invite on the leader, every box joins itself
 - **Party-group dots**: a colored dot between name and job shows which toons share an actual in-game party — same color, same party
 - Companion-plugin bridge: Daedalus now exposes its LAN roster over IPC (`Daedalus.Party.GetRosterJson` / `GetTrustListJson`) for helpers like Charon
 
@@ -23,7 +28,12 @@ All notable changes to Daedalus will be documented in this file.
 ### Fix — Blue Mage pre-flight hardening
 - Spells missing from the active set are now skipped cleanly everywhere (previously an unslotted Aetheric Mimicry could burn the retry logic through every party member), Diamondback no longer start-cancels its cast while moving at panic HP, and Aetheric Mimicry is never cast inside a duty — the buff is permanent until recast, so grab it in town before queuing; the Missing window says exactly that when you forget
 - The Missing window's spellbook checklist now renders real check/dot/cross icons (the old glyphs showed as "=" boxes) and labels partially-ready spells "learned, not slotted"
-<!-- LATEST-END -->
+
+## v0.1.13 — 2026-07-08
+
+### Fix — Settings: job validation chips match reality, update checker reads fresh and shows your version
+- The per-job validation chips in Settings had fallen behind: Scholar, Dragoon, Black Mage, and Summoner all completed their full in-game validation passes but still showed "untested"/"pending" — now marked **validated**. Bard moves to **pending** (real mid-level pass done, higher-level milestones remain) and Sage moves to **pending** until the new Kardia behavior gets its live run
+- "Check for Updates" could read a cached copy of the version manifest for up to ~5 minutes after a release, and its "Up to date" label printed the *remote* version — so right after an update it could claim "up to date (v0.1.11.0)" while you were already running v0.1.12. Every check now fetches fresh, and "Up to date" shows the version you're actually running
 
 ## v0.1.12 — 2026-07-07
 

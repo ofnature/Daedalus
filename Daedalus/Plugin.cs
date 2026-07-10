@@ -42,7 +42,7 @@ namespace Daedalus;
 
 public sealed class Plugin : IDalamudPlugin
 {
-    public const string PluginVersion = "0.1.14";
+    public const string PluginVersion = "0.1.15";
     private const string CommandName = "/daedalus";
     private const string CommandAlias = "/dae";
 
@@ -775,7 +775,10 @@ public sealed class Plugin : IDalamudPlugin
 
     private static readonly string[] _emptyRosterNames = [];
 
-    /// <summary>Feeds the invite auto-accept service; roster names only materialize when it can act.</summary>
+    /// <summary>Feeds the invite auto-accept service; roster names only materialize when it can act.
+    /// UNWIRED (2026-07-09): not called from OnFrameworkUpdate and the LAN window checkbox is removed —
+    /// cross-machine accept needs more live debugging (per-box opt-in UX, cross-world prompt variant).
+    /// Skeleton kept: service, config flag, and tests all stay. Re-wire by calling this per frame.</summary>
     private void UpdatePartyInviteAccept()
     {
         var enabled = configuration.PartyCoordination.AutoAcceptRosterInvites && coordinationBus != null;
@@ -1120,9 +1123,6 @@ public sealed class Plugin : IDalamudPlugin
             // Push the window's off-tank designation into the coordination service so tank rotations
             // can read their durable swap role (bus lives outside the rotation container).
             UpdateLocalTankSwapRole();
-
-            // Auto-accept party invites from rostered toons (opt-in; solo only).
-            UpdatePartyInviteAccept();
 
             // Always update shield tracking for accurate HP predictions
             shieldTrackingService.Update();
