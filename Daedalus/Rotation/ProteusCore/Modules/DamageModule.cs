@@ -55,7 +55,10 @@ public sealed class DamageModule : IProteusModule
                 });
         }
 
-        // Song of Torment — 30s Bleeding, FindEnemyNeedingDot pattern (source-aware, all ranks).
+        // Song of Torment — 30s Bleeding, FindEnemyNeedingDot pattern. NOTE: the duration read is
+        // NOT source-aware, and Bleeding 1714 is shared with Nightbloom/Aetherial Spark — fine solo
+        // (nothing else applies 1714 to mobs), but in a multi-BLU party another BLU's bleed will
+        // suppress our refresh. Ownership tracking is the documented v3 (Coil) work item.
         if (cfg.EnableSongOfTorment
             && context.IsSpellUsable(BLUActions.SongOfTorment.ActionId)
             && !isMoving)

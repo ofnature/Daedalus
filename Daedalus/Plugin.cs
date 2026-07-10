@@ -42,7 +42,7 @@ namespace Daedalus;
 
 public sealed class Plugin : IDalamudPlugin
 {
-    public const string PluginVersion = "0.1.13";
+    public const string PluginVersion = "0.1.14";
     private const string CommandName = "/daedalus";
     private const string CommandAlias = "/dae";
 
@@ -164,6 +164,8 @@ public sealed class Plugin : IDalamudPlugin
     private readonly SmartAoEService smartAoEService;
 
     private readonly DaedalusIpc DaedalusIpc;
+    private readonly LanRosterIpc lanRosterIpc;
+    private readonly Daedalus.Services.Party.PartyInviteAcceptService partyInviteAcceptService;
     private readonly RsrCompatIpc rsrCompatIpc;
     private readonly AutomationBusyBridge[] automationBridges;
     private readonly QuestionableIpc questionableIpc;
@@ -560,6 +562,14 @@ public sealed class Plugin : IDalamudPlugin
             PluginVersion,
             () => rotationManager);
 
+        // LAN roster read-only IPC for companion plugins (Charon). Registered unconditionally —
+        // returns "[]" while the LAN coordinator is disabled so consumers can tell "no roster"
+        // apart from "Daedalus absent".
+        this.lanRosterIpc = new LanRosterIpc(pluginInterface, () => coordinationBus, log);
+
+        // Receive half of one-click grouping: auto-accept invites from rostered toons (opt-in).
+        this.partyInviteAcceptService = new Daedalus.Services.Party.PartyInviteAcceptService(gameGui, log);
+
         // RSR-compat gates: lets Questionable's kill-quest combat module (configured to
         // "Rotation Solver Reborn") start/stop Daedalus around quest fights. Questionable
         // targets the kill mobs itself; we just run while the transient override is on.
@@ -763,6 +773,45 @@ public sealed class Plugin : IDalamudPlugin
         return container;
     }
 
+    private static readonly string[] _emptyRosterNames = [];
+
+    /// <summary>Feeds the invite auto-accept service; roster names only materialize when it can act.</summary>
+    private void UpdatePartyInviteAccept()
+    {
+        var enabled = configuration.PartyCoordination.AutoAcceptRosterInvites && coordinationBus != null;
+        var inParty = partyList.Length > 0;
+
+        if (!enabled || inParty)
+        {
+            partyInviteAcceptService.Update(false, inParty, _emptyRosterNames);
+            return;
+        }
+
+        var names = new System.Collections.Generic.List<string>();
+        foreach (var peer in coordinationBus!.Roster)
+        {
+            if (peer.CharacterName.Length > 0 && peer.SenderId != coordinationBus.LocalSenderId)
+                names.Add(peer.CharacterName);
+        }
+
+        partyInviteAcceptService.Update(true, false, names);
+    }
+
+    /// <summary>Own content id via ClientStructs PlayerState (this SDK's IClientState lacks
+    /// LocalContentId). 0 when unavailable — the invite helper treats that as best-effort.</summary>
+    private static unsafe ulong GetLocalContentId()
+    {
+        try
+        {
+            var uiState = FFXIVClientStructs.FFXIV.Client.Game.UI.UIState.Instance();
+            return uiState != null ? uiState->PlayerState.ContentId : 0;
+        }
+        catch
+        {
+            return 0;
+        }
+    }
+
     /// <summary>Local toon heartbeat for the LAN roster (null when not logged in).</summary>
     private Daedalus.Services.Network.LanHeartbeatPayload? BuildLanHeartbeat()
     {
@@ -788,6 +837,9 @@ public sealed class Plugin : IDalamudPlugin
             Status = clientState.IsPvP ? "PvP" : "OK",
             TargetId = enemyTarget?.GameObjectId ?? 0,
             InCombat = inCombat,
+            PartyGroupId = partyList.Length > 0 ? (ulong)partyList.PartyId : 0,
+            ContentId = GetLocalContentId(),
+            HomeWorldId = (ushort)player.HomeWorld.RowId,
             PosX = player.Position.X,
             PosY = player.Position.Y,
             PosZ = player.Position.Z,
@@ -834,6 +886,40 @@ public sealed class Plugin : IDalamudPlugin
             coordinationBus!.BroadcastHealerDown(string.Join(",", deadNames));
             log.Warning($"LAN: all {healers} healer(s) down — HealerDown broadcast");
         }
+    }
+
+    /// <summary>
+    /// Resolves this toon's durable tank swap role each frame. Priority: the per-toon config
+    /// preference (Settings → Tanks → Shared, the healer-role analog) wins; otherwise the LAN
+    /// window's off-tank designation; otherwise Undesignated (rotations fall back to live aggro).
+    /// Mirrored into the coordination service because the bus lives outside the rotation DI container.
+    /// </summary>
+    private void UpdateLocalTankSwapRole()
+    {
+        if (partyCoordinationService == null)
+            return;
+
+        var preference = configuration.PartyCoordination.PreferredTankRole;
+        if (preference != Daedalus.Config.TankRolePreference.Auto)
+        {
+            partyCoordinationService.LocalTankSwapRole = preference == Daedalus.Config.TankRolePreference.OffTank
+                ? Daedalus.Services.Party.TankSwapRole.DesignatedOffTank
+                : Daedalus.Services.Party.TankSwapRole.DesignatedMainTank;
+            return;
+        }
+
+        if (coordinationBus == null)
+        {
+            partyCoordinationService.LocalTankSwapRole = Daedalus.Services.Party.TankSwapRole.Undesignated;
+            return;
+        }
+
+        var offTank = coordinationBus.OffTankSenderId;
+        partyCoordinationService.LocalTankSwapRole = offTank.Length == 0
+            ? Daedalus.Services.Party.TankSwapRole.Undesignated
+            : offTank == coordinationBus.LocalSenderId
+                ? Daedalus.Services.Party.TankSwapRole.DesignatedOffTank
+                : Daedalus.Services.Party.TankSwapRole.DesignatedMainTank;
     }
 
     /// <summary>Zone-in: broadcast our job/role and open the 3s role-collection window.</summary>
@@ -1030,6 +1116,13 @@ public sealed class Plugin : IDalamudPlugin
             // Enforce the party target mode (Focus / Split / Kill Adds) after the bus pump so mode
             // state is current this frame. Role-gated; no-op unless a mode is active and eligible.
             partyTargetingCoordinator?.Tick();
+
+            // Push the window's off-tank designation into the coordination service so tank rotations
+            // can read their durable swap role (bus lives outside the rotation container).
+            UpdateLocalTankSwapRole();
+
+            // Auto-accept party invites from rostered toons (opt-in; solo only).
+            UpdatePartyInviteAccept();
 
             // Always update shield tracking for accurate HP predictions
             shieldTrackingService.Update();
@@ -1246,6 +1339,7 @@ public sealed class Plugin : IDalamudPlugin
         lanPartyWindow?.Dispose();
         windowSystem.RemoveAllWindows();
         DaedalusIpc.Dispose();
+        lanRosterIpc.Dispose();
         rsrCompatIpc.Dispose();
         foreach (var bridge in automationBridges)
             bridge.Dispose();

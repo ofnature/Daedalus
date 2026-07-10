@@ -8,15 +8,15 @@
     "ApplicableVersion": "any",
     "CategoryTags": ["jobs"],
     "RepoUrl": "https://github.com/ofnature/Daedalus",
-    "AssemblyVersion": "0.1.13.0",
+    "AssemblyVersion": "0.1.14.0",
     "DalamudApiLevel": 15,
     "IconUrl": "",
     "ImageUrls": [],
     "IsHide": false,
     "IsTestingExclusive": false,
-    "DownloadLinkInstall": "https://github.com/ofnature/Daedalus/releases/download/v0.1.13/latest.zip",
-    "DownloadLinkTesting": "https://github.com/ofnature/Daedalus/releases/download/v0.1.13/latest.zip",
-    "DownloadLinkUpdate": "https://github.com/ofnature/Daedalus/releases/download/v0.1.13/latest.zip"
+    "DownloadLinkInstall": "https://github.com/ofnature/Daedalus/releases/download/v0.1.14/latest.zip",
+    "DownloadLinkTesting": "https://github.com/ofnature/Daedalus/releases/download/v0.1.14/latest.zip",
+    "DownloadLinkUpdate": "https://github.com/ofnature/Daedalus/releases/download/v0.1.14/latest.zip"
   },
   {
     "Author": "RoseOfficial",
@@ -36,5 +36,24 @@
     "DownloadLinkInstall": "https://github.com/RoseOfficial/Memoria/releases/download/v1.0.0/latest.zip",
     "DownloadLinkTesting": "https://github.com/RoseOfficial/Memoria/releases/download/v1.0.0/latest.zip",
     "DownloadLinkUpdate": "https://github.com/RoseOfficial/Memoria/releases/download/v1.0.0/latest.zip"
+  },
+  {
+    "Author": "ofnature",
+    "Name": "Charon",
+    "InternalName": "Charon",
+    "Punchline": "Auto pillion with smart seat scanning and whitelisted auto group invite.",
+    "Description": "Auto pillion with smart seat scanning and whitelisted auto group invite. Companion to Daedalus.",
+    "ApplicableVersion": "any",
+    "CategoryTags": ["utility"],
+    "RepoUrl": "https://github.com/ofnature/Charon",
+    "AssemblyVersion": "0.1.0",
+    "DalamudApiLevel": 15,
+    "IconUrl": "https://raw.githubusercontent.com/ofnature/Charon/main/images/icon.png",
+    "ImageUrls": [],
+    "IsHide": false,
+    "IsTestingExclusive": false,
+    "DownloadLinkInstall": "https://github.com/ofnature/Charon/releases/download/v0.1.0/latest.zip",
+    "DownloadLinkTesting": "https://github.com/ofnature/Charon/releases/download/v0.1.0/latest.zip",
+    "DownloadLinkUpdate": "https://github.com/ofnature/Charon/releases/download/v0.1.0/latest.zip"
   }
 ]

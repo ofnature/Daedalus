@@ -13,7 +13,8 @@ namespace Daedalus.Rotation.ProteusCore.Helpers;
 /// mimicry works on trusts; zeroed trust jobs resolve via <see cref="TrustPartyRoleHelper"/>),
 /// then the surrounding AREA for any player of the desired role. The area scan is the critical
 /// half: in an all-BLU party everyone reads as DPS, so a Tank/Healer-role BLU can only source its
-/// mimicry from a REAL tank/healer standing nearby (grab it in town — the buff survives zoning).
+/// mimicry from a REAL tank/healer standing nearby (grab it in town — the buff is permanent until
+/// recast, surviving death and zoning).
 /// Fail-open by design: no match → null → the rotation plays on without mimicry.
 /// </summary>
 public static class MimicryScanHelper

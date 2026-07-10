@@ -1,5 +1,6 @@
 using System.Numerics;
 using Dalamud.Bindings.ImGui;
+using Dalamud.Interface;
 
 namespace Daedalus.Windows.Common;
 
@@ -57,6 +58,18 @@ public static class DaedalusTheme
         ImGui.TextDisabled("(?)");
         if (ImGui.IsItemHovered())
             ImGui.SetTooltip(tooltip);
+    }
+
+    /// <summary>
+    /// Colored FontAwesome status icon (Check / Circle / Times etc.). The default game font lacks
+    /// the ✔/✗ glyphs — they render as "=" boxes — so status marks must go through the icon font.
+    /// Caller continues the row with SameLine() as usual.
+    /// </summary>
+    public static void StatusIcon(FontAwesomeIcon icon, Vector4 color)
+    {
+        ImGui.PushFont(UiBuilder.IconFont);
+        ImGui.TextColored(color, icon.ToIconString());
+        ImGui.PopFont();
     }
 
     /// <summary>Colored status dot + optional label in the same color.</summary>

@@ -24,6 +24,11 @@ public sealed class LanPeerInfo
     public ulong TargetId;
     /// <summary>Whether this toon is currently in combat.</summary>
     public bool InCombat;
+    /// <summary>In-game party id (0 = solo) — toons sharing a non-zero id are in the same party.</summary>
+    public ulong PartyGroupId;
+    /// <summary>Content id + home world — the native party-invite call's addressing.</summary>
+    public ulong ContentId;
+    public ushort HomeWorldId;
     /// <summary>World position (~2s stale) — used by the Split assigner's locality term.</summary>
     public Vector3 Position;
     /// <summary>Assigned slot after role negotiation: "Tank 1", "Healer 2", "DPS 3"...</summary>
@@ -40,11 +45,12 @@ public sealed class LanPeerInfo
 /// LAN coordinator (cross machine, UDP broadcast). Rotation modules and UI subscribe HERE — never
 /// to a transport directly.
 ///
-/// Dedup model: same-machine toons deliver via BOTH transports (their LAN broadcasts loop back).
-/// Mirrored IPC traffic from our own machine is therefore dropped (Dalamud IPC already delivered
-/// it); everything else dedups on (SenderId, Timestamp). Socket-thread messages are queued and
-/// drained on the framework thread via <see cref="Update"/> — game state is never touched from
-/// the receive thread.
+/// Transport model: Dalamud IPC call gates are PER-PROCESS, so the UDP loopback mirror is the only
+/// path between two game clients on the same machine — IpcMirror frames are processed from every
+/// machine including our own. A toon's own frames are filtered by SenderId in the receive loop,
+/// every service handler ignores its own InstanceId, and replays dedup on (SenderId, Timestamp).
+/// Socket-thread messages are queued and drained on the framework thread via <see cref="Update"/>
+/// — game state is never touched from the receive thread.
 /// </summary>
 public sealed class CoordinationBus : IDisposable
 {
@@ -91,8 +97,11 @@ public sealed class CoordinationBus : IDisposable
 
     public event System.Action<string /*sender*/, LanMessage>? OnHealerDown;
     public event System.Action<string /*sender*/, string /*targetName*/>? OnPhoenixDown;
-    public event System.Action<string /*sender*/, LanMessage>? OnTankSwap;
     public event System.Action<string /*sender*/, LanMessage>? OnAddSpawn;
+
+    /// <summary>Real tank-swap traffic (request/confirm/manual command) for the window's alert feed.
+    /// String = a short human description e.g. "requested", "confirmed", "manual".</summary>
+    public event System.Action<string /*description*/>? OnTankSwapActivity;
     public event System.Action<string /*sender*/, LanMessage>? OnBurnSignal;
     public event System.Action? OnBurstFire;
     public event System.Action<IReadOnlyDictionary<string, LanRolePayload>>? OnRolesAssigned;
@@ -133,9 +142,15 @@ public sealed class CoordinationBus : IDisposable
             _partyService.OnRaiseIntentReady += m => MirrorToLan("RaiseIntent", m);
             _partyService.OnCleanseIntentReady += m => MirrorToLan("CleanseIntent", m);
             _partyService.OnInterruptIntentReady += m => MirrorToLan("InterruptIntent", m);
-            _partyService.OnTankSwapIntentReady += m => MirrorToLan("TankSwapIntent", m);
+            _partyService.OnTankSwapIntentReady += m =>
+            {
+                MirrorToLan("TankSwapIntent", m);
+                RaiseTankSwapActivity(m.IsConfirmation ? "confirmed" : "requested");
+            };
         }
     }
+
+    private void RaiseTankSwapActivity(string description) => OnTankSwapActivity?.Invoke(description);
 
     #region Roster / status
 
@@ -258,6 +273,18 @@ public sealed class CoordinationBus : IDisposable
     {
         if (_targetMode == PartyTargetMode.None)
         {
+            // Off-tank designation outlives the target mode: while an off-tank is set, the owner keeps
+            // the state alive indefinitely (refreshing freshness) so tank-swap roles don't evaporate
+            // at the 10s timeout just because no target mode is active.
+            if (_targetModeOwner == _lan.SenderId
+                && _offTankSenderId.Length > 0
+                && (now - _lastTargetModeSent).TotalSeconds >= TargetModeRebroadcastSeconds)
+            {
+                _targetModeFreshUntil = now.AddSeconds(TargetModeTimeoutSeconds);
+                SendTargetMode();
+                return;
+            }
+
             // Owner tail: re-announce None a few times so one lost datagram can't strand remote
             // boxes on the old mode until their freshness timeout.
             if (_targetModeOwner == _lan.SenderId
@@ -318,9 +345,15 @@ public sealed class CoordinationBus : IDisposable
                 break;
 
             case LanMessageType.IpcMirror:
-                // Same-machine mirrored traffic already arrived via Dalamud IPC — drop it here.
-                if (msg.MachineId != _localMachineId)
-                    HandleIpcMirror(msg);
+                // Process mirrors from EVERY machine, including our own. The old same-machine drop
+                // assumed Dalamud IPC had already delivered local traffic — but Dalamud call gates
+                // are per-process, so two game clients on one PC never see each other's IPC. The
+                // UDP loopback mirror IS the same-machine transport (it's how the roster works);
+                // dropping it killed instance discovery (HasRemoteTank), tank-swap intents, and
+                // every reservation channel between same-machine toons. Our own frames are already
+                // filtered by SenderId in the receive loop, and every service handler additionally
+                // ignores its own InstanceId, so there is no double-delivery.
+                HandleIpcMirror(msg);
                 break;
 
             case LanMessageType.RoleAssignment:
@@ -351,8 +384,10 @@ public sealed class CoordinationBus : IDisposable
                 OnPhoenixDown?.Invoke(msg.SenderId, msg.Payload);
                 break;
 
-            case LanMessageType.TankSwap:
-                OnTankSwap?.Invoke(msg.SenderId, msg);
+            case LanMessageType.TankSwapCommand:
+                // A tank box pressed "swap tanks": arm the manual swap on this box too (remote press).
+                _partyService?.ArmManualSwap();
+                RaiseTankSwapActivity("manual");
                 break;
 
             case LanMessageType.AddSpawn:
@@ -416,6 +451,9 @@ public sealed class CoordinationBus : IDisposable
             peer.Status = hb.Status;
             peer.TargetId = hb.TargetId;
             peer.InCombat = hb.InCombat;
+            peer.PartyGroupId = hb.PartyGroupId;
+            peer.ContentId = hb.ContentId;
+            peer.HomeWorldId = hb.HomeWorldId;
             peer.Position = new Vector3(hb.PosX, hb.PosY, hb.PosZ);
             peer.LastSeenUtc = now;
             if (latencyMs > 0) peer.LatencyMs = latencyMs;
@@ -451,7 +489,13 @@ public sealed class CoordinationBus : IDisposable
             case "RaiseIntent": if (parsed is RaiseIntentMessage ri) _partyService.HandleRemoteRaiseIntent(ri); break;
             case "CleanseIntent": if (parsed is CleanseIntentMessage ci) _partyService.HandleRemoteCleanseIntent(ci); break;
             case "InterruptIntent": if (parsed is InterruptIntentMessage ii) _partyService.HandleRemoteInterruptIntent(ii); break;
-            case "TankSwapIntent": if (parsed is TankSwapIntentMessage ts) _partyService.HandleRemoteTankSwapIntent(ts); break;
+            case "TankSwapIntent":
+                if (parsed is TankSwapIntentMessage ts)
+                {
+                    _partyService.HandleRemoteTankSwapIntent(ts);
+                    RaiseTankSwapActivity(ts.IsConfirmation ? "confirmed" : "requested");
+                }
+                break;
             default:
                 _log.Debug($"LAN mirror: unknown channel '{channel}'");
                 break;
@@ -494,8 +538,21 @@ public sealed class CoordinationBus : IDisposable
     public void BroadcastPhoenixDown(string targetCharacterName)
         => _lan.Send(new LanMessage { Type = LanMessageType.PhoenixDown, Payload = targetCharacterName });
 
-    public void BroadcastTankSwap(string payload)
-        => _lan.Send(new LanMessage { Type = LanMessageType.TankSwap, Payload = payload });
+    /// <summary>
+    /// Manual "swap tanks now" from the coordination window. Arms the swap locally (our own broadcast
+    /// is filtered on loopback) and triple-sends with one shared Timestamp — the dedup ring
+    /// (sender, timestamp, type) makes the redundant copies idempotent, so a single dropped datagram
+    /// can't lose the command.
+    /// </summary>
+    public void BroadcastTankSwapCommand()
+    {
+        _partyService?.ArmManualSwap();
+        RaiseTankSwapActivity("manual");
+
+        var ts = DateTime.UtcNow.Ticks;
+        for (var i = 0; i < 3; i++)
+            _lan.Send(new LanMessage { Type = LanMessageType.TankSwapCommand, Timestamp = ts });
+    }
 
     public void BroadcastAddSpawn(string payload)
         => _lan.Send(new LanMessage { Type = LanMessageType.AddSpawn, Payload = payload });

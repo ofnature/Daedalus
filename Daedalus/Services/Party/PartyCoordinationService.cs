@@ -68,6 +68,17 @@ public sealed class PartyCoordinationService : IPartyCoordinationService
     // Tank swap reservation tracking
     private readonly Dictionary<uint, TankSwapReservation> _localTankSwapReservations = new();
     private readonly Dictionary<uint, TankSwapReservation> _remoteTankSwapReservations = new();
+    // Confirmations stored SEPARATELY from requests: a confirmation used to overwrite the request in
+    // the reservation dict (GetPendingTankSwapRequest returns null on IsConfirmation), so the
+    // requester had no way to see "my request was confirmed". This dict backs HasSwapConfirmation.
+    private readonly Dictionary<uint, TankSwapReservation> _remoteTankSwapConfirmations = new();
+    // Post-swap memory (anti-ping-pong): target entity id -> until when THIS toon, having just given
+    // aggro away, must not reactively Provoke it back.
+    private readonly Dictionary<uint, DateTime> _recentSwapGiverUntil = new();
+    private const double RecentSwapGiverSeconds = 10.0;
+    // Manual "swap now" arm window (LAN window button). Both tanks observe; the non-holder initiates.
+    private DateTime _manualSwapArmedUntil = DateTime.MinValue;
+    private const double ManualSwapArmSeconds = 5.0;
 
     // Heartbeat timing
     private DateTime _lastHeartbeatSent = DateTime.MinValue;
@@ -1471,11 +1482,80 @@ public sealed class PartyCoordinationService : IPartyCoordinationService
         {
             _localTankSwapReservations.Remove(targetEntityId);
             _remoteTankSwapReservations.Remove(targetEntityId);
+            _remoteTankSwapConfirmations.Remove(targetEntityId);
         }
 
         if (_config.LogCooldownCoordination)
             _log.Debug("[PartyCoord] Cleared tank swap reservation for {0}", targetEntityId);
     }
+
+    /// <summary>
+    /// True when the co-tank has confirmed a swap on this target — the deliberate-swap Provoke gate.
+    /// A confirmation is the MT saying "go ahead, take it"; without one the OT holds (until the
+    /// request-timeout fallback fires) so both tanks don't Provoke at once.
+    /// </summary>
+    public bool HasSwapConfirmation(uint targetEntityId)
+    {
+        if (!_config.EnablePartyCoordination || !_config.EnableTankSwapCoordination)
+            return false;
+
+        lock (_stateLock)
+        {
+            if (_remoteTankSwapConfirmations.TryGetValue(targetEntityId, out var conf))
+            {
+                if (!conf.IsExpired)
+                    return true;
+                _remoteTankSwapConfirmations.Remove(targetEntityId);
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Records that a swap just completed on this target. When this toon GAVE aggro away
+    /// (<paramref name="tookAggro"/> false) it is barred from reactively Provoking the boss back for
+    /// a short window — the time-based half of the anti-ping-pong guard.
+    /// </summary>
+    public void RecordSwapCompleted(uint targetEntityId, bool tookAggro)
+    {
+        lock (_stateLock)
+        {
+            if (!tookAggro)
+                _recentSwapGiverUntil[targetEntityId] = _clock().AddSeconds(RecentSwapGiverSeconds);
+            _remoteTankSwapConfirmations.Remove(targetEntityId);
+        }
+
+        // Consume the manual arm: the press that requested this swap is satisfied. Without this,
+        // manual's recent-giver bypass would let the still-armed window bounce the boss straight
+        // back (the new giver becomes an armed taker the moment aggro flips).
+        _manualSwapArmedUntil = DateTime.MinValue;
+    }
+
+    /// <summary>True while this toon recently gave aggro away on the target (suppresses take-back).</summary>
+    public bool WasRecentSwapGiver(uint targetEntityId)
+    {
+        lock (_stateLock)
+        {
+            if (_recentSwapGiverUntil.TryGetValue(targetEntityId, out var until))
+            {
+                if (_clock() < until)
+                    return true;
+                _recentSwapGiverUntil.Remove(targetEntityId);
+            }
+        }
+
+        return false;
+    }
+
+    /// <inheritdoc />
+    public TankSwapRole LocalTankSwapRole { get; set; } = TankSwapRole.Undesignated;
+
+    /// <inheritdoc />
+    public void ArmManualSwap() => _manualSwapArmedUntil = _clock().AddSeconds(ManualSwapArmSeconds);
+
+    /// <inheritdoc />
+    public bool IsManualSwapArmed() => _clock() < _manualSwapArmedUntil;
 
     public IReadOnlyDictionary<uint, TankSwapReservation> GetRemoteTankSwapReservations()
     {
@@ -2081,7 +2161,14 @@ public sealed class PartyCoordinationService : IPartyCoordinationService
         };
 
         lock (_stateLock)
-            _remoteTankSwapReservations[message.TargetEntityId] = reservation;
+        {
+            // Confirmations answer OUR outstanding request — keep them apart from incoming requests
+            // so HasSwapConfirmation can gate the Provoke and the request itself isn't clobbered.
+            if (message.IsConfirmation)
+                _remoteTankSwapConfirmations[message.TargetEntityId] = reservation;
+            else
+                _remoteTankSwapReservations[message.TargetEntityId] = reservation;
+        }
 
         if (_config.LogCooldownCoordination)
             _log.Debug("[PartyCoord] Remote tank swap intent: target {0}, take aggro: {1}, confirmation: {2}, priority: {3} from instance {4}",
@@ -2387,7 +2474,7 @@ public sealed class PartyCoordinationService : IPartyCoordinationService
         foreach (var key in expiredLocal)
             _localTankSwapReservations.Remove(key);
 
-        // Clean up remote tank swap reservations (shared with IPC callbacks — lock required)
+        // Clean up remote tank swap reservations + confirmations (shared with IPC callbacks — lock required)
         lock (_stateLock)
         {
             var expiredRemote = _remoteTankSwapReservations
@@ -2397,6 +2484,14 @@ public sealed class PartyCoordinationService : IPartyCoordinationService
 
             foreach (var key in expiredRemote)
                 _remoteTankSwapReservations.Remove(key);
+
+            var expiredConf = _remoteTankSwapConfirmations
+                .Where(r => r.Value.IsExpired)
+                .Select(r => r.Key)
+                .ToList();
+
+            foreach (var key in expiredConf)
+                _remoteTankSwapConfirmations.Remove(key);
         }
     }
 

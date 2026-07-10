@@ -17,8 +17,9 @@ public enum LanMessageType
     /// <summary>Tank/healer/DPS role negotiation on zone-in.</summary>
     RoleAssignment = 1,
 
-    /// <summary>Provoke/Shirk coordination signal.</summary>
-    TankSwap = 2,
+    /// <summary>RETIRED (value reserved so wire ids don't shift). The raw Provoke/Shirk signal was
+    /// never wired to a sender; coordinated swaps ride TankSwapIntent (IpcMirror) + TankSwapCommand.</summary>
+    TankSwap_Retired = 2,
 
     /// <summary>New hostile detected — designated add tank responds.</summary>
     AddSpawn = 3,
@@ -46,6 +47,10 @@ public enum LanMessageType
 
     /// <summary>Party-wide targeting mode (Focus / Split / Kill Adds) set from the coordination window.</summary>
     TargetMode = 11,
+
+    /// <summary>Manual "swap tanks now" from the coordination window — arms a swap on every tank box,
+    /// which then run their normal request/confirm handshake per live aggro.</summary>
+    TankSwapCommand = 12,
 }
 
 /// <summary>
@@ -150,6 +155,19 @@ public sealed class LanHeartbeatPayload
     /// <summary>Whether this toon is currently in combat. Additive/back-compat (defaults false).</summary>
     [JsonPropertyName("ic")]
     public bool InCombat { get; set; }
+
+    /// <summary>The toon's in-game party id (0 = solo). Toons sharing a non-zero id are in the same
+    /// actual party — drives the roster's group indicator. Additive/back-compat.</summary>
+    [JsonPropertyName("pg")]
+    public ulong PartyGroupId { get; set; }
+
+    /// <summary>The toon's content id — required by the native party-invite call. Additive/back-compat.</summary>
+    [JsonPropertyName("cid")]
+    public ulong ContentId { get; set; }
+
+    /// <summary>The toon's home world row id — required by the native party-invite call.</summary>
+    [JsonPropertyName("wid")]
+    public ushort HomeWorldId { get; set; }
 
     /// <summary>World position — used by the Split assigner's locality term. Additive/back-compat.</summary>
     [JsonPropertyName("px")]

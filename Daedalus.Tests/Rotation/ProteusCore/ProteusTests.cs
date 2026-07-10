@@ -128,6 +128,98 @@ public class ProteusTests
         Assert.Empty(scheduler.InspectGcdQueue());
     }
 
+    // ── Learned/slotted gates (unslotted spells must not be pushed at all) ──
+
+    [Fact]
+    public void BuffModule_MimicryNotSlotted_NoPush_NoBlacklistChurn()
+    {
+        // Without the gate, an unslotted Mimicry never lands, the grace window expires, and the
+        // scan blacklists the innocent target — cycling through every valid ally.
+        var (context, scheduler) = Harness(role: BluRole.Tank, hasMightyGuard: true);
+        Mock.Get(context).Setup(x => x.HasCorrectMimicry).Returns(false);
+        Mock.Get(context).Setup(x => x.IsSpellUsable(BLUActions.AethericMimicry.ActionId)).Returns(false);
+
+        new BuffModule().CollectCandidates(context, scheduler, isMoving: false);
+
+        Assert.DoesNotContain(scheduler.InspectGcdQueue(), c => c.Behavior == ProteusAbilities.AethericMimicry);
+        Assert.Equal("Mimicry not slotted", context.Debug.MimicryState);
+    }
+
+    [Fact]
+    public void BuffModule_NeverCastsMimicryInsideDuty()
+    {
+        // Jobs are locked once inside an instance — mimicry must be grabbed BEFORE queuing. The
+        // test harness reads as in-duty (Condition service unavailable → IsInInstancedDuty()==true),
+        // so a missing mimicry must produce the "grab it before queuing" report, never a cast.
+        var (context, scheduler) = Harness(role: BluRole.Tank, hasMightyGuard: true);
+        Mock.Get(context).Setup(x => x.HasCorrectMimicry).Returns(false);
+
+        new BuffModule().CollectCandidates(context, scheduler, isMoving: false);
+
+        Assert.DoesNotContain(scheduler.InspectGcdQueue(), c => c.Behavior == ProteusAbilities.AethericMimicry);
+        Assert.Contains("BEFORE queuing", context.Debug.MimicryState);
+    }
+
+    [Fact]
+    public void BuffModule_MightyGuardNotSlotted_NoPush()
+    {
+        var (context, scheduler) = Harness(role: BluRole.Tank, hasMightyGuard: false);
+        Mock.Get(context).Setup(x => x.IsSpellUsable(BLUActions.MightyGuard.ActionId)).Returns(false);
+
+        new BuffModule().CollectCandidates(context, scheduler, isMoving: false);
+
+        Assert.DoesNotContain(scheduler.InspectGcdQueue(), c => c.Behavior == ProteusAbilities.MightyGuard);
+    }
+
+    [Fact]
+    public void HealingModule_WhiteWindNotSlotted_NoPush()
+    {
+        var (context, scheduler) = Harness(role: BluRole.Healer, hasMightyGuard: false);
+        Mock.Get(context).Setup(x => x.PartyHealthMetrics).Returns((0.5f, 0.4f, 3)); // party hurting
+        Mock.Get(context).Setup(x => x.IsSpellUsable(BLUActions.WhiteWind.ActionId)).Returns(false);
+
+        new HealingModule().CollectCandidates(context, scheduler, isMoving: false);
+
+        Assert.DoesNotContain(scheduler.InspectGcdQueue(), c => c.Behavior == ProteusAbilities.WhiteWind);
+        Assert.Equal("White Wind not slotted", context.Debug.HealingState);
+    }
+
+    [Fact]
+    public void HealingModule_WhiteWindSlotted_PushesOnHurtParty()
+    {
+        // Control for the gate test: same hurt party, spell usable → the heal IS pushed.
+        var (context, scheduler) = Harness(role: BluRole.Healer, hasMightyGuard: false);
+        Mock.Get(context).Setup(x => x.PartyHealthMetrics).Returns((0.5f, 0.4f, 3));
+
+        new HealingModule().CollectCandidates(context, scheduler, isMoving: false);
+
+        Assert.Contains(scheduler.InspectGcdQueue(), c => c.Behavior == ProteusAbilities.WhiteWind);
+    }
+
+    [Fact]
+    public void MitigationModule_DiamondbackNotSlotted_ReportsInsteadOfPushing()
+    {
+        var (context, scheduler) = Harness(role: BluRole.Tank, hasMightyGuard: true);
+        Mock.Get(context).Setup(x => x.IsSpellUsable(BLUActions.Diamondback.ActionId)).Returns(false);
+
+        new MitigationModule().CollectCandidates(context, scheduler, isMoving: false);
+
+        Assert.DoesNotContain(scheduler.InspectGcdQueue(), c => c.Behavior == ProteusAbilities.Diamondback);
+        Assert.Equal("Diamondback not slotted", context.Debug.MitigationState);
+    }
+
+    [Fact]
+    public void MitigationModule_HoldsDiamondbackWhileMoving()
+    {
+        // 2.0s hardcast: casting while moving start-cancel loops at exactly the panic moment.
+        var (context, scheduler) = Harness(role: BluRole.Tank, hasMightyGuard: true);
+
+        new MitigationModule().CollectCandidates(context, scheduler, isMoving: true);
+
+        Assert.DoesNotContain(scheduler.InspectGcdQueue(), c => c.Behavior == ProteusAbilities.Diamondback);
+        Assert.Equal("Diamondback (waiting: moving)", context.Debug.MitigationState);
+    }
+
     // ── Harness ─────────────────────────────────────────────────────────────
 
     private static (IProteusContext context, Daedalus.Rotation.Common.Scheduling.RotationScheduler scheduler)

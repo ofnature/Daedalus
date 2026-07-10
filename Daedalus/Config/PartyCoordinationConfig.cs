@@ -390,6 +390,22 @@ public sealed class PartyCoordinationConfig
     public HealerRole PreferredHealerRole { get; set; } = HealerRole.Auto;
 
     /// <summary>
+    /// This toon's tank swap role (the tank analog of the healer role preference).
+    /// Auto: resolve from the LAN window's off-tank picker, falling back to live aggro.
+    /// MainTank: never moved off the boss by coordinated swaps; owns emergency Provoke.
+    /// OffTank: takes aggro only through the deliberate swap handshake (no reactive Provoke).
+    /// A non-Auto value on this toon overrides the window picker for this toon.
+    /// </summary>
+    public TankRolePreference PreferredTankRole { get; set; } = TankRolePreference.Auto;
+
+    /// <summary>
+    /// Auto-accept party invites coming from toons in the LAN roster (our own boxes) by answering
+    /// the confirm dialog — the receive half of one-click grouping. Only fires while solo and only
+    /// for exact roster names. Off by default.
+    /// </summary>
+    public bool AutoAcceptRosterInvites { get; set; } = false;
+
+    /// <summary>
     /// HP threshold for secondary healer to assist with healing.
     /// Secondary healers will only heal targets below this threshold.
     /// Valid range: 0.30 to 0.80.
@@ -422,4 +438,19 @@ public sealed class PartyCoordinationConfig
     }
 
     #endregion
+}
+
+/// <summary>
+/// Per-toon tank swap role preference — the tank analog of <see cref="Ipc.HealerRole"/>.
+/// </summary>
+public enum TankRolePreference
+{
+    /// <summary>Resolve from the LAN window's off-tank picker, falling back to live aggro.</summary>
+    Auto = 0,
+
+    /// <summary>This toon is the main tank: never moved off the boss by coordinated swaps.</summary>
+    MainTank = 1,
+
+    /// <summary>This toon is the off-tank: takes aggro only via the deliberate swap handshake.</summary>
+    OffTank = 2,
 }

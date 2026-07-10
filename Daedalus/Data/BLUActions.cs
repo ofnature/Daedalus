@@ -157,7 +157,8 @@ public static class BLUActions
 
     /// <summary>
     /// #77 — copies the targeted player's ROLE: Tank (status 2124) / DPS (2125) / Healer (2126).
-    /// Ally-targeted, 25y, persists until death/zone. The Proteus role dropdown decides which
+    /// Ally-targeted, 25y. PERMANENT until recast — survives death AND zoning, so it is grabbed
+    /// once in town and holds for the whole session. The Proteus role dropdown decides which
     /// archetype to scan for (Mimicry Helper parity).
     /// </summary>
     public static readonly ActionDefinition AethericMimicry = new()

@@ -45,6 +45,7 @@ public sealed class ConfigWindow : Window
     private readonly ScholarSection scholarSection;
     private readonly AstrologianSection astrologianSection;
     private readonly SageSection sageSection;
+    private readonly Config.Tanks.TankSharedSection tankSharedSection;
     private readonly PaladinSection paladinSection;
     private readonly WarriorSection warriorSection;
     private readonly DarkKnightSection darkKnightSection;
@@ -92,6 +93,7 @@ public sealed class ConfigWindow : Window
         scholarSection = new ScholarSection(configuration, saveConfiguration);
         astrologianSection = new AstrologianSection(configuration, saveConfiguration);
         sageSection = new SageSection(configuration, saveConfiguration);
+        tankSharedSection = new Config.Tanks.TankSharedSection(configuration, saveConfiguration);
         paladinSection = new PaladinSection(configuration, saveConfiguration);
         warriorSection = new WarriorSection(configuration, saveConfiguration);
         darkKnightSection = new DarkKnightSection(configuration, saveConfiguration);
@@ -296,6 +298,10 @@ public sealed class ConfigWindow : Window
 
             case ConfigSection.Sage:
                 sageSection.Draw();
+                break;
+
+            case ConfigSection.TankShared:
+                tankSharedSection.Draw();
                 break;
 
             case ConfigSection.Paladin:

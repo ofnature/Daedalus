@@ -23,6 +23,14 @@ public sealed class MitigationModule : IProteusModule
         if (context.HasDiamondback) { context.Debug.MitigationState = "Diamondback (locked)"; return; }
         if (context.Role != BluRole.Tank) { context.Debug.MitigationState = "Not tank role"; return; }
         if (!context.Configuration.BlueMage.EnableDiamondback) return;
+        if (!context.IsSpellUsable(Daedalus.Data.BLUActions.Diamondback.ActionId))
+        {
+            context.Debug.MitigationState = "Diamondback not slotted";
+            return;
+        }
+        // 2.0s hardcast: while moving the cast would start-cancel loop at exactly the moment it
+        // matters — hold until stationary (movement is AutoDuty/mechanic-driven and brief).
+        if (isMoving) { context.Debug.MitigationState = "Diamondback (waiting: moving)"; return; }
 
         var player = context.Player;
         var hpPercent = player.MaxHp > 0 ? (float)player.CurrentHp / player.MaxHp * 100f : 100f;

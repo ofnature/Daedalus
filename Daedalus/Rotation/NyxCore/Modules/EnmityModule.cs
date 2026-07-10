@@ -10,7 +10,8 @@ using Daedalus.Services.Training;
 namespace Daedalus.Rotation.NyxCore.Modules;
 
 /// <summary>
-/// Handles the Dark Knight enmity management (scheduler-driven).
+/// Handles Dark Knight enmity management: coordinated tank swaps (via <see cref="TankSwapDriver"/>)
+/// plus reactive emergency Provoke and proactive off-tank Shirk.
 /// </summary>
 public sealed class EnmityModule : INyxModule
 {
@@ -18,7 +19,7 @@ public sealed class EnmityModule : INyxModule
     public string Name => "Enmity";
 
     private DateTime _lastProvokeTime = DateTime.MinValue;
-    private DateTime _lastSwapRequestTime = DateTime.MinValue;
+    private readonly TankSwapSequencer _swapSequencer = new();
 
     public bool TryExecute(INyxContext context, bool isMoving) => false;
 
@@ -29,14 +30,32 @@ public sealed class EnmityModule : INyxModule
         if (!context.InCombat)
         {
             context.Debug.EnmityState = "Not in combat";
+            _swapSequencer.Reset();
             return;
         }
 
-        TryPushProvoke(context, scheduler);
-        TryPushShirk(context, scheduler);
+        var player = context.Player;
+        var target = context.TargetingService.FindEnemy(
+            context.Configuration.Targeting.EnemyStrategy, 25f, player);
+
+        if (target != null)
+        {
+            var coTank = context.PartyHelper.FindCoTank(player);
+            if (TankSwapDriver.TryDriveSwap(
+                    context, scheduler, _swapSequencer, target, coTank,
+                    NyxAbilities.Provoke, NyxAbilities.Shirk))
+            {
+                context.Debug.EnmityState = $"Coordinated swap ({_swapSequencer.Phase})";
+                return;
+            }
+        }
+
+        TryPushEmergencyProvoke(context, scheduler, target);
+        TryPushProactiveShirk(context, scheduler);
     }
 
-    private void TryPushProvoke(INyxContext context, RotationScheduler scheduler)
+    private void TryPushEmergencyProvoke(INyxContext context, RotationScheduler scheduler,
+        Dalamud.Game.ClientState.Objects.Types.IBattleNpc? target)
     {
         var player = context.Player;
         if (player.Level < RoleActions.Provoke.MinLevel) return;
@@ -45,8 +64,6 @@ public sealed class EnmityModule : INyxModule
             context.Debug.EnmityState = "AutoProvoke disabled";
             return;
         }
-
-        var target = context.TargetingService.FindEnemy(context.Configuration.Targeting.EnemyStrategy, 25f, player);
         if (target == null)
         {
             context.Debug.EnmityState = "No target";
@@ -56,39 +73,26 @@ public sealed class EnmityModule : INyxModule
         var partyCoord = context.PartyCoordinationService;
         var targetEntityId = (uint)target.GameObjectId;
 
-        var pendingSwap = partyCoord?.GetPendingTankSwapRequest(targetEntityId);
-        if (pendingSwap != null && !pendingSwap.IntendToTakeAggro)
-        {
-            if (!context.ActionService.IsActionReady(RoleActions.Provoke.ActionId))
-            {
-                context.Debug.EnmityState = "Provoke on CD (swap pending)";
-                return;
-            }
-            partyCoord?.ConfirmTankSwap(targetEntityId);
-            var tName = target.Name?.TextValue;
-            scheduler.PushOgcd(NyxAbilities.Provoke, target.GameObjectId, priority: 1,
-                onDispatched: _ =>
-                {
-                    _lastProvokeTime = DateTime.UtcNow;
-                    partyCoord?.ClearTankSwapReservation(targetEntityId);
-                    context.Debug.PlannedAction = RoleActions.Provoke.Name;
-                    context.Debug.EnmityState = "Provoking (coordinated swap)";
-                    TrainingHelper.Decision(context.TrainingService)
-                        .Action(RoleActions.Provoke.ActionId, RoleActions.Provoke.Name).AsEnmity().Target(tName)
-                        .Reason("Coordinated tank swap.", "Provoke transfers aggro.")
-                        .Factors("Co-tank requested swap", $"Target: {tName}")
-                        .Alternatives("Ignore swap request")
-                        .Tip("Respond to tank swap requests promptly.")
-                        .Concept("drk_provoke").Record();
-                    context.TrainingService?.RecordConceptApplication("drk_provoke", true, "Coordinated tank swap");
-                });
-            return;
-        }
-
         if (!context.EnmityService.IsLosingAggro(target, player.EntityId))
         {
             var position = context.EnmityService.GetEnmityPosition(target, player.EntityId);
             context.Debug.EnmityState = position == 1 ? "Main tank" : $"Position {position}";
+            return;
+        }
+
+        if (partyCoord?.WasRecentSwapGiver(targetEntityId) == true)
+        {
+            context.Debug.EnmityState = "Post-swap hold";
+            return;
+        }
+        if (partyCoord?.LocalTankSwapRole == TankSwapRole.DesignatedOffTank)
+        {
+            context.Debug.EnmityState = "Off-tank (no reactive Provoke)";
+            return;
+        }
+        if (context.EnmityService.HasCoTankAggro(target, player.EntityId))
+        {
+            context.Debug.EnmityState = "Co-tank has aggro (swap)";
             return;
         }
 
@@ -105,39 +109,28 @@ public sealed class EnmityModule : INyxModule
             return;
         }
 
-        if (partyCoord?.HasRemoteTank == true && !partyCoord.IsTankSwapInProgress(targetEntityId))
-        {
-            var timeSinceLastRequest = (DateTime.UtcNow - _lastSwapRequestTime).TotalSeconds;
-            var timeoutSeconds = context.Configuration.PartyCoordination.TankSwapConfirmationTimeoutSeconds;
-            if (timeSinceLastRequest > timeoutSeconds)
-            {
-                partyCoord.RequestTankSwap(targetEntityId, true, 1);
-                _lastSwapRequestTime = DateTime.UtcNow;
-                context.Debug.EnmityState = "Requesting tank swap";
-                return;
-            }
-        }
-
-        var tNameB = target.Name?.TextValue;
+        var targetName = target.Name?.TextValue;
         scheduler.PushOgcd(NyxAbilities.Provoke, target.GameObjectId, priority: 1,
             onDispatched: _ =>
             {
                 _lastProvokeTime = DateTime.UtcNow;
-                partyCoord?.ClearTankSwapReservation(targetEntityId);
                 context.Debug.PlannedAction = RoleActions.Provoke.Name;
                 context.Debug.EnmityState = "Provoking (losing aggro)";
                 TrainingHelper.Decision(context.TrainingService)
-                    .Action(RoleActions.Provoke.ActionId, RoleActions.Provoke.Name).AsEnmity().Target(tNameB)
-                    .Reason("Emergency Provoke - losing aggro.", "Provoke instantly regains aggro.")
-                    .Factors("Lost aggro", $"Target: {tNameB}")
-                    .Alternatives("Let co-tank handle it")
-                    .Tip("Provoke immediately when losing aggro.")
-                    .Concept("drk_provoke").Record();
+                    .Action(RoleActions.Provoke.ActionId, RoleActions.Provoke.Name)
+                    .AsEnmity()
+                    .Target(targetName)
+                    .Reason("Emergency Provoke - losing aggro to a non-tank.", "Provoke instantly puts you at top of enmity list.")
+                    .Factors("Lost aggro to non-tank", $"Target: {targetName}")
+                    .Alternatives("Let co-tank take it", "Use enmity combo")
+                    .Tip("If losing aggro, Provoke immediately.")
+                    .Concept("drk_provoke")
+                    .Record();
                 context.TrainingService?.RecordConceptApplication("drk_provoke", true, "Emergency aggro recovery");
             });
     }
 
-    private void TryPushShirk(INyxContext context, RotationScheduler scheduler)
+    private void TryPushProactiveShirk(INyxContext context, RotationScheduler scheduler)
     {
         var player = context.Player;
         if (player.Level < RoleActions.Shirk.MinLevel) return;
@@ -147,72 +140,53 @@ public sealed class EnmityModule : INyxModule
             context.Configuration.Targeting.EnemyStrategy, DRKActions.HardSlash.ActionId, player);
         if (target == null) return;
 
-        var partyCoord = context.PartyCoordinationService;
-        var targetEntityId = (uint)target.GameObjectId;
-
-        var pendingSwap = partyCoord?.GetPendingTankSwapRequest(targetEntityId);
-        if (pendingSwap != null && pendingSwap.IntendToTakeAggro)
-        {
-            if (!context.ActionService.IsActionReady(RoleActions.Shirk.ActionId))
-            {
-                context.Debug.EnmityState = "Shirk on CD (swap pending)";
-                return;
-            }
-            var coTankForSwap = context.PartyHelper.FindCoTank(player);
-            if (coTankForSwap == null)
-            {
-                context.Debug.EnmityState = "No co-tank found for swap";
-                return;
-            }
-            partyCoord?.ConfirmTankSwap(targetEntityId);
-            var coTankName = coTankForSwap.Name?.TextValue;
-            scheduler.PushOgcd(NyxAbilities.Shirk, coTankForSwap.GameObjectId, priority: 1,
-                onDispatched: _ =>
-                {
-                    partyCoord?.ClearTankSwapReservation(targetEntityId);
-                    context.Debug.PlannedAction = RoleActions.Shirk.Name;
-                    context.Debug.EnmityState = "Shirking (coordinated swap)";
-                    TrainingHelper.Decision(context.TrainingService)
-                        .Action(RoleActions.Shirk.ActionId, RoleActions.Shirk.Name).AsEnmity().Target(coTankName)
-                        .Reason("Coordinated tank swap.", "Shirk transfers 25% enmity.")
-                        .Factors("Co-tank requested swap", $"Co-tank: {coTankName}")
-                        .Alternatives("Ignore swap")
-                        .Tip("Shirk after co-tank Provokes.")
-                        .Concept("drk_shirk").Record();
-                    context.TrainingService?.RecordConceptApplication("drk_shirk", true, "Coordinated tank swap");
-                });
-            return;
-        }
-
         if (!context.EnmityService.HasCoTankAggro(target, player.EntityId)) return;
 
         var coTank = context.PartyHelper.FindCoTank(player);
-        if (coTank == null) { context.Debug.EnmityState = "No co-tank found"; return; }
+        if (coTank == null)
+        {
+            context.Debug.EnmityState = "No co-tank found";
+            return;
+        }
 
         var dx = player.Position.X - coTank.Position.X;
         var dy = player.Position.Y - coTank.Position.Y;
         var dz = player.Position.Z - coTank.Position.Z;
         var distance = (float)Math.Sqrt(dx * dx + dy * dy + dz * dz);
-        if (distance > 25f) { context.Debug.EnmityState = "Co-tank too far for Shirk"; return; }
+        if (distance > 25f)
+        {
+            context.Debug.EnmityState = "Co-tank too far for Shirk";
+            return;
+        }
 
-        if (!context.ActionService.IsActionReady(RoleActions.Shirk.ActionId)) { context.Debug.EnmityState = "Shirk on CD"; return; }
+        if (!context.ActionService.IsActionReady(RoleActions.Shirk.ActionId))
+        {
+            context.Debug.EnmityState = "Shirk on CD";
+            return;
+        }
 
-        var myPosition = context.EnmityService.GetEnmityPosition(target, player.EntityId);
-        if (myPosition != 2) { context.Debug.EnmityState = $"Position {myPosition}, not off-tanking"; return; }
+        if (context.EnmityService.GetEnmityPosition(target, player.EntityId) != 2)
+        {
+            context.Debug.EnmityState = "Not off-tanking";
+            return;
+        }
 
-        var coTankNameB = coTank.Name?.TextValue;
+        var coTankName = coTank.Name?.TextValue;
         scheduler.PushOgcd(NyxAbilities.Shirk, coTank.GameObjectId, priority: 1,
             onDispatched: _ =>
             {
                 context.Debug.PlannedAction = RoleActions.Shirk.Name;
                 context.Debug.EnmityState = "Shirking to co-tank";
                 TrainingHelper.Decision(context.TrainingService)
-                    .Action(RoleActions.Shirk.ActionId, RoleActions.Shirk.Name).AsEnmity().Target(coTankNameB)
-                    .Reason("Proactive Shirk.", "Shirk transfers 25% enmity.")
-                    .Factors("Off-tank position", $"Co-tank: {coTankNameB}")
-                    .Alternatives("Stop DPSing")
+                    .Action(RoleActions.Shirk.ActionId, RoleActions.Shirk.Name)
+                    .AsEnmity()
+                    .Target(coTankName)
+                    .Reason("Proactive Shirk - off-tank position.", "Shirk transfers 25% of enmity.")
+                    .Factors("Off-tank position (#2)", $"Co-tank: {coTankName}")
+                    .Alternatives("Stop DPSing", "Let main tank Provoke")
                     .Tip("As off-tank, Shirk periodically.")
-                    .Concept("drk_shirk").Record();
+                    .Concept("drk_shirk")
+                    .Record();
                 context.TrainingService?.RecordConceptApplication("drk_shirk", true, "Off-tank enmity management");
             });
     }

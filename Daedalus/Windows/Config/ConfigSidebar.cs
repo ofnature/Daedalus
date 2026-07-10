@@ -27,6 +27,7 @@ public enum ConfigSection
     Sage,
 
     // Tanks
+    TankShared,
     Paladin,
     Warrior,
     DarkKnight,
@@ -81,7 +82,7 @@ public sealed class ConfigSidebar
     private static readonly ConfigSection[] VisualsSections     = [ConfigSection.Display, ConfigSection.DrawHelper, ConfigSection.ActionFeed, ConfigSection.DebugDisplay];
     private static readonly ConfigSection[] MultiplayerSections = [ConfigSection.PartyCoordination];
     private static readonly ConfigSection[] HealerSections   = [ConfigSection.HealerShared, ConfigSection.WhiteMage, ConfigSection.Scholar, ConfigSection.Astrologian, ConfigSection.Sage];
-    private static readonly ConfigSection[] TankSections     = [ConfigSection.Paladin, ConfigSection.Warrior, ConfigSection.DarkKnight, ConfigSection.Gunbreaker];
+    private static readonly ConfigSection[] TankSections     = [ConfigSection.TankShared, ConfigSection.Paladin, ConfigSection.Warrior, ConfigSection.DarkKnight, ConfigSection.Gunbreaker];
     private static readonly ConfigSection[] MeleeSections    = [ConfigSection.MeleeShared, ConfigSection.Dragoon, ConfigSection.Ninja, ConfigSection.Samurai, ConfigSection.Monk, ConfigSection.Reaper, ConfigSection.Viper];
     private static readonly ConfigSection[] RangedSections   = [ConfigSection.RangedShared, ConfigSection.Machinist, ConfigSection.Bard, ConfigSection.Dancer];
     private static readonly ConfigSection[] CasterSections   = [ConfigSection.CasterShared, ConfigSection.BlackMage, ConfigSection.Summoner, ConfigSection.RedMage, ConfigSection.Pictomancer, ConfigSection.BlueMage];
@@ -187,6 +188,7 @@ public sealed class ConfigSidebar
         if (ShouldShowCategory(TankSections, matchingSections, hasSearch))
         {
             DrawCategoryHeader(Loc.T(LocalizedStrings.Sidebar.Tanks, "TANKS"));
+            sectionChanged |= DrawNavItemFiltered(Loc.T(LocalizedStrings.Sidebar.Shared, "Shared"), ConfigSection.TankShared, null, matchingSections, hasSearch);
             sectionChanged |= DrawNavItemFiltered(Loc.T(LocalizedStrings.Sidebar.Paladin, "Paladin"), ConfigSection.Paladin, ConfigUIHelpers.PaladinColor, matchingSections, hasSearch);
             sectionChanged |= DrawNavItemFiltered(Loc.T(LocalizedStrings.Sidebar.Warrior, "Warrior"), ConfigSection.Warrior, ConfigUIHelpers.WarriorColor, matchingSections, hasSearch);
             sectionChanged |= DrawNavItemFiltered(Loc.T(LocalizedStrings.Sidebar.DarkKnight, "Dark Knight"), ConfigSection.DarkKnight, ConfigUIHelpers.DarkKnightColor, matchingSections, hasSearch);

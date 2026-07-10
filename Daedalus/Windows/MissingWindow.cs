@@ -2,10 +2,12 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
 using Dalamud.Bindings.ImGui;
+using Dalamud.Interface;
 using Dalamud.Interface.Windowing;
 using Daedalus.Data;
 using Daedalus.Services.Action;
 using Daedalus.Services.Debug;
+using Daedalus.Windows.Common;
 
 namespace Daedalus.Windows;
 
@@ -81,7 +83,7 @@ public sealed class MissingWindow : Window
             ImGui.Spacing();
             foreach (var s in missing.OrderBy(s => s.MinLevel))
             {
-                ImGui.TextColored(_red, "✗");
+                DaedalusTheme.StatusIcon(FontAwesomeIcon.Times, _red);
                 ImGui.SameLine();
                 if (isBlu && bluSources!.TryGetValue(s.ActionId, out var source))
                 {
@@ -130,13 +132,13 @@ public sealed class MissingWindow : Window
             {
                 if (s.Learned)
                 {
-                    ImGui.TextColored(_green, "✔");
+                    DaedalusTheme.StatusIcon(FontAwesomeIcon.Check, _green);
                     ImGui.SameLine();
                     ImGui.TextColored(_dim, $"{s.Name}  (Lv.{s.MinLevel})");
                 }
                 else
                 {
-                    ImGui.TextColored(_red, "✗");
+                    DaedalusTheme.StatusIcon(FontAwesomeIcon.Times, _red);
                     ImGui.SameLine();
                     ImGui.Text($"{s.Name}  (Lv.{s.MinLevel})");
                 }
@@ -189,7 +191,7 @@ public sealed class MissingWindow : Window
 
         if (!learned)
         {
-            ImGui.TextColored(_red, "✗");
+            DaedalusTheme.StatusIcon(FontAwesomeIcon.Times, _red);
             ImGui.SameLine();
             ImGui.Text(name);
             if (entry != null)
@@ -202,15 +204,17 @@ public sealed class MissingWindow : Window
 
         if (hasSlots && !bluLoadoutService!.SlottedActionIds.Contains(actionId))
         {
-            ImGui.TextColored(_yellow, "●");
+            DaedalusTheme.StatusIcon(FontAwesomeIcon.Circle, _yellow);
             ImGui.SameLine();
             ImGui.Text(name);
             ImGui.SameLine();
-            ImGui.TextColored(_yellow, "not slotted");
+            // Learned/slotted detection verified in-game 2026-07-08 (GetActionStatus distinguishes
+            // the two for BLU); the label carries both halves so the state is unambiguous.
+            ImGui.TextColored(_yellow, "learned, not slotted");
             return;
         }
 
-        ImGui.TextColored(_green, "✔");
+        DaedalusTheme.StatusIcon(FontAwesomeIcon.Check, _green);
         ImGui.SameLine();
         ImGui.TextColored(_dim, name);
     }

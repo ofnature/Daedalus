@@ -32,4 +32,14 @@ public interface ITankCooldownService
     /// Updates the service state. Called each frame.
     /// </summary>
     void Update(float hpPercent, float incomingDamageRate);
+
+    /// <summary>
+    /// Opens a short window (about 6s) during which the tank should proactively pop a personal
+    /// mitigation cooldown ahead of taking aggro in a coordinated swap. Called on the incoming tank
+    /// before it Provokes.
+    /// </summary>
+    void RequestSwapMitigation();
+
+    /// <summary>True while a swap-mitigation window opened by <see cref="RequestSwapMitigation"/> is active.</summary>
+    bool ShouldUseSwapMitigation();
 }

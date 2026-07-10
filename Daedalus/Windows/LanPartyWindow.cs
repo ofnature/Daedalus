@@ -6,6 +6,7 @@ using System.Text;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Game.ClientState.Objects;
 using Dalamud.Game.ClientState.Objects.Types;
+using Dalamud.Interface;
 using Dalamud.Interface.Windowing;
 using Dalamud.Plugin.Services;
 using Daedalus.Services.Network;
@@ -51,6 +52,16 @@ public sealed class LanPartyWindow : Window, IDisposable
     private readonly Dictionary<string, string> _aliases = new();
     private readonly Dictionary<string, string> _machineAliases = new();
 
+    // Party-group indicator: distinct color per in-game party, assigned first-seen (session-stable).
+    private readonly Dictionary<ulong, int> _groupColorIndex = new();
+    private static readonly Vector4[] GroupPalette =
+    [
+        new(0.85f, 0.65f, 0.20f, 1f), // gold
+        new(0.35f, 0.75f, 0.75f, 1f), // teal
+        new(0.70f, 0.50f, 0.90f, 1f), // purple
+        new(0.90f, 0.55f, 0.40f, 1f), // coral
+    ];
+
     /// <summary>One coordination event surfaced in the alert feed.</summary>
     private readonly record struct AlertEntry(DateTime Time, string Text, Vector4 Color);
 
@@ -76,7 +87,7 @@ public sealed class LanPartyWindow : Window, IDisposable
         // Surface the coordination signals the bus already raises but nothing displayed.
         _bus.OnHealerDown += OnHealerDownAlert;
         _bus.OnPhoenixDown += OnPhoenixDownAlert;
-        _bus.OnTankSwap += OnTankSwapAlert;
+        _bus.OnTankSwapActivity += OnTankSwapAlert;
         _bus.OnAddSpawn += OnAddSpawnAlert;
     }
 
@@ -84,7 +95,7 @@ public sealed class LanPartyWindow : Window, IDisposable
     {
         _bus.OnHealerDown -= OnHealerDownAlert;
         _bus.OnPhoenixDown -= OnPhoenixDownAlert;
-        _bus.OnTankSwap -= OnTankSwapAlert;
+        _bus.OnTankSwapActivity -= OnTankSwapAlert;
         _bus.OnAddSpawn -= OnAddSpawnAlert;
     }
 
@@ -103,7 +114,7 @@ public sealed class LanPartyWindow : Window, IDisposable
     private void OnPhoenixDownAlert(string sender, string targetName)
         => PushAlert($"raise → {targetName}", DaedalusTheme.AccentGold);
 
-    private void OnTankSwapAlert(string sender, LanMessage msg) => PushAlert("tank swap", Yellow);
+    private void OnTankSwapAlert(string description) => PushAlert($"tank swap: {description}", Yellow);
 
     private void OnAddSpawnAlert(string sender, LanMessage msg) => PushAlert("add spawn", Yellow);
 
@@ -383,8 +394,44 @@ public sealed class LanPartyWindow : Window, IDisposable
             ImGui.SameLine();
         DrawOffTankPicker();
 
+        DrawSwapTanksButton();
+
         if (mode == PartyTargetMode.Focus)
             DrawFocusEnemyList();
+    }
+
+    /// <summary>
+    /// Manual coordinated tank swap — arms the swap on every tank box (which then run the
+    /// Provoke/Shirk handshake per live aggro). Needs two tanks; shown disabled otherwise so the
+    /// feature is discoverable instead of silently missing.
+    /// </summary>
+    private void DrawSwapTanksButton()
+    {
+        var tankCount = _bus.Roster.Count(p => p.Role == "Tank");
+        var enabled = tankCount >= 2;
+
+        if (!enabled) ImGui.BeginDisabled();
+        if (ImGui.Button("Swap tanks") && enabled)
+            _bus.BroadcastTankSwapCommand();
+        if (!enabled) ImGui.EndDisabled();
+
+        ImGui.SameLine();
+        if (!enabled)
+        {
+            ImGui.TextColored(DaedalusTheme.TextDisabled, $"needs 2 tanks in roster ({tankCount}/2)");
+        }
+        else
+        {
+            ImGui.TextColored(Dim, _bus.OffTankSenderId.Length > 0
+                ? $"off-tank: {DisplayNameFor(_bus.OffTankSenderId)}"
+                : "swaps by live aggro (no off-tank set)");
+        }
+
+        if (ImGui.IsItemHovered())
+            ImGui.SetTooltip(
+                "Coordinated tank swap: the incoming tank pre-mitigates and Provokes after the\n"
+                + "current tank confirms, then the current tank Shirks once the boss flips.\n"
+                + "Both tanks must enable it: Settings → Tanks → Shared → Tank Coordination.");
     }
 
     private static readonly (string Label, PartyTargetMode Mode)[] ModeSegments =
@@ -585,6 +632,7 @@ public sealed class LanPartyWindow : Window, IDisposable
     {
         string? currentMachine = null;
         var tableOpen = false;
+        var localGroupId = roster.FirstOrDefault(p => p.SenderId == _bus.LocalSenderId)?.PartyGroupId ?? 0;
 
         foreach (var peer in roster)
         {
@@ -607,7 +655,7 @@ public sealed class LanPartyWindow : Window, IDisposable
             }
 
             if (tableOpen)
-                DrawToonRow(peer, now, cfg.LanCompactMode, cfg.LanShowHpBars, cfg.LanScrambleNames, burstReady);
+                DrawToonRow(peer, now, cfg.LanCompactMode, cfg.LanShowHpBars, cfg.LanScrambleNames, burstReady, localGroupId);
         }
 
         if (tableOpen)
@@ -616,11 +664,12 @@ public sealed class LanPartyWindow : Window, IDisposable
 
     private static bool BeginRosterTable(string machineId)
     {
-        if (!ImGui.BeginTable($"roster##{machineId}", 6, ImGuiTableFlags.NoBordersInBody | ImGuiTableFlags.PadOuterX))
+        if (!ImGui.BeginTable($"roster##{machineId}", 7, ImGuiTableFlags.NoBordersInBody | ImGuiTableFlags.PadOuterX))
             return false;
 
         ImGui.TableSetupColumn("##role", ImGuiTableColumnFlags.WidthFixed, 20f);
         ImGui.TableSetupColumn("##name", ImGuiTableColumnFlags.WidthFixed, 150f);
+        ImGui.TableSetupColumn("##grp", ImGuiTableColumnFlags.WidthFixed, 42f);
         ImGui.TableSetupColumn("##job", ImGuiTableColumnFlags.WidthFixed, 40f);
         ImGui.TableSetupColumn("##hp", ImGuiTableColumnFlags.WidthStretch);
         ImGui.TableSetupColumn("##slot", ImGuiTableColumnFlags.WidthFixed, 52f);
@@ -629,7 +678,7 @@ public sealed class LanPartyWindow : Window, IDisposable
     }
 
     private void DrawToonRow(LanPeerInfo peer, DateTime now, bool compact, bool showHp, bool scramble,
-        IReadOnlyCollection<string> burstReady)
+        IReadOnlyCollection<string> burstReady, ulong localGroupId)
     {
         var (state, stateColor, diagnosis) = SyncStateFor(peer, now);
         var isDead = state == SyncState.Synced && peer.HpPercent <= 0f;
@@ -644,6 +693,46 @@ public sealed class LanPartyWindow : Window, IDisposable
         if (name.Length == 0) name = scramble ? AliasFor(peer.SenderId) : peer.SenderId;
         ImGui.AlignTextToFramePadding();
         ImGui.TextUnformatted(name);
+
+        // Party-group column: same-colored dot = same in-game party; toons NOT in the local toon's
+        // party get an invite button instead.
+        ImGui.TableNextColumn();
+        var isSelf = peer.SenderId == _bus.LocalSenderId;
+        var inMyParty = localGroupId != 0 && peer.PartyGroupId == localGroupId;
+        if (peer.PartyGroupId != 0)
+        {
+            if (!_groupColorIndex.TryGetValue(peer.PartyGroupId, out var groupIdx))
+            {
+                groupIdx = _groupColorIndex.Count;
+                _groupColorIndex[peer.PartyGroupId] = groupIdx;
+            }
+
+            DaedalusTheme.StatusIcon(FontAwesomeIcon.Circle, GroupPalette[groupIdx % GroupPalette.Length]);
+            if (ImGui.IsItemHovered())
+                ImGui.SetTooltip($"Party group {(char)('A' + groupIdx % 26)} — same in-game party");
+        }
+
+        if (!isSelf && !inMyParty && peer.CharacterName.Length > 0)
+        {
+            if (peer.PartyGroupId != 0)
+                ImGui.SameLine(0f, 2f);
+
+            ImGui.PushFont(UiBuilder.IconFont);
+            var clicked = ImGui.SmallButton($"{FontAwesomeIcon.UserPlus.ToIconString()}##inv{peer.SenderId}");
+            ImGui.PopFont();
+
+            if (ImGui.IsItemHovered())
+                ImGui.SetTooltip($"Invite {name} to party");
+
+            if (clicked)
+            {
+                // Native invite (content id + name + world from the heartbeat) — outcome surfaces
+                // in the alert feed so failures are diagnosable.
+                var ok = Daedalus.Services.Party.PartyInviteHelper.TryInvite(
+                    peer.CharacterName, peer.ContentId, peer.HomeWorldId, out var detail);
+                PushAlert($"invite: {detail}", ok ? Green : Red);
+            }
+        }
 
         ImGui.TableNextColumn();
         ImGui.TextColored(Dim, peer.JobAbbrev.Length > 0 ? peer.JobAbbrev : "???");
@@ -783,6 +872,12 @@ public sealed class LanPartyWindow : Window, IDisposable
 
         var compactMode = cfg.LanCompactMode;
         if (ImGui.Checkbox("Compact", ref compactMode)) { cfg.LanCompactMode = compactMode; changed = true; }
+        ImGui.SameLine();
+
+        var autoAccept = cfg.AutoAcceptRosterInvites;
+        if (ImGui.Checkbox("Auto-accept", ref autoAccept)) { cfg.AutoAcceptRosterInvites = autoAccept; changed = true; }
+        if (ImGui.IsItemHovered())
+            ImGui.SetTooltip("Automatically accept party invites coming from toons in this roster\n(only while solo; exact names only). One-click grouping's receive half.");
         ImGui.SameLine();
 
         if (ImGui.Button("Copy Party Data"))

@@ -24,6 +24,11 @@ public sealed class HealingModule : IProteusModule
         if (!context.InCombat) { context.Debug.HealingState = "Not in combat"; return; }
         if (context.HasDiamondback) return;
         if (!context.Configuration.BlueMage.EnableWhiteWind) return;
+        if (!context.IsSpellUsable(Daedalus.Data.BLUActions.WhiteWind.ActionId))
+        {
+            context.Debug.HealingState = "White Wind not slotted";
+            return;
+        }
         if (isMoving) return; // 2.0s cast
 
         var cfg = context.Configuration.BlueMage;

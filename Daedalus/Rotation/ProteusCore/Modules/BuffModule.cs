@@ -25,9 +25,10 @@ public sealed class BuffModule : IProteusModule
     {
         if (context.HasDiamondback) return; // locked in the shell — nothing is castable
 
-        // Mimicry applies out of combat ANYWHERE — in an all-BLU party the tank/healer archetype
-        // can only be sourced from a real player nearby (typically grabbed in town before queuing;
-        // the buff survives zoning). Mimicry Helper parity.
+        // Mimicry applies out of combat OUTSIDE duties only — in an all-BLU party the tank/healer
+        // archetype can only be sourced from a real player nearby (grabbed in town before queuing;
+        // the buff survives zoning), and once inside an instance jobs are locked so there is nothing
+        // to fix. Mimicry Helper parity.
         TryPushMimicry(context, scheduler, isMoving);
 
         // Mighty Guard upkeep only in combat or inside duties — no -40%-damage overworld surprise.
@@ -50,6 +51,14 @@ public sealed class BuffModule : IProteusModule
     {
         if (!context.Configuration.BlueMage.EnableMimicry) return;
 
+        // Not learned / not slotted: without this gate the cast never lands, the 4s grace window
+        // expires, and the scan BLACKLISTS the (innocent) target — cycling through every valid ally.
+        if (!context.IsSpellUsable(Daedalus.Data.BLUActions.AethericMimicry.ActionId))
+        {
+            context.Debug.MimicryState = "Mimicry not slotted";
+            return;
+        }
+
         // Dropdown role == active buff -> nothing to do (never recast a matching mimicry).
         if (context.HasCorrectMimicry)
         {
@@ -59,6 +68,19 @@ public sealed class BuffModule : IProteusModule
             context.Debug.MimicryBlacklist = "";
             return;
         }
+
+        // NEVER cast inside a dungeon/trial/raid: jobs are locked once inside, so the archetype
+        // source was decided at the door — mimicry must be grabbed OUTSIDE before queuing. The buff
+        // is PERMANENT until recast (survives death and zoning), so a missing mimicry in-duty can
+        // only mean it was never applied — nothing can drop it mid-run, and in the all-BLU comp
+        // there is nothing valid to copy in here anyway.
+        if (PlayerSafetyHelper.IsInInstancedDuty())
+        {
+            context.Debug.MimicryState =
+                $"MISSING {context.Role} — grab mimicry BEFORE queuing (locked in-duty)";
+            return;
+        }
+
         // 1.0s cast — hold while moving rather than slide-walking a cancel.
         if (isMoving) return;
 
@@ -111,6 +133,12 @@ public sealed class BuffModule : IProteusModule
     private void TryPushMightyGuard(IProteusContext context, RotationScheduler scheduler, bool isMoving)
     {
         if (!context.Configuration.BlueMage.EnableMightyGuard) return;
+        if (!context.IsSpellUsable(Daedalus.Data.BLUActions.MightyGuard.ActionId))
+        {
+            if (context.Role == BluRole.Tank)
+                context.Debug.BuffState = "Mighty Guard not slotted";
+            return;
+        }
         // Mighty Guard is a toggle: maintain it in tank role, drop it when the role changes
         // (its -40% damage dealt is pure loss outside tank duty).
         var wantStance = context.Role == BluRole.Tank;

@@ -25,6 +25,7 @@ public sealed class BossModForecastService : IBossModForecastService
     private ICallGateSubscriber<string?>? _activeModuleName;
     private ICallGateSubscriber<float>? _nextRaidwideIn;
     private ICallGateSubscriber<float>? _nextTankbusterIn;
+    private ICallGateSubscriber<float>? _nextTankbusterDamageIn;
 
     private DateTime _lastRefreshUtc = DateTime.MinValue;
     private bool _cachedAvailable;
@@ -32,6 +33,7 @@ public sealed class BossModForecastService : IBossModForecastService
     private string? _cachedModuleName;
     private float _cachedRaidwideIn = float.MaxValue;
     private float _cachedTankbusterIn = float.MaxValue;
+    private float _cachedTankbusterDamageIn = float.MaxValue;
 
     public BossModForecastService(IDalamudPluginInterface pluginInterface, IPluginLog? log = null)
     {
@@ -62,6 +64,11 @@ public sealed class BossModForecastService : IBossModForecastService
     public float NextTankbusterInSeconds
     {
         get { Refresh(); return _cachedTankbusterIn; }
+    }
+
+    public float NextTankbusterDamageInSeconds
+    {
+        get { Refresh(); return _cachedTankbusterDamageIn; }
     }
 
     /// <summary>
@@ -115,6 +122,7 @@ public sealed class BossModForecastService : IBossModForecastService
             _cachedModuleName = null;
             _cachedRaidwideIn = float.MaxValue;
             _cachedTankbusterIn = float.MaxValue;
+            _cachedTankbusterDamageIn = float.MaxValue;
             return;
         }
 
@@ -126,6 +134,9 @@ public sealed class BossModForecastService : IBossModForecastService
 
         try { _cachedTankbusterIn = _nextTankbusterIn?.InvokeFunc() ?? float.MaxValue; }
         catch { _cachedTankbusterIn = float.MaxValue; }
+
+        try { _cachedTankbusterDamageIn = _nextTankbusterDamageIn?.InvokeFunc() ?? float.MaxValue; }
+        catch { _cachedTankbusterDamageIn = float.MaxValue; }
     }
 
     private void ResetCache()
@@ -134,6 +145,7 @@ public sealed class BossModForecastService : IBossModForecastService
         _cachedModuleName = null;
         _cachedRaidwideIn = float.MaxValue;
         _cachedTankbusterIn = float.MaxValue;
+        _cachedTankbusterDamageIn = float.MaxValue;
     }
 
     private void EnsureSubscribers()
@@ -142,6 +154,7 @@ public sealed class BossModForecastService : IBossModForecastService
         _activeModuleName ??= _pluginInterface.GetIpcSubscriber<string?>("BossMod.ActiveModuleName");
         _nextRaidwideIn ??= _pluginInterface.GetIpcSubscriber<float>("BossMod.Timeline.NextRaidwideIn");
         _nextTankbusterIn ??= _pluginInterface.GetIpcSubscriber<float>("BossMod.Timeline.NextTankbusterIn");
+        _nextTankbusterDamageIn ??= _pluginInterface.GetIpcSubscriber<float>("BossMod.Hints.NextTankbusterDamageIn");
     }
 
     private bool IsPluginLoaded(string internalName)

@@ -235,6 +235,29 @@ public class LanCoordinationTests
     }
 
     [Fact]
+    public void BroadcastTankSwapCommand_ArmsLocalSwap_AndRaisesActivity()
+    {
+        var log = new Mock<IPluginLog>().Object;
+        var lan = new LanCoordinator(log, "machine-A", 47200) { SenderId = "Self@World" };
+        var svc = new Daedalus.Services.Party.PartyCoordinationService(
+            new Daedalus.Config.PartyCoordinationConfig
+            {
+                EnablePartyCoordination = true,
+                EnableTankSwapCoordination = true,
+            },
+            log);
+        var bus = new CoordinationBus(log, lan, svc, "machine-A");
+        var activity = 0;
+        bus.OnTankSwapActivity += _ => activity++;
+
+        bus.BroadcastTankSwapCommand();
+
+        // Our own broadcast is filtered on loopback, so the presser's box arms itself directly.
+        Assert.True(svc.IsManualSwapArmed());
+        Assert.True(activity > 0);
+    }
+
+    [Fact]
     public void LanMessage_CompactJson_StaysSmall()
     {
         // Combat signals must fit comfortably in one datagram; the envelope overhead should be tiny.

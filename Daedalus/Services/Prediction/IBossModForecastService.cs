@@ -22,4 +22,12 @@ public interface IBossModForecastService
 
     /// <summary><c>BossMod.Timeline.NextTankbusterIn</c> in seconds, or <see cref="float.MaxValue"/> when none/unavailable.</summary>
     float NextTankbusterInSeconds { get; }
+
+    /// <summary>
+    /// <c>BossMod.Hints.NextTankbusterDamageIn</c> in seconds, or <see cref="float.MaxValue"/> when
+    /// none/unavailable. Live AIHints prediction (BMR scans PredictedDamage for a Tankbuster-typed
+    /// entry) — unlike <see cref="NextTankbusterInSeconds"/> this covers any active module, not just
+    /// ones with an embedded timeline. Drives the coordinated tank-swap auto trigger.
+    /// </summary>
+    float NextTankbusterDamageInSeconds { get; }
 }

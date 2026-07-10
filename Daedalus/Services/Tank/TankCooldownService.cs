@@ -19,6 +19,11 @@ public sealed class TankCooldownService : ITankCooldownService
     private float _recentDamagePeak;
     private DateTime _lastPeakTime = DateTime.MinValue;
 
+    // Pre-swap mitigation window: the incoming tank opens this right before Provoking so it eats the
+    // first hit(s) with a cooldown up. Short — a swap resolves in a couple GCDs.
+    private DateTime _swapMitigationUntil = DateTime.MinValue;
+    private const double SwapMitigationWindowSeconds = 6.0;
+
     public TankCooldownService(TankConfig config, ITimelineService? timelineService = null)
     {
         _config = config;
@@ -52,6 +57,11 @@ public sealed class TankCooldownService : ITankCooldownService
     {
         if (!_config.EnableMitigation)
             return false;
+
+        // Coordinated swap: pop a personal mitigation as the incoming tank, ahead of the aggro flip,
+        // even at full HP with no incoming damage yet — the point is to eat the first hit mitigated.
+        if (ShouldUseSwapMitigation())
+            return true;
 
         // Don't stack mitigation if we already have one active (unless critically low HP)
         if (hasActiveMitigation && hpPercent > 0.30f)
@@ -113,4 +123,12 @@ public sealed class TankCooldownService : ITankCooldownService
 
         return false;
     }
+
+    /// <inheritdoc />
+    public void RequestSwapMitigation()
+        => _swapMitigationUntil = DateTime.UtcNow.AddSeconds(SwapMitigationWindowSeconds);
+
+    /// <inheritdoc />
+    public bool ShouldUseSwapMitigation()
+        => _config.EnableMitigation && DateTime.UtcNow < _swapMitigationUntil;
 }

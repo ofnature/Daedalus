@@ -77,6 +77,35 @@ public sealed class TankConfig
     public bool AutoShirk { get; set; } = false;
 
     /// <summary>
+    /// Master opt-in for coordinated tank swaps (the Provoke/Shirk handshake between two Daedalus
+    /// tanks). Off by default — swaps only run when both tanks enable this.
+    /// </summary>
+    public bool EnableTankSwap { get; set; } = false;
+
+    /// <summary>
+    /// Automatically trigger a coordinated swap when the current main tank accumulates
+    /// <see cref="TankSwapStackCount"/> stacks of a detrimental status. Opt-in; the manual "Swap
+    /// tanks" button works regardless. Requires <see cref="EnableTankSwap"/>.
+    /// </summary>
+    public bool AutoTankSwap { get; set; } = false;
+
+    /// <summary>
+    /// Stack count on the main tank that triggers an automatic swap. Range 1-8, default 2.
+    /// </summary>
+    private int _tankSwapStackCount = 2;
+    public int TankSwapStackCount
+    {
+        get => _tankSwapStackCount;
+        set => _tankSwapStackCount = Math.Clamp(value, 1, 8);
+    }
+
+    /// <summary>
+    /// Pop a personal mitigation just before taking aggro in a coordinated swap (eat the first hit
+    /// with a cooldown up). Default on.
+    /// </summary>
+    public bool PreSwapMitigation { get; set; } = true;
+
+    /// <summary>
     /// Number of seconds after losing aggro before using Provoke.
     /// Prevents accidental Provokes during intended tank swaps.
     /// Range: 0.0 to 5.0 seconds.

@@ -6,6 +6,22 @@ using Daedalus.Ipc;
 namespace Daedalus.Services.Party;
 
 /// <summary>
+/// The local toon's durable swap role, derived from the Party Coordination window's off-tank picker
+/// (pushed in by the plugin from the LAN bus). Used as the tiebreaker when live aggro is ambiguous —
+/// e.g. after a messy pull where neither tank holds the boss, the designated off-tank Provokes and the
+/// designated main tank Shirks, so both boxes never cross-Provoke.
+/// </summary>
+public enum TankSwapRole
+{
+    /// <summary>No off-tank designated — fall back to live aggro to decide swap direction.</summary>
+    Undesignated,
+    /// <summary>Another tank is the designated off-tank, so this toon is the designated main tank.</summary>
+    DesignatedMainTank,
+    /// <summary>This toon is the designated off-tank.</summary>
+    DesignatedOffTank,
+}
+
+/// <summary>
 /// Interface for party coordination between multiple Daedalus instances.
 /// Enables heal overlap prevention and cooldown coordination.
 /// </summary>
@@ -497,6 +513,35 @@ public interface IPartyCoordinationService
     /// Key is target entity ID, value is the reservation info.
     /// </summary>
     IReadOnlyDictionary<uint, TankSwapReservation> GetRemoteTankSwapReservations();
+
+    /// <summary>
+    /// True when the co-tank has confirmed a swap on this target — the deliberate-swap Provoke gate.
+    /// </summary>
+    bool HasSwapConfirmation(uint targetEntityId);
+
+    /// <summary>
+    /// Records that a swap completed on this target. When aggro was GIVEN away (tookAggro false) the
+    /// giver is suppressed from reactively Provoking the boss back for a short window.
+    /// </summary>
+    void RecordSwapCompleted(uint targetEntityId, bool tookAggro);
+
+    /// <summary>True while this toon recently gave aggro away on the target (anti-ping-pong).</summary>
+    bool WasRecentSwapGiver(uint targetEntityId);
+
+    /// <summary>
+    /// The local toon's window-derived swap role. Set by the plugin each frame from the LAN bus
+    /// off-tank designation; read by tank EnmityModules to resolve ambiguous swap direction.
+    /// </summary>
+    TankSwapRole LocalTankSwapRole { get; set; }
+
+    /// <summary>
+    /// Arms a manual "swap now" for a short window (the LAN window's Swap tanks button fires this on
+    /// the boxes). Both tanks observe it; only the one not currently holding aggro initiates.
+    /// </summary>
+    void ArmManualSwap();
+
+    /// <summary>True while a manual swap is armed and unexpired.</summary>
+    bool IsManualSwapArmed();
 
     #endregion
 

@@ -3,11 +3,26 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
-## v0.1.13 — 2026-07-08
+## v0.1.14 — 2026-07-08
 
-### Fix — Settings: job validation chips match reality, update checker reads fresh and shows your version
-- The per-job validation chips in Settings had fallen behind: Scholar, Dragoon, Black Mage, and Summoner all completed their full in-game validation passes but still showed "untested"/"pending" — now marked **validated**. Bard moves to **pending** (real mid-level pass done, higher-level milestones remain) and Sage moves to **pending** until the new Kardia behavior gets its live run
-- "Check for Updates" could read a cached copy of the version manifest for up to ~5 minutes after a release, and its "Up to date" label printed the *remote* version — so right after an update it could claim "up to date (v0.1.11.0)" while you were already running v0.1.12. Every check now fetches fresh, and "Up to date" shows the version you're actually running
+### New — Coordinated tank swaps (all four tanks)
+- Two Daedalus tanks now hand the boss off cleanly: the incoming tank pops a personal mitigation, announces the swap, and Provokes only after the current tank confirms; the current tank Shirks the moment the boss turns. No cross-Provoking — the tank that just gave aggro away is barred from snatching it back, and the designated off-tank never grabs the boss outside a coordinated swap
+- Trigger it from the **Swap tanks** button in the Party Coordination window (works pressed on any box, reverses direction automatically on repeat presses), or opt into **auto-swap on buster stacks** with a configurable stack count. Everything is opt-in: Settings → Tanks → Shared → Tank Coordination, on both tank boxes
+- New per-toon **tank role** setting (Main tank / Off-tank / Auto) — the tank analog of the healer role preference; Auto follows the Party Coordination window's off-tank picker
+- The new shared tank settings page also surfaces previously hidden knobs: Auto Provoke + delay, Auto Shirk, and the defensive/invulnerability stagger windows
+
+### New — One-click multibox grouping
+- An **invite button** appears next to any roster toon not in your party — it uses the game's native invite (multi-word names and cross-world within your data center both work, unlike the /invite text command)
+- **Auto-accept** toggle in the Party Coordination window: boxes automatically accept party invites coming from toons in the LAN roster (only while solo, exact names only) — click invite on the leader, every box joins itself
+- **Party-group dots**: a colored dot between name and job shows which toons share an actual in-game party — same color, same party
+- Companion-plugin bridge: Daedalus now exposes its LAN roster over IPC (`Daedalus.Party.GetRosterJson` / `GetTrustListJson`) for helpers like Charon
+
+### Fix — Same-machine coordination actually connects
+- Coordination messages (tank swaps, heal/raise reservations, defensive staggering) never worked between two game clients on the SAME PC — the LAN layer assumed local delivery happened elsewhere and dropped its own machine's traffic. Multiboxing on one machine now coordinates identically to cross-machine setups. (This is what made the tank-swap button look dead on first try)
+
+### Fix — Blue Mage pre-flight hardening
+- Spells missing from the active set are now skipped cleanly everywhere (previously an unslotted Aetheric Mimicry could burn the retry logic through every party member), Diamondback no longer start-cancels its cast while moving at panic HP, and Aetheric Mimicry is never cast inside a duty — the buff is permanent until recast, so grab it in town before queuing; the Missing window says exactly that when you forget
+- The Missing window's spellbook checklist now renders real check/dot/cross icons (the old glyphs showed as "=" boxes) and labels partially-ready spells "learned, not slotted"
 <!-- LATEST-END -->
 
 ## v0.1.12 — 2026-07-07

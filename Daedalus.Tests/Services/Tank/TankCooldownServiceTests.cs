@@ -37,6 +37,28 @@ public class TankCooldownServiceTests
     // =========================================================================
 
     [Fact]
+    public void RequestSwapMitigation_OpensWindow_AndForcesMitigationEvenAtFullHp()
+    {
+        var svc = CreateService();
+        Assert.False(svc.ShouldUseSwapMitigation());
+
+        svc.RequestSwapMitigation();
+
+        Assert.True(svc.ShouldUseSwapMitigation());
+        // Full HP, no incoming damage, no active mit — normally no mitigation, but the swap window
+        // forces it so the incoming tank eats the first hit mitigated.
+        Assert.True(svc.ShouldUseMitigation(hpPercent: 1.0f, incomingDamageRate: 0f, hasActiveMitigation: false));
+    }
+
+    [Fact]
+    public void SwapMitigation_Disabled_WhenMitigationOff()
+    {
+        var svc = CreateService(enableMitigation: false);
+        svc.RequestSwapMitigation();
+        Assert.False(svc.ShouldUseSwapMitigation());
+    }
+
+    [Fact]
     public void ShouldUseMitigation_EnableMitigationFalse_ReturnsFalse()
     {
         // Arrange
