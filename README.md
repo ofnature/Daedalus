@@ -21,6 +21,13 @@ An intelligent rotation assistant for FFXIV that goes beyond automation. Daedalu
 
 Updates are delivered automatically — the plugin also checks for new versions itself (Settings → check for updates).
 
+This repository URL also serves two companion plugins through the same installer — no extra URLs needed:
+
+| Plugin | What it does |
+|--------|--------------|
+| **[Charon](https://github.com/ofnature/Charon)** | Auto pillion with smart seat scanning and whitelisted auto group invite — companion to Daedalus's LAN party coordination |
+| **[SealBreaker](https://github.com/ofnature/SealBreaker)** | Automates dungeon farming, GC expert delivery, and grand company item purchasing (AutoDuty/ADS support) |
+
 <details>
 <summary>Manual installation</summary>
 
