@@ -42,7 +42,7 @@ namespace Daedalus;
 
 public sealed class Plugin : IDalamudPlugin
 {
-    public const string PluginVersion = "0.1.15";
+    public const string PluginVersion = "0.1.16";
     private const string CommandName = "/daedalus";
     private const string CommandAlias = "/dae";
 
@@ -569,6 +569,19 @@ public sealed class Plugin : IDalamudPlugin
 
         // Receive half of one-click grouping: auto-accept invites from rostered toons (opt-in).
         this.partyInviteAcceptService = new Daedalus.Services.Party.PartyInviteAcceptService(gameGui, log);
+
+        // Two-tank disambiguation for buff/heal anchors (Kardia etc.): expose the LAN window's
+        // designated off-tank NAME so FindTankInParty can prefer the main tank pre-pull.
+        // SenderId format is "Name@World" — strip the world.
+        Daedalus.Rotation.Common.Helpers.TrustPartyRoleHelper.DesignatedOffTankNameSource = () =>
+        {
+            var senderId = coordinationBus?.OffTankSenderId;
+            if (string.IsNullOrEmpty(senderId))
+                return null;
+
+            var at = senderId.IndexOf('@');
+            return at > 0 ? senderId[..at] : senderId;
+        };
 
         // RSR-compat gates: lets Questionable's kill-quest combat module (configured to
         // "Rotation Solver Reborn") start/stop Daedalus around quest fights. Questionable
@@ -1309,6 +1322,9 @@ public sealed class Plugin : IDalamudPlugin
         // Save calibration data before shutdown
         HealingCalculator.SaveCalibration(configuration.Calibration);
         pluginInterface.SavePluginConfig(configuration);
+
+        // Static-backed hook — must not survive a plugin reload with a dead capture.
+        Daedalus.Rotation.Common.Helpers.TrustPartyRoleHelper.DesignatedOffTankNameSource = null;
 
         // Restore the player's original Auto-face setting if we overrode it.
         if (_originalAutoFaceTarget.HasValue)

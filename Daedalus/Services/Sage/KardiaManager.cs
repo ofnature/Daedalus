@@ -586,10 +586,25 @@ public sealed class KardiaManager : IKardiaManager
 
     private IBattleChara? FindTankAlly(IPlayerCharacter player)
     {
+        // Route through the shared resolver so multi-tank parties pick the MAIN tank (aggro /
+        // off-tank designation) — the manager's latch must track the same tank the module targets.
         IBattleChara? fallback = null;
+        var allies = new List<IBattleChara>();
         foreach (var ally in EnumerateAllies(player))
         {
             fallback ??= ally;
+            allies.Add(ally);
+        }
+
+        if (allies.Count == 0)
+            return null;
+
+        var tank = TrustPartyRoleHelper.FindTankInParty(player, allies, _objectTable, _partyList);
+        if (tank != null && JobRegistry.IsTank(TrustPartyRoleHelper.ResolveJobId(tank, _partyList)))
+            return tank;
+
+        foreach (var ally in allies)
+        {
             if (JobRegistry.IsTank(TrustPartyRoleHelper.ResolveJobId(ally, _partyList)))
                 return ally;
         }

@@ -3,11 +3,17 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.16 — 2026-07-10
+
+### Fix — Healers anchor on the MAIN tank in two-tank parties
+- With two tanks in the party, Kardia (and every other tank-anchored healer behavior — Sage tank oGCDs, Kerachole/Haima anchoring, Earthly Star placement, defensive targeting) picked whichever tank sat first in the party list, which could be the off-tank. "The tank" now resolves to the main tank: the one the biggest engaged enemy is targeting (so a trash mob on the off-tank can't outvote the boss), with the Party Coordination window's off-tank designation breaking the tie before the pull
+- Bonus: because aggro reality wins, Kardia automatically follows coordinated tank swaps — after a swap it re-homes to the new boss holder within a few seconds
+<!-- LATEST-END -->
+
 ## v0.1.15 — 2026-07-09
 
 ### Maintenance — Backend maintenance
 - Internal coordination-layer cleanup; no gameplay changes
-<!-- LATEST-END -->
 
 ## v0.1.14 — 2026-07-08
 
