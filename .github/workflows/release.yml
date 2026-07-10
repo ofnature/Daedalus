@@ -55,8 +55,8 @@ jobs:
 
       - name: Update Daedalus entry in aggregator repo.json
         run: |
-          # repo.json is the shared aggregator listing every RoseOfficial plugin.
-          # Update ONLY the Daedalus entry; preserve all other plugins (Memoria, etc.).
+          # repo.json is the shared aggregator manifest (Daedalus + Charon).
+          # Update ONLY the Daedalus entry; preserve all other plugins.
           NEW_VERSION="${{ steps.version.outputs.version }}"
           TAG="${{ github.ref_name }}"
           ZIP_URL="https://github.com/RoseOfficial/Daedalus/releases/download/${TAG}/Daedalus.zip"
