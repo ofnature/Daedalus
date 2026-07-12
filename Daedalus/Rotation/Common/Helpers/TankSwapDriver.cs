@@ -106,9 +106,11 @@ public static class TankSwapDriver
     }
 
     /// <summary>
-    /// True when the co-tank carries any status stacked to the configured threshold — the fallback
-    /// auto-swap trigger for content without a BMR buster prediction. No detrimental-only filter in
-    /// v1 (opt-in + threshold keep the risk with the operator).
+    /// True when the watched tank carries a WATCHED debuff stacked to the configured threshold —
+    /// the fallback auto-swap trigger for content without a BMR buster prediction. The watchlist
+    /// (<see cref="TankSwapDebuffWatch"/>) narrows this to detrimental, stackable,
+    /// damage-taken-increase statuses from the Status sheet plus any per-content overrides — a
+    /// stacked BUFF (e.g. a damage-up ramp) can no longer fire a swap.
     /// </summary>
     private static bool HasStackTrigger(IBattleChara? coTank, int threshold)
     {
@@ -118,8 +120,12 @@ public static class TankSwapDriver
         foreach (var status in coTank.StatusList)
         {
             // Param carries the stack count for stackable statuses (same read as Soteria stacks).
-            if (status != null && status.Param >= threshold)
+            if (status != null
+                && status.Param >= threshold
+                && TankSwapDebuffWatch.IsWatched(status.StatusId))
+            {
                 return true;
+            }
         }
 
         return false;
