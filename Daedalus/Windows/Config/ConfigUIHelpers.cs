@@ -214,9 +214,16 @@ public static class ConfigUIHelpers
         }
         else
         {
+            // set() MUST run before save(): save refreshes the rotation-facing config copy
+            // (DutyConfigurationService.Refresh) and writes to disk — saving first persisted and
+            // propagated the OLD value, so toggles never reached the live rotation (found via
+            // BLU Auto Mimicry ignoring its toggle, 2026-07-11).
             var val = get();
-            if (ToggleCheckbox(label, ref val, tooltip, save))
+            if (ToggleCheckbox(label, ref val, tooltip, () => { }))
+            {
                 set(val);
+                save();
+            }
         }
     }
 
