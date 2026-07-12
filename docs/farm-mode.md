@@ -67,7 +67,23 @@
 - Rate stats: kills, items/hour, ETA in the Farm window; session summary on stop.
 - Optional: HQ counting, retainer-aware "stop at N total across bags".
 
-## v4: mounted travel + 100y acquisition (PLANNED 2026-07-06 — full spec, execute as written)
+## v4: mounted travel + 100y acquisition — IMPLEMENTED 2026-07-10 (awaiting in-game validation)
+
+Shipped as specced below, with these implementation notes:
+- `FarmMountPolicy` (pure decisions, 18 tests) + `FarmMountHelper` (game reads/casts: ICondition
+  flags, ActionManager GeneralAction 9/23 + ActionType.Mount, PlayerState.IsMountUnlocked,
+  TerritoryType.AetherCurrentCompFlgSet + PlayerState.IsAetherCurrentZoneComplete for flight).
+- Travel hooks: `FarmModeService.HandleMountedTravel` runs first in both ApproachTarget (mob legs,
+  edge distance, dismount at range) and Roam (spot legs, stays mounted on arrival — the next
+  acquired mob triggers the dismount).
+- Scan: player-range widened to max(ScanRadiusYalms, leash); the SPOT LEASH still applies — the
+  wider funnel never pulls the toon outside the patrol area.
+- Fly fallback is per-leg (`_flyFailedThisLeg`): one failed fly-path downgrades the leg to ground.
+- Mount cast: stop-nav tick → cast tick → 3s await → one retry → 30s walk suppression.
+- Travel settings live in the Farm window ("Travel" section) and persist in FarmConfig
+  (unlike the session-only profile).
+
+### Original spec (executed as written)
 
 **Goal**: spot-to-spot travel happens mounted (fly where legal), and mob acquisition scans out to
 ~100y instead of the current engage-range scan, issuing movement to the nearest profile mob.

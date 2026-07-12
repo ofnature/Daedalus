@@ -22,11 +22,18 @@ public sealed class FarmWindow : Window
     private readonly ITargetManager _targetManager;
     private readonly IClientState _clientState;
     private readonly IObjectTable _objectTable;
+    private readonly Configuration _configuration;
+    private readonly System.Action _saveConfiguration;
+    private readonly IFarmMountHelper _mountHelper;
 
     private string _itemSearch = "";
     private string _lastItemSearch = "";
     private readonly List<(uint Id, string Name)> _itemResults = new();
     private int _targetCountInput = 1;
+
+    // Unlocked-mount picker cache — enumerated once per session (unlocks mid-session are rare;
+    // the refresh button covers them).
+    private List<(uint Id, string Name)>? _unlockedMounts;
 
     private readonly GarlandDropSource _dropSource;
 
@@ -36,7 +43,10 @@ public sealed class FarmWindow : Window
         IDataManager dataManager,
         ITargetManager targetManager,
         IClientState clientState,
-        IObjectTable objectTable)
+        IObjectTable objectTable,
+        Configuration configuration,
+        System.Action saveConfiguration,
+        IFarmMountHelper mountHelper)
         : base("Daedalus Farm")
     {
         _farm = farm;
@@ -45,6 +55,9 @@ public sealed class FarmWindow : Window
         _targetManager = targetManager;
         _clientState = clientState;
         _objectTable = objectTable;
+        _configuration = configuration;
+        _saveConfiguration = saveConfiguration;
+        _mountHelper = mountHelper;
 
         Size = new Vector2(360, 480);
         SizeCondition = ImGuiCond.FirstUseEver;
@@ -223,6 +236,9 @@ public sealed class FarmWindow : Window
         if (ImGui.SliderFloat("leash (yalms)", ref leash, 20f, 100f, "%.0f"))
             profile.LeashRadiusYalms = leash;
 
+        ImGui.Separator();
+        DrawTravelSection();
+
         ImGui.EndDisabled();
 
         // ----- Start -----
@@ -256,6 +272,98 @@ public sealed class FarmWindow : Window
     private string? _startError;
     private readonly Dictionary<ulong, string> _pendingLocations = new();
     private string _locationStatus = "";
+
+    /// <summary>
+    /// v4 travel settings (persisted in FarmConfig, unlike the session-only profile): mount mode,
+    /// specific-mount picker (unlocked mounts only), fly toggle, and the two travel tuning sliders.
+    /// </summary>
+    private void DrawTravelSection()
+    {
+        var farm = _configuration.Farm;
+        var changed = false;
+
+        ImGui.TextColored(DaedalusTheme.AccentGold, "Travel");
+        ImGui.SameLine();
+        ImGui.TextDisabled("(mount up for long legs, fly where legal)");
+
+        var roulette = farm.MountMode == Daedalus.Config.FarmMountMode.Roulette;
+        if (ImGui.RadioButton("Mount Roulette", roulette))
+        {
+            farm.MountMode = Daedalus.Config.FarmMountMode.Roulette;
+            changed = true;
+        }
+        ImGui.SameLine();
+        if (ImGui.RadioButton("Specific mount", !roulette))
+        {
+            farm.MountMode = Daedalus.Config.FarmMountMode.Specific;
+            changed = true;
+        }
+
+        if (farm.MountMode == Daedalus.Config.FarmMountMode.Specific)
+        {
+            _unlockedMounts ??= new List<(uint, string)>(_mountHelper.GetUnlockedMounts());
+
+            var currentName = "pick a mount...";
+            foreach (var (id, name) in _unlockedMounts)
+            {
+                if (id == farm.SpecificMountId)
+                {
+                    currentName = name;
+                    break;
+                }
+            }
+
+            ImGui.SetNextItemWidth(200);
+            if (ImGui.BeginCombo("##farmMountPick", currentName))
+            {
+                foreach (var (id, name) in _unlockedMounts)
+                {
+                    if (ImGui.Selectable($"{name}##mount{id}", id == farm.SpecificMountId))
+                    {
+                        farm.SpecificMountId = id;
+                        changed = true;
+                    }
+                }
+                ImGui.EndCombo();
+            }
+            ImGui.SameLine();
+            if (ImGui.SmallButton("refresh##mounts"))
+                _unlockedMounts = null;
+
+            if (_unlockedMounts is { Count: 0 })
+                ImGui.TextDisabled("No mounts unlocked on this character — Roulette will be used.");
+            else if (farm.SpecificMountId != 0 && !_mountHelper.IsMountUnlocked(farm.SpecificMountId))
+                ImGui.TextColored(DaedalusTheme.StatusRed, "Selected mount not unlocked here — falls back to Roulette.");
+        }
+
+        var flyWhenPossible = farm.FlyWhenPossible;
+        if (ImGui.Checkbox("Fly when possible", ref flyWhenPossible))
+        {
+            farm.FlyWhenPossible = flyWhenPossible;
+            changed = true;
+        }
+
+        var mountThreshold = farm.MountDistanceThresholdYalms;
+        ImGui.SetNextItemWidth(180);
+        if (ImGui.SliderFloat("mount when farther than (yalms)", ref mountThreshold, 20f, 120f, "%.0f"))
+        {
+            farm.MountDistanceThresholdYalms = mountThreshold;
+            changed = true;
+        }
+
+        var scanRadius = farm.ScanRadiusYalms;
+        ImGui.SetNextItemWidth(180);
+        if (ImGui.SliderFloat("mob scan radius (yalms)", ref scanRadius, 10f, 100f, "%.0f"))
+        {
+            farm.ScanRadiusYalms = scanRadius;
+            changed = true;
+        }
+        if (ImGui.IsItemHovered())
+            ImGui.SetTooltip("How far around the toon to look for profile mobs.\nMobs must still be inside the spot leash.");
+
+        if (changed)
+            _saveConfiguration();
+    }
 
     /// <summary>
     /// Completes async mob-location lookups on the draw thread: sets the in-game map flag at the
