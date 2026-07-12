@@ -31,6 +31,13 @@ public sealed class BlueMageConfig
     /// <summary>Auto-apply Aetheric Mimicry matching <see cref="Role"/> (Mimicry Helper parity).</summary>
     public bool EnableMimicry { get; set; } = true;
 
+    /// <summary>
+    /// When the Role dropdown changes (out of combat, outside duties), load the Blue Academy
+    /// reference loadout for that role — learned spells only, unlearned slots left empty.
+    /// Default OFF: it REPLACES the active 24-slot set, clobbering any hand-built loadout.
+    /// </summary>
+    public bool AutoApplyRoleLoadout { get; set; } = false;
+
     /// <summary>Maintain Mighty Guard while Role = Tank (dropped when leaving tank role).</summary>
     public bool EnableMightyGuard { get; set; } = true;
 
@@ -71,5 +78,80 @@ public sealed class BlueMageConfig
     {
         get => _aoeMinTargets;
         set => _aoeMinTargets = Math.Clamp(value, 2, 8);
+    }
+
+    // ── Loadout wave 2 (2026-07-11) ────────────────────────────────────────
+
+    /// <summary>Breath of Magic DoT upkeep (120p/60s, own status).</summary>
+    public bool EnableBreathOfMagic { get; set; } = true;
+
+    /// <summary>Mortal Flame — infinite DoT, cast ONCE per target.</summary>
+    public bool EnableMortalFlame { get; set; } = true;
+
+    /// <summary>Bristle before Breath of Magic / Mortal Flame (snapshots +50% into the DoT).</summary>
+    public bool EnableBristle { get; set; } = true;
+
+    /// <summary>Matra Magic on cooldown (120s ST nuke).</summary>
+    public bool EnableMatraMagic { get; set; } = true;
+
+    /// <summary>Feather Rain / Glass Dance / Both Ends off-cooldown oGCD weaves.</summary>
+    public bool EnableOffensiveOgcds { get; set; } = true;
+
+    /// <summary>Surpanakha 4-charge dump (all four back-to-back — anything else drops the stack).</summary>
+    public bool EnableSurpanakha { get; set; } = true;
+
+    /// <summary>Cold Fog when getting hit in a pack; White Death spam while Touch of Frost is up.</summary>
+    public bool EnableColdFog { get; set; } = true;
+
+    /// <summary>Bad Breath once per pack (AoE debuff spread: Slow/Blind/Paralysis/Poison + damage-down).</summary>
+    public bool EnableBadBreath { get; set; } = true;
+
+    /// <summary>Basic Instinct while solo (+100% damage, permanent until a party member appears).</summary>
+    public bool EnableBasicInstinct { get; set; } = true;
+
+    /// <summary>Toad Oil upkeep (+20% evasion, 180s) in tank role or while solo.</summary>
+    public bool EnableToadOil { get; set; } = true;
+
+    /// <summary>Pom Cure single-target heal (healer role; requires healer mimicry — 100p without it).</summary>
+    public bool EnablePomCure { get; set; } = true;
+
+    private int _pomCureHpPercent = 60;
+    /// <summary>HP% at/below which Pom Cure is cast on the most injured ally.</summary>
+    public int PomCureHpPercent
+    {
+        get => _pomCureHpPercent;
+        set => _pomCureHpPercent = Math.Clamp(value, 20, 90);
+    }
+
+    /// <summary>Gobskin barrier upkeep (healer role, refresh when the shield is gone).</summary>
+    public bool EnableGobskin { get; set; } = true;
+
+    /// <summary>Exuviation cleanse (healer role — removes one debuff from nearby party).</summary>
+    public bool EnableExuviation { get; set; } = true;
+
+    /// <summary>
+    /// Moon Flute burst window (kit-driven): fires when every slotted big piece is off cooldown
+    /// and the pack will outlive the window. Default OFF until validated in-game — Waning
+    /// Nocturne locks ALL actions for 15s after the buff.
+    /// </summary>
+    public bool EnableMoonFlute { get; set; } = false;
+
+    private int _moonFluteMinTtkSeconds = 30;
+    /// <summary>Hold Moon Flute when the pack's estimated time-to-kill is below this (0 = off).</summary>
+    public int MoonFluteMinTtkSeconds
+    {
+        get => _moonFluteMinTtkSeconds;
+        set => _moonFluteMinTtkSeconds = Math.Clamp(value, 0, 120);
+    }
+
+    /// <summary>The Ram's Voice → Ultravibration freeze→shatter combo (instantly kills trash packs).</summary>
+    public bool EnableFreezeShatter { get; set; } = true;
+
+    private int _ultravibrationMinTargets = 2;
+    /// <summary>Enemies within the 6y freeze radius before the freeze→shatter combo starts.</summary>
+    public int UltravibrationMinTargets
+    {
+        get => _ultravibrationMinTargets;
+        set => _ultravibrationMinTargets = Math.Clamp(value, 1, 8);
     }
 }

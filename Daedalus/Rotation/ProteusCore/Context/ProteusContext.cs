@@ -77,6 +77,15 @@ public sealed class ProteusContext : IProteusContext
     public BluRole Role { get; }
     public bool HasMightyGuard { get; }
     public bool HasDiamondback { get; }
+    public bool HasWaxingNocturne { get; }
+    public bool HasWaningNocturne { get; }
+    public bool HasBoost { get; }
+    public bool HasTouchOfFrost { get; }
+    public bool HasSurpanakhasFury { get; }
+    public bool HasBasicInstinctBuff { get; }
+    public bool HasToadOil { get; }
+    public bool HasGobskin { get; }
+    public bool HasHealerMimicry { get; }
     public bool HasCorrectMimicry { get; }
     public bool HasAnyMimicry { get; }
     public IBluLoadoutService? LoadoutService { get; }
@@ -162,6 +171,15 @@ public sealed class ProteusContext : IProteusContext
         Role = configuration.BlueMage.Role;
         HasMightyGuard = statusHelper.HasMightyGuard(player);
         HasDiamondback = statusHelper.HasDiamondback(player);
+        HasWaxingNocturne = statusHelper.HasWaxingNocturne(player);
+        HasWaningNocturne = statusHelper.HasWaningNocturne(player);
+        HasBoost = statusHelper.HasBoost(player);
+        HasTouchOfFrost = statusHelper.HasTouchOfFrost(player);
+        HasSurpanakhasFury = statusHelper.HasSurpanakhasFury(player);
+        HasBasicInstinctBuff = statusHelper.HasBasicInstinct(player);
+        HasToadOil = statusHelper.HasToadOil(player);
+        HasGobskin = statusHelper.HasGobskin(player);
+        HasHealerMimicry = statusHelper.HasHealerMimicry(player);
         HasCorrectMimicry = statusHelper.HasMimicryForRole(player, Role);
         HasAnyMimicry = statusHelper.HasAnyMimicry(player);
         LoadoutService = loadoutService;

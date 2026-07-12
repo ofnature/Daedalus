@@ -24,4 +24,32 @@ public interface IBluLoadoutService
 
     /// <summary>Per-frame update (internally throttled). Only reads while the player is BLU.</summary>
     void Update();
+
+    /// <summary>
+    /// Replaces the active 24-slot spell set via the game's own <c>SetBlueMageActions</c> (the
+    /// same call the spellbook UI's Load button uses — no packet forgery). <paramref name="slots"/>
+    /// must be exactly 24 entries, 0 = empty slot, unlearned ids rejected by the game. FAILS while
+    /// Aetheric Mimicry is active — use <see cref="RequestApplyLoadout"/> for the full handshake.
+    /// CALLER gates context: out of combat, outside instanced duties, player is BLU.
+    /// </summary>
+    bool TryApplyLoadout(uint[] slots);
+
+    /// <summary>
+    /// Queues a loadout apply. Aetheric Mimicry blocks set changes and CANNOT be cancelled
+    /// programmatically (field-verified 2026-07-11: ExecuteStatusOff returns false, /statusoff
+    /// no-ops; only a job change drops it) — so while mimicry is up the apply WAITS (30s) for the
+    /// user to drop it, then fires. Progress is driven by <see cref="Update"/>; result lands in
+    /// <see cref="LastApplyResult"/>. Auto-mimicry holds while <see cref="IsApplyPending"/> and
+    /// recasts the buff afterwards.
+    /// </summary>
+    void RequestApplyLoadout(uint[] slots);
+
+    /// <summary>A requested apply is still in flight (waiting on mimicry / retrying).</summary>
+    bool IsApplyPending { get; }
+
+    /// <summary>The pending apply is blocked on Aetheric Mimicry — user must drop it (job swap).</summary>
+    bool WaitingOnMimicry { get; }
+
+    /// <summary>Human-readable outcome of the last requested apply, or null while none/pending.</summary>
+    string? LastApplyResult { get; }
 }

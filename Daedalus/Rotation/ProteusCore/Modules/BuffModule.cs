@@ -24,6 +24,7 @@ public sealed class BuffModule : IProteusModule
     public void CollectCandidates(IProteusContext context, RotationScheduler scheduler, bool isMoving)
     {
         if (context.HasDiamondback) return; // locked in the shell — nothing is castable
+        if (context.HasWaningNocturne) return; // Moon Flute hangover — nothing is castable
 
         // Mimicry applies out of combat OUTSIDE duties only — in an all-BLU party the tank/healer
         // archetype can only be sourced from a real player nearby (grabbed in town before queuing;
@@ -31,11 +32,17 @@ public sealed class BuffModule : IProteusModule
         // to fix. Mimicry Helper parity.
         TryPushMimicry(context, scheduler, isMoving);
 
-        // Mighty Guard upkeep only in combat or inside duties — no -40%-damage overworld surprise.
+        // Self buffs only in combat or inside duties — no overworld auto-cast surprises.
         if (context.InCombat || PlayerSafetyHelper.IsInInstancedDuty())
+        {
             TryPushMightyGuard(context, scheduler, isMoving);
+            TryPushBasicInstinct(context, scheduler, isMoving);
+            TryPushToadOil(context, scheduler, isMoving);
+        }
         else
+        {
             context.Debug.BuffState = "Not in combat";
+        }
     }
 
     // Retry state: if a chosen mimicry target doesn't yield the buff within the grace window
@@ -50,6 +57,15 @@ public sealed class BuffModule : IProteusModule
     private void TryPushMimicry(IProteusContext context, RotationScheduler scheduler, bool isMoving)
     {
         if (!context.Configuration.BlueMage.EnableMimicry) return;
+
+        // A loadout apply is in flight: it CANCELLED our mimicry on purpose (the game refuses
+        // set changes while it's up) — recasting now would deadlock the handshake. Hold; the
+        // normal path recasts the buff the moment the apply completes.
+        if (context.LoadoutService is { IsApplyPending: true })
+        {
+            context.Debug.MimicryState = "Holding (loadout apply in progress)";
+            return;
+        }
 
         // Not learned / not slotted: without this gate the cast never lands, the 4s grace window
         // expires, and the scan BLACKLISTS the (innocent) target — cycling through every valid ally.
@@ -127,6 +143,45 @@ public sealed class BuffModule : IProteusModule
             {
                 context.Debug.PlannedAction = Daedalus.Data.BLUActions.AethericMimicry.Name;
                 context.Debug.MimicryState = $"{context.Role} (from {capturedAlly.Name?.TextValue ?? "ally"})";
+            });
+    }
+
+    /// <summary>
+    /// Basic Instinct: +100% damage while SOLO (no other party members) — permanent until someone
+    /// joins. The game itself refuses the cast when a party is present, so the party gate here is
+    /// about not wasting candidate pushes, not safety.
+    /// </summary>
+    private void TryPushBasicInstinct(IProteusContext context, RotationScheduler scheduler, bool isMoving)
+    {
+        if (!context.Configuration.BlueMage.EnableBasicInstinct) return;
+        if (context.HasBasicInstinctBuff) return;
+        if (!context.IsSpellUsable(Daedalus.Data.BLUActions.BasicInstinct.ActionId)) return;
+        if (context.PartyList.Length > 0) return; // not solo
+        if (isMoving) return; // 2.0s cast
+
+        scheduler.PushGcd(ProteusAbilities.BasicInstinct, context.Player.GameObjectId, priority: 5,
+            onDispatched: _ =>
+            {
+                context.Debug.PlannedAction = Daedalus.Data.BLUActions.BasicInstinct.Name;
+                context.Debug.BuffState = "Basic Instinct (solo +100%)";
+            });
+    }
+
+    /// <summary>Toad Oil (+20% evasion, 180s): survivability upkeep for tank role and solo play.</summary>
+    private void TryPushToadOil(IProteusContext context, RotationScheduler scheduler, bool isMoving)
+    {
+        if (!context.Configuration.BlueMage.EnableToadOil) return;
+        if (context.HasToadOil) return;
+        if (!context.IsSpellUsable(Daedalus.Data.BLUActions.ToadOil.ActionId)) return;
+        var solo = context.PartyList.Length == 0;
+        if (context.Role != Daedalus.Config.DPS.BluRole.Tank && !solo) return;
+        if (isMoving) return; // 2.0s cast
+
+        scheduler.PushGcd(ProteusAbilities.ToadOil, context.Player.GameObjectId, priority: 6,
+            onDispatched: _ =>
+            {
+                context.Debug.PlannedAction = Daedalus.Data.BLUActions.ToadOil.Name;
+                context.Debug.BuffState = "Toad Oil (evasion)";
             });
     }
 

@@ -17,6 +17,38 @@ public sealed class ProteusStatusHelper
     public bool HasDiamondback(IBattleChara player)
         => BaseStatusHelper.HasStatus(player, BLUActions.StatusIds.Diamondback);
 
+    /// <summary>The Moon Flute +50% window is live.</summary>
+    public bool HasWaxingNocturne(IBattleChara player)
+        => BaseStatusHelper.HasStatus(player, BLUActions.StatusIds.WaxingNocturne);
+
+    /// <summary>Moon Flute hangover — 15s of total action lockout. Modules idle through it.</summary>
+    public bool HasWaningNocturne(IBattleChara player)
+        => BaseStatusHelper.HasStatus(player, BLUActions.StatusIds.WaningNocturne);
+
+    /// <summary>Bristle's +50% snapshot is armed — spend it on a DoT, never on filler.</summary>
+    public bool HasBoost(IBattleChara player)
+        => BaseStatusHelper.HasStatus(player, BLUActions.StatusIds.Boost);
+
+    /// <summary>Cold Fog converted — White Death is castable.</summary>
+    public bool HasTouchOfFrost(IBattleChara player)
+        => BaseStatusHelper.HasStatus(player, BLUActions.StatusIds.TouchOfFrost);
+
+    /// <summary>Mid-Surpanakha dump — the next press must also be Surpanakha.</summary>
+    public bool HasSurpanakhasFury(IBattleChara player)
+        => BaseStatusHelper.HasStatus(player, BLUActions.StatusIds.SurpanakhasFury);
+
+    public bool HasBasicInstinct(IBattleChara player)
+        => BaseStatusHelper.HasStatus(player, BLUActions.StatusIds.BasicInstinct);
+
+    public bool HasToadOil(IBattleChara player)
+        => BaseStatusHelper.HasStatus(player, BLUActions.StatusIds.ToadOil);
+
+    public bool HasGobskin(IBattleChara player)
+        => BaseStatusHelper.HasStatus(player, BLUActions.StatusIds.Gobskin);
+
+    public bool HasHealerMimicry(IBattleChara player)
+        => BaseStatusHelper.HasStatus(player, BLUActions.StatusIds.AethericMimicryHealer);
+
     /// <summary>Whether the mimicry matching the configured role is active.</summary>
     public bool HasMimicryForRole(IBattleChara player, BluRole role)
         => BaseStatusHelper.HasStatus(player, MimicryStatusFor(role));

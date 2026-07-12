@@ -25,4 +25,37 @@ public static class ProteusAbilities
     public static readonly AbilityBehavior MightyGuard = new() { Action = BLUActions.MightyGuard, Toggle = cfg => cfg.BlueMage.EnableMightyGuard };
     public static readonly AbilityBehavior Diamondback = new() { Action = BLUActions.Diamondback, Toggle = cfg => cfg.BlueMage.EnableDiamondback };
     public static readonly AbilityBehavior WhiteWind = new() { Action = BLUActions.WhiteWind, Toggle = cfg => cfg.BlueMage.EnableWhiteWind };
+
+    // --- Burst ---
+    public static readonly AbilityBehavior MoonFlute = new() { Action = BLUActions.MoonFlute, Toggle = cfg => cfg.BlueMage.EnableMoonFlute };
+
+    // --- DoTs / snapshot (loadout wave 2) ---
+    public static readonly AbilityBehavior Bristle = new() { Action = BLUActions.Bristle, Toggle = cfg => cfg.BlueMage.EnableBristle };
+    public static readonly AbilityBehavior BreathOfMagic = new() { Action = BLUActions.BreathOfMagic, Toggle = cfg => cfg.BlueMage.EnableBreathOfMagic };
+    public static readonly AbilityBehavior MortalFlame = new() { Action = BLUActions.MortalFlame, Toggle = cfg => cfg.BlueMage.EnableMortalFlame };
+
+    // --- Nukes / procs ---
+    public static readonly AbilityBehavior MatraMagic = new() { Action = BLUActions.MatraMagic, Toggle = cfg => cfg.BlueMage.EnableMatraMagic };
+    public static readonly AbilityBehavior ColdFog = new() { Action = BLUActions.ColdFog, Toggle = cfg => cfg.BlueMage.EnableColdFog };
+    public static readonly AbilityBehavior WhiteDeath = new() { Action = BLUActions.WhiteDeath, Toggle = cfg => cfg.BlueMage.EnableColdFog, ProcBuff = BLUActions.StatusIds.TouchOfFrost };
+    public static readonly AbilityBehavior BadBreath = new() { Action = BLUActions.BadBreath, Toggle = cfg => cfg.BlueMage.EnableBadBreath };
+
+    // --- Freeze→shatter ---
+    public static readonly AbilityBehavior TheRamsVoice = new() { Action = BLUActions.TheRamsVoice, Toggle = cfg => cfg.BlueMage.EnableFreezeShatter };
+    public static readonly AbilityBehavior Ultravibration = new() { Action = BLUActions.Ultravibration, Toggle = cfg => cfg.BlueMage.EnableFreezeShatter };
+
+    // --- oGCD weaves ---
+    public static readonly AbilityBehavior FeatherRain = new() { Action = BLUActions.FeatherRain, Toggle = cfg => cfg.BlueMage.EnableOffensiveOgcds };
+    public static readonly AbilityBehavior GlassDance = new() { Action = BLUActions.GlassDance, Toggle = cfg => cfg.BlueMage.EnableOffensiveOgcds };
+    public static readonly AbilityBehavior BothEnds = new() { Action = BLUActions.BothEnds, Toggle = cfg => cfg.BlueMage.EnableOffensiveOgcds };
+    public static readonly AbilityBehavior Surpanakha = new() { Action = BLUActions.Surpanakha, Toggle = cfg => cfg.BlueMage.EnableSurpanakha, ChargeSource = 18323 };
+
+    // --- Self buffs ---
+    public static readonly AbilityBehavior BasicInstinct = new() { Action = BLUActions.BasicInstinct, Toggle = cfg => cfg.BlueMage.EnableBasicInstinct };
+    public static readonly AbilityBehavior ToadOil = new() { Action = BLUActions.ToadOil, Toggle = cfg => cfg.BlueMage.EnableToadOil };
+
+    // --- Healer kit ---
+    public static readonly AbilityBehavior PomCure = new() { Action = BLUActions.PomCure, Toggle = cfg => cfg.BlueMage.EnablePomCure };
+    public static readonly AbilityBehavior Gobskin = new() { Action = BLUActions.Gobskin, Toggle = cfg => cfg.BlueMage.EnableGobskin };
+    public static readonly AbilityBehavior Exuviation = new() { Action = BLUActions.Exuviation, Toggle = cfg => cfg.BlueMage.EnableExuviation };
 }

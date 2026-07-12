@@ -268,6 +268,14 @@ public class ProteusTests
         mock.Setup(x => x.Debug).Returns(new ProteusDebugState());
         mock.Setup(x => x.TrainingService).Returns((Daedalus.Services.Training.ITrainingService?)null);
 
+        // Loadout wave 2 dependencies: solo party, real party helper over empty mocks, no debuffs.
+        var objectTable = MockBuilders.CreateMockObjectTable();
+        var partyList = MockBuilders.CreateMockPartyList(length: 0);
+        mock.Setup(x => x.PartyList).Returns(partyList.Object);
+        mock.Setup(x => x.PartyHelper).Returns(
+            new Daedalus.Rotation.Common.Helpers.CasterPartyHelper(objectTable.Object, partyList.Object));
+        mock.Setup(x => x.DebuffDetectionService).Returns(MockBuilders.CreateMockDebuffDetectionService().Object);
+
         var scheduler = SchedulerFactory.CreateForTest(actionService: actionService, config: config);
         return (mock.Object, scheduler);
     }

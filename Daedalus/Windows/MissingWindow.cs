@@ -27,6 +27,9 @@ public sealed class MissingWindow : Window
     private readonly DebugService debugService;
     private readonly IBluLoadoutService? bluLoadoutService;
 
+    /// <summary>Feedback line for the last manual loadout apply ("" = none yet).</summary>
+    private string applyFeedback = "";
+
     public MissingWindow(DebugService debugService, IBluLoadoutService? bluLoadoutService = null)
         : base("Missing", ImGuiWindowFlags.NoCollapse)
     {
@@ -168,6 +171,38 @@ public sealed class MissingWindow : Window
 
         if (!ImGui.CollapsingHeader($"{summary}###BluLoadout{loadout.Name}"))
             return;
+
+        // Manual apply: replace the active set with this role's learned spells via the game's
+        // own SetBlueMageActions (what the spellbook Load button calls). Blocked in duties/combat.
+        if (hasSlots)
+        {
+            var blocked = Daedalus.Rotation.Common.Helpers.PlayerSafetyHelper.IsInInstancedDuty()
+                          || (Daedalus.Rotation.Base.RotationServices.Condition?[
+                              Dalamud.Game.ClientState.Conditions.ConditionFlag.InCombat] ?? true);
+            var pending = bluLoadoutService!.IsApplyPending;
+            if (blocked || pending) ImGui.BeginDisabled();
+            if (ImGui.SmallButton($"Apply learned spells###ApplyBlu{loadout.Name}"))
+            {
+                var slots = BluLoadoutComposer.Compose(loadout, id => learnedById.GetValueOrDefault(id));
+                bluLoadoutService.RequestApplyLoadout(slots);
+                applyFeedback = $"Applying {loadout.Name}…";
+            }
+            if (blocked || pending) ImGui.EndDisabled();
+            ImGui.SameLine();
+            ImGui.TextColored(_dim, blocked
+                ? "(unavailable in combat / in a duty)"
+                : "replaces the ACTIVE set with this role's learned spells");
+            if (pending && bluLoadoutService.WaitingOnMimicry)
+                ImGui.TextColored(_yellow,
+                    "Waiting: drop Aetheric Mimicry (swap jobs briefly — the buff can't be cancelled). "
+                    + "The set applies the moment it's gone.");
+            else if (pending)
+                ImGui.TextColored(_yellow, "Applying…");
+            else if (bluLoadoutService.LastApplyResult is { Length: > 0 } result)
+                ImGui.TextColored(_yellow, result);
+            else if (applyFeedback.Length > 0)
+                ImGui.TextColored(_yellow, applyFeedback);
+        }
 
         foreach (var id in loadout.Core)
             DrawLoadoutSpell(id, learnedById, spellbook, hasSlots);

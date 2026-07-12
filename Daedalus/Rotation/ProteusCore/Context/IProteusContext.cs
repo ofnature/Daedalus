@@ -20,6 +20,33 @@ public interface IProteusContext : ICasterDpsRotationContext
     /// <summary>Diamondback active (locked in the shell — do nothing else).</summary>
     bool HasDiamondback { get; }
 
+    /// <summary>Waxing Nocturne — the Moon Flute +50% window is live.</summary>
+    bool HasWaxingNocturne { get; }
+
+    /// <summary>Waning Nocturne (Moon Flute hangover) — TOTAL action lockout, idle through it.</summary>
+    bool HasWaningNocturne { get; }
+
+    /// <summary>Bristle's +50% snapshot armed — the next damage push must be the DoT it was cast for.</summary>
+    bool HasBoost { get; }
+
+    /// <summary>Touch of Frost active — White Death is the filler until it drops.</summary>
+    bool HasTouchOfFrost { get; }
+
+    /// <summary>Mid-Surpanakha dump (fury stack live) — anything else drops the stack.</summary>
+    bool HasSurpanakhasFury { get; }
+
+    /// <summary>Basic Instinct's solo +100% buff is active.</summary>
+    bool HasBasicInstinctBuff { get; }
+
+    /// <summary>Toad Oil evasion buff active.</summary>
+    bool HasToadOil { get; }
+
+    /// <summary>Own Gobskin barrier still absorbing.</summary>
+    bool HasGobskin { get; }
+
+    /// <summary>Aetheric Mimicry: Healer is active (Pom Cure/Gobskin/Exuviation potency gate).</summary>
+    bool HasHealerMimicry { get; }
+
     /// <summary>The mimicry matching <see cref="Role"/> is active.</summary>
     bool HasCorrectMimicry { get; }
 
