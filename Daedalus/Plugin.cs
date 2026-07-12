@@ -42,7 +42,7 @@ namespace Daedalus;
 
 public sealed class Plugin : IDalamudPlugin
 {
-    public const string PluginVersion = "0.1.16";
+    public const string PluginVersion = "0.1.17";
     private const string CommandName = "/daedalus";
     private const string CommandAlias = "/dae";
 
@@ -165,6 +165,7 @@ public sealed class Plugin : IDalamudPlugin
 
     private readonly DaedalusIpc DaedalusIpc;
     private readonly LanRosterIpc lanRosterIpc;
+    private readonly PluginRelayIpc pluginRelayIpc;
     private readonly Daedalus.Services.Party.PartyInviteAcceptService partyInviteAcceptService;
     private readonly RsrCompatIpc rsrCompatIpc;
     private readonly AutomationBusyBridge[] automationBridges;
@@ -391,8 +392,25 @@ public sealed class Plugin : IDalamudPlugin
             pluginInterface.ConfigDirectory.FullName);
 
         // BLU active spell-set reader (learned+slotted availability for Proteus + Missing window)
+        // + loadout apply handshake (needs the active mimicry statuses — the game refuses
+        // SetBlueMageActions while Aetheric Mimicry is up, so the apply cancels it first).
         this.bluLoadoutService = new BluLoadoutService(
-            () => objectTable.LocalPlayer?.ClassJob.RowId ?? 0);
+            () => objectTable.LocalPlayer?.ClassJob.RowId ?? 0,
+            () =>
+            {
+                var lp = objectTable.LocalPlayer;
+                if (lp?.StatusList == null) return System.Array.Empty<uint>();
+                var active = new System.Collections.Generic.List<uint>();
+                foreach (var status in lp.StatusList)
+                {
+                    if (status.StatusId is Daedalus.Data.BLUActions.StatusIds.AethericMimicryTank
+                        or Daedalus.Data.BLUActions.StatusIds.AethericMimicryDps
+                        or Daedalus.Data.BLUActions.StatusIds.AethericMimicryHealer)
+                        active.Add(status.StatusId);
+                }
+                return active;
+            },
+            log);
 
         // Full-party DPS parser; the bus (when LAN is enabled) adds cross-toon self-reporting
         this.dpsMeterService = new DpsMeterService(
@@ -541,12 +559,15 @@ public sealed class Plugin : IDalamudPlugin
         this.mainWindow.ParserActive = () => this.dpsMeterService.Current != null;
 
         // Farm mode: Daedalus-driven grinding (kill profile mobs at spots until X items in bag).
+        var farmMountHelper = new Daedalus.Services.Farm.FarmMountHelper(condition, dataManager, clientState, log);
         this.farmModeService = new Daedalus.Services.Farm.FarmModeService(
             configuration, objectTable, targetManager, targetingService, movementArbiter,
-            inventoryProbe, clientState, log);
+            inventoryProbe, clientState, farmMountHelper, log);
         this.farmModeService.Notify += message => chatGui.Print(message);
         this.garlandDropSource = new Daedalus.Services.Farm.GarlandDropSource(dataManager, log);
-        this.farmWindow = new FarmWindow(farmModeService, garlandDropSource, dataManager, targetManager, clientState, objectTable);
+        this.farmWindow = new FarmWindow(
+            farmModeService, garlandDropSource, dataManager, targetManager, clientState, objectTable,
+            configuration, SaveConfiguration, farmMountHelper);
         this.mainWindow.OpenFarm = () => this.farmWindow.Toggle();
         this.mainWindow.FarmActive = () => this.farmModeService.IsRunning;
 
@@ -566,9 +587,17 @@ public sealed class Plugin : IDalamudPlugin
         // returns "[]" while the LAN coordinator is disabled so consumers can tell "no roster"
         // apart from "Daedalus absent".
         this.lanRosterIpc = new LanRosterIpc(pluginInterface, () => coordinationBus, log);
+        this.pluginRelayIpc = new PluginRelayIpc(pluginInterface, () => coordinationBus, log);
+        this.pluginRelayIpc.WireBusEvents(); // no-op when the LAN coordinator is disabled (bus null)
 
         // Receive half of one-click grouping: auto-accept invites from rostered toons (opt-in).
         this.partyInviteAcceptService = new Daedalus.Services.Party.PartyInviteAcceptService(gameGui, log);
+
+        // Auto-tank-swap stack trigger watchlist: damage-taken-up stack debuffs from the Status
+        // sheet (detrimental + stackable + "damage taken is increased" description — the sheet has
+        // no mechanical modifier data). Per-content overrides go through RegisterContentOverride.
+        Daedalus.Rotation.Common.Helpers.TankSwapDebuffWatch.Initialize(
+            dataManager, () => (ushort)clientState.TerritoryType, log);
 
         // Two-tank disambiguation for buff/heal anchors (Kardia etc.): expose the LAN window's
         // designated off-tank NAME so FindTankInParty can prefer the main tank pre-pull.
@@ -855,6 +884,7 @@ public sealed class Plugin : IDalamudPlugin
             InCombat = inCombat,
             PartyGroupId = partyList.Length > 0 ? (ulong)partyList.PartyId : 0,
             ContentId = GetLocalContentId(),
+            PlayerEntityId = player.EntityId,
             HomeWorldId = (ushort)player.HomeWorld.RowId,
             PosX = player.Position.X,
             PosY = player.Position.Y,
@@ -1171,6 +1201,7 @@ public sealed class Plugin : IDalamudPlugin
 
             // Refresh the BLU active spell set (throttled internally; no-op off-BLU)
             bluLoadoutService.Update();
+            UpdateBluAutoRoleLoadout();
 
             // Update training mode
             trainingService.Update();
@@ -1272,6 +1303,56 @@ public sealed class Plugin : IDalamudPlugin
         }
     }
 
+    // NOTE (field-verified 2026-07-11): Aetheric Mimicry CANNOT be cancelled programmatically.
+    // StatusManager.ExecuteStatusOff(2124-6) returns false, and the game's own /statusoff (sent
+    // via UIModule.ProcessChatBoxEntry — verified delivering with an /echo probe) silently no-ops
+    // on it despite the Status sheet's CanStatusOff=true. Only a job change drops the buff, so
+    // the loadout-apply handshake WAITS for the user instead of pretending to cancel.
+
+    // BLU auto role-loadout: the last Role value we've seen (and satisfied). Null until the
+    // first BLU frame so enabling the feature never clobbers the current set on plugin load —
+    // only an actual role CHANGE triggers an apply.
+    private Daedalus.Config.DPS.BluRole? bluObservedRole;
+
+    /// <summary>
+    /// When Settings → Blue Mage → Role changes and <c>AutoApplyRoleLoadout</c> is on, load the
+    /// Blue Academy reference set for the new role (learned spells only) via the game's own
+    /// SetBlueMageActions. Held while in combat / in a duty / casting and retried once clear.
+    /// </summary>
+    private void UpdateBluAutoRoleLoadout()
+    {
+        var lp = objectTable.LocalPlayer;
+        if (lp == null || lp.ClassJob.RowId != JobRegistry.BlueMage) return;
+
+        var role = configuration.BlueMage.Role;
+        if (bluObservedRole == null) { bluObservedRole = role; return; }
+        if (bluObservedRole == role) return;
+
+        if (!configuration.BlueMage.AutoApplyRoleLoadout)
+        {
+            bluObservedRole = role; // feature off — just track
+            return;
+        }
+
+        // Never swap the set mid-combat, inside an instance, or mid-cast; retry when clear.
+        var inCombat = (lp.StatusFlags & Dalamud.Game.ClientState.Objects.Enums.StatusFlags.InCombat) != 0;
+        if (inCombat || Daedalus.Rotation.Common.Helpers.PlayerSafetyHelper.IsInInstancedDuty() || lp.IsCasting)
+            return;
+
+        if (bluLoadoutService.IsApplyPending) return; // one handshake at a time
+
+        var loadout = BluLoadoutComposer.ForRole(role);
+        var slots = BluLoadoutComposer.Compose(loadout, id => actionService.IsActionLearned(id));
+
+        // Async handshake: cancels Aetheric Mimicry first (the game refuses set changes while
+        // it's up), applies once stripped; the rotation recasts mimicry after. Result lands in
+        // LastApplyResult / the plugin log.
+        bluLoadoutService.RequestApplyLoadout(slots);
+        log.Information($"[BLU] Role changed to {role} — applying the {loadout.Name} loadout");
+
+        bluObservedRole = role; // one attempt per role change, success or not
+    }
+
     /// <summary>
     /// Auto-manages BossMod Reborn's AI movement config by role (distance + live positional, movement-only)
     /// for group content. Feeds the active melee rotation's next required positional so BMR positions for
@@ -1323,8 +1404,9 @@ public sealed class Plugin : IDalamudPlugin
         HealingCalculator.SaveCalibration(configuration.Calibration);
         pluginInterface.SavePluginConfig(configuration);
 
-        // Static-backed hook — must not survive a plugin reload with a dead capture.
+        // Static-backed hooks — must not survive a plugin reload with dead captures.
         Daedalus.Rotation.Common.Helpers.TrustPartyRoleHelper.DesignatedOffTankNameSource = null;
+        Daedalus.Rotation.Common.Helpers.TankSwapDebuffWatch.Shutdown();
 
         // Restore the player's original Auto-face setting if we overrode it.
         if (_originalAutoFaceTarget.HasValue)
@@ -1356,6 +1438,7 @@ public sealed class Plugin : IDalamudPlugin
         windowSystem.RemoveAllWindows();
         DaedalusIpc.Dispose();
         lanRosterIpc.Dispose();
+        pluginRelayIpc.Dispose();
         rsrCompatIpc.Dispose();
         foreach (var bridge in automationBridges)
             bridge.Dispose();

@@ -3,12 +3,45 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.17 — 2026-07-11
+
+### New — Farm mode: mounted travel
+- Farm toons now mount up for long legs (spot-to-spot and back-to-spot travel): Mount Roulette by default or a specific mount of your choice, flying where the zone allows it, with clean dismount-before-engage. New Travel section in the Farm window (mount mode, distance thresholds, acquisition scan radius, fly toggle)
+
+### Improved — Auto tank swap: real buster stacks only
+- The stack-count auto-swap trigger now recognizes actual "damage taken increased" stacking debuffs (the Vulnerability Up family, built from game data) instead of counting any stacked status on the co-tank — no more swaps armed by unrelated stacking effects. Fight-specific exceptions can be registered per territory
+
+### New — Blue Mage: full support for the standard solo/farm loadout
+- The rotation now actually uses the whole 24-slot kit: **Bristle-snapshotted DoTs** (Breath of Magic upkeep, Mortal Flame cast exactly once per target), **Matra Magic** on cooldown, **Cold Fog → White Death** (armed when something is about to hit you; getting hit unlocks 15s of instant 400-potency spam), **Bad Breath** once per pack, and off-cooldown weaves of **Feather Rain, Glass Dance and Both Ends**
+- **Surpanakha** dumps all 4 charges strictly back-to-back — the rotation refuses to weave anything else mid-dump, since any other action drops the stacking buff
+- **Freeze → Shatter**: The Ram's Voice freezes the pack, Ultravibration instantly KILLS everything frozen around you. All other damage is held between freeze and shatter (damage breaks the freeze), freeze-immune packs are detected once and skipped for the rest of the fight. Min-target slider in Settings → Blue Mage → AoE
+- **Basic Instinct** (+100% damage while solo — the farm multiplier) and **Toad Oil** (+20% evasion) are kept up automatically in solo/tank play
+- Healer role rounds out: **Pom Cure** on the most injured ally (only with the healer mimicry — it's a 100-potency joke without), **Gobskin** barrier upkeep, **Exuviation** cleanse
+- Moon Flute's Waning Nocturne lockout is now understood everywhere — the rotation idles through it instead of pushing casts into a locked-out player
+
+### New — Blue Mage: Moon Flute burst window (opt-in)
+- With **Moon Flute burst window** enabled (Settings → Blue Mage → Damage, OFF by default), the rotation fires Moon Flute when every slotted big cooldown is ready — Matra Magic, Rose, Both Ends, Glass Dance, Feather Rain, Surpanakha at 4 charges — then runs the buffed burst through the normal priority chain
+- Inside the window, Breath of Magic and Mortal Flame are deliberately re-snapshotted (a Flute-buffed DoT beats an unbuffed one), utility casts like Cold Fog are suppressed, and the 15s Waning Nocturne lockout afterwards is waited out cleanly
+- A time-to-kill gate holds the Flute when the pack is about to die (configurable, the "don't Trick a dying pack" rule at 10× the cost)
+
+### New — Blue Mage: one-click role loadouts
+- The Missing window's role checklists grew an **Apply learned spells** button — it replaces the active 24-slot set with that role's Blue Academy reference loadout, skipping spells you haven't learned (uses the game's own spellbook Load machinery; disabled in combat and inside duties)
+- The game refuses spell-set changes while **Aetheric Mimicry** is active, and the buff genuinely cannot be cancelled (not by right-click, /statusoff, or any plugin — only a job change drops it). So a blocked apply now waits up to 30 seconds and tells you exactly what to do: swap jobs for a second to drop mimicry, and the set applies the instant you're back — then auto-mimicry re-buffs you
+- Optional **Auto-load role loadout** setting (off by default): changing the Role dropdown swaps the spell set automatically once you're out of combat and outside a duty. Leave it off if you run hand-built loadouts — it replaces the whole set
+
+### New — Companion-plugin bridge grows vitals and a cross-machine relay (for Charon)
+- The LAN roster IPC now includes each toon's **HP and entity id**, so a companion healer plugin can watch fleet vitals across machines (Charon's Heal Watch)
+- New **generic plugin relay**: companion plugins can publish messages to their siblings on every game client — including two clients on the same PC — via `Daedalus.Relay.Publish` / `Daedalus.Relay.Message`, ferried over Daedalus's LAN transport (Dalamud's own IPC can't cross game clients)
+
+### Fix — Settings checkboxes now apply immediately (all jobs)
+- Every checkbox in Settings saved BEFORE writing your change: the running rotation kept the old value (and so did the settings file — a plugin reload could even revert the click) until some other setting was changed. Found via Blue Mage's Auto Mimicry ignoring its toggle; the fix applies to every checkbox in every job section
+<!-- LATEST-END -->
+
 ## v0.1.16 — 2026-07-10
 
 ### Fix — Healers anchor on the MAIN tank in two-tank parties
 - With two tanks in the party, Kardia (and every other tank-anchored healer behavior — Sage tank oGCDs, Kerachole/Haima anchoring, Earthly Star placement, defensive targeting) picked whichever tank sat first in the party list, which could be the off-tank. "The tank" now resolves to the main tank: the one the biggest engaged enemy is targeting (so a trash mob on the off-tank can't outvote the boss), with the Party Coordination window's off-tank designation breaking the tie before the pull
 - Bonus: because aggro reality wins, Kardia automatically follows coordinated tank swaps — after a swap it re-homes to the new boss holder within a few seconds
-<!-- LATEST-END -->
 
 ## v0.1.15 — 2026-07-09
 
