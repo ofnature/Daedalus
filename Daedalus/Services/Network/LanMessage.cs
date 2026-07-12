@@ -51,6 +51,10 @@ public enum LanMessageType
     /// <summary>Manual "swap tanks now" from the coordination window — arms a swap on every tank box,
     /// which then run their normal request/confirm handshake per live aggro.</summary>
     TankSwapCommand = 12,
+
+    /// <summary>Generic companion-plugin relay (Charon↔Charon etc.): opaque {channel, json} ferried
+    /// across machines AND same-machine siblings (loopback mirror). The bus never inspects the data.</summary>
+    PluginRelay = 13,
 }
 
 /// <summary>
@@ -165,6 +169,11 @@ public sealed class LanHeartbeatPayload
     [JsonPropertyName("cid")]
     public ulong ContentId { get; set; }
 
+    /// <summary>The toon's EntityId — lets companion plugins (Charon Heal Watch) resolve this toon
+    /// in their local object table without name collisions. Additive/back-compat.</summary>
+    [JsonPropertyName("eid")]
+    public uint PlayerEntityId { get; set; }
+
     /// <summary>The toon's home world row id — required by the native party-invite call.</summary>
     [JsonPropertyName("wid")]
     public ushort HomeWorldId { get; set; }
@@ -265,6 +274,29 @@ public sealed class LanTargetModePayload
     public static LanTargetModePayload? FromJson(string json)
     {
         try { return JsonSerializer.Deserialize<LanTargetModePayload>(json); }
+        catch { return null; }
+    }
+}
+
+/// <summary>
+/// PluginRelay payload — an opaque companion-plugin message. The bus ferries it verbatim
+/// (cross-machine + same-machine loopback) and never inspects <see cref="Data"/>.
+/// </summary>
+public sealed class LanPluginRelayPayload
+{
+    /// <summary>Consumer-defined channel, e.g. "charon.pillion".</summary>
+    [JsonPropertyName("ch")]
+    public string Channel { get; set; } = "";
+
+    /// <summary>Opaque JSON payload owned by the publishing plugin.</summary>
+    [JsonPropertyName("data")]
+    public string Data { get; set; } = "";
+
+    public string ToJson() => JsonSerializer.Serialize(this);
+
+    public static LanPluginRelayPayload? FromJson(string json)
+    {
+        try { return JsonSerializer.Deserialize<LanPluginRelayPayload>(json); }
         catch { return null; }
     }
 }

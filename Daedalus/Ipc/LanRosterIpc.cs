@@ -28,11 +28,15 @@ public sealed class LanRosterIpc : IDisposable
     private readonly ICallGateProvider<string> _getRosterJson;
     private readonly ICallGateProvider<string> _getTrustListJson;
 
+    // Extend-only schema: Charon ignores unknown fields, so new fields may be ADDED freely but
+    // existing ones must never be renamed or removed (see .cursor/rules/charon-lan-integration.md).
     private sealed record RosterEntryDto(
         [property: JsonPropertyName("name")] string Name,
         [property: JsonPropertyName("world")] string World,
         [property: JsonPropertyName("machine")] string Machine,
-        [property: JsonPropertyName("online")] bool Online);
+        [property: JsonPropertyName("online")] bool Online,
+        [property: JsonPropertyName("hp")] float Hp,
+        [property: JsonPropertyName("entityId")] uint EntityId);
 
     public LanRosterIpc(IDalamudPluginInterface pluginInterface, Func<CoordinationBus?> getBus, IPluginLog log)
     {
@@ -93,7 +97,11 @@ public sealed class LanRosterIpc : IDisposable
                 p.CharacterName,
                 WorldOf(p.SenderId),
                 p.MachineId,
-                !p.IsStale(now)))
+                !p.IsStale(now),
+                // Heartbeat-stale by ~1-2s — Charon's Heal Watch re-checks live HP via its own
+                // object table before casting; the roster value is detection only.
+                p.HpPercent,
+                p.PlayerEntityId))
             .ToList();
     }
 

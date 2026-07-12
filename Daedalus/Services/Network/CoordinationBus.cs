@@ -29,6 +29,9 @@ public sealed class LanPeerInfo
     /// <summary>Content id + home world — the native party-invite call's addressing.</summary>
     public ulong ContentId;
     public ushort HomeWorldId;
+    /// <summary>EntityId from the heartbeat — companion plugins resolve the toon in their object
+    /// table without name collisions (0 from pre-eid clients).</summary>
+    public uint PlayerEntityId;
     /// <summary>World position (~2s stale) — used by the Split assigner's locality term.</summary>
     public Vector3 Position;
     /// <summary>Assigned slot after role negotiation: "Tank 1", "Healer 2", "DPS 3"...</summary>
@@ -111,6 +114,10 @@ public sealed class CoordinationBus : IDisposable
 
     /// <summary>A remote toon's DPS self-report (framework thread — raised from <see cref="Update"/>).</summary>
     public event System.Action<string /*sender*/, LanDpsReportPayload>? OnDpsReport;
+
+    /// <summary>A companion-plugin relay message from another toon (framework thread; own frames
+    /// never arrive — the receive loop filters our SenderId). Args: sender, channel, opaque json.</summary>
+    public event System.Action<string /*sender*/, string /*channel*/, string /*json*/>? OnPluginRelay;
 
     public CoordinationBus(
         IPluginLog log,
@@ -409,6 +416,12 @@ public sealed class CoordinationBus : IDisposable
                 if (tm != null)
                     ApplyTargetModeState(tm.Mode, tm.FocusTargetId, tm.OffTankSenderId, owner: msg.SenderId);
                 break;
+
+            case LanMessageType.PluginRelay:
+                var relay = LanPluginRelayPayload.FromJson(msg.Payload);
+                if (relay is { Channel.Length: > 0 })
+                    OnPluginRelay?.Invoke(msg.SenderId, relay.Channel, relay.Data);
+                break;
         }
     }
 
@@ -454,6 +467,7 @@ public sealed class CoordinationBus : IDisposable
             peer.PartyGroupId = hb.PartyGroupId;
             peer.ContentId = hb.ContentId;
             peer.HomeWorldId = hb.HomeWorldId;
+            peer.PlayerEntityId = hb.PlayerEntityId;
             peer.Position = new Vector3(hb.PosX, hb.PosY, hb.PosZ);
             peer.LastSeenUtc = now;
             if (latencyMs > 0) peer.LatencyMs = latencyMs;
@@ -560,6 +574,22 @@ public sealed class CoordinationBus : IDisposable
     /// <summary>Broadcast this toon's DPS self-report for the current encounter.</summary>
     public void BroadcastDpsReport(LanDpsReportPayload payload)
         => _lan.Send(new LanMessage { Type = LanMessageType.DpsReport, Payload = payload.ToJson() });
+
+    /// <summary>
+    /// Publish an opaque companion-plugin message to every machine — including same-machine
+    /// sibling clients via the loopback mirror (that's the main win: Dalamud IPC is per-process,
+    /// so Charon can't reach the other game client on this PC without us). The publisher's own
+    /// client never receives its own frame (SenderId filter).
+    /// </summary>
+    public void PublishPluginRelay(string channel, string json)
+    {
+        if (string.IsNullOrEmpty(channel)) return;
+        _lan.Send(new LanMessage
+        {
+            Type = LanMessageType.PluginRelay,
+            Payload = new LanPluginRelayPayload { Channel = channel, Data = json ?? "" }.ToJson(),
+        });
+    }
 
     /// <summary>
     /// Set + broadcast the party targeting mode from the coordination window. This toon becomes the

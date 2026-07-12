@@ -86,6 +86,62 @@ public class LanCoordinationTests
     }
 
     [Fact]
+    public void HeartbeatPayload_EntityId_RoundTrips_AndDefaultsToZero()
+    {
+        // eid feeds Charon's Heal Watch (object-table resolution without name collisions).
+        var hb = new LanHeartbeatPayload { PlayerEntityId = 268503433u };
+        var parsed = LanHeartbeatPayload.FromJson(hb.ToJson());
+        Assert.NotNull(parsed);
+        Assert.Equal(268503433u, parsed!.PlayerEntityId);
+
+        // Pre-eid clients omit the field — must default to 0, never fail.
+        var legacy = LanHeartbeatPayload.FromJson("{\"n\":\"X\",\"hp\":1.0}");
+        Assert.NotNull(legacy);
+        Assert.Equal(0u, legacy!.PlayerEntityId);
+    }
+
+    [Fact]
+    public void PluginRelayPayload_RoundTrip_AndMalformedIsNull()
+    {
+        var relay = new LanPluginRelayPayload { Channel = "charon.pillion", Data = "{\"seat\":2}" };
+        var parsed = LanPluginRelayPayload.FromJson(relay.ToJson());
+        Assert.NotNull(parsed);
+        Assert.Equal("charon.pillion", parsed!.Channel);
+        Assert.Equal("{\"seat\":2}", parsed.Data);
+
+        Assert.Null(LanPluginRelayPayload.FromJson("not json {{{"));
+    }
+
+    [Fact]
+    public void Heartbeat_SelfRegistration_CarriesVitalsIntoRoster()
+    {
+        // The roster IPC serves hp/entityId straight from LanPeerInfo — the heartbeat must plumb
+        // both through UpsertRosterEntry (self-registration path exercises the same code remote
+        // heartbeats use).
+        var bus = NewBus();
+        bus.HeartbeatProvider = () => new LanHeartbeatPayload
+        {
+            CharacterName = "Kronos",
+            HpPercent = 0.42f,
+            PlayerEntityId = 268503433u,
+        };
+
+        bus.Update(); // sends the heartbeat + self-registers
+
+        var self = Assert.Single(bus.Roster);
+        Assert.Equal(0.42f, self.HpPercent, 3);
+        Assert.Equal(268503433u, self.PlayerEntityId);
+    }
+
+    [Fact]
+    public void PublishPluginRelay_EmptyChannel_IsRejected_NonEmptyDoesNotThrow()
+    {
+        var bus = NewBus();
+        bus.PublishPluginRelay("", "{}");             // rejected silently
+        bus.PublishPluginRelay("charon.rally", "{}"); // coordinator not started → Send no-ops
+    }
+
+    [Fact]
     public void RolePayload_RoundTrip()
     {
         var role = new LanRolePayload { CharacterName = "Lyria", JobId = 33, Role = "Healer" };

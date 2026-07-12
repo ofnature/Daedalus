@@ -24,10 +24,11 @@ public class LanRosterIpcTests
     public void RosterEntry_SchemaMatchesCharonContract()
     {
         // Serialize a DTO-shaped anonymous payload through the same serializer defaults the
-        // provider uses, then assert the exact key names Charon's parser binds to.
+        // provider uses, then assert the exact key names Charon's parser binds to. Schema is
+        // extend-only: hp/entityId were ADDED for Heal Watch — never rename/remove older keys.
         var json = JsonSerializer.Serialize(new[]
         {
-            new { name = "Korha Ishere", world = "Behemoth", machine = "DESKTOP-1", online = true },
+            new { name = "Korha Ishere", world = "Behemoth", machine = "DESKTOP-1", online = true, hp = 0.83f, entityId = 268503433u },
         });
 
         using var doc = JsonDocument.Parse(json);
@@ -36,5 +37,7 @@ public class LanRosterIpcTests
         Assert.Equal("Behemoth", entry.GetProperty("world").GetString());
         Assert.Equal("DESKTOP-1", entry.GetProperty("machine").GetString());
         Assert.True(entry.GetProperty("online").GetBoolean());
+        Assert.Equal(0.83f, entry.GetProperty("hp").GetSingle(), 3);
+        Assert.Equal(268503433u, entry.GetProperty("entityId").GetUInt32());
     }
 }
