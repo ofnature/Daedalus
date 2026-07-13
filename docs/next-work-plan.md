@@ -124,6 +124,10 @@ signals (deferred until real 4+ parties) → Phase 5 = BLU v3.
   hold-damage-until-the-mob-casts option (open-world BLU learns require witnessing the spell).
   Duty-sourced spells just list for AutoDuty runs. Was deprioritized when the user's loadout
   turned out sufficient; revisit when they want more of the spellbook.
+- **FC chest "Entrust All" button** — `docs/fc-chest-entrust-plan.md` (feasibility VERIFIED
+  against QuickTransfer's working RaptureAtkModule.HandleItemMove mechanism; pure planner +
+  paced state machine + overlay button; host-plugin decision pending, recommendation Daedalus
+  for the farm auto-entrust follow-up).
 
 ## Cross-cutting rules the next session must not relearn
 
