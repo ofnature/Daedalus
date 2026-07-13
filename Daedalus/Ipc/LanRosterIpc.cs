@@ -36,7 +36,11 @@ public sealed class LanRosterIpc : IDisposable
         [property: JsonPropertyName("machine")] string Machine,
         [property: JsonPropertyName("online")] bool Online,
         [property: JsonPropertyName("hp")] float Hp,
-        [property: JsonPropertyName("entityId")] uint EntityId);
+        [property: JsonPropertyName("entityId")] uint EntityId,
+        // Invite addressing (Charon's single/mass invite — the native InviteToParty call
+        // wants content id + home world id; 0 on toons whose heartbeat predates the fields).
+        [property: JsonPropertyName("contentId")] ulong ContentId,
+        [property: JsonPropertyName("worldId")] ushort WorldId);
 
     public LanRosterIpc(IDalamudPluginInterface pluginInterface, Func<CoordinationBus?> getBus, IPluginLog log)
     {
@@ -101,7 +105,9 @@ public sealed class LanRosterIpc : IDisposable
                 // Heartbeat-stale by ~1-2s — Charon's Heal Watch re-checks live HP via its own
                 // object table before casting; the roster value is detection only.
                 p.HpPercent,
-                p.PlayerEntityId))
+                p.PlayerEntityId,
+                p.ContentId,
+                p.HomeWorldId))
             .ToList();
     }
 

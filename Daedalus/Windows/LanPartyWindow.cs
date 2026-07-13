@@ -694,11 +694,10 @@ public sealed class LanPartyWindow : Window, IDisposable
         ImGui.AlignTextToFramePadding();
         ImGui.TextUnformatted(name);
 
-        // Party-group column: same-colored dot = same in-game party; toons NOT in the local toon's
-        // party get an invite button instead.
+        // Party-group column: same-colored dot = same in-game party. Invite actions moved to
+        // Charon (Group Management) — this window is a pure status/coordination display; the
+        // roster IPC carries contentId/worldId for Charon's native invites.
         ImGui.TableNextColumn();
-        var isSelf = peer.SenderId == _bus.LocalSenderId;
-        var inMyParty = localGroupId != 0 && peer.PartyGroupId == localGroupId;
         if (peer.PartyGroupId != 0)
         {
             if (!_groupColorIndex.TryGetValue(peer.PartyGroupId, out var groupIdx))
@@ -710,28 +709,6 @@ public sealed class LanPartyWindow : Window, IDisposable
             DaedalusTheme.StatusIcon(FontAwesomeIcon.Circle, GroupPalette[groupIdx % GroupPalette.Length]);
             if (ImGui.IsItemHovered())
                 ImGui.SetTooltip($"Party group {(char)('A' + groupIdx % 26)} — same in-game party");
-        }
-
-        if (!isSelf && !inMyParty && peer.CharacterName.Length > 0)
-        {
-            if (peer.PartyGroupId != 0)
-                ImGui.SameLine(0f, 2f);
-
-            ImGui.PushFont(UiBuilder.IconFont);
-            var clicked = ImGui.SmallButton($"{FontAwesomeIcon.UserPlus.ToIconString()}##inv{peer.SenderId}");
-            ImGui.PopFont();
-
-            if (ImGui.IsItemHovered())
-                ImGui.SetTooltip($"Invite {name} to party");
-
-            if (clicked)
-            {
-                // Native invite (content id + name + world from the heartbeat) — outcome surfaces
-                // in the alert feed so failures are diagnosable.
-                var ok = Daedalus.Services.Party.PartyInviteHelper.TryInvite(
-                    peer.CharacterName, peer.ContentId, peer.HomeWorldId, out var detail);
-                PushAlert($"invite: {detail}", ok ? Green : Red);
-            }
         }
 
         ImGui.TableNextColumn();
