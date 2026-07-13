@@ -3,6 +3,12 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.18 — 2026-07-13
+
+### Changed — Party invites moved to Charon
+- The invite buttons are gone from the LAN party window — party invites now live in the companion [Charon](https://github.com/ofnature/Charon) plugin (Group Management), which can invite the whole fleet in one click. The LAN window is now a pure status/coordination display; all its other tools (HP bars, roles, burst, tank swap, target modes, scramble) are unchanged. The roster Daedalus shares with Charon now carries the addressing its native invites need.
+<!-- LATEST-END -->
+
 ## v0.1.17 — 2026-07-11
 
 ### New — Farm mode: mounted travel
@@ -35,7 +41,6 @@ All notable changes to Daedalus will be documented in this file.
 
 ### Fix — Settings checkboxes now apply immediately (all jobs)
 - Every checkbox in Settings saved BEFORE writing your change: the running rotation kept the old value (and so did the settings file — a plugin reload could even revert the click) until some other setting was changed. Found via Blue Mage's Auto Mimicry ignoring its toggle; the fix applies to every checkbox in every job section
-<!-- LATEST-END -->
 
 ## v0.1.16 — 2026-07-10
 
