@@ -1,7 +1,8 @@
 # FC Company Chest — "Entrust All" Button (design plan)
 
-> Status: PLAN ONLY (2026-07-12), feasibility verified against working prior art. Execution-ready
-> for a cold-start session. Decision pending: which plugin hosts it (§6).
+> Status: PLAN, execution-ready (2026-07-12); feasibility verified against working prior art.
+> **DECIDED (user, 2026-07-12): lives in CHARON (`D:\Dev\Charon`)** — see §6 for the
+> Charon-specific adjustments. Charon's ROADMAP.md carries the pointer.
 
 ## 1. Feasibility — YES, with a proven mechanism
 
@@ -96,18 +97,21 @@ untradeable/unique/spiritbound; mirror mode only matches current-tab item ids; w
 ignores non-listed; stops when the page is full and reports remainder; source restricted to
 Inventory1-4; move-count cap respected.
 
-## 6. Open decision — where does it live?
+## 6. Host plugin — DECIDED: Charon (user, 2026-07-12)
 
-- **Option A: Daedalus** (Services/FcChest + overlay window). Pro: farm-mode synergy (later:
-  auto-entrust when inventory fills during a farm run), all infra (config, overlay patterns,
-  tests) exists. Con: Daedalus is a rotation plugin; this is pure QoL.
-- **Option B: Charon** — it's the QoL companion; fits its identity. Con: Charon has no test
-  suite / overlay infra comparable to Daedalus.
-- **Option C: standalone plugin** (repo pattern exists — SealBreaker/Caduceus): cleanest
-  identity, most setup overhead.
+It's QoL, and Charon is the QoL companion. Adjustments vs the generic plan above:
 
-Recommendation: **A (Daedalus)** for v1 — the farm-mode auto-entrust follow-up is the real
-payoff and it belongs to the farm loop. Revisit extraction later if it grows.
+- Layout: `Charon/Services/FcChestDepositPlanner.cs` + `FcChestDepositService.cs` +
+  `FcChestOverlay.cs`, config on Charon's existing Configuration. Follow Charon's own
+  conventions (`D:\Dev\Charon`, see its README/ROADMAP), not Daedalus's module pattern.
+- **Testing**: Charon has no test project — ADD a minimal one (`Charon.Tests`, xunit) for the
+  pure planner; the planner is the only logic worth unit-testing and it must not ship untested.
+- **Farm auto-entrust follow-up (v2)** crosses plugins: Daedalus's farm loop publishes on the
+  relay (`Daedalus.Relay.Publish`, channel e.g. `charon.entrust`) when bags fill; Charon
+  executes next time the chest is open (or prompts). The relay shipped in Daedalus v0.1.17 —
+  no new transport needed.
+- When Charon releases with this feature: bump its `AssemblyVersion` in the combined
+  `D:\Dev\Olympus\repo.json` (manual, like the 0.1.1.0 bump) and verify the asset URL.
 
 ## 7. Build order
 
