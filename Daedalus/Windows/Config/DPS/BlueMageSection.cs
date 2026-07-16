@@ -9,8 +9,12 @@ namespace Daedalus.Windows.Config.DPS;
 /// </summary>
 public sealed class BlueMageSection
 {
+    /// <summary>Live party size for the Solo-role lock (set by Plugin; null = unknown, allow).</summary>
+    public static Func<int>? PartySizeSource;
+
     private readonly Configuration config;
     private readonly Action save;
+    private DateTime soloBlockedAtUtc = DateTime.MinValue;
 
     public BlueMageSection(Configuration config, Action save)
     {
@@ -27,20 +31,39 @@ public sealed class BlueMageSection
             ConfigUIHelpers.BeginIndent();
 
             var role = config.BlueMage.Role;
+            var partySize = PartySizeSource?.Invoke() ?? 0;
             if (ConfigUIHelpers.EnumCombo("Role", ref role,
-                "What you're playing as. Drives the rotation (tank stance/mitigation, healer thresholds, DPS filler) AND which archetype Aetheric Mimicry copies from nearby party members.", save))
+                "What you're playing as. Drives the rotation (tank stance/mitigation, healer thresholds, DPS filler) AND which archetype Aetheric Mimicry copies. SOLO = overworld/farm mode: Basic Instinct first, then Mighty Guard on top (BI cancels its damage penalty), DPS mimicry, White Wind + Diamondback self-sustain. Solo is locked while in a party (Basic Instinct requires being partyless).", save))
             {
-                // EnumCombo saves before this assignment lands — save again so the rotation-facing
-                // config copy picks up the new role immediately (same ordering trap as Toggle).
-                config.BlueMage.Role = role;
-                save();
+                if (role == BluRole.Solo && partySize > 0)
+                {
+                    // Solo in a party is nonsense (the game refuses Basic Instinct) — reject the
+                    // selection instead of arming a mode that silently can't work.
+                    soloBlockedAtUtc = DateTime.UtcNow;
+                }
+                else
+                {
+                    // EnumCombo saves before this assignment lands — save again so the rotation-
+                    // facing config copy picks up the new role immediately (Toggle ordering trap).
+                    config.BlueMage.Role = role;
+                    save();
+                }
             }
+
+            if ((DateTime.UtcNow - soloBlockedAtUtc).TotalSeconds < 4)
+                ConfigUIHelpers.WarningText("Solo requires being OUT of party — leave the party first.");
 
             ConfigUIHelpers.Toggle(
                 "Auto Aetheric Mimicry",
                 () => config.BlueMage.EnableMimicry,
                 v => config.BlueMage.EnableMimicry = v,
-                "Scan the party (players and Trust NPCs), then the surrounding AREA, for someone matching your role and copy them automatically. In an all-BLU party a Tank/Healer mimicry needs a REAL tank/healer player nearby — grab it in town before queuing (the buff survives zoning). Reapplies after death or role change.", save);
+                "Scan the party (players and Trust NPCs), then the surrounding AREA, for someone matching your role and copy them automatically. Turn OFF to control mimicry entirely from the BLU Mimicry window's role buttons instead.", save);
+
+            ConfigUIHelpers.Toggle(
+                "Mimicry window on BLU",
+                () => config.BlueMage.ShowMimicryWindowOnBlu,
+                v => config.BlueMage.ShowMimicryWindowOnBlu = v,
+                "Pop the BLU Mimicry window (Mimic Tank/DPS/Healer buttons + Remove) whenever you switch to Blue Mage.", save);
 
             ConfigUIHelpers.Toggle(
                 "Auto-load role loadout",
@@ -59,7 +82,7 @@ public sealed class BlueMageSection
                 "Mighty Guard",
                 () => config.BlueMage.EnableMightyGuard,
                 v => config.BlueMage.EnableMightyGuard = v,
-                "Maintain the tank stance while Role = Tank (dropped automatically when leaving tank role).", save);
+                "Maintain the tank stance while Role = Tank, or in SOLO role once Basic Instinct is up (BI cancels the -40% damage penalty). Dropped automatically when leaving those roles.", save);
 
             ConfigUIHelpers.Toggle(
                 "Diamondback",
@@ -81,10 +104,10 @@ public sealed class BlueMageSection
             ConfigUIHelpers.BeginIndent();
 
             ConfigUIHelpers.Toggle(
-                "Basic Instinct (solo)",
+                "Basic Instinct (solo, duty only)",
                 () => config.BlueMage.EnableBasicInstinct,
                 v => config.BlueMage.EnableBasicInstinct = v,
-                "+100% damage while playing WITHOUT a party — permanent until someone joins. Cast once at the start of solo combat. The solo farm/dungeon multiplier.", save);
+                "+100% damage while alone INSIDE a duty (the game refuses it in the open world). The unsynced-dungeon-farming multiplier — goes up automatically on zone-in with the Solo role, and Mighty Guard follows it.", save);
 
             ConfigUIHelpers.Toggle(
                 "Toad Oil",
@@ -207,6 +230,18 @@ public sealed class BlueMageSection
                 config.BlueMage.MoonFluteMinTtkSeconds, 0, 120,
                 "Hold the Flute when the pack is estimated to die within this many seconds (0 = no hold).", save,
                 v => config.BlueMage.MoonFluteMinTtkSeconds = v);
+
+            ConfigUIHelpers.Toggle(
+                "Final Sting (SOLO execute)",
+                () => config.BlueMage.EnableFinalSting,
+                v => config.BlueMage.EnableFinalSting = v,
+                "~2000 potency that KILLS YOUR CHARACTER and locks itself out for 10 minutes. Solo role only, fires on the LAST engaged enemy at/below the HP threshold. For finishing tough solo targets — leave OFF for farm loops.", save);
+
+            config.BlueMage.FinalStingTargetHpPercent = ConfigUIHelpers.IntSlider(
+                "Final Sting Target HP %",
+                config.BlueMage.FinalStingTargetHpPercent, 5, 50,
+                "Target HP% at or below which Final Sting fires.", save,
+                v => config.BlueMage.FinalStingTargetHpPercent = v);
 
             ConfigUIHelpers.EndIndent();
         }

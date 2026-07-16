@@ -22,7 +22,8 @@ public sealed class MitigationModule : IProteusModule
         if (!context.InCombat) { context.Debug.MitigationState = "Not in combat"; return; }
         if (context.HasDiamondback) { context.Debug.MitigationState = "Diamondback (locked)"; return; }
         if (context.HasWaningNocturne) { context.Debug.MitigationState = "Waning Nocturne (locked out)"; return; }
-        if (context.Role != BluRole.Tank) { context.Debug.MitigationState = "Not tank role"; return; }
+        if (context.Role != BluRole.Tank && context.Role != BluRole.Solo)
+        { context.Debug.MitigationState = "Not tank/solo role"; return; }
         if (!context.Configuration.BlueMage.EnableDiamondback) return;
         if (!context.IsSpellUsable(Daedalus.Data.BLUActions.Diamondback.ActionId))
         {

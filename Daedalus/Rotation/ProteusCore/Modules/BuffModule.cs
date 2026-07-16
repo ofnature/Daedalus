@@ -32,8 +32,11 @@ public sealed class BuffModule : IProteusModule
         // to fix. Mimicry Helper parity.
         TryPushMimicry(context, scheduler, isMoving);
 
-        // Self buffs only in combat or inside duties — no overworld auto-cast surprises.
-        if (context.InCombat || PlayerSafetyHelper.IsInInstancedDuty())
+        // Self buffs in combat or inside duties — no overworld auto-cast surprises. EXCEPT the
+        // SOLO role: picking it IS the explicit opt-in, so Basic Instinct + Mighty Guard (+ Toad
+        // Oil) go up immediately in the overworld instead of eating the first pull's GCDs.
+        if (context.InCombat || PlayerSafetyHelper.IsInInstancedDuty()
+            || context.Role == Daedalus.Config.DPS.BluRole.Solo)
         {
             TryPushMightyGuard(context, scheduler, isMoving);
             TryPushBasicInstinct(context, scheduler, isMoving);
@@ -44,6 +47,20 @@ public sealed class BuffModule : IProteusModule
             context.Debug.BuffState = "Not in combat";
         }
     }
+
+    // Self-buff status-latency latch: a 2.0s cast's status appears ~0.2-0.5s AFTER the cast ends
+    // (server round trip), so the very next GCD decision still reads "buff missing" and re-casts
+    // (field: Toad Oil ×2 with no movement, twice). One dispatch per buff per window; a genuinely
+    // interrupted cast retries after the window (status still absent then).
+    private readonly System.Collections.Generic.Dictionary<uint, System.DateTime> _selfBuffCastUtc = new();
+    private const float SelfBuffRelatchSeconds = 5f;
+
+    private bool SelfBuffRecentlyCast(uint actionId)
+        => _selfBuffCastUtc.TryGetValue(actionId, out var at)
+           && (System.DateTime.UtcNow - at).TotalSeconds < SelfBuffRelatchSeconds;
+
+    private void MarkSelfBuffCast(uint actionId)
+        => _selfBuffCastUtc[actionId] = System.DateTime.UtcNow;
 
     // Retry state: if a chosen mimicry target doesn't yield the buff within the grace window
     // (cast blocked — LoS, untargetable, cutscene-adjacent...), blacklist them briefly and scan
@@ -56,11 +73,23 @@ public sealed class BuffModule : IProteusModule
 
     private void TryPushMimicry(IProteusContext context, RotationScheduler scheduler, bool isMoving)
     {
-        if (!context.Configuration.BlueMage.EnableMimicry) return;
+        // Manual role request from the Mimicry window: bypasses the auto toggle AND the config
+        // role — a fresh cast on a different-role target OVERWRITES the current buff, which is
+        // the only supported way to change it (the buff cannot be cancelled).
+        var manualRole = BluMimicryCommand.GetPending();
+        if (!context.Configuration.BlueMage.EnableMimicry && manualRole == null) return;
 
-        // A loadout apply is in flight: it CANCELLED our mimicry on purpose (the game refuses
-        // set changes while it's up) — recasting now would deadlock the handshake. Hold; the
-        // normal path recasts the buff the moment the apply completes.
+        // A manual removal just happened — hold the auto recast so it sticks (manual requests
+        // still pass; picking a role button ends the suppression naturally).
+        if (manualRole == null && BluMimicryCommand.AutoSuppressed)
+        {
+            context.Debug.MimicryState = "Auto-mimicry paused (removed manually)";
+            return;
+        }
+
+        // A loadout apply is in flight: it needs mimicry GONE (the game refuses set changes
+        // while it's up) — recasting now would deadlock the handshake. Hold; the normal path
+        // recasts the buff the moment the apply completes.
         if (context.LoadoutService is { IsApplyPending: true })
         {
             context.Debug.MimicryState = "Holding (loadout apply in progress)";
@@ -75,22 +104,24 @@ public sealed class BuffModule : IProteusModule
             return;
         }
 
-        // Dropdown role == active buff -> nothing to do (never recast a matching mimicry).
-        if (context.HasCorrectMimicry)
+        var desiredRole = manualRole ?? context.Role;
+        var desiredStatus = ProteusStatusHelper.MimicryStatusFor(desiredRole);
+
+        // Desired buff already active -> nothing to do (never recast a matching mimicry).
+        if (Daedalus.Rotation.Common.Helpers.BaseStatusHelper.HasStatus(context.Player, desiredStatus))
         {
-            context.Debug.MimicryState = $"{context.Role} (active)";
+            if (manualRole != null) BluMimicryCommand.Clear();
+            context.Debug.MimicryState = $"{desiredRole} (active)";
             _mimicryTargetId = 0;
             if (_mimicryBlacklist.Count > 0) _mimicryBlacklist.Clear();
             context.Debug.MimicryBlacklist = "";
             return;
         }
 
-        // NEVER cast inside a dungeon/trial/raid: jobs are locked once inside, so the archetype
-        // source was decided at the door — mimicry must be grabbed OUTSIDE before queuing. The buff
-        // is PERMANENT until recast (survives death and zoning), so a missing mimicry in-duty can
-        // only mean it was never applied — nothing can drop it mid-run, and in the all-BLU comp
-        // there is nothing valid to copy in here anyway.
-        if (PlayerSafetyHelper.IsInInstancedDuty())
+        // AUTO casts never happen inside a dungeon/trial/raid (all-BLU comps have nothing to
+        // copy; grab it before queuing). A MANUAL button press is user judgment — in a mixed
+        // real-player party there can be a valid source mid-duty, so let it through.
+        if (manualRole == null && PlayerSafetyHelper.IsInInstancedDuty())
         {
             context.Debug.MimicryState =
                 $"MISSING {context.Role} — grab mimicry BEFORE queuing (locked in-duty)";
@@ -121,13 +152,13 @@ public sealed class BuffModule : IProteusModule
             ? new System.Collections.Generic.HashSet<ulong>(_mimicryBlacklist.Keys)
             : null;
         var ally = MimicryScanHelper.FindArchetypeAlly(
-            context.PartyHelper, context.PartyList, context.ObjectTable, context.Player, context.Role, exclude);
+            context.PartyHelper, context.PartyList, context.ObjectTable, context.Player, desiredRole, exclude);
         if (ally == null)
         {
             // Fail-open: no (non-blacklisted) archetype in range — play on, surface the miss.
             context.Debug.MimicryState = _mimicryBlacklist.Count > 0
-                ? $"MISSING — no other {context.Role} in range ({_mimicryBlacklist.Count} blocked)"
-                : $"MISSING — no {context.Role} in range";
+                ? $"MISSING — no other {desiredRole} in range ({_mimicryBlacklist.Count} blocked)"
+                : $"MISSING — no {desiredRole} in range";
             return;
         }
 
@@ -138,11 +169,12 @@ public sealed class BuffModule : IProteusModule
         }
 
         var capturedAlly = ally;
+        var capturedRole = desiredRole;
         scheduler.PushGcd(ProteusAbilities.AethericMimicry, ally.GameObjectId, priority: 4,
             onDispatched: _ =>
             {
                 context.Debug.PlannedAction = Daedalus.Data.BLUActions.AethericMimicry.Name;
-                context.Debug.MimicryState = $"{context.Role} (from {capturedAlly.Name?.TextValue ?? "ally"})";
+                context.Debug.MimicryState = $"{capturedRole} (from {capturedAlly.Name?.TextValue ?? "ally"})";
             });
     }
 
@@ -156,30 +188,55 @@ public sealed class BuffModule : IProteusModule
         if (!context.Configuration.BlueMage.EnableBasicInstinct) return;
         if (context.HasBasicInstinctBuff) return;
         if (!context.IsSpellUsable(Daedalus.Data.BLUActions.BasicInstinct.ActionId)) return;
-        if (context.PartyList.Length > 0) return; // not solo
+
+        // FIELD-VERIFIED 2026-07-12: Basic Instinct is DUTY-ONLY — the game refuses it in the
+        // open world (RSR's IsInDuty gate was right). Solo overworld runs WITHOUT it (and thus
+        // without Mighty Guard, which waits for it); unsynced dungeon farming is where it shines.
+        if (!PlayerSafetyHelper.IsInInstancedDuty())
+        {
+            if (context.Role == Daedalus.Config.DPS.BluRole.Solo)
+                context.Debug.BuffState = "Basic Instinct: duty only — overworld runs without it";
+            return;
+        }
+
+        if (context.PartyList.Length > 0)
+        {
+            // Deliberate: the game refuses Basic Instinct with party members. Say so — the first
+            // field run left the user wondering why it never fired (boxes were partied).
+            context.Debug.BuffState = "Basic Instinct/Toad Oil: held (party present)";
+            return;
+        }
         if (isMoving) return; // 2.0s cast
+        if (SelfBuffRecentlyCast(Daedalus.Data.BLUActions.BasicInstinct.ActionId)) return; // status latency
 
         scheduler.PushGcd(ProteusAbilities.BasicInstinct, context.Player.GameObjectId, priority: 5,
             onDispatched: _ =>
             {
+                MarkSelfBuffCast(Daedalus.Data.BLUActions.BasicInstinct.ActionId);
                 context.Debug.PlannedAction = Daedalus.Data.BLUActions.BasicInstinct.Name;
                 context.Debug.BuffState = "Basic Instinct (solo +100%)";
             });
     }
 
-    /// <summary>Toad Oil (+20% evasion, 180s): survivability upkeep for tank role and solo play.</summary>
+    /// <summary>Toad Oil (+20% evasion, 180s): survivability upkeep for tank role and solo play.
+    /// COMBAT/DUTY only — pre-buffing it in the open world reads as a wasted cast (user call).</summary>
     private void TryPushToadOil(IProteusContext context, RotationScheduler scheduler, bool isMoving)
     {
         if (!context.Configuration.BlueMage.EnableToadOil) return;
+        if (!context.InCombat && !PlayerSafetyHelper.IsInInstancedDuty()) return;
         if (context.HasToadOil) return;
         if (!context.IsSpellUsable(Daedalus.Data.BLUActions.ToadOil.ActionId)) return;
         var solo = context.PartyList.Length == 0;
-        if (context.Role != Daedalus.Config.DPS.BluRole.Tank && !solo) return;
+        if (context.Role != Daedalus.Config.DPS.BluRole.Tank
+            && context.Role != Daedalus.Config.DPS.BluRole.Solo
+            && !solo) return;
         if (isMoving) return; // 2.0s cast
+        if (SelfBuffRecentlyCast(Daedalus.Data.BLUActions.ToadOil.ActionId)) return; // status latency
 
         scheduler.PushGcd(ProteusAbilities.ToadOil, context.Player.GameObjectId, priority: 6,
             onDispatched: _ =>
             {
+                MarkSelfBuffCast(Daedalus.Data.BLUActions.ToadOil.ActionId);
                 context.Debug.PlannedAction = Daedalus.Data.BLUActions.ToadOil.Name;
                 context.Debug.BuffState = "Toad Oil (evasion)";
             });
@@ -195,14 +252,19 @@ public sealed class BuffModule : IProteusModule
             return;
         }
         // Mighty Guard is a toggle: maintain it in tank role, drop it when the role changes
-        // (its -40% damage dealt is pure loss outside tank duty).
-        var wantStance = context.Role == BluRole.Tank;
+        // (its -40% damage dealt is pure loss outside tank duty). SOLO role wants it too — but
+        // only AFTER Basic Instinct is up (BI's +100% cancels the penalty; MG before BI would
+        // gut damage for nothing). BI (priority 5) casts first, then MG (priority 3) follows.
+        var wantStance = context.Role == BluRole.Tank
+                         || (context.Role == BluRole.Solo && context.HasBasicInstinctBuff);
         if (context.HasMightyGuard == wantStance) return;
         if (isMoving) return; // 2.0s cast
+        if (SelfBuffRecentlyCast(Daedalus.Data.BLUActions.MightyGuard.ActionId)) return; // status latency
 
         scheduler.PushGcd(ProteusAbilities.MightyGuard, context.Player.GameObjectId, priority: 3,
             onDispatched: _ =>
             {
+                MarkSelfBuffCast(Daedalus.Data.BLUActions.MightyGuard.ActionId);
                 context.Debug.PlannedAction = Daedalus.Data.BLUActions.MightyGuard.Name;
                 context.Debug.BuffState = wantStance ? "Enabling Mighty Guard" : "Dropping Mighty Guard (role change)";
             });

@@ -22,6 +22,7 @@ namespace Daedalus.Tests.Rotation.ProteusCore;
 /// Basic Instinct / Toad Oil, healer kit (Pom Cure / Gobskin / Exuviation), Waning Nocturne
 /// lockout, and the V2.5 freeze→shatter window.
 /// </summary>
+[Collection("BluStaticState")] // BluMimicryCommand is static — serialize with ProteusTests
 public class ProteusLoadoutWave2Tests
 {
     // ── DoT block ───────────────────────────────────────────────────────────
@@ -52,6 +53,55 @@ public class ProteusLoadoutWave2Tests
     }
 
     [Fact]
+    public void Damage_BoostArmed_HoldsEverythingButTheDot()
+    {
+        // Bristle's boost is eaten by ANY next offensive spell — while armed for a DoT, filler
+        // and weaves must wait (field: three Bristles, zero Breath of Magic).
+        var h = new Harness();
+        Mock.Get(h.Context).Setup(x => x.HasBoost).Returns(true);
+        h.Damage.CollectCandidates(h.Context, h.Scheduler, isMoving: false);
+
+        var gcd = h.Scheduler.InspectGcdQueue();
+        Assert.Contains(gcd, c => c.Behavior == ProteusAbilities.BreathOfMagic);
+        Assert.DoesNotContain(gcd, c => c.Behavior == ProteusAbilities.SonicBoom);
+        Assert.DoesNotContain(gcd, c => c.Behavior == ProteusAbilities.TheRoseOfDestruction);
+        Assert.Empty(h.Scheduler.InspectOgcdQueue()); // weaves are spells too — they'd eat it
+    }
+
+    [Fact]
+    public void Damage_BristleInFlight_HoldsWeaves_BeforeBoostExists()
+    {
+        // The Boost only exists at Bristle's cast END — a weave pushed during the cast lands in
+        // the tail and eats it (field: Glass Dance took the boost meant for Mortal Flame).
+        var h = new Harness();
+        h.Damage.CollectCandidates(h.Context, h.Scheduler, isMoving: false);
+        Assert.NotEmpty(h.Scheduler.InspectOgcdQueue()); // pre-Bristle: weaves flow
+
+        h.Scheduler.InspectGcdQueue().First(c => c.Behavior == ProteusAbilities.Bristle).OnDispatched!(h.Context);
+        h.Scheduler.Reset();
+        h.Damage.CollectCandidates(h.Context, h.Scheduler, isMoving: false); // HasBoost still false — cast in flight
+
+        Assert.Empty(h.Scheduler.InspectOgcdQueue());
+    }
+
+    [Fact]
+    public void Damage_BoostHold_Releases_AfterDotLands()
+    {
+        var h = new Harness();
+        Mock.Get(h.Context).Setup(x => x.HasBoost).Returns(true);
+        h.Damage.CollectCandidates(h.Context, h.Scheduler, isMoving: false);
+        h.Scheduler.InspectGcdQueue().First(c => c.Behavior == ProteusAbilities.BreathOfMagic).OnDispatched!(h.Context);
+        h.Scheduler.InspectGcdQueue().First(c => c.Behavior == ProteusAbilities.MortalFlame).OnDispatched!(h.Context);
+
+        Mock.Get(h.Context).Setup(x => x.HasBoost).Returns(false); // consumed by the DoT
+        h.Scheduler.Reset();
+        h.Damage.CollectCandidates(h.Context, h.Scheduler, isMoving: false);
+
+        Assert.Contains(h.Scheduler.InspectGcdQueue(), c => c.Behavior == ProteusAbilities.SonicBoom);
+        Assert.NotEmpty(h.Scheduler.InspectOgcdQueue());
+    }
+
+    [Fact]
     public void Damage_MortalFlame_OnceLatch_NoSecondPush()
     {
         var h = new Harness();
@@ -75,10 +125,77 @@ public class ProteusLoadoutWave2Tests
         h.Damage.CollectCandidates(h.Context, h.Scheduler, isMoving: false);
         h.Scheduler.InspectGcdQueue().First(c => c.Behavior == ProteusAbilities.MortalFlame).OnDispatched!(h.Context);
 
-        h.Damage.UtcNow = () => now.AddSeconds(61); // past the 60s retry window
+        h.Damage.UtcNow = () => now.AddSeconds(6); // past the 5s latency/retry window
         h.Scheduler.Reset();
         h.Damage.CollectCandidates(h.Context, h.Scheduler, isMoving: false);
         Assert.Contains(h.Scheduler.InspectGcdQueue(), c => c.Behavior == ProteusAbilities.MortalFlame);
+    }
+
+    // ── Cone facing (first-field-run fixes) ─────────────────────────────────
+
+    [Fact]
+    public void Damage_BreathOfMagic_HeldWhenNotFacingTarget()
+    {
+        // Self-anchored cone: dispatched on self, the game never auto-faces — firing while
+        // faced away missed 12 straight casts in the field. Rotation 0 = facing +Z; enemy at -Z.
+        var h = new Harness();
+        h.Enemy.Setup(x => x.Position).Returns(new System.Numerics.Vector3(0f, 0f, -10f));
+        h.Damage.CollectCandidates(h.Context, h.Scheduler, isMoving: false);
+
+        var gcd = h.Scheduler.InspectGcdQueue();
+        Assert.DoesNotContain(gcd, c => c.Behavior == ProteusAbilities.BreathOfMagic);
+        Assert.Contains(gcd, c => c.Behavior == ProteusAbilities.SonicBoom); // targeted casts still flow
+        Assert.Contains("turning to face", h.Context.Debug.DamageState);
+        // The nudge must actively rotate us — the self-cast cone never triggers passive recovery.
+        h.ActionService.Verify(x => x.NotifyFacingRejection(4242UL), Moq.Times.AtLeastOnce());
+    }
+
+    [Fact]
+    public void Damage_BreathOfMagic_LatchPreventsChainCast()
+    {
+        // Fuse behind the facing gate: one cast per target per 10s window no matter what the
+        // status read claims.
+        var h = new Harness();
+        h.Damage.CollectCandidates(h.Context, h.Scheduler, isMoving: false);
+        h.Scheduler.InspectGcdQueue().First(c => c.Behavior == ProteusAbilities.BreathOfMagic).OnDispatched!(h.Context);
+
+        h.Scheduler.Reset();
+        h.Damage.CollectCandidates(h.Context, h.Scheduler, isMoving: false);
+        Assert.DoesNotContain(h.Scheduler.InspectGcdQueue(), c => c.Behavior == ProteusAbilities.BreathOfMagic);
+    }
+
+    [Fact]
+    public void Damage_BadBreath_HeldWhenNotFacingTarget()
+    {
+        var h = new Harness(packCount: 3);
+        h.Config.BlueMage.EnableFreezeShatter = false;
+        h.Enemy.Setup(x => x.Position).Returns(new System.Numerics.Vector3(0f, 0f, -10f));
+        h.Damage.CollectCandidates(h.Context, h.Scheduler, isMoving: false);
+        Assert.DoesNotContain(h.Scheduler.InspectGcdQueue(), c => c.Behavior == ProteusAbilities.BadBreath);
+    }
+
+    [Fact]
+    public void Damage_ColdFog_HeldWhenPackDyingSoon()
+    {
+        // 90s cooldown for 15s of White Death — pointless on a melting pack (field run burned
+        // it 2s before combat end).
+        var h = new Harness();
+        h.Targeting.Setup(x => x.FindNearestAggroedEnemy(It.IsAny<float>(), It.IsAny<IPlayerCharacter>()))
+            .Returns(h.Enemy.Object);
+        var now = DateTime.UtcNow;
+        long packHp = 100_000;
+        h.Damage.UtcNow = () => now;
+        h.Targeting.Setup(x => x.SumEnemyCurrentHpInRange(It.IsAny<float>(), It.IsAny<IPlayerCharacter>()))
+            .Returns(() => packHp);
+
+        h.Damage.CollectCandidates(h.Context, h.Scheduler, isMoving: false);
+        Assert.Contains(h.Scheduler.InspectGcdQueue(), c => c.Behavior == ProteusAbilities.ColdFog);
+
+        packHp = 20_000; // melting: ~2s TTK
+        now = now.AddSeconds(3);
+        h.Scheduler.Reset();
+        h.Damage.CollectCandidates(h.Context, h.Scheduler, isMoving: false);
+        Assert.DoesNotContain(h.Scheduler.InspectGcdQueue(), c => c.Behavior == ProteusAbilities.ColdFog);
     }
 
     // ── Cold Fog / White Death ──────────────────────────────────────────────
@@ -155,6 +272,17 @@ public class ProteusLoadoutWave2Tests
         h.Scheduler.Reset();
         h.Damage.CollectCandidates(h.Context, h.Scheduler, isMoving: false);
         Assert.Contains(h.Scheduler.InspectOgcdQueue(), c => c.Behavior == ProteusAbilities.Surpanakha);
+    }
+
+    [Fact]
+    public void Damage_Surpanakha_NeverPressedAtGcdIdle()
+    {
+        // Idle press = pure clip: it delays the next GCD for 200p (run 7's combat-open press).
+        var h = new Harness();
+        h.ActionService.Setup(x => x.GcdRemaining).Returns(0f);
+        h.ActionService.Setup(x => x.GetCurrentCharges(BLUActions.Surpanakha.ActionId)).Returns(4u);
+        h.Damage.CollectCandidates(h.Context, h.Scheduler, isMoving: false);
+        Assert.DoesNotContain(h.Scheduler.InspectOgcdQueue(), c => c.Behavior == ProteusAbilities.Surpanakha);
     }
 
     [Fact]
@@ -440,6 +568,54 @@ public class ProteusLoadoutWave2Tests
         // positive path is covered here and the suppression path is the live-status read.
     }
 
+    // ── Manual mimicry (BLU Mimicry window) ─────────────────────────────────
+
+    [Fact]
+    public void Mimicry_ManualRequest_BypassesAutoToggleOff()
+    {
+        Daedalus.Rotation.ProteusCore.Helpers.BluMimicryCommand.Clear();
+        Daedalus.Rotation.ProteusCore.Helpers.BluMimicryCommand.ClearSuppression();
+        try
+        {
+            var h = new Harness();
+            h.Config.BlueMage.EnableMimicry = false; // auto OFF — buttons must still work
+            Mock.Get(h.Context).Setup(x => x.HasCorrectMimicry).Returns(false);
+            Daedalus.Rotation.ProteusCore.Helpers.BluMimicryCommand.Request(BluRole.Tank);
+
+            h.Buff.CollectCandidates(h.Context, h.Scheduler, isMoving: false);
+
+            // No Tank in the mocked area — the request must have driven a TANK scan (not the
+            // config role), and the in-duty auto gate must not have eaten it.
+            Assert.Contains("Tank", h.Context.Debug.MimicryState);
+            Assert.DoesNotContain("BEFORE queuing", h.Context.Debug.MimicryState);
+        }
+        finally
+        {
+            Daedalus.Rotation.ProteusCore.Helpers.BluMimicryCommand.Clear();
+        }
+    }
+
+    [Fact]
+    public void Mimicry_AutoSuppressed_AfterManualRemoval()
+    {
+        Daedalus.Rotation.ProteusCore.Helpers.BluMimicryCommand.Clear();
+        Daedalus.Rotation.ProteusCore.Helpers.BluMimicryCommand.SuppressAuto(15);
+        try
+        {
+            var h = new Harness();
+            Mock.Get(h.Context).Setup(x => x.HasCorrectMimicry).Returns(false);
+
+            h.Buff.CollectCandidates(h.Context, h.Scheduler, isMoving: false);
+
+            Assert.DoesNotContain(h.Scheduler.InspectGcdQueue(), c => c.Behavior == ProteusAbilities.AethericMimicry);
+            Assert.Contains("paused", h.Context.Debug.MimicryState);
+        }
+        finally
+        {
+            Daedalus.Rotation.ProteusCore.Helpers.BluMimicryCommand.ClearSuppression();
+        }
+    }
+
     // ── Loadout apply handshake ─────────────────────────────────────────────
 
     [Fact]
@@ -470,11 +646,12 @@ public class ProteusLoadoutWave2Tests
     }
 
     [Fact]
-    public void Buff_BasicInstinct_NotWhenPartyPresent()
+    public void Buff_BasicInstinct_NotWhenPartyPresent_AndSaysWhy()
     {
         var h = new Harness(partySize: 4);
         h.Buff.CollectCandidates(h.Context, h.Scheduler, isMoving: false);
         Assert.DoesNotContain(h.Scheduler.InspectGcdQueue(), c => c.Behavior == ProteusAbilities.BasicInstinct);
+        Assert.Contains("party present", h.Context.Debug.BuffState);
     }
 
     [Fact]
@@ -500,6 +677,84 @@ public class ProteusLoadoutWave2Tests
         var partyDps = new Harness(role: BluRole.Dps, partySize: 4);
         partyDps.Buff.CollectCandidates(partyDps.Context, partyDps.Scheduler, isMoving: false);
         Assert.DoesNotContain(partyDps.Scheduler.InspectGcdQueue(), c => c.Behavior == ProteusAbilities.ToadOil);
+    }
+
+    // ── Solo role ───────────────────────────────────────────────────────────
+
+    [Fact]
+    public void Solo_MightyGuard_WaitsForBasicInstinct()
+    {
+        // MG before BI would cut damage -40% for nothing; BI's +100% cancels the penalty.
+        var h = new Harness(role: BluRole.Solo);
+        h.Buff.CollectCandidates(h.Context, h.Scheduler, isMoving: false);
+        var gcd = h.Scheduler.InspectGcdQueue();
+        Assert.Contains(gcd, c => c.Behavior == ProteusAbilities.BasicInstinct);
+        Assert.DoesNotContain(gcd, c => c.Behavior == ProteusAbilities.MightyGuard);
+
+        var h2 = new Harness(role: BluRole.Solo);
+        Mock.Get(h2.Context).Setup(x => x.HasBasicInstinctBuff).Returns(true);
+        h2.Buff.CollectCandidates(h2.Context, h2.Scheduler, isMoving: false);
+        Assert.Contains(h2.Scheduler.InspectGcdQueue(), c => c.Behavior == ProteusAbilities.MightyGuard);
+    }
+
+    [Fact]
+    public void Solo_FinalSting_OnlyWithinItsWindow()
+    {
+        // Default OFF — never fires even in a perfect window.
+        var off = new Harness(role: BluRole.Solo);
+        off.Enemy.Setup(x => x.CurrentHp).Returns(20_000u); // 20%
+        off.Damage.CollectCandidates(off.Context, off.Scheduler, isMoving: false);
+        Assert.DoesNotContain(off.Scheduler.InspectGcdQueue(), c => c.Behavior == ProteusAbilities.FinalSting);
+
+        // Enabled + Solo + last enemy at 20% → fires.
+        var on = new Harness(role: BluRole.Solo);
+        on.Config.BlueMage.EnableFinalSting = true;
+        on.Enemy.Setup(x => x.CurrentHp).Returns(20_000u);
+        on.Damage.CollectCandidates(on.Context, on.Scheduler, isMoving: false);
+        Assert.Contains(on.Scheduler.InspectGcdQueue(), c => c.Behavior == ProteusAbilities.FinalSting);
+
+        // Enabled but target healthy → held.
+        var healthy = new Harness(role: BluRole.Solo);
+        healthy.Config.BlueMage.EnableFinalSting = true;
+        healthy.Damage.CollectCandidates(healthy.Context, healthy.Scheduler, isMoving: false);
+        Assert.DoesNotContain(healthy.Scheduler.InspectGcdQueue(), c => c.Behavior == ProteusAbilities.FinalSting);
+
+        // Enabled but not Solo role → never (you don't suicide in a party).
+        var dps = new Harness(role: BluRole.Dps);
+        dps.Config.BlueMage.EnableFinalSting = true;
+        dps.Enemy.Setup(x => x.CurrentHp).Returns(20_000u);
+        dps.Damage.CollectCandidates(dps.Context, dps.Scheduler, isMoving: false);
+        Assert.DoesNotContain(dps.Scheduler.InspectGcdQueue(), c => c.Behavior == ProteusAbilities.FinalSting);
+    }
+
+    [Fact]
+    public void Solo_WhiteWindSelfSustain_AndDiamondbackPanic()
+    {
+        var h = new Harness(role: BluRole.Solo, playerHpPercent: 40);
+        h.Healing.CollectCandidates(h.Context, h.Scheduler, isMoving: false);
+        Assert.Contains(h.Scheduler.InspectGcdQueue(), c => c.Behavior == ProteusAbilities.WhiteWind);
+
+        h.Scheduler.Reset();
+        h.Mitigation.CollectCandidates(h.Context, h.Scheduler, isMoving: false);
+        Assert.Contains(h.Scheduler.InspectGcdQueue(), c => c.Behavior == ProteusAbilities.Diamondback);
+    }
+
+    [Fact]
+    public void Solo_GoblinPunchFiller_AndLoadoutMapping()
+    {
+        var h = new Harness(role: BluRole.Solo);
+        h.Damage.CollectCandidates(h.Context, h.Scheduler, isMoving: false);
+        Assert.Contains(h.Scheduler.InspectGcdQueue(), c => c.Behavior == ProteusAbilities.GoblinPunch);
+
+        var solo = Daedalus.Services.Action.BluLoadoutComposer.ForRole(BluRole.Solo);
+        Assert.Equal("Solo", solo.Name);
+        Assert.Equal(24, solo.Core.Length); // exactly the 24 slots
+        Assert.Contains(BLUActions.BasicInstinct.ActionId, solo.Core);
+        Assert.Contains(BLUActions.MightyGuard.ActionId, solo.Core);
+        Assert.Contains(BLUActions.WhiteWind.ActionId, solo.Core);
+        Assert.Contains(BLUActions.FinalSting.ActionId, solo.Core);
+        Assert.DoesNotContain(18316u, solo.Core); // Revenge Blast swapped out
+        Assert.DoesNotContain(11411u, solo.Core); // Off-guard swapped out
     }
 
     // ── Healing module: Pom Cure / Gobskin / Exuviation ─────────────────────
@@ -572,6 +827,7 @@ public class ProteusLoadoutWave2Tests
         public DamageModule Damage { get; } = new();
         public BuffModule Buff { get; } = new();
         public HealingModule Healing { get; } = new();
+        public MitigationModule Mitigation { get; } = new();
         public Mock<ITargetingService> Targeting { get; }
         public Mock<Daedalus.Services.Action.IActionService> ActionService { get; }
         public Mock<IBattleNpc> Enemy { get; }
@@ -600,6 +856,7 @@ public class ProteusLoadoutWave2Tests
 
             ActionService = MockBuilders.CreateMockActionService();
             ActionService.Setup(x => x.IsActionLearned(It.IsAny<uint>())).Returns(true);
+            ActionService.Setup(x => x.GcdRemaining).Returns(1.2f); // mid-roll: weave slots open
 
             var hp = (uint)(100000L * playerHpPercent / 100);
             var player = MockBuilders.CreateMockPlayerCharacter(level: 80, currentHp: hp, maxHp: 100000);
@@ -620,6 +877,7 @@ public class ProteusLoadoutWave2Tests
             mock.Setup(x => x.PartyHealthMetrics).Returns((1f, 1f, 0));
             mock.Setup(x => x.Debug).Returns(new ProteusDebugState());
             mock.Setup(x => x.PartyList).Returns(partyList.Object);
+            mock.Setup(x => x.ObjectTable).Returns(objectTable.Object);
             mock.Setup(x => x.PartyHelper).Returns(new CasterPartyHelper(objectTable.Object, partyList.Object));
             mock.Setup(x => x.DebuffDetectionService).Returns(MockBuilders.CreateMockDebuffDetectionService().Object);
 

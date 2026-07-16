@@ -37,6 +37,7 @@ public static class BluLoadoutComposer
     {
         Daedalus.Config.DPS.BluRole.Tank => BLULoadouts.Tank,
         Daedalus.Config.DPS.BluRole.Healer => BLULoadouts.Healer,
+        Daedalus.Config.DPS.BluRole.Solo => BLULoadouts.Solo,
         _ => BLULoadouts.Dps,
     };
 }

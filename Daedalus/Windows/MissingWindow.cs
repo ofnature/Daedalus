@@ -194,8 +194,8 @@ public sealed class MissingWindow : Window
                 : "replaces the ACTIVE set with this role's learned spells");
             if (pending && bluLoadoutService.WaitingOnMimicry)
                 ImGui.TextColored(_yellow,
-                    "Waiting: drop Aetheric Mimicry (swap jobs briefly — the buff can't be cancelled). "
-                    + "The set applies the moment it's gone.");
+                    "Removing Aetheric Mimicry (targetless recast)… the set applies the moment "
+                    + "it's gone. If it never strips, a quick job swap also drops the buff.");
             else if (pending)
                 ImGui.TextColored(_yellow, "Applying…");
             else if (bluLoadoutService.LastApplyResult is { Length: > 0 } result)

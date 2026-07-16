@@ -16,6 +16,13 @@ public enum BluRole
 
     /// <summary>Healer loadout: White Wind thresholds, mimic a healer (+20% healing potency).</summary>
     Healer,
+
+    /// <summary>
+    /// Solo farm/overworld mode: Basic Instinct FIRST (+100% damage while partyless), then Mighty
+    /// Guard on top (BI cancels its damage penalty — free tank stance), DPS mimicry, White Wind +
+    /// Diamondback self-sustain, optional Final Sting execute. Appended value — never reorder.
+    /// </summary>
+    Solo,
 }
 
 /// <summary>
@@ -28,8 +35,12 @@ public sealed class BlueMageConfig
     /// <summary>The role dropdown — drives module selection and Aetheric Mimicry archetype.</summary>
     public BluRole Role { get; set; } = BluRole.Dps;
 
-    /// <summary>Auto-apply Aetheric Mimicry matching <see cref="Role"/> (Mimicry Helper parity).</summary>
+    /// <summary>Auto-apply Aetheric Mimicry matching <see cref="Role"/> (Mimicry Helper parity).
+    /// Turn OFF to drive mimicry entirely from the BLU Mimicry window's role buttons.</summary>
     public bool EnableMimicry { get; set; } = true;
+
+    /// <summary>Pop the BLU Mimicry window (role buttons + remove) when switching to BLU.</summary>
+    public bool ShowMimicryWindowOnBlu { get; set; } = true;
 
     /// <summary>
     /// When the Role dropdown changes (out of combat, outside duties), load the Blue Academy
@@ -154,4 +165,26 @@ public sealed class BlueMageConfig
         get => _ultravibrationMinTargets;
         set => _ultravibrationMinTargets = Math.Clamp(value, 1, 8);
     }
+
+    /// <summary>
+    /// Final Sting execute (Solo role only): ~2000p that KILLS THE CASTER and locks itself out
+    /// for 10 minutes (Brush with Death). Default OFF — for finishing tough solo targets, never
+    /// for farm loops.
+    /// </summary>
+    public bool EnableFinalSting { get; set; } = false;
+
+    private int _finalStingTargetHpPercent = 30;
+    /// <summary>Target HP% at/below which Final Sting fires (Solo role, last engaged enemy only).</summary>
+    public int FinalStingTargetHpPercent
+    {
+        get => _finalStingTargetHpPercent;
+        set => _finalStingTargetHpPercent = Math.Clamp(value, 5, 50);
+    }
+
+    /// <summary>Calculator calibration: an observed NON-CRIT, unbuffed damage number (0 = unset).
+    /// Persisted — it's also the seed for the future fleet-sting count math.</summary>
+    public int FinalStingBaselineDamage { get; set; }
+
+    /// <summary>The calibration hit's potency (210 = Sonic Boom, 2000 = a real Final Sting test).</summary>
+    public float FinalStingBaselinePotency { get; set; } = 210f;
 }

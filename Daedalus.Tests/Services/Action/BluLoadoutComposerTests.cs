@@ -63,6 +63,44 @@ public class BluLoadoutComposerTests
         Assert.Equal(expectedName, BluLoadoutComposer.ForRole(role).Name);
     }
 
+    // ── Final Sting calculator ──────────────────────────────────────────────
+
+    [Fact]
+    public void StingCalc_UnbuffedScalesByPotencyRatio()
+    {
+        // 1000 observed on Sonic Boom (210p) → 2000p sting ≈ 9524 unbuffed.
+        var est = Daedalus.Rotation.ProteusCore.Helpers.FinalStingCalculator.Estimate(1000f, 210f);
+        Assert.Equal(1000f * (2000f / 210f), est, 1);
+    }
+
+    [Fact]
+    public void StingCalc_BuffsStackMultiplicatively_AndBristleIsNotAnInput()
+    {
+        // Flute ×1.5 × Whistle ×1.8 × Off-guard ×1.05 × BI ×2 × MG ×0.6 = ×3.402.
+        var baseEst = Daedalus.Rotation.ProteusCore.Helpers.FinalStingCalculator.Estimate(2000f, 2000f);
+        var buffed = Daedalus.Rotation.ProteusCore.Helpers.FinalStingCalculator.Estimate(
+            2000f, 2000f, waxingNocturne: true, harmonized: true, offGuard: true,
+            basicInstinct: true, mightyGuard: true);
+        Assert.Equal(baseEst * 1.5f * 1.8f * 1.05f * 2.0f * 0.6f, buffed, 0);
+    }
+
+    [Fact]
+    public void StingCalc_ZeroBaseline_YieldsZero()
+    {
+        Assert.Equal(0f, Daedalus.Rotation.ProteusCore.Helpers.FinalStingCalculator.Estimate(0f, 210f));
+        Assert.Equal(0f, Daedalus.Rotation.ProteusCore.Helpers.FinalStingCalculator.Estimate(1000f, 0f));
+    }
+
+    [Fact]
+    public void StingCalc_StingersNeeded_CeilsWithSafetyFactor()
+    {
+        // 100k HP, 20k per sting at 0.75 safety → each credited 15k → 7 stingers.
+        Assert.Equal(7, Daedalus.Rotation.ProteusCore.Helpers.FinalStingCalculator.StingersNeeded(100_000, 20_000f, 0.75f));
+        // Exactly divisible: 60k / (20k × 1.0) = 3.
+        Assert.Equal(3, Daedalus.Rotation.ProteusCore.Helpers.FinalStingCalculator.StingersNeeded(60_000, 20_000f, 1.0f));
+        Assert.Equal(0, Daedalus.Rotation.ProteusCore.Helpers.FinalStingCalculator.StingersNeeded(0, 20_000f, 0.75f));
+    }
+
     // ── Apply handshake (game-call-free paths only; the mimicry strip is in-game validation) ──
 
     [Fact]

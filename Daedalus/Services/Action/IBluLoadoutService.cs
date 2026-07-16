@@ -35,19 +35,19 @@ public interface IBluLoadoutService
     bool TryApplyLoadout(uint[] slots);
 
     /// <summary>
-    /// Queues a loadout apply. Aetheric Mimicry blocks set changes and CANNOT be cancelled
-    /// programmatically (field-verified 2026-07-11: ExecuteStatusOff returns false, /statusoff
-    /// no-ops; only a job change drops it) — so while mimicry is up the apply WAITS (30s) for the
-    /// user to drop it, then fires. Progress is driven by <see cref="Update"/>; result lands in
-    /// <see cref="LastApplyResult"/>. Auto-mimicry holds while <see cref="IsApplyPending"/> and
-    /// recasts the buff afterwards.
+    /// Queues a loadout apply. Aetheric Mimicry blocks set changes; status-off paths don't work
+    /// on it, so the apply removes it via the TARGETLESS-CAST trick (casting mimicry with no
+    /// target strips the buff — it cannot target self), waits for the strip, then fires (30s
+    /// bound; a job swap also works as manual fallback). Progress is driven by
+    /// <see cref="Update"/>; result lands in <see cref="LastApplyResult"/>. Auto-mimicry holds
+    /// while <see cref="IsApplyPending"/> and recasts the buff afterwards.
     /// </summary>
     void RequestApplyLoadout(uint[] slots);
 
     /// <summary>A requested apply is still in flight (waiting on mimicry / retrying).</summary>
     bool IsApplyPending { get; }
 
-    /// <summary>The pending apply is blocked on Aetheric Mimicry — user must drop it (job swap).</summary>
+    /// <summary>The pending apply is blocked on Aetheric Mimicry (auto-removal in progress).</summary>
     bool WaitingOnMimicry { get; }
 
     /// <summary>Human-readable outcome of the last requested apply, or null while none/pending.</summary>

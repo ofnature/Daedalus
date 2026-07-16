@@ -64,7 +64,8 @@ public sealed class HealingModule : IProteusModule
 
         var threshold = cfg.WhiteWindHpPercent / 100f;
         var healerCall = context.Role == BluRole.Healer && injured >= 2 && lowest <= threshold;
-        var tankSelfCall = context.Role == BluRole.Tank && selfHpPercent <= cfg.WhiteWindHpPercent;
+        var tankSelfCall = (context.Role == BluRole.Tank || context.Role == BluRole.Solo)
+                           && selfHpPercent <= cfg.WhiteWindHpPercent;
         if (!healerCall && !tankSelfCall)
         {
             context.Debug.HealingState = $"Monitoring (lowest {lowest:P0}, {injured} injured)";

@@ -11,9 +11,10 @@ namespace Daedalus.Services.Action;
 /// (returns normal Action sheet ids; 0 = empty slot — same read RSR uses). Refreshes at
 /// most once per second; the set only changes out of combat via the spellbook UI.
 /// Also owns the loadout APPLY state machine: the game refuses <c>SetBlueMageActions</c> while
-/// Aetheric Mimicry is active, so a requested apply first cancels the mimicry buff (the game's
-/// own status-off, same as right-clicking the icon), waits for it to strip, then applies —
-/// the rotation's auto-mimicry recasts it afterwards.
+/// Aetheric Mimicry is active. Status-off paths don't work on it — the ONLY removal is the
+/// targetless-cast trick (user-discovered 2026-07-12: casting Aetheric Mimicry with no target
+/// strips the buff, since it cannot target self). A requested apply fires that removal, waits
+/// for the strip, then applies; the rotation's auto-mimicry recasts afterwards.
 /// </summary>
 public sealed unsafe class BluLoadoutService : IBluLoadoutService
 {
@@ -28,21 +29,26 @@ public sealed unsafe class BluLoadoutService : IBluLoadoutService
 
     private readonly Func<uint> jobIdProvider;
     private readonly Func<IReadOnlyCollection<uint>>? activeMimicryProvider;
+    private readonly Func<bool>? mimicryRemovalInvoker;
     private readonly IPluginLog? log;
     private readonly HashSet<uint> slotted = new();
     private DateTime lastRefreshUtc = DateTime.MinValue;
 
     private uint[]? pendingApply;
     private DateTime pendingSinceUtc;
+    private DateTime lastRemovalAttemptUtc = DateTime.MinValue;
+    private const double RemovalRetrySeconds = 1.5; // the removal is a 1.0s cast — give it room
 
     public BluLoadoutService(
         Func<uint> jobIdProvider,
         Func<IReadOnlyCollection<uint>>? activeMimicryProvider = null,
-        IPluginLog? log = null)
+        IPluginLog? log = null,
+        Func<bool>? mimicryRemovalInvoker = null)
     {
         this.jobIdProvider = jobIdProvider;
         this.activeMimicryProvider = activeMimicryProvider;
         this.log = log;
+        this.mimicryRemovalInvoker = mimicryRemovalInvoker;
     }
 
     public bool HasSlotData { get; private set; }
@@ -144,19 +150,28 @@ public sealed unsafe class BluLoadoutService : IBluLoadoutService
         var mimicry = onBlu ? activeMimicryProvider?.Invoke() : null;
         if (!onBlu || mimicry is { Count: > 0 })
         {
-            // Blocked: either mimicry is up, or the user is mid-job-swap dropping it (that IS the
-            // only way to remove it). Wait inside the 30s window; the apply fires on return.
+            // Blocked by mimicry (or mid-job-swap). Remove it ourselves via the targetless-cast
+            // trick (user-discovered: Aetheric Mimicry cast with NO target strips the buff since
+            // it cannot target self), retrying until it strips; the 30s wait bounds everything.
             if (!WaitingOnMimicry)
             {
                 WaitingOnMimicry = true;
-                log?.Information("[BLU] Apply blocked by Aetheric Mimicry — waiting for it to be dropped (a job swap removes it)");
+                log?.Information("[BLU] Apply blocked by Aetheric Mimicry — removing it (targetless recast)");
+            }
+
+            if (onBlu && mimicryRemovalInvoker != null
+                && (now - lastRemovalAttemptUtc).TotalSeconds >= RemovalRetrySeconds)
+            {
+                lastRemovalAttemptUtc = now;
+                try { mimicryRemovalInvoker(); }
+                catch (Exception ex) { log?.Warning(ex, "[BLU] Mimicry removal invoker threw"); }
             }
 
             if ((now - pendingSinceUtc).TotalSeconds > MimicryWaitTimeoutSeconds)
             {
-                LastApplyResult = "Blocked by Aetheric Mimicry — swap loadouts BEFORE grabbing mimicry "
-                                  + "(a quick job swap drops the buff; it cannot be cancelled)";
-                log?.Warning("[BLU] Loadout apply abandoned — mimicry was never dropped");
+                LastApplyResult = "Blocked by Aetheric Mimicry — the auto-removal never landed "
+                                  + "(a quick job swap also drops the buff)";
+                log?.Warning("[BLU] Loadout apply abandoned — mimicry never stripped");
                 pendingApply = null;
                 WaitingOnMimicry = false;
             }

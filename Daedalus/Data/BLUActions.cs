@@ -482,6 +482,24 @@ public static class BLUActions
         MpCost = 500
     };
 
+    /// <summary>
+    /// #8 — ~2000p 3y MELEE execute that KO's the caster and applies Brush with Death (2127,
+    /// 10min reuse lockout). Solo-role execute only, config-gated OFF by default.
+    /// </summary>
+    public static readonly ActionDefinition FinalSting = new()
+    {
+        ActionId = 11407,
+        Name = "Final Sting",
+        MinLevel = 1,
+        Category = ActionCategory.GCD,
+        TargetType = ActionTargetType.SingleEnemy,
+        EffectTypes = ActionEffectType.Damage,
+        CastTime = 2.0f,
+        RecastTime = BluRecast,
+        Range = 3f,
+        DamagePotency = 2000
+    };
+
     /// <summary>Status ids — verified against the Status sheet (2026-07-02; wave 2 re-verified 2026-07-11).</summary>
     public static class StatusIds
     {
@@ -515,7 +533,10 @@ public static class BLUActions
         /// <summary>Breath of Magic DoT (60s, own status).</summary>
         public const uint BreathOfMagic = 3712;
         /// <summary>Mortal Flame infinite DoT. Sheet row 3643 confirmed via XIVAPI (name+description);
-        /// the module keeps a per-target once-latch anyway so a wrong id can't chain-cast.</summary>
+        /// the module keeps a per-target once-latch anyway so a wrong id can't chain-cast.
+        /// FIELD-CONFIRMED 2026-07-12 (first run: one cast, stuck, never re-pushed).</summary>
         public const uint MortalFlame = 3643;
+        /// <summary>Final Sting / Self-destruct aftermath — 10min reuse lockout (verified 2127).</summary>
+        public const uint BrushWithDeath = 2127;
     }
 }

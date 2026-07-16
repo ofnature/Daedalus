@@ -41,10 +41,30 @@ public sealed class DamageModule : IProteusModule
     private bool _packFreezeImmune;
     private bool _wasInCombat;
 
-    // Mortal Flame once-per-target latch. The status check (3643) is primary; this latch is the
-    // safety net so a wrong status id can never chain-cast — one attempt per target per window.
+    // Mortal Flame once-per-target latch. Status 3643 detection is FIELD-PROVEN (run 1: one cast,
+    // stuck, never re-pushed) — the latch now only covers apply latency. It was 60s as a wrong-id
+    // fuse, but run 5 showed the cost: a movement-INTERRUPTED cast latched at dispatch and locked
+    // Mortal Flame out for a minute ("we skipped the rotation path"). 5s = latency guard + quick
+    // retry for interrupted casts.
     private readonly Dictionary<ulong, DateTime> _mortalFlameLatch = new();
-    private const float MortalFlameRetrySeconds = 60f;
+    private const float MortalFlameRetrySeconds = 5f;
+
+    // Breath of Magic recent-cast latch: even if the cone misses (or the status read ever lies),
+    // one target gets at most one cast per window — the first field run chain-cast it 12× when
+    // the toon wasn't facing the mob. The facing gate is the fix; this is the fuse.
+    private readonly Dictionary<ulong, DateTime> _breathOfMagicLatch = new();
+    // 20s: run 3 recast BoM at +10s on the same target despite the status (sole sheet row 3712,
+    // MF detection works, cone counted a hit — cause unresolved; suspect the cone hit a DIFFERENT
+    // pack member). The wider latch caps the waste while the field question is open.
+    private const float BreathOfMagicRelatchSeconds = 20f;
+
+    // Bristle is a 1.0s cast — the Boost only exists at cast END. Run 4: Glass Dance weaved into
+    // Bristle's post-cast tail (pushed while HasBoost was still false) and ate the boost before
+    // Mortal Flame. Weaves hold from Bristle DISPATCH, not just from boost-up.
+    private DateTime _bristleInFlightUntilUtc = DateTime.MinValue;
+
+    /// <summary>Cold Fog's payoff is 15s of White Death — pointless on a pack that's about to die.</summary>
+    private const float ColdFogMinTtkSeconds = 10f;
 
     // Targets that already carry a Moon-Flute-buffed Mortal Flame snapshot. During Waxing an
     // existing UNBUFFED Mortal Flame is deliberately recast once (a recast replaces the snapshot —
@@ -101,8 +121,12 @@ public sealed class DamageModule : IProteusModule
         if (TryHandleFreezeShatter(context, scheduler, isMoving))
             return;
 
-        PushOffensiveOgcds(context, scheduler, player, target);
-        PushGcdChain(context, scheduler, player, target, cfg, isMoving);
+        // GCD chain first — it decides whether a Bristle boost is armed for a DoT snapshot, in
+        // which case the offensive weaves must hold too (BLU oGCDs are spells and would EAT the
+        // boost — field log: Bristle ×3, Breath of Magic ×0, the boosts died on other casts).
+        var holdWeavesForBoost = PushGcdChain(context, scheduler, player, target, cfg, isMoving);
+        if (!holdWeavesForBoost)
+            PushOffensiveOgcds(context, scheduler, player, target);
     }
 
     private void ResetCombatState()
@@ -112,6 +136,8 @@ public sealed class DamageModule : IProteusModule
         _wasInCombat = false;
         _mortalFlameLatch.Clear();
         _mortalFlameBuffedTargets.Clear();
+        _breathOfMagicLatch.Clear();
+        _bristleInFlightUntilUtc = DateTime.MinValue;
         _packTtk.Reset();
     }
 
@@ -271,6 +297,9 @@ public sealed class DamageModule : IProteusModule
         if (cfg.EnableSurpanakha
             && context.IsSpellUsable(BLUActions.Surpanakha.ActionId)
             && targetDistance <= BLUActions.Surpanakha.Radius
+            // True weave slot only: a press while the GCD is IDLE (combat open, stall) just delays
+            // the next cast — a clip for 200p (field, run 7). Mid-roll presses ride free.
+            && context.ActionService.GcdRemaining > 0.6f
             && (midDump || context.ActionService.GetCurrentCharges(BLUActions.Surpanakha.ActionId) >= 4))
         {
             scheduler.PushOgcd(ProteusAbilities.Surpanakha, player.GameObjectId, priority: 1,
@@ -307,7 +336,9 @@ public sealed class DamageModule : IProteusModule
 
     // ── GCD chain ───────────────────────────────────────────────────────────
 
-    private void PushGcdChain(
+    /// <summary>Returns true when a Bristle boost is armed for a pending DoT snapshot — the
+    /// caller must then hold the offensive weaves too (they're spells; they'd consume it).</summary>
+    private bool PushGcdChain(
         IProteusContext context, RotationScheduler scheduler,
         Dalamud.Game.ClientState.Objects.SubKinds.IPlayerCharacter player,
         Dalamud.Game.ClientState.Objects.Types.IBattleNpc target,
@@ -319,6 +350,27 @@ public sealed class DamageModule : IProteusModule
 
         // Moon Flute trigger (opt-in, default OFF) — the window itself is just this chain buffed.
         TryPushMoonFlute(context, scheduler, cfg, player, isMoving);
+
+        // Final Sting — solo execute: ~2000p, KILLS THE CASTER, 10min lockout (Brush with Death).
+        // Only on the LAST engaged enemy (nobody fights on after you're dead) at/below the HP
+        // threshold. 3y melee — dispatch range-rejects until the toon is in reach.
+        if (cfg.EnableFinalSting
+            && context.Role == BluRole.Solo
+            && context.IsSpellUsable(BLUActions.FinalSting.ActionId)
+            && !BaseStatusHelper.HasStatus(player, BLUActions.StatusIds.BrushWithDeath)
+            && target.MaxHp > 0
+            && (float)target.CurrentHp / target.MaxHp * 100f <= cfg.FinalStingTargetHpPercent
+            && context.TargetingService.CountEngagedEnemies(30f, player) <= 1
+            && !isMoving
+            && !MechanicCastGate.ShouldBlock(context, BLUActions.FinalSting.CastTime))
+        {
+            scheduler.PushGcd(ProteusAbilities.FinalSting, target.GameObjectId, priority: 4,
+                onDispatched: _ =>
+                {
+                    context.Debug.PlannedAction = BLUActions.FinalSting.Name;
+                    context.Debug.DamageState = "FINAL STING (execute — this kills us)";
+                });
+        }
 
         // ── DoT block: Mortal Flame (once per target) and Breath of Magic (60s upkeep), with a
         // Bristle snapshot in front when the boost isn't already armed. ──
@@ -342,15 +394,31 @@ public sealed class DamageModule : IProteusModule
             }
         }
 
-        // Breath of Magic is a 10y self-anchored cone — refresh only on the CURRENT target (the
-        // cone follows auto-face), never on an off-target FindEnemyNeedingDot pick it might miss.
+        // Breath of Magic is a 10y self-anchored cone dispatched on SELF — the game never
+        // auto-faces for it, so a wrongly-faced toon fires it into nothing (first field run:
+        // 12 straight misses). Gate on ACTUAL facing; targeted casts (SoT/Sonic Boom/Mortal
+        // Flame) rotate the toon when client auto-face is on, so a blocked frame self-heals.
         // Inside the Flute window the refresh threshold widens: a buffed re-snapshot beats an
         // unbuffed DoT with plenty of time left (unless it was JUST applied in this window).
         var bomRefreshThreshold = context.HasWaxingNocturne ? 45f : 5f;
-        var needBreathOfMagic = cfg.EnableBreathOfMagic
+        var bomLatched = _breathOfMagicLatch.TryGetValue(target.GameObjectId, out var bomLast)
+                         && (now - bomLast).TotalSeconds < BreathOfMagicRelatchSeconds;
+        var bomWanted = cfg.EnableBreathOfMagic
             && context.IsSpellUsable(BLUActions.BreathOfMagic.ActionId)
+            && !bomLatched
             && targetDistance <= BLUActions.BreathOfMagic.Radius
             && BaseStatusHelper.GetStatusRemaining(target, BLUActions.StatusIds.BreathOfMagic) <= bomRefreshThreshold;
+        var facingTarget = Helpers.ConeFacingHelper.IsFacing(player, target);
+        var needBreathOfMagic = bomWanted && facingTarget;
+        if (bomWanted && !facingTarget)
+        {
+            // ACTIVELY turn toward the target (throttled hard-target + rotation write). The cone
+            // is self-cast, so no rejection ever fires the passive recovery — and with the boost
+            // armed everything else is held, so nothing else turns us either: without this nudge
+            // a BMR dodge parked the toon mis-faced for 8 dead seconds (field, run 6).
+            context.ActionService.NotifyFacingRejection(target.GameObjectId);
+            context.Debug.DamageState = "Breath of Magic: turning to face target";
+        }
 
         if ((needMortalFlame || needBreathOfMagic) && !isMoving)
         {
@@ -363,6 +431,7 @@ public sealed class DamageModule : IProteusModule
                 scheduler.PushGcd(ProteusAbilities.Bristle, player.GameObjectId, priority: 7,
                     onDispatched: _ =>
                     {
+                        _bristleInFlightUntilUtc = UtcNow().AddSeconds(4); // cast + one GCD of cover
                         context.Debug.PlannedAction = BLUActions.Bristle.Name;
                         context.Debug.DamageState = "Bristle (snapshotting DoT)";
                     });
@@ -384,13 +453,27 @@ public sealed class DamageModule : IProteusModule
 
             if (needBreathOfMagic && !MechanicCastGate.ShouldBlock(context, BLUActions.BreathOfMagic.CastTime))
             {
+                var capturedBomTarget = target.GameObjectId;
                 scheduler.PushGcd(ProteusAbilities.BreathOfMagic, player.GameObjectId, priority: 9,
                     onDispatched: _ =>
                     {
+                        _breathOfMagicLatch[capturedBomTarget] = UtcNow();
                         context.Debug.PlannedAction = BLUActions.BreathOfMagic.Name;
                         context.Debug.DamageState = "Breath of Magic (DoT)";
                     });
             }
+        }
+
+        // ── Boost hold: Bristle's +50% is consumed by the NEXT offensive spell, whatever it is —
+        // while it's armed (or Bristle is still casting: the boost doesn't exist until cast END,
+        // and a weave in the cast tail ate one in the field) for a DoT snapshot, every other
+        // damage cast must wait. The DoT candidates above fire the moment facing/movement allow.
+        var bristleInFlight = UtcNow() < _bristleInFlightUntilUtc;
+        if ((context.HasBoost || bristleInFlight) && (bomWanted || needMortalFlame))
+        {
+            if (!needBreathOfMagic && !needMortalFlame)
+                context.Debug.DamageState = "Holding damage (Bristle boost armed, waiting to face/stand)";
+            return true; // caller holds the offensive weaves too
         }
 
         // Song of Torment — 30s Bleeding, FindEnemyNeedingDot pattern. NOTE: the duration read is
@@ -461,14 +544,16 @@ public sealed class DamageModule : IProteusModule
         }
 
         // Cold Fog — arm the White Death window when something aggroed is close enough to hit us
-        // within the 5s conversion window. Wasted if nothing connects, so gate on real aggro.
-        // Never inside a Flute window (a zero-damage cast in a +50% GCD).
+        // within the 5s conversion window. Wasted if nothing connects, so gate on real aggro AND
+        // on the pack living long enough to spend the 15s payoff (first field run burned the 90s
+        // cooldown on a mob that died 2s later). Never inside a Flute window.
         if (cfg.EnableColdFog
             && !context.HasWaxingNocturne
             && !context.HasTouchOfFrost
             && context.IsSpellUsable(BLUActions.ColdFog.ActionId)
             && context.ActionService.GetCooldownRemaining(BLUActions.ColdFog.ActionId) <= 0f
             && context.TargetingService.FindNearestAggroedEnemy(10f, player) != null
+            && !(_packTtk.EstimateTtkSeconds() is { } coldFogTtk && coldFogTtk < ColdFogMinTtkSeconds)
             && !MechanicCastGate.ShouldBlock(context, BLUActions.ColdFog.CastTime)
             && !isMoving)
         {
@@ -489,6 +574,7 @@ public sealed class DamageModule : IProteusModule
             && context.IsSpellUsable(BLUActions.BadBreath.ActionId)
             && packCount >= cfg.AoEMinTargets
             && targetDistance <= BLUActions.BadBreath.Radius
+            && facingTarget // 8y self cone — same no-auto-face trap as Breath of Magic
             && !BaseStatusHelper.HasStatus(target, BLUActions.StatusIds.Malodorous)
             && !MechanicCastGate.ShouldBlock(context, BLUActions.BadBreath.CastTime)
             && !isMoving)
@@ -517,9 +603,11 @@ public sealed class DamageModule : IProteusModule
                 });
         }
 
-        // Tank filler: Goblin Punch — INSTANT, 3y. Also the movement filler for any role when in
-        // melee reach (the only GCD castable on the move). Range-rejected at dispatch when far.
-        if ((context.Role == BluRole.Tank || isMoving) && context.IsSpellUsable(BLUActions.GoblinPunch.ActionId))
+        // Tank/Solo filler: Goblin Punch — INSTANT, 3y, and 400p while Mighty Guard is up (the
+        // solo BI+MG combo makes it the best melee filler). Also the movement filler for any
+        // role in melee reach. Range-rejected at dispatch when far.
+        if ((context.Role == BluRole.Tank || context.Role == BluRole.Solo || isMoving)
+            && context.IsSpellUsable(BLUActions.GoblinPunch.ActionId))
         {
             scheduler.PushGcd(ProteusAbilities.GoblinPunch, target.GameObjectId, priority: 17,
                 onDispatched: _ =>
@@ -550,5 +638,7 @@ public sealed class DamageModule : IProteusModule
                     context.Debug.DamageState = "Water Cannon (fallback)";
                 });
         }
+
+        return false; // no boost hold — weaves may flow
     }
 }

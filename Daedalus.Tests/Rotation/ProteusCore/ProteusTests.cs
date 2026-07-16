@@ -20,6 +20,7 @@ namespace Daedalus.Tests.Rotation.ProteusCore;
 /// Blue Mage (Proteus) v1: role→archetype mapping, spellbook data integrity, and role-driven
 /// module behavior (Mighty Guard stance, role fillers).
 /// </summary>
+[Collection("BluStaticState")] // BluMimicryCommand is static — serialize with the wave-2 suite
 public class ProteusTests
 {
     // ── Mimicry role mapping ────────────────────────────────────────────────

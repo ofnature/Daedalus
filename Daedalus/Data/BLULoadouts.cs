@@ -123,6 +123,45 @@ public static class BLULoadouts
             23267, // Cold Fog
         ]);
 
+    /// <summary>
+    /// Solo farm/overworld set (user-designed 2026-07-12): the DPS kit with Basic Instinct +
+    /// Mighty Guard (BI cancels MG's damage penalty — free tank stance while solo), White Wind
+    /// self-sustain instead of Off-guard, Final Sting execute instead of Revenge Blast, and the
+    /// freeze→shatter pair. Exactly 24 core slots.
+    /// </summary>
+    public static readonly BluLoadout Solo = new(
+        "Solo",
+        BluRole.Solo,
+        Core:
+        [
+            .. CommonCore,      // 11 slots
+            11393, // Bristle
+            11415, // Moon Flute
+            18308, // Sonic Boom
+            23275, // The Rose of Destruction
+            23285, // Matra Magic
+            34567, // Breath of Magic
+            34579, // Mortal Flame
+            23276, // Basic Instinct
+            11417, // Mighty Guard  (swapped in for Revenge Blast)
+            11406, // White Wind    (swapped in for Off-guard — the solo heal)
+            11407, // Final Sting
+            11419, // the Ram's Voice
+            23277, // Ultravibration
+        ],
+        Flex:
+        [
+            11410, // Toad Oil
+            23267, // Cold Fog
+            11430, // Glass Dance
+            23287, // Both Ends
+            11388, // Bad Breath
+            11405, // Missile
+            23282, // Hydro Pull
+            18320, // Devour
+            18318, // Exuviation
+        ]);
+
     /// <summary>All reference loadouts, in display order.</summary>
-    public static readonly BluLoadout[] All = [Tank, Dps, Healer];
+    public static readonly BluLoadout[] All = [Tank, Dps, Healer, Solo];
 }
