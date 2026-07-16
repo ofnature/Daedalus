@@ -112,6 +112,127 @@ public class BluLoadoutComposerTests
         }
     }
 
+    // ── Death-immunity ledger: probe lifecycle (manual-cast feed, 2026-07-16) ──
+    // The action-effect hook now feeds manual Missiles into NotifyProbeCast, so a
+    // rotation-dispatched cast is seen TWICE (dispatch path + effect hook) — the ledger
+    // dedups per target. The injectable clock drives the 3s resolve synchronously.
+
+    private static Daedalus.Services.Blu.DeathImmunityLedger TempLedger(
+        out string dir, Dalamud.Plugin.Services.IObjectTable? objectTable = null)
+    {
+        dir = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "daedalus-test-" + System.Guid.NewGuid().ToString("N"));
+        System.IO.Directory.CreateDirectory(dir);
+        return new Daedalus.Services.Blu.DeathImmunityLedger(dir, objectTable);
+    }
+
+    [Fact]
+    public void DeathLedger_SameTargetProbe_DedupedWithinWindow_NewTargetIsNot()
+    {
+        var ledger = TempLedger(out var dir);
+        try
+        {
+            var now = System.DateTime.UtcNow;
+            ledger.UtcNow = () => now;
+
+            ledger.NotifyProbeCast(1UL, 4242u, "Gilgamesh", 1_000_000, 1_000_000); // dispatch path
+            ledger.NotifyProbeCast(1UL, 4242u, "Gilgamesh", 1_000_000, 1_000_000); // effect hook, same cast
+            Assert.Equal(1, ledger.PendingProbeCount);
+
+            ledger.NotifyProbeCast(2UL, 777u, "Enkidu", 500_000, 500_000); // different target
+            Assert.Equal(2, ledger.PendingProbeCount);
+
+            now = now.AddSeconds(5); // past dedup + resolve windows — a NEW cast may probe again
+            ledger.Update();         // resolves the old probes (null table → dead/gone)
+            ledger.NotifyProbeCast(1UL, 4242u, "Gilgamesh", 1_000_000, 1_000_000);
+            Assert.Equal(1, ledger.PendingProbeCount);
+        }
+        finally { try { System.IO.Directory.Delete(dir, recursive: true); } catch { } }
+    }
+
+    [Fact]
+    public void DeathLedger_FullResist_ResolvesImmune()
+    {
+        // The user's Gilgamesh log: "Full resist! ... takes no damage" — HP untouched after the
+        // cast resolves → Immune. Driven end-to-end through Update() via the injected clock.
+        var target = new Moq.Mock<Dalamud.Game.ClientState.Objects.Types.IBattleChara>();
+        target.Setup(x => x.IsDead).Returns(false);
+        target.Setup(x => x.CurrentHp).Returns(1_000_000u); // untouched
+        var table = new Moq.Mock<Dalamud.Plugin.Services.IObjectTable>();
+        table.Setup(x => x.SearchById(Moq.It.IsAny<ulong>())).Returns(target.Object);
+
+        var ledger = TempLedger(out var dir, table.Object);
+        try
+        {
+            var now = System.DateTime.UtcNow;
+            ledger.UtcNow = () => now;
+
+            ledger.NotifyProbeCast(1UL, 4242u, "Gilgamesh", 1_000_000, 1_000_000);
+            now = now.AddSeconds(3.5);
+            ledger.Update();
+
+            Assert.Equal(0, ledger.PendingProbeCount);
+            Assert.Equal(Daedalus.Services.Blu.DeathImmunityVerdict.Immune, ledger.GetVerdict(4242u));
+        }
+        finally { try { System.IO.Directory.Delete(dir, recursive: true); } catch { } }
+    }
+
+    [Fact]
+    public void DeathLedger_LandedHit_ResolvesVulnerable()
+    {
+        var target = new Moq.Mock<Dalamud.Game.ClientState.Objects.Types.IBattleChara>();
+        target.Setup(x => x.IsDead).Returns(false);
+        target.Setup(x => x.CurrentHp).Returns(490_000u); // ~50% of before — the Missile signature
+        var table = new Moq.Mock<Dalamud.Plugin.Services.IObjectTable>();
+        table.Setup(x => x.SearchById(Moq.It.IsAny<ulong>())).Returns(target.Object);
+
+        var ledger = TempLedger(out var dir, table.Object);
+        try
+        {
+            var now = System.DateTime.UtcNow;
+            ledger.UtcNow = () => now;
+
+            ledger.NotifyProbeCast(1UL, 4242u, "Gilgamesh", 1_000_000, 1_000_000);
+            now = now.AddSeconds(3.5);
+            ledger.Update();
+
+            Assert.Equal(Daedalus.Services.Blu.DeathImmunityVerdict.Vulnerable, ledger.GetVerdict(4242u));
+        }
+        finally { try { System.IO.Directory.Delete(dir, recursive: true); } catch { } }
+    }
+
+    [Fact]
+    public void DeathLedger_VulnerableEvidence_SurvivesLaterFullResist()
+    {
+        // Invuln-phase safeguard: once a real hit proved Vulnerable, a later full resist
+        // (phase transition) must NOT flip the verdict to Immune.
+        var currentHp = 490_000u;
+        var target = new Moq.Mock<Dalamud.Game.ClientState.Objects.Types.IBattleChara>();
+        target.Setup(x => x.IsDead).Returns(false);
+        target.Setup(x => x.CurrentHp).Returns(() => currentHp);
+        var table = new Moq.Mock<Dalamud.Plugin.Services.IObjectTable>();
+        table.Setup(x => x.SearchById(Moq.It.IsAny<ulong>())).Returns(target.Object);
+
+        var ledger = TempLedger(out var dir, table.Object);
+        try
+        {
+            var now = System.DateTime.UtcNow;
+            ledger.UtcNow = () => now;
+
+            ledger.NotifyProbeCast(1UL, 4242u, "Gilgamesh", 1_000_000, 1_000_000); // lands (490k after)
+            now = now.AddSeconds(3.5);
+            ledger.Update();
+            Assert.Equal(Daedalus.Services.Blu.DeathImmunityVerdict.Vulnerable, ledger.GetVerdict(4242u));
+
+            currentHp = 490_000u; // untouched this time — full resist during a phase
+            ledger.NotifyProbeCast(1UL, 4242u, "Gilgamesh", 1_000_000, 490_000);
+            now = now.AddSeconds(3.5);
+            ledger.Update();
+
+            Assert.Equal(Daedalus.Services.Blu.DeathImmunityVerdict.Vulnerable, ledger.GetVerdict(4242u));
+        }
+        finally { try { System.IO.Directory.Delete(dir, recursive: true); } catch { } }
+    }
+
     // ── Final Sting calculator ──────────────────────────────────────────────
 
     [Fact]

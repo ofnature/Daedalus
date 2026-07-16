@@ -90,6 +90,14 @@ public sealed unsafe class CombatEventService : ICombatEventService, IDisposable
     public event System.Action<uint, int, uint>? OnLocalPlayerDamageDealt;
 
     /// <summary>
+    /// The LOCAL player's action resolved on a target — fired once per target from the
+    /// action-effect packet REGARDLESS of outcome (a fully-resisted cast deals no damage and
+    /// raises no damage event, but its effect packet still arrives). Args: actionId, targetId.
+    /// Consumers filter by action — e.g. the BLU death-immunity ledger observing manual Missiles.
+    /// </summary>
+    public event System.Action<uint, uint>? OnLocalActionOnTarget;
+
+    /// <summary>
     /// Event raised per damage effect from ANY caster in range (party, Trust NPCs, pets, enemies).
     /// Used by the DPS parser. Raised from the hook thread — subscribers must enqueue.
     /// </summary>
@@ -559,6 +567,11 @@ public sealed unsafe class CombatEventService : ICombatEventService, IDisposable
         {
             var targetId = (uint)targetEntityIds[i].ObjectId;
             var targetEffects = effects[i];
+
+            // Outcome-independent per-target notification (see event doc: resists carry no
+            // damage effect, so this must fire before any delta filtering).
+            if (isFromLocalPlayer)
+                OnLocalActionOnTarget?.Invoke(header->ActionId, targetId);
 
             var totalDelta = 0;
             var totalHeal = 0;

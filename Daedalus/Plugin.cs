@@ -441,6 +441,21 @@ public sealed class Plugin : IDalamudPlugin
             log,
             () => (ushort)clientState.TerritoryType);
 
+        // Manual-play feed: the ledger's rotation path only sees casts Daedalus dispatches, so a
+        // hand-played Missile taught it nothing. The action-effect hook fires for the local
+        // player's casts regardless of outcome (a full resist deals no damage and raises no
+        // damage event — but its effect packet still arrives), and the ledger's normal 3s HP
+        // re-read turns it into the same Weak/Immune verdict. Rotation-dispatched casts are seen
+        // by BOTH paths; the ledger dedups per target.
+        this.combatEventService.OnLocalActionOnTarget += (actionId, targetId) =>
+        {
+            if (actionId != Daedalus.Data.BLUActions.Missile.ActionId) return;
+            var target = objectTable.SearchById(targetId);
+            if (target is not Dalamud.Game.ClientState.Objects.Types.IBattleNpc npc || npc.MaxHp == 0) return;
+            this.deathImmunityLedger?.NotifyProbeCast(
+                npc.GameObjectId, npc.NameId, npc.Name?.TextValue ?? "", npc.MaxHp, npc.CurrentHp);
+        };
+
         // Full-party DPS parser; the bus (when LAN is enabled) adds cross-toon self-reporting
         this.dpsMeterService = new DpsMeterService(
             combatEventService, objectTable, configuration.Parser,

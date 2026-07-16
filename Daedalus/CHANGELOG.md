@@ -20,6 +20,9 @@ All notable changes to Daedalus will be documented in this file.
 - **Coil pre-pull checklist in the Party Coordination window**: inside T5/T9/T13 the window shows each utility slot's assigned carrier — Level 5 Death (T5 ×1, T13 ×2), Sticky Tongue (T9 ×2), Avail (T13 ×2) — green when covered, **red when the fleet can't cover it** so you fix loadouts before the pull, plus the T13 Flute stagger groups. The mechanics themselves stay manual by design
 - Debug window (Blue Mage tab) shows the live owner election ("2×BLU bleed:me MF:Saar BoM:me …")
 
+### New — Blue Mage: manually-cast Missiles now teach the Death Ledger
+- The ledger only learned from casts Daedalus dispatched itself — hand-played Missiles taught it nothing. It now also observes YOUR manual Missile casts through the action-effect hook, which fires even on a full resist ("Gilgamesh takes no damage" = zero damage events, so watching damage alone would have missed exactly the Immune verdict). Same 3-second HP re-check, same Weak/Immune rules, and a cast the rotation dispatched is never double-counted
+
 ### Fix — Nav Control: BMR AI on/off is now tracked
 - The Nav Control panel showed the preset and config-push status but had no idea whether BMR AI mode itself was running — you could stare at all-green lines with /bmrai off (or wonder why it says nothing when it's on). BossMod exposes no query for this, so Daedalus now reads BMR's own "AI: On/Off" server-info-bar entry: the panel shows **BMR AI mode: ON** in green, a red "nothing moves until /bmrai on" when it's off, and an honest "unknown — enable Show DTR in BMR's AI settings" when the status-bar entry is hidden
 

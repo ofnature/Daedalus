@@ -76,6 +76,20 @@ public sealed class DeathImmunityLedger : IDeathImmunityLedger
     private bool _dirty;
     private DateTime _lastSaveUtc = DateTime.MinValue;
 
+    /// <summary>Injectable clock (tests age probes/dedup without sleeping).</summary>
+    internal Func<DateTime> UtcNow = () => DateTime.UtcNow;
+
+    /// <summary>Exposed for tests: probes queued and not yet resolved.</summary>
+    internal int PendingProbeCount => _pending.Count;
+
+    /// <summary>
+    /// One probe per target per window: a rotation-dispatched Missile is ALSO observed by the
+    /// action-effect hook (manual-cast path), and both call NotifyProbeCast — without this the
+    /// same cast would double-confirm. Longer than the 3s resolve delay so the duplicate can't
+    /// slip in after the first probe resolves.
+    /// </summary>
+    private const double ProbeDedupSeconds = 4.0;
+
     private sealed class PendingProbe
     {
         public ulong TargetId;
@@ -127,6 +141,15 @@ public sealed class DeathImmunityLedger : IDeathImmunityLedger
     {
         if (bnpcNameId == 0 || hpBefore == 0)
             return;
+
+        var now = UtcNow();
+        foreach (var existing in _pending)
+        {
+            if (existing.TargetId == targetGameObjectId
+                && (now - existing.CastUtc).TotalSeconds < ProbeDedupSeconds)
+                return; // same cast seen by both the dispatch path and the effect hook
+        }
+
         _pending.Add(new PendingProbe
         {
             TargetId = targetGameObjectId,
@@ -134,7 +157,7 @@ public sealed class DeathImmunityLedger : IDeathImmunityLedger
             Name = name,
             MaxHp = maxHp,
             HpBefore = hpBefore,
-            CastUtc = DateTime.UtcNow,
+            CastUtc = now,
         });
     }
 
@@ -160,7 +183,7 @@ public sealed class DeathImmunityLedger : IDeathImmunityLedger
 
     public void Update()
     {
-        var now = DateTime.UtcNow;
+        var now = UtcNow();
 
         for (var i = _pending.Count - 1; i >= 0; i--)
         {
