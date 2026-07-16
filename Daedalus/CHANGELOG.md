@@ -3,6 +3,17 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.21 — 2026-07-16
+
+### New — Blue Mage: manually-cast Missiles now teach the Death Ledger
+- The ledger only learned from casts Daedalus dispatched itself — hand-played Missiles taught it nothing. It now also observes YOUR manual Missile casts through the action-effect hook, which fires even on a full resist ("Gilgamesh takes no damage" = zero damage events, so watching damage alone would have missed exactly the Immune verdict). A cast the rotation dispatched is never double-counted
+- **A missed Missile can't create a false Immune**: the packet's effect type is read directly — damage landed = Weak instantly, full resist/invulnerable = Immune, and a whiffed accuracy roll = no verdict at all (previously the untouched HP bar after a miss could brand a vulnerable species Immune, and the rotation would never probe it again). Field-verified against real log lines: a roll failure prints "The attack misses", true immunity prints "Full resist!" — the ledger tells them apart on the wire
+- Once a species lands as Weak it stays **Weak forever** — later resists and misses can't flip it. The ledger display is now just the verdict (Weak/Immune), no confirm counter
+
+### Fix — Nav Control: BMR AI on/off is now tracked
+- The Nav Control panel showed the preset and config-push status but had no idea whether BMR AI mode itself was running — you could stare at all-green lines with /bmrai off (or wonder why it says nothing when it's on). BossMod exposes no query for this, so Daedalus now reads BMR's own "AI: On/Off" server-info-bar entry: the panel shows **BMR AI mode: ON** in green, a red "nothing moves until /bmrai on" when it's off, and an honest "unknown — enable Show DTR in BMR's AI settings" when the status-bar entry is hidden
+
+<!-- LATEST-END -->
 ## v0.1.20 — 2026-07-16
 
 ### New — Blue Mage: Missile cheese + the Death-Immunity Ledger
@@ -20,14 +31,6 @@ All notable changes to Daedalus will be documented in this file.
 - **Coil pre-pull checklist in the Party Coordination window**: inside T5/T9/T13 the window shows each utility slot's assigned carrier — Level 5 Death (T5 ×1, T13 ×2), Sticky Tongue (T9 ×2), Avail (T13 ×2) — green when covered, **red when the fleet can't cover it** so you fix loadouts before the pull, plus the T13 Flute stagger groups. The mechanics themselves stay manual by design
 - Debug window (Blue Mage tab) shows the live owner election ("2×BLU bleed:me MF:Saar BoM:me …")
 
-### New — Blue Mage: manually-cast Missiles now teach the Death Ledger
-- The ledger only learned from casts Daedalus dispatched itself — hand-played Missiles taught it nothing. It now also observes YOUR manual Missile casts through the action-effect hook, which fires even on a full resist ("Gilgamesh takes no damage" = zero damage events, so watching damage alone would have missed exactly the Immune verdict). A cast the rotation dispatched is never double-counted
-- **A missed Missile no longer risks a false Immune**: the packet's effect type is read directly — damage landed = Weak instantly, full resist/invulnerable = Immune, and a whiffed accuracy roll = no verdict at all (previously the untouched HP bar after a miss could brand a vulnerable species Immune, and the rotation would never probe it again). Once a species lands as Weak it stays Weak forever — later resists and misses can't flip it
-
-### Fix — Nav Control: BMR AI on/off is now tracked
-- The Nav Control panel showed the preset and config-push status but had no idea whether BMR AI mode itself was running — you could stare at all-green lines with /bmrai off (or wonder why it says nothing when it's on). BossMod exposes no query for this, so Daedalus now reads BMR's own "AI: On/Off" server-info-bar entry: the panel shows **BMR AI mode: ON** in green, a red "nothing moves until /bmrai on" when it's off, and an honest "unknown — enable Show DTR in BMR's AI settings" when the status-bar entry is hidden
-
-<!-- LATEST-END -->
 ## v0.1.19 — 2026-07-12
 
 ### New — Blue Mage: SOLO role
