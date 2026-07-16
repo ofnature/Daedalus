@@ -26,6 +26,7 @@ public sealed class BmrAiConfigService
     private readonly IBossModSafetyService _bmr;
     private readonly IPluginLog? _log;
     private readonly Daedalus.Services.Debug.DebugLogService? _debugLog;
+    private readonly Dalamud.Plugin.Services.IDtrBar? _dtrBar;
 
     private ICallGateSubscriber<List<string>, bool, List<string>>? _configIpc;
     private ICallGateSubscriber<string>? _getPresetIpc;
@@ -37,12 +38,54 @@ public sealed class BmrAiConfigService
     private bool _wasEnabled;
 
     public BmrAiConfigService(IDalamudPluginInterface pi, IBossModSafetyService bmr, IPluginLog? log = null,
-        Daedalus.Services.Debug.DebugLogService? debugLog = null)
+        Daedalus.Services.Debug.DebugLogService? debugLog = null,
+        Dalamud.Plugin.Services.IDtrBar? dtrBar = null)
     {
         _pi = pi;
         _bmr = bmr;
         _log = log;
         _debugLog = debugLog;
+        _dtrBar = dtrBar;
+    }
+
+    // ── AI mode (on/off) tracking ─────────────────────────────────────────────────────────────────────
+    // BMR exposes NO IPC for "is AI mode enabled" (AI.GetPreset is the preset name only — "" both when
+    // AI is off AND when it runs preset-less). The one place BMR publishes the real state is its server
+    // info bar entry "bmr-ai" (DTRProvider: Text = "AI: On"/"AI: Off" from Beh != null), which Dalamud
+    // lets other plugins read. Only populated while BMR's AI "Show DTR" toggle is on — hidden/absent
+    // reads as Unknown, never as Off.
+
+    public enum BmrAiMode { Unknown, On, Off }
+
+    /// <summary>Whether BMR AI mode (/bmrai) is actually running, read from BMR's own status-bar entry.</summary>
+    public BmrAiMode AiMode()
+    {
+        if (!_bmr.IsAvailable || _dtrBar == null)
+            return BmrAiMode.Unknown;
+        try
+        {
+            foreach (var entry in _dtrBar.Entries)
+            {
+                if (entry.Title != "bmr-ai")
+                    continue;
+                return ParseAiDtr(entry.Shown, entry.Text?.TextValue);
+            }
+        }
+        catch (System.Exception ex)
+        {
+            _log?.Debug(ex, "[BmrAiConfigService] DTR read failed");
+        }
+        return BmrAiMode.Unknown;
+    }
+
+    /// <summary>Pure text→state mapping (tested): a hidden entry means "can't know", never "off".</summary>
+    internal static BmrAiMode ParseAiDtr(bool shown, string? text)
+    {
+        if (!shown || string.IsNullOrEmpty(text))
+            return BmrAiMode.Unknown;
+        if (text.EndsWith("On", System.StringComparison.Ordinal)) return BmrAiMode.On;
+        if (text.EndsWith("Off", System.StringComparison.Ordinal)) return BmrAiMode.Off;
+        return BmrAiMode.Unknown;
     }
 
     public readonly record struct Request(

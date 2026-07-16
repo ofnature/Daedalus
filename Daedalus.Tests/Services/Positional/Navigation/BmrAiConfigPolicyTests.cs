@@ -70,4 +70,27 @@ public sealed class BmrAiConfigPolicyTests
     [Fact]
     public void ResolveDesiredPositional_BacklineCamping_StillAny() =>
         Assert.Equal("Any", BmrAiConfigPolicy.ResolveDesiredPositional(JobRegistry.WhiteMage, PositionalType.Rear, boundaryCampingActive: true));
+
+    // ── AI-mode tracking via BMR's "bmr-ai" status-bar entry ────────────────
+    // BMR has no "is AI enabled" IPC; the DTR entry text ("AI: On"/"AI: Off") is the only
+    // published truth. A hidden or empty entry means UNKNOWN — never Off (BMR only writes the
+    // text while its "Show DTR" toggle is on, so absence proves nothing).
+
+    [Theory]
+    [InlineData(true, "AI: On", BmrAiConfigService.BmrAiMode.On)]
+    [InlineData(true, "AI: Off", BmrAiConfigService.BmrAiMode.Off)]
+    public void ParseAiDtr_ReadsBmrStates(bool shown, string text, BmrAiConfigService.BmrAiMode expected) =>
+        Assert.Equal(expected, BmrAiConfigService.ParseAiDtr(shown, text));
+
+    [Fact]
+    public void ParseAiDtr_HiddenEntry_IsUnknown_NotOff() =>
+        Assert.Equal(BmrAiConfigService.BmrAiMode.Unknown, BmrAiConfigService.ParseAiDtr(shown: false, text: "AI: On"));
+
+    [Fact]
+    public void ParseAiDtr_EmptyOrForeignText_IsUnknown()
+    {
+        Assert.Equal(BmrAiConfigService.BmrAiMode.Unknown, BmrAiConfigService.ParseAiDtr(shown: true, text: null));
+        Assert.Equal(BmrAiConfigService.BmrAiMode.Unknown, BmrAiConfigService.ParseAiDtr(shown: true, text: ""));
+        Assert.Equal(BmrAiConfigService.BmrAiMode.Unknown, BmrAiConfigService.ParseAiDtr(shown: true, text: "something else"));
+    }
 }

@@ -212,7 +212,8 @@ public sealed class Plugin : IDalamudPlugin
         ITextureProvider textureProvider,
         IGameGui gameGui,
         INotificationManager notificationManager,
-        IKeyState keyState)
+        IKeyState keyState,
+        IDtrBar dtrBar)
     {
         this.pluginInterface = pluginInterface;
         this.framework = framework;
@@ -329,7 +330,7 @@ public sealed class Plugin : IDalamudPlugin
         Rotation.Base.RotationServices.MovementArbiter = movementArbiter;
         this.bossModForecastService = new BossModForecastService(pluginInterface, log);
         this.positionalMovementService = new PositionalMovementService(movementArbiter, bossModSafetyService);
-        this.bmrAiConfigService = new BmrAiConfigService(pluginInterface, bossModSafetyService, log, debugLogService);
+        this.bmrAiConfigService = new BmrAiConfigService(pluginInterface, bossModSafetyService, log, debugLogService, dtrBar);
         this.samuraiPositionalAnticipationProvider = new SamuraiPositionalAnticipationProvider();
         this.ninjaPositionalAnticipationProvider = new NinjaPositionalAnticipationProvider();
 

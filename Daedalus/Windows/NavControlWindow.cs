@@ -200,6 +200,21 @@ public sealed class NavControlWindow : Window
 
         ImGui.TextColored(Green, "BossMod Reborn: loaded");
 
+        // AI mode tracking: read from BMR's own "bmr-ai" status-bar entry — the only place BMR
+        // publishes the real /bmrai state (there is no IPC for it).
+        switch (bmrAiConfigService.AiMode())
+        {
+            case Daedalus.Services.Positional.Navigation.BmrAiConfigService.BmrAiMode.On:
+                ImGui.TextColored(Green, "BMR AI mode: ON");
+                break;
+            case Daedalus.Services.Positional.Navigation.BmrAiConfigService.BmrAiMode.Off:
+                ImGui.TextColored(Red, "BMR AI mode: OFF — config is pushed, but nothing moves until /bmrai on");
+                break;
+            default:
+                ImGui.TextDisabled("BMR AI mode: unknown — enable \"Show DTR\" in BMR's AI settings so this can track it");
+                break;
+        }
+
         var preset = bmrAiConfigService.CurrentAiPreset();
         if (string.IsNullOrEmpty(preset))
         {
