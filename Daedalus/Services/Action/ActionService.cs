@@ -433,6 +433,9 @@ public sealed unsafe class ActionService : IActionService
                     _gcdSubmittedThisCycle = false;
                     _nextGcdAttemptAllowed = DateTime.UtcNow.AddSeconds(FailedSubmitBackoffSeconds);
                     _readyUncommittedSinceUtc = DateTime.MinValue;
+                    // The queued submit never fired — its pending log entry must never flush
+                    // (it would show a cast that didn't happen, under whatever name it carried).
+                    _hasPendingGcdLog = false;
                     ReportDroppedQueuedGcd();
                 }
             }
@@ -440,6 +443,14 @@ public sealed unsafe class ActionService : IActionService
             {
                 _readyUncommittedSinceUtc = DateTime.MinValue;
                 _gcdSubmittedThisCycle = false;
+
+                // Fully idle with a pending entry that was never declared dropped: the recast it
+                // started has completed — it REALLY cast. Flush it now, or the next submit's
+                // overwrite renames it (field ×2: "Toad Oil logged as Bristle", then as "Mighty
+                // Guard" — the rollover resets the seen-flag the overwrite gate relies on, so
+                // idle-time submits slipped past it).
+                if (_hasPendingGcdLog)
+                    FlushPendingGcdLog();
             }
             // Recast is fully done — a new GCD cycle. Release the repeat-GCD block here too, not only on
             // the single recast roll-over frame: if that frame's clear was missed (e.g. _gcdSubmittedThisCycle
@@ -539,6 +550,11 @@ public sealed unsafe class ActionService : IActionService
 
             // Defer the ActionTracker log to commit (see _hasPendingGcdLog): the game queues this submit and
             // only the last one this GCD window actually fires, so logging here inflates the timeline.
+            // BUT if the pending cast's recast already started rolling, that cast REALLY fired —
+            // flush it before arming the next, or it logs under the next submit's name (field:
+            // Toad Oil showed as "Bristle" because Bristle's queue submit overwrote the slot).
+            if (_hasPendingGcdLog && _gcdRecastSeenSinceSubmit)
+                FlushPendingGcdLog();
             _pendingGcdLogActionId = action.ActionId;
             _pendingGcdLogTargetId = targetId;
             _pendingGcdLogDuration = actionManager->GetRecastTime(ActionType.Action, dispatchId);
@@ -567,7 +583,13 @@ public sealed unsafe class ActionService : IActionService
         }
 
         if (action.ActionId == _blockedRepeatOgcdId && DateTime.UtcNow < _blockedRepeatOgcdUntil)
-            return false;
+        {
+            // Charge-based oGCDs legitimately re-fire the SAME id back-to-back (BLU Surpanakha's
+            // 4-charge dump — the whole point is consecutive presses). The game's own charge
+            // count is the real guard there; keep the repeat block for everything else.
+            if (GetMaxCharges(action.ActionId, 0) <= 1 || GetCurrentCharges(action.ActionId) == 0)
+                return false;
+        }
 
         var actionManager = SafeGameAccess.GetActionManager(_errorMetrics);
         if (actionManager is null)
@@ -748,6 +770,25 @@ public sealed unsafe class ActionService : IActionService
     {
         if (_blockedRepeatGcdDispatchId == 0 || useActionId != _blockedRepeatGcdDispatchId)
             return false;
+
+        // Queue window: re-submitting the SAME spell is the legitimate way to chain a filler
+        // (Sonic Boom→Sonic Boom, Glare→Glare) — the game queues it for the rollover. Blocking
+        // it here made BLU alternate Sonic Boom/Water Cannon (the fallback won the queue window
+        // every other GCD, field 2026-07-12) and silently cost single-filler jobs their queue
+        // window. Double-submit INSIDE the window is still prevented: a successful queue submit
+        // re-latches _gcdSubmittedThisCycle. Outside the window the guard keeps protecting
+        // against mid-recast duplicate probes (the 582 class).
+        //
+        // ONLY plain global-recast spells get the exemption. A recast-group GCD's own cooldown
+        // does not start until the pending cast COMMITS, so its module gate still reads "ready"
+        // in the queue window and a same-id requeue DOUBLE-FIRES it (field, same day: Matra
+        // Magic ×2 back-to-back — 120s cooldown, both casts spent).
+        if (GcdRemaining > 0f && GcdRemaining <= FFXIVTimings.QueueWindow)
+        {
+            var ownRecast = actionManager->GetRecastTime(ActionType.Action, useActionId);
+            if (ownRecast <= 5f)
+                return false;
+        }
 
         var slotAdjusted = actionManager->GetAdjustedActionId(useActionId);
         return slotAdjusted == useActionId;
@@ -1076,11 +1117,63 @@ public sealed unsafe class ActionService : IActionService
 
     private void TryFaceRecovery(uint dispatchId, ulong targetId)
     {
-        if (FaceTargetOnStuck is null || targetId == 0)
+        if (targetId == 0)
             return;
         var status = GetActionStatusCode(dispatchId, targetId);
         if (status == StatusNotFacing || status == 0)
-            FaceTargetOnStuck(targetId);
+        {
+            FaceTargetOnStuck?.Invoke(targetId);
+            FaceTargetDirectly(targetId);
+        }
+    }
+
+    private DateTime _lastFacingRecoveryUtc = DateTime.MinValue;
+
+    /// <inheritdoc/>
+    public void NotifyFacingRejection(ulong targetId)
+    {
+        if (targetId == 0)
+            return;
+        if ((DateTime.UtcNow - _lastFacingRecoveryUtc).TotalSeconds < 0.5)
+            return;
+        _lastFacingRecoveryUtc = DateTime.UtcNow;
+
+        FaceTargetOnStuck?.Invoke(targetId); // hard-target so client auto-face (if enabled) helps too
+        FaceTargetDirectly(targetId);
+    }
+
+    /// <summary>
+    /// Physically rotates the local player toward the target. The BLU field case (2026-07-12):
+    /// BMR's evade left the toon faced away with client auto-face unable to help — EVERY hostile
+    /// targeted cast then pre-gates on 566 and nothing ever rotates the character back (27s of
+    /// dead GCDs). Setting hard target alone does not turn the model; writing the rotation does.
+    /// Never yanks rotation mid-cast.
+    /// </summary>
+    private void FaceTargetDirectly(ulong targetId)
+    {
+        try
+        {
+            var localPlayer = _objectTable?.LocalPlayer;
+            var target = _objectTable?.SearchById(targetId);
+            if (localPlayer == null || target == null)
+                return;
+            if (localPlayer.IsCasting)
+                return;
+
+            var dx = target.Position.X - localPlayer.Position.X;
+            var dz = target.Position.Z - localPlayer.Position.Z;
+            if (dx * dx + dz * dz < 0.01f)
+                return;
+
+            // FFXIV facing: rotation 0 = +Z, forward = (sin, cos) — same math as TargetingService.
+            var yaw = MathF.Atan2(dx, dz);
+            var obj = (FFXIVClientStructs.FFXIV.Client.Game.Object.GameObject*)localPlayer.Address;
+            obj->SetRotation(yaw);
+        }
+        catch (Exception ex)
+        {
+            _errorMetrics?.RecordError("ActionService", $"Face recovery failed: {ex.Message}");
+        }
     }
 
     private const uint ActionStatusNotLearned = 565;

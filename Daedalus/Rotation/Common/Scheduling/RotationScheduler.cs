@@ -290,6 +290,8 @@ public sealed class RotationScheduler
                         // alone cost a field session guessing mechanic-lockout vs real bug
                         // (Lugae's toad phase reads identically to a targeting failure without it).
                         var code = _actionService.GetActionStatusCode(adjustedId, candidate.TargetId);
+                        if (code == 566)
+                            _actionService.NotifyFacingRejection(candidate.TargetId); // re-face NOW, or every candidate starves
                         RecordFail(candidate, $"ActionStatus {code}{DescribeStatusCode(code)}");
                         continue;
                     }
@@ -327,7 +329,10 @@ public sealed class RotationScheduler
                 };
             }
 
-            RecordFail(candidate, DescribeReject(candidate, effective, ctx, isOgcd));
+            var rejectReason = DescribeReject(candidate, effective, ctx, isOgcd);
+            if (rejectReason.Contains("facing", StringComparison.OrdinalIgnoreCase))
+                _actionService.NotifyFacingRejection(candidate.TargetId);
+            RecordFail(candidate, rejectReason);
         }
 
         return new SchedulerDispatchResult

@@ -74,6 +74,14 @@ public interface IActionService
     Action<ulong>? FaceTargetOnStuck { get; set; }
 
     /// <summary>
+    /// The scheduler saw a facing rejection (status 566) for a candidate on this target — run
+    /// face recovery NOW (hard-target + direct rotation write). Throttled internally (0.5s).
+    /// Without this, a toon left faced away (BMR evade, external mover) starves: every hostile
+    /// targeted cast pre-gates on 566 and nothing ever turns the character back.
+    /// </summary>
+    void NotifyFacingRejection(ulong targetId);
+
+    /// <summary>
     /// Optional provider of the current game hard-target GameObjectId (0 if none). Wired to
     /// <c>TargetingService.GetGameHardTargetId</c>. Used only by the cast-refusal diagnostic to report
     /// whether the action's target matches the hard target (auto-face can only turn toward the hard target).

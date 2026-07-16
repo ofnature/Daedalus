@@ -38,6 +38,8 @@ public class SpellCandidateEvaluatorTests
         private readonly HashSet<uint> readyActions = [];
         private readonly Dictionary<uint, float> cooldowns = [];
 
+        public void NotifyFacingRejection(ulong targetId) { }
+
         public void SetActionReady(uint actionId, bool ready = true)
         {
             if (ready)
