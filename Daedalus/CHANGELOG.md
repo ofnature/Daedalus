@@ -3,11 +3,53 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.19 — 2026-07-12
+
+### New — Blue Mage: SOLO role
+- The Role dropdown gains **Solo** — the overworld/farm mode: **Basic Instinct first, then Mighty Guard on top** (Basic Instinct cancels the stance's damage penalty, so you tank AND hit at +100%), DPS mimicry, White Wind and Diamondback self-sustain, Goblin Punch as the 400-potency melee filler under the stance
+- Picking Solo casts Basic Instinct + Mighty Guard **immediately, out of combat, on zone-in to a duty** — no first-pull GCDs wasted on setup. Basic Instinct is duty-only (the game refuses it in the open world), so overworld Solo runs at full damage without the stance; unsynced dungeon farming is where the BI+MG combo shines. The Solo option is **locked while you're in a party**, with a clear warning instead of a silently broken mode
+- New **Solo reference loadout** for the Apply/auto-load buttons: the DPS kit with Basic Instinct, Mighty Guard (in place of Revenge Blast), White Wind (in place of Off-guard), Final Sting, and the freeze→shatter pair
+- **Final Sting execute** (off by default): on the last engaged enemy at/below a configurable HP%, Solo role only — it kills your character and locks itself out for 10 minutes, so it's for finishing tough solo targets, never farm loops
+
+### New — Blue Mage: Mimicry window (manual role control + REAL removal)
+- A **BLU Mimicry window** pops up when you switch to Blue Mage (toggleable): **Mimic Tank / Mimic DPS / Mimic Healer** buttons that scan the area for a player of that role and cast on them — a fresh cast overwrites the current role buff, so switching roles never needs a removal. Works even with Auto Mimicry turned off, and (unlike auto) works inside duties with real players
+- **Remove mimicry actually works now**: casting Aetheric Mimicry with NO target strips the buff (it can't target self) — the window's Remove button uses that trick, and the loadout Apply flow now removes the buff BY ITSELF instead of asking you to job-swap: press Apply, mimicry drops, the set swaps, auto-mimicry re-buffs you
+- Auto-mimicry pauses 15s after a manual removal so it doesn't instantly re-buff you
+
+### New — Blue Mage: Final Sting damage calculator
+- The BLU window gains a **Final Sting Calculator**: calibrate it with one observed non-crit hit (an unbuffed Sonic Boom, or a real Final Sting test), then toggle buffs — Moon Flute ×1.5, Whistle ×1.8 (the sting is physical, so Bristle does NOT apply), Off-guard, Basic Instinct, Mighty Guard — and see the estimated sting damage as a guaranteed non-crit floor
+- Enter a target's HP and a safety factor and it tells you **how many simultaneous stings the kill needs** — the planning math for Coil-style multi-BLU sting finishes. The calibration persists for the future fleet-sting automation
+
+### Fix — All jobs: a toon left facing the wrong way now turns itself back
+- When something external turns the character (BossMod dodging an attack, a movement tool), every targeted cast gets refused with "not facing target" and — with client auto-face unable to help — nothing ever rotated the toon back: one BLU run sat 27 seconds casting nothing. Facing rejections now trigger an immediate recovery that physically turns the character toward the target (throttled, never mid-cast), on top of the existing hard-target nudge
+- Interrupted buffs already self-heal (the rotation re-casts anything whose status didn't appear — that part was working)
+
+### Fix — All jobs: spamming the same spell no longer loses the queue window
+- Re-queuing the SAME spell for the next GCD (Sonic Boom→Sonic Boom, Glare→Glare — every single-filler rotation) was rejected by an overzealous duplicate guard, wasting the early-queue window every time. On BLU it was visible as Sonic Boom and Water Cannon alternating every other GCD; on other jobs it just shaved reaction time off every repeat cast. Same-spell re-queue is now allowed inside the queue window only — the double-submit protection everywhere else is unchanged
+
+### Fix — Blue Mage: third/fourth-field-run corrections
+- **Self-buffs no longer double-cast** (Toad Oil went up twice back-to-back): a 2-second cast's buff appears a beat after the cast ends, and the very next decision still read "missing" — each self-buff now waits 5s after a cast before retrying (a genuinely interrupted cast still retries after that)
+- **A movement-interrupted Mortal Flame no longer locks the spell out for a minute** — its safety latch (built when the DoT's status id was unverified) shrank from 60s to a 5s latency guard now that detection is field-proven
+- **Recast-cooldown spells can't double-fire in the queue window** (Matra Magic cast twice back-to-back, burning the 120s cooldown for one hit of value): the same-spell requeue exemption now applies to plain fillers only
+- **Breath of Magic actively turns you toward the target**: after a dodge left the toon mis-faced, the self-cast cone just waited (nothing rejects a self-cast, so nothing triggered the turn-around) — 8 dead seconds. Wanting to cast it while mis-faced now physically rotates the character at the target first
+- **Surpanakha never presses at GCD-idle anymore** — a press with no GCD rolling just delayed the next cast (a clip for 200 potency); it now weaves only inside real weave slots
+- **Action log names the right cast**: a queued next-spell submit could overwrite the previous cast's pending log entry before it flushed, labeling it with the wrong name (a Toad Oil showed as "Bristle", then as "Mighty Guard"). Committed casts now flush both on the in-window path AND at GCD-idle, and dropped queue submits are discarded instead of logging phantom casts — all jobs
+
+### Fix — Blue Mage: second-field-run corrections
+- **Bristle's boost now always lands on the DoT it was cast for**: while the boost is armed, every other damage cast — including oGCD weaves, which are spells too — holds until the snapshot fires (a run showed three Bristles and zero Breath of Magic, the boosts dying on Glass Dance and Rose)
+- **Surpanakha can actually chain now**: charge-based abilities are exempt from the 1-second same-action repeat guard, so back-to-back presses go through (the game's own charge count is the real limit)
+- **Toad Oil** no longer pre-buffs in the open world — it casts in combat/duties only
+
+### Fix — Blue Mage: first-field-run corrections
+- **Breath of Magic and Bad Breath now check that you're actually FACING the target** — they're self-anchored cones the game never auto-turns for, and a wrongly-faced toon spammed Breath of Magic twelve times into empty air. A per-target latch also caps it at one cast per 10s no matter what
+- **Cold Fog** no longer burns its 90s cooldown on a pack that's about to die
+- The Debug tab now says **why Basic Instinct/Toad Oil are holding** ("held — party present") instead of silently skipping
+<!-- LATEST-END -->
+
 ## v0.1.18 — 2026-07-13
 
 ### Changed — Party invites moved to Charon
 - The invite buttons are gone from the LAN party window — party invites now live in the companion [Charon](https://github.com/ofnature/Charon) plugin (Group Management), which can invite the whole fleet in one click. The LAN window is now a pure status/coordination display; all its other tools (HP bars, roles, burst, tank swap, target modes, scramble) are unchanged. The roster Daedalus shares with Charon now carries the addressing its native invites need.
-<!-- LATEST-END -->
 
 ## v0.1.17 — 2026-07-11
 

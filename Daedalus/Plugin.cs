@@ -42,7 +42,7 @@ namespace Daedalus;
 
 public sealed class Plugin : IDalamudPlugin
 {
-    public const string PluginVersion = "0.1.18";
+    public const string PluginVersion = "0.1.19";
     private const string CommandName = "/daedalus";
     private const string CommandAlias = "/dae";
 
@@ -148,6 +148,8 @@ public sealed class Plugin : IDalamudPlugin
     private readonly NavControlWindow navControlWindow;
     private readonly RaidWindow raidWindow;
     private readonly MissingWindow missingWindow;
+    private readonly BluMimicryWindow bluMimicryWindow;
+    private bool wasOnBlu;
     private readonly DebugWindow debugWindow;
     private readonly WelcomeWindow welcomeWindow;
     private readonly AnalyticsWindow analyticsWindow;
@@ -410,7 +412,8 @@ public sealed class Plugin : IDalamudPlugin
                 }
                 return active;
             },
-            log);
+            log,
+            TryRemoveMimicryByTargetlessCast);
 
         // Full-party DPS parser; the bus (when LAN is enabled) adds cross-toon self-reporting
         this.dpsMeterService = new DpsMeterService(
@@ -538,6 +541,9 @@ public sealed class Plugin : IDalamudPlugin
         this.navControlWindow = new NavControlWindow(configuration, SaveConfiguration, bmrAiConfigService, movementArbiter);
         this.raidWindow = new RaidWindow(configuration, SaveConfiguration, dutyContentService);
         this.missingWindow = new MissingWindow(debugService, bluLoadoutService);
+        this.bluMimicryWindow = new BluMimicryWindow(
+            objectTable, partyList, TryRemoveMimicryByTargetlessCast, configuration, SaveConfiguration);
+        Windows.Config.DPS.BlueMageSection.PartySizeSource = () => partyList.Length; // Solo-role lock
         if (coordinationBus != null && lanCoordinator != null)
             this.lanPartyWindow = new LanPartyWindow(coordinationBus, lanCoordinator, configuration, SaveConfiguration, objectTable, targetManager);
         this.mainWindow = new MainWindow(configuration, SaveConfiguration, OpenConfigUI, OpenDebugUI, OpenAnalyticsUI, OpenTrainingUI, OpenChangelogUI, OpenOverlayUI, OpenControlUI, OpenNavControlUI, OpenRaidUI, OpenMissingUI, PluginVersion, rotationManager, textureProvider,
@@ -665,6 +671,7 @@ public sealed class Plugin : IDalamudPlugin
         windowSystem.AddWindow(navControlWindow);
         windowSystem.AddWindow(raidWindow);
         windowSystem.AddWindow(missingWindow);
+        windowSystem.AddWindow(bluMimicryWindow);
         if (lanPartyWindow != null)
             windowSystem.AddWindow(lanPartyWindow);
         windowSystem.AddWindow(debugWindow);
@@ -1203,6 +1210,17 @@ public sealed class Plugin : IDalamudPlugin
             bluLoadoutService.Update();
             UpdateBluAutoRoleLoadout();
 
+            // Mimicry window auto-open on switching TO BLU (manual close respected until the
+            // next switch); auto-close on leaving BLU.
+            {
+                var onBlu = objectTable.LocalPlayer?.ClassJob.RowId == JobRegistry.BlueMage;
+                if (onBlu && !wasOnBlu && configuration.BlueMage.ShowMimicryWindowOnBlu)
+                    bluMimicryWindow.IsOpen = true;
+                else if (!onBlu && wasOnBlu)
+                    bluMimicryWindow.IsOpen = false;
+                wasOnBlu = onBlu;
+            }
+
             // Update training mode
             trainingService.Update();
 
@@ -1303,11 +1321,37 @@ public sealed class Plugin : IDalamudPlugin
         }
     }
 
-    // NOTE (field-verified 2026-07-11): Aetheric Mimicry CANNOT be cancelled programmatically.
-    // StatusManager.ExecuteStatusOff(2124-6) returns false, and the game's own /statusoff (sent
-    // via UIModule.ProcessChatBoxEntry — verified delivering with an /echo probe) silently no-ops
-    // on it despite the Status sheet's CanStatusOff=true. Only a job change drops the buff, so
-    // the loadout-apply handshake WAITS for the user instead of pretending to cancel.
+    // MIMICRY REMOVAL (user-discovered 2026-07-12): status-off paths all fail (ExecuteStatusOff
+    // returns false, /statusoff silently no-ops despite CanStatusOff=true) — but casting
+    // Aetheric Mimicry with NO TARGET removes the buff, because the spell cannot target self.
+    // That targetless cast is the only working removal and what everything below uses.
+
+    /// <summary>
+    /// Removes Aetheric Mimicry via the targetless-cast trick: clear the hard target, cast
+    /// Aetheric Mimicry (self is an invalid mimicry target, so the cast strips the buff),
+    /// restore the target. Returns whether the cast was submitted.
+    /// </summary>
+    private bool TryRemoveMimicryByTargetlessCast()
+    {
+        var previousTarget = targetManager.Target;
+        try
+        {
+            targetManager.Target = null;
+            var submitted = actionService.ExecuteGcd(Daedalus.Data.BLUActions.AethericMimicry, 0xE0000000);
+            log.Information($"[BLU] Targetless Aetheric Mimicry cast (buff removal): submitted={submitted}");
+            return submitted;
+        }
+        catch (Exception ex)
+        {
+            log.Warning(ex, "[BLU] Targetless mimicry removal cast failed");
+            return false;
+        }
+        finally
+        {
+            // Restore after submit — the cast snapshot took its (empty) target at submit time.
+            targetManager.Target = previousTarget;
+        }
+    }
 
     // BLU auto role-loadout: the last Role value we've seen (and satisfied). Null until the
     // first BLU frame so enabling the feature never clobbers the current set on plugin load —
