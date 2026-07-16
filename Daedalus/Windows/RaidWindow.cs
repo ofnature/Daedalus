@@ -95,7 +95,7 @@ public sealed class RaidWindow : Window
             {
                 ImGui.TextColored(BluWeakColor, "Weak");
                 ImGui.SameLine();
-                ImGui.Text($"— {e.Name} (Missile works, ×{e.Confirms})");
+                ImGui.Text($"— {e.Name} (Missile works)");
             }
             else if (e.Verdict == Daedalus.Services.Blu.DeathImmunityVerdict.Immune)
             {
@@ -129,7 +129,7 @@ public sealed class RaidWindow : Window
                 {
                     ImGui.TextColored(BluWeakColor, "Weak");
                     ImGui.SameLine();
-                    ImGui.Text($"— {e.Name} (×{e.Confirms})");
+                    ImGui.Text($"— {e.Name}");
                 }
                 else
                 {
