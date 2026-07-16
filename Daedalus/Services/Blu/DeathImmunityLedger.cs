@@ -31,13 +31,32 @@ public sealed class DeathLedgerEntry
     [JsonPropertyName("ts")] public long LastSeenUnix { get; set; }
 }
 
+/// <summary>What the action-effect packet said a death-family cast actually did to the target.</summary>
+public enum ProbeObservation
+{
+    /// <summary>Damage landed — direct proof of vulnerability.</summary>
+    Hit,
+
+    /// <summary>The accuracy roll failed — ZERO information about the immunity flag.</summary>
+    Missed,
+
+    /// <summary>Full resist / invulnerable / "has no effect" — immunity evidence.</summary>
+    NoEffect,
+}
+
 public interface IDeathImmunityLedger
 {
     DeathImmunityVerdict GetVerdict(uint bnpcNameId);
 
     /// <summary>A death-family spell (Missile etc.) was dispatched at this target — the ledger
-    /// re-reads the target's HP after the cast resolves and records the verdict.</summary>
+    /// re-reads the target's HP after the cast resolves and records the verdict. Fallback path:
+    /// superseded by <see cref="NotifyProbeObservation"/> when the effect packet is seen.</summary>
     void NotifyProbeCast(ulong targetGameObjectId, uint bnpcNameId, string name, uint maxHp, uint hpBefore);
+
+    /// <summary>The cast's actual outcome from the action-effect packet — authoritative: replaces
+    /// any pending HP-inference probe for the target (critically, a MISS cancels it — untouched
+    /// HP after a whiffed roll must never read as Immune).</summary>
+    void NotifyProbeObservation(ulong targetGameObjectId, uint bnpcNameId, string name, uint maxHp, ProbeObservation observation);
 
     IReadOnlyList<DeathLedgerEntry> Entries { get; }
 
@@ -89,6 +108,11 @@ public sealed class DeathImmunityLedger : IDeathImmunityLedger
     /// slip in after the first probe resolves.
     /// </summary>
     private const double ProbeDedupSeconds = 4.0;
+
+    /// <summary>Direct-observation double-delivery guard (real casts are a GCD ≥2.5s apart).</summary>
+    private const double DirectDedupSeconds = 1.5;
+
+    private readonly Dictionary<ulong, DateTime> _lastDirectUtc = new();
 
     private sealed class PendingProbe
     {
@@ -161,6 +185,36 @@ public sealed class DeathImmunityLedger : IDeathImmunityLedger
         });
     }
 
+    public void NotifyProbeObservation(ulong targetGameObjectId, uint bnpcNameId, string name, uint maxHp, ProbeObservation observation)
+    {
+        if (bnpcNameId == 0)
+            return;
+
+        var now = UtcNow();
+
+        // The packet is the same cast the dispatch path queued an HP probe for — the direct
+        // observation supersedes it. A MISS must cancel it either way: the HP bar stays
+        // untouched after a whiffed roll, which the fallback would misread as Immune.
+        _pending.RemoveAll(p => p.TargetId == targetGameObjectId);
+
+        if (observation == ProbeObservation.Missed)
+            return; // roll failed — no information; the next cast probes again
+
+        if (_lastDirectUtc.TryGetValue(targetGameObjectId, out var last)
+            && (now - last).TotalSeconds < DirectDedupSeconds)
+            return;
+        _lastDirectUtc[targetGameObjectId] = now;
+
+        Record(new PendingProbe
+        {
+            TargetId = targetGameObjectId,
+            NameId = bnpcNameId,
+            Name = name,
+            MaxHp = maxHp,
+            CastUtc = now,
+        }, observation == ProbeObservation.Hit ? DeathImmunityVerdict.Vulnerable : DeathImmunityVerdict.Immune);
+    }
+
     /// <summary>
     /// Pure verdict math (tested): compare HP before the probe vs after it resolved.
     /// Dead/gone counts as Vulnerable (the probe finished it or the pull collapsed with it —
@@ -210,6 +264,15 @@ public sealed class DeathImmunityLedger : IDeathImmunityLedger
 
         if (_dirty && (now - _lastSaveUtc).TotalSeconds > 3)
             Save();
+
+        // Bound the direct-observation dedup map (targets churn constantly while farming).
+        if (_lastDirectUtc.Count > 64)
+        {
+            var stale = _lastDirectUtc.Where(kv => (now - kv.Value).TotalSeconds > 60)
+                .Select(kv => kv.Key).ToList();
+            foreach (var key in stale)
+                _lastDirectUtc.Remove(key);
+        }
     }
 
     private void Record(PendingProbe probe, DeathImmunityVerdict verdict)

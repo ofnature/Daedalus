@@ -233,6 +233,91 @@ public class BluLoadoutComposerTests
         finally { try { System.IO.Directory.Delete(dir, recursive: true); } catch { } }
     }
 
+    // ── Death-immunity ledger: packet-observed outcomes (2026-07-16) ────────
+    // The action-effect packet's effect TYPE is authoritative: Damage=Hit, Miss=roll failure
+    // (NO information — Missile can whiff on vulnerable targets), FullResist/Invulnerable=
+    // NoEffect. A miss must also cancel the pending HP probe, which would otherwise misread
+    // the untouched HP bar as a false Immune and blacklist a vulnerable species forever.
+
+    [Fact]
+    public void DeathLedger_HitObservation_RecordsVulnerableImmediately()
+    {
+        var ledger = TempLedger(out var dir);
+        try
+        {
+            ledger.NotifyProbeObservation(1UL, 4242u, "Hoptrap", 80_000, Daedalus.Services.Blu.ProbeObservation.Hit);
+            Assert.Equal(Daedalus.Services.Blu.DeathImmunityVerdict.Vulnerable, ledger.GetVerdict(4242u));
+            Assert.Equal(0, ledger.PendingProbeCount); // no HP re-read needed
+        }
+        finally { try { System.IO.Directory.Delete(dir, recursive: true); } catch { } }
+    }
+
+    [Fact]
+    public void DeathLedger_MissObservation_CancelsPendingProbe_RecordsNothing()
+    {
+        var ledger = TempLedger(out var dir);
+        try
+        {
+            var now = System.DateTime.UtcNow;
+            ledger.UtcNow = () => now;
+
+            ledger.NotifyProbeCast(1UL, 4242u, "Hoptrap", 80_000, 80_000); // dispatch path queued
+            Assert.Equal(1, ledger.PendingProbeCount);
+
+            ledger.NotifyProbeObservation(1UL, 4242u, "Hoptrap", 80_000, Daedalus.Services.Blu.ProbeObservation.Missed);
+
+            Assert.Equal(0, ledger.PendingProbeCount); // the false-Immune HP probe is gone
+            now = now.AddSeconds(5);
+            ledger.Update();
+            Assert.Equal(Daedalus.Services.Blu.DeathImmunityVerdict.Unknown, ledger.GetVerdict(4242u));
+        }
+        finally { try { System.IO.Directory.Delete(dir, recursive: true); } catch { } }
+    }
+
+    [Fact]
+    public void DeathLedger_NoEffectObservation_RecordsImmune_LaterHitCorrects()
+    {
+        var ledger = TempLedger(out var dir);
+        try
+        {
+            var now = System.DateTime.UtcNow;
+            ledger.UtcNow = () => now;
+
+            ledger.NotifyProbeObservation(1UL, 4242u, "Gilgamesh", 1_000_000, Daedalus.Services.Blu.ProbeObservation.NoEffect);
+            Assert.Equal(Daedalus.Services.Blu.DeathImmunityVerdict.Immune, ledger.GetVerdict(4242u));
+
+            now = now.AddSeconds(3); // past the direct dedup window
+            ledger.NotifyProbeObservation(1UL, 4242u, "Gilgamesh", 1_000_000, Daedalus.Services.Blu.ProbeObservation.Hit);
+            Assert.Equal(Daedalus.Services.Blu.DeathImmunityVerdict.Vulnerable, ledger.GetVerdict(4242u));
+
+            // ...and the Vulnerable verdict survives any later NoEffect (invuln-phase rule).
+            now = now.AddSeconds(3);
+            ledger.NotifyProbeObservation(1UL, 4242u, "Gilgamesh", 1_000_000, Daedalus.Services.Blu.ProbeObservation.NoEffect);
+            Assert.Equal(Daedalus.Services.Blu.DeathImmunityVerdict.Vulnerable, ledger.GetVerdict(4242u));
+        }
+        finally { try { System.IO.Directory.Delete(dir, recursive: true); } catch { } }
+    }
+
+    [Fact]
+    public void DeathLedger_DirectObservation_DoubleDeliveryDeduped()
+    {
+        var ledger = TempLedger(out var dir);
+        try
+        {
+            var now = System.DateTime.UtcNow;
+            ledger.UtcNow = () => now;
+
+            ledger.NotifyProbeObservation(1UL, 4242u, "Hoptrap", 80_000, Daedalus.Services.Blu.ProbeObservation.Hit);
+            ledger.NotifyProbeObservation(1UL, 4242u, "Hoptrap", 80_000, Daedalus.Services.Blu.ProbeObservation.Hit);
+            Assert.Equal(1, ledger.Entries.Single(e => e.NameId == 4242u).Confirms);
+
+            now = now.AddSeconds(3); // a real second cast (next GCD) counts
+            ledger.NotifyProbeObservation(1UL, 4242u, "Hoptrap", 80_000, Daedalus.Services.Blu.ProbeObservation.Hit);
+            Assert.Equal(2, ledger.Entries.Single(e => e.NameId == 4242u).Confirms);
+        }
+        finally { try { System.IO.Directory.Delete(dir, recursive: true); } catch { } }
+    }
+
     // ── Final Sting calculator ──────────────────────────────────────────────
 
     [Fact]

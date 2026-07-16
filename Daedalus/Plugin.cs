@@ -443,17 +443,33 @@ public sealed class Plugin : IDalamudPlugin
 
         // Manual-play feed: the ledger's rotation path only sees casts Daedalus dispatches, so a
         // hand-played Missile taught it nothing. The action-effect hook fires for the local
-        // player's casts regardless of outcome (a full resist deals no damage and raises no
-        // damage event — but its effect packet still arrives), and the ledger's normal 3s HP
-        // re-read turns it into the same Weak/Immune verdict. Rotation-dispatched casts are seen
-        // by BOTH paths; the ledger dedups per target.
-        this.combatEventService.OnLocalActionOnTarget += (actionId, targetId) =>
+        // player's casts regardless of outcome, and the packet's effect TYPE is authoritative:
+        // damage landed = Weak, full resist/invulnerable = Immune evidence, and a MISSED accuracy
+        // roll = no information at all (it also cancels the dispatch path's pending HP probe,
+        // which would otherwise misread the untouched HP bar as Immune). Unknown packet shapes
+        // leave the 3s HP-inference fallback in place.
+        this.combatEventService.OnLocalActionOnTarget += (actionId, targetId, outcome) =>
         {
             if (actionId != Daedalus.Data.BLUActions.Missile.ActionId) return;
             var target = objectTable.SearchById(targetId);
             if (target is not Dalamud.Game.ClientState.Objects.Types.IBattleNpc npc || npc.MaxHp == 0) return;
-            this.deathImmunityLedger?.NotifyProbeCast(
-                npc.GameObjectId, npc.NameId, npc.Name?.TextValue ?? "", npc.MaxHp, npc.CurrentHp);
+            var observation = outcome switch
+            {
+                Daedalus.Services.LocalActionOutcome.DamageDealt => Daedalus.Services.Blu.ProbeObservation.Hit,
+                Daedalus.Services.LocalActionOutcome.Missed => Daedalus.Services.Blu.ProbeObservation.Missed,
+                Daedalus.Services.LocalActionOutcome.NoEffect => Daedalus.Services.Blu.ProbeObservation.NoEffect,
+                _ => (Daedalus.Services.Blu.ProbeObservation?)null,
+            };
+            if (observation == null)
+            {
+                // Unrecognized packet shape — fall back to the 3s HP-inference probe (dedups
+                // against the dispatch path's own probe when the rotation cast this).
+                this.deathImmunityLedger?.NotifyProbeCast(
+                    npc.GameObjectId, npc.NameId, npc.Name?.TextValue ?? "", npc.MaxHp, npc.CurrentHp);
+                return;
+            }
+            this.deathImmunityLedger?.NotifyProbeObservation(
+                npc.GameObjectId, npc.NameId, npc.Name?.TextValue ?? "", npc.MaxHp, observation.Value);
         };
 
         // Full-party DPS parser; the bus (when LAN is enabled) adds cross-toon self-reporting

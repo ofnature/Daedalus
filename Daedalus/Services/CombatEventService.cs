@@ -18,6 +18,19 @@ namespace Daedalus.Services;
 public record HealEvent(DateTime Timestamp, uint TargetId, string TargetName, uint ActionId, int Amount, int OverhealAmount);
 
 /// <summary>
+/// Per-target outcome summary of a local player's action-effect packet. Damage wins over
+/// everything (a multi-effect action that dealt ANY damage landed); a lone Miss entry is the
+/// accuracy roll failing; NoEffect is full resist / invulnerable / "has no effect".
+/// </summary>
+public enum LocalActionOutcome
+{
+    Unknown = 0,
+    DamageDealt = 1,
+    Missed = 2,
+    NoEffect = 3,
+}
+
+/// <summary>
 /// Hooks into ActionEffectHandler.Receive to track HP changes in real-time,
 /// before the game's visible HP bars update.
 /// </summary>
@@ -92,10 +105,11 @@ public sealed unsafe class CombatEventService : ICombatEventService, IDisposable
     /// <summary>
     /// The LOCAL player's action resolved on a target — fired once per target from the
     /// action-effect packet REGARDLESS of outcome (a fully-resisted cast deals no damage and
-    /// raises no damage event, but its effect packet still arrives). Args: actionId, targetId.
-    /// Consumers filter by action — e.g. the BLU death-immunity ledger observing manual Missiles.
+    /// raises no damage event, but its effect packet still arrives). Args: actionId, targetId,
+    /// outcome. Consumers filter by action — e.g. the BLU death-immunity ledger observing
+    /// manual Missiles, where a MISSED accuracy roll and a true immunity must not be confused.
     /// </summary>
-    public event System.Action<uint, uint>? OnLocalActionOnTarget;
+    public event System.Action<uint, uint, LocalActionOutcome>? OnLocalActionOnTarget;
 
     /// <summary>
     /// Event raised per damage effect from ANY caster in range (party, Trust NPCs, pets, enemies).
@@ -170,9 +184,13 @@ public sealed unsafe class CombatEventService : ICombatEventService, IDisposable
     private DateTime? _combatStartTime;
     private volatile bool _isInCombat;
 
-    // ActionEffectType values from FFXIVClientStructs
+    // ActionEffectType values from FFXIVClientStructs (cross-checked vs BMR Data/ActionEffect.cs)
+    private const byte EffectTypeMiss = 1;
+    private const byte EffectTypeFullResist = 2;
     private const byte EffectTypeDamage = 3;
     private const byte EffectTypeHeal = 4;
+    private const byte EffectTypeInvulnerable = 7;
+    private const byte EffectTypeNoEffectText = 8;
 
     // Damage/heal effect field semantics (verified against BossmodReborn ActionEffect.cs):
     // Param4 bit 0x40 = large-value flag, real value = Value + Param3 * 0x10000.
@@ -568,13 +586,10 @@ public sealed unsafe class CombatEventService : ICombatEventService, IDisposable
             var targetId = (uint)targetEntityIds[i].ObjectId;
             var targetEffects = effects[i];
 
-            // Outcome-independent per-target notification (see event doc: resists carry no
-            // damage effect, so this must fire before any delta filtering).
-            if (isFromLocalPlayer)
-                OnLocalActionOnTarget?.Invoke(header->ActionId, targetId);
-
             var totalDelta = 0;
             var totalHeal = 0;
+            var sawMiss = false;
+            var sawNoEffect = false;
             for (var j = 0; j < 8; j++)
             {
                 var effect = targetEffects.Effects[j];
@@ -597,7 +612,26 @@ public sealed unsafe class CombatEventService : ICombatEventService, IDisposable
                         totalDelta += heal;
                         totalHeal += heal;
                         break;
+                    case EffectTypeMiss:
+                        sawMiss = true;
+                        break;
+                    case EffectTypeFullResist:
+                    case EffectTypeInvulnerable:
+                    case EffectTypeNoEffectText:
+                        sawNoEffect = true;
+                        break;
                 }
+            }
+
+            // Per-target outcome notification (see event doc: resists and misses carry no
+            // damage effect, so this must NOT be derived from the deltas alone).
+            if (isFromLocalPlayer)
+            {
+                var outcome = totalDelta < 0 ? LocalActionOutcome.DamageDealt
+                    : sawNoEffect ? LocalActionOutcome.NoEffect
+                    : sawMiss ? LocalActionOutcome.Missed
+                    : LocalActionOutcome.Unknown;
+                OnLocalActionOnTarget?.Invoke(header->ActionId, targetId, outcome);
             }
 
             if (totalDelta != 0 && shadowHp.TryGetValue(targetId, out var current))
