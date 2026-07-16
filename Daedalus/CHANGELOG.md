@@ -3,6 +3,24 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.20 — 2026-07-15
+
+### New — Blue Mage: Missile cheese + the Death-Immunity Ledger
+- **Missile chain**: in duties, big targets that aren't death-immune get Missile spam (50% of CURRENT HP per cast) down to a configurable HP floor, then the normal rotation finishes. Four Missiles = 94% of a boss gone
+- **The ledger nobody published**: no public list exists of which bosses the death-family spells (Missile, Tail Screw, Launcher, Level 5 Death, Ultravibration — one shared immunity flag) actually work on. Daedalus now builds yours automatically: every Missile cast is a recorded probe — the target's HP tells the truth — and the verdict persists forever. Unknown bosses cost exactly one probe cast; known-immune bosses are never wasted on again. Clear old dungeons on BLU and watch the list grow in the BLU window (✓ vulnerable / ✗ immune, per zone)
+- The intended loop: Missile-chain the vulnerable bosses, **Final Sting** the immune ones (the Solo execute pairs with this), with an invuln-phase safeguard — one later successful hit permanently corrects a false "immune"
+- **The ledger lives in the Raid window** (it's per-duty aware): inside a duty you see that duty's verdicts inline — "Blue Mage — Death: Weak/Immune" per boss — and the full learned list sits below, grouped by zone, with the clear button
+
+### New — Blue Mage: multi-BLU fleet coordination (v3)
+- **Every BLU toon now advertises its capabilities on the LAN** — which coordination-relevant spells are slotted (DoTs, Moon Flute, Gobskin, Cactguard, Level 5 Death, Sticky Tongue, Avail…) ride the roster heartbeat, and every box deterministically elects the same owners with zero negotiation. A toon whose loadout lacks a spell can never be assigned it; solo or single-BLU play is completely unchanged
+- **One owner per DoT**: with 2+ BLU on the bus, exactly one toon owns the bleed (Song of Torment — the status is shared, so a second caster was silently clobbering snapshots), one owns Mortal Flame (any recast REPLACES the permanent snapshot), one owns Breath of Magic. Non-owners skip those casts entirely; the bleed owner refreshes with a Bristle snapshot only when the DoT would otherwise drop, never overwriting a buffed snapshot with a plain one
+- **Synced Moon Flute windows**: each toon announces when its burst pieces are ready, and the shared burst signal starts every window on the same tick. In T13 the fleet auto-splits into two groups 30 seconds apart, so half the party is never locked in Waning when a Gigaflare push needs Mighty Guard back up. Toggleable; solo Flute timing untouched
+- **One Gobskin per fleet**: the barrier doesn't stack — the healer-mimic (250 vs 100 potency) wins the election, everyone else suppresses, and even the owner yields when a real SCH/SGE shield is already on the party
+- **Cactguard the tank**: when BossMod forecasts a tankbuster within 5 seconds, one designated non-tank casts Cactguard on the tank (5% damage down — 15% if the caster runs tank mimicry). Works with a real tank or the tank-mimic BLU
+- **Coil pre-pull checklist in the Party Coordination window**: inside T5/T9/T13 the window shows each utility slot's assigned carrier — Level 5 Death (T5 ×1, T13 ×2), Sticky Tongue (T9 ×2), Avail (T13 ×2) — green when covered, **red when the fleet can't cover it** so you fix loadouts before the pull, plus the T13 Flute stagger groups. The mechanics themselves stay manual by design
+- Debug window (Blue Mage tab) shows the live owner election ("2×BLU bleed:me MF:Saar BoM:me …")
+
+<!-- LATEST-END -->
 ## v0.1.19 — 2026-07-12
 
 ### New — Blue Mage: SOLO role
@@ -44,7 +62,6 @@ All notable changes to Daedalus will be documented in this file.
 - **Breath of Magic and Bad Breath now check that you're actually FACING the target** — they're self-anchored cones the game never auto-turns for, and a wrongly-faced toon spammed Breath of Magic twelve times into empty air. A per-target latch also caps it at one cast per 10s no matter what
 - **Cold Fog** no longer burns its 90s cooldown on a pack that's about to die
 - The Debug tab now says **why Basic Instinct/Toad Oil are holding** ("held — party present") instead of silently skipping
-<!-- LATEST-END -->
 
 ## v0.1.18 — 2026-07-13
 

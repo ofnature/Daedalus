@@ -123,6 +123,7 @@ public sealed class Plugin : IDalamudPlugin
     private readonly PerformanceTracker performanceTracker;
     private readonly DpsMeterService dpsMeterService;
     private readonly BluLoadoutService bluLoadoutService;
+    private readonly Daedalus.Services.Blu.DeathImmunityLedger deathImmunityLedger;
 
     // FFLogs integration
     private readonly FFlogsService? fflogsService;
@@ -350,6 +351,13 @@ public sealed class Plugin : IDalamudPlugin
             this.coordinationBus = new Daedalus.Services.Network.CoordinationBus(
                 log, lanCoordinator, partyCoordinationService, machineId);
             this.coordinationBus.HeartbeatProvider = BuildLanHeartbeat;
+            // BLU v3 bridges: the burst signal is the synced Moon Flute start, and readiness
+            // announcements ride the existing BurstReady channel (static-backed — rotations
+            // can't see the bus).
+            this.coordinationBus.OnBurstFire +=
+                () => Daedalus.Services.Blu.BluCoordinationState.NotifyBurstFire(DateTime.UtcNow);
+            Daedalus.Services.Blu.BluCoordinationState.SignalBurstReady =
+                () => this.coordinationBus?.BroadcastBurstReady();
             this.lanCoordinator.Start(); // bind failure logs + falls back to IPC-only (Status=Error)
             this.clientState.TerritoryChanged += OnLanTerritoryChanged;
             Windows.Config.Shared.PartyCoordinationSection.LanStatusSource = () =>
@@ -414,6 +422,23 @@ public sealed class Plugin : IDalamudPlugin
             },
             log,
             TryRemoveMimicryByTargetlessCast);
+
+        // Auto-learned death-family susceptibility (Missile chain gate + BLU window ledger view).
+        this.deathImmunityLedger = new Daedalus.Services.Blu.DeathImmunityLedger(
+            pluginInterface.ConfigDirectory.FullName,
+            objectTable,
+            () =>
+            {
+                try
+                {
+                    var territory = dataManager.GetExcelSheet<Lumina.Excel.Sheets.TerritoryType>()?
+                        .GetRowOrDefault(clientState.TerritoryType);
+                    return territory?.PlaceName.Value.Name.ToString() ?? "";
+                }
+                catch { return ""; }
+            },
+            log,
+            () => (ushort)clientState.TerritoryType);
 
         // Full-party DPS parser; the bus (when LAN is enabled) adds cross-toon self-reporting
         this.dpsMeterService = new DpsMeterService(
@@ -539,13 +564,14 @@ public sealed class Plugin : IDalamudPlugin
         this.configWindow = new ConfigWindow(configuration, SaveConfiguration, updateCheckerService, textureProvider, dutyContentService);
         this.controlWindow = new ControlWindow(configuration, SaveConfiguration, rotationManager, textureProvider);
         this.navControlWindow = new NavControlWindow(configuration, SaveConfiguration, bmrAiConfigService, movementArbiter);
-        this.raidWindow = new RaidWindow(configuration, SaveConfiguration, dutyContentService);
+        this.raidWindow = new RaidWindow(configuration, SaveConfiguration, dutyContentService, deathImmunityLedger);
         this.missingWindow = new MissingWindow(debugService, bluLoadoutService);
         this.bluMimicryWindow = new BluMimicryWindow(
             objectTable, partyList, TryRemoveMimicryByTargetlessCast, configuration, SaveConfiguration);
         Windows.Config.DPS.BlueMageSection.PartySizeSource = () => partyList.Length; // Solo-role lock
         if (coordinationBus != null && lanCoordinator != null)
             this.lanPartyWindow = new LanPartyWindow(coordinationBus, lanCoordinator, configuration, SaveConfiguration, objectTable, targetManager);
+            LanPartyWindow.TerritorySource = () => (ushort)clientState.TerritoryType;
         this.mainWindow = new MainWindow(configuration, SaveConfiguration, OpenConfigUI, OpenDebugUI, OpenAnalyticsUI, OpenTrainingUI, OpenChangelogUI, OpenOverlayUI, OpenControlUI, OpenNavControlUI, OpenRaidUI, OpenMissingUI, PluginVersion, rotationManager, textureProvider,
             actionTracker: actionTracker, dutyContent: dutyContentService);
         this.mainWindow.LanConnected = () => this.lanCoordinator?.Status == Daedalus.Services.Network.LanStatus.Connected;
@@ -793,6 +819,7 @@ public sealed class Plugin : IDalamudPlugin
         container.Register<IBossModForecastService, BossModForecastService>(bossModForecastService);
         container.Register<IDpsMeterService, DpsMeterService>(dpsMeterService);
         container.Register<IBluLoadoutService, BluLoadoutService>(bluLoadoutService);
+        container.Register<Daedalus.Services.Blu.IDeathImmunityLedger, Daedalus.Services.Blu.DeathImmunityLedger>(deathImmunityLedger);
         container.Register<IPositionalMovementService, PositionalMovementService>(positionalMovementService);
         container.Register(samuraiPositionalAnticipationProvider);
         container.Register(ninjaPositionalAnticipationProvider);
@@ -865,6 +892,63 @@ public sealed class Plugin : IDalamudPlugin
     }
 
     /// <summary>Local toon heartbeat for the LAN roster (null when not logged in).</summary>
+    private DateTime _bluCoordinationLastUpdate = DateTime.MinValue;
+
+    /// <summary>
+    /// Refresh the static multi-BLU coordination snapshot (owner elections + stagger group) from
+    /// the bus roster, plus the BMR tankbuster forecast Cactguard triggers on. Static-backed (the
+    /// config-copy lesson) because rotations can't see the bus. Throttled to 1s; resets to the
+    /// solo defaults off-BLU so stale ownership can never gate a later session.
+    /// </summary>
+    private void UpdateBluCoordination()
+    {
+        var now = DateTime.UtcNow;
+        if ((now - _bluCoordinationLastUpdate).TotalSeconds < 1.0) return;
+        _bluCoordinationLastUpdate = now;
+
+        var player = objectTable.LocalPlayer;
+        if (player == null || player.ClassJob.RowId != JobRegistry.BlueMage)
+        {
+            Daedalus.Services.Blu.BluCoordinationState.Reset();
+            return;
+        }
+
+        // Cactguard's trigger — take the earlier of the two BMR buster forecasts (both read
+        // MaxValue when BMR is absent, so this fails closed to "no buster coming").
+        Daedalus.Services.Blu.BluCoordinationState.NextTankbusterInSeconds = Math.Min(
+            bossModForecastService.NextTankbusterInSeconds,
+            bossModForecastService.NextTankbusterDamageInSeconds);
+
+        var localCaps = Daedalus.Services.Blu.BluCapabilityMap.Compute(
+            id => actionService.IsActionLearned(id) && bluLoadoutService.IsSlotted(id),
+            configuration.BlueMage.Role);
+
+        if (coordinationBus == null)
+        {
+            Daedalus.Services.Blu.BluCoordinationState.Apply(
+                Daedalus.Services.Blu.BluCoordinationSnapshot.SelfOwnsEverything);
+            return;
+        }
+
+        var localSenderId = coordinationBus.LocalSenderId;
+        var bluRoster = new System.Collections.Generic.List<Daedalus.Services.Blu.BluPeerCapability>();
+        foreach (var peer in coordinationBus.Roster)
+        {
+            if (peer.IsStale(now) || peer.JobId != JobRegistry.BlueMage) continue;
+            // Self rides the roster too, but its heartbeat caps can be up to 2s stale — always
+            // use the fresh local read for our own entry.
+            bluRoster.Add(peer.SenderId == localSenderId
+                ? new(localSenderId, localCaps)
+                : new(peer.SenderId, (Daedalus.Services.Blu.BluCapabilities)peer.BluCapabilities));
+        }
+        if (localSenderId.Length > 0 && !bluRoster.Any(p => p.SenderId == localSenderId))
+            bluRoster.Add(new(localSenderId, localCaps));
+
+        Daedalus.Services.Blu.BluCoordinationState.Apply(
+            Daedalus.Services.Blu.BluCoordinationCalculator.Compute(
+                localSenderId, bluRoster, clientState.TerritoryType));
+    }
+
     private Daedalus.Services.Network.LanHeartbeatPayload? BuildLanHeartbeat()
     {
         var player = objectTable.LocalPlayer;
@@ -896,6 +980,13 @@ public sealed class Plugin : IDalamudPlugin
             PosX = player.Position.X,
             PosY = player.Position.Y,
             PosZ = player.Position.Z,
+            // BLU capability bitfield (v3 owner elections): learned+slotted, same availability
+            // check the rotation uses — a toon never advertises what it can't cast.
+            BluCapabilities = jobId == JobRegistry.BlueMage
+                ? (uint)Daedalus.Services.Blu.BluCapabilityMap.Compute(
+                    id => actionService.IsActionLearned(id) && bluLoadoutService.IsSlotted(id),
+                    configuration.BlueMage.Role)
+                : 0u,
         };
     }
 
@@ -1208,7 +1299,9 @@ public sealed class Plugin : IDalamudPlugin
 
             // Refresh the BLU active spell set (throttled internally; no-op off-BLU)
             bluLoadoutService.Update();
+            deathImmunityLedger.Update();
             UpdateBluAutoRoleLoadout();
+            UpdateBluCoordination();
 
             // Mimicry window auto-open on switching TO BLU (manual close respected until the
             // next switch); auto-close on leaving BLU.

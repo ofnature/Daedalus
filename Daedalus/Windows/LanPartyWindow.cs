@@ -163,12 +163,79 @@ public sealed class LanPartyWindow : Window, IDisposable
 
         DrawAgreement(roster, now, distinctTargets, eligibleDps);
         DrawBurstStrip(roster, now, burstReady);
+        DrawBluCoilAssignments(roster, now);
         DrawAlerts(now);
 
         ImGui.Spacing();
         ImGui.Separator();
         DrawToggles();
     }
+
+    /// <summary>The local territory id — set by Plugin (the window has no IClientState).</summary>
+    public static Func<ushort>? TerritorySource;
+
+    /// <summary>
+    /// BLU v3.5 pre-pull checklist: inside a Coil turn with BLU toons on the bus, show each
+    /// utility slot's deterministic carrier assignment — red when fewer capable toons than the
+    /// fight needs (fix loadouts BEFORE the pull; the mechanics themselves stay manual).
+    /// </summary>
+    private void DrawBluCoilAssignments(LanPeerInfo[] roster, DateTime now)
+    {
+        var territory = TerritorySource?.Invoke() ?? 0;
+        if (territory == 0 || !Daedalus.Data.BluDutyAssignments.HasRequirements(territory))
+            return;
+
+        var bluRoster = roster
+            .Where(p => !p.IsStale(now) && p.JobId == Daedalus.Data.JobRegistry.BlueMage)
+            .Select(p => new Daedalus.Services.Blu.BluPeerCapability(
+                p.SenderId, (Daedalus.Services.Blu.BluCapabilities)p.BluCapabilities))
+            .ToArray();
+        if (bluRoster.Length == 0)
+            return;
+
+        var results = Daedalus.Data.BluDutyAssignments.Evaluate(territory, bluRoster);
+        if (results.Count == 0)
+            return;
+
+        ImGui.Spacing();
+        ImGui.TextColored(Dim, $"BLU assignments — {results[0].Requirement.DutyName}");
+        foreach (var result in results)
+        {
+            var req = result.Requirement;
+            if (result.Satisfied)
+            {
+                var names = string.Join(", ", result.Assigned.Select(DisplayName));
+                ImGui.TextColored(Green, $"  ✓ {req.RoleLabel}: {names}");
+            }
+            else
+            {
+                ImGui.TextColored(Red,
+                    $"  ✗ {req.RoleLabel}: needs {req.RequiredCount}, only {result.Assigned.Count} capable"
+                    + (result.Assigned.Count > 0
+                        ? $" ({string.Join(", ", result.Assigned.Select(DisplayName))})"
+                        : " — slot the spell before pulling"));
+            }
+        }
+
+        if (Daedalus.Data.BluDutyAssignments.UsesMoonFluteStagger(territory))
+        {
+            var fluteCapable = bluRoster
+                .Where(p => p.Has(Daedalus.Services.Blu.BluCapabilities.MoonFlute))
+                .Select(p => p.SenderId)
+                .OrderBy(s => s, StringComparer.Ordinal)
+                .ToArray();
+            if (fluteCapable.Length >= 2)
+            {
+                var groupA = fluteCapable.Where((_, i) => i % 2 == 0).Select(DisplayName);
+                var groupB = fluteCapable.Where((_, i) => i % 2 == 1).Select(DisplayName);
+                ImGui.TextColored(Dim,
+                    $"  Flute stagger — A: {string.Join(", ", groupA)} · B (+30s): {string.Join(", ", groupB)}");
+            }
+        }
+    }
+
+    private string DisplayName(string senderId)
+        => _config.PartyCoordination.LanScrambleNames ? AliasFor(senderId) : senderId.Split('@')[0];
 
     private static bool IsDpsRole(string role) =>
         role.Length > 0

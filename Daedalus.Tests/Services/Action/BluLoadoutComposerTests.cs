@@ -63,6 +63,55 @@ public class BluLoadoutComposerTests
         Assert.Equal(expectedName, BluLoadoutComposer.ForRole(role).Name);
     }
 
+    // ── Death-immunity ledger ───────────────────────────────────────────────
+
+    [Fact]
+    public void DeathLedger_ResolveProbe_VerdictMath()
+    {
+        // Died/despawned during the window → the spell wasn't refused.
+        Assert.Equal(Daedalus.Services.Blu.DeathImmunityVerdict.Vulnerable,
+            Daedalus.Services.Blu.DeathImmunityLedger.ResolveProbe(50_000f, 0f, deadOrGone: true));
+        // ~50% of current HP removed → the Missile landed.
+        Assert.Equal(Daedalus.Services.Blu.DeathImmunityVerdict.Vulnerable,
+            Daedalus.Services.Blu.DeathImmunityLedger.ResolveProbe(100_000f, 52_000f, deadOrGone: false));
+        // HP essentially untouched → immune (or an invuln phase — a later hit corrects it).
+        Assert.Equal(Daedalus.Services.Blu.DeathImmunityVerdict.Immune,
+            Daedalus.Services.Blu.DeathImmunityLedger.ResolveProbe(100_000f, 97_000f, deadOrGone: false));
+        // Middle band (heavy unrelated damage, no halving) → inconclusive, record nothing.
+        Assert.Equal(Daedalus.Services.Blu.DeathImmunityVerdict.Unknown,
+            Daedalus.Services.Blu.DeathImmunityLedger.ResolveProbe(100_000f, 80_000f, deadOrGone: false));
+    }
+
+    [Fact]
+    public void DeathLedger_PersistsAndReloads()
+    {
+        var dir = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "daedalus-test-" + System.Guid.NewGuid().ToString("N"));
+        System.IO.Directory.CreateDirectory(dir);
+        try
+        {
+            var ledger = new Daedalus.Services.Blu.DeathImmunityLedger(dir, objectTable: null);
+            ledger.NotifyProbeCast(1UL, 4242u, "Koshchei", 80_000, 80_000);
+            // Target unresolvable (null object table) → dead/gone → Vulnerable; resolve is
+            // time-gated at 3s, so we can't drive it synchronously here — instead verify the
+            // load path with a hand-written file.
+            System.IO.File.WriteAllText(
+                System.IO.Path.Combine(dir, "death-immunity-ledger.json"),
+                "[{\"id\":4242,\"n\":\"Koshchei\",\"z\":\"The Stone Vigil\",\"tid\":168,\"v\":1,\"c\":3,\"hp\":80000,\"ts\":0}]");
+            var reloaded = new Daedalus.Services.Blu.DeathImmunityLedger(dir, objectTable: null);
+            Assert.Equal(Daedalus.Services.Blu.DeathImmunityVerdict.Vulnerable, reloaded.GetVerdict(4242u));
+            Assert.Single(reloaded.Entries);
+            Assert.Equal(Daedalus.Services.Blu.DeathImmunityVerdict.Unknown, reloaded.GetVerdict(9999u));
+            // The Raid window's per-duty filter:
+            Assert.Single(reloaded.EntriesForTerritory(168));
+            Assert.Empty(reloaded.EntriesForTerritory(999));
+            Assert.Empty(reloaded.EntriesForTerritory(0));
+        }
+        finally
+        {
+            try { System.IO.Directory.Delete(dir, recursive: true); } catch { }
+        }
+    }
+
     // ── Final Sting calculator ──────────────────────────────────────────────
 
     [Fact]

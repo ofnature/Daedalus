@@ -74,6 +74,8 @@ public static class ProteusTab
         ImGui.Separator();
         ImGui.Text($"Damage: {state.DamageState}");
         ImGui.Text($"Buff: {state.BuffState}");
+        if (state.Coordination.Length > 0)
+            ImGui.TextColored(Yellow, $"Multi-BLU: {state.Coordination}");
         if (state.PlannedAction.Length > 0)
             ImGui.Text($"Planned: {state.PlannedAction}");
         if (state.AoeRangeEnemies > 0)

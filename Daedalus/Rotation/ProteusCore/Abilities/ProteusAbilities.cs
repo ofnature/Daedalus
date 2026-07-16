@@ -50,12 +50,18 @@ public static class ProteusAbilities
     public static readonly AbilityBehavior BothEnds = new() { Action = BLUActions.BothEnds, Toggle = cfg => cfg.BlueMage.EnableOffensiveOgcds };
     public static readonly AbilityBehavior Surpanakha = new() { Action = BLUActions.Surpanakha, Toggle = cfg => cfg.BlueMage.EnableSurpanakha, ChargeSource = 18323 };
 
+    // --- Cheese / execute ---
+    public static readonly AbilityBehavior Missile = new() { Action = BLUActions.Missile, Toggle = cfg => cfg.BlueMage.EnableMissileCheese };
+
     // --- Execute ---
     public static readonly AbilityBehavior FinalSting = new() { Action = BLUActions.FinalSting, Toggle = cfg => cfg.BlueMage.EnableFinalSting };
 
     // --- Self buffs ---
     public static readonly AbilityBehavior BasicInstinct = new() { Action = BLUActions.BasicInstinct, Toggle = cfg => cfg.BlueMage.EnableBasicInstinct };
     public static readonly AbilityBehavior ToadOil = new() { Action = BLUActions.ToadOil, Toggle = cfg => cfg.BlueMage.EnableToadOil };
+
+    // --- v3 coordination ---
+    public static readonly AbilityBehavior Cactguard = new() { Action = BLUActions.Cactguard, Toggle = cfg => cfg.BlueMage.EnableCactguard };
 
     // --- Healer kit ---
     public static readonly AbilityBehavior PomCure = new() { Action = BLUActions.PomCure, Toggle = cfg => cfg.BlueMage.EnablePomCure };

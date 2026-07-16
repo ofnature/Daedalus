@@ -188,6 +188,14 @@ public sealed class LanHeartbeatPayload
     [JsonPropertyName("pz")]
     public float PosZ { get; set; }
 
+    /// <summary>
+    /// BLU capability bitfield (<see cref="Daedalus.Services.Blu.BluCapabilities"/>): which
+    /// coordination-relevant spells are slotted + role hints. 0 off-BLU and from older clients —
+    /// consumers treat missing bits as "cannot be assigned". Additive/back-compat.
+    /// </summary>
+    [JsonPropertyName("cap")]
+    public uint BluCapabilities { get; set; }
+
     /// <summary>Echo of the newest remote timestamp we've seen — latency = now - echo (one-way-ish).</summary>
     [JsonPropertyName("e")]
     public long EchoTimestamp { get; set; }
@@ -200,11 +208,18 @@ public sealed class LanHeartbeatPayload
     [JsonPropertyName("eh")]
     public long EchoHeldMs { get; set; }
 
-    public string ToJson() => JsonSerializer.Serialize(this);
+    // Skip default-valued fields on the wire (a non-BLU heartbeat has no cap, an idle toon no
+    // target...) — every reader already defaults missing fields, so this only shrinks datagrams.
+    private static readonly JsonSerializerOptions CompactOptions = new()
+    {
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingDefault,
+    };
+
+    public string ToJson() => JsonSerializer.Serialize(this, CompactOptions);
 
     public static LanHeartbeatPayload? FromJson(string json)
     {
-        try { return JsonSerializer.Deserialize<LanHeartbeatPayload>(json); }
+        try { return JsonSerializer.Deserialize<LanHeartbeatPayload>(json, CompactOptions); }
         catch { return null; }
     }
 }

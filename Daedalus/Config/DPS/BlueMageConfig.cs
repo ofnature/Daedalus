@@ -181,6 +181,45 @@ public sealed class BlueMageConfig
         set => _finalStingTargetHpPercent = Math.Clamp(value, 5, 50);
     }
 
+    /// <summary>
+    /// Missile chain on death-vulnerable bosses (in duty): 50% of current HP per cast until the
+    /// HP floor. Unknown enemies get ONE probe cast — its outcome feeds the death-immunity
+    /// ledger, which permanently remembers who's immune.
+    /// </summary>
+    public bool EnableMissileCheese { get; set; } = true;
+
+    private int _missileHpFloorPercent = 30;
+    /// <summary>Stop missiling below this target HP% (normal rotation finishes faster there).</summary>
+    public int MissileHpFloorPercent
+    {
+        get => _missileHpFloorPercent;
+        set => _missileHpFloorPercent = Math.Clamp(value, 10, 60);
+    }
+
+    private int _missileMinTargetMaxHp = 40000;
+    /// <summary>Only consider targets at/above this max HP (bosses, not trash).</summary>
+    public int MissileMinTargetMaxHp
+    {
+        get => _missileMinTargetMaxHp;
+        set => _missileMinTargetMaxHp = Math.Clamp(value, 10_000, 1_000_000);
+    }
+
+    // ── v3 multi-BLU coordination (only acts when ≥2 BLU toons share the LAN bus) ──
+
+    /// <summary>
+    /// Synchronize Moon Flute windows across the fleet: when every BLU's pieces are ready the
+    /// coordinated burst signal starts everyone's window on the same tick (T13 splits the party
+    /// into 30s-staggered groups). Only applies with ≥2 BLU on the bus — solo Flute timing is
+    /// unchanged. Requires <see cref="EnableMoonFlute"/>.
+    /// </summary>
+    public bool SyncMoonFluteWithParty { get; set; } = true;
+
+    /// <summary>
+    /// Cactguard the tank when BossMod forecasts a tankbuster (one designated non-tank caster
+    /// per fleet; solo-BLU parties self-designate). Needs Cactguard slotted + a tank in party.
+    /// </summary>
+    public bool EnableCactguard { get; set; } = true;
+
     /// <summary>Calculator calibration: an observed NON-CRIT, unbuffed damage number (0 = unset).
     /// Persisted — it's also the seed for the future fleet-sting count math.</summary>
     public int FinalStingBaselineDamage { get; set; }

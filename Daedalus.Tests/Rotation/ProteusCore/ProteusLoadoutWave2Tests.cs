@@ -554,6 +554,43 @@ public class ProteusLoadoutWave2Tests
         Assert.DoesNotContain(h.Scheduler.InspectGcdQueue(), c => c.Behavior == ProteusAbilities.ColdFog);
     }
 
+    // ── Missile cheese ──────────────────────────────────────────────────────
+
+    [Fact]
+    public void Damage_Missile_ProbesUnknownBosses_AndRespectsImmuneVerdict()
+    {
+        // Unknown (no ledger data) → probe fires.
+        var h = new Harness();
+        h.Damage.CollectCandidates(h.Context, h.Scheduler, isMoving: false);
+        Assert.Contains(h.Scheduler.InspectGcdQueue(), c => c.Behavior == ProteusAbilities.Missile);
+
+        // Ledger says Immune → never wasted again.
+        var ledger = new Mock<Daedalus.Services.Blu.IDeathImmunityLedger>();
+        ledger.Setup(x => x.GetVerdict(It.IsAny<uint>()))
+            .Returns(Daedalus.Services.Blu.DeathImmunityVerdict.Immune);
+        Mock.Get(h.Context).Setup(x => x.DeathLedger).Returns(ledger.Object);
+        h.Scheduler.Reset();
+        h.Damage.CollectCandidates(h.Context, h.Scheduler, isMoving: false);
+        Assert.DoesNotContain(h.Scheduler.InspectGcdQueue(), c => c.Behavior == ProteusAbilities.Missile);
+    }
+
+    [Fact]
+    public void Damage_Missile_StopsAtHpFloor_AndIgnoresTrash()
+    {
+        // Below the HP floor the normal rotation finishes faster.
+        var low = new Harness();
+        low.Enemy.Setup(x => x.CurrentHp).Returns(20_000u); // 20% < default 30% floor
+        low.Damage.CollectCandidates(low.Context, low.Scheduler, isMoving: false);
+        Assert.DoesNotContain(low.Scheduler.InspectGcdQueue(), c => c.Behavior == ProteusAbilities.Missile);
+
+        // Small max-HP targets (trash) never qualify.
+        var trash = new Harness();
+        trash.Enemy.Setup(x => x.MaxHp).Returns(15_000u);
+        trash.Enemy.Setup(x => x.CurrentHp).Returns(15_000u);
+        trash.Damage.CollectCandidates(trash.Context, trash.Scheduler, isMoving: false);
+        Assert.DoesNotContain(trash.Scheduler.InspectGcdQueue(), c => c.Behavior == ProteusAbilities.Missile);
+    }
+
     // ── Bad Breath ──────────────────────────────────────────────────────────
 
     [Fact]

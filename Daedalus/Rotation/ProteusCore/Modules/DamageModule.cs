@@ -84,6 +84,16 @@ public sealed class DamageModule : IProteusModule
     /// <summary>Hard cap on a freeze→shatter window (freeze lasts 12s from application).</summary>
     private const float FreezeWindowMaxSeconds = 12f;
 
+    // ── v3.2 synced Moon Flute ──────────────────────────────────────────────
+    /// <summary>Re-announce burst readiness at this cadence while pieces stay ready.</summary>
+    private const float BurstReadyRebroadcastSeconds = 5f;
+
+    /// <summary>How long after the burst signal (plus stagger delay) the Flute may still fire —
+    /// shorter than Waxing's 15s so one signal can never double-fire a window.</summary>
+    private const float SyncedFluteGraceSeconds = 12f;
+
+    private DateTime _lastBurstReadySentUtc = DateTime.MinValue;
+
     public void CollectCandidates(IProteusContext context, RotationScheduler scheduler, bool isMoving)
     {
         if (!context.InCombat)
@@ -110,6 +120,11 @@ public sealed class DamageModule : IProteusModule
         if (target == null) { context.Debug.DamageState = "No target"; return; }
 
         var cfg = context.Configuration.BlueMage;
+
+        // Multi-BLU owner election summary (v3.1) — static-backed, refreshed by the Plugin pump.
+        context.Debug.Coordination = Daedalus.Services.Blu.BluCoordinationState.CoordinationActive
+            ? Daedalus.Services.Blu.BluCoordinationState.Summary
+            : "";
 
         // Feed the pack TTK estimate every combat frame (Moon Flute gate).
         _packTtk.Sample(
@@ -190,6 +205,35 @@ public sealed class DamageModule : IProteusModule
             && _packTtk.EstimateTtkSeconds() is { } ttk
             && ttk < cfg.MoonFluteMinTtkSeconds)
             return;
+
+        // v3.2 synced windows: with ≥2 BLU on the bus, announce readiness (BurstReady) and wait
+        // for the coordinated burst signal so every toon's window starts on the same tick. T13
+        // splits the fleet into stagger groups — group B waits +30s after the signal so half the
+        // party is never stuck in Waning (unable to re-raise Mighty Guard) at a Gigaflare push.
+        if (Daedalus.Services.Blu.BluCoordinationState.CoordinationActive && cfg.SyncMoonFluteWithParty)
+        {
+            var now = UtcNow();
+            if ((now - _lastBurstReadySentUtc).TotalSeconds >= BurstReadyRebroadcastSeconds)
+            {
+                _lastBurstReadySentUtc = now;
+                Daedalus.Services.Blu.BluCoordinationState.SignalBurstReady?.Invoke();
+            }
+
+            var sinceSignal = Daedalus.Services.Blu.BluCoordinationState.SecondsSinceBurstFire(now);
+            var delay = Daedalus.Services.Blu.BluCoordinationState.MoonFluteStaggerDelaySeconds;
+            if (sinceSignal < delay)
+            {
+                context.Debug.DamageState =
+                    $"Moon Flute: staggered start in {delay - sinceSignal:F0}s "
+                    + $"(group {Daedalus.Services.Blu.BluCoordinationState.StaggerGroup})";
+                return;
+            }
+            if (sinceSignal > delay + SyncedFluteGraceSeconds)
+            {
+                context.Debug.DamageState = "Moon Flute: ready — waiting for party burst signal";
+                return;
+            }
+        }
 
         scheduler.PushGcd(ProteusAbilities.MoonFlute, player.GameObjectId, priority: 6,
             onDispatched: _ =>
@@ -372,10 +416,44 @@ public sealed class DamageModule : IProteusModule
                 });
         }
 
+        // ── Missile chain: 50% of CURRENT HP per cast on death-vulnerable bosses (one shared
+        // immunity flag across Missile/Tail Screw/Launcher/L5D/Ultravibration). Unknown enemies
+        // get ONE probe — its observed outcome feeds the persistent death-immunity ledger, so
+        // clearing dungeons on BLU builds the susceptibility list automatically. Immune bosses
+        // fall through to the normal chain (and the Final Sting execute, if armed). Missile
+        // outprioritizes the DoT block: halving early dwarfs everything, and Bristle never
+        // fires while Missile is pushing, so the boost-hold can't collide with the chain.
+        if (cfg.EnableMissileCheese
+            && context.IsSpellUsable(BLUActions.Missile.ActionId)
+            && PlayerSafetyHelper.IsInInstancedDuty()
+            && target.MaxHp >= (uint)cfg.MissileMinTargetMaxHp
+            && (float)target.CurrentHp / target.MaxHp * 100f >= cfg.MissileHpFloorPercent
+            && context.DeathLedger?.GetVerdict(target.NameId) != Daedalus.Services.Blu.DeathImmunityVerdict.Immune
+            && !MechanicCastGate.ShouldBlock(context, BLUActions.Missile.CastTime)
+            && !isMoving)
+        {
+            var probeTarget = target;
+            scheduler.PushGcd(ProteusAbilities.Missile, target.GameObjectId, priority: 6,
+                onDispatched: _ =>
+                {
+                    context.DeathLedger?.NotifyProbeCast(
+                        probeTarget.GameObjectId, probeTarget.NameId,
+                        probeTarget.Name?.TextValue ?? "", probeTarget.MaxHp, probeTarget.CurrentHp);
+                    context.Debug.PlannedAction = BLUActions.Missile.Name;
+                    context.Debug.DamageState = "MISSILE (death cheese)";
+                });
+        }
+
         // ── DoT block: Mortal Flame (once per target) and Breath of Magic (60s upkeep), with a
-        // Bristle snapshot in front when the boost isn't already armed. ──
+        // Bristle snapshot in front when the boost isn't already armed. With ≥2 BLU on the bus
+        // (v3.1) each DoT has exactly ONE elected owner — non-owners hard-skip so a second toon
+        // can never clobber the owner's snapshot (any Mortal Flame recast REPLACES it, and the
+        // bleed status 1714 is shared across the whole family).
+        var coordActive = Daedalus.Services.Blu.BluCoordinationState.CoordinationActive;
+
         var needMortalFlame = false;
         if (cfg.EnableMortalFlame
+            && (!coordActive || Daedalus.Services.Blu.BluCoordinationState.IsMortalFlameOwner)
             && context.IsSpellUsable(BLUActions.MortalFlame.ActionId)
             && targetDistance <= BLUActions.MortalFlame.Range)
         {
@@ -404,6 +482,7 @@ public sealed class DamageModule : IProteusModule
         var bomLatched = _breathOfMagicLatch.TryGetValue(target.GameObjectId, out var bomLast)
                          && (now - bomLast).TotalSeconds < BreathOfMagicRelatchSeconds;
         var bomWanted = cfg.EnableBreathOfMagic
+            && (!coordActive || Daedalus.Services.Blu.BluCoordinationState.IsBreathOfMagicOwner)
             && context.IsSpellUsable(BLUActions.BreathOfMagic.ActionId)
             && !bomLatched
             && targetDistance <= BLUActions.BreathOfMagic.Radius
@@ -420,7 +499,25 @@ public sealed class DamageModule : IProteusModule
             context.Debug.DamageState = "Breath of Magic: turning to face target";
         }
 
-        if ((needMortalFlame || needBreathOfMagic) && !isMoving)
+        // Song of Torment, coordinated (v3.1b owner rule): the BleedOwner is the ONLY toon that
+        // casts the bleed family, and it refreshes with a Bristle snapshot — inside a Flute
+        // window a buffed re-snapshot is worth taking early (≤25s), outside it only when the
+        // bleed would otherwise drop (≤5s; an unbuffed refresh over a live buffed snapshot is
+        // pure loss). Solo/single-BLU keeps the plain v1 refresh further below.
+        Dalamud.Game.ClientState.Objects.Types.IBattleNpc? sotSnapshotTarget = null;
+        if (coordActive
+            && cfg.EnableSongOfTorment
+            && Daedalus.Services.Blu.BluCoordinationState.IsBleedOwner
+            && context.IsSpellUsable(BLUActions.SongOfTorment.ActionId)
+            && !isMoving)
+        {
+            var sotThreshold = context.HasWaxingNocturne ? 25f : 5f;
+            sotSnapshotTarget = context.TargetingService.FindEnemyNeedingDot(
+                BLUActions.StatusIds.Bleeding, sotThreshold, BLUActions.SongOfTorment.Range, player);
+        }
+        var needSongOfTormentBuffed = sotSnapshotTarget != null;
+
+        if ((needMortalFlame || needBreathOfMagic || needSongOfTormentBuffed) && !isMoving)
         {
             // Bristle first: +50% into the snapshot. Skipped when the boost is already armed.
             if (cfg.EnableBristle
@@ -462,6 +559,17 @@ public sealed class DamageModule : IProteusModule
                         context.Debug.DamageState = "Breath of Magic (DoT)";
                     });
             }
+
+            if (needSongOfTormentBuffed
+                && !MechanicCastGate.ShouldBlock(context, BLUActions.SongOfTorment.CastTime))
+            {
+                scheduler.PushGcd(ProteusAbilities.SongOfTorment, sotSnapshotTarget!.GameObjectId, priority: 10,
+                    onDispatched: _ =>
+                    {
+                        context.Debug.PlannedAction = BLUActions.SongOfTorment.Name;
+                        context.Debug.DamageState = "Song of Torment (owner snapshot)";
+                    });
+            }
         }
 
         // ── Boost hold: Bristle's +50% is consumed by the NEXT offensive spell, whatever it is —
@@ -469,18 +577,19 @@ public sealed class DamageModule : IProteusModule
         // and a weave in the cast tail ate one in the field) for a DoT snapshot, every other
         // damage cast must wait. The DoT candidates above fire the moment facing/movement allow.
         var bristleInFlight = UtcNow() < _bristleInFlightUntilUtc;
-        if ((context.HasBoost || bristleInFlight) && (bomWanted || needMortalFlame))
+        if ((context.HasBoost || bristleInFlight) && (bomWanted || needMortalFlame || needSongOfTormentBuffed))
         {
-            if (!needBreathOfMagic && !needMortalFlame)
+            if (!needBreathOfMagic && !needMortalFlame && !needSongOfTormentBuffed)
                 context.Debug.DamageState = "Holding damage (Bristle boost armed, waiting to face/stand)";
             return true; // caller holds the offensive weaves too
         }
 
-        // Song of Torment — 30s Bleeding, FindEnemyNeedingDot pattern. NOTE: the duration read is
-        // NOT source-aware, and Bleeding 1714 is shared with Nightbloom/Aetherial Spark — fine solo
-        // (nothing else applies 1714 to mobs), but in a multi-BLU party another BLU's bleed will
-        // suppress our refresh. Ownership tracking is the documented v3 (Coil) work item.
-        if (cfg.EnableSongOfTorment
+        // Song of Torment, solo/single-BLU — 30s Bleeding, FindEnemyNeedingDot pattern. NOTE: the
+        // duration read is NOT source-aware, and Bleeding 1714 is shared with Nightbloom/Aetherial
+        // Spark — fine solo (nothing else applies 1714 to mobs). With ≥2 BLU on the bus this path
+        // is replaced by the owner-snapshot rule above; non-owners never cast the bleed family.
+        if (!coordActive
+            && cfg.EnableSongOfTorment
             && context.IsSpellUsable(BLUActions.SongOfTorment.ActionId)
             && !isMoving)
         {

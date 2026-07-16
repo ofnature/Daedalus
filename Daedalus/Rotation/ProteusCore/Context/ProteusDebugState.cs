@@ -27,6 +27,9 @@ public sealed class ProteusDebugState
     /// <summary>Active spell-set summary: "22/24 slotted" or "no slot data".</summary>
     public string Loadout { get; set; } = "";
 
+    /// <summary>Multi-BLU owner election summary ("" when single-BLU/solo — self owns everything).</summary>
+    public string Coordination { get; set; } = "";
+
     public bool HasMightyGuard { get; set; }
     public int EngagedEnemies { get; set; }
     public int AoeRangeEnemies { get; set; }

@@ -34,14 +34,21 @@ public sealed class RaidWindow : Window
 
     private readonly Configuration configuration;
     private readonly Action saveConfiguration;
-    private readonly IDutyContentService dutyContentService;
+    private static readonly Vector4 BluWeakColor = new(0.4f, 1.0f, 0.4f, 1.0f);
+    private static readonly Vector4 BluImmuneColor = new(1.0f, 0.4f, 0.4f, 1.0f);
 
-    public RaidWindow(Configuration configuration, Action saveConfiguration, IDutyContentService dutyContentService)
+    private readonly IDutyContentService dutyContentService;
+    private readonly Daedalus.Services.Blu.IDeathImmunityLedger? deathLedger;
+
+    public RaidWindow(
+        Configuration configuration, Action saveConfiguration, IDutyContentService dutyContentService,
+        Daedalus.Services.Blu.IDeathImmunityLedger? deathLedger = null)
         : base("Raid", ImGuiWindowFlags.NoCollapse)
     {
         this.configuration = configuration;
         this.saveConfiguration = saveConfiguration;
         this.dutyContentService = dutyContentService;
+        this.deathLedger = deathLedger;
 
         Size = new Vector2(360, 360);
         SizeCondition = ImGuiCond.FirstUseEver;
@@ -61,10 +68,81 @@ public sealed class RaidWindow : Window
         else
         {
             DrawCurrentFight(territory);
+            DrawBluDeathCurrentDuty(territory);
         }
 
         ImGui.Spacing();
         DrawSavedList();
+        DrawBluDeathAllZones();
+    }
+
+    /// <summary>
+    /// This duty's learned death-family verdicts (auto-recorded by BLU Missile probes): which of
+    /// its enemies are WEAK to Missile/Level 5 Death/Ultravibration and which are immune.
+    /// </summary>
+    private void DrawBluDeathCurrentDuty(uint territory)
+    {
+        if (deathLedger == null) return;
+        var entries = deathLedger.EntriesForTerritory((ushort)territory);
+        if (entries.Count == 0) return;
+
+        ImGui.Spacing();
+        ImGui.Separator();
+        ImGui.Text("Blue Mage — Death:");
+        foreach (var e in entries)
+        {
+            if (e.Verdict == Daedalus.Services.Blu.DeathImmunityVerdict.Vulnerable)
+            {
+                ImGui.TextColored(BluWeakColor, "Weak");
+                ImGui.SameLine();
+                ImGui.Text($"— {e.Name} (Missile works, ×{e.Confirms})");
+            }
+            else if (e.Verdict == Daedalus.Services.Blu.DeathImmunityVerdict.Immune)
+            {
+                ImGui.TextColored(BluImmuneColor, "Immune");
+                ImGui.SameLine();
+                ImGui.TextDisabled($"— {e.Name}");
+            }
+        }
+    }
+
+    /// <summary>The full learned list, grouped by zone — the community list nobody published.</summary>
+    private void DrawBluDeathAllZones()
+    {
+        if (deathLedger == null) return;
+        var all = deathLedger.Entries;
+        if (all.Count == 0) return;
+
+        ImGui.Spacing();
+        if (!ImGui.CollapsingHeader($"Blue Mage Death Ledger — {all.Count} enemies, all zones"))
+            return;
+
+        foreach (var zoneGroup in all
+                     .GroupBy(e => e.Zone.Length == 0 ? "(unknown zone)" : e.Zone)
+                     .OrderBy(g => g.Key, StringComparer.Ordinal))
+        {
+            ImGui.TextDisabled(zoneGroup.Key);
+            ConfigUIHelpers.BeginIndent();
+            foreach (var e in zoneGroup.OrderBy(e => e.Name, StringComparer.Ordinal))
+            {
+                if (e.Verdict == Daedalus.Services.Blu.DeathImmunityVerdict.Vulnerable)
+                {
+                    ImGui.TextColored(BluWeakColor, "Weak");
+                    ImGui.SameLine();
+                    ImGui.Text($"— {e.Name} (×{e.Confirms})");
+                }
+                else
+                {
+                    ImGui.TextColored(BluImmuneColor, "Immune");
+                    ImGui.SameLine();
+                    ImGui.TextDisabled($"— {e.Name}");
+                }
+            }
+            ConfigUIHelpers.EndIndent();
+        }
+
+        if (ImGui.SmallButton("Clear ledger"))
+            deathLedger.ClearAll();
     }
 
     private void DrawCurrentFight(uint territory)

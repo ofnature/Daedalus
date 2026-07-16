@@ -483,6 +483,25 @@ public static class BLUActions
     };
 
     /// <summary>
+    /// #35 — deals 50% of the target's CURRENT HP (the death-family cheese: shares one immunity
+    /// flag with Tail Screw/Launcher/Level 5 Death/Ultravibration). Plain GCD, spammable — the
+    /// Missile chain halves a vulnerable boss every cast. XIVAPI-verified 2026-07-12.
+    /// </summary>
+    public static readonly ActionDefinition Missile = new()
+    {
+        ActionId = 11405,
+        Name = "Missile",
+        MinLevel = 1,
+        Category = ActionCategory.GCD,
+        TargetType = ActionTargetType.SingleEnemy,
+        EffectTypes = ActionEffectType.Damage,
+        CastTime = 2.0f,
+        RecastTime = BluRecast,
+        Range = 25f,
+        MpCost = 300
+    };
+
+    /// <summary>
     /// #8 — ~2000p 3y MELEE execute that KO's the caster and applies Brush with Death (2127,
     /// 10min reuse lockout). Solo-role execute only, config-gated OFF by default.
     /// </summary>
@@ -499,6 +518,40 @@ public static class BLUActions
         Range = 3f,
         DamagePotency = 2000
     };
+
+    /// <summary>
+    /// #70 — ally-targeted party mitigation: 5% damage reduction (15% under Mimicry: Tank on the
+    /// CASTER — the BLU "Intervention"), 25y, 1.0s cast GCD. Sheet-verified via XIVAPI 2026-07-15
+    /// (Cast100ms=10, Recast100ms=25, Range=25). The v3.3 coordinator weaves it onto the tank when
+    /// BMR forecasts a tankbuster.
+    /// </summary>
+    public static readonly ActionDefinition Cactguard = new()
+    {
+        ActionId = 18315,
+        Name = "Cactguard",
+        MinLevel = 1,
+        Category = ActionCategory.GCD,
+        TargetType = ActionTargetType.SingleAlly,
+        EffectTypes = ActionEffectType.Buff,
+        CastTime = 1.0f,
+        RecastTime = BluRecast,
+        Range = 25f,
+        MpCost = 200
+    };
+
+    /// <summary>
+    /// Coil utility spells the v3 coordinator ASSIGNS but never automates (checklist + capability
+    /// bits only — see the LAN spec's do-not-implement list). Ids from <see cref="BLUSpellbook"/>.
+    /// </summary>
+    public static class UtilityIds
+    {
+        /// <summary>#67 — Level 5 Death (T5 adds/tornado, T13 add spawns ×2 carriers).</summary>
+        public const uint Level5Death = 18312;
+        /// <summary>#31 — Sticky Tongue (T9 golem drag — exactly 2 carriers).</summary>
+        public const uint StickyTongue = 11412;
+        /// <summary>#61 — Avail (T13 Earth Shaker redirect).</summary>
+        public const uint Avail = 18306;
+    }
 
     /// <summary>Status ids — verified against the Status sheet (2026-07-02; wave 2 re-verified 2026-07-11).</summary>
     public static class StatusIds

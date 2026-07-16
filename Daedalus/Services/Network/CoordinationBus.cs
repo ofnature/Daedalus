@@ -34,6 +34,9 @@ public sealed class LanPeerInfo
     public uint PlayerEntityId;
     /// <summary>World position (~2s stale) — used by the Split assigner's locality term.</summary>
     public Vector3 Position;
+    /// <summary>BLU capability bitfield from the heartbeat (0 off-BLU / pre-cap clients) —
+    /// drives the multi-BLU owner elections and the Coil assignment checklist.</summary>
+    public uint BluCapabilities;
     /// <summary>Assigned slot after role negotiation: "Tank 1", "Healer 2", "DPS 3"...</summary>
     public string AssignedSlot = "";
     public DateTime LastSeenUtc;
@@ -469,6 +472,7 @@ public sealed class CoordinationBus : IDisposable
             peer.HomeWorldId = hb.HomeWorldId;
             peer.PlayerEntityId = hb.PlayerEntityId;
             peer.Position = new Vector3(hb.PosX, hb.PosY, hb.PosZ);
+            peer.BluCapabilities = hb.BluCapabilities;
             peer.LastSeenUtc = now;
             if (latencyMs > 0) peer.LatencyMs = latencyMs;
         }

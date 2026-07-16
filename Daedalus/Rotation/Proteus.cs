@@ -57,6 +57,7 @@ public sealed class Proteus : BaseCasterDpsRotation<IProteusContext, IProteusMod
     private readonly ITrainingService? _trainingService;
     private readonly IPartyCoordinationService? _partyCoordinationService;
     private readonly IBluLoadoutService? _bluLoadoutService;
+    private readonly Daedalus.Services.Blu.IDeathImmunityLedger? _deathImmunityLedger;
     private readonly RotationScheduler _scheduler;
 
     public Proteus(
@@ -81,7 +82,8 @@ public sealed class Proteus : BaseCasterDpsRotation<IProteusContext, IProteusMod
         IPartyCoordinationService? partyCoordinationService = null,
         Daedalus.Services.Consumables.ITinctureDispatcher? tinctureDispatcher = null,
         Daedalus.Services.Pull.IPullIntentService? pullIntentService = null,
-        IBluLoadoutService? bluLoadoutService = null)
+        IBluLoadoutService? bluLoadoutService = null,
+        Daedalus.Services.Blu.IDeathImmunityLedger? deathImmunityLedger = null)
         : base(
             log,
             actionTracker,
@@ -105,6 +107,7 @@ public sealed class Proteus : BaseCasterDpsRotation<IProteusContext, IProteusMod
         _trainingService = trainingService;
         _partyCoordinationService = partyCoordinationService;
         _bluLoadoutService = bluLoadoutService;
+        _deathImmunityLedger = deathImmunityLedger;
 
         _scheduler = new RotationScheduler(actionService, jobGauges, configuration, timelineService, errorMetrics);
 
@@ -169,7 +172,8 @@ public sealed class Proteus : BaseCasterDpsRotation<IProteusContext, IProteusMod
             trainingService: _trainingService,
             partyCoordinationService: _partyCoordinationService,
             log: Log,
-            loadoutService: _bluLoadoutService);
+            loadoutService: _bluLoadoutService,
+            deathLedger: _deathImmunityLedger);
     }
 
     /// <inheritdoc />

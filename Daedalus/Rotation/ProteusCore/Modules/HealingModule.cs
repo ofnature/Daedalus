@@ -139,6 +139,15 @@ public sealed class HealingModule : IProteusModule
         }
     }
 
+    /// <summary>Real healer shields Gobskin does not stack with: SCH Galvanize, SGE Eukrasian
+    /// Diagnosis/Prognosis (ids from SCHActions/SGEActions — pinned by tests).</summary>
+    private static readonly uint[] RealHealerShieldStatusIds =
+    [
+        297,  // Galvanize (SCH Adloquium/Succor family)
+        Daedalus.Data.SGEActions.EukrasianDiagnosisStatusId,
+        Daedalus.Data.SGEActions.EukrasianPrognosisStatusId,
+    ];
+
     private void TryPushGobskin(
         IProteusContext context, RotationScheduler scheduler, BlueMageConfig cfg,
         Dalamud.Game.ClientState.Objects.SubKinds.IPlayerCharacter player,
@@ -147,10 +156,32 @@ public sealed class HealingModule : IProteusModule
         if (!cfg.EnableGobskin) return;
         if (!context.IsSpellUsable(BLUActions.Gobskin.ActionId)) return;
         // Refresh when our barrier is consumed/expired. Cheap (200 MP) — keep it rolling while
-        // anything is taking damage. Does NOT stack with SCH/SGE shields (multi-heal-comp is v3).
+        // anything is taking damage. Does NOT stack with SCH/SGE shields or another BLU's cast.
         if (context.HasGobskin) return;
         if (injured == 0) return;
         if (context.CurrentMp < BLUActions.Gobskin.MpCost) return;
+
+        // v3.3 shield coordinator: exactly ONE Gobskin caster per fleet (the election prefers the
+        // healer-mimic — 250p vs 100p); everyone else suppresses.
+        if (Daedalus.Services.Blu.BluCoordinationState.CoordinationActive
+            && !Daedalus.Services.Blu.BluCoordinationState.IsGobskinOwner)
+        {
+            context.Debug.HealingState = "Gobskin: another BLU owns the barrier";
+            return;
+        }
+
+        // Even the owner yields to a REAL healer shield already on the party (sheet: no stacking —
+        // overwriting a Galvanize/Eukrasia with a 100-250p barrier is a downgrade).
+        foreach (var member in context.PartyHelper.GetAllPartyMembers(player))
+        {
+            foreach (var shieldId in RealHealerShieldStatusIds)
+            {
+                if (!Daedalus.Rotation.Common.Helpers.BaseStatusHelper.HasStatus(member, shieldId))
+                    continue;
+                context.Debug.HealingState = "Gobskin: real healer shield present";
+                return;
+            }
+        }
 
         scheduler.PushGcd(ProteusAbilities.Gobskin, player.GameObjectId, priority: 5,
             onDispatched: _ =>

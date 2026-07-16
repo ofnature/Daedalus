@@ -89,6 +89,7 @@ public sealed class ProteusContext : IProteusContext
     public bool HasCorrectMimicry { get; }
     public bool HasAnyMimicry { get; }
     public IBluLoadoutService? LoadoutService { get; }
+    public Daedalus.Services.Blu.IDeathImmunityLedger? DeathLedger { get; }
 
     public bool IsSpellUsable(uint actionId)
         => ActionService.IsActionLearned(actionId) && (LoadoutService?.IsSlotted(actionId) ?? true);
@@ -127,7 +128,8 @@ public sealed class ProteusContext : IProteusContext
         ITrainingService? trainingService = null,
         IPartyCoordinationService? partyCoordinationService = null,
         IPluginLog? log = null,
-        IBluLoadoutService? loadoutService = null)
+        IBluLoadoutService? loadoutService = null,
+        Daedalus.Services.Blu.IDeathImmunityLedger? deathLedger = null)
     {
         Player = player;
         InCombat = inCombat;
@@ -183,6 +185,7 @@ public sealed class ProteusContext : IProteusContext
         HasCorrectMimicry = statusHelper.HasMimicryForRole(player, Role);
         HasAnyMimicry = statusHelper.HasAnyMimicry(player);
         LoadoutService = loadoutService;
+        DeathLedger = deathLedger;
 
         PartyHealthMetrics = CalculatePartyHealth(player);
 

@@ -220,6 +220,24 @@ public sealed class BlueMageSection
                 "Cast Cold Fog when something is about to hit you; getting hit unlocks 15s of instant 400-potency White Death spam.", save);
 
             ConfigUIHelpers.Toggle(
+                "Missile cheese (death-vulnerable bosses)",
+                () => config.BlueMage.EnableMissileCheese,
+                v => config.BlueMage.EnableMissileCheese = v,
+                "In duties, chain Missile (50% of CURRENT HP per cast) on big targets until the HP floor. Unknown bosses get ONE probe cast — the outcome feeds the Death-Immunity Ledger (BLU window), which permanently remembers who's immune.", save);
+
+            config.BlueMage.MissileHpFloorPercent = ConfigUIHelpers.IntSlider(
+                "Missile HP Floor %",
+                config.BlueMage.MissileHpFloorPercent, 10, 60,
+                "Stop missiling below this target HP% — the normal rotation finishes faster there.", save,
+                v => config.BlueMage.MissileHpFloorPercent = v);
+
+            config.BlueMage.MissileMinTargetMaxHp = ConfigUIHelpers.IntSlider(
+                "Missile Min Target Max HP",
+                config.BlueMage.MissileMinTargetMaxHp, 10_000, 1_000_000,
+                "Only consider targets at/above this max HP (bosses, not trash).", save,
+                v => config.BlueMage.MissileMinTargetMaxHp = v);
+
+            ConfigUIHelpers.Toggle(
                 "Moon Flute burst window",
                 () => config.BlueMage.EnableMoonFlute,
                 v => config.BlueMage.EnableMoonFlute = v,
@@ -230,6 +248,18 @@ public sealed class BlueMageSection
                 config.BlueMage.MoonFluteMinTtkSeconds, 0, 120,
                 "Hold the Flute when the pack is estimated to die within this many seconds (0 = no hold).", save,
                 v => config.BlueMage.MoonFluteMinTtkSeconds = v);
+
+            ConfigUIHelpers.Toggle(
+                "Sync Moon Flute with party (multi-BLU)",
+                () => config.BlueMage.SyncMoonFluteWithParty,
+                v => config.BlueMage.SyncMoonFluteWithParty = v,
+                "With 2+ BLU toons on the LAN bus, every toon announces readiness and Flutes on the shared burst signal (same tick fleet-wide). In T13 the fleet splits into two groups 30s apart so half the party is never locked in Waning at a Gigaflare push. No effect solo.", save);
+
+            ConfigUIHelpers.Toggle(
+                "Cactguard the tank (BossMod busters)",
+                () => config.BlueMage.EnableCactguard,
+                v => config.BlueMage.EnableCactguard = v,
+                "When BossMod forecasts a tankbuster within 5s, cast Cactguard on the party tank (5% damage down, 15% if you carry tank mimicry). One designated caster per multi-BLU fleet; the tank-role toon never casts it.", save);
 
             ConfigUIHelpers.Toggle(
                 "Final Sting (SOLO execute)",

@@ -56,6 +56,9 @@ public interface IProteusContext : ICasterDpsRotationContext
     /// <summary>Active spell-set reader; null when unavailable (gating degrades to learned-only).</summary>
     Daedalus.Services.Action.IBluLoadoutService? LoadoutService { get; }
 
+    /// <summary>Auto-learned death-family susceptibility ledger (Missile chain gate); null = no data.</summary>
+    Daedalus.Services.Blu.IDeathImmunityLedger? DeathLedger { get; }
+
     /// <summary>
     /// THE Blue Mage availability check: learned AND in the active 24-slot set. A learned
     /// spell outside the set cannot be cast. Fail-open to learned-only when slot data is

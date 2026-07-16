@@ -106,6 +106,8 @@ public sealed class BluMimicryWindow : Window
 
         ImGui.Separator();
         DrawFinalStingCalculator();
+        // The death-immunity ledger view lives in the RAID window (per-duty aware): current
+        // duty's Weak/Immune verdicts inline + the full list grouped by zone.
     }
 
     /// <summary>
