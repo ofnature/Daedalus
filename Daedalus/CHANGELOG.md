@@ -3,7 +3,7 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
-## v0.1.20 — 2026-07-15
+## v0.1.20 — 2026-07-16
 
 ### New — Blue Mage: Missile cheese + the Death-Immunity Ledger
 - **Missile chain**: in duties, big targets that aren't death-immune get Missile spam (50% of CURRENT HP per cast) down to a configurable HP floor, then the normal rotation finishes. Four Missiles = 94% of a boss gone
