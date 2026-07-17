@@ -131,6 +131,9 @@ public sealed class CoordinationBus : IDisposable
     /// <summary>Countdown T0 mirror received (Phase 2). T0Ticks=0 = countdown cancelled.</summary>
     public event System.Action<LanCountdownPayload>? OnCountdownStart;
 
+    /// <summary>The operator picked the freeze/shatter toon ("" = back to auto election).</summary>
+    public event System.Action<LanBluPreferShatterPayload>? OnBluPreferShatter;
+
     public CoordinationBus(
         IPluginLog log,
         LanCoordinator lan,
@@ -452,6 +455,12 @@ public sealed class CoordinationBus : IDisposable
                 if (countdown != null)
                     OnCountdownStart?.Invoke(countdown);
                 break;
+
+            case LanMessageType.BluPreferShatter:
+                var prefer = LanBluPreferShatterPayload.FromJson(msg.Payload);
+                if (prefer != null)
+                    OnBluPreferShatter?.Invoke(prefer);
+                break;
         }
     }
 
@@ -633,6 +642,15 @@ public sealed class CoordinationBus : IDisposable
         var ts = DateTime.UtcNow.Ticks;
         for (var i = 0; i < 3; i++)
             _lan.Send(new LanMessage { Type = LanMessageType.ExecuteSting, Payload = payload.ToJson(), Timestamp = ts });
+    }
+
+    /// <summary>Broadcast the picked freeze/shatter toon ("" = auto; ×3, dedup) and apply locally.</summary>
+    public void BroadcastBluPreferShatter(LanBluPreferShatterPayload payload)
+    {
+        OnBluPreferShatter?.Invoke(payload);
+        var ts = DateTime.UtcNow.Ticks;
+        for (var i = 0; i < 3; i++)
+            _lan.Send(new LanMessage { Type = LanMessageType.BluPreferShatter, Payload = payload.ToJson(), Timestamp = ts });
     }
 
     /// <summary>Broadcast a fleet BLU mimicry command (×3, dedup) and apply locally.</summary>

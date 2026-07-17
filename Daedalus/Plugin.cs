@@ -378,6 +378,12 @@ public sealed class Plugin : IDalamudPlugin
             this.coordinationBus.OnCountdownStart += payload =>
                 this.countdownService.OnRemoteCountdown(payload.T0Ticks);
 
+            // Freeze/shatter pick: each box flags ITSELF when it is the chosen toon; the flag
+            // rides its heartbeat, so every box's election converges on the pick within ~2s.
+            this.coordinationBus.OnBluPreferShatter += payload =>
+                Daedalus.Services.Blu.BluFleetPreference.PreferFreezeShatter =
+                    payload.SenderId.Length > 0 && payload.SenderId == this.coordinationBus?.LocalSenderId;
+
             // Fleet mimicry command (LAN window buttons): every BLU box applies it locally.
             this.coordinationBus.OnBluMimicry += payload =>
             {

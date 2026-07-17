@@ -41,6 +41,14 @@ public static class BluPartyElection
            ?? ElectOwner(bluRoster, BluCapabilities.Gobskin);
 
     /// <summary>
+    /// Election with an operator preference: a toon flagged with <paramref name="preferenceFlag"/>
+    /// (AND capable) outranks the plain SenderId sort; no flagged capable toon → normal election.
+    /// </summary>
+    public static string? ElectPreferredOwner(
+        IReadOnlyList<BluPeerCapability> bluRoster, BluCapabilities required, BluCapabilities preferenceFlag)
+        => ElectOwner(bluRoster, required | preferenceFlag) ?? ElectOwner(bluRoster, required);
+
+    /// <summary>
     /// Moon Flute stagger split (T13 Gigaflare pushes): Flute-capable toons in SenderId order,
     /// even index → 'A', odd → 'B' — half the party is never in Waning at a push. Toons without
     /// Moon Flute (or not found) read as group 'A' (they never Flute anyway).

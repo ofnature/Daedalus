@@ -21,6 +21,7 @@ All notable changes to Daedalus will be documented in this file.
 
 ### New — Blue Mage: co-op freeze→shatter (v3.6)
 - With 2+ BLU on the bus, exactly ONE toon freezes (simultaneous Ram's Voices are wasted GCDs and Deep Freeze re-application builds resistance) and exactly ONE shatters — everyone else holds damage while a fresh freeze is on the pack, so nobody breaks it early. No shatter-capable toon in the fleet = nobody freezes at all
+- **Pick the shatter toon yourself**: the Party Coordination window's BLU fleet section gains a "Shatter" dropdown — your pick outranks the automatic (alphabetical) election on every box within ~2 seconds, and "Auto" hands it back. Toons without Ram's Voice/Ultravibration slotted can't be picked
 - The hold is time-bounded: if the shatter hasn't come within 5 seconds (owner's Ultravibration on cooldown, owner died), the fleet resumes damage instead of idling out the full 12-second freeze. A dead freeze-lead or shatter-owner re-elects within a second
 
 ### New — Countdown-synced pre-pull tinctures (LAN Phase 2)

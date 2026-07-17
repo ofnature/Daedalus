@@ -273,6 +273,34 @@ public sealed class LanPartyWindow : Window, IDisposable
         if (ImGui.IsItemHovered())
             ImGui.SetTooltip("Every BLU box applies the command to ITSELF (scan + cast / targetless removal).");
 
+        // Freeze/shatter owner pick: the chosen toon outranks the automatic election (a
+        // preference bit on its heartbeat — every box converges within ~2s). "Auto" restores
+        // the SenderId-sort election among capable toons.
+        ImGui.TextUnformatted("Shatter:");
+        ImGui.SameLine();
+        var currentPick = bluRoster.FirstOrDefault(p =>
+            p.Has(Daedalus.Services.Blu.BluCapabilities.PreferredFreezeShatter)).SenderId ?? "";
+        ImGui.SetNextItemWidth(160);
+        if (ImGui.BeginCombo("##shatterpick", currentPick.Length == 0 ? "Auto" : DisplayName(currentPick)))
+        {
+            if (ImGui.Selectable("Auto", currentPick.Length == 0))
+                _bus.BroadcastBluPreferShatter(new LanBluPreferShatterPayload { SenderId = "" });
+            foreach (var peer in bluRoster)
+            {
+                var capable = peer.Has(Daedalus.Services.Blu.BluCapabilities.Ultravibration)
+                              || peer.Has(Daedalus.Services.Blu.BluCapabilities.RamsVoice);
+                using var _ = Dalamud.Interface.Utility.Raii.ImRaii.Disabled(!capable);
+                var label = DisplayName(peer.SenderId)
+                            + (capable ? "" : " (no Ram's Voice/Ultravibration slotted)");
+                if (ImGui.Selectable(label + $"##sp{peer.SenderId}", peer.SenderId == currentPick))
+                    _bus.BroadcastBluPreferShatter(new LanBluPreferShatterPayload { SenderId = peer.SenderId });
+            }
+            ImGui.EndCombo();
+        }
+        if (ImGui.IsItemHovered())
+            ImGui.SetTooltip("Which toon starts the freeze and shatters (Ram's Voice → Ultravibration)."
+                + "\nAuto = first capable toon alphabetically. The pick survives until changed or the boxes restart.");
+
         // Fleet sting: plan from the operator's current target.
         var boss = _targetManager.Target as Dalamud.Game.ClientState.Objects.Types.IBattleNpc;
         var estSting = Daedalus.Rotation.ProteusCore.Helpers.FinalStingCalculator.Estimate(

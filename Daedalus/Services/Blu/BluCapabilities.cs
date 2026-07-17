@@ -59,6 +59,19 @@ public enum BluCapabilities : uint
     /// <summary>Configured BluRole = Tank — elections that must exclude the tank use this
     /// (Cactguard target, never-sting rule).</summary>
     TankRole = 1u << 13,
+
+    /// <summary>Operator-picked freeze/shatter toon (LAN window "Shatter" picker). The
+    /// FreezeLead/ShatterOwner elections prefer a flagged toon over the SenderId sort; the flag
+    /// is runtime-only on the picked box and rides its heartbeat, so every box elects the same
+    /// owner with no extra sync state.</summary>
+    PreferredFreezeShatter = 1u << 14,
+}
+
+/// <summary>Runtime fleet preferences set via LAN commands (session-only, never persisted).</summary>
+public static class BluFleetPreference
+{
+    /// <summary>This box's toon was picked as the freeze/shatter owner (rides the heartbeat).</summary>
+    public static bool PreferFreezeShatter { get; set; }
 }
 
 /// <summary>Builds the local toon's capability bitfield from the learned+slotted availability check.</summary>
@@ -102,6 +115,7 @@ public static class BluCapabilityMap
 
         if (role == BluRole.Healer) caps |= BluCapabilities.HealerRole;
         if (role == BluRole.Tank) caps |= BluCapabilities.TankRole;
+        if (BluFleetPreference.PreferFreezeShatter) caps |= BluCapabilities.PreferredFreezeShatter;
 
         return caps;
     }

@@ -64,10 +64,14 @@ public static class BluCoordinationCalculator
         // v3.6 co-op freeze→shatter: ONE toon freezes (simultaneous Ram's Voices are wasted GCDs
         // and Deep Freeze re-application builds resistance), ONE shatters — possibly different
         // toons. No capable ShatterOwner → NOBODY freezes (don't burn the GCD for nothing).
-        var shatterOwner = BluPartyElection.ElectOwner(bluRoster, BluCapabilities.Ultravibration);
+        // The operator's "Shatter" pick (LAN window) rides the heartbeat as a preference bit and
+        // outranks the SenderId sort for BOTH roles.
+        var shatterOwner = BluPartyElection.ElectPreferredOwner(
+            bluRoster, BluCapabilities.Ultravibration, BluCapabilities.PreferredFreezeShatter);
         var freezeLead = shatterOwner == null
             ? null
-            : BluPartyElection.ElectOwner(bluRoster, BluCapabilities.RamsVoice);
+            : BluPartyElection.ElectPreferredOwner(
+                bluRoster, BluCapabilities.RamsVoice, BluCapabilities.PreferredFreezeShatter);
 
         var group = BluPartyElection.StaggerGroupFor(bluRoster, localSenderId);
         var delay = BluDutyAssignments.UsesMoonFluteStagger(territoryId) && group == 'B'

@@ -65,6 +65,10 @@ public enum LanMessageType
     /// <summary>LAN Phase 2: pre-pull countdown T0 mirror for toons that can't see the local
     /// countdown agent (unpartied fleet members). T0Ticks=0 = countdown cancelled.</summary>
     CountdownStart = 16,
+
+    /// <summary>Operator picked the BLU freeze/shatter toon (empty SenderId = back to auto).
+    /// Each box sets its own preference flag; the pick then rides that box's heartbeat.</summary>
+    BluPreferShatter = 17,
 }
 
 /// <summary>
@@ -361,6 +365,21 @@ public sealed class LanBluMimicryPayload
     public static LanBluMimicryPayload? FromJson(string json)
     {
         try { return JsonSerializer.Deserialize<LanBluMimicryPayload>(json); }
+        catch { return null; }
+    }
+}
+
+/// <summary>BluPreferShatter payload — the picked freeze/shatter toon ("" = auto election).</summary>
+public sealed class LanBluPreferShatterPayload
+{
+    [JsonPropertyName("s")]
+    public string SenderId { get; set; } = "";
+
+    public string ToJson() => JsonSerializer.Serialize(this);
+
+    public static LanBluPreferShatterPayload? FromJson(string json)
+    {
+        try { return JsonSerializer.Deserialize<LanBluPreferShatterPayload>(json); }
         catch { return null; }
     }
 }

@@ -128,6 +128,45 @@ public class BluCoordinationTests
         Assert.Equal('A', BluPartyElection.StaggerGroupFor(roster, "C@W")); // default A
     }
 
+    [Fact]
+    public void Election_OperatorPick_OutranksSenderSort_FallsBackWhenIncapable()
+    {
+        var pick = BluCapabilities.Ultravibration | BluCapabilities.PreferredFreezeShatter;
+        var roster = new[]
+        {
+            Peer("A@W", BluCapabilities.Ultravibration), // would win the plain sort
+            Peer("Z@W", pick),                           // the operator's pick
+        };
+        Assert.Equal("Z@W", BluPartyElection.ElectPreferredOwner(
+            roster, BluCapabilities.Ultravibration, BluCapabilities.PreferredFreezeShatter));
+
+        // A pick that ISN'T capable can never be elected — normal election stands.
+        var incapablePick = new[]
+        {
+            Peer("A@W", BluCapabilities.Ultravibration),
+            Peer("Z@W", BluCapabilities.PreferredFreezeShatter), // flagged but no Ultravibration
+        };
+        Assert.Equal("A@W", BluPartyElection.ElectPreferredOwner(
+            incapablePick, BluCapabilities.Ultravibration, BluCapabilities.PreferredFreezeShatter));
+    }
+
+    [Fact]
+    public void Snapshot_FreezeShatterPick_DrivesBothRoles()
+    {
+        var both = BluCapabilities.RamsVoice | BluCapabilities.Ultravibration;
+        var roster = new[]
+        {
+            Peer("A@W", both),
+            Peer("Z@W", both | BluCapabilities.PreferredFreezeShatter),
+        };
+        var onZ = BluCoordinationCalculator.Compute("Z@W", roster, 0);
+        var onA = BluCoordinationCalculator.Compute("A@W", roster, 0);
+        Assert.True(onZ.IsFreezeLead);
+        Assert.True(onZ.IsShatterOwner);
+        Assert.False(onA.IsFreezeLead);
+        Assert.False(onA.IsShatterOwner);
+    }
+
     // ── Snapshot computation ────────────────────────────────────────────────
 
     [Fact]
