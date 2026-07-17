@@ -633,6 +633,17 @@ public class ProteusLoadoutWave2Tests
     }
 
     [Fact]
+    public void Mimicry_ManualBehavior_HasNoToggle_AutoKeepsIt()
+    {
+        // The Toggle gate re-fires at DISPATCH: a manual request routed through the auto
+        // behavior with Auto Mimicry off pushed a candidate the dispatcher silently rejected —
+        // scan found the target, nothing cast, the 4s grace blacklisted it (field, 2026-07-17).
+        Assert.Null(ProteusAbilities.AethericMimicryManual.Toggle);
+        Assert.NotNull(ProteusAbilities.AethericMimicry.Toggle);
+        Assert.Same(BLUActions.AethericMimicry, ProteusAbilities.AethericMimicryManual.Action);
+    }
+
+    [Fact]
     public void Mimicry_AutoSuppressed_AfterManualRemoval()
     {
         Daedalus.Rotation.ProteusCore.Helpers.BluMimicryCommand.Clear();

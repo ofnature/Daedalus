@@ -22,6 +22,13 @@ public static class ProteusAbilities
 
     // --- Role / utility ---
     public static readonly AbilityBehavior AethericMimicry = new() { Action = BLUActions.AethericMimicry, Toggle = cfg => cfg.BlueMage.EnableMimicry };
+    /// <summary>
+    /// Manual/fleet mimicry requests (window buttons) — NO toggle: the Toggle gate re-fires at
+    /// DISPATCH, so routing a manual request through the auto behavior with Auto Mimicry off
+    /// pushed a candidate the dispatcher then silently rejected — the scan "saw" the target,
+    /// nothing cast, the 4s grace blacklisted it (field report 2026-07-17, BLU→BLU DPS mimic).
+    /// </summary>
+    public static readonly AbilityBehavior AethericMimicryManual = new() { Action = BLUActions.AethericMimicry };
     public static readonly AbilityBehavior MightyGuard = new() { Action = BLUActions.MightyGuard, Toggle = cfg => cfg.BlueMage.EnableMightyGuard };
     public static readonly AbilityBehavior Diamondback = new() { Action = BLUActions.Diamondback, Toggle = cfg => cfg.BlueMage.EnableDiamondback };
     public static readonly AbilityBehavior WhiteWind = new() { Action = BLUActions.WhiteWind, Toggle = cfg => cfg.BlueMage.EnableWhiteWind };

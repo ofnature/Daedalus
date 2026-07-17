@@ -19,6 +19,9 @@ All notable changes to Daedalus will be documented in this file.
 - **Safety rules**: participation is a per-toon opt-in ("Join fleet Final Sting orders", default OFF), the tank-role toon never stings, and one healer-mimic is always held back so Angel Whisper can raise the fallen. **Auto-trigger** in Coil T5 (25%) and T9 (15%) when opted in; T13 is manual-only (phase-dependent)
 - **Fleet mimicry buttons** in the same window: Mimic Tank / DPS / Healer / Remove — one press, every BLU box applies it to itself
 
+### Fix — Blue Mage: manual mimicry actually casts with Auto Mimicry off
+- A manual/fleet mimicry request with the Auto Mimicry toggle OFF found its target (another BLU works fine as a DPS source) but never cast — the dispatcher was re-checking the AUTO toggle and silently rejecting the cast, then the 4-second retry window blacklisted the innocent target. Manual requests now ride a toggle-free path, as the window always promised
+
 ### New — Blue Mage: co-op freeze→shatter (v3.6)
 - With 2+ BLU on the bus, exactly ONE toon freezes (simultaneous Ram's Voices are wasted GCDs and Deep Freeze re-application builds resistance) and exactly ONE shatters — everyone else holds damage while a fresh freeze is on the pack, so nobody breaks it early. No shatter-capable toon in the fleet = nobody freezes at all
 - **Pick the shatter toon yourself**: the Party Coordination window's BLU fleet section gains a "Shatter" dropdown — your pick outranks the automatic (alphabetical) election on every box within ~2 seconds, and "Auto" hands it back. Toons without Ram's Voice/Ultravibration slotted can't be picked

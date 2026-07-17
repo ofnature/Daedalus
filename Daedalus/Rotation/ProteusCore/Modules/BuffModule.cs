@@ -170,7 +170,13 @@ public sealed class BuffModule : IProteusModule
 
         var capturedAlly = ally;
         var capturedRole = desiredRole;
-        scheduler.PushGcd(ProteusAbilities.AethericMimicry, ally.GameObjectId, priority: 4,
+        // Manual requests ride the toggle-FREE behavior: the dispatch-time Toggle gate would
+        // otherwise re-reject them whenever Auto Mimicry is off (the push-side bypass alone
+        // left the candidate dying at dispatch — scan finds the target, nothing ever casts).
+        var behavior = manualRole != null
+            ? ProteusAbilities.AethericMimicryManual
+            : ProteusAbilities.AethericMimicry;
+        scheduler.PushGcd(behavior, ally.GameObjectId, priority: 4,
             onDispatched: _ =>
             {
                 context.Debug.PlannedAction = Daedalus.Data.BLUActions.AethericMimicry.Name;
