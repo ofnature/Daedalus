@@ -46,7 +46,7 @@ public sealed class ControlWindow : Window
 
         ImGui.Separator();
 
-        ImGui.TextDisabled("Auto Movement");
+        Common.DaedalusTheme.GoldHeader("Auto Movement");
 
         var autoMovement = configuration.EnableAutoMovement;
         if (ConfigUIHelpers.ToggleCheckbox(
@@ -79,7 +79,7 @@ public sealed class ControlWindow : Window
             ImGui.EndDisabled();
         }
 
-        ImGui.TextColored(new Vector4(0.7f, 0.7f, 0.7f, 1f), "Solo (no party): flank/rear & burst movement disabled.");
+        ImGui.TextColored(Common.DaedalusTheme.TextSecondary, "Solo (no party): flank/rear & burst movement disabled.");
 
         ImGui.Separator();
 
@@ -98,7 +98,7 @@ public sealed class ControlWindow : Window
         if (!JobRegistry.IsTank(jobId))
             return;
 
-        ImGui.TextDisabled("Tank");
+        Common.DaedalusTheme.GoldHeader("Tank");
 
         var pullRanged = configuration.Tank.PullRangedMobsWithRangedAttack;
         if (ConfigUIHelpers.ToggleCheckbox(
@@ -177,8 +177,8 @@ public sealed class ControlWindow : Window
     private void DrawActiveRotationHeader()
     {
         var statusColor = configuration.EffectiveEnabled
-            ? new Vector4(0.0f, 1.0f, 0.0f, 1.0f)
-            : new Vector4(1.0f, 0.0f, 0.0f, 1.0f);
+            ? Common.DaedalusTheme.StatusGreen
+            : Common.DaedalusTheme.StatusRed;
         var statusText = configuration.EffectiveEnabled
             ? configuration.Enabled
                 ? Loc.T(LocalizedStrings.Main.Active, "ACTIVE")

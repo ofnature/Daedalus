@@ -17,4 +17,11 @@ public sealed class ConsumablesConfig
     /// is on but no matching tincture is in inventory.
     /// </summary>
     public bool WarnOnEmptyInventory { get; set; } = true;
+
+    /// <summary>
+    /// Allow tinctures outside high-end zones (legacy Coil clears, unsynced farm...). Default
+    /// OFF — the high-end-only gate is the gil guard, and it is the reason auto-pot looks
+    /// "broken" in normal content.
+    /// </summary>
+    public bool UseOutsideHighEnd { get; set; } = false;
 }

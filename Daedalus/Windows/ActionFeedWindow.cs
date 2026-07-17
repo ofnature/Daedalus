@@ -170,9 +170,11 @@ public sealed class ActionFeedWindow : Window, IDisposable
                 ImGui.EndTooltip();
             }
 
-            // Border tint: green for GCD, blue for oGCD.
+            // Border tint: gold for GCD (the identity accent), blue for oGCD — a category
+            // distinction, not a status, so the status ramp stays out of it. Fade rides alpha.
+            var gcdTint = Common.DaedalusTheme.AccentGold;
             var borderColor = entry.IsGcd
-                ? new Vector4(0.4f, 0.9f, 0.4f, fade)
+                ? new Vector4(gcdTint.X, gcdTint.Y, gcdTint.Z, fade)
                 : new Vector4(0.4f, 0.75f, 1.0f, fade);
             drawList.AddRect(
                 cursor,
@@ -185,7 +187,8 @@ public sealed class ActionFeedWindow : Window, IDisposable
             if (cfg.ShowLabels)
             {
                 ImGui.SameLine(0, 4);
-                ImGui.TextColored(new Vector4(1f, 1f, 1f, fade), entry.Name);
+                var label = Common.DaedalusTheme.TextPrimary;
+                ImGui.TextColored(new Vector4(label.X, label.Y, label.Z, fade), entry.Name);
             }
         }
 

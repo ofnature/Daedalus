@@ -26,16 +26,23 @@ namespace Daedalus.Tests.Rotation.ProteusCore;
 [Collection("BluStaticState")]
 public class ProteusV3CoordinationTests : IDisposable
 {
-    public ProteusV3CoordinationTests() => BluCoordinationState.Reset();
+    public ProteusV3CoordinationTests()
+    {
+        BluCoordinationState.Reset();
+        BluFleetStingCommand.Clear();
+    }
+
     public void Dispose()
     {
         BluCoordinationState.Reset();
         BluCoordinationState.SignalBurstReady = null;
+        BluFleetStingCommand.Clear();
     }
 
     private static void Coordinate(
         bool bleed = true, bool mortalFlame = true, bool breath = true,
-        bool gobskin = true, bool cactguard = true, int staggerDelay = 0, char group = 'A')
+        bool gobskin = true, bool cactguard = true, int staggerDelay = 0, char group = 'A',
+        bool freezeLead = true, bool shatterOwner = true)
         => BluCoordinationState.Apply(new BluCoordinationSnapshot(
             CoordinationActive: true,
             IsBleedOwner: bleed,
@@ -45,7 +52,9 @@ public class ProteusV3CoordinationTests : IDisposable
             IsCactguardOwner: cactguard,
             StaggerGroup: group,
             MoonFluteStaggerDelaySeconds: staggerDelay,
-            Summary: "test"));
+            Summary: "test",
+            IsFreezeLead: freezeLead,
+            IsShatterOwner: shatterOwner));
 
     // ── v3.1 DoT ownership ──────────────────────────────────────────────────
 
@@ -286,6 +295,131 @@ public class ProteusV3CoordinationTests : IDisposable
         Assert.DoesNotContain(h.Scheduler.InspectGcdQueue(), c => c.Behavior == ProteusAbilities.Cactguard);
     }
 
+    // ── v3.6 co-op freeze→shatter ───────────────────────────────────────────
+
+    [Fact]
+    public void FreezeShatter_Election_SplitRoles_NoShatterOwnerMeansNobodyFreezes()
+    {
+        var roster = new[]
+        {
+            new BluPeerCapability("A@W", BluCapabilities.RamsVoice),
+            new BluPeerCapability("B@W", BluCapabilities.RamsVoice | BluCapabilities.Ultravibration),
+        };
+        var onA = BluCoordinationCalculator.Compute("A@W", roster, 0);
+        var onB = BluCoordinationCalculator.Compute("B@W", roster, 0);
+        Assert.True(onA.IsFreezeLead);      // first Ram's Voice-capable
+        Assert.False(onA.IsShatterOwner);
+        Assert.False(onB.IsFreezeLead);
+        Assert.True(onB.IsShatterOwner);    // only Ultravibration-capable
+
+        // Nobody can shatter → nobody freezes (a freeze with no shatter is a wasted GCD).
+        var noShatter = new[]
+        {
+            new BluPeerCapability("A@W", BluCapabilities.RamsVoice),
+            new BluPeerCapability("B@W", BluCapabilities.RamsVoice),
+        };
+        Assert.False(BluCoordinationCalculator.Compute("A@W", noShatter, 0).IsFreezeLead);
+    }
+
+    [Fact]
+    public void FreezeShatter_NonLead_NeverStartsFreeze()
+    {
+        var h = new Harness(packCount: 3);
+        Coordinate(freezeLead: false, shatterOwner: false);
+        h.Damage.CollectCandidates(h.Context, h.Scheduler, isMoving: false);
+        Assert.DoesNotContain(h.Scheduler.InspectGcdQueue(), c => c.Behavior == ProteusAbilities.TheRamsVoice);
+    }
+
+    [Fact]
+    public void FreezeShatter_NonOwner_HoldsDamageOnFreshFreeze_ResumesOnStaleOne()
+    {
+        // A fresh Deep Freeze on the pack (someone else froze it): non-owners hold ALL damage —
+        // the fleet shatter is incoming and any hit breaks the freeze.
+        var h = new Harness(packCount: 3);
+        Coordinate(freezeLead: false, shatterOwner: false);
+        h.Targeting.Setup(x => x.GetBestStatusRemainingOnAnyEnemy(
+                Moq.It.IsAny<uint[]>(), Moq.It.IsAny<float>(), Moq.It.IsAny<IPlayerCharacter>()))
+            .Returns(10f); // freeze ~2s old
+        h.Damage.CollectCandidates(h.Context, h.Scheduler, isMoving: false);
+        Assert.Empty(h.Scheduler.InspectGcdQueue());
+        Assert.DoesNotContain(h.Scheduler.InspectGcdQueue(), c => c.Behavior == ProteusAbilities.Ultravibration);
+
+        // Freeze older than the 5s grace (remaining ≤7s) with no shatter → resume damage rather
+        // than idling out the full 12s on a shatter that isn't coming.
+        var stale = new Harness(packCount: 3);
+        Coordinate(freezeLead: false, shatterOwner: false);
+        stale.Targeting.Setup(x => x.GetBestStatusRemainingOnAnyEnemy(
+                Moq.It.IsAny<uint[]>(), Moq.It.IsAny<float>(), Moq.It.IsAny<IPlayerCharacter>()))
+            .Returns(6f);
+        stale.Damage.CollectCandidates(stale.Context, stale.Scheduler, isMoving: false);
+        Assert.Contains(stale.Scheduler.InspectGcdQueue(), c => c.Behavior == ProteusAbilities.SonicBoom);
+    }
+
+    [Fact]
+    public void FreezeShatter_OnlyShatterOwnerCastsUltravibration()
+    {
+        var owner = new Harness(packCount: 3);
+        Coordinate(freezeLead: false, shatterOwner: true);
+        owner.Targeting.Setup(x => x.GetBestStatusRemainingOnAnyEnemy(
+                Moq.It.IsAny<uint[]>(), Moq.It.IsAny<float>(), Moq.It.IsAny<IPlayerCharacter>()))
+            .Returns(10f);
+        owner.Damage.CollectCandidates(owner.Context, owner.Scheduler, isMoving: false);
+        Assert.Contains(owner.Scheduler.InspectGcdQueue(), c => c.Behavior == ProteusAbilities.Ultravibration);
+    }
+
+    // ── v3.4 fleet Final Sting (rotation side) ──────────────────────────────
+
+    [Fact]
+    public void FleetSting_FiresAtSlotTime_NotBefore()
+    {
+        var h = new Harness();
+        h.Config.BlueMage.EnableFleetSting = true;
+        var boss = new Mock<Dalamud.Game.ClientState.Objects.Types.IBattleChara>();
+        boss.Setup(x => x.IsDead).Returns(false);
+        boss.Setup(x => x.CurrentHp).Returns(500_000u);
+        boss.Setup(x => x.GameObjectId).Returns(9999UL);
+        var table = MockBuilders.CreateMockObjectTable();
+        table.Setup(x => x.SearchById(9999UL)).Returns(boss.Object);
+        Mock.Get(h.Context).Setup(x => x.ObjectTable).Returns(table.Object);
+
+        var armed = DateTime.UtcNow;
+        Daedalus.Services.Blu.BluFleetStingCommand.Arm(9999UL, ["Me@W", "B@W"], armed);
+        Daedalus.Services.Blu.BluFleetStingCommand.SetMySlot(1); // fire at +3s
+
+        h.Damage.UtcNow = () => armed.AddSeconds(1); // before our slot
+        h.Damage.CollectCandidates(h.Context, h.Scheduler, isMoving: false);
+        Assert.DoesNotContain(h.Scheduler.InspectGcdQueue(), c => c.Behavior == ProteusAbilities.FleetFinalSting);
+
+        h.Damage.UtcNow = () => armed.AddSeconds(3.5); // slot open
+        h.Scheduler.Reset();
+        h.Damage.CollectCandidates(h.Context, h.Scheduler, isMoving: false);
+        Assert.Contains(h.Scheduler.InspectGcdQueue(), c => c.Behavior == ProteusAbilities.FleetFinalSting);
+    }
+
+    [Fact]
+    public void FleetSting_DeadBoss_ClearsOrder_NeverStings()
+    {
+        // The stagger exists exactly for this: the boss died to an earlier sting — later slots
+        // abort and everyone resumes the rotation.
+        var h = new Harness();
+        h.Config.BlueMage.EnableFleetSting = true;
+        var table = MockBuilders.CreateMockObjectTable();
+        table.Setup(x => x.SearchById(9999UL))
+            .Returns((Dalamud.Game.ClientState.Objects.Types.IGameObject?)null); // gone
+        Mock.Get(h.Context).Setup(x => x.ObjectTable).Returns(table.Object);
+
+        var armed = DateTime.UtcNow;
+        Daedalus.Services.Blu.BluFleetStingCommand.Arm(9999UL, ["Me@W"], armed);
+        Daedalus.Services.Blu.BluFleetStingCommand.SetMySlot(0);
+        h.Damage.UtcNow = () => armed.AddSeconds(1);
+
+        h.Damage.CollectCandidates(h.Context, h.Scheduler, isMoving: false);
+
+        Assert.DoesNotContain(h.Scheduler.InspectGcdQueue(), c => c.Behavior == ProteusAbilities.FleetFinalSting);
+        Assert.False(Daedalus.Services.Blu.BluFleetStingCommand.IsArmed(armed.AddSeconds(1)));
+        Assert.Contains(h.Scheduler.InspectGcdQueue(), c => c.Behavior == ProteusAbilities.SonicBoom); // rotation resumed
+    }
+
     // ── Heartbeat wire format ───────────────────────────────────────────────
 
     [Fact]
@@ -320,7 +454,7 @@ public class ProteusV3CoordinationTests : IDisposable
         public Mock<IBattleNpc> Enemy { get; }
         public Configuration Config { get; }
 
-        public Harness(BluRole role = BluRole.Dps, int partySize = 0)
+        public Harness(BluRole role = BluRole.Dps, int partySize = 0, int packCount = 1)
         {
             Config = new Configuration();
             Config.BlueMage.Role = role;
@@ -339,7 +473,7 @@ public class ProteusV3CoordinationTests : IDisposable
                     It.IsAny<uint>(), It.IsAny<float>(), It.IsAny<float>(), It.IsAny<IPlayerCharacter>()))
                 .Returns((IBattleNpc?)null);
             Targeting.Setup(x => x.CountEnemiesInRange(It.IsAny<float>(), It.IsAny<IPlayerCharacter>()))
-                .Returns(1);
+                .Returns(packCount);
 
             ActionService = MockBuilders.CreateMockActionService();
             ActionService.Setup(x => x.IsActionLearned(It.IsAny<uint>())).Returns(true);

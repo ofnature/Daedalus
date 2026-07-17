@@ -37,6 +37,15 @@ public sealed class ConsumablesSection
         ImGui.Spacing();
 
         ConfigUIHelpers.Toggle(
+            "Allow outside high-end content",
+            () => config.Consumables.UseOutsideHighEnd,
+            v => config.Consumables.UseOutsideHighEnd = v,
+            "Also pot in normal duties and legacy content (unsynced Coil clears, farm runs). Off = the classic savage/extreme/ultimate-only behavior. Pots still only fire in burst windows, on the countdown, or at pull intent.",
+            save);
+
+        ImGui.Spacing();
+
+        ConfigUIHelpers.Toggle(
             Loc.T(LocalizedStrings.Consumables.WarnOnEmptyInventory, "Warn when inventory is empty"),
             () => config.Consumables.WarnOnEmptyInventory,
             v => config.Consumables.WarnOnEmptyInventory = v,

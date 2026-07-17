@@ -53,6 +53,18 @@ public static class BluDutyAssignments
     public static bool UsesMoonFluteStagger(uint territoryId) => territoryId == FinalCoilTurn4;
 
     /// <summary>
+    /// Auto fleet-sting boss HP%% threshold per Coil turn (blu-loadouts.md: T5 ~25%%, T9 ~15%%).
+    /// Null = no auto trigger (T13 is phase-dependent — manual button only). The auto trigger is
+    /// additionally gated on the operator's fleet-sting opt-in.
+    /// </summary>
+    public static float? FleetStingHpPercent(uint territoryId) => territoryId switch
+    {
+        BindingCoilTurn5 => 25f,
+        SecondCoilTurn4 => 15f,
+        _ => null,
+    };
+
+    /// <summary>
     /// Evaluate every requirement of the territory against the live BLU roster: deterministic
     /// carrier assignment (capability filter + SenderId sort) plus a satisfied/short verdict.
     /// </summary>

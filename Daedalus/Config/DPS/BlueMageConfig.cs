@@ -220,6 +220,22 @@ public sealed class BlueMageConfig
     /// </summary>
     public bool EnableCactguard { get; set; } = true;
 
+    /// <summary>
+    /// v3.4: this toon participates in fleet Final Sting orders (advertised on the capability
+    /// bitfield — un-opted toons are never planned as stingers). Default OFF: stinging kills the
+    /// character. The tank-role toon never stings regardless.
+    /// </summary>
+    public bool EnableFleetSting { get; set; } = false;
+
+    private int _fleetStingSafetyPercent = 75;
+    /// <summary>Sting-count over-provisioning: stingersNeeded = ceil(bossHp / (estSting × this%)).
+    /// Lower = more stingers planned (safer kill, more deaths).</summary>
+    public int FleetStingSafetyPercent
+    {
+        get => _fleetStingSafetyPercent;
+        set => _fleetStingSafetyPercent = Math.Clamp(value, 10, 100);
+    }
+
     /// <summary>Calculator calibration: an observed NON-CRIT, unbuffed damage number (0 = unset).
     /// Persisted — it's also the seed for the future fleet-sting count math.</summary>
     public int FinalStingBaselineDamage { get; set; }

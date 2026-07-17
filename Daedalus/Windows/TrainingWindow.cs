@@ -315,7 +315,7 @@ public sealed class TrainingWindow : Window
         ImGui.ProgressBar(progressFraction, new Vector2(-1, 0), Loc.TFormat(LocalizedStrings.Training.ConceptsFormat, "{0}/{1} concepts", progress.LearnedConcepts.ToString(), progress.TotalConcepts.ToString()));
 
         ImGui.Spacing();
-        ImGui.TextColored(new Vector4(0.7f, 0.7f, 0.7f, 1.0f), Loc.TFormat(LocalizedStrings.Training.ProgressFormat, "Progress: {0}%", $"{progress.ProgressPercent:F0}"));
+        ImGui.TextColored(Common.DaedalusTheme.TextSecondary, Loc.TFormat(LocalizedStrings.Training.ProgressFormat, "Progress: {0}%", $"{progress.ProgressPercent:F0}"));
 
         ImGui.Spacing();
         ImGui.Separator();
@@ -332,7 +332,7 @@ public sealed class TrainingWindow : Window
 
                 if (isLearned)
                 {
-                    ImGui.TextColored(new Vector4(0.3f, 0.9f, 0.3f, 1.0f), $"  {Loc.T(LocalizedStrings.Training.Learned, "[Learned]")} {displayName}");
+                    ImGui.TextColored(Common.DaedalusTheme.StatusGreen, $"  {Loc.T(LocalizedStrings.Training.Learned, "[Learned]")} {displayName}");
                 }
                 else
                 {
@@ -350,7 +350,7 @@ public sealed class TrainingWindow : Window
         // Concepts needing attention
         if (progress.ConceptsNeedingAttention.Length > 0)
         {
-            ImGui.TextColored(new Vector4(0.9f, 0.9f, 0.3f, 1.0f), Loc.T(LocalizedStrings.Training.NeedsReview, "Needs Review (seen 10+ times):"));
+            ImGui.TextColored(Common.DaedalusTheme.StatusYellow, Loc.T(LocalizedStrings.Training.NeedsReview, "Needs Review (seen 10+ times):"));
             foreach (var concept in progress.ConceptsNeedingAttention)
             {
                 var displayName = FormatConceptName(concept);

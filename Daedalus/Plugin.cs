@@ -181,6 +181,7 @@ public sealed class Plugin : IDalamudPlugin
     // Pull-intent state machine + consumable services (tincture automation)
     private readonly Daedalus.Services.Pull.PullIntentService pullIntentService;
     private readonly Daedalus.Services.Content.HighEndContentService highEndContentService;
+    private readonly Daedalus.Services.Pull.CountdownService countdownService;
     private readonly Daedalus.Services.Content.DutyContentService dutyContentService;
     private readonly Daedalus.Services.Content.DutyConfigurationService dutyConfigurationService;
     private readonly Daedalus.Services.Consumables.DalamudInventoryProbe inventoryProbe;
@@ -341,6 +342,14 @@ public sealed class Plugin : IDalamudPlugin
             this.partyCoordinationIpc = new PartyCoordinationIpc(pluginInterface, partyCoordinationService, log);
         }
 
+        // LAN Phase 2: the shared pull T0 — read locally from the countdown agent, mirrored onto
+        // the LAN for fleet toons outside the party. Constructed before the LAN block so the bus
+        // subscription below can target it; the broadcast lambda resolves the bus at call time.
+        this.countdownService = new Daedalus.Services.Pull.CountdownService(
+            log,
+            t0Ticks => this.coordinationBus?.BroadcastCountdownStart(
+                new Daedalus.Services.Network.LanCountdownPayload { T0Ticks = t0Ticks }));
+
         // LAN coordinator (cross-machine UDP broadcast on the local VLAN). Opt-in; same-machine
         // toons keep Dalamud IPC, the CoordinationBus mirrors + dedups between the transports.
         if (configuration.PartyCoordination.LanCoordinatorEnabled)
@@ -359,6 +368,31 @@ public sealed class Plugin : IDalamudPlugin
                 () => Daedalus.Services.Blu.BluCoordinationState.NotifyBurstFire(DateTime.UtcNow);
             Daedalus.Services.Blu.BluCoordinationState.SignalBurstReady =
                 () => this.coordinationBus?.BroadcastBurstReady();
+
+            // v3.4 fleet Final Sting: arm the static order; the pump refreshes this toon's slot
+            // and the DamageModule executes at its stagger time.
+            this.coordinationBus.OnExecuteSting += payload =>
+                Daedalus.Services.Blu.BluFleetStingCommand.Arm(payload.TargetId, payload.Stingers, DateTime.UtcNow);
+
+            // Phase 2 countdown mirror: adopt a remote T0 when no local countdown is visible.
+            this.coordinationBus.OnCountdownStart += payload =>
+                this.countdownService.OnRemoteCountdown(payload.T0Ticks);
+
+            // Fleet mimicry command (LAN window buttons): every BLU box applies it locally.
+            this.coordinationBus.OnBluMimicry += payload =>
+            {
+                if (objectTable.LocalPlayer?.ClassJob.RowId != JobRegistry.BlueMage) return;
+                if (payload.Remove)
+                {
+                    Daedalus.Rotation.ProteusCore.Helpers.BluMimicryCommand.SuppressAuto(15);
+                    TryRemoveMimicryByTargetlessCast();
+                }
+                else
+                {
+                    Daedalus.Rotation.ProteusCore.Helpers.BluMimicryCommand.Request(
+                        (Daedalus.Config.DPS.BluRole)payload.Role);
+                }
+            };
             this.lanCoordinator.Start(); // bind failure logs + falls back to IPC-only (Status=Error)
             this.clientState.TerritoryChanged += OnLanTerritoryChanged;
             Windows.Config.Shared.PartyCoordinationSection.LanStatusSource = () =>
@@ -953,7 +987,8 @@ public sealed class Plugin : IDalamudPlugin
 
         var localCaps = Daedalus.Services.Blu.BluCapabilityMap.Compute(
             id => actionService.IsActionLearned(id) && bluLoadoutService.IsSlotted(id),
-            configuration.BlueMage.Role);
+            configuration.BlueMage.Role,
+            configuration.BlueMage.EnableFleetSting);
 
         if (coordinationBus == null)
         {
@@ -967,6 +1002,10 @@ public sealed class Plugin : IDalamudPlugin
         foreach (var peer in coordinationBus.Roster)
         {
             if (peer.IsStale(now) || peer.JobId != JobRegistry.BlueMage) continue;
+            // Dead peers drop out of every election (heartbeats keep flowing while dead, so
+            // staleness alone never catches it) — a dead FreezeLead/owner re-elects within one
+            // pump tick, identically on every machine.
+            if (peer.SenderId != localSenderId && peer.HpPercent <= 0f) continue;
             // Self rides the roster too, but its heartbeat caps can be up to 2s stale — always
             // use the fresh local read for our own entry.
             bluRoster.Add(peer.SenderId == localSenderId
@@ -979,6 +1018,124 @@ public sealed class Plugin : IDalamudPlugin
         Daedalus.Services.Blu.BluCoordinationState.Apply(
             Daedalus.Services.Blu.BluCoordinationCalculator.Compute(
                 localSenderId, bluRoster, clientState.TerritoryType));
+
+        UpdateFleetSting(now, localSenderId, bluRoster);
+    }
+
+    private bool _fleetStingAutoFiredThisCombat;
+
+    private DateTime? _potFiredForT0;
+
+    /// <summary>
+    /// Phase 2 pot-only cut: fire the pre-pull tincture at the job's offset before the shared T0.
+    /// One pot per countdown (T0-keyed latch with 2s tolerance — the locally-recomputed T0
+    /// jitters by milliseconds between reads). Honors the consumables gates: master toggle,
+    /// zone gate (with the new outside-high-end opt-in), inventory, item cooldown.
+    /// </summary>
+    private void UpdateCountdownPot()
+    {
+        var t0 = countdownService.T0Utc;
+        if (t0 == null)
+        {
+            _potFiredForT0 = null;
+            return;
+        }
+        if (_potFiredForT0 is { } fired && Math.Abs((fired - t0.Value).TotalSeconds) < 2.0)
+            return;
+
+        var player = objectTable.LocalPlayer;
+        if (player == null) return;
+        if (!configuration.Consumables.EnableAutoTincture) return;
+        if (!highEndContentService.IsHighEndZone && !configuration.Consumables.UseOutsideHighEnd) return;
+
+        var jobId = player.ClassJob.RowId;
+        if (!Daedalus.Services.Pull.PrePullPotScheduler.ShouldFirePot(
+                countdownService.SecondsUntilPull,
+                Daedalus.Services.Pull.PrePullPotScheduler.PotOffsetSeconds(jobId),
+                alreadyFiredForThisT0: false))
+            return;
+
+        if (!consumableService.TryGetTinctureForJob(jobId, out var itemId, out var isHq))
+        {
+            consumableService.OnTinctureSkippedDueToEmptyBag(jobId);
+            _potFiredForT0 = t0; // don't spam the warning every frame of the window
+            return;
+        }
+        if (!consumableService.IsTinctureReady(jobId))
+            return; // item cooldown — a pot from the previous pull is still ticking
+
+        if (actionService.ExecuteItem(itemId, isHq, player.GameObjectId))
+        {
+            _potFiredForT0 = t0;
+            log.Information($"[Countdown] pre-pull tincture at T-{countdownService.SecondsUntilPull:F1}s");
+        }
+    }
+
+    /// <summary>
+    /// v3.4 fleet sting upkeep (inside the BLU pump): refresh the local toon's slot in a live
+    /// order (dead stingers drop out, later indexes shift up — deterministic on every box), and
+    /// fire the AUTO trigger in Coil turns with a defined threshold when this toon is the
+    /// deterministic coordinator (first planned stinger).
+    /// </summary>
+    private void UpdateFleetSting(
+        DateTime now, string localSenderId,
+        System.Collections.Generic.List<Daedalus.Services.Blu.BluPeerCapability> bluRoster)
+    {
+        // Slot refresh for a live order: filter dead stingers by roster HP (heartbeats keep
+        // flowing while dead), preserve order, find our index.
+        if (Daedalus.Services.Blu.BluFleetStingCommand.IsArmed(now) && coordinationBus != null)
+        {
+            var deadSenders = new System.Collections.Generic.HashSet<string>();
+            foreach (var peer in coordinationBus.Roster)
+                if (!peer.IsStale(now) && peer.HpPercent <= 0f && peer.SenderId != localSenderId)
+                    deadSenders.Add(peer.SenderId);
+
+            var slot = -1;
+            var alive = 0;
+            foreach (var stinger in Daedalus.Services.Blu.BluFleetStingCommand.OriginalOrder)
+            {
+                if (deadSenders.Contains(stinger)) continue;
+                if (stinger == localSenderId) { slot = alive; break; }
+                alive++;
+            }
+            Daedalus.Services.Blu.BluFleetStingCommand.SetMySlot(slot);
+        }
+
+        // Auto trigger: Coil-turn threshold + opt-in + this toon is the deterministic coordinator
+        // (the first planned stinger — exactly one box broadcasts). Once per combat.
+        var player = objectTable.LocalPlayer;
+        var inCombat = player != null
+            && (player.StatusFlags & Dalamud.Game.ClientState.Objects.Enums.StatusFlags.InCombat) != 0;
+        if (!inCombat)
+        {
+            _fleetStingAutoFiredThisCombat = false;
+            return;
+        }
+
+        if (_fleetStingAutoFiredThisCombat || coordinationBus == null) return;
+        if (!configuration.BlueMage.EnableFleetSting) return;
+        if (Daedalus.Data.BluDutyAssignments.FleetStingHpPercent(clientState.TerritoryType) is not { } thresholdPercent)
+            return;
+        if (targetManager.Target is not Dalamud.Game.ClientState.Objects.Types.IBattleNpc boss
+            || boss.MaxHp == 0 || boss.CurrentHp == 0)
+            return;
+        if ((float)boss.CurrentHp / boss.MaxHp * 100f > thresholdPercent)
+            return;
+
+        var estSting = Daedalus.Rotation.ProteusCore.Helpers.FinalStingCalculator.Estimate(
+            configuration.BlueMage.FinalStingBaselineDamage, configuration.BlueMage.FinalStingBaselinePotency);
+        var order = Daedalus.Services.Blu.BluFleetStingPlanner.Plan(
+            boss.CurrentHp, estSting, configuration.BlueMage.FleetStingSafetyPercent / 100f, bluRoster);
+        if (order.Count == 0 || order[0] != localSenderId)
+            return; // not the coordinator — the first planned stinger's box broadcasts
+
+        _fleetStingAutoFiredThisCombat = true;
+        coordinationBus.BroadcastExecuteSting(new Daedalus.Services.Network.LanExecuteStingPayload
+        {
+            TargetId = boss.GameObjectId,
+            Stingers = System.Linq.Enumerable.ToArray(order),
+        });
+        log.Information($"[BLU] Fleet sting AUTO trigger: {order.Count} stinger(s) on {boss.Name?.TextValue} ({thresholdPercent:F0}% threshold)");
     }
 
     private Daedalus.Services.Network.LanHeartbeatPayload? BuildLanHeartbeat()
@@ -1017,7 +1174,8 @@ public sealed class Plugin : IDalamudPlugin
             BluCapabilities = jobId == JobRegistry.BlueMage
                 ? (uint)Daedalus.Services.Blu.BluCapabilityMap.Compute(
                     id => actionService.IsActionLearned(id) && bluLoadoutService.IsSlotted(id),
-                    configuration.BlueMage.Role)
+                    configuration.BlueMage.Role,
+                    configuration.BlueMage.EnableFleetSting)
                 : 0u,
         };
     }
@@ -1334,6 +1492,10 @@ public sealed class Plugin : IDalamudPlugin
             deathImmunityLedger.Update();
             UpdateBluAutoRoleLoadout();
             UpdateBluCoordination();
+
+            // Phase 2: shared pull T0 (local countdown agent + LAN mirror) → pre-pull pot.
+            countdownService.Update();
+            UpdateCountdownPot();
 
             // Mimicry window auto-open on switching TO BLU (manual close respected until the
             // next switch); auto-close on leaving BLU.

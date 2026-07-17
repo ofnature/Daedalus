@@ -55,6 +55,16 @@ public enum LanMessageType
     /// <summary>Generic companion-plugin relay (Charon↔Charon etc.): opaque {channel, json} ferried
     /// across machines AND same-machine siblings (loopback mirror). The bus never inspects the data.</summary>
     PluginRelay = 13,
+
+    /// <summary>BLU v3.4 fleet Final Sting: ordered stingers execute staggered on the target.</summary>
+    ExecuteSting = 14,
+
+    /// <summary>Fleet-wide BLU mimicry command from the coordination window (mimic role / remove).</summary>
+    BluMimicry = 15,
+
+    /// <summary>LAN Phase 2: pre-pull countdown T0 mirror for toons that can't see the local
+    /// countdown agent (unpartied fleet members). T0Ticks=0 = countdown cancelled.</summary>
+    CountdownStart = 16,
 }
 
 /// <summary>
@@ -312,6 +322,60 @@ public sealed class LanPluginRelayPayload
     public static LanPluginRelayPayload? FromJson(string json)
     {
         try { return JsonSerializer.Deserialize<LanPluginRelayPayload>(json); }
+        catch { return null; }
+    }
+}
+
+/// <summary>ExecuteSting payload — the fleet Final Sting order (v3.4).</summary>
+public sealed class LanExecuteStingPayload
+{
+    /// <summary>The boss's GameObjectId (shared across clients in one instance).</summary>
+    [JsonPropertyName("t")]
+    public ulong TargetId { get; set; }
+
+    /// <summary>Ordered stinger SenderIds — index × 3s = each toon's stagger offset.</summary>
+    [JsonPropertyName("s")]
+    public string[] Stingers { get; set; } = [];
+
+    public string ToJson() => JsonSerializer.Serialize(this);
+
+    public static LanExecuteStingPayload? FromJson(string json)
+    {
+        try { return JsonSerializer.Deserialize<LanExecuteStingPayload>(json); }
+        catch { return null; }
+    }
+}
+
+/// <summary>BluMimicry payload — fleet-wide mimicry command (role buttons / remove).</summary>
+public sealed class LanBluMimicryPayload
+{
+    /// <summary>BluRole enum value to mimic; ignored when <see cref="Remove"/> is set.</summary>
+    [JsonPropertyName("r")]
+    public int Role { get; set; }
+
+    [JsonPropertyName("x")]
+    public bool Remove { get; set; }
+
+    public string ToJson() => JsonSerializer.Serialize(this);
+
+    public static LanBluMimicryPayload? FromJson(string json)
+    {
+        try { return JsonSerializer.Deserialize<LanBluMimicryPayload>(json); }
+        catch { return null; }
+    }
+}
+
+/// <summary>CountdownStart payload — shared pull T0 (UTC ticks; 0 = cancelled).</summary>
+public sealed class LanCountdownPayload
+{
+    [JsonPropertyName("t0")]
+    public long T0Ticks { get; set; }
+
+    public string ToJson() => JsonSerializer.Serialize(this);
+
+    public static LanCountdownPayload? FromJson(string json)
+    {
+        try { return JsonSerializer.Deserialize<LanCountdownPayload>(json); }
         catch { return null; }
     }
 }

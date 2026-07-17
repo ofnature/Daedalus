@@ -15,7 +15,9 @@ public readonly record struct BluCoordinationSnapshot(
     bool IsCactguardOwner,
     char StaggerGroup,
     int MoonFluteStaggerDelaySeconds,
-    string Summary)
+    string Summary,
+    bool IsFreezeLead = true,
+    bool IsShatterOwner = true)
 {
     /// <summary>Solo / no-LAN / single-BLU fallback: self owns everything (v1 behavior unchanged).</summary>
     public static readonly BluCoordinationSnapshot SelfOwnsEverything = new(
@@ -27,7 +29,9 @@ public readonly record struct BluCoordinationSnapshot(
         IsCactguardOwner: true,
         StaggerGroup: 'A',
         MoonFluteStaggerDelaySeconds: 0,
-        Summary: "solo (owns all)");
+        Summary: "solo (owns all)",
+        IsFreezeLead: true,
+        IsShatterOwner: true);
 }
 
 /// <summary>
@@ -57,6 +61,14 @@ public static class BluCoordinationCalculator
         var gobskin = BluPartyElection.ElectGobskinOwner(bluRoster);
         var cactguard = BluPartyElection.ElectOwner(bluRoster, BluCapabilities.Cactguard);
 
+        // v3.6 co-op freeze→shatter: ONE toon freezes (simultaneous Ram's Voices are wasted GCDs
+        // and Deep Freeze re-application builds resistance), ONE shatters — possibly different
+        // toons. No capable ShatterOwner → NOBODY freezes (don't burn the GCD for nothing).
+        var shatterOwner = BluPartyElection.ElectOwner(bluRoster, BluCapabilities.Ultravibration);
+        var freezeLead = shatterOwner == null
+            ? null
+            : BluPartyElection.ElectOwner(bluRoster, BluCapabilities.RamsVoice);
+
         var group = BluPartyElection.StaggerGroupFor(bluRoster, localSenderId);
         var delay = BluDutyAssignments.UsesMoonFluteStagger(territoryId) && group == 'B'
             ? StaggerDelaySeconds
@@ -77,7 +89,10 @@ public static class BluCoordinationCalculator
             Summary: $"{bluRoster.Count}×BLU bleed:{Who(bleed, localSenderId)} "
                      + $"MF:{Who(mortalFlame, localSenderId)} BoM:{Who(breath, localSenderId)} "
                      + $"gob:{Who(gobskin, localSenderId)} cact:{Who(cactguard, localSenderId)} "
-                     + $"grp:{group}{(delay > 0 ? $"+{delay}s" : "")}");
+                     + $"frz:{Who(freezeLead, localSenderId)}→{Who(shatterOwner, localSenderId)} "
+                     + $"grp:{group}{(delay > 0 ? $"+{delay}s" : "")}",
+            IsFreezeLead: freezeLead == localSenderId,
+            IsShatterOwner: shatterOwner == localSenderId);
     }
 }
 
@@ -101,6 +116,14 @@ public static class BluCoordinationState
     public static bool IsBreathOfMagicOwner => _snapshot.IsBreathOfMagicOwner;
     public static bool IsGobskinOwner => _snapshot.IsGobskinOwner;
     public static bool IsCactguardOwner => _snapshot.IsCactguardOwner;
+
+    /// <summary>v3.6: the ONLY toon that starts the Ram's Voice freeze (false when no capable
+    /// ShatterOwner exists — a freeze nobody can shatter is a wasted GCD).</summary>
+    public static bool IsFreezeLead => _snapshot.IsFreezeLead;
+
+    /// <summary>v3.6: the ONLY toon that casts Ultravibration; everyone else holds damage while
+    /// a nearby enemy carries Deep Freeze (local status read — no LAN message needed).</summary>
+    public static bool IsShatterOwner => _snapshot.IsShatterOwner;
 
     /// <summary>Moon Flute stagger group ('A'/'B'); B delays its Flute in stagger duties.</summary>
     public static char StaggerGroup => _snapshot.StaggerGroup;

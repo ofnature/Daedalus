@@ -68,8 +68,10 @@ public static class BluCapabilityMap
     /// Compute the advertised bitfield. <paramref name="isSpellUsable"/> is the standard BLU
     /// availability check (learned AND slotted, fail-open to learned-only without slot data) —
     /// the same gate the rotation itself uses, so a toon never advertises what it can't cast.
+    /// <paramref name="fleetStingOptIn"/> gates the FinalSting bit: fleet-sting planning only
+    /// ever counts toons that explicitly opted in (the cast kills the character).
     /// </summary>
-    public static BluCapabilities Compute(Func<uint, bool> isSpellUsable, BluRole role)
+    public static BluCapabilities Compute(Func<uint, bool> isSpellUsable, BluRole role, bool fleetStingOptIn = false)
     {
         var caps = BluCapabilities.None;
 
@@ -94,7 +96,8 @@ public static class BluCapabilityMap
         if (role != BluRole.Tank)
         {
             Add(BLUActions.Cactguard.ActionId, BluCapabilities.Cactguard);
-            Add(BLUActions.FinalSting.ActionId, BluCapabilities.FinalSting);
+            if (fleetStingOptIn)
+                Add(BLUActions.FinalSting.ActionId, BluCapabilities.FinalSting);
         }
 
         if (role == BluRole.Healer) caps |= BluCapabilities.HealerRole;

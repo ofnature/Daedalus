@@ -78,6 +78,14 @@ public sealed class DamageModule : IProteusModule
     /// <summary>Deep Freeze must outlast Ultravibration's 2.0s cast to be shatterable.</summary>
     private const float ShatterMinFreezeRemaining = 2.2f;
 
+    /// <summary>
+    /// v3.6 fleet hold bound: Deep Freeze applies at 12s, so remaining &gt; 7s means the freeze is
+    /// younger than 5s — non-owners hold damage only that long. If the owner hasn't shattered by
+    /// then (Ultravibration on cooldown, owner dead/desynced), the fleet resumes damage rather
+    /// than idling out the full 12s freeze on a shatter that isn't coming.
+    /// </summary>
+    private const float FleetShatterHoldFloorSeconds = 7f;
+
     /// <summary>No Deep Freeze this long after Ram's Voice dispatch → the pack is freeze-immune.</summary>
     private const float FreezeImmuneGraceSeconds = 4f;
 
@@ -279,8 +287,16 @@ public sealed class DamageModule : IProteusModule
 
         var ultraReady = context.ActionService.GetCooldownRemaining(BLUActions.Ultravibration.ActionId) <= 0f;
 
+        // v3.6 co-op roles: with 2+ BLU on the bus, only the elected ShatterOwner casts
+        // Ultravibration and only the FreezeLead starts Ram's Voice — everyone else just honors
+        // the damage-hold below whenever a nearby enemy carries Deep Freeze (local status read;
+        // the frozen pack IS the signal, no LAN message involved).
+        var coopActive = Daedalus.Services.Blu.BluCoordinationState.CoordinationActive;
+        var mayShatter = !coopActive || Daedalus.Services.Blu.BluCoordinationState.IsShatterOwner;
+        var mayFreeze = !coopActive || Daedalus.Services.Blu.BluCoordinationState.IsFreezeLead;
+
         // Shatter: a frozen enemy is in the 6y radius with enough freeze left to survive the cast.
-        if (ultraReady && freezeRemaining > ShatterMinFreezeRemaining && !isMoving)
+        if (mayShatter && ultraReady && freezeRemaining > ShatterMinFreezeRemaining && !isMoving)
         {
             scheduler.PushGcd(ProteusAbilities.Ultravibration, player.GameObjectId, priority: 5,
                 onDispatched: _ =>
@@ -294,17 +310,26 @@ public sealed class DamageModule : IProteusModule
         }
 
         // Mid-window (freeze pending or live) — keep suppressing even while the shatter can't
-        // fire yet (moving / freeze just applied).
-        if (_freezeArmedUtc is not null || (ultraReady && freezeRemaining > 0f))
+        // fire yet (moving / freeze just applied). Non-owners in a co-op fleet hold on the
+        // freeze status alone: their own Ultravibration cooldown is irrelevant, the OWNER's
+        // shatter is what the frozen pack is waiting for.
+        if (_freezeArmedUtc is not null
+            || (mayShatter && ultraReady && freezeRemaining > 0f)
+            || (coopActive && !mayShatter && freezeRemaining > FleetShatterHoldFloorSeconds))
         {
-            context.Debug.DamageState = "Freeze→shatter: waiting (freeze pending)";
+            context.Debug.DamageState = coopActive && !mayShatter
+                ? "Freeze→shatter: holding damage (fleet shatter incoming)"
+                : "Freeze→shatter: waiting (freeze pending)";
             return true;
         }
 
-        // Start a window: enough targets in the freeze radius, shatter off cooldown, pack not immune.
+        // Start a window: enough targets in the freeze radius, shatter off cooldown, pack not
+        // immune — and in a co-op fleet, only the FreezeLead (simultaneous freezes waste GCDs
+        // and Deep Freeze re-application builds resistance).
         var packCount = context.TargetingService.CountEnemiesInRange(BLUActions.TheRamsVoice.Radius, player);
-        if (!_packFreezeImmune
-            && ultraReady
+        if (mayFreeze
+            && !_packFreezeImmune
+            && (ultraReady || (coopActive && mayFreeze != mayShatter))
             && packCount >= cfg.UltravibrationMinTargets
             && !isMoving
             && !MechanicCastGate.ShouldBlock(context, BLUActions.TheRamsVoice.CastTime))
@@ -394,6 +419,38 @@ public sealed class DamageModule : IProteusModule
 
         // Moon Flute trigger (opt-in, default OFF) — the window itself is just this chain buffed.
         TryPushMoonFlute(context, scheduler, cfg, player, isMoving);
+
+        // ── v3.4 fleet Final Sting: an armed order from the coordinator. Stingers keep their
+        // normal rotation until their staggered slot arrives, then the sting outranks everything.
+        // Every stinger re-checks the boss each frame — dead boss = order cleared, later slots
+        // never fire (they're the safety margin), everyone resumes. 3y melee: the dispatch
+        // range-gate holds the cast until the toon is in reach (positioning is on the operator).
+        if (Daedalus.Services.Blu.BluFleetStingCommand.TryGetMyOrder(now, out var stingTargetId, out var fireAtUtc, out var stingSlot))
+        {
+            var stingObj = context.ObjectTable.SearchById(stingTargetId);
+            if (stingObj is not Dalamud.Game.ClientState.Objects.Types.IBattleChara stingBoss
+                || stingBoss.IsDead || stingBoss.CurrentHp == 0)
+            {
+                Daedalus.Services.Blu.BluFleetStingCommand.Clear();
+                context.Debug.DamageState = "Fleet sting: target down — order cleared";
+            }
+            else if (now < fireAtUtc)
+            {
+                context.Debug.DamageState = $"Fleet sting: slot {stingSlot} in {(fireAtUtc - now).TotalSeconds:F0}s";
+            }
+            else if (context.IsSpellUsable(BLUActions.FinalSting.ActionId)
+                     && !BaseStatusHelper.HasStatus(player, BLUActions.StatusIds.BrushWithDeath)
+                     && !isMoving
+                     && !MechanicCastGate.ShouldBlock(context, BLUActions.FinalSting.CastTime))
+            {
+                scheduler.PushGcd(ProteusAbilities.FleetFinalSting, stingBoss.GameObjectId, priority: 3,
+                    onDispatched: _ =>
+                    {
+                        context.Debug.PlannedAction = BLUActions.FinalSting.Name;
+                        context.Debug.DamageState = $"FLEET STING (slot {stingSlot} — this kills us)";
+                    });
+            }
+        }
 
         // Final Sting — solo execute: ~2000p, KILLS THE CASTER, 10min lockout (Brush with Death).
         // Only on the LAST engaged enemy (nobody fights on after you're dead) at/below the HP

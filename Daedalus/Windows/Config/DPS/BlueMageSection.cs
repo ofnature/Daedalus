@@ -267,6 +267,18 @@ public sealed class BlueMageSection
                 v => config.BlueMage.EnableFinalSting = v,
                 "~2000 potency that KILLS YOUR CHARACTER and locks itself out for 10 minutes. Solo role only, fires on the LAST engaged enemy at/below the HP threshold. For finishing tough solo targets — leave OFF for farm loops.", save);
 
+            ConfigUIHelpers.Toggle(
+                "Join fleet Final Sting orders (multi-BLU)",
+                () => config.BlueMage.EnableFleetSting,
+                v => config.BlueMage.EnableFleetSting = v,
+                "Opt this toon into coordinated fleet stings (the LAN window's FLEET STING button, plus the auto trigger in Coil T5/T9 below the fight's HP threshold). Stingers execute 3s apart in a deterministic order; each sting KILLS its caster; a healer-mimic is always held back for raises. Tank-role toons never sting.", save);
+
+            config.BlueMage.FleetStingSafetyPercent = ConfigUIHelpers.IntSlider(
+                "Fleet sting safety (%)",
+                config.BlueMage.FleetStingSafetyPercent, 10, 100,
+                "Over-provisioning for the stinger count: needed = boss HP ÷ (estimated sting × this). Lower = more stingers planned (safer kill, more deaths). Uses the Final Sting Calculator's calibration; uncalibrated fleets plan every opted-in toon.", save,
+                v => config.BlueMage.FleetStingSafetyPercent = v);
+
             config.BlueMage.FinalStingTargetHpPercent = ConfigUIHelpers.IntSlider(
                 "Final Sting Target HP %",
                 config.BlueMage.FinalStingTargetHpPercent, 5, 50,

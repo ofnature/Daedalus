@@ -68,7 +68,7 @@ public sealed class ConsumableService : IConsumableService
     public bool ShouldUseTinctureNow(IBurstWindowService burstWindow, bool inCombat, bool prePullPhase)
     {
         if (!_config.EnableAutoTincture) return false;
-        if (!_highEnd.IsHighEndZone) return false;
+        if (!_highEnd.IsHighEndZone && !_config.UseOutsideHighEnd) return false;
 
         var burstActive = burstWindow.IsInBurstWindow
                           || burstWindow.IsBurstImminent(BurstImminentThresholdSeconds);

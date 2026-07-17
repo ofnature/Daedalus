@@ -164,6 +164,7 @@ public sealed class LanPartyWindow : Window, IDisposable
         DrawAgreement(roster, now, distinctTargets, eligibleDps);
         DrawBurstStrip(roster, now, burstReady);
         DrawBluCoilAssignments(roster, now);
+        DrawBluFleetControls(roster, now);
         DrawAlerts(now);
 
         ImGui.Spacing();
@@ -236,6 +237,76 @@ public sealed class LanPartyWindow : Window, IDisposable
 
     private string DisplayName(string senderId)
         => _config.PartyCoordination.LanScrambleNames ? AliasFor(senderId) : senderId.Split('@')[0];
+
+    /// <summary>
+    /// BLU fleet controls (v3.4): fleet-wide mimicry buttons (every BLU box scans + casts its own
+    /// mimicry / removes it) and the manual FLEET STING trigger — plans the stinger order from the
+    /// advertised capabilities and the operator's CURRENT TARGET, then broadcasts it. Ctrl-gated:
+    /// the cast kills every planned stinger.
+    /// </summary>
+    private void DrawBluFleetControls(LanPeerInfo[] roster, DateTime now)
+    {
+        var bluRoster = roster
+            .Where(p => !p.IsStale(now) && p.JobId == Daedalus.Data.JobRegistry.BlueMage)
+            .Select(p => new Daedalus.Services.Blu.BluPeerCapability(
+                p.SenderId, (Daedalus.Services.Blu.BluCapabilities)p.BluCapabilities))
+            .ToArray();
+        if (bluRoster.Length == 0)
+            return;
+
+        ImGui.Spacing();
+        ImGui.TextColored(Dim, $"BLU fleet ({bluRoster.Length} toon{(bluRoster.Length == 1 ? "" : "s")})");
+
+        ImGui.TextUnformatted("Mimic:");
+        ImGui.SameLine();
+        if (ImGui.SmallButton("Tank##fleetmim"))
+            _bus.BroadcastBluMimicry(new LanBluMimicryPayload { Role = (int)Daedalus.Config.DPS.BluRole.Tank });
+        ImGui.SameLine();
+        if (ImGui.SmallButton("DPS##fleetmim"))
+            _bus.BroadcastBluMimicry(new LanBluMimicryPayload { Role = (int)Daedalus.Config.DPS.BluRole.Dps });
+        ImGui.SameLine();
+        if (ImGui.SmallButton("Healer##fleetmim"))
+            _bus.BroadcastBluMimicry(new LanBluMimicryPayload { Role = (int)Daedalus.Config.DPS.BluRole.Healer });
+        ImGui.SameLine();
+        if (ImGui.SmallButton("Remove##fleetmim"))
+            _bus.BroadcastBluMimicry(new LanBluMimicryPayload { Remove = true });
+        if (ImGui.IsItemHovered())
+            ImGui.SetTooltip("Every BLU box applies the command to ITSELF (scan + cast / targetless removal).");
+
+        // Fleet sting: plan from the operator's current target.
+        var boss = _targetManager.Target as Dalamud.Game.ClientState.Objects.Types.IBattleNpc;
+        var estSting = Daedalus.Rotation.ProteusCore.Helpers.FinalStingCalculator.Estimate(
+            _config.BlueMage.FinalStingBaselineDamage, _config.BlueMage.FinalStingBaselinePotency);
+        var order = boss is { CurrentHp: > 0 }
+            ? Daedalus.Services.Blu.BluFleetStingPlanner.Plan(
+                boss.CurrentHp, estSting, _config.BlueMage.FleetStingSafetyPercent / 100f, bluRoster)
+            : [];
+
+        var ctrlHeld = ImGui.GetIO().KeyCtrl;
+        using (Dalamud.Interface.Utility.Raii.ImRaii.Disabled(order.Count == 0 || !ctrlHeld))
+        {
+            ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.55f, 0.15f, 0.15f, 1f));
+            ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.75f, 0.20f, 0.20f, 1f));
+            var pressed = ImGui.SmallButton($"FLEET STING ({order.Count})##fleetsting");
+            ImGui.PopStyleColor(2);
+            if (pressed && boss != null && order.Count > 0)
+            {
+                _bus.BroadcastExecuteSting(new LanExecuteStingPayload
+                {
+                    TargetId = boss.GameObjectId,
+                    Stingers = order.ToArray(),
+                });
+                PushAlert($"fleet sting → {order.Count} stinger(s)", Red);
+            }
+        }
+        if (ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenDisabled))
+        {
+            ImGui.SetTooltip(order.Count == 0
+                ? "Needs a targeted enemy and at least one opted-in stinger (BLU settings → fleet sting)."
+                : $"Hold CTRL to fire. Staggered 3s apart, in order: {string.Join(" → ", order.Select(DisplayName))}."
+                  + "\nEach sting KILLS its caster. Later slots auto-abort if the boss dies first.");
+        }
+    }
 
     private static bool IsDpsRole(string role) =>
         role.Length > 0

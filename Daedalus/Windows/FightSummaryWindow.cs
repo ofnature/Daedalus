@@ -25,22 +25,23 @@ public sealed class FightSummaryWindow : Window, IDisposable
     private float _delayRemaining;
     private bool _waitingForDelay;
 
-    // Stat colors
-    private static readonly Vector4 GcdUptimeColor = new(0.13f, 0.77f, 0.37f, 1f);
-    private static readonly Vector4 PercentileColor = new(0.96f, 0.62f, 0.04f, 1f);
+    // Theme sweep: status/accent from the shared identity (EstDps keeps a distinct data-viz
+    // hue — it is a metric, not a status, and must not collide with the uptime green).
+    private static readonly Vector4 GcdUptimeColor = Common.DaedalusTheme.StatusGreen;
+    private static readonly Vector4 PercentileColor = Common.DaedalusTheme.AccentGold;
     private static readonly Vector4 EstDpsColor = new(0.38f, 0.65f, 0.98f, 1f);
 
-    // Grade colors
-    private static readonly Vector4 GradeS = new(1.0f, 0.84f, 0.0f, 1f);
-    private static readonly Vector4 GradeA = new(0.13f, 0.77f, 0.37f, 1f);
-    private static readonly Vector4 GradeB = new(0.98f, 0.75f, 0.14f, 1f);
-    private static readonly Vector4 GradeC = new(0.96f, 0.62f, 0.04f, 1f);
-    private static readonly Vector4 GradeD = new(0.97f, 0.44f, 0.44f, 1f);
+    // Grade colors: S = the gold accent (the identity's one flourish), A→D = status ramp.
+    private static readonly Vector4 GradeS = Common.DaedalusTheme.AccentGold;
+    private static readonly Vector4 GradeA = Common.DaedalusTheme.StatusGreen;
+    private static readonly Vector4 GradeB = Common.DaedalusTheme.StatusYellow;
+    private static readonly Vector4 GradeC = Common.DaedalusTheme.AccentDim;
+    private static readonly Vector4 GradeD = Common.DaedalusTheme.StatusRed;
 
     // Callout severity colors
-    private static readonly Vector4 CriticalColor = new(0.97f, 0.44f, 0.44f, 1f);
-    private static readonly Vector4 WarningColor = new(0.98f, 0.75f, 0.14f, 1f);
-    private static readonly Vector4 GoodColor = new(0.53f, 0.94f, 0.67f, 1f);
+    private static readonly Vector4 CriticalColor = Common.DaedalusTheme.StatusRed;
+    private static readonly Vector4 WarningColor = Common.DaedalusTheme.StatusYellow;
+    private static readonly Vector4 GoodColor = Common.DaedalusTheme.StatusGreen;
 
     public FightSummaryWindow(
         IFightSummaryService service,

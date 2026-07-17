@@ -13,6 +13,23 @@ All notable changes to Daedalus will be documented in this file.
 ### Fix — Nav Control: BMR AI on/off is now tracked
 - The Nav Control panel showed the preset and config-push status but had no idea whether BMR AI mode itself was running — you could stare at all-green lines with /bmrai off (or wonder why it says nothing when it's on). BossMod exposes no query for this, so Daedalus now reads BMR's own "AI: On/Off" server-info-bar entry: the panel shows **BMR AI mode: ON** in green, a red "nothing moves until /bmrai on" when it's off, and an honest "unknown — enable Show DTR in BMR's AI settings" when the status-bar entry is hidden
 
+### New — Blue Mage: fleet Final Sting (v3.4 — the Coil finisher)
+- **The Party Coordination window gains a FLEET STING button** (Ctrl-gated — it kills the stingers): plans how many toons need to sting from the boss's live HP and your Final Sting Calculator calibration (over-provisioned by a configurable safety factor; an uncalibrated fleet sends everyone), broadcasts the order, and shows you exactly who stings in what sequence before you press it
+- **Staggered, not simultaneous**: stingers execute 3 seconds apart in a deterministic order, each one re-checks the boss first, and the moment the boss dies every later slot aborts and resumes its rotation — no wasted corpses. If a queued stinger dies, the order shifts up automatically
+- **Safety rules**: participation is a per-toon opt-in ("Join fleet Final Sting orders", default OFF), the tank-role toon never stings, and one healer-mimic is always held back so Angel Whisper can raise the fallen. **Auto-trigger** in Coil T5 (25%) and T9 (15%) when opted in; T13 is manual-only (phase-dependent)
+- **Fleet mimicry buttons** in the same window: Mimic Tank / DPS / Healer / Remove — one press, every BLU box applies it to itself
+
+### New — Blue Mage: co-op freeze→shatter (v3.6)
+- With 2+ BLU on the bus, exactly ONE toon freezes (simultaneous Ram's Voices are wasted GCDs and Deep Freeze re-application builds resistance) and exactly ONE shatters — everyone else holds damage while a fresh freeze is on the pack, so nobody breaks it early. No shatter-capable toon in the fleet = nobody freezes at all
+- The hold is time-bounded: if the shatter hasn't come within 5 seconds (owner's Ultravibration on cooldown, owner died), the fleet resumes damage instead of idling out the full 12-second freeze. A dead freeze-lead or shatter-owner re-elects within a second
+
+### New — Countdown-synced pre-pull tinctures (LAN Phase 2)
+- **Start an in-game countdown and every toon pots itself before the pull**: casters and healers at T-2s, everyone else at T-1.2s — one pot per countdown, cancelled countdowns never pot. Works fleet-wide: partied toons read the countdown directly; unpartied fleet members get the shared T0 over the LAN (with a clock-sanity guard)
+- **Tinctures now work outside high-end content (opt-in)**: the auto-pot system silently required a savage/extreme/ultimate zone — in Coil clears, dungeons, and farm runs it never fired and never said why. A new Consumables toggle ("Allow outside high-end content") opens it up; the burst-window and pull-intent triggers are unchanged. This was the answer to "I have use-tincture on but never saw it pot"
+
+### Polish — UI theme sweep
+- The remaining windows moved onto the Daedalus gold/dark identity: Nav Control, Control, Missing, Training, Fight Summary, and the Action Feed now use the shared status palette (no more per-window greens and reds), section headers got the gold treatment, and fight grades run gold-S through red-D
+
 <!-- LATEST-END -->
 ## v0.1.20 — 2026-07-16
 

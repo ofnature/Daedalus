@@ -122,6 +122,15 @@ public sealed class CoordinationBus : IDisposable
     /// never arrive — the receive loop filters our SenderId). Args: sender, channel, opaque json.</summary>
     public event System.Action<string /*sender*/, string /*channel*/, string /*json*/>? OnPluginRelay;
 
+    /// <summary>Fleet Final Sting order received (v3.4). The broadcaster arms itself directly.</summary>
+    public event System.Action<LanExecuteStingPayload>? OnExecuteSting;
+
+    /// <summary>Fleet BLU mimicry command received (mimic role / remove).</summary>
+    public event System.Action<LanBluMimicryPayload>? OnBluMimicry;
+
+    /// <summary>Countdown T0 mirror received (Phase 2). T0Ticks=0 = countdown cancelled.</summary>
+    public event System.Action<LanCountdownPayload>? OnCountdownStart;
+
     public CoordinationBus(
         IPluginLog log,
         LanCoordinator lan,
@@ -425,6 +434,24 @@ public sealed class CoordinationBus : IDisposable
                 if (relay is { Channel.Length: > 0 })
                     OnPluginRelay?.Invoke(msg.SenderId, relay.Channel, relay.Data);
                 break;
+
+            case LanMessageType.ExecuteSting:
+                var sting = LanExecuteStingPayload.FromJson(msg.Payload);
+                if (sting is { TargetId: > 0, Stingers.Length: > 0 })
+                    OnExecuteSting?.Invoke(sting);
+                break;
+
+            case LanMessageType.BluMimicry:
+                var mimicry = LanBluMimicryPayload.FromJson(msg.Payload);
+                if (mimicry != null)
+                    OnBluMimicry?.Invoke(mimicry);
+                break;
+
+            case LanMessageType.CountdownStart:
+                var countdown = LanCountdownPayload.FromJson(msg.Payload);
+                if (countdown != null)
+                    OnCountdownStart?.Invoke(countdown);
+                break;
         }
     }
 
@@ -593,6 +620,37 @@ public sealed class CoordinationBus : IDisposable
             Type = LanMessageType.PluginRelay,
             Payload = new LanPluginRelayPayload { Channel = channel, Data = json ?? "" }.ToJson(),
         });
+    }
+
+    /// <summary>
+    /// Broadcast the fleet Final Sting order (×3 repeat with one shared Timestamp — the dedup
+    /// ring makes copies idempotent; a one-shot critical message must survive a dropped datagram)
+    /// and raise it locally (our own frames are filtered on loopback).
+    /// </summary>
+    public void BroadcastExecuteSting(LanExecuteStingPayload payload)
+    {
+        OnExecuteSting?.Invoke(payload);
+        var ts = DateTime.UtcNow.Ticks;
+        for (var i = 0; i < 3; i++)
+            _lan.Send(new LanMessage { Type = LanMessageType.ExecuteSting, Payload = payload.ToJson(), Timestamp = ts });
+    }
+
+    /// <summary>Broadcast a fleet BLU mimicry command (×3, dedup) and apply locally.</summary>
+    public void BroadcastBluMimicry(LanBluMimicryPayload payload)
+    {
+        OnBluMimicry?.Invoke(payload);
+        var ts = DateTime.UtcNow.Ticks;
+        for (var i = 0; i < 3; i++)
+            _lan.Send(new LanMessage { Type = LanMessageType.BluMimicry, Payload = payload.ToJson(), Timestamp = ts });
+    }
+
+    /// <summary>Broadcast the pull T0 (×3, dedup). Local consumers read the countdown agent
+    /// directly — this mirror is for fleet toons outside the party.</summary>
+    public void BroadcastCountdownStart(LanCountdownPayload payload)
+    {
+        var ts = DateTime.UtcNow.Ticks;
+        for (var i = 0; i < 3; i++)
+            _lan.Send(new LanMessage { Type = LanMessageType.CountdownStart, Payload = payload.ToJson(), Timestamp = ts });
     }
 
     /// <summary>

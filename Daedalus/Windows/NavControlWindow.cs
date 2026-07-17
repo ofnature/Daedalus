@@ -38,8 +38,7 @@ public sealed class NavControlWindow : Window
     {
         var nav = configuration.Nav;
 
-        ImGui.TextDisabled("Max Melee Positioning");
-        ImGui.Separator();
+        Common.DaedalusTheme.GoldHeader("Max Melee Positioning");
 
         nav.VNavFlex = ConfigUIHelpers.FloatSlider(
             "vNav Flex (yalms)",
@@ -101,8 +100,7 @@ public sealed class NavControlWindow : Window
         }
 
         ImGui.Spacing();
-        ImGui.TextDisabled("Movement Cadence");
-        ImGui.Separator();
+        Common.DaedalusTheme.GoldHeader("Movement Cadence");
 
         var yield = nav.YieldToBmrMovement;
         if (ConfigUIHelpers.ToggleCheckbox(
@@ -121,8 +119,7 @@ public sealed class NavControlWindow : Window
         DrawArbiterStatus();
 
         ImGui.Spacing();
-        ImGui.TextDisabled("Auto-Manage BossMod AI (groups — experimental)");
-        ImGui.Separator();
+        Common.DaedalusTheme.GoldHeader("Auto-Manage BossMod AI (groups — experimental)");
 
         var autoBmr = nav.AutoManageBmrAi;
         if (ConfigUIHelpers.ToggleCheckbox(
@@ -153,8 +150,7 @@ public sealed class NavControlWindow : Window
         }
 
         ImGui.Spacing();
-        ImGui.TextDisabled("Tank (experimental)");
-        ImGui.Separator();
+        Common.DaedalusTheme.GoldHeader("Tank (experimental)");
 
         var addPull = nav.AddPull;
         if (ConfigUIHelpers.ToggleCheckbox(
@@ -178,9 +174,10 @@ public sealed class NavControlWindow : Window
         }
     }
 
-    private static readonly Vector4 Green = new(0.40f, 0.85f, 0.40f, 1f);
-    private static readonly Vector4 Yellow = new(0.95f, 0.80f, 0.30f, 1f);
-    private static readonly Vector4 Red = new(0.90f, 0.45f, 0.45f, 1f);
+    // Theme sweep: status colors from the shared identity, never ad-hoc.
+    private static readonly Vector4 Green = Common.DaedalusTheme.StatusGreen;
+    private static readonly Vector4 Yellow = Common.DaedalusTheme.StatusYellow;
+    private static readonly Vector4 Red = Common.DaedalusTheme.StatusRed;
 
     /// <summary>
     /// Live diagnostics for the BMR push — without this it's a black box, since BMR can't be exercised in

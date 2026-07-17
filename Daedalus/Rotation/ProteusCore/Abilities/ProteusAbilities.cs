@@ -55,6 +55,8 @@ public static class ProteusAbilities
 
     // --- Execute ---
     public static readonly AbilityBehavior FinalSting = new() { Action = BLUActions.FinalSting, Toggle = cfg => cfg.BlueMage.EnableFinalSting };
+    /// <summary>The same cast under the FLEET opt-in (v3.4 orders) — separate from the Solo execute toggle.</summary>
+    public static readonly AbilityBehavior FleetFinalSting = new() { Action = BLUActions.FinalSting, Toggle = cfg => cfg.BlueMage.EnableFleetSting };
 
     // --- Self buffs ---
     public static readonly AbilityBehavior BasicInstinct = new() { Action = BLUActions.BasicInstinct, Toggle = cfg => cfg.BlueMage.EnableBasicInstinct };

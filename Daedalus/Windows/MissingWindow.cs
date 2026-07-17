@@ -19,10 +19,11 @@ namespace Daedalus.Windows;
 /// </summary>
 public sealed class MissingWindow : Window
 {
-    private static readonly Vector4 _red = new(1.0f, 0.4f, 0.4f, 1.0f);
-    private static readonly Vector4 _green = new(0.4f, 1.0f, 0.4f, 1.0f);
-    private static readonly Vector4 _yellow = new(1.0f, 0.85f, 0.3f, 1.0f);
-    private static readonly Vector4 _dim = new(0.6f, 0.6f, 0.6f, 1.0f);
+    // Theme sweep: status colors from the shared identity, never ad-hoc.
+    private static readonly Vector4 _red = Common.DaedalusTheme.StatusRed;
+    private static readonly Vector4 _green = Common.DaedalusTheme.StatusGreen;
+    private static readonly Vector4 _yellow = Common.DaedalusTheme.StatusYellow;
+    private static readonly Vector4 _dim = Common.DaedalusTheme.TextSecondary;
 
     private readonly DebugService debugService;
     private readonly IBluLoadoutService? bluLoadoutService;
