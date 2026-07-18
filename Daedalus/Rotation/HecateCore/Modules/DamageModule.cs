@@ -566,21 +566,33 @@ public sealed class DamageModule : IHecateModule
             return;
         }
 
-        // Low level: Fire I
+        // Low level: Fire I — but ONLY while MP lasts. RSR parity: keep firing while
+        // CurrentMp >= live fire cost + 800; Astral Fire doubles fire costs, so the static
+        // floor is MpCost×2+800 (=2400). The old branch pushed Fire UNCONDITIONALLY and
+        // returned, making the ice transition below unreachable under Lv60 — a sub-30 BLM
+        // burned MP dry on Fire and never cast Blizzard at all (field report 2026-07-17).
         if (level < BLMActions.Fire4.MinLevel)
         {
-            var castTime = context.HasInstantCast ? 0f : BLMActions.Fire.CastTime;
-            if (MechanicCastGate.ShouldBlock(context, castTime))
+            if (context.CurrentMp >= BLMActions.Fire.MpCost * 2 + 800)
             {
-                context.Debug.DamageState = MechanicCastGate.FormatBlockedState(context);
+                var castTime = context.HasInstantCast ? 0f : BLMActions.Fire.CastTime;
+                if (MechanicCastGate.ShouldBlock(context, castTime))
+                {
+                    context.Debug.DamageState = MechanicCastGate.FormatBlockedState(context);
+                    return;
+                }
+                scheduler.PushGcd(HecateAbilities.Fire, target.GameObjectId, priority: 6,
+                    onDispatched: _ =>
+                    {
+                        context.Debug.PlannedAction = BLMActions.Fire.Name;
+                        context.Debug.DamageState = "Fire (low level)";
+                    });
                 return;
             }
-            scheduler.PushGcd(HecateAbilities.Fire, target.GameObjectId, priority: 6,
-                onDispatched: _ =>
-                {
-                    context.Debug.PlannedAction = BLMActions.Fire.Name;
-                    context.Debug.DamageState = "Fire (low level)";
-                });
+
+            // MP exhausted — Blizzard into Umbral Ice (free: opposing-element casts cost no
+            // MP in Astral Fire), then the ice phase refills and swings back.
+            TryPushIceTransition(context, scheduler, target);
             return;
         }
 
