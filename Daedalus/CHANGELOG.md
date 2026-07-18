@@ -13,6 +13,7 @@ All notable changes to Daedalus will be documented in this file.
 
 ### Fix — Black Mage: sub-60 leveling actually casts Blizzard
 - A low-level Black Mage (anything under Fire IV at 60 — including the whole sub-30 Thaumaturge band) spammed Fire until its MP ran dry and then just stood there: the low-level branch never checked MP and the ice transition was unreachable, so Blizzard never cast. Now it fires while MP lasts (RSR-matched floor: doubled Astral Fire cost + buffer) and Blizzards into Umbral Ice to refill, exactly like the high-level loop
+- **Transpose wired into the low-level loop**: leaving ice by hardcasting Fire only REMOVES Umbral Ice without granting Astral Fire — a dead cast and wasted MP. Below Fire III the ice→fire swap is now an instant Transpose weave (falling back to the hardcast only while Transpose's 5s recast is rolling); Fire III transitions at 35+ are untouched
 
 ### Fix — Blue Mage: manual mimicry actually casts with Auto Mimicry off
 - A manual/fleet mimicry request with the Auto Mimicry toggle OFF found its target (another BLU works fine as a DPS source) but never cast — the dispatcher was re-checking the AUTO toggle and silently rejecting the cast, then the 4-second retry window blacklisted the innocent target. Manual requests now ride a toggle-free path, as the window always promised

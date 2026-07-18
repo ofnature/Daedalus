@@ -868,6 +868,26 @@ public sealed class DamageModule : IHecateModule
         var fireTransition = context.Configuration.BlackMage.UseFireIIITransition
             ? BLMActions.GetFireTransition(level, context.ActionService)
             : BLMActions.Fire;
+
+        // Transpose path (low level): when the transition would be a plain FIRE hardcast
+        // (sub-35 / Fire III unlearned or toggled off), that cast only REMOVES Umbral Ice
+        // without granting Astral Fire — a dead GCD plus MP for nothing. Transpose swaps
+        // UI→AF1 instantly instead; it weaves into the refill Blizzard's cast tail, and the
+        // fire phase Fire-spams from AF1 next frame. Fire III transitions are untouched
+        // (F3 from UI3 grants AF3 directly — strictly better than Transpose there).
+        if (fireTransition != BLMActions.Fire3
+            && level >= BLMActions.Transpose.MinLevel
+            && context.ActionService.IsActionReady(BLMActions.Transpose.ActionId))
+        {
+            scheduler.PushOgcd(HecateAbilities.Transpose, context.Player.GameObjectId, priority: 1,
+                onDispatched: _ =>
+                {
+                    context.Debug.PlannedAction = BLMActions.Transpose.Name;
+                    context.Debug.DamageState = "Transpose (Ice → Fire, instant)";
+                });
+            return; // no GCD this frame — the swap lands and the fire phase takes over
+        }
+
         var ability = fireTransition == BLMActions.Fire3 ? HecateAbilities.Fire3 : HecateAbilities.Fire;
         var castTime = context.HasInstantCast ? 0f : fireTransition.CastTime;
         if (MechanicCastGate.ShouldBlock(context, castTime))

@@ -68,9 +68,47 @@ public class DamageModuleLowLevelFireTests
         Assert.NotEmpty(scheduler.InspectGcdQueue());
     }
 
+    // ── Transpose path: ice → fire at low level (2026-07-18) ────────────────
+    // A plain Fire hardcast from Umbral Ice only REMOVES the ice stacks (no Astral Fire) —
+    // dead GCD + MP. Sub-Fire III the transition is an instant Transpose weave instead;
+    // Fire III transitions (UI3 → AF3) are untouched.
+
+    [Fact]
+    public void LowLevelIceExit_UsesTranspose_NotFireHardcast()
+    {
+        var (context, scheduler) = Setup(level: 25, currentMp: 10000, inIce: true);
+
+        _module.CollectCandidates(context, scheduler, isMoving: false);
+
+        Assert.Contains(scheduler.InspectOgcdQueue(), c => c.Behavior == HecateAbilities.Transpose);
+        Assert.DoesNotContain(scheduler.InspectGcdQueue(), c => c.Behavior == HecateAbilities.Fire);
+    }
+
+    [Fact]
+    public void LowLevelIceExit_TransposeOnCooldown_FallsBackToFireHardcast()
+    {
+        var (context, scheduler) = Setup(level: 25, currentMp: 10000, inIce: true, transposeReady: false);
+
+        _module.CollectCandidates(context, scheduler, isMoving: false);
+
+        Assert.DoesNotContain(scheduler.InspectOgcdQueue(), c => c.Behavior == HecateAbilities.Transpose);
+        Assert.Contains(scheduler.InspectGcdQueue(), c => c.Behavior == HecateAbilities.Fire);
+    }
+
+    [Fact]
+    public void FireIiiLevel_IceExit_KeepsFire3Transition()
+    {
+        var (context, scheduler) = Setup(level: 40, currentMp: 10000, inIce: true, fire3Learned: true);
+
+        _module.CollectCandidates(context, scheduler, isMoving: false);
+
+        Assert.Contains(scheduler.InspectGcdQueue(), c => c.Behavior == HecateAbilities.Fire3);
+        Assert.DoesNotContain(scheduler.InspectOgcdQueue(), c => c.Behavior == HecateAbilities.Transpose);
+    }
+
     private static (Daedalus.Rotation.HecateCore.Context.IHecateContext context,
         Daedalus.Rotation.Common.Scheduling.RotationScheduler scheduler) Setup(
-        byte level, int currentMp)
+        byte level, int currentMp, bool inIce = false, bool transposeReady = true, bool fire3Learned = false)
     {
         var enemy = new Mock<IBattleNpc>();
         enemy.Setup(x => x.GameObjectId).Returns(99999UL);
@@ -84,15 +122,20 @@ public class DamageModuleLowLevelFireTests
 
         var actionService = MockBuilders.CreateMockActionService();
         actionService.Setup(x => x.IsActionReady(It.IsAny<uint>())).Returns(true);
+        actionService.Setup(x => x.IsActionReady(Daedalus.Data.BLMActions.Transpose.ActionId))
+            .Returns(transposeReady);
+        actionService.Setup(x => x.IsActionLearned(It.IsAny<uint>())).Returns(fire3Learned);
 
         var scheduler = SchedulerFactory.CreateForTest(actionService: actionService);
         var context = HecateTestContext.Create(
             actionService: actionService,
             targetingService: targeting,
             level: level,
-            inAstralFire: true,
-            astralFireStacks: 1,
-            elementStacks: 1,
+            inAstralFire: !inIce,
+            astralFireStacks: inIce ? 0 : 1,
+            inUmbralIce: inIce,
+            umbralIceStacks: inIce ? 3 : 0,
+            elementStacks: inIce ? 3 : 1,
             elementTimer: 12f,
             currentMp: currentMp,
             mpPercent: currentMp / 10000f,
