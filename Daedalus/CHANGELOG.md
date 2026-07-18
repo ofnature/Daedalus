@@ -3,15 +3,17 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
-## v0.1.25 — 2026-07-18
+## v0.1.26 — 2026-07-18
 
 ### Fix — Monk/Pugilist: engages with automation drivers, positional hold removed
 - A Pugilist on the Henchman bridge stood at its hunt mark doing nothing: beyond melee the module had no candidate for a PASSIVE mark (the engaged-enemy scan can't see it, and sub-15 there's no ranged tool or Meditation), and in melee an old positional rule could hold the opener with "Moving to rear" forever. The opener now stays queued on the automation hard target (it fires the instant you're walked into reach) — and the positional hold is gone entirely: **Dawntrail removed every Monk positional**, so nothing is lost and True North/positional settings no longer gate Monk GCDs
 
+<!-- LATEST-END -->
+## v0.1.25 — 2026-07-18
+
 ### Fix — Black Mage: low-level ice phase now exits at full MP
 - Round three from live testing: fire→ice via Transpose worked, but the ice phase then chain-cast Blizzard forever at full MP. Cause: the phase insisted on building to Umbral Ice III before anything else — and at low level Blizzard I only ever REFRESHES Umbral Ice I, so the exit could never be reached. The full-MP exit now comes first: MP restored = Transpose back to fire (sub-35) or Fire III as before at 35+. The complete low-level loop is confirmed working through the fire side; this closes the ice side
 
-<!-- LATEST-END -->
 ## v0.1.24 — 2026-07-18
 
 ### Fix — Black Mage: low-level fire↔ice ping-pong
