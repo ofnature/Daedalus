@@ -75,6 +75,23 @@ public sealed class DamageModule : IZeusModule
 
         if (target == null)
         {
+            // Automation engage beyond melee (melee audit 2026-07-18, the MNK Henchman lesson):
+            // a PASSIVE hard-targeted mark is invisible to the engaged-enemy scans, so this
+            // branch pushed nothing and the driver waited forever. Keep the combo starter
+            // QUEUED at the override's hard target — the dispatch range-gate holds it until
+            // the driver walks us into reach, then the opener fires. Manual play unchanged.
+            if (context.Configuration.ExternalCombatOverride
+                && context.TargetingService.GetUserEnemyTarget() is { IsDead: false } engageTarget)
+            {
+                scheduler.PushGcd(ZeusAbilities.TrueThrust, engageTarget.GameObjectId, priority: 6,
+                    onDispatched: _ =>
+                    {
+                        context.Debug.PlannedAction = DRGActions.TrueThrust.Name;
+                        context.Debug.DamageState = "Opening on hard target (automation)";
+                    });
+                SetGateState(context, "Automation engage — closing to melee");
+                return;
+            }
             SetGateState(context, "No target");
             return;
         }
@@ -552,8 +569,10 @@ public sealed class DamageModule : IZeusModule
             && context.ActionService.IsActionReady(DRGActions.FangAndClaw.ActionId))
         {
             var positionalOk = context.IsAtFlank || context.HasTrueNorth || context.TargetHasPositionalImmunity;
-            if (PositionalRequirementHelper.ShouldApply(context.Debug.EngagedEnemies)
-                && context.Configuration.Dragoon.EnforcePositionals && !positionalOk && !context.Configuration.Dragoon.AllowPositionalLoss) return;
+            // GAME FACT (melee audit 2026-07-18, RSR-verified: DRG_Reborn has ZERO positional
+            // handling): Dawntrail removed EVERY Dragoon positional — the old enforce-hold here
+            // could stall the combo at step 4 (the MNK deadlock class). Never hold; the label
+            // below stays as flavor only.
             scheduler.PushGcd(ZeusAbilities.FangAndClaw, target.GameObjectId, priority: 2,
                 onDispatched: _ =>
                 {
@@ -589,8 +608,7 @@ public sealed class DamageModule : IZeusModule
             && context.ActionService.IsActionReady(DRGActions.WheelingThrust.ActionId))
         {
             var positionalOk = context.IsAtRear || context.HasTrueNorth || context.TargetHasPositionalImmunity;
-            if (PositionalRequirementHelper.ShouldApply(context.Debug.EngagedEnemies)
-                && context.Configuration.Dragoon.EnforcePositionals && !positionalOk && !context.Configuration.Dragoon.AllowPositionalLoss) return;
+            // Same as step 4a: Dawntrail DRG has no positionals — never hold the combo.
             scheduler.PushGcd(ZeusAbilities.WheelingThrust, target.GameObjectId, priority: 2,
                 onDispatched: _ =>
                 {

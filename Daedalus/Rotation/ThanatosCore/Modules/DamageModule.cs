@@ -65,6 +65,23 @@ public sealed class DamageModule : IThanatosModule
             player);
         if (target == null)
         {
+            // Automation engage beyond melee (melee audit 2026-07-18, the MNK Henchman lesson):
+            // a PASSIVE hard-targeted mark is invisible to the engaged-enemy scans, so this
+            // branch pushed nothing and the driver waited forever. Keep the combo starter
+            // QUEUED at the override's hard target — the dispatch range-gate holds it until
+            // the driver walks us into reach, then the opener fires. Manual play unchanged.
+            if (context.Configuration.ExternalCombatOverride
+                && context.TargetingService.GetUserEnemyTarget() is { IsDead: false } engageTarget)
+            {
+                scheduler.PushGcd(ThanatosAbilities.Slice, engageTarget.GameObjectId, priority: 6,
+                    onDispatched: _ =>
+                    {
+                        context.Debug.PlannedAction = RPRActions.Slice.Name;
+                        context.Debug.DamageState = "Opening on hard target (automation)";
+                    });
+                context.Debug.DamageState = "Automation engage — closing to melee";
+                return;
+            }
             context.Debug.DamageState = "No target";
             return;
         }
@@ -554,7 +571,12 @@ public sealed class DamageModule : IThanatosModule
             bool positionalOk = isGibbetPositional
                 ? (context.IsAtFlank || context.HasTrueNorth || context.TargetHasPositionalImmunity)
                 : (context.IsAtRear || context.HasTrueNorth || context.TargetHasPositionalImmunity);
-            if (context.Configuration.Reaper.EnforcePositionals && !positionalOk && !context.Configuration.Reaper.AllowPositionalLoss) return;
+            // Solo escape (melee audit 2026-07-18): the solo design disables positional MOVEMENT
+            // entirely, so an enforce-hold with nobody to move us would burn the time-limited
+            // Executioner stacks waiting forever (the MNK deadlock class). Hold only in a party,
+            // where the positional mover can actually act.
+            if (context.PartyList.Length > 0
+                && context.Configuration.Reaper.EnforcePositionals && !positionalOk && !context.Configuration.Reaper.AllowPositionalLoss) return;
         }
 
         var positional = useAoe ? "" : (action == RPRActions.ExecutionersGibbet ? " (flank)" : " (rear)");
@@ -632,7 +654,9 @@ public sealed class DamageModule : IThanatosModule
             bool positionalOk = isGibbetPositional
                 ? (context.IsAtFlank || context.HasTrueNorth || context.TargetHasPositionalImmunity)
                 : (context.IsAtRear || context.HasTrueNorth || context.TargetHasPositionalImmunity);
-            if (context.Configuration.Reaper.EnforcePositionals && !positionalOk && !context.Configuration.Reaper.AllowPositionalLoss) return;
+            // Same solo escape as the Executioner spender: never hold Soul Reaver stacks solo.
+            if (context.PartyList.Length > 0
+                && context.Configuration.Reaper.EnforcePositionals && !positionalOk && !context.Configuration.Reaper.AllowPositionalLoss) return;
         }
 
         var positional = useAoe ? "" : (action == RPRActions.Gibbet ? " (flank)" : " (rear)");

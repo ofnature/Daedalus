@@ -8,15 +8,15 @@
     "ApplicableVersion": "any",
     "CategoryTags": ["jobs"],
     "RepoUrl": "https://github.com/ofnature/Daedalus",
-    "AssemblyVersion": "0.1.26.0",
+    "AssemblyVersion": "0.1.27.0",
     "DalamudApiLevel": 15,
     "IconUrl": "https://raw.githubusercontent.com/ofnature/Daedalus/main/Daedalus/images/icon.png",
     "ImageUrls": [],
     "IsHide": false,
     "IsTestingExclusive": false,
-    "DownloadLinkInstall": "https://github.com/ofnature/Daedalus/releases/download/v0.1.26/latest.zip",
-    "DownloadLinkTesting": "https://github.com/ofnature/Daedalus/releases/download/v0.1.26/latest.zip",
-    "DownloadLinkUpdate": "https://github.com/ofnature/Daedalus/releases/download/v0.1.26/latest.zip"
+    "DownloadLinkInstall": "https://github.com/ofnature/Daedalus/releases/download/v0.1.27/latest.zip",
+    "DownloadLinkTesting": "https://github.com/ofnature/Daedalus/releases/download/v0.1.27/latest.zip",
+    "DownloadLinkUpdate": "https://github.com/ofnature/Daedalus/releases/download/v0.1.27/latest.zip"
   },
   {
     "Author": "ofnature",

@@ -3,12 +3,20 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.27 — 2026-07-18
+
+### Fix — All melee DPS: automation engagement + positional audit (the Monk lesson, generalized)
+- **Every melee job now opens on automation hunt marks**: SAM, NIN, DRG, RPR, and VPR had the same dead-end the Pugilist did — beyond melee range a passive hard-targeted mark produced "No target" and nothing was ever queued, leaving the driver waiting forever. All five now keep their combo starter queued on the mark and fire the instant they're walked into reach. Manual play is untouched
+- **Dead positional rules removed**: Dragoon's enforce-holds (all DRG positionals were removed in 7.0) and Viper's finisher hold (the Flanksting/Hindsting family lost its positionals in 7.05) could stall combos waiting for a position that no longer matters — both gone, verified against RSR's action data
+- **Reaper keeps its real positionals (Gibbet flank / Gallows rear) but never deadlocks solo**: enforcement now only holds in a party, where positional movement can actually act — solo play (where the mover is disabled by design) casts through instead of burning time-limited Soul Reaver stacks waiting for nobody
+- SAM and NIN came through the audit clean: real positionals, no holds, correct behavior
+
+<!-- LATEST-END -->
 ## v0.1.26 — 2026-07-18
 
 ### Fix — Monk/Pugilist: engages with automation drivers, positional hold removed
 - A Pugilist on the Henchman bridge stood at its hunt mark doing nothing: beyond melee the module had no candidate for a PASSIVE mark (the engaged-enemy scan can't see it, and sub-15 there's no ranged tool or Meditation), and in melee an old positional rule could hold the opener with "Moving to rear" forever. The opener now stays queued on the automation hard target (it fires the instant you're walked into reach) — and the positional hold is gone entirely: **Dawntrail removed every Monk positional**, so nothing is lost and True North/positional settings no longer gate Monk GCDs
 
-<!-- LATEST-END -->
 ## v0.1.25 — 2026-07-18
 
 ### Fix — Black Mage: low-level ice phase now exits at full MP

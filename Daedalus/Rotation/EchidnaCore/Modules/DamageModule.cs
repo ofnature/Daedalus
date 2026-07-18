@@ -67,6 +67,23 @@ public sealed class DamageModule : IEchidnaModule
             player);
         if (target == null)
         {
+            // Automation engage beyond melee (melee audit 2026-07-18, the MNK Henchman lesson):
+            // a PASSIVE hard-targeted mark is invisible to the engaged-enemy scans, so this
+            // branch pushed nothing and the driver waited forever. Keep the combo starter
+            // QUEUED at the override's hard target — the dispatch range-gate holds it until
+            // the driver walks us into reach, then the opener fires. Manual play unchanged.
+            if (context.Configuration.ExternalCombatOverride
+                && context.TargetingService.GetUserEnemyTarget() is { IsDead: false } engageTarget)
+            {
+                scheduler.PushGcd(EchidnaAbilities.SteelFangs, engageTarget.GameObjectId, priority: 6,
+                    onDispatched: _ =>
+                    {
+                        context.Debug.PlannedAction = VPRActions.SteelFangs.Name;
+                        context.Debug.DamageState = "Opening on hard target (automation)";
+                    });
+                context.Debug.DamageState = "Automation engage — closing to melee";
+                return;
+            }
             context.Debug.DamageState = "No target";
             return;
         }
@@ -713,16 +730,11 @@ public sealed class DamageModule : IEchidnaModule
         if (level < action.MinLevel) { action = VPRActions.SteelFangs; ability = EchidnaAbilities.SteelFangs; }
         if (!context.ActionService.IsActionReady(action.ActionId)) return;
 
-        if (isPositional
-            && PositionalRequirementHelper.ShouldApply(context.Debug.EngagedEnemies)
-            && context.Configuration.Viper.EnforcePositionals)
-        {
-            var isRearFinisher = action == VPRActions.HindstingStrike || action == VPRActions.HindsbaneFang;
-            bool positionalOk = isRearFinisher
-                ? (context.IsAtRear || context.HasTrueNorth || context.TargetHasPositionalImmunity)
-                : (context.IsAtFlank || context.HasTrueNorth || context.TargetHasPositionalImmunity);
-            if (!positionalOk && !context.Configuration.Viper.AllowPositionalLoss) return;
-        }
+        // GAME FACT (melee audit 2026-07-18, RSR-verified): patch 7.05 removed the positionals
+        // from the Flanksting/Flanksbane/Hindsting/Hindsbane finisher family — VPR's only
+        // remaining positionals are Hunter's/Swiftskin's Coil, which are order-CHOSEN, never
+        // held. The old enforce-hold here could stall the ST combo at the finisher (the MNK
+        // deadlock class). Never hold.
 
         var actionRef = action;
         var abilityRef = ability;

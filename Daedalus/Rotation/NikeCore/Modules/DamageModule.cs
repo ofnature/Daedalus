@@ -65,6 +65,23 @@ public sealed class DamageModule : INikeModule
             player);
         if (target == null)
         {
+            // Automation engage beyond melee (melee audit 2026-07-18, the MNK Henchman lesson):
+            // a PASSIVE hard-targeted mark is invisible to the engaged-enemy scans, so this
+            // branch pushed nothing and the driver waited forever. Keep the combo starter
+            // QUEUED at the override's hard target — the dispatch range-gate holds it until
+            // the driver walks us into reach, then the opener fires. Manual play unchanged.
+            if (context.Configuration.ExternalCombatOverride
+                && context.TargetingService.GetUserEnemyTarget() is { IsDead: false } engageTarget)
+            {
+                scheduler.PushGcd(NikeAbilities.Hakaze, engageTarget.GameObjectId, priority: 6,
+                    onDispatched: _ =>
+                    {
+                        context.Debug.PlannedAction = SAMActions.Hakaze.Name;
+                        context.Debug.DamageState = "Opening on hard target (automation)";
+                    });
+                context.Debug.DamageState = "Automation engage — closing to melee";
+                return;
+            }
             context.Debug.DamageState = "No target";
             return;
         }
