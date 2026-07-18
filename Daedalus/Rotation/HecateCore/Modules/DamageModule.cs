@@ -649,6 +649,29 @@ public sealed class DamageModule : IHecateModule
         var iceTransition = context.Configuration.BlackMage.UseBlizzardIIITransition
             ? BLMActions.GetIceTransition(level, context.ActionService)
             : BLMActions.Blizzard;
+
+        // GAME RULE (field 2026-07-18): plain Blizzard cast in ASTRAL FIRE only STRIPS the fire
+        // stacks — it does NOT grant Umbral Ice; only Blizzard III hard-swaps. Sub-35 the correct
+        // fire→ice swap is Transpose (AF→UI1, instant — it weaves in the last Fire's cast tail).
+        // Hardcasting Blizzard here caused the fire-ice-fire-ice ping-pong: strip to neutral →
+        // the start rotation opened with Fire again → strip → …, MP never recovering.
+        if (iceTransition != BLMActions.Blizzard3
+            && context.InAstralFire
+            && level >= BLMActions.Transpose.MinLevel
+            && context.ActionService.IsActionReady(BLMActions.Transpose.ActionId))
+        {
+            scheduler.PushOgcd(HecateAbilities.Transpose, context.Player.GameObjectId, priority: 1,
+                onDispatched: _ =>
+                {
+                    context.Debug.PlannedAction = BLMActions.Transpose.Name;
+                    context.Debug.DamageState = "Transpose (Fire → Ice, instant)";
+                });
+            return;
+        }
+        // Transpose on cooldown: the Blizzard below strips AF to neutral, and the start
+        // rotation's low-MP branch then opens ICE — the loop converges in two GCDs, never
+        // ping-pongs back into Fire.
+
         var ability = iceTransition == BLMActions.Blizzard3 ? HecateAbilities.Blizzard3 : HecateAbilities.Blizzard;
         var castTime = context.HasInstantCast ? 0f : iceTransition.CastTime;
         if (MechanicCastGate.ShouldBlock(context, castTime))
@@ -919,6 +942,30 @@ public sealed class DamageModule : IHecateModule
     {
         var level = context.Player.Level;
         context.Debug.Phase = "Starting";
+
+        // RSR AddElementBase parity: from NEUTRAL with low MP, open ICE — Umbral Ice is where
+        // MP comes back. Opening with Fire on an empty tank was the other half of the low-level
+        // ping-pong (Blizzard stripped AF to neutral → this method Fired again on dregs).
+        if (context.CurrentMp < 7200)
+        {
+            var iceStarter = context.Configuration.BlackMage.UseBlizzardIIITransition
+                ? BLMActions.GetIceTransition(level, context.ActionService)
+                : BLMActions.Blizzard;
+            var iceAbility = iceStarter == BLMActions.Blizzard3 ? HecateAbilities.Blizzard3 : HecateAbilities.Blizzard;
+            var iceCastTime = context.HasInstantCast ? 0f : iceStarter.CastTime;
+            if (MechanicCastGate.ShouldBlock(context, iceCastTime))
+            {
+                context.Debug.DamageState = MechanicCastGate.FormatBlockedState(context);
+                return;
+            }
+            scheduler.PushGcd(iceAbility, target.GameObjectId, priority: 6,
+                onDispatched: _ =>
+                {
+                    context.Debug.PlannedAction = iceStarter.Name;
+                    context.Debug.DamageState = "Start rotation (Ice — low MP)";
+                });
+            return;
+        }
 
         var fireStarter = context.Configuration.BlackMage.UseFireIIITransition
             ? BLMActions.GetFireTransition(level, context.ActionService)

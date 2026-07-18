@@ -3,12 +3,17 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.24 — 2026-07-18
+
+### Fix — Black Mage: low-level fire↔ice ping-pong
+- Round two from live testing: at low MP the toon alternated Fire-Ice-Fire-Ice forever. The game rule at fault: a plain Blizzard cast in Astral Fire only STRIPS the fire stacks — it does not grant Umbral Ice (only Blizzard III hard-swaps) — so the "transition" landed on neutral and the rotation opened with Fire again on a drained tank. Two fixes: the sub-35 fire→ice swap is now an instant Transpose (Blizzard-strip only as fallback while Transpose's recast rolls), and from neutral with under 7,200 MP the rotation now opens with ICE, never Fire. The loop is now: Fire ×N → Transpose → Blizzard refill ×N → Transpose → Fire ×N
+
+<!-- LATEST-END -->
 ## v0.1.23 — 2026-07-18
 
 ### New — Black Mage: Transpose in the low-level loop
 - Leaving Umbral Ice by hardcasting Fire only REMOVES the ice stacks without granting Astral Fire — a dead 2.5-second cast and wasted MP, then a second Fire to actually start the phase. Below Fire III the ice→fire swap is now an **instant Transpose weave** that rides the refill Blizzard's cast tail (zero added latency), with the hardcast kept as fallback only while Transpose's 5-second recast is rolling. Fire III transitions at 35+ are untouched. Completes the sub-60 loop from v0.1.22: Fire ×N → Blizzard (refill) → Transpose → Fire ×N
 
-<!-- LATEST-END -->
 ## v0.1.22 — 2026-07-17
 
 ### New — Blue Mage: fleet Final Sting (v3.4 — the Coil finisher)
@@ -35,7 +40,6 @@ All notable changes to Daedalus will be documented in this file.
 ### Polish — UI theme sweep
 - The remaining windows moved onto the Daedalus gold/dark identity: Nav Control, Control, Missing, Training, Fight Summary, and the Action Feed now use the shared status palette (no more per-window greens and reds), section headers got the gold treatment, and fight grades run gold-S through red-D
 
-<!-- LATEST-END -->
 ## v0.1.21 — 2026-07-16
 
 ### New — Blue Mage: manually-cast Missiles now teach the Death Ledger

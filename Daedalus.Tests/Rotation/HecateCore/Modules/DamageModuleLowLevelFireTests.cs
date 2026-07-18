@@ -33,16 +33,55 @@ public class DamageModuleLowLevelFireTests
     }
 
     [Fact]
-    public void LowLevelFirePhase_MpExhausted_TransitionsToBlizzard()
+    public void LowLevelFirePhase_MpExhausted_TransposesToIce()
     {
-        // The exact field failure: sub-30, MP below the doubled-cost floor → Blizzard, not
-        // another (refused) Fire.
+        // Field round 2 (2026-07-18): plain Blizzard cast in ASTRAL FIRE only STRIPS the fire
+        // stacks (no Umbral Ice granted — only B3 hard-swaps), which ping-ponged the loop
+        // fire-ice-fire-ice. The correct sub-35 swap is an instant Transpose.
         var (context, scheduler) = Setup(level: 25, currentMp: 2000);
+
+        _module.CollectCandidates(context, scheduler, isMoving: false);
+
+        Assert.Contains(scheduler.InspectOgcdQueue(), c => c.Behavior == HecateAbilities.Transpose);
+        Assert.DoesNotContain(scheduler.InspectGcdQueue(), c => c.Behavior == HecateAbilities.Fire);
+        Assert.DoesNotContain(scheduler.InspectGcdQueue(), c => c.Behavior == HecateAbilities.Blizzard);
+    }
+
+    [Fact]
+    public void LowLevelFirePhase_MpExhausted_TransposeDown_FallsBackToBlizzardStrip()
+    {
+        // Transpose rolling: Blizzard strips AF to neutral, and the start rotation's low-MP
+        // branch (below) then opens ICE — two GCDs to converge, never a Fire relapse.
+        var (context, scheduler) = Setup(level: 25, currentMp: 2000, transposeReady: false);
 
         _module.CollectCandidates(context, scheduler, isMoving: false);
 
         Assert.Contains(scheduler.InspectGcdQueue(), c => c.Behavior == HecateAbilities.Blizzard);
         Assert.DoesNotContain(scheduler.InspectGcdQueue(), c => c.Behavior == HecateAbilities.Fire);
+    }
+
+    [Fact]
+    public void StartRotation_Neutral_LowMp_OpensWithIce_NotFire()
+    {
+        // The other half of the ping-pong: from neutral on a drained tank the start rotation
+        // used to Fire again. RSR AddElementBase parity: MP < 7200 opens ICE.
+        var (context, scheduler) = Setup(level: 25, currentMp: 2000, neutral: true);
+
+        _module.CollectCandidates(context, scheduler, isMoving: false);
+
+        Assert.Contains(scheduler.InspectGcdQueue(), c => c.Behavior == HecateAbilities.Blizzard);
+        Assert.DoesNotContain(scheduler.InspectGcdQueue(), c => c.Behavior == HecateAbilities.Fire);
+    }
+
+    [Fact]
+    public void StartRotation_Neutral_FullMp_StillOpensWithFire()
+    {
+        var (context, scheduler) = Setup(level: 25, currentMp: 10000, neutral: true);
+
+        _module.CollectCandidates(context, scheduler, isMoving: false);
+
+        Assert.Contains(scheduler.InspectGcdQueue(), c => c.Behavior == HecateAbilities.Fire);
+        Assert.DoesNotContain(scheduler.InspectGcdQueue(), c => c.Behavior == HecateAbilities.Blizzard);
     }
 
     [Fact]
@@ -57,15 +96,15 @@ public class DamageModuleLowLevelFireTests
     }
 
     [Fact]
-    public void LowLevelFirePhase_NeverLeavesGcdQueueEmpty()
+    public void LowLevelFirePhase_NeverLeavesAllQueuesEmpty()
     {
-        // The deadlock shape: an empty queue means the toon idles while the game refuses the
-        // unaffordable Fire — some ice cast must always be queued when MP runs out.
+        // The deadlock shape: nothing queued means the toon idles while the game refuses the
+        // unaffordable Fire — SOME transition (Transpose weave or Blizzard strip) must queue.
         var (context, scheduler) = Setup(level: 12, currentMp: 800);
 
         _module.CollectCandidates(context, scheduler, isMoving: false);
 
-        Assert.NotEmpty(scheduler.InspectGcdQueue());
+        Assert.True(scheduler.InspectGcdQueue().Count > 0 || scheduler.InspectOgcdQueue().Count > 0);
     }
 
     // ── Transpose path: ice → fire at low level (2026-07-18) ────────────────
@@ -108,7 +147,8 @@ public class DamageModuleLowLevelFireTests
 
     private static (Daedalus.Rotation.HecateCore.Context.IHecateContext context,
         Daedalus.Rotation.Common.Scheduling.RotationScheduler scheduler) Setup(
-        byte level, int currentMp, bool inIce = false, bool transposeReady = true, bool fire3Learned = false)
+        byte level, int currentMp, bool inIce = false, bool transposeReady = true, bool fire3Learned = false,
+        bool neutral = false)
     {
         var enemy = new Mock<IBattleNpc>();
         enemy.Setup(x => x.GameObjectId).Returns(99999UL);
@@ -131,11 +171,11 @@ public class DamageModuleLowLevelFireTests
             actionService: actionService,
             targetingService: targeting,
             level: level,
-            inAstralFire: !inIce,
-            astralFireStacks: inIce ? 0 : 1,
+            inAstralFire: !inIce && !neutral,
+            astralFireStacks: inIce || neutral ? 0 : 1,
             inUmbralIce: inIce,
             umbralIceStacks: inIce ? 3 : 0,
-            elementStacks: inIce ? 3 : 1,
+            elementStacks: neutral ? 0 : inIce ? 3 : 1,
             elementTimer: 12f,
             currentMp: currentMp,
             mpPercent: currentMp / 10000f,
