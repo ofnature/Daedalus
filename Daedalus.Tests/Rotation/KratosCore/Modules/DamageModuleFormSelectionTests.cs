@@ -167,6 +167,11 @@ public class DamageModuleFormSelectionTests
     [Fact]
     public void CollectCandidates_StrictEnforcedBlocksOffPositionCast()
     {
+        // CONTRACT REWRITE 2026-07-18: this test used to assert the hold ("Moving to flank",
+        // empty queue) — it enshrined a pre-7.0 rule. Dawntrail removed EVERY Monk positional
+        // (RSR carries zero positional metadata for MNK), and the hold deadlocked automation
+        // engagement on single front-approached targets. Strict enforcement must never block
+        // a Monk GCD anymore.
         var enemy = CreateMockEnemy();
         var targeting = MockBuilders.CreateMockTargetingService();
         targeting.Setup(x => x.FindEnemyForAction(
@@ -197,9 +202,8 @@ public class DamageModuleFormSelectionTests
         var scheduler = SchedulerFactory.CreateForTest(actionService: actionService, config: config);
         _module.CollectCandidates(context, scheduler, isMoving: false);
 
-        Assert.Empty(scheduler.InspectGcdQueue());
-        Assert.Contains("Moving to", debug.DamageState, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("flank", debug.DamageState, StringComparison.OrdinalIgnoreCase);
+        Assert.NotEmpty(scheduler.InspectGcdQueue());
+        Assert.DoesNotContain("Moving to", debug.DamageState, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

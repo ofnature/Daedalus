@@ -82,6 +82,26 @@ public sealed class DamageModule : IKratosModule
             player);
         if (target == null)
         {
+            // Automation engage beyond melee (Henchman/Questionable): the hard-targeted hunt
+            // mark is PASSIVE, so FindNearbyEnemy's engaged-or-hostile filter can't see it and
+            // this branch used to push NOTHING — a sub-15 Pugilist (no Thunderclap, no chakra,
+            // no Meditation) stood at range in dead silence while the driver waited for the
+            // kill. Keep the opener QUEUED at the hard target instead: the dispatch range-gate
+            // holds it until the driver walks us into reach, then the first Bootshine fires
+            // the moment it's legal (and the push drives facing/sticky recovery meanwhile).
+            if (context.Configuration.ExternalCombatOverride
+                && context.TargetingService.GetUserEnemyTarget() is { IsDead: false } engageTarget)
+            {
+                scheduler.PushGcd(KratosAbilities.Bootshine, engageTarget.GameObjectId, priority: 6,
+                    onDispatched: _ =>
+                    {
+                        context.Debug.PlannedAction = MNKActions.Bootshine.Name;
+                        context.Debug.DamageState = "Opening on hard target (automation)";
+                    });
+                context.Debug.DamageState = "Automation engage — closing to melee";
+                return;
+            }
+
             // Out of melee range — gap close, ranged Chakra spend, Meditation filler
             var farTarget = context.TargetingService.FindNearbyEnemy(25f, player);
             if (farTarget != null)
@@ -129,33 +149,21 @@ public sealed class DamageModule : IKratosModule
         TryPushRangedFiller(context, scheduler, target);
     }
 
+    /// <summary>
+    /// GAME FACT (RSR-verified 2026-07-18: MonkRotation.cs carries ZERO positional metadata):
+    /// Dawntrail 7.0 removed EVERY Monk positional — Bootshine/Dragon Kick/Snap Punch/Demolish
+    /// all hit full potency from anywhere. This gate was pre-7.0 residue, and with
+    /// EnforcePositionals on it DEADLOCKED engagement: a single non-immune target approached
+    /// from the front (the Henchman hunt-mark shape exactly) held the only GCD candidate with
+    /// "Moving to rear" forever — invisible in AutoDuty validation because packs (engaged &gt; 1)
+    /// and positional-immune bosses both bypassed it. Always allow the GCD.
+    /// </summary>
     private static bool ShouldSkipMnkPositional(
         IKratosContext context,
         bool correctPositional,
         string positionalName,
         ActionDefinition action)
-    {
-        if (correctPositional || context.HasTrueNorth || context.TargetHasPositionalImmunity)
-            return false;
-
-        if (!PositionalRequirementHelper.ShouldApply(context.Debug.EngagedEnemies))
-            return false;
-
-        if (!context.Configuration.Monk.EnforcePositionals
-            && context.ActionService.CanExecuteActionId(action.ActionId))
-            return false;
-
-        if (!context.Configuration.Monk.EnforcePositionals)
-            return false;
-
-        if (context.Configuration.Monk.AllowPositionalLoss)
-            return false;
-
-        var current = context.IsAtRear ? "rear" : context.IsAtFlank ? "flank" : "front";
-        context.Debug.PlannedAction = action.Name;
-        context.Debug.DamageState = $"Moving to {positionalName} (detected {current})";
-        return true;
-    }
+        => false;
 
     #region oGCDs
 
