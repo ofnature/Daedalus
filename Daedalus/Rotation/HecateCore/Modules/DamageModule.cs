@@ -704,6 +704,18 @@ public sealed class DamageModule : IHecateModule
         var level = context.Player.Level;
         context.Debug.Phase = "Ice";
 
+        // EXIT FIRST (field 2026-07-18, round 3): at low level Blizzard I only ever REFRESHES
+        // Umbral Ice I — it never builds to UI3 — so the build-to-UI3 branch below trapped the
+        // phase in a Blizzard chain-cast at full MP, and these exit checks were unreachable.
+        // MP full = the ice phase has done its job; TryPushFireTransition Transposes back
+        // (sub-35) or Fire III's (35+, where B3 delivered UI3 and this order never mattered).
+        if (context.CurrentMp >= FireTransitionMpThreshold
+            && (context.UmbralHearts >= 3 || level < BLMActions.Blizzard4.MinLevel))
+        {
+            TryPushFireTransition(context, scheduler, target);
+            return;
+        }
+
         // Build to UI3 if at lower stacks
         if (context.UmbralIceStacks < 3)
         {
@@ -811,16 +823,7 @@ public sealed class DamageModule : IHecateModule
             return;
         }
 
-        if (context.CurrentMp >= FireTransitionMpThreshold && context.UmbralHearts >= 3)
-        {
-            TryPushFireTransition(context, scheduler, target);
-            return;
-        }
-        if (context.CurrentMp >= FireTransitionMpThreshold && level < BLMActions.Blizzard4.MinLevel)
-        {
-            TryPushFireTransition(context, scheduler, target);
-            return;
-        }
+        // (The MP-full exits moved to the TOP of this method — see the round-3 note there.)
 
         if (useAoe && context.UmbralHearts < 3)
         {

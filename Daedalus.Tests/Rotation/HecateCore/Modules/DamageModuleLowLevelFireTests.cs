@@ -135,6 +135,32 @@ public class DamageModuleLowLevelFireTests
     }
 
     [Fact]
+    public void LowLevelIcePhase_FullMpAtUi1_ExitsViaTranspose_NoBlizzardChain()
+    {
+        // Field round 3: Blizzard I only REFRESHES Umbral Ice I (never builds to UI3), so the
+        // "build to UI3 first" branch chain-cast Blizzard forever at full MP — the exit checks
+        // sat unreachable below it. At full MP the phase must exit regardless of stacks.
+        var (context, scheduler) = Setup(level: 25, currentMp: 10000, inIce: true, iceStacks: 1);
+
+        _module.CollectCandidates(context, scheduler, isMoving: false);
+
+        Assert.Contains(scheduler.InspectOgcdQueue(), c => c.Behavior == HecateAbilities.Transpose);
+        Assert.DoesNotContain(scheduler.InspectGcdQueue(), c => c.Behavior == HecateAbilities.Blizzard);
+    }
+
+    [Fact]
+    public void LowLevelIcePhase_LowMpAtUi1_KeepsRefillingWithBlizzard()
+    {
+        // Control: below the exit threshold the ice phase still casts Blizzard (the refill).
+        var (context, scheduler) = Setup(level: 25, currentMp: 4000, inIce: true, iceStacks: 1);
+
+        _module.CollectCandidates(context, scheduler, isMoving: false);
+
+        Assert.Contains(scheduler.InspectGcdQueue(), c => c.Behavior == HecateAbilities.Blizzard);
+        Assert.DoesNotContain(scheduler.InspectOgcdQueue(), c => c.Behavior == HecateAbilities.Transpose);
+    }
+
+    [Fact]
     public void FireIiiLevel_IceExit_KeepsFire3Transition()
     {
         var (context, scheduler) = Setup(level: 40, currentMp: 10000, inIce: true, fire3Learned: true);
@@ -148,7 +174,7 @@ public class DamageModuleLowLevelFireTests
     private static (Daedalus.Rotation.HecateCore.Context.IHecateContext context,
         Daedalus.Rotation.Common.Scheduling.RotationScheduler scheduler) Setup(
         byte level, int currentMp, bool inIce = false, bool transposeReady = true, bool fire3Learned = false,
-        bool neutral = false)
+        bool neutral = false, int iceStacks = 3)
     {
         var enemy = new Mock<IBattleNpc>();
         enemy.Setup(x => x.GameObjectId).Returns(99999UL);
@@ -174,8 +200,8 @@ public class DamageModuleLowLevelFireTests
             inAstralFire: !inIce && !neutral,
             astralFireStacks: inIce || neutral ? 0 : 1,
             inUmbralIce: inIce,
-            umbralIceStacks: inIce ? 3 : 0,
-            elementStacks: neutral ? 0 : inIce ? 3 : 1,
+            umbralIceStacks: inIce ? iceStacks : 0,
+            elementStacks: neutral ? 0 : inIce ? iceStacks : 1,
             elementTimer: 12f,
             currentMp: currentMp,
             mpPercent: currentMp / 10000f,
