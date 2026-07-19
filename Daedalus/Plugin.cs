@@ -42,7 +42,7 @@ namespace Daedalus;
 
 public sealed class Plugin : IDalamudPlugin
 {
-    public const string PluginVersion = "0.1.30";
+    public const string PluginVersion = "0.1.31";
     private const string CommandName = "/daedalus";
     private const string CommandAlias = "/dae";
 
