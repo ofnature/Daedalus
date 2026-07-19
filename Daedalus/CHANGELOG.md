@@ -5,6 +5,9 @@ All notable changes to Daedalus will be documented in this file.
 <!-- LATEST-START -->
 ## v0.1.27 — 2026-07-18
 
+### Fix — Sage: Kardia works with two Sages in the party
+- With a second Sage in the group, your Sage saw the co-Sage's Kardion on the tank, decided its own was already placed, and never put its Kardia up at all — the tank should carry BOTH (each Sage's Kardion heals independently). With a co-Sage present every Kardion check is now source-aware (only YOUR buff counts) and the trust-NPC inference shortcut is disabled (it can't tell whose invisible buff it's guessing about). Solo and single-Sage behavior is completely unchanged
+
 ### Fix — All melee DPS: automation engagement + positional audit (the Monk lesson, generalized)
 - **Every melee job now opens on automation hunt marks**: SAM, NIN, DRG, RPR, and VPR had the same dead-end the Pugilist did — beyond melee range a passive hard-targeted mark produced "No target" and nothing was ever queued, leaving the driver waiting forever. All five now keep their combo starter queued on the mark and fire the instant they're walked into reach. Manual play is untouched
 - **Dead positional rules removed**: Dragoon's enforce-holds (all DRG positionals were removed in 7.0) and Viper's finisher hold (the Flanksting/Hindsting family lost its positionals in 7.05) could stall combos waiting for a position that no longer matters — both gone, verified against RSR's action data

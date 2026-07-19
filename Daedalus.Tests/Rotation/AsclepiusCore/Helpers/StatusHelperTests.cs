@@ -17,6 +17,19 @@ public class StatusHelperTests
     #region Status ID Constants Tests
 
     [Fact]
+    public void HasCoSage_SoloOrEmptyParty_False()
+    {
+        // Multi-Sage source-awareness (2026-07-18): the co-Sage flag flips every Kardion read
+        // to require OUR SourceId and disables inference. Solo/empty party must read false so
+        // single-Sage behavior (any-source + trust inference, field-validated) is untouched.
+        // The positive multi-Sage path is a live-validation item — party job resolution reads
+        // unmockable game structs (the documented Kardia test limitation).
+        var player = MockBuilders.CreateMockPlayerCharacter();
+        var partyList = MockBuilders.CreateMockPartyList(length: 0);
+        Assert.False(AsclepiusStatusHelper.HasCoSage(player.Object, partyList.Object));
+    }
+
+    [Fact]
     public void StatusIds_KardiaSystem_AreDistinct()
     {
         var ids = new uint[]

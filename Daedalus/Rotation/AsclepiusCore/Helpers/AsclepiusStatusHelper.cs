@@ -96,9 +96,31 @@ public sealed class AsclepiusStatusHelper : BaseStatusHelper
         HasStatusFromSource(target, SGEActions.KardionStatusId, sageEntityId);
 
     /// <summary>
+    /// Another SGE in the party (multi-Sage raid): every Kardion read must become SOURCE-AWARE —
+    /// the co-Sage's Kardion on the tank is NOT ours, and the tank should carry BOTH (each
+    /// Sage's Kardion is an independent heal stream). Without this, Sage B saw Sage A's buff,
+    /// concluded its own was placed, and never Kardia'd the tank at all (raid prep, 2026-07-18).
+    /// </summary>
+    public static bool HasCoSage(IPlayerCharacter player, IPartyList partyList)
+    {
+        if (partyList.Length == 0)
+            return false;
+        foreach (var member in partyList)
+        {
+            if (member?.GameObject is not IBattleChara chara || chara.EntityId == player.EntityId)
+                continue;
+            if (TrustPartyRoleHelper.ResolveJobId(chara, partyList) == JobRegistry.Sage)
+                return true;
+        }
+        return false;
+    }
+
+    /// <summary>
     /// True when the tank currently bears Kardion (2605). Primary pre-pull / placement signal.
     /// When <paramref name="knownBearerId"/> names a DIFFERENT ally (post smart-swap), inference is
-    /// contradicted by tracked state and only a direct status detection counts.
+    /// contradicted by tracked state and only a direct status detection counts. With a co-Sage in
+    /// the party only OUR OWN Kardion counts (source-aware scan), and inference is disabled — it
+    /// cannot attribute an invisible buff to a caster.
     /// </summary>
     public static bool TankHasKardion(
         IPlayerCharacter player,
@@ -110,11 +132,15 @@ public sealed class AsclepiusStatusHelper : BaseStatusHelper
         if (tank == null || tank.EntityId == player.EntityId)
             return false;
 
-        if (TryDetectKardionOn(tank, player, objectTable, partyList, out _))
+        var requireFromSage = HasCoSage(player, partyList);
+        if (TryScanKardion(tank, player, objectTable, partyList, requireFromSage, out _))
             return true;
 
         if (knownBearerId != 0)
             return knownBearerId == tank.GameObjectId;
+
+        if (requireFromSage)
+            return false;
 
         return InferKardionOnTank(player, tank, objectTable, partyList);
     }
@@ -136,6 +162,10 @@ public sealed class AsclepiusStatusHelper : BaseStatusHelper
     {
         bearerGameObjectId = 0;
 
+        // Multi-Sage: resolve the bearer of OUR Kardion only — any-source scans made Sage B
+        // adopt Sage A's tank placement as its own (see HasCoSage doc).
+        var requireFromSage = HasCoSage(player, partyList);
+
         if (partyList.Length > 0)
         {
             foreach (var member in partyList)
@@ -143,7 +173,7 @@ public sealed class AsclepiusStatusHelper : BaseStatusHelper
                 if (member?.GameObject is not IBattleChara chara || chara.EntityId == player.EntityId)
                     continue;
 
-                if (TryDetectKardionOn(chara, player, objectTable, partyList, out _))
+                if (TryScanKardion(chara, player, objectTable, partyList, requireFromSage, out _))
                 {
                     bearerGameObjectId = chara.GameObjectId;
                     return true;
@@ -153,7 +183,7 @@ public sealed class AsclepiusStatusHelper : BaseStatusHelper
 
         if (preferredAlly != null
             && preferredAlly.EntityId != player.EntityId
-            && TryDetectKardionOn(preferredAlly, player, objectTable, partyList, out _))
+            && TryScanKardion(preferredAlly, player, objectTable, partyList, requireFromSage, out _))
         {
             bearerGameObjectId = preferredAlly.GameObjectId;
             return true;
@@ -164,7 +194,7 @@ public sealed class AsclepiusStatusHelper : BaseStatusHelper
             if (ally.EntityId == player.EntityId)
                 continue;
 
-            if (TryDetectKardionOn(ally, player, objectTable, partyList, out _))
+            if (TryScanKardion(ally, player, objectTable, partyList, requireFromSage, out _))
             {
                 bearerGameObjectId = ally.GameObjectId;
                 return true;
@@ -172,6 +202,7 @@ public sealed class AsclepiusStatusHelper : BaseStatusHelper
         }
 
         if (preferredAlly != null
+            && !requireFromSage
             && (knownBearerId == 0 || knownBearerId == preferredAlly.GameObjectId)
             && InferKardionOnTank(player, preferredAlly, objectTable, partyList))
         {
@@ -179,7 +210,7 @@ public sealed class AsclepiusStatusHelper : BaseStatusHelper
             return true;
         }
 
-        if (HasKardia(player))
+        if (HasKardia(player) && !requireFromSage)
         {
             foreach (var ally in allies)
             {
@@ -214,6 +245,11 @@ public sealed class AsclepiusStatusHelper : BaseStatusHelper
         IPartyList partyList)
     {
         if (!HasKardia(player))
+            return false;
+
+        // Defense in depth: inference can never attribute an invisible buff to a caster — with
+        // a co-Sage present, "somebody's Kardion is on the tank" proves nothing about OURS.
+        if (HasCoSage(player, partyList))
             return false;
 
         if (partyList.Length > 0)
