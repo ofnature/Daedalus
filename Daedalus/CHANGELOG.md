@@ -14,6 +14,7 @@ All notable changes to Daedalus will be documented in this file.
 - **Automatic burst readiness is per-party too**: a group fires when *its own* members are ready instead of waiting on every toon on the LAN — two parties burst independently
 - **Manual tank swap is party-scoped the same way**
 - Ungrouped toons (solo, or mid-zone-in) keep the old everyone behavior in both directions, so nothing breaks while parties are forming
+- **Burst readiness strip fixed and now per-party**: the "=" boxes were a lightning-bolt character the game font can't draw — pips now use real icons (gold bolt = ready, red circle = not ready, hover a pip for the toon's name). With two or more parties on the LAN the strip shows one readiness row per party (letter-matched to the roster's group dots), so each group's own count is visible at a glance
 
 <!-- LATEST-END -->
 ## v0.1.28 — 2026-07-19

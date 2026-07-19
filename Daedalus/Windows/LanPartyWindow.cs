@@ -54,6 +54,19 @@ public sealed class LanPartyWindow : Window, IDisposable
 
     // Party-group indicator: distinct color per in-game party, assigned first-seen (session-stable).
     private readonly Dictionary<ulong, int> _groupColorIndex = new();
+
+    /// <summary>Session-stable index for a party group id — drives both the roster dot color and
+    /// the burst strip's per-group letter, so the two always agree.</summary>
+    private int GetGroupIndex(ulong groupId)
+    {
+        if (!_groupColorIndex.TryGetValue(groupId, out var idx))
+        {
+            idx = _groupColorIndex.Count;
+            _groupColorIndex[groupId] = idx;
+        }
+
+        return idx;
+    }
     private static readonly Vector4[] GroupPalette =
     [
         new(0.85f, 0.65f, 0.20f, 1f), // gold
@@ -439,37 +452,97 @@ public sealed class LanPartyWindow : Window, IDisposable
         roster.Any(p => !p.IsStale(now) && p.Role == "Tank" && p.SenderId != _bus.OffTankSenderId);
 
     /// <summary>
-    /// Bordered burst strip (mock parity): readiness count + per-toon pips + a gold Force button.
-    /// Shown whenever there is a roster; flips to a BURST OPEN banner while the window is live.
+    /// Bordered burst strip (mock parity): per-PARTY readiness rows (matching the wire's group
+    /// scoping) + per-toon pips + a gold Force button. Pips go through the icon font — the game
+    /// font lacks ⚡ and renders it as "=" boxes: gold bolt = ready, red circle = not ready.
+    /// Flips to a BURST OPEN banner while the window is live.
     /// </summary>
     private void DrawBurstStrip(LanPeerInfo[] roster, DateTime now, HashSet<string> burstReady)
     {
         if (roster.Length == 0)
             return;
 
+        var fresh = roster.Where(p => !p.IsStale(now)).ToArray();
+
+        // One row per in-game party (first-seen order — same letters/colors as the roster dots),
+        // ungrouped toons pooled on a last row. Single-bucket fleets collapse to the classic row.
+        var buckets = fresh
+            .GroupBy(p => p.PartyGroupId)
+            .OrderBy(g => g.Key == 0 ? int.MaxValue : GetGroupIndex(g.Key))
+            .Select(g => (GroupId: g.Key, Peers: g.ToArray()))
+            .ToArray();
+        var rows = _bus.IsBurstFireActive ? 1 : Math.Max(buckets.Length, 1);
+
         ImGui.Spacing();
-        var height = ImGui.GetFrameHeightWithSpacing() + ImGui.GetStyle().WindowPadding.Y * 2f - ImGui.GetStyle().ItemSpacing.Y;
+        var height = ImGui.GetFrameHeightWithSpacing() * rows + ImGui.GetStyle().WindowPadding.Y * 2f - ImGui.GetStyle().ItemSpacing.Y;
         ImGui.PushStyleColor(ImGuiCol.Border, DaedalusTheme.AccentDim);
         ImGui.BeginChild("burststrip", new Vector2(0f, height), true);
-
-        var fresh = roster.Where(p => !p.IsStale(now)).ToArray();
-        var readyCount = fresh.Count(p => burstReady.Contains(p.SenderId));
 
         ImGui.AlignTextToFramePadding();
         if (_bus.IsBurstFireActive)
         {
-            ImGui.TextColored(DaedalusTheme.AccentGold, "⚡ BURST WINDOW OPEN");
+            DaedalusTheme.StatusIcon(FontAwesomeIcon.Bolt, DaedalusTheme.AccentGold);
+            ImGui.SameLine(0f, 4f);
+            ImGui.TextColored(DaedalusTheme.AccentGold, "BURST WINDOW OPEN");
+        }
+        else if (buckets.Length == 0)
+        {
+            DaedalusTheme.StatusIcon(FontAwesomeIcon.Bolt, DaedalusTheme.AccentGold);
+            ImGui.SameLine(0f, 4f);
+            ImGui.TextColored(DaedalusTheme.AccentGold, "Burst readiness");
+            ImGui.SameLine();
+            ImGui.Text("0/0");
         }
         else
         {
-            ImGui.TextColored(DaedalusTheme.AccentGold, "⚡ Burst readiness");
-            ImGui.SameLine();
-            ImGui.Text($"{readyCount}/{Math.Max(fresh.Length, 1)}");
-            ImGui.SameLine(0f, 10f);
-            foreach (var peer in fresh)
+            for (var i = 0; i < buckets.Length; i++)
             {
-                ImGui.TextColored(burstReady.Contains(peer.SenderId) ? DaedalusTheme.AccentGold : DaedalusTheme.TextDisabled, "⚡");
-                ImGui.SameLine(0f, 2f);
+                var (groupId, peers) = buckets[i];
+                ImGui.AlignTextToFramePadding();
+                DaedalusTheme.StatusIcon(FontAwesomeIcon.Bolt, DaedalusTheme.AccentGold);
+                ImGui.SameLine(0f, 4f);
+                if (i == 0)
+                {
+                    ImGui.TextColored(DaedalusTheme.AccentGold, "Burst readiness");
+                    ImGui.SameLine();
+                }
+
+                if (groupId != 0)
+                {
+                    var groupIdx = GetGroupIndex(groupId);
+                    ImGui.TextColored(GroupPalette[groupIdx % GroupPalette.Length], $"{(char)('A' + groupIdx % 26)}");
+                    if (ImGui.IsItemHovered())
+                        ImGui.SetTooltip($"Party group {(char)('A' + groupIdx % 26)} — bursts fire per party");
+                    ImGui.SameLine();
+                }
+                else if (buckets.Length > 1)
+                {
+                    ImGui.TextColored(Dim, "solo");
+                    if (ImGui.IsItemHovered())
+                        ImGui.SetTooltip("Ungrouped toons — burst signals reach the whole fleet");
+                    ImGui.SameLine();
+                }
+
+                var readyCount = peers.Count(p => burstReady.Contains(p.SenderId));
+                ImGui.Text($"{readyCount}/{peers.Length}");
+                ImGui.SameLine(0f, 10f);
+                foreach (var peer in peers)
+                {
+                    var isReady = burstReady.Contains(peer.SenderId);
+                    DaedalusTheme.StatusIcon(
+                        isReady ? FontAwesomeIcon.Bolt : FontAwesomeIcon.Circle,
+                        isReady ? DaedalusTheme.AccentGold : Red);
+                    if (ImGui.IsItemHovered())
+                    {
+                        var name = _config.PartyCoordination.LanScrambleNames ? AliasFor(peer.SenderId) : peer.CharacterName;
+                        ImGui.SetTooltip($"{name} — {(isReady ? "burst ready" : "not ready")}");
+                    }
+
+                    ImGui.SameLine(0f, 3f);
+                }
+
+                if (i < buckets.Length - 1)
+                    ImGui.NewLine();
             }
         }
 
@@ -870,12 +943,7 @@ public sealed class LanPartyWindow : Window, IDisposable
         ImGui.TableNextColumn();
         if (peer.PartyGroupId != 0)
         {
-            if (!_groupColorIndex.TryGetValue(peer.PartyGroupId, out var groupIdx))
-            {
-                groupIdx = _groupColorIndex.Count;
-                _groupColorIndex[peer.PartyGroupId] = groupIdx;
-            }
-
+            var groupIdx = GetGroupIndex(peer.PartyGroupId);
             DaedalusTheme.StatusIcon(FontAwesomeIcon.Circle, GroupPalette[groupIdx % GroupPalette.Length]);
             if (ImGui.IsItemHovered())
                 ImGui.SetTooltip($"Party group {(char)('A' + groupIdx % 26)} — same in-game party");
