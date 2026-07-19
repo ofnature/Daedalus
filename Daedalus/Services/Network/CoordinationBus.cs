@@ -112,6 +112,15 @@ public sealed class CoordinationBus : IDisposable
     public event System.Action<string /*description*/>? OnTankSwapActivity;
     public event System.Action<string /*sender*/, LanMessage>? OnBurnSignal;
     public event System.Action? OnBurstFire;
+
+    /// <summary>A burst window OPENED here — for the window's alert feed / burst validation.
+    /// Args: senderId that fired the signal (the local toon's own id for a local press/auto-fire)
+    /// and the party group id the signal was stamped with (0 = fleet-wide reach).</summary>
+    public event System.Action<string /*sender*/, ulong /*group*/>? OnBurstFireSignal;
+
+    /// <summary>A BurstFire from ANOTHER party was dropped by the group gate — the observable
+    /// proof that scoping works. Args: senderId, that signal's party group id.</summary>
+    public event System.Action<string /*sender*/, ulong /*group*/>? OnBurstFireIgnored;
     public event System.Action<IReadOnlyDictionary<string, LanRolePayload>>? OnRolesAssigned;
 
     /// <summary>Raised whenever the party target mode / focus / off-tank changes (local set or remote).</summary>
@@ -429,7 +438,11 @@ public sealed class CoordinationBus : IDisposable
                 break;
 
             case LanMessageType.BurstFire:
-                if (!IsForLocalGroup(msg)) break;
+                if (!IsForLocalGroup(msg))
+                {
+                    OnBurstFireIgnored?.Invoke(msg.SenderId, msg.PartyGroupId);
+                    break;
+                }
                 ActivateBurstFire(msg);
                 break;
 
@@ -756,6 +769,10 @@ public sealed class CoordinationBus : IDisposable
     /// <summary>True while a coordinated burst window is open (3s after BurstFire).</summary>
     public bool IsBurstFireActive => DateTime.UtcNow < _burstFireUntil;
 
+    /// <summary>Seconds left in the open burst window (0 when closed) — strip countdown.</summary>
+    public float BurstFireSecondsRemaining =>
+        Math.Max(0f, (float)(_burstFireUntil - DateTime.UtcNow).TotalSeconds);
+
     /// <summary>
     /// Senders that have signaled burst-ready this cycle (drives the window's ⚡ readiness pips).
     /// All access is on the framework thread, so a plain snapshot is safe.
@@ -800,11 +817,12 @@ public sealed class CoordinationBus : IDisposable
         ActivateBurstFire(null);
     }
 
-    private void ActivateBurstFire(LanMessage? _)
+    private void ActivateBurstFire(LanMessage? msg)
     {
         _burstFireUntil = DateTime.UtcNow.AddSeconds(3);
         _burstReadySenders.Clear();
         OnBurstFire?.Invoke();
+        OnBurstFireSignal?.Invoke(msg?.SenderId ?? _lan.SenderId, msg?.PartyGroupId ?? LocalPartyGroupId);
 
         // Light up the EXISTING burst window state machine so every rotation's
         // GetBurstWindowState().IsActive gate opens without job-by-job changes.

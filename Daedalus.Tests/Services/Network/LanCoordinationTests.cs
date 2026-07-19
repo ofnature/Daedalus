@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using Dalamud.Plugin.Services;
 using Daedalus.Services.Network;
@@ -460,6 +461,43 @@ public class LanCoordinationTests
 
         Assert.False(fired); // B — OUR party — is still not ready
         Assert.False(bus.IsBurstFireActive);
+    }
+
+    [Fact]
+    public void BurstFire_RaisesSignalEvent_WithSenderAndGroup()
+    {
+        var bus = NewGroupedBus("A@World", groupId: 100);
+        var signals = new List<(string Sender, ulong Group)>();
+        bus.OnBurstFireSignal += (s, g) => signals.Add((s, g));
+
+        bus.InjectForTest(Remote("X@World", LanMessageType.BurstFire, groupId: 100, ts: 1));
+        bus.Update();
+
+        var remote = Assert.Single(signals);
+        Assert.Equal(("X@World", 100UL), remote);
+
+        // A local force press reports the local toon and its own party.
+        bus.ForceBurstFire();
+        Assert.Equal(2, signals.Count);
+        Assert.Equal(("A@World", 100UL), signals[1]);
+    }
+
+    [Fact]
+    public void BurstFire_CrossPartySignal_RaisesIgnoredEvent_NotSignalEvent()
+    {
+        var bus = NewGroupedBus("A@World", groupId: 100);
+        var fired = 0;
+        var ignored = new List<(string Sender, ulong Group)>();
+        bus.OnBurstFireSignal += (_, _) => fired++;
+        bus.OnBurstFireIgnored += (s, g) => ignored.Add((s, g));
+
+        bus.InjectForTest(Remote("X@World", LanMessageType.BurstFire, groupId: 200, ts: 1));
+        bus.Update();
+
+        Assert.Equal(0, fired);
+        Assert.False(bus.IsBurstFireActive);
+        var drop = Assert.Single(ignored);
+        Assert.Equal(("X@World", 200UL), drop);
     }
 
     [Fact]

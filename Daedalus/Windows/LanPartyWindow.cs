@@ -102,6 +102,8 @@ public sealed class LanPartyWindow : Window, IDisposable
         _bus.OnPhoenixDown += OnPhoenixDownAlert;
         _bus.OnTankSwapActivity += OnTankSwapAlert;
         _bus.OnAddSpawn += OnAddSpawnAlert;
+        _bus.OnBurstFireSignal += OnBurstFireAlert;
+        _bus.OnBurstFireIgnored += OnBurstFireIgnoredAlert;
     }
 
     public void Dispose()
@@ -110,6 +112,8 @@ public sealed class LanPartyWindow : Window, IDisposable
         _bus.OnPhoenixDown -= OnPhoenixDownAlert;
         _bus.OnTankSwapActivity -= OnTankSwapAlert;
         _bus.OnAddSpawn -= OnAddSpawnAlert;
+        _bus.OnBurstFireSignal -= OnBurstFireAlert;
+        _bus.OnBurstFireIgnored -= OnBurstFireIgnoredAlert;
     }
 
     private void PushAlert(string text, Vector4 color)
@@ -130,6 +134,27 @@ public sealed class LanPartyWindow : Window, IDisposable
     private void OnTankSwapAlert(string description) => PushAlert($"tank swap: {description}", Yellow);
 
     private void OnAddSpawnAlert(string sender, LanMessage msg) => PushAlert("add spawn", Yellow);
+
+    // Burst validation feed: every window open (who fired it, which party it reached) and every
+    // cross-party signal the group gate dropped — the in-game proof that scoping works.
+    private void OnBurstFireAlert(string sender, ulong group)
+        => PushAlert($"burst window open — {SenderDisplayName(sender)} {DescribeSignalReach(group)}", DaedalusTheme.AccentGold);
+
+    private void OnBurstFireIgnoredAlert(string sender, ulong group)
+        => PushAlert($"burst ignored (other party) — {SenderDisplayName(sender)}", Grey);
+
+    private string SenderDisplayName(string senderId)
+    {
+        if (senderId == _bus.LocalSenderId)
+            return "this toon";
+        if (_config.PartyCoordination.LanScrambleNames)
+            return AliasFor(senderId);
+        var at = senderId.IndexOf('@');
+        return at > 0 ? senderId[..at] : senderId;
+    }
+
+    private string DescribeSignalReach(ulong group)
+        => group == 0 ? "(fleet-wide)" : $"(party {(char)('A' + GetGroupIndex(group) % 26)})";
 
     public override bool DrawConditions() => _config.PartyCoordination.LanCoordinatorEnabled;
 
@@ -483,7 +508,7 @@ public sealed class LanPartyWindow : Window, IDisposable
         {
             DaedalusTheme.StatusIcon(FontAwesomeIcon.Bolt, DaedalusTheme.AccentGold);
             ImGui.SameLine(0f, 4f);
-            ImGui.TextColored(DaedalusTheme.AccentGold, "BURST WINDOW OPEN");
+            ImGui.TextColored(DaedalusTheme.AccentGold, $"BURST WINDOW OPEN ({_bus.BurstFireSecondsRemaining:F0}s)");
         }
         else if (buckets.Length == 0)
         {
