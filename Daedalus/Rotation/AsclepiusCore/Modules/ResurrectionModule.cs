@@ -167,9 +167,18 @@ public sealed class ResurrectionModule : BaseResurrectionModule<IAsclepiusContex
             return;
         }
 
-        if (config.Resurrection.AllowHardcastRaise && !isMoving)
+        if (config.Resurrection.AllowHardcastRaise)
         {
             var swiftcastCooldown = context.ActionService.GetCooldownRemaining(SwiftcastAction.ActionId);
+            if (swiftcastCooldown > 10f && isMoving)
+            {
+                // BMR AI's constant micro-follow kept isMoving true for whole fights, so the
+                // hardcast branch never opened (alliance-raid field report 2026-07-19). Hold
+                // movement (Plugin pauses BMR AI) and retry next frame once stationary.
+                Daedalus.Services.Positional.RaiseCastHold.Request(10f);
+                SetRaiseState(context, "Stopping to hardcast raise");
+                return;
+            }
             if (swiftcastCooldown > 10f)
             {
                 const int hardcastMs = 8000;
@@ -179,6 +188,7 @@ public sealed class ResurrectionModule : BaseResurrectionModule<IAsclepiusContex
                     {
                         // Reserve at DISPATCH (see the Swiftcast branch note).
                         partyCoord?.ReserveRaiseTarget(reservedHardcastId, RaiseAction.ActionId, hardcastMs, usingSwiftcast: false);
+                        Daedalus.Services.Positional.RaiseCastHold.Request(9f); // cover the 8s cast
                         var note = GetRaiseSuccessNote(context, hasSwiftcast: false);
                         SetRaiseState(context, "Hardcast Raise");
                         SetPlanningState(context, "Raise");

@@ -52,13 +52,17 @@ public sealed class ResurrectionModule : IPersephoneModule
                 onDispatched: _ => context.Debug.PlannedAction = "Swiftcast (for Resurrection)");
         }
 
-        var canRaiseNow = context.HasSwiftcast
-                          || (config.AllowHardcastRaise && !isMoving);
+        if (!context.HasSwiftcast && config.AllowHardcastRaise && isMoving)
+        {
+            // Hold movement for the hardcast (BMR AI micro-follow otherwise never stops).
+            Daedalus.Services.Positional.RaiseCastHold.Request(10f);
+            context.Debug.PlanningState = "Stopping to hardcast raise";
+            return;
+        }
+        var canRaiseNow = context.HasSwiftcast || config.AllowHardcastRaise;
         if (!canRaiseNow)
         {
-            context.Debug.PlanningState = context.HasSwiftcast
-                ? "Raising"
-                : "Raise waiting for Swiftcast";
+            context.Debug.PlanningState = "Raise waiting for Swiftcast";
             return;
         }
 
@@ -81,6 +85,7 @@ public sealed class ResurrectionModule : IPersephoneModule
                 // other box out of the corpse (500ms-post-completion expiry never lapsed).
                 partyCoord?.ReserveRaiseTarget(reservedTargetId, RoleActions.Resurrection.ActionId,
                     swift ? 0 : 8000, usingSwiftcast: swift);
+                if (!swift) Daedalus.Services.Positional.RaiseCastHold.Request(9f); // cover the 8s cast
                 var targetName = deadTarget.Name?.TextValue ?? "Unknown";
                 context.Debug.PlannedAction = swift ? "Resurrection (Swiftcast)" : "Resurrection (Hardcast)";
                 context.Debug.PlanningState = $"Raising {targetName}";

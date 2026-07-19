@@ -30,6 +30,7 @@ public sealed class BmrAiConfigService
 
     private ICallGateSubscriber<List<string>, bool, List<string>>? _configIpc;
     private ICallGateSubscriber<string>? _getPresetIpc;
+    private ICallGateSubscriber<bool, object>? _pauseMovementIpc;
 
     private float? _lastDistance;
     private string? _lastPositional;
@@ -213,5 +214,30 @@ public sealed class BmrAiConfigService
     {
         _configIpc ??= _pi.GetIpcSubscriber<List<string>, bool, List<string>>("BossMod.Configuration");
         _getPresetIpc ??= _pi.GetIpcSubscriber<string>("BossMod.AI.GetPreset");
+        _pauseMovementIpc ??= _pi.GetIpcSubscriber<bool, object>("BossMod.AI.PauseMovement");
+    }
+
+    /// <summary>
+    /// Pause/resume BMR AI movement (AIConfig.ForbidMovement via BossMod.AI.PauseMovement) —
+    /// the hardcast-raise hold: BMR's constant micro-follow otherwise keeps isMoving true and
+    /// an 8-10s raise cast can never start. Edge-toggled by the Plugin pump off
+    /// <see cref="Daedalus.Services.Positional.RaiseCastHold"/>; fail-open when BMR is absent.
+    /// </summary>
+    public void SetAiMovementPaused(bool paused)
+    {
+        if (!_bmr.IsAvailable)
+            return;
+        EnsureSubscribers();
+        try
+        {
+            _pauseMovementIpc?.InvokeAction(paused);
+            _debugLog?.Log(Daedalus.Services.Debug.DebugLogCategory.Nav,
+                Daedalus.Services.Debug.DebugLogSeverity.Info,
+                paused ? "BMR AI movement PAUSED (hardcast raise hold)" : "BMR AI movement resumed");
+        }
+        catch (System.Exception ex)
+        {
+            _log?.Debug(ex, "[BmrAiConfigService] AI.PauseMovement failed");
+        }
     }
 }

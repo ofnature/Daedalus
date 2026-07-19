@@ -228,10 +228,18 @@ public abstract class BaseResurrectionModule<TContext> : IHealerRotationModule<T
             return success;
         }
 
-        // Hardcast Raise (if allowed and not moving)
-        if (config.Resurrection.AllowHardcastRaise && !isMoving)
+        // Hardcast Raise (if allowed; movement gets HELD — BMR AI's constant micro-follow
+        // otherwise keeps isMoving true for whole fights and the branch never opens).
+        if (config.Resurrection.AllowHardcastRaise)
         {
             var swiftcastCooldown = context.ActionService.GetCooldownRemaining(SwiftcastAction.ActionId);
+
+            if (swiftcastCooldown > 10f && isMoving)
+            {
+                Daedalus.Services.Positional.RaiseCastHold.Request(10f);
+                SetRaiseState(context, "Stopping to hardcast raise");
+                return false;
+            }
 
             if (swiftcastCooldown > 10f)
             {
@@ -253,6 +261,7 @@ public abstract class BaseResurrectionModule<TContext> : IHealerRotationModule<T
                 var success = context.ActionService.ExecuteGcd(RaiseAction, target.GameObjectId);
                 if (success)
                 {
+                    Daedalus.Services.Positional.RaiseCastHold.Request(9f); // cover the 8s cast
                     var note = GetRaiseSuccessNote(context, hasSwiftcast: false);
                     SetPlannedAction(context, $"{RaiseAction.Name} (Hardcast){note}");
                     RecordRaiseTraining(context, targetName, hasSwiftcast: false, isHardcast: true);

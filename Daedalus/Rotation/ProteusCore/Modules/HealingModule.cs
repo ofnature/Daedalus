@@ -25,10 +25,17 @@ public sealed class HealingModule : IProteusModule
         if (!context.InCombat) { context.Debug.HealingState = "Not in combat"; return; }
         if (context.HasDiamondback) return;
         if (context.HasWaningNocturne) return;
-        if (isMoving) return; // every heal here is a hardcast
 
         var cfg = context.Configuration.BlueMage;
         var player = context.Player;
+
+        // The raise runs BEFORE the isMoving gate — it handles movement itself (Swiftcast
+        // casts through it; a hardcast requests the RaiseCastHold to stop the mover).
+        if (context.Role == BluRole.Healer)
+            TryPushAngelWhisper(context, scheduler, player);
+
+        if (isMoving) return; // every heal below is a hardcast
+
         var (_, lowest, injured) = context.PartyHealthMetrics;
 
         TryPushWhiteWind(context, scheduler, cfg, player, lowest, injured);
@@ -40,7 +47,6 @@ public sealed class HealingModule : IProteusModule
             return;
         }
 
-        TryPushAngelWhisper(context, scheduler, player);
         TryPushPomCure(context, scheduler, cfg, player);
         TryPushExuviation(context, scheduler, cfg, player);
         TryPushGobskin(context, scheduler, cfg, player, injured);
@@ -86,6 +92,13 @@ public sealed class HealingModule : IProteusModule
             context.Debug.HealingState = "Angel Whisper waiting for Swiftcast";
             return;
         }
+        if (!context.HasSwiftcast && context.IsMoving)
+        {
+            // Hold movement for the 10s hardcast (BMR AI micro-follow never stops on its own).
+            Daedalus.Services.Positional.RaiseCastHold.Request(12f);
+            context.Debug.HealingState = "Stopping to hardcast Angel Whisper";
+            return;
+        }
 
         var swift = context.HasSwiftcast;
         var reservedTargetId = (uint)deadTarget.GameObjectId;
@@ -97,6 +110,7 @@ public sealed class HealingModule : IProteusModule
                 // other box out of the corpse (500ms-post-completion expiry never lapsed).
                 partyCoord?.ReserveRaiseTarget(reservedTargetId, BLUActions.AngelWhisper.ActionId,
                     swift ? 0 : 10_000, usingSwiftcast: swift);
+                if (!swift) Daedalus.Services.Positional.RaiseCastHold.Request(11f); // cover the 10s cast
                 context.Debug.PlannedAction = BLUActions.AngelWhisper.Name;
                 context.Debug.HealingState =
                     $"Angel Whisper → {deadTarget.Name?.TextValue ?? "ally"}{(swift ? " (Swiftcast)" : " (hardcast)")}";

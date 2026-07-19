@@ -1031,6 +1031,7 @@ public sealed class Plugin : IDalamudPlugin
     private bool _fleetStingAutoFiredThisCombat;
 
     private DateTime? _potFiredForT0;
+    private bool _raiseHoldPaused;
 
     /// <summary>
     /// Phase 2 pot-only cut: fire the pre-pull tincture at the job's offset before the shared T0.
@@ -1509,6 +1510,17 @@ public sealed class Plugin : IDalamudPlugin
             // Phase 2: shared pull T0 (local countdown agent + LAN mirror) → pre-pull pot.
             countdownService.Update();
             UpdateCountdownPot();
+
+            // Hardcast-raise movement hold: pause BMR AI steering while a raiser needs the toon
+            // stationary (edge-toggled; the hold is expiry-driven so it can never stick).
+            {
+                var holdActive = Daedalus.Services.Positional.RaiseCastHold.Active;
+                if (holdActive != _raiseHoldPaused)
+                {
+                    bmrAiConfigService.SetAiMovementPaused(holdActive);
+                    _raiseHoldPaused = holdActive;
+                }
+            }
 
             // Mimicry window auto-open on switching TO BLU (manual close respected until the
             // next switch); auto-close on leaving BLU.
