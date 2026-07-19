@@ -12,6 +12,9 @@ All notable changes to Daedalus will be documented in this file.
 - Ungrouped toons (solo, or mid-zone-in) keep the old everyone behavior in both directions, so nothing breaks while parties are forming
 - **Burst readiness strip fixed and now per-party**: the "=" boxes were a lightning-bolt character the game font can't draw — pips now use real icons (gold bolt = ready, red circle = not ready, hover a pip for the toon's name). With two or more parties on the LAN the strip shows one readiness row per party (letter-matched to the roster's group dots), so each group's own count is visible at a glance
 
+### Fix — Roster no longer shows a permanent "BURST" on tanks and healers
+- WAR/SGE stayed gold "BURST" forever while the PCT correctly aged to "burst 120s ago": a party member's raid buff (e.g. Starry Muse) opened the burst window on every toon via the cast event, but only DPS jobs (and AST) run the code that ever closes it. Burst windows now expire on their own when the buff duration runs out, so the last-burst column ages honestly on every job — and tank/healer burst-timing reads (cooldown pooling gates) no longer see a stuck "in burst" state either
+
 <!-- LATEST-END -->
 ## v0.1.29 — 2026-07-19
 

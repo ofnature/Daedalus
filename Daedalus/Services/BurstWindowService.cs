@@ -72,6 +72,18 @@ public sealed class BurstWindowService : IBurstWindowService, IDisposable
     private bool _isInBurstWindow;
     private float _secondsRemainingInBurst;
 
+    // Cast-event-opened windows must close on their own: only the DPS base rotations and AST
+    // tick Update() (the sole place _isInBurstWindow was ever cleared), so on tanks and the
+    // other healers a party member's raid buff latched the window forever — the roster's
+    // last-burst column showed a permanent "BURST" on WAR/SGE after a party PCT fired Starry
+    // Muse. All reads honor this expiry; Update() refreshes it from the live status scan.
+    private DateTime _windowExpiresUtc = DateTime.MinValue;
+
+    private bool EffectiveInBurstWindow => _isInBurstWindow && UtcNow() < _windowExpiresUtc;
+
+    /// <summary>Test seam: expiry math must be controllable without real waits.</summary>
+    internal Func<DateTime> UtcNow { get; set; } = static () => DateTime.UtcNow;
+
     // Tracks when the most recent burst window ended for timer-based prediction
     private DateTime? _lastBurstWindowEnd;
 
@@ -123,14 +135,18 @@ public sealed class BurstWindowService : IBurstWindowService, IDisposable
 
         var duration = CoordinatedRaidBuffs.GetBuffDuration(actionId);
 
-        if (!_isInBurstWindow)
+        if (!EffectiveInBurstWindow)
         {
             _isInBurstWindow = true;
-            _currentWindowStart = DateTime.UtcNow;
+            _currentWindowStart = UtcNow();
             _wasInBurst = true;
         }
         if (duration > _secondsRemainingInBurst)
             _secondsRemainingInBurst = duration;
+
+        var expires = UtcNow().AddSeconds(duration);
+        if (expires > _windowExpiresUtc)
+            _windowExpiresUtc = expires;
     }
 
     private bool IsCasterInParty(uint casterEntityId)
@@ -152,9 +168,9 @@ public sealed class BurstWindowService : IBurstWindowService, IDisposable
 
     #region IBurstWindowService
 
-    public bool IsInBurstWindow => _isInBurstWindow;
+    public bool IsInBurstWindow => EffectiveInBurstWindow;
 
-    public float SecondsRemainingInBurst => _secondsRemainingInBurst;
+    public float SecondsRemainingInBurst => EffectiveInBurstWindow ? _secondsRemainingInBurst : 0f;
 
     /// <inheritdoc />
     /// <remarks>
@@ -170,17 +186,23 @@ public sealed class BurstWindowService : IBurstWindowService, IDisposable
     {
         get
         {
-            if (_isInBurstWindow)
+            if (EffectiveInBurstWindow)
                 return 0f;
+
+            // Expiry-closed without an Update() tick (tank/healer jobs): history bookkeeping
+            // never ran, so measure from the recorded window start instead of reporting "never".
+            if (_isInBurstWindow)
+                return Math.Max((float)(UtcNow() - _currentWindowStart).TotalSeconds, 0.1f);
+
             if (_burstWindowHistory.Count > 0)
-                return (float)(DateTime.UtcNow - _burstWindowHistory[^1].Start).TotalSeconds;
+                return (float)(UtcNow() - _burstWindowHistory[^1].Start).TotalSeconds;
             return -1f;
         }
     }
 
     public bool IsBurstImminent(float thresholdSeconds = 5f)
     {
-        if (_isInBurstWindow)
+        if (EffectiveInBurstWindow)
             return false;
 
         // Solo/trust: do not hold spenders waiting for party IPC or NPC debuff windows.
@@ -206,7 +228,7 @@ public sealed class BurstWindowService : IBurstWindowService, IDisposable
     {
         get
         {
-            if (_isInBurstWindow)
+            if (EffectiveInBurstWindow)
                 return 0f;
 
             // IPC estimate
@@ -264,6 +286,12 @@ public sealed class BurstWindowService : IBurstWindowService, IDisposable
             _secondsRemainingInBurst = _partyCoordinationService?.GetBurstWindowRemaining() ?? 0f;
         }
 
+        // The live scan is authoritative where Update runs: refresh the expiry from the actual
+        // remaining buff time (small floor absorbs a just-cast buff whose status hasn't landed).
+        _windowExpiresUtc = _isInBurstWindow
+            ? UtcNow().AddSeconds(Math.Max(_secondsRemainingInBurst, 1f))
+            : DateTime.MinValue;
+
         // Record when the burst window ends for timer-based cycle prediction
         if (_wasInBurst && !_isInBurstWindow)
             _lastBurstWindowEnd = DateTime.UtcNow;
@@ -280,6 +308,8 @@ public sealed class BurstWindowService : IBurstWindowService, IDisposable
     {
         _burstWindowHistory.Clear();
         _wasInBurst = false;
+        _isInBurstWindow = false;
+        _windowExpiresUtc = DateTime.MinValue;
         _combatStartUtc = null;
         _lastCoordinatedBurstSignalUtc = null;
         _lastBurstWindowEnd = null;

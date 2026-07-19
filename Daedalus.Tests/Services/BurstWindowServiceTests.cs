@@ -405,4 +405,63 @@ public class BurstWindowServiceTests
         Assert.False(service.UseSoloBurstFallback);
         Assert.True(service.IsBurstImminent());
     }
+
+    // -------------------------------------------------------------------------
+    // Event-opened window expiry (2026-07-19 field report): only the DPS base
+    // rotations and AST ever tick Update() — the ONLY place _isInBurstWindow was
+    // cleared — so on tanks and the other healers a party member's raid buff cast
+    // latched the window forever (roster showed a permanent "BURST" on WAR/SGE
+    // after the party PCT fired Starry Muse). Event-opened windows must close on
+    // their own once the buff duration elapses, with zero Update() ticks.
+    // -------------------------------------------------------------------------
+
+    [Fact]
+    public void CastEvent_WindowExpires_WithoutAnyUpdateTick()
+    {
+        var (service, combatEvents) = BuildWithCastEvents(localPlayerEntityId: 100U);
+        var now = DateTime.UtcNow;
+        service.UtcNow = () => now;
+
+        combatEvents.Raise(x => x.OnAbilityUsed += null, 100U, PCTActions.StarryMuse.ActionId);
+        Assert.True(service.IsInBurstWindow);
+        Assert.Equal(0f, service.SecondsSinceLastBurstStart);
+
+        // Buff duration (20s) elapses — no Update() ever runs (tank/healer jobs).
+        now = now.AddSeconds(25);
+
+        Assert.False(service.IsInBurstWindow);
+        Assert.Equal(0f, service.SecondsRemainingInBurst);
+        // The roster column must age out ("burst 25s ago"), not report BURST (0) or never (-1).
+        Assert.Equal(25f, service.SecondsSinceLastBurstStart, 1);
+    }
+
+    [Fact]
+    public void CastEvent_AfterExpiry_NewCastReopensWithFreshStart()
+    {
+        var (service, combatEvents) = BuildWithCastEvents(localPlayerEntityId: 100U);
+        var now = DateTime.UtcNow;
+        service.UtcNow = () => now;
+
+        combatEvents.Raise(x => x.OnAbilityUsed += null, 100U, PCTActions.StarryMuse.ActionId);
+        now = now.AddSeconds(120); // window long expired
+
+        combatEvents.Raise(x => x.OnAbilityUsed += null, 100U, PCTActions.StarryMuse.ActionId);
+
+        Assert.True(service.IsInBurstWindow);
+        Assert.Equal(0f, service.SecondsSinceLastBurstStart); // fresh start, not 120s stale
+    }
+
+    [Fact]
+    public void CastEvent_WindowStaysOpenForFullBuffDuration()
+    {
+        var (service, combatEvents) = BuildWithCastEvents(localPlayerEntityId: 100U);
+        var now = DateTime.UtcNow;
+        service.UtcNow = () => now;
+
+        combatEvents.Raise(x => x.OnAbilityUsed += null, 100U, DRGActions.BattleLitany.ActionId);
+
+        now = now.AddSeconds(15); // 20s buff — still live
+        Assert.True(service.IsInBurstWindow);
+        Assert.Equal(0f, service.SecondsSinceLastBurstStart);
+    }
 }
