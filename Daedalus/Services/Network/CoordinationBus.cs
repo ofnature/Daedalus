@@ -188,6 +188,20 @@ public sealed class CoordinationBus : IDisposable
     /// <summary>The local toon's sender id ("Character@World").</summary>
     public string LocalSenderId => _lan.SenderId;
 
+    /// <summary>
+    /// The local toon's in-game party id (0 = solo / not yet heartbeated), read from its own
+    /// self-registered roster entry — the same value the heartbeat broadcasts, so every box
+    /// agrees on who is grouped with whom. Scopes burst/tank-swap signals to the issuing party.
+    /// </summary>
+    public ulong LocalPartyGroupId
+    {
+        get
+        {
+            lock (_roster)
+                return _roster.TryGetValue(_lan.SenderId, out var self) ? self.PartyGroupId : 0;
+        }
+    }
+
     /// <summary>The active party targeting mode (auto-clears to None if the setter goes silent).</summary>
     public PartyTargetMode CurrentTargetMode => _targetMode;
 
@@ -347,6 +361,23 @@ public sealed class CoordinationBus : IDisposable
 
     #region Incoming
 
+    /// <summary>Test seam: enqueue an incoming message as if the socket thread received it
+    /// (drained by the next <see cref="Update"/>).</summary>
+    internal void InjectForTest(LanMessage msg) => _inbox.Enqueue(msg);
+
+    /// <summary>
+    /// Group gate for party-scoped signals (BurstReady / BurstFire / TankSwapCommand): a message
+    /// stamped with a DIFFERENT non-zero party id is another party's business. 0 on either side
+    /// matches — ungrouped senders keep the legacy all-LAN reach, and a local toon whose PartyId
+    /// briefly reads 0 (zone-in) must not drop its own party's signal.
+    /// </summary>
+    private bool IsForLocalGroup(LanMessage msg)
+    {
+        if (msg.PartyGroupId == 0) return true;
+        var local = LocalPartyGroupId;
+        return local == 0 || local == msg.PartyGroupId;
+    }
+
     private void Process(LanMessage msg, DateTime now)
     {
         // Dedup (replays / double-delivery), bounded window.
@@ -392,11 +423,13 @@ public sealed class CoordinationBus : IDisposable
                 break;
 
             case LanMessageType.BurstReady:
+                if (!IsForLocalGroup(msg)) break;
                 _burstReadySenders.Add(msg.SenderId);
                 TryFireBurst();
                 break;
 
             case LanMessageType.BurstFire:
+                if (!IsForLocalGroup(msg)) break;
                 ActivateBurstFire(msg);
                 break;
 
@@ -410,6 +443,7 @@ public sealed class CoordinationBus : IDisposable
 
             case LanMessageType.TankSwapCommand:
                 // A tank box pressed "swap tanks": arm the manual swap on this box too (remote press).
+                if (!IsForLocalGroup(msg)) break;
                 _partyService?.ArmManualSwap();
                 RaiseTankSwapActivity("manual");
                 break;
@@ -581,11 +615,12 @@ public sealed class CoordinationBus : IDisposable
         _lan.Send(new LanMessage { Type = LanMessageType.RoleAssignment, Payload = payload.ToJson() });
     }
 
-    /// <summary>Signal our burst cooldowns are up. Fires BurstFire when every rostered toon is ready.</summary>
+    /// <summary>Signal our burst cooldowns are up. Fires BurstFire when every same-group rostered
+    /// toon is ready (whole roster when ungrouped).</summary>
     public void BroadcastBurstReady()
     {
         _burstReadySenders.Add(_lan.SenderId);
-        _lan.Send(new LanMessage { Type = LanMessageType.BurstReady });
+        _lan.Send(new LanMessage { Type = LanMessageType.BurstReady, PartyGroupId = LocalPartyGroupId });
         TryFireBurst();
     }
 
@@ -607,8 +642,9 @@ public sealed class CoordinationBus : IDisposable
         RaiseTankSwapActivity("manual");
 
         var ts = DateTime.UtcNow.Ticks;
+        var group = LocalPartyGroupId;
         for (var i = 0; i < 3; i++)
-            _lan.Send(new LanMessage { Type = LanMessageType.TankSwapCommand, Timestamp = ts });
+            _lan.Send(new LanMessage { Type = LanMessageType.TankSwapCommand, Timestamp = ts, PartyGroupId = group });
     }
 
     public void BroadcastAddSpawn(string payload)
@@ -729,30 +765,38 @@ public sealed class CoordinationBus : IDisposable
     /// <summary>
     /// Operator-triggered manual burst: dump now regardless of who has reported ready, so a burst can
     /// be aligned on demand from the Party Coordination window. Mirrors the fire path in
-    /// <see cref="TryFireBurst"/> without the all-ready gate.
+    /// <see cref="TryFireBurst"/> without the all-ready gate. Stamped with the issuing toon's party
+    /// group, so it only touches that party (all toons when ungrouped).
     /// </summary>
     public void ForceBurstFire()
     {
-        _lan.Send(new LanMessage { Type = LanMessageType.BurstFire });
+        _lan.Send(new LanMessage { Type = LanMessageType.BurstFire, PartyGroupId = LocalPartyGroupId });
         ActivateBurstFire(null);
     }
 
     private void TryFireBurst()
     {
-        // Coordinator election without a protocol: the alphabetically-first fresh toon fires the
-        // signal once everyone in the roster (plus us) has reported ready. Deterministic on every
-        // machine, so exactly one toon broadcasts BurstFire.
+        // Coordinator election without a protocol: the alphabetically-first fresh SAME-GROUP toon
+        // fires the signal once everyone in that group has reported ready. Deterministic on every
+        // machine, so exactly one toon broadcasts BurstFire. Grouped toons only wait on (and count)
+        // their own party — two parties on one LAN burst independently; an ungrouped toon keeps the
+        // legacy whole-roster behavior.
         var now = DateTime.UtcNow;
+        var group = LocalPartyGroupId;
         List<string> fresh;
         lock (_roster)
-            fresh = _roster.Values.Where(p => !p.IsStale(now)).Select(p => p.SenderId).ToList();
-        fresh.Add(_lan.SenderId);
+            fresh = _roster.Values
+                .Where(p => !p.IsStale(now) && (group == 0 || p.PartyGroupId == group))
+                .Select(p => p.SenderId)
+                .ToList();
+        if (!fresh.Contains(_lan.SenderId))
+            fresh.Add(_lan.SenderId);
         fresh.Sort(StringComparer.Ordinal);
 
         if (fresh.Count == 0 || fresh[0] != _lan.SenderId) return;   // not the coordinator
         if (fresh.Any(s => !_burstReadySenders.Contains(s))) return; // someone not ready yet
 
-        _lan.Send(new LanMessage { Type = LanMessageType.BurstFire });
+        _lan.Send(new LanMessage { Type = LanMessageType.BurstFire, PartyGroupId = group });
         ActivateBurstFire(null);
     }
 

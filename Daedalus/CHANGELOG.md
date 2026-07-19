@@ -9,6 +9,12 @@ All notable changes to Daedalus will be documented in this file.
 - **A toon that zoned in slower than the rest could stay invisible to a healer for the whole instance** — the party scanner cached member ids by party size, and with staggered multibox zone-ins a still-loading member's placeholder id got latched forever. Field symptom: one of two Sages saw no tank at all (tank id 0), put Kardion on the Pictomancer, and never moved it home. The cache now revalidates against the live party list every frame, so the tank is picked up the moment their client finishes loading — this fixes tank resolution, heal targeting, and every party scan on all healers
 - **Kardia no longer falls back to a DPS while the tank is still loading**: pre-pull, a tank listed in the party that isn't loaded on this client yet shows "Waiting (tank loading)" instead of parking Kardion on a DPS. In combat the fallback stays (any bearer beats none), and genuinely tankless parties behave as before
 
+### Change — LAN coordination: bursts and tank swaps are now scoped to the issuing party
+- **Force burst (and the automatic all-ready burst) now only touches the party that issued it** — previously the signal hit every Daedalus toon on the LAN, so two groups running at once would trip each other's burst windows. Signals are stamped with the sender's in-game party; toons in a different party ignore them. The Force burst button's tooltip shows which reach applies
+- **Automatic burst readiness is per-party too**: a group fires when *its own* members are ready instead of waiting on every toon on the LAN — two parties burst independently
+- **Manual tank swap is party-scoped the same way**
+- Ungrouped toons (solo, or mid-zone-in) keep the old everyone behavior in both directions, so nothing breaks while parties are forming
+
 <!-- LATEST-END -->
 ## v0.1.28 — 2026-07-19
 

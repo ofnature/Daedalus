@@ -488,6 +488,10 @@ public sealed class LanPartyWindow : Window, IDisposable
         if (ImGui.Button(forceLabel))
             _bus.ForceBurstFire();
         ImGui.PopStyleColor(4);
+        if (ImGui.IsItemHovered())
+            ImGui.SetTooltip(_bus.LocalPartyGroupId != 0
+                ? "Opens the burst window on this toon's party only"
+                : "This toon is not in a party — opens the burst window on ALL fleet toons");
 
         ImGui.EndChild();
         ImGui.PopStyleColor();

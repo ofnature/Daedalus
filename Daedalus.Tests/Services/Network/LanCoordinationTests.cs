@@ -337,4 +337,144 @@ public class LanCoordinationTests
 
         Assert.True(msg.ToJson().Length < 512, $"heartbeat envelope was {msg.ToJson().Length} bytes");
     }
+
+    // ---------------------------------------------------------------------------------------------
+    // Group scoping (2026-07-19): burst/tank-swap signals are stamped with the sender's in-game
+    // party id so two parties on one LAN don't trip each other's bursts/swaps. 0 on either side
+    // matches everyone (solo toons, zone-in PartyId blips, pre-group clients).
+    // ---------------------------------------------------------------------------------------------
+
+    /// <summary>Bus whose local toon has self-registered with the given party group id.</summary>
+    private static CoordinationBus NewGroupedBus(string senderId, ulong groupId)
+    {
+        var log = new Mock<IPluginLog>().Object;
+        var lan = new LanCoordinator(log, "machine-A", 47200) { SenderId = senderId };
+        var bus = new CoordinationBus(log, lan, partyService: null, localMachineId: "machine-A")
+        {
+            HeartbeatProvider = () => new LanHeartbeatPayload { CharacterName = senderId, PartyGroupId = groupId },
+        };
+        bus.Update(); // sends the heartbeat + self-registers the group id
+        return bus;
+    }
+
+    private static LanMessage RemoteHeartbeat(string sender, ulong groupId, long ts) => new()
+    {
+        SenderId = sender,
+        MachineId = "machine-B",
+        Type = LanMessageType.Heartbeat,
+        Payload = new LanHeartbeatPayload { CharacterName = sender, PartyGroupId = groupId }.ToJson(),
+        Timestamp = ts,
+    };
+
+    private static LanMessage Remote(string sender, LanMessageType type, ulong groupId, long ts) => new()
+    {
+        SenderId = sender,
+        MachineId = "machine-B",
+        Type = type,
+        Timestamp = ts,
+        PartyGroupId = groupId,
+    };
+
+    [Fact]
+    public void LanMessage_PartyGroupId_RoundTrips_AndDefaultsToZero()
+    {
+        var msg = new LanMessage { SenderId = "A@W", Type = LanMessageType.BurstFire, Timestamp = 1, PartyGroupId = 42UL };
+        var parsed = LanMessage.FromJson(msg.ToJson());
+        Assert.NotNull(parsed);
+        Assert.Equal(42UL, parsed!.PartyGroupId);
+
+        // Pre-group clients omit "g" — must parse as 0 (matches everyone), never fail.
+        var legacy = LanMessage.FromJson("{\"s\":\"x\",\"m\":\"y\",\"t\":7,\"ts\":1,\"v\":1}");
+        Assert.NotNull(legacy);
+        Assert.Equal(0UL, legacy!.PartyGroupId);
+    }
+
+    [Fact]
+    public void BurstFire_FromAnotherParty_IsIgnored_OwnPartyFires()
+    {
+        var bus = NewGroupedBus("A@World", groupId: 100);
+        var fired = 0;
+        bus.OnBurstFire += () => fired++;
+
+        bus.InjectForTest(Remote("X@World", LanMessageType.BurstFire, groupId: 200, ts: 1));
+        bus.Update();
+        Assert.Equal(0, fired);
+        Assert.False(bus.IsBurstFireActive);
+
+        bus.InjectForTest(Remote("X@World", LanMessageType.BurstFire, groupId: 100, ts: 2));
+        bus.Update();
+        Assert.Equal(1, fired);
+        Assert.True(bus.IsBurstFireActive);
+    }
+
+    [Fact]
+    public void BurstFire_ZeroGroup_KeepsLegacyAllLanReach_BothDirections()
+    {
+        // Ungrouped/legacy SENDER (g omitted) reaches a grouped receiver...
+        var grouped = NewGroupedBus("A@World", groupId: 100);
+        grouped.InjectForTest(Remote("X@World", LanMessageType.BurstFire, groupId: 0, ts: 1));
+        grouped.Update();
+        Assert.True(grouped.IsBurstFireActive);
+
+        // ...and an ungrouped RECEIVER (solo / zone-in PartyId blip) still acts on a stamped fire.
+        var ungrouped = NewBus();
+        ungrouped.InjectForTest(Remote("X@World", LanMessageType.BurstFire, groupId: 200, ts: 2));
+        ungrouped.Update();
+        Assert.True(ungrouped.IsBurstFireActive);
+    }
+
+    [Fact]
+    public void BurstReadiness_WaitsOnOwnPartyOnly()
+    {
+        // Local A + same-party B, other-party C. "A@World" sorts first → local is the coordinator.
+        var bus = NewGroupedBus("A@World", groupId: 100);
+        bus.InjectForTest(RemoteHeartbeat("B@World", groupId: 100, ts: 1));
+        bus.InjectForTest(RemoteHeartbeat("C@World", groupId: 200, ts: 2));
+        bus.Update();
+
+        var fired = false;
+        bus.OnBurstFire += () => fired = true;
+
+        bus.BroadcastBurstReady(); // local ready; B not yet → hold
+        Assert.False(fired);
+
+        bus.InjectForTest(Remote("B@World", LanMessageType.BurstReady, groupId: 100, ts: 3));
+        bus.Update(); // whole party ready — C's silence must not block the fire
+        Assert.True(fired);
+        Assert.True(bus.IsBurstFireActive);
+    }
+
+    [Fact]
+    public void BurstReadiness_OtherPartyReady_DoesNotSatisfyOwnParty()
+    {
+        var bus = NewGroupedBus("A@World", groupId: 100);
+        bus.InjectForTest(RemoteHeartbeat("B@World", groupId: 100, ts: 1));
+        bus.Update();
+
+        var fired = false;
+        bus.OnBurstFire += () => fired = true;
+
+        bus.BroadcastBurstReady();
+        bus.InjectForTest(Remote("C@World", LanMessageType.BurstReady, groupId: 200, ts: 2));
+        bus.Update();
+
+        Assert.False(fired); // B — OUR party — is still not ready
+        Assert.False(bus.IsBurstFireActive);
+    }
+
+    [Fact]
+    public void TankSwapCommand_FromAnotherParty_IsIgnored_OwnPartyArms()
+    {
+        var bus = NewGroupedBus("A@World", groupId: 100);
+        var activity = 0;
+        bus.OnTankSwapActivity += _ => activity++;
+
+        bus.InjectForTest(Remote("X@World", LanMessageType.TankSwapCommand, groupId: 200, ts: 1));
+        bus.Update();
+        Assert.Equal(0, activity);
+
+        bus.InjectForTest(Remote("X@World", LanMessageType.TankSwapCommand, groupId: 100, ts: 2));
+        bus.Update();
+        Assert.Equal(1, activity);
+    }
 }

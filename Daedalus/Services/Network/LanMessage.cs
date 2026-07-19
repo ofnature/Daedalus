@@ -114,6 +114,14 @@ public sealed class LanMessage
     [JsonPropertyName("ts")]
     public long Timestamp { get; set; }
 
+    /// <summary>Sender's in-game party id for group-scoped signals (BurstReady / BurstFire /
+    /// TankSwapCommand): receivers in a DIFFERENT non-zero party ignore the message, so two
+    /// parties on one LAN don't trip each other's bursts/swaps. 0 (ungrouped sender, zone-in
+    /// blip, or pre-field client — the serializer omits defaults) matches everyone, preserving
+    /// the old all-LAN behavior. Additive/back-compat.</summary>
+    [JsonPropertyName("g")]
+    public ulong PartyGroupId { get; set; }
+
     /// <summary>Protocol version — bump on incompatible schema changes.</summary>
     [JsonPropertyName("v")]
     public int Version { get; set; } = CurrentVersion;
