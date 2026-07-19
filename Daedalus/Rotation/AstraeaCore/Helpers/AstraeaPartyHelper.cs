@@ -44,9 +44,9 @@ public class AstraeaPartyHelper : HealerPartyHelper
     /// <summary>
     /// Finds a dead party member that needs resurrection.
     /// </summary>
-    public IBattleChara? FindDeadPartyMemberNeedingRaise(IPlayerCharacter player)
+    public IBattleChara? FindDeadPartyMemberNeedingRaise(IPlayerCharacter player, bool includeAlliance = false)
     {
-        return FindDeadPartyMemberNeedingRaise(player, RoleActions.Ascend.RangeSquared);
+        return FindDeadPartyMemberNeedingRaise(player, RoleActions.Ascend.RangeSquared, includeAlliance);
     }
 
     #endregion

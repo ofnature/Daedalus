@@ -37,6 +37,8 @@ public sealed class LanPeerInfo
     /// <summary>BLU capability bitfield from the heartbeat (0 off-BLU / pre-cap clients) —
     /// drives the multi-BLU owner elections and the Coil assignment checklist.</summary>
     public uint BluCapabilities;
+    /// <summary>Seconds since the toon's last burst window started (0 = none seen yet).</summary>
+    public float SecondsSinceLastBurst;
     /// <summary>Assigned slot after role negotiation: "Tank 1", "Healer 2", "DPS 3"...</summary>
     public string AssignedSlot = "";
     public DateTime LastSeenUtc;
@@ -509,6 +511,7 @@ public sealed class CoordinationBus : IDisposable
             peer.PlayerEntityId = hb.PlayerEntityId;
             peer.Position = new Vector3(hb.PosX, hb.PosY, hb.PosZ);
             peer.BluCapabilities = hb.BluCapabilities;
+            peer.SecondsSinceLastBurst = hb.SecondsSinceLastBurst;
             peer.LastSeenUtc = now;
             if (latencyMs > 0) peer.LatencyMs = latencyMs;
         }

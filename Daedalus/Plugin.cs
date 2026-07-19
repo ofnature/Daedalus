@@ -1183,6 +1183,13 @@ public sealed class Plugin : IDalamudPlugin
                     configuration.BlueMage.Role,
                     configuration.BlueMage.EnableFleetSting)
                 : 0u,
+            // Wire sentinel: 0 = never bursted (the compact serializer omits zeros); a toon
+            // bursting right now reads 0 from the service → clamp to a small epsilon.
+            SecondsSinceLastBurst = burstWindowService.SecondsSinceLastBurstStart switch
+            {
+                < 0f => 0f,
+                var s => Math.Max(s, 0.1f),
+            },
         };
     }
 

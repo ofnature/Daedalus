@@ -942,6 +942,24 @@ public sealed class LanPartyWindow : Window, IDisposable
             return;
         }
 
+        // Synced toons show their LAST BURST instead of a static "synced" (user ask, raid prep):
+        // gold "BURST" while the window runs, "burst Xs/Xm ago" dim after, plain "synced" until
+        // the toon's first window. Heartbeat age (≤5s here) is folded in so the number is honest.
+        if (state == SyncState.Synced && peer.SecondsSinceLastBurst > 0f)
+        {
+            var burstAge = peer.SecondsSinceLastBurst + (float)(DateTime.UtcNow - peer.LastSeenUtc).TotalSeconds;
+            if (burstAge <= 20f)
+            {
+                ImGui.TextColored(DaedalusTheme.AccentGold, burstAge <= 5f ? "BURST" : $"burst {burstAge:F0}s");
+            }
+            else
+            {
+                var label = burstAge < 120f ? $"burst {burstAge:F0}s ago" : $"burst {burstAge / 60f:F0}m ago";
+                ImGui.TextColored(DaedalusTheme.TextDisabled, label);
+            }
+            return;
+        }
+
         ImGui.TextColored(state == SyncState.Synced ? DaedalusTheme.TextDisabled : stateColor, diagnosis);
     }
 

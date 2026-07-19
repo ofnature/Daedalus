@@ -22,7 +22,7 @@ public sealed class ResurrectionModule : BaseResurrectionModule<IAstraeaContext>
     protected override int RaiseMpCost => RoleActions.Ascend.MpCost;
 
     protected override IBattleChara? FindDeadPartyMemberNeedingRaise(IAstraeaContext context)
-        => context.PartyHelper.FindDeadPartyMemberNeedingRaise(context.Player);
+        => context.PartyHelper.FindDeadPartyMemberNeedingRaise(context.Player, context.Configuration.Resurrection.RaiseAllianceMembers);
 
     protected override bool HasSwiftcast(IAstraeaContext context) => context.HasSwiftcast || context.HasLightspeed;
 

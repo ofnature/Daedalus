@@ -210,6 +210,14 @@ public sealed class LanHeartbeatPayload
     [JsonPropertyName("cap")]
     public uint BluCapabilities { get; set; }
 
+    /// <summary>
+    /// Seconds since this toon's last burst window STARTED. Wire sentinel: 0/absent = no burst
+    /// seen yet (the compact serializer omits zeros, so "never" must be the zero value); a toon
+    /// bursting RIGHT NOW sends a small positive epsilon. Additive/back-compat.
+    /// </summary>
+    [JsonPropertyName("lb")]
+    public float SecondsSinceLastBurst { get; set; }
+
     /// <summary>Echo of the newest remote timestamp we've seen — latency = now - echo (one-way-ish).</summary>
     [JsonPropertyName("e")]
     public long EchoTimestamp { get; set; }

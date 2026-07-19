@@ -165,6 +165,19 @@ public sealed class BurstWindowService : IBurstWindowService, IDisposable
 
     public IReadOnlyList<(DateTime Start, DateTime End)> BurstWindowHistory => _burstWindowHistory;
 
+    /// <inheritdoc />
+    public float SecondsSinceLastBurstStart
+    {
+        get
+        {
+            if (_isInBurstWindow)
+                return 0f;
+            if (_burstWindowHistory.Count > 0)
+                return (float)(DateTime.UtcNow - _burstWindowHistory[^1].Start).TotalSeconds;
+            return -1f;
+        }
+    }
+
     public bool IsBurstImminent(float thresholdSeconds = 5f)
     {
         if (_isInBurstWindow)

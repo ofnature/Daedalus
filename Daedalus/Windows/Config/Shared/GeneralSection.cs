@@ -442,6 +442,13 @@ public sealed class GeneralSection
             ConfigUIHelpers.Toggle(Loc.T(LocalizedStrings.Resurrection.EnableRaise, "Enable Raise"), () => this.config.Resurrection.EnableRaise, v => this.config.Resurrection.EnableRaise = v,
                 Loc.T(LocalizedStrings.Resurrection.EnableRaiseDesc, "Automatically resurrect dead party members."), this.save);
 
+            ConfigUIHelpers.Toggle(
+                "Raise alliance members",
+                () => this.config.Resurrection.RaiseAllianceMembers,
+                v => this.config.Resurrection.RaiseAllianceMembers = v,
+                "In alliance raids, also raise dead players OUTSIDE your own party when nobody in your party needs a raise (raise spells can target any alliance member). Instanced duties only.",
+                this.save);
+
             ConfigUIHelpers.BeginDisabledGroup(!this.config.Resurrection.EnableRaise);
 
             // Raise Execution Mode

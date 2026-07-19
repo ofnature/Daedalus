@@ -50,4 +50,12 @@ public sealed class ResurrectionConfig
     /// Default 0.25 means 25% MP minimum (2400 MP for Raise + buffer).
     /// </summary>
     public float RaiseMpThreshold { get; set; } = 0.25f;
+
+    /// <summary>
+    /// In alliance raids, also raise dead players OUTSIDE your own 8-man party (raise spells
+    /// can target any alliance member; the finder previously only scanned the party list, so
+    /// a corpse in another alliance party was invisible — field report 2026-07-19). Own party
+    /// always takes precedence. Only ever applies inside instanced duties.
+    /// </summary>
+    public bool RaiseAllianceMembers { get; set; } = true;
 }

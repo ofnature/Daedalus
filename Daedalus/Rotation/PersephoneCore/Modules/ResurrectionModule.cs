@@ -114,6 +114,11 @@ public sealed class ResurrectionModule : IPersephoneModule
                 if (rank == 0) break;
             }
         }
+
+        // Alliance fallback (raid, 2026-07-19): raise spells can target any alliance member.
+        if (best == null && context.Configuration.Resurrection.RaiseAllianceMembers)
+            best = Daedalus.Rotation.Common.Helpers.HealerPartyHelper.FindDeadAllianceMemberNeedingRaise(
+                context.ObjectTable, player, rangeSquared);
         return best;
     }
 

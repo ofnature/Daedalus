@@ -38,8 +38,8 @@ public class AsclepiusPartyHelper : HealerPartyHelper, IPartyHelper
     public IBattleChara? FindLowestHpPartyMember(IPlayerCharacter player, int healAmount = 0) =>
         FindLowestHpPartyMember(player, SGEActions.Diagnosis.RangeSquared, healAmount);
 
-    public IBattleChara? FindDeadPartyMemberNeedingRaise(IPlayerCharacter player) =>
-        FindDeadPartyMemberNeedingRaise(player, RoleActions.Ascend.RangeSquared);
+    public IBattleChara? FindDeadPartyMemberNeedingRaise(IPlayerCharacter player, bool includeAlliance = false) =>
+        FindDeadPartyMemberNeedingRaise(player, RoleActions.Ascend.RangeSquared, includeAlliance);
 
     public (int count, List<uint> targetIds) CountPartyMembersNeedingAoEHeal(IPlayerCharacter player, int healAmount) =>
         CountPartyMembersNeedingAoEHeal(player, SGEActions.Prognosis.RadiusSquared, healAmount);

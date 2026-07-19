@@ -22,7 +22,7 @@ public sealed class ResurrectionModule : BaseResurrectionModule<IAthenaContext>,
     protected override int RaiseMpCost => RoleActions.Resurrection.MpCost;
 
     protected override IBattleChara? FindDeadPartyMemberNeedingRaise(IAthenaContext context)
-        => context.PartyHelper.FindDeadPartyMemberNeedingRaise(context.Player);
+        => context.PartyHelper.FindDeadPartyMemberNeedingRaise(context.Player, context.Configuration.Resurrection.RaiseAllianceMembers);
 
     protected override bool HasSwiftcast(IAthenaContext context) => context.HasSwiftcast;
 

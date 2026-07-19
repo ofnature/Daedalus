@@ -180,8 +180,11 @@ public abstract class HealerPartyHelper : BasePartyHelper, ISpikeTargetSource
     /// </summary>
     /// <param name="player">The player character.</param>
     /// <param name="rangeSquared">Maximum range squared for resurrection.</param>
+    /// <param name="includeAlliance">Also scan for dead alliance members OUTSIDE the party
+    /// (instanced duties only) when the party has no raise candidate.</param>
     /// <returns>The highest-priority dead party member without raise pending, or null.</returns>
-    public IBattleChara? FindDeadPartyMemberNeedingRaise(IPlayerCharacter player, float rangeSquared)
+    public IBattleChara? FindDeadPartyMemberNeedingRaise(
+        IPlayerCharacter player, float rangeSquared, bool includeAlliance = false)
     {
         IBattleChara? best = null;
         var bestRank = int.MaxValue;
@@ -207,6 +210,56 @@ public abstract class HealerPartyHelper : BasePartyHelper, ISpikeTargetSource
                 bestRank = rank;
                 if (rank == 0)
                     break; // a dead healer always wins
+            }
+        }
+
+        // Alliance fallback (2026-07-19 field report: SGE never raised a corpse in another
+        // alliance party — raise spells CAN target them, but only the party list was scanned).
+        // Own party always wins; the object-table scan only runs when the party has nobody.
+        if (best == null && includeAlliance)
+            best = FindDeadAllianceMemberNeedingRaise(ObjectTable, player, rangeSquared);
+
+        return best;
+    }
+
+    /// <summary>
+    /// Scans the object table for a dead PLAYER outside the party (any alliance member is a
+    /// legal raise target). Instanced duties ONLY — never auto-raise strangers in the open
+    /// world. Same triage order and pending-Raise skip as the party scan.
+    /// </summary>
+    public static IBattleChara? FindDeadAllianceMemberNeedingRaise(
+        IObjectTable? objectTable, IPlayerCharacter player, float rangeSquared)
+    {
+        // Null-guard: mocked contexts (and the zone-transition window) may have no table.
+        if (objectTable == null)
+            return null;
+
+        if (!PlayerSafetyHelper.IsInInstancedDuty())
+            return null;
+
+        IBattleChara? best = null;
+        var bestRank = int.MaxValue;
+        foreach (var obj in objectTable)
+        {
+            if (obj is not IPlayerCharacter pc)
+                continue;
+            if (pc.EntityId == player.EntityId)
+                continue;
+            if (!pc.IsDead || !pc.IsTargetable)
+                continue;
+            if (HasRaiseStatus(pc))
+                continue;
+            if (Vector3.DistanceSquared(player.Position, pc.Position) > rangeSquared)
+                continue;
+
+            var jobId = pc.ClassJob.RowId;
+            var rank = JobRegistry.IsHealer(jobId) ? 0 : JobRegistry.IsTank(jobId) ? 1 : 2;
+            if (rank < bestRank)
+            {
+                best = pc;
+                bestRank = rank;
+                if (rank == 0)
+                    break;
             }
         }
 

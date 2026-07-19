@@ -37,6 +37,10 @@ public interface IBurstWindowService
     /// </summary>
     float SecondsRemainingInBurst { get; }
 
+    /// <summary>Seconds since this toon's last burst window STARTED (0 while bursting; -1 when
+    /// no window has been seen yet). Rides the LAN heartbeat for the roster's last-burst column.</summary>
+    float SecondsSinceLastBurstStart { get; }
+
     /// <summary>
     /// Whether a burst window is imminent (starting within the given threshold).
     /// </summary>

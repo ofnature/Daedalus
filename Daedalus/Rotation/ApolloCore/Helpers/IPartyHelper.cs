@@ -35,7 +35,7 @@ public interface IPartyHelper : ISpikeTargetSource
     /// <summary>
     /// Finds a dead party member that needs resurrection.
     /// </summary>
-    IBattleChara? FindDeadPartyMemberNeedingRaise(IPlayerCharacter player);
+    IBattleChara? FindDeadPartyMemberNeedingRaise(IPlayerCharacter player, bool includeAlliance = false);
 
     /// <summary>
     /// Gets predicted HP percent for a target.

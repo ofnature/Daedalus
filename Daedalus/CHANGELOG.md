@@ -10,6 +10,10 @@ All notable changes to Daedalus will be documented in this file.
 - **Blue Mage now actually casts Angel Whisper** (healer role): the fleet-sting design always reserved a healer-mimic "for cleanup raises", but nothing ever cast it. Swiftcast when up, 10-second hardcast per the hardcast setting, own 5-minute cooldown respected
 - **Everyone raises in raid triage order** — healers first (they raise everyone else), then tanks, then DPS — instead of raw party-list order, which could raise a DPS while the other healer stayed on the floor. Applies to WHM/SCH/AST/SGE/RDM/SMN/BLU alike; corpses already carrying a pending Raise (from anyone, Daedalus or not) are always skipped
 
+### New — Alliance-raid raises + last-burst on the roster
+- **Raises now reach the whole alliance**: the finder only scanned your own 8-man party, so a corpse in another alliance party was invisible even though raise spells can target any alliance member — the reason a Sage stood over a dead alliance toon doing nothing. When nobody in YOUR party needs a raise, the scan now falls back to dead alliance players (triage-ordered, instanced duties only, toggleable under Settings → General → Resurrection). Reminder: "Allow hardcast Raise" is OFF by default — with Swiftcast down, a raise waits for it unless you enable hardcasting
+- **The Party Coordination roster now shows each toon's last burst** where "synced" used to sit: gold **BURST** while the window runs, "burst 34s ago" after, plain "synced" until a toon's first window — drift between boxes is visible at a glance
+
 ### Fix — Sage: Kardia works with two Sages in the party
 - With a second Sage in the group, your Sage saw the co-Sage's Kardion on the tank, decided its own was already placed, and never put its Kardia up at all — the tank should carry BOTH (each Sage's Kardion heals independently). With a co-Sage present every Kardion check is now source-aware (only YOUR buff counts) and the trust-NPC inference shortcut is disabled (it can't tell whose invisible buff it's guessing about). Solo and single-Sage behavior is completely unchanged
 

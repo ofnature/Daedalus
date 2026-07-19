@@ -44,9 +44,9 @@ public class PartyHelper : HealerPartyHelper, IPartyHelper
     }
 
     /// <inheritdoc />
-    public IBattleChara? FindDeadPartyMemberNeedingRaise(IPlayerCharacter player)
+    public IBattleChara? FindDeadPartyMemberNeedingRaise(IPlayerCharacter player, bool includeAlliance = false)
     {
-        return FindDeadPartyMemberNeedingRaise(player, RoleActions.Raise.RangeSquared);
+        return FindDeadPartyMemberNeedingRaise(player, RoleActions.Raise.RangeSquared, includeAlliance);
     }
 
     #endregion

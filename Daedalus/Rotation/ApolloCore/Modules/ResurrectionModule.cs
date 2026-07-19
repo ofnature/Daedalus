@@ -23,7 +23,7 @@ public sealed class ResurrectionModule : BaseResurrectionModule<IApolloContext>,
     protected override int RaiseMpCost => 2400;
 
     protected override IBattleChara? FindDeadPartyMemberNeedingRaise(IApolloContext context)
-        => context.PartyHelper.FindDeadPartyMemberNeedingRaise(context.Player);
+        => context.PartyHelper.FindDeadPartyMemberNeedingRaise(context.Player, context.Configuration.Resurrection.RaiseAllianceMembers);
 
     protected override bool HasSwiftcast(IApolloContext context) => context.HasSwiftcast;
 

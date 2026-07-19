@@ -43,9 +43,9 @@ public class AthenaPartyHelper : HealerPartyHelper
     /// <summary>
     /// Finds a dead party member that needs resurrection.
     /// </summary>
-    public IBattleChara? FindDeadPartyMemberNeedingRaise(IPlayerCharacter player)
+    public IBattleChara? FindDeadPartyMemberNeedingRaise(IPlayerCharacter player, bool includeAlliance = false)
     {
-        return FindDeadPartyMemberNeedingRaise(player, RoleActions.Resurrection.RangeSquared);
+        return FindDeadPartyMemberNeedingRaise(player, RoleActions.Resurrection.RangeSquared, includeAlliance);
     }
 
     #endregion
