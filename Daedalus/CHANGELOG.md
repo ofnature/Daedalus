@@ -3,7 +3,7 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
-## v0.1.27 — 2026-07-18
+## v0.1.28 — 2026-07-19
 
 ### New — Resurrection audit for raids: Summoner raises, BLU raises, raid triage order
 - **Summoner never raised at all** — the classic battle-rez third had no resurrection handling. It now Swiftcast→Resurrections like the healers (hardcast per the same global Resurrection settings), with the cross-box raise reservation so two toons never rez the same corpse
@@ -24,13 +24,15 @@ All notable changes to Daedalus will be documented in this file.
 ### Fix — Sage: Kardia works with two Sages in the party
 - With a second Sage in the group, your Sage saw the co-Sage's Kardion on the tank, decided its own was already placed, and never put its Kardia up at all — the tank should carry BOTH (each Sage's Kardion heals independently). With a co-Sage present every Kardion check is now source-aware (only YOUR buff counts) and the trust-NPC inference shortcut is disabled (it can't tell whose invisible buff it's guessing about). Solo and single-Sage behavior is completely unchanged
 
+<!-- LATEST-END -->
+## v0.1.27 — 2026-07-18
+
 ### Fix — All melee DPS: automation engagement + positional audit (the Monk lesson, generalized)
 - **Every melee job now opens on automation hunt marks**: SAM, NIN, DRG, RPR, and VPR had the same dead-end the Pugilist did — beyond melee range a passive hard-targeted mark produced "No target" and nothing was ever queued, leaving the driver waiting forever. All five now keep their combo starter queued on the mark and fire the instant they're walked into reach. Manual play is untouched
 - **Dead positional rules removed**: Dragoon's enforce-holds (all DRG positionals were removed in 7.0) and Viper's finisher hold (the Flanksting/Hindsting family lost its positionals in 7.05) could stall combos waiting for a position that no longer matters — both gone, verified against RSR's action data
 - **Reaper keeps its real positionals (Gibbet flank / Gallows rear) but never deadlocks solo**: enforcement now only holds in a party, where positional movement can actually act — solo play (where the mover is disabled by design) casts through instead of burning time-limited Soul Reaver stacks waiting for nobody
 - SAM and NIN came through the audit clean: real positionals, no holds, correct behavior
 
-<!-- LATEST-END -->
 ## v0.1.26 — 2026-07-18
 
 ### Fix — Monk/Pugilist: engages with automation drivers, positional hold removed
