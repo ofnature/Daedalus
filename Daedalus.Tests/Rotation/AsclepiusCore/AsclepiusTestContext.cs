@@ -59,7 +59,9 @@ public static class AsclepiusTestContext
         bool hasSoteria = false,
         bool hasPhilosophia = false,
         AsclepiusDebugState? debugState = null,
-        Daedalus.Services.Analytics.IDpsMeterService? dpsMeter = null)
+        Daedalus.Services.Analytics.IDpsMeterService? dpsMeter = null,
+        Mock<IPartyList>? partyList = null,
+        Mock<IObjectTable>? objectTable = null)
     {
         config ??= CreateDefaultSageConfiguration();
 
@@ -93,8 +95,8 @@ public static class AsclepiusTestContext
         var hpPredictionService = MockBuilders.CreateMockHpPredictionService();
         var mpForecastService = MockBuilders.CreateMockMpForecastService();
         var playerStatsService = MockBuilders.CreateMockPlayerStatsService();
-        var objectTable = MockBuilders.CreateMockObjectTable();
-        var partyList = MockBuilders.CreateMockPartyList();
+        objectTable ??= MockBuilders.CreateMockObjectTable();
+        partyList ??= MockBuilders.CreateMockPartyList();
         var cooldownPlanner = MockBuilders.CreateMockCooldownPlanner();
 
         var actionTracker = MockBuilders.CreateMockActionTracker(config);

@@ -1,6 +1,7 @@
 using System;
 using Dalamud.Game.ClientState.Objects.SubKinds;
 using Dalamud.Game.ClientState.Objects.Types;
+using Dalamud.Game.ClientState.Party;
 using Daedalus.Config;
 using Daedalus.Data;
 using Daedalus.Models.Action;
@@ -21,6 +22,12 @@ public sealed class KardiaModule : IAsclepiusModule
 {
     public int Priority => 3;
     public string Name => "Kardia";
+
+    /// <summary>
+    /// Test seam: party-list job ids are Lumina RowRefs, which cannot be mocked — tests
+    /// substitute this reader to model tank-job party entries.
+    /// </summary>
+    internal Func<IPartyMember, uint> PartyMemberJobIdReader { get; set; } = static m => m.ClassJob.RowId;
 
     public bool TryExecute(IAsclepiusContext context, bool isMoving) => false;
 
@@ -82,7 +89,9 @@ public sealed class KardiaModule : IAsclepiusModule
         var (desiredTarget, isSwap, swapReason) = ResolveKardiaDispatchTarget(context, tank);
         if (desiredTarget == null)
         {
-            context.Debug.KardiaState = "No target";
+            context.Debug.KardiaState = swapReason == WaitingForTankReason
+                ? "Waiting (tank loading)"
+                : "No target";
             UpdateKardiaDebugTargets(context, tank, 0, "None");
             return;
         }
@@ -151,16 +160,27 @@ public sealed class KardiaModule : IAsclepiusModule
     /// during combat, and (b) return it home once that ally recovers. When no swap fires the
     /// bearer is held — never silently re-homed, which would bypass the swap cooldown.
     /// </summary>
-    private static (IBattleChara? target, bool isSwap, string reason) ResolveKardiaDispatchTarget(
+    private const string WaitingForTankReason = "waiting for tank";
+
+    private (IBattleChara? target, bool isSwap, string reason) ResolveKardiaDispatchTarget(
         IAsclepiusContext context,
         IBattleChara? tank)
     {
         var config = context.Configuration.Sage;
-        var home = tank ?? FindKardiaFallbackTarget(context);
         var bearer = FindKardiaTargetById(context, context.KardiaTargetId);
 
         if (bearer == null || !context.HasKardiaPlaced)
-            return (home, false, "placing");
+        {
+            // Fresh placement. A tank job listed in the party but not yet resolvable on this
+            // client (staggered multibox zone-in) means "wait for the tank", not "fall back to
+            // a DPS" — pre-pull only; in combat any bearer beats none.
+            if (tank == null && !context.InCombat && HasUnresolvedTankInPartyList(context))
+                return (null, false, WaitingForTankReason);
+
+            return (tank ?? FindKardiaFallbackTarget(context), false, "placing");
+        }
+
+        var home = tank ?? FindKardiaFallbackTarget(context);
 
         if (config.KardiaSwapEnabled && context.CanSwapKardia)
         {
@@ -190,6 +210,36 @@ public sealed class KardiaModule : IAsclepiusModule
 
         // No swap fired — keep Kardion where it is (suppression no-ops the dispatch).
         return (bearer, false, "holding");
+    }
+
+    /// <summary>
+    /// True when the party list carries a tank-job member that cannot be resolved to a live
+    /// game object on this client yet — invalid entity id (0 / 0xE0000000) or absent from the
+    /// object table, i.e. the staggered zone-in window. A resolvable tank (even a dead one)
+    /// returns false so the DPS fallback still applies to genuinely tankless situations.
+    /// </summary>
+    private bool HasUnresolvedTankInPartyList(IAsclepiusContext context)
+    {
+        if (context.PartyList.Length == 0)
+            return false;
+
+        foreach (var member in context.PartyList)
+        {
+            if (member == null || !JobRegistry.IsTank(PartyMemberJobIdReader(member)))
+                continue;
+
+            var entityId = member.EntityId;
+            if (entityId == 0 || entityId == FFXIVConstants.InvalidTargetId)
+                return true;
+
+            if (member.GameObject == null
+                && context.ObjectTable.SearchByEntityId(entityId) is not IBattleChara)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static float HpPercent(IBattleChara chara) =>

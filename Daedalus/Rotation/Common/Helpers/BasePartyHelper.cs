@@ -66,18 +66,8 @@ public abstract class BasePartyHelper
 
         if (PartyList.Length > 0)
         {
-            // Update party cache if needed
-            if (PartyList.Length != LastPartyCount || player.EntityId != LastPlayerEntityId)
-            {
-                CachedPartyEntityIds.Clear();
-                foreach (var partyMember in PartyList)
-                {
-                    if (partyMember.EntityId != player.EntityId)
-                        CachedPartyEntityIds.Add(partyMember.EntityId);
-                }
-                LastPartyCount = PartyList.Length;
-                LastPlayerEntityId = player.EntityId;
-            }
+            if (IsPartyCacheStale(player))
+                RebuildPartyCache(player);
 
             foreach (var obj in ObjectTable)
             {
@@ -108,6 +98,50 @@ public abstract class BasePartyHelper
     {
         return GetAllPartyMembers(player, includeDead: false);
     }
+
+    /// <summary>
+    /// The cached entity-id set must track the party list's CURRENT ids, not just its size.
+    /// During staggered zone-ins (multibox) a member still loading reports an invalid EntityId
+    /// (0 / 0xE0000000); a size-only check built in that window latched the garbage id forever
+    /// once the member finished loading — party size never changes, so the member stayed
+    /// invisible to every party scan (tank resolution, heal targeting, Kardia placement).
+    /// </summary>
+    private bool IsPartyCacheStale(IPlayerCharacter player)
+    {
+        if (PartyList.Length != LastPartyCount || player.EntityId != LastPlayerEntityId)
+            return true;
+
+        var expectedCount = 0;
+        foreach (var partyMember in PartyList)
+        {
+            var entityId = partyMember.EntityId;
+            if (!IsValidPartyEntityId(entityId) || entityId == player.EntityId)
+                continue;
+
+            expectedCount++;
+            if (!CachedPartyEntityIds.Contains(entityId))
+                return true;
+        }
+
+        return expectedCount != CachedPartyEntityIds.Count;
+    }
+
+    private void RebuildPartyCache(IPlayerCharacter player)
+    {
+        CachedPartyEntityIds.Clear();
+        foreach (var partyMember in PartyList)
+        {
+            var entityId = partyMember.EntityId;
+            if (IsValidPartyEntityId(entityId) && entityId != player.EntityId)
+                CachedPartyEntityIds.Add(entityId);
+        }
+
+        LastPartyCount = PartyList.Length;
+        LastPlayerEntityId = player.EntityId;
+    }
+
+    private static bool IsValidPartyEntityId(uint entityId) =>
+        entityId != 0 && entityId != FFXIVConstants.InvalidTargetId;
 
     #endregion
 
