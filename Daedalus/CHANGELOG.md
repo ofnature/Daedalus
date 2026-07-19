@@ -3,6 +3,13 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.29 — 2026-07-19
+
+### Fix — Party members loading late are no longer invisible (Kardia on the wrong ally)
+- **A toon that zoned in slower than the rest could stay invisible to a healer for the whole instance** — the party scanner cached member ids by party size, and with staggered multibox zone-ins a still-loading member's placeholder id got latched forever. Field symptom: one of two Sages saw no tank at all (tank id 0), put Kardion on the Pictomancer, and never moved it home. The cache now revalidates against the live party list every frame, so the tank is picked up the moment their client finishes loading — this fixes tank resolution, heal targeting, and every party scan on all healers
+- **Kardia no longer falls back to a DPS while the tank is still loading**: pre-pull, a tank listed in the party that isn't loaded on this client yet shows "Waiting (tank loading)" instead of parking Kardion on a DPS. In combat the fallback stays (any bearer beats none), and genuinely tankless parties behave as before
+
+<!-- LATEST-END -->
 ## v0.1.28 — 2026-07-19
 
 ### New — Resurrection audit for raids: Summoner raises, BLU raises, raid triage order
@@ -24,7 +31,6 @@ All notable changes to Daedalus will be documented in this file.
 ### Fix — Sage: Kardia works with two Sages in the party
 - With a second Sage in the group, your Sage saw the co-Sage's Kardion on the tank, decided its own was already placed, and never put its Kardia up at all — the tank should carry BOTH (each Sage's Kardion heals independently). With a co-Sage present every Kardion check is now source-aware (only YOUR buff counts) and the trust-NPC inference shortcut is disabled (it can't tell whose invisible buff it's guessing about). Solo and single-Sage behavior is completely unchanged
 
-<!-- LATEST-END -->
 ## v0.1.27 — 2026-07-18
 
 ### Fix — All melee DPS: automation engagement + positional audit (the Monk lesson, generalized)
