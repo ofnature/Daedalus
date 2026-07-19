@@ -87,18 +87,16 @@ public sealed class HealingModule : IProteusModule
             return;
         }
 
-        if (partyCoord?.ReserveRaiseTarget(
-                (uint)deadTarget.GameObjectId, BLUActions.AngelWhisper.ActionId,
-                context.HasSwiftcast ? 0 : 10_000, usingSwiftcast: context.HasSwiftcast) == false)
-        {
-            context.Debug.HealingState = "Failed to reserve raise target";
-            return;
-        }
-
         var swift = context.HasSwiftcast;
+        var reservedTargetId = (uint)deadTarget.GameObjectId;
         scheduler.PushGcd(ProteusAbilities.AngelWhisper, deadTarget.GameObjectId, priority: 1,
             onDispatched: _ =>
             {
+                // Reserve at DISPATCH, not at push (2026-07-19): reserving while merely a CANDIDATE
+                // let a box that kept failing to dispatch re-reserve every frame and lock every
+                // other box out of the corpse (500ms-post-completion expiry never lapsed).
+                partyCoord?.ReserveRaiseTarget(reservedTargetId, BLUActions.AngelWhisper.ActionId,
+                    swift ? 0 : 10_000, usingSwiftcast: swift);
                 context.Debug.PlannedAction = BLUActions.AngelWhisper.Name;
                 context.Debug.HealingState =
                     $"Angel Whisper → {deadTarget.Name?.TextValue ?? "ally"}{(swift ? " (Swiftcast)" : " (hardcast)")}";

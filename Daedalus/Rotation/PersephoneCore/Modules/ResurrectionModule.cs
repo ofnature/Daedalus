@@ -71,18 +71,16 @@ public sealed class ResurrectionModule : IPersephoneModule
             return;
         }
 
-        if (partyCoord?.ReserveRaiseTarget(
-                (uint)deadTarget.GameObjectId, RoleActions.Resurrection.ActionId,
-                context.HasSwiftcast ? 0 : 8000, usingSwiftcast: context.HasSwiftcast) == false)
-        {
-            context.Debug.PlanningState = "Failed to reserve raise target";
-            return;
-        }
-
         var swift = context.HasSwiftcast;
+        var reservedTargetId = (uint)deadTarget.GameObjectId;
         scheduler.PushGcd(PersephoneAbilities.Resurrection, deadTarget.GameObjectId, priority: 1,
             onDispatched: _ =>
             {
+                // Reserve at DISPATCH, not at push (2026-07-19): reserving while merely a CANDIDATE
+                // let a box that kept failing to dispatch re-reserve every frame and lock every
+                // other box out of the corpse (500ms-post-completion expiry never lapsed).
+                partyCoord?.ReserveRaiseTarget(reservedTargetId, RoleActions.Resurrection.ActionId,
+                    swift ? 0 : 8000, usingSwiftcast: swift);
                 var targetName = deadTarget.Name?.TextValue ?? "Unknown";
                 context.Debug.PlannedAction = swift ? "Resurrection (Swiftcast)" : "Resurrection (Hardcast)";
                 context.Debug.PlanningState = $"Raising {targetName}";

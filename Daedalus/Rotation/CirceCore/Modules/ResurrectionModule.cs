@@ -58,15 +58,14 @@ public sealed class ResurrectionModule : ICirceModule
         var canRaise = useDualcast ? context.HasDualcast : (context.HasDualcast || context.HasSwiftcast);
         if (canRaise)
         {
-            if (partyCoord?.ReserveRaiseTarget((uint)deadTarget.GameObjectId, RDMActions.Verraise.ActionId, 0, usingSwiftcast: true) == false)
-            {
-                context.Debug.PlanningState = "Failed to reserve raise target";
-                return;
-            }
-
+            var reservedTargetId = (uint)deadTarget.GameObjectId;
             scheduler.PushGcd(CirceAbilities.Verraise, deadTarget.GameObjectId, priority: 1,
                 onDispatched: _ =>
                 {
+                    // Reserve at DISPATCH, not at push (2026-07-19): reserving while merely a CANDIDATE
+                    // let a box that kept failing to dispatch re-reserve every frame and lock every
+                    // other box out of the corpse (500ms-post-completion expiry never lapsed).
+                    partyCoord?.ReserveRaiseTarget(reservedTargetId, RDMActions.Verraise.ActionId, 0, usingSwiftcast: true);
                     var targetName = deadTarget.Name?.TextValue ?? "Unknown";
                     var method = context.HasDualcast ? "Dualcast" : "Swiftcast";
                     context.Debug.PlannedAction = $"Verraise ({method})";

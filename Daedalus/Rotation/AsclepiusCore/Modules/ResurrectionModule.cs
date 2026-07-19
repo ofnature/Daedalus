@@ -150,15 +150,14 @@ public sealed class ResurrectionModule : BaseResurrectionModule<IAsclepiusContex
 
         if (hasSwiftcast)
         {
-            if (partyCoord?.ReserveRaiseTarget((uint)target.GameObjectId, RaiseAction.ActionId, 0, usingSwiftcast: true) == false)
-            {
-                SetRaiseState(context, "Failed to reserve");
-                return;
-            }
-
+            var reservedTargetId = (uint)target.GameObjectId;
             scheduler.PushGcd(AsclepiusAbilities.Egeiro, target.GameObjectId, priority: 1,
                 onDispatched: _ =>
                 {
+                    // Reserve at DISPATCH, not at push (2026-07-19): reserving while merely a CANDIDATE
+                    // let a box that kept failing to dispatch re-reserve every frame and lock every
+                    // other box out of the corpse (500ms-post-completion expiry never lapsed).
+                    partyCoord?.ReserveRaiseTarget(reservedTargetId, RaiseAction.ActionId, 0, usingSwiftcast: true);
                     var note = GetRaiseSuccessNote(context, hasSwiftcast: true);
                     SetRaiseState(context, "Swiftcast Raise");
                     SetPlanningState(context, "Raise");
@@ -174,15 +173,12 @@ public sealed class ResurrectionModule : BaseResurrectionModule<IAsclepiusContex
             if (swiftcastCooldown > 10f)
             {
                 const int hardcastMs = 8000;
-                if (partyCoord?.ReserveRaiseTarget((uint)target.GameObjectId, RaiseAction.ActionId, hardcastMs, usingSwiftcast: false) == false)
-                {
-                    SetRaiseState(context, "Failed to reserve");
-                    return;
-                }
-
+                var reservedHardcastId = (uint)target.GameObjectId;
                 scheduler.PushGcd(AsclepiusAbilities.Egeiro, target.GameObjectId, priority: 1,
                     onDispatched: _ =>
                     {
+                        // Reserve at DISPATCH (see the Swiftcast branch note).
+                        partyCoord?.ReserveRaiseTarget(reservedHardcastId, RaiseAction.ActionId, hardcastMs, usingSwiftcast: false);
                         var note = GetRaiseSuccessNote(context, hasSwiftcast: false);
                         SetRaiseState(context, "Hardcast Raise");
                         SetPlanningState(context, "Raise");

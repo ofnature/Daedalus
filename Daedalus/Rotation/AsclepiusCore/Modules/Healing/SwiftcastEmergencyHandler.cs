@@ -39,6 +39,17 @@ public sealed class SwiftcastEmergencyHandler : IHealingHandler
             : context.PartyHelper.FindLowestHpPartyMember(player);
         if (target == null) { context.Debug.EmergencySwiftcastState = "No target"; return; }
 
+        // Raise owns Swiftcast (alliance-raid field report 2026-07-19: a dead LAN bot never got
+        // raised — under raid healing pressure this handler burned Swiftcast on emergency heals
+        // the moment it came up, and with hardcast raise disabled the ResurrectionModule waited
+        // for a Swiftcast that never survived to its turn). A corpse outranks a low-HP save.
+        if (context.Configuration.Resurrection.EnableRaise
+            && context.PartyHelper.FindDeadPartyMemberNeedingRaise(player) != null)
+        {
+            context.Debug.EmergencySwiftcastState = "Held (raise pending)";
+            return;
+        }
+
         var hpPercent = target.MaxHp > 0 ? (float)target.CurrentHp / target.MaxHp : 1f;
         if (hpPercent > critical)
         {
