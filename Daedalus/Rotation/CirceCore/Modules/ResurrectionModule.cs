@@ -80,15 +80,26 @@ public sealed class ResurrectionModule : ICirceModule
         var player = context.Player;
         var rangeSquared = RDMActions.Verraise.RangeSquared;
 
+        // Raid triage order (2026-07-18): healers → tanks → DPS, not party-list order.
+        IBattleChara? best = null;
+        var bestRank = int.MaxValue;
         foreach (var member in context.PartyHelper.GetAllPartyMembers(player, includeDead: true))
         {
             if (member.EntityId == player.EntityId) continue;
             if (!member.IsDead) continue;
             if (HasRaiseStatus(member)) continue;
             if (Vector3.DistanceSquared(player.Position, member.Position) > rangeSquared) continue;
-            return member;
+
+            var jobId = Daedalus.Rotation.Common.Helpers.TrustPartyRoleHelper.ResolveJobId(member, context.PartyList);
+            var rank = JobRegistry.IsHealer(jobId) ? 0 : JobRegistry.IsTank(jobId) ? 1 : 2;
+            if (rank < bestRank)
+            {
+                best = member;
+                bestRank = rank;
+                if (rank == 0) break;
+            }
         }
-        return null;
+        return best;
     }
 
     private static bool HasRaiseStatus(IBattleChara chara)

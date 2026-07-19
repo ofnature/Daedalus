@@ -74,6 +74,9 @@ public static class ProteusAbilities
 
     // --- Healer kit ---
     public static readonly AbilityBehavior PomCure = new() { Action = BLUActions.PomCure, Toggle = cfg => cfg.BlueMage.EnablePomCure };
+    /// <summary>The BLU raise (raid audit 2026-07-18): healer-role kit, global Resurrection toggle.</summary>
+    public static readonly AbilityBehavior AngelWhisper = new() { Action = BLUActions.AngelWhisper, Toggle = cfg => cfg.Resurrection.EnableRaise };
+    public static readonly AbilityBehavior BluSwiftcast = new() { Action = RoleActions.Swiftcast };
     public static readonly AbilityBehavior Gobskin = new() { Action = BLUActions.Gobskin, Toggle = cfg => cfg.BlueMage.EnableGobskin };
     public static readonly AbilityBehavior Exuviation = new() { Action = BLUActions.Exuviation, Toggle = cfg => cfg.BlueMage.EnableExuviation };
 }

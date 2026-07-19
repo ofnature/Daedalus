@@ -40,9 +40,97 @@ public sealed class HealingModule : IProteusModule
             return;
         }
 
+        TryPushAngelWhisper(context, scheduler, player);
         TryPushPomCure(context, scheduler, cfg, player);
         TryPushExuviation(context, scheduler, cfg, player);
         TryPushGobskin(context, scheduler, cfg, player, injured);
+    }
+
+    /// <summary>
+    /// Angel Whisper — the BLU raise (raid audit 2026-07-18: the fleet reserves a healer-mimic
+    /// for exactly these cleanup raises, but nothing ever CAST it). Healer role only; Swiftcast
+    /// eats the 10s hardcast when available, otherwise the hardcast is gated on the global
+    /// AllowHardcastRaise. Own 300s recast → GetCooldownRemaining, never IsActionReady.
+    /// Raid triage order: healers → tanks → DPS.
+    /// </summary>
+    private void TryPushAngelWhisper(
+        IProteusContext context, RotationScheduler scheduler,
+        Dalamud.Game.ClientState.Objects.SubKinds.IPlayerCharacter player)
+    {
+        var raiseCfg = context.Configuration.Resurrection;
+        if (!raiseCfg.EnableRaise) return;
+        if (!context.IsSpellUsable(BLUActions.AngelWhisper.ActionId)) return;
+        if (context.CurrentMp < BLUActions.AngelWhisper.MpCost) return;
+        if (player.MaxMp > 0 && (float)player.CurrentMp / player.MaxMp < raiseCfg.RaiseMpThreshold) return;
+        if (context.ActionService.GetCooldownRemaining(BLUActions.AngelWhisper.ActionId) > 0f) return;
+
+        var deadTarget = FindDeadPartyMemberForRaise(context, player);
+        if (deadTarget == null) return;
+
+        var partyCoord = context.PartyCoordinationService;
+        if (partyCoord?.IsRaiseTargetReservedByOther((uint)deadTarget.GameObjectId) == true)
+        {
+            context.Debug.HealingState = "Raise reserved by other";
+            return;
+        }
+
+        if (!context.HasSwiftcast
+            && context.ActionService.IsActionReady(Daedalus.Data.RoleActions.Swiftcast.ActionId))
+        {
+            scheduler.PushOgcd(ProteusAbilities.BluSwiftcast, player.GameObjectId, priority: 1,
+                onDispatched: _ => context.Debug.PlannedAction = "Swiftcast (for Angel Whisper)");
+        }
+
+        if (!context.HasSwiftcast && !raiseCfg.AllowHardcastRaise)
+        {
+            context.Debug.HealingState = "Angel Whisper waiting for Swiftcast";
+            return;
+        }
+
+        if (partyCoord?.ReserveRaiseTarget(
+                (uint)deadTarget.GameObjectId, BLUActions.AngelWhisper.ActionId,
+                context.HasSwiftcast ? 0 : 10_000, usingSwiftcast: context.HasSwiftcast) == false)
+        {
+            context.Debug.HealingState = "Failed to reserve raise target";
+            return;
+        }
+
+        var swift = context.HasSwiftcast;
+        scheduler.PushGcd(ProteusAbilities.AngelWhisper, deadTarget.GameObjectId, priority: 1,
+            onDispatched: _ =>
+            {
+                context.Debug.PlannedAction = BLUActions.AngelWhisper.Name;
+                context.Debug.HealingState =
+                    $"Angel Whisper → {deadTarget.Name?.TextValue ?? "ally"}{(swift ? " (Swiftcast)" : " (hardcast)")}";
+            });
+    }
+
+    private static Dalamud.Game.ClientState.Objects.Types.IBattleChara? FindDeadPartyMemberForRaise(
+        IProteusContext context, Dalamud.Game.ClientState.Objects.SubKinds.IPlayerCharacter player)
+    {
+        const ushort raiseStatusId = 148;
+        var rangeSquared = BLUActions.AngelWhisper.Range * BLUActions.AngelWhisper.Range;
+
+        Dalamud.Game.ClientState.Objects.Types.IBattleChara? best = null;
+        var bestRank = int.MaxValue;
+        foreach (var member in context.PartyHelper.GetAllPartyMembers(player, includeDead: true))
+        {
+            if (member.EntityId == player.EntityId) continue;
+            if (!member.IsDead) continue;
+            if (Daedalus.Rotation.Common.Helpers.BaseStatusHelper.HasStatus(member, raiseStatusId)) continue;
+            if (System.Numerics.Vector3.DistanceSquared(player.Position, member.Position) > rangeSquared) continue;
+
+            var jobId = Daedalus.Rotation.Common.Helpers.TrustPartyRoleHelper.ResolveJobId(member, context.PartyList);
+            var rank = Daedalus.Data.JobRegistry.IsHealer(jobId) ? 0
+                : Daedalus.Data.JobRegistry.IsTank(jobId) ? 1 : 2;
+            if (rank < bestRank)
+            {
+                best = member;
+                bestRank = rank;
+                if (rank == 0) break;
+            }
+        }
+        return best;
     }
 
     private void TryPushWhiteWind(

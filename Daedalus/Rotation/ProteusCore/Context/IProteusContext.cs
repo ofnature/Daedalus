@@ -56,6 +56,9 @@ public interface IProteusContext : ICasterDpsRotationContext
     /// <summary>Active spell-set reader; null when unavailable (gating degrades to learned-only).</summary>
     Daedalus.Services.Action.IBluLoadoutService? LoadoutService { get; }
 
+    /// <summary>IPC raise reservations etc.; null when party coordination is disabled.</summary>
+    Daedalus.Services.Party.IPartyCoordinationService? PartyCoordinationService { get; }
+
     /// <summary>Auto-learned death-family susceptibility ledger (Missile chain gate); null = no data.</summary>
     Daedalus.Services.Blu.IDeathImmunityLedger? DeathLedger { get; }
 

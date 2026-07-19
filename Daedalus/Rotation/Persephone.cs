@@ -152,6 +152,7 @@ public sealed class Persephone : BaseCasterDpsRotation<IPersephoneContext, IPers
         // Initialize modules (ordered by priority - lower = executed first)
         _modules = new List<IPersephoneModule>
         {
+            new ResurrectionModule(),              // Priority 15 - Swiftcast battle rez (raises before buffs/damage)
             new BuffModule(BurstWindowService),    // Priority 20 - oGCD management (Enkindle, Astral Flow, Aetherflow, Searing Light)
             new DamageModule(BurstWindowService, SmartAoEService),  // Priority 30 - GCD rotation
         };

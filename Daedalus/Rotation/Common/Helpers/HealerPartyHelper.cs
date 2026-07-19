@@ -173,13 +173,19 @@ public abstract class HealerPartyHelper : BasePartyHelper, ISpikeTargetSource
     }
 
     /// <summary>
-    /// Finds a dead party member that needs resurrection.
+    /// Finds a dead party member that needs resurrection, in raid TRIAGE order: healers first
+    /// (they raise everyone else), then tanks (fight stability), then DPS — not raw party-list
+    /// order (raid prep 2026-07-18; with two dead in an 8-man the old first-found pick could
+    /// raise a DPS while the other healer stayed on the floor). Ties keep party order.
     /// </summary>
     /// <param name="player">The player character.</param>
     /// <param name="rangeSquared">Maximum range squared for resurrection.</param>
-    /// <returns>A dead party member without raise pending, or null.</returns>
+    /// <returns>The highest-priority dead party member without raise pending, or null.</returns>
     public IBattleChara? FindDeadPartyMemberNeedingRaise(IPlayerCharacter player, float rangeSquared)
     {
+        IBattleChara? best = null;
+        var bestRank = int.MaxValue;
+
         foreach (var member in GetAllPartyMembers(player, includeDead: true))
         {
             if (member.EntityId == player.EntityId)
@@ -194,10 +200,26 @@ public abstract class HealerPartyHelper : BasePartyHelper, ISpikeTargetSource
             if (Vector3.DistanceSquared(player.Position, member.Position) > rangeSquared)
                 continue;
 
-            return member;
+            var rank = RaiseTriageRank(member);
+            if (rank < bestRank)
+            {
+                best = member;
+                bestRank = rank;
+                if (rank == 0)
+                    break; // a dead healer always wins
+            }
         }
 
-        return null;
+        return best;
+    }
+
+    /// <summary>Raise triage: healer 0 → tank 1 → everyone else 2 (unresolvable jobs last-ish).</summary>
+    public int RaiseTriageRank(IBattleChara member)
+    {
+        var jobId = TrustPartyRoleHelper.ResolveJobId(member, PartyList);
+        if (JobRegistry.IsHealer(jobId)) return 0;
+        if (JobRegistry.IsTank(jobId)) return 1;
+        return 2;
     }
 
     /// <summary>

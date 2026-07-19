@@ -110,6 +110,8 @@ public static class PersephoneAbilities
 
     // --- Role ---
     public static readonly AbilityBehavior Swiftcast = new() { Action = RoleActions.Swiftcast };
+    /// <summary>The Arcanist-line battle rez (raid audit 2026-07-18 — SMN previously never raised).</summary>
+    public static readonly AbilityBehavior Resurrection = new() { Action = RoleActions.Resurrection, Toggle = cfg => cfg.Resurrection.EnableRaise };
     public static readonly AbilityBehavior LucidDreaming = new() { Action = RoleActions.LucidDreaming, Toggle = cfg => cfg.CasterShared.EnableLucidDreaming };
     public static readonly AbilityBehavior Addle = new() { Action = RoleActions.Addle, Toggle = cfg => cfg.Summoner.EnableAddle };
 }

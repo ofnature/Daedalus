@@ -540,6 +540,25 @@ public static class BLUActions
     };
 
     /// <summary>
+    /// #72 — the BLU raise: 10s hardcast (Swiftcast-able), 25y, 1000 MP, own 300s recast
+    /// (shares nothing). XIVAPI-verified 2026-07-18 (Cast100ms=100, Recast100ms=3000). The
+    /// fleet-sting design reserves a healer-mimic for exactly these cleanup raises.
+    /// </summary>
+    public static readonly ActionDefinition AngelWhisper = new()
+    {
+        ActionId = 18317,
+        Name = "Angel Whisper",
+        MinLevel = 1,
+        Category = ActionCategory.GCD,
+        TargetType = ActionTargetType.SingleAlly,
+        EffectTypes = ActionEffectType.Raise,
+        CastTime = 10.0f,
+        RecastTime = 300f,
+        Range = 25f,
+        MpCost = 1000
+    };
+
+    /// <summary>
     /// Coil utility spells the v3 coordinator ASSIGNS but never automates (checklist + capability
     /// bits only — see the LAN spec's do-not-implement list). Ids from <see cref="BLUSpellbook"/>.
     /// </summary>

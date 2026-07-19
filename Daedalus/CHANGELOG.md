@@ -5,6 +5,11 @@ All notable changes to Daedalus will be documented in this file.
 <!-- LATEST-START -->
 ## v0.1.27 — 2026-07-18
 
+### New — Resurrection audit for raids: Summoner raises, BLU raises, raid triage order
+- **Summoner never raised at all** — the classic battle-rez third had no resurrection handling. It now Swiftcast→Resurrections like the healers (hardcast per the same global Resurrection settings), with the cross-box raise reservation so two toons never rez the same corpse
+- **Blue Mage now actually casts Angel Whisper** (healer role): the fleet-sting design always reserved a healer-mimic "for cleanup raises", but nothing ever cast it. Swiftcast when up, 10-second hardcast per the hardcast setting, own 5-minute cooldown respected
+- **Everyone raises in raid triage order** — healers first (they raise everyone else), then tanks, then DPS — instead of raw party-list order, which could raise a DPS while the other healer stayed on the floor. Applies to WHM/SCH/AST/SGE/RDM/SMN/BLU alike; corpses already carrying a pending Raise (from anyone, Daedalus or not) are always skipped
+
 ### Fix — Sage: Kardia works with two Sages in the party
 - With a second Sage in the group, your Sage saw the co-Sage's Kardion on the tank, decided its own was already placed, and never put its Kardia up at all — the tank should carry BOTH (each Sage's Kardion heals independently). With a co-Sage present every Kardion check is now source-aware (only YOUR buff counts) and the trust-NPC inference shortcut is disabled (it can't tell whose invisible buff it's guessing about). Solo and single-Sage behavior is completely unchanged
 
