@@ -791,6 +791,11 @@ public sealed class CoordinationBus : IDisposable
         ActivateBurstFire(null);
     }
 
+    /// <summary>Auto-fire floor: readiness re-arrives on every heartbeat, so without a refire
+    /// cooldown a group whose members are all permanently ready would reopen the window on a
+    /// 2s timer. Does not gate the Force button.</summary>
+    public const float AutoFireRefireCooldownSeconds = 30f;
+
     private void TryFireBurst()
     {
         // Coordinator election without a protocol: the alphabetically-first fresh SAME-GROUP toon
@@ -799,17 +804,27 @@ public sealed class CoordinationBus : IDisposable
         // their own party — two parties on one LAN burst independently; an ungrouped toon keeps the
         // legacy whole-roster behavior.
         var now = DateTime.UtcNow;
+        if ((now - _lastBurstFireUtc).TotalSeconds < AutoFireRefireCooldownSeconds) return;
+
         var group = LocalPartyGroupId;
         List<string> fresh;
+        bool anyAlignable;
         lock (_roster)
-            fresh = _roster.Values
+        {
+            var freshPeers = _roster.Values
                 .Where(p => !p.IsStale(now) && (group == 0 || p.PartyGroupId == group))
-                .Select(p => p.SenderId)
                 .ToList();
+            fresh = freshPeers.Select(p => p.SenderId).ToList();
+            // Auto-fire only aligns something when a 2-min raid buff (or BLU Moon Flute) exists in
+            // the group — an all-tank/pure-healer group is permanently "ready" and firing for it
+            // would just cycle the window (and the alert feed) forever.
+            anyAlignable = freshPeers.Any(p => BurstReadinessHelper.HasAlignableRaidBuff(p.JobId));
+        }
         if (!fresh.Contains(_lan.SenderId))
             fresh.Add(_lan.SenderId);
         fresh.Sort(StringComparer.Ordinal);
 
+        if (!anyAlignable) return;                                   // nothing worth aligning
         if (fresh.Count == 0 || fresh[0] != _lan.SenderId) return;   // not the coordinator
         if (fresh.Any(s => !_burstReadySenders.Contains(s))) return; // someone not ready yet
 
@@ -817,9 +832,12 @@ public sealed class CoordinationBus : IDisposable
         ActivateBurstFire(null);
     }
 
+    private DateTime _lastBurstFireUtc = DateTime.MinValue;
+
     private void ActivateBurstFire(LanMessage? msg)
     {
         _burstFireUntil = DateTime.UtcNow.AddSeconds(3);
+        _lastBurstFireUtc = DateTime.UtcNow;
         _burstReadySenders.Clear();
         OnBurstFire?.Invoke();
         OnBurstFireSignal?.Invoke(msg?.SenderId ?? _lan.SenderId, msg?.PartyGroupId ?? LocalPartyGroupId);

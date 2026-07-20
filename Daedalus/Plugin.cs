@@ -1160,6 +1160,18 @@ public sealed class Plugin : IDalamudPlugin
         var role = JobRegistry.IsTank(jobId) ? "Tank" : JobRegistry.IsHealer(jobId) ? "Healer" : "DPS";
         var inCombat = (player.StatusFlags & Dalamud.Game.ClientState.Objects.Enums.StatusFlags.InCombat) != 0;
         var enemyTarget = targetManager.Target as Dalamud.Game.ClientState.Objects.Types.IBattleNpc;
+
+        // Announce burst readiness on the heartbeat cadence (raid buff off cooldown; jobs without
+        // one report ready-in-combat). Without this only BLU's Moon Flute path ever called
+        // BroadcastBurstReady — every readiness pip sat red on non-BLU comps and the all-ready
+        // auto-fire could never trigger.
+        if (coordinationBus is { IsBurstFireActive: false }
+            && Daedalus.Services.Network.BurstReadinessHelper.IsBurstReady(
+                jobId, inCombat, actionService.IsActionReady, actionService.IsActionLearned))
+        {
+            coordinationBus.BroadcastBurstReady();
+        }
+
         return new Daedalus.Services.Network.LanHeartbeatPayload
         {
             CharacterName = player.Name.TextValue,

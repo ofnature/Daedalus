@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Dalamud.Plugin.Services;
+using Daedalus.Data;
 using Daedalus.Services.Network;
 using Moq;
 using Xunit;
@@ -242,7 +243,8 @@ public class LanCoordinationTests
     {
         // With a one-toon roster the local sender is both the coordinator and the only required
         // ready signal, so readiness resolves to an immediate fire (and clears the ready set).
-        var bus = NewBus();
+        // The toon must bring an alignable raid buff (PCT here) — see the anyAlignable gate.
+        var bus = NewGroupedBus("Self@World", groupId: 0, jobId: JobRegistry.Pictomancer);
         var fired = false;
         bus.OnBurstFire += () => fired = true;
 
@@ -251,6 +253,21 @@ public class LanCoordinationTests
         Assert.True(fired);
         Assert.True(bus.IsBurstFireActive);
         Assert.Empty(bus.BurstReadySenders);
+    }
+
+    [Fact]
+    public void BroadcastBurstReady_NoAlignableRaidBuffInGroup_NeverAutoFires()
+    {
+        // A WAR-only "group" is permanently ready — auto-firing would cycle the window on a
+        // timer for nothing. The Force button remains the only trigger for such comps.
+        var bus = NewGroupedBus("Self@World", groupId: 0, jobId: JobRegistry.Warrior);
+        var fired = false;
+        bus.OnBurstFire += () => fired = true;
+
+        bus.BroadcastBurstReady();
+
+        Assert.False(fired);
+        Assert.False(bus.IsBurstFireActive);
     }
 
     [Fact]
@@ -345,25 +362,26 @@ public class LanCoordinationTests
     // matches everyone (solo toons, zone-in PartyId blips, pre-group clients).
     // ---------------------------------------------------------------------------------------------
 
-    /// <summary>Bus whose local toon has self-registered with the given party group id.</summary>
-    private static CoordinationBus NewGroupedBus(string senderId, ulong groupId)
+    /// <summary>Bus whose local toon has self-registered with the given party group id and job.
+    /// Default job is PCT so the roster carries an alignable raid buff (the auto-fire gate).</summary>
+    private static CoordinationBus NewGroupedBus(string senderId, ulong groupId, uint jobId = JobRegistry.Pictomancer)
     {
         var log = new Mock<IPluginLog>().Object;
         var lan = new LanCoordinator(log, "machine-A", 47200) { SenderId = senderId };
         var bus = new CoordinationBus(log, lan, partyService: null, localMachineId: "machine-A")
         {
-            HeartbeatProvider = () => new LanHeartbeatPayload { CharacterName = senderId, PartyGroupId = groupId },
+            HeartbeatProvider = () => new LanHeartbeatPayload { CharacterName = senderId, PartyGroupId = groupId, JobId = jobId },
         };
         bus.Update(); // sends the heartbeat + self-registers the group id
         return bus;
     }
 
-    private static LanMessage RemoteHeartbeat(string sender, ulong groupId, long ts) => new()
+    private static LanMessage RemoteHeartbeat(string sender, ulong groupId, long ts, uint jobId = 0) => new()
     {
         SenderId = sender,
         MachineId = "machine-B",
         Type = LanMessageType.Heartbeat,
-        Payload = new LanHeartbeatPayload { CharacterName = sender, PartyGroupId = groupId }.ToJson(),
+        Payload = new LanHeartbeatPayload { CharacterName = sender, PartyGroupId = groupId, JobId = jobId }.ToJson(),
         Timestamp = ts,
     };
 
