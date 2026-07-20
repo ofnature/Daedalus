@@ -49,7 +49,31 @@ public sealed class PositionalMovementService : IPositionalMovementService
             }
             else if (IsAlreadyCorrect(anticipation.Required, request.AnticipationContext))
             {
-                idleReason = "already at positional";
+                // Anchor persistence (positional-anchor-plan P1): "anywhere inside the arc" used to
+                // idle here, so a knockback/dodge that dumped the toon at arc CENTER (or the far
+                // side) made the next flank/rear swap a long walk instead of the ~1.5y boundary hop
+                // the anchor design promises. With boundary camping active (bias > 0), drift back
+                // to the boundary-biased anchor whenever we're off it by more than the tolerance —
+                // same stand math and BMR safety veto as the arc hop, budget-clamped, and never
+                // when it would clip the GCD (the drift is the lowest-urgency move we make).
+                var canDrift = request.PositionalBoundaryBiasRadians > 0f
+                    && ComputeAnchorDistance(in request, target, anticipation.Required)
+                        > PositionalMovementConstants.AnchorDriftToleranceYalms
+                    && (request.AllowMovementDuringActionLock || !WouldClipGcd(
+                        request.ActionService,
+                        request.PlayerPosition,
+                        request.PlayerHitboxRadius,
+                        target,
+                        anticipation.Required,
+                        false,
+                        request.PositionalBoundaryBiasRadians));
+
+                if (canDrift && TryQueuePositionalArc(in request, target, anticipation.Required))
+                    return;
+
+                idleReason = request.PositionalBoundaryBiasRadians > 0f
+                    ? "at anchor"
+                    : "already at positional";
             }
             else if (!request.AllowMovementDuringActionLock && WouldClipGcd(
                 request.ActionService,
@@ -279,6 +303,28 @@ public sealed class PositionalMovementService : IPositionalMovementService
             return _vNav.IsPathRunning || _vNav.IsPathfindInProgress;
 
         return HorizontalDistanceTo(State.Destination.Value, destination) <= 0.5f;
+    }
+
+    /// <summary>
+    /// Horizontal distance from the player to the (boundary-biased) anchor stand point —
+    /// the drift trigger for anchor persistence.
+    /// </summary>
+    private static float ComputeAnchorDistance(
+        in PositionalMovementUpdateRequest request,
+        PositionalMovementTarget target,
+        PositionalType required)
+    {
+        var standRequest = new PositionalStandRequest(
+            PlayerPosition: request.PlayerPosition,
+            PlayerHitboxRadius: request.PlayerHitboxRadius,
+            TargetPosition: target.Position,
+            TargetHitboxRadius: target.HitboxRadius,
+            TargetRotationRadians: target.RotationRadians,
+            RequiredPositional: required,
+            StandRadiusOffset: ArcStandRadiusOffset(request.PlayerHitboxRadius),
+            BoundaryBiasRadians: request.PositionalBoundaryBiasRadians);
+
+        return PositionalStandCalculator.ComputeIdealHorizontalDistance(in standRequest);
     }
 
     private static bool IsAlreadyCorrect(PositionalType required, in PositionalAnticipationContext context)

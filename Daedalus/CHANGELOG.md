@@ -5,6 +5,9 @@ All notable changes to Daedalus will be documented in this file.
 <!-- LATEST-START -->
 ## v0.1.34 — 2026-07-20
 
+### New — Positional anchor: drift-back to the boundary (groundwork, off by default)
+- First piece of the new positional system (Daedalus owns the angle, BossMod owns dodging): when boundary camping is active, a melee toon inside the correct arc but knocked off its anchor point (the flank/rear border ± the bias angle) now **drifts back to the border during filler GCDs** — movement-budget-clamped, never clipping a GCD, always behind the BossMod safety veto. This keeps every flank↔rear swap a ~1.7-yalm hop instead of an arc-center round trip. Inert until boundary camping is enabled per job (validation rollout comes next)
+
 ### Fix — Dragoon: current-patch positionals restored (combo steps)
 - Same stale-data correction as Monk, caught by another live tooltip: **Chaotic Spring is rear** (140→180, combo 300→340) — and the live sheet confirms **Chaos Thrust rear, Fang and Claw flank, Wheeling Thrust rear** too (Drakesbane/Heavens'/Spiral Blow have none). The next-positional anticipation was still keying on proc statuses that died in 7.0 and missed the Spiral Blow upgrade id; it's now combo-position based with both base and upgrade ids per step. Combo steps are still never held — this feeds the overlay and the upcoming positional anchor. Hunter's Coil (flank) and Swiftskin's Coil (rear) were sheet-confirmed as already correct
 

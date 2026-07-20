@@ -164,6 +164,138 @@ public class PositionalMovementServiceTests
         Assert.Equal("already at positional", service.State.SkipReason);
     }
 
+    // ── Anchor persistence (positional-anchor-plan P1, 2026-07-20) ──────────────────────────────
+    // With boundary camping active (bias > 0), being inside the correct arc is not enough: after a
+    // knockback/dodge dumps the toon at arc center, it must drift back to the boundary-biased
+    // anchor during filler GCDs so the next flank/rear swap stays a short boundary hop.
+
+    private const float TenDegreesRadians = 10f * System.MathF.PI / 180f;
+
+    [Fact]
+    public void Update_InArcButOffAnchor_DriftsBackToAnchor()
+    {
+        var service = CreateService();
+        _anticipation.Next = new PositionalAnticipation(PositionalType.Rear, 7481, PositionalAnticipationReason.ComboSetup);
+
+        // Target faces +Z; player parked at rear arc CENTER (0,0,-5) — ~3y off the boundary-biased
+        // anchor (boundary at ±135° biased 10° into rear). Correct arc, wrong spot → drift.
+        var ctx = BaseAnticipationContext with { IsAtRear = true };
+        var request = CreateRequest(anticipationContext: ctx) with
+        {
+            PlayerPosition = new Vector3(0f, 0f, -5f),
+            PositionalBoundaryBiasRadians = TenDegreesRadians,
+        };
+        service.Update(request);
+
+        Assert.Equal(PositionalMovementPhase.Moving, service.State.Phase);
+        _vNav.Verify(x => x.PathfindAndMoveCloseTo(It.IsAny<Vector3>(), It.IsAny<float>(), MovementIntent.PositionalArc, false), Times.Once);
+    }
+
+    [Fact]
+    public void Update_InArcAtAnchor_IdlesWithoutMoving()
+    {
+        var service = CreateService();
+        _anticipation.Next = new PositionalAnticipation(PositionalType.Rear, 7481, PositionalAnticipationReason.ComboSetup);
+
+        // Player exactly at the rear-biased anchor: boundary base +135° (player on +X side),
+        // biased +10° into rear = 145°; stand ring = hitbox 2 + offset 3 = 5y.
+        var anchorAngle = (135f + 10f) * System.MathF.PI / 180f;
+        var anchor = new Vector3(System.MathF.Sin(anchorAngle) * 5f, 0f, System.MathF.Cos(anchorAngle) * 5f);
+
+        var ctx = BaseAnticipationContext with { IsAtRear = true };
+        var request = CreateRequest(anticipationContext: ctx) with
+        {
+            PlayerPosition = anchor,
+            PositionalBoundaryBiasRadians = TenDegreesRadians,
+        };
+        service.Update(request);
+
+        Assert.Equal(PositionalMovementPhase.Skipped, service.State.Phase);
+        Assert.Equal("at anchor", service.State.SkipReason);
+        _vNav.Verify(x => x.PathfindAndMoveCloseTo(It.IsAny<Vector3>(), It.IsAny<float>(), It.IsAny<MovementIntent>(), It.IsAny<bool>()), Times.Never);
+    }
+
+    [Fact]
+    public void Update_OffAnchorButCampingOff_NoDriftChurn()
+    {
+        var service = CreateService();
+        _anticipation.Next = new PositionalAnticipation(PositionalType.Rear, 7481, PositionalAnticipationReason.ComboSetup);
+
+        // Bias 0 (camping off): in-arc means idle, exactly the pre-anchor behavior — no drift.
+        var ctx = BaseAnticipationContext with { IsAtRear = true };
+        var request = CreateRequest(anticipationContext: ctx) with
+        {
+            PlayerPosition = new Vector3(0f, 0f, -5f),
+        };
+        service.Update(request);
+
+        Assert.Equal(PositionalMovementPhase.Skipped, service.State.Phase);
+        Assert.Equal("already at positional", service.State.SkipReason);
+        _vNav.Verify(x => x.PathfindAndMoveCloseTo(It.IsAny<Vector3>(), It.IsAny<float>(), It.IsAny<MovementIntent>(), It.IsAny<bool>()), Times.Never);
+    }
+
+    [Fact]
+    public void Update_DriftBlockedWhenItWouldClipGcd()
+    {
+        var service = CreateService();
+        _anticipation.Next = new PositionalAnticipation(PositionalType.Rear, 7481, PositionalAnticipationReason.ComboSetup);
+        _action.Setup(x => x.GcdRemaining).Returns(0.10005f); // sliver of budget → any move clips
+
+        var ctx = BaseAnticipationContext with { IsAtRear = true };
+        var request = CreateRequest(anticipationContext: ctx) with
+        {
+            PlayerPosition = new Vector3(0f, 0f, -5f),
+            PositionalBoundaryBiasRadians = TenDegreesRadians,
+        };
+        service.Update(request);
+
+        Assert.Equal(PositionalMovementPhase.Skipped, service.State.Phase);
+        Assert.Equal("at anchor", service.State.SkipReason);
+        _vNav.Verify(x => x.PathfindAndMoveCloseTo(It.IsAny<Vector3>(), It.IsAny<float>(), It.IsAny<MovementIntent>(), It.IsAny<bool>()), Times.Never);
+    }
+
+    [Fact]
+    public void Update_DriftDestinationRespectsSafetyVeto()
+    {
+        var service = CreateService();
+        _anticipation.Next = new PositionalAnticipation(PositionalType.Rear, 7481, PositionalAnticipationReason.ComboSetup);
+        _bossMod.Setup(x => x.QueryPositionSafety(It.IsAny<Vector3>(), It.IsAny<float>()))
+            .Returns(PositionSafety.Unsafe);
+
+        var ctx = BaseAnticipationContext with { IsAtRear = true };
+        var request = CreateRequest(anticipationContext: ctx) with
+        {
+            PlayerPosition = new Vector3(0f, 0f, -5f),
+            PositionalBoundaryBiasRadians = TenDegreesRadians,
+        };
+        service.Update(request);
+
+        Assert.Equal(PositionalMovementPhase.Skipped, service.State.Phase);
+        _vNav.Verify(x => x.PathfindAndMoveCloseTo(It.IsAny<Vector3>(), It.IsAny<float>(), It.IsAny<MovementIntent>(), It.IsAny<bool>()), Times.Never);
+    }
+
+    [Fact]
+    public void AnchorGeometry_FlankRearSwapIsAShortHop()
+    {
+        // The plan's core promise: with 10° bias the rear-anchor and flank-anchor sit 20° apart on
+        // the stand ring — a chord of 2·r·sin(10°) ≈ 1.74y at r=5, NOT an arc-center round trip.
+        var common = new PositionalStandRequest(
+            PlayerPosition: new Vector3(3.5f, 0f, -3.5f), // near the +X boundary
+            PlayerHitboxRadius: 0.5f,
+            TargetPosition: Vector3.Zero,
+            TargetHitboxRadius: 2f,
+            TargetRotationRadians: 0f,
+            RequiredPositional: PositionalType.Rear,
+            StandRadiusOffset: 3f,
+            BoundaryBiasRadians: TenDegreesRadians);
+
+        var rearAnchor = PositionalStandCalculator.Calculate(common);
+        var flankAnchor = PositionalStandCalculator.Calculate(common with { RequiredPositional = PositionalType.Flank });
+
+        var hop = Vector3.Distance(rearAnchor, flankAnchor);
+        Assert.InRange(hop, 0.5f, 2.0f);
+    }
+
     [Fact]
     public void Update_WhenMaintainAndHuggingTarget_DoesNotBackOff()
     {

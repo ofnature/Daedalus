@@ -67,6 +67,16 @@ public static class PositionalMovementConstants
     /// </summary>
     public const float PositionalArrivalToleranceYalms = 0.35f;
 
+    /// <summary>
+    /// Anchor persistence dead-band (positional-anchor-plan P1): while INSIDE the correct arc with
+    /// boundary camping active, drift back to the boundary-biased anchor only once the toon is
+    /// farther than this from it. Wide enough (≈ 3× vNav Flex, and well above the 0.35y arrival
+    /// tolerance) that target micro-rotation and arrival slop never churn the path; tight enough
+    /// that a knockback/dodge that dumped the toon at arc center (≈3-4y off-anchor at melee radius)
+    /// walks home during filler GCDs, keeping the next flank/rear swap a short boundary hop.
+    /// </summary>
+    public const float AnchorDriftToleranceYalms = 1.5f;
+
     // --- MovementArbiter cadence (yield-to-BMR + vNav churn protection) ---
 
     /// <summary>

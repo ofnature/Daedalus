@@ -51,7 +51,12 @@ off pending validation) and `IsPositionalArcRolloutEnabled` is **true only for H
 
 ## Work items
 
-### P1 — Anchor persistence (the actual gap)
+### P1 — Anchor persistence (the actual gap) — ✅ DONE 2026-07-20
+Implemented as specified below: `AnchorDriftToleranceYalms = 1.5f`, drift branch in
+`PositionalMovementService.Update` (bias-gated, budget-clamped, GCD-clip guarded, BMR safety
+veto via the same `TryQueuePositionalArc` path), skip reason "at anchor" when parked. 6 tests
+incl. the flank↔rear hop-chord geometry proof (≈1.7y at 10° bias). Inert until a job's rollout
+gate + `EnableBoundaryCamping` flip (P3) — safe to ship dark.
 Today `PositionalMovementService.Update` idles with "already at positional" whenever the toon is
 anywhere inside the required arc. After a knockback/dodge that leaves the toon at the arc CENTER
 (45° from the border) or on the far side, the next swap is a long walk — exactly what the anchor
