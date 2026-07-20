@@ -324,6 +324,8 @@ public sealed class DamageModule : IAresModule
         // RSR: spend all Inner Release stacks on Fell Cleave before Primal Rend
         if (context.InnerReleaseStacks > 0) return;
         if (!context.HasPrimalRendReady) return;
+        // RSR parity: the Primal chain is Surging Tempest-guarded too (700+ potency unbuffed is a loss).
+        if (ShouldRefreshSurgingTempestFirst(context)) return;
 
         scheduler.PushGcd(AresAbilities.PrimalRend, targetId, priority: 4,
             onDispatched: _ =>
@@ -350,6 +352,8 @@ public sealed class DamageModule : IAresModule
         if (level < WARActions.PrimalRuination.MinLevel) return;
         if (context.InnerReleaseStacks > 0) return;
         if (!context.PrimalRuinationReady) return;
+        // RSR parity: Surging Tempest-guarded like Primal Rend.
+        if (ShouldRefreshSurgingTempestFirst(context)) return;
 
         scheduler.PushGcd(AresAbilities.PrimalRuination, targetId, priority: 4,
             onDispatched: _ =>
@@ -376,6 +380,11 @@ public sealed class DamageModule : IAresModule
     private void TryPushInnerChaos(IAresContext context, RotationScheduler scheduler, ulong targetId, int enemyCount)
     {
         var level = context.Player.Level;
+
+        // RSR parity: the Nascent Chaos spenders are also wrapped in the Surging Tempest 3-GCD
+        // guard — burning Inner Chaos while the +10% buff lapses both loses the buff on a
+        // 660-potency cast and delays the Storm's Eye refresh for everything after it.
+        if (ShouldRefreshSurgingTempestFirst(context)) return;
 
         // AoE path
         if (context.Configuration.Tank.EnableAoEDamage &&

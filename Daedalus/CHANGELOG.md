@@ -5,6 +5,11 @@ All notable changes to Daedalus will be documented in this file.
 <!-- LATEST-START -->
 ## v0.1.33 — 2026-07-19
 
+### Fix — Rotation audit vs The Balance/RSR, batch 1: WAR and BRD damage fixes
+- **Warrior**: the Surging Tempest refresh guard now also covers Inner Chaos/Chaotic Cyclone and the Primal Rend/Ruination chain (burning a 660-700 potency cast while the +10% buff lapses lost twice — the unbuffed hit AND the delayed refresh); and Inner Release no longer waits for 50 Beast Gauge (its stacks are free Fell Cleaves — the hold just drifted the 60s cooldown, costing IR windows over a fight)
+- **Bard**: Iron Jaws is now the top GCD priority (was below every proc and Apex Arrow) — during Raging Strikes/Battle Voice the continuous proc parade could starve a due refresh past expiry, dropping both DoTs mid-burst
+- PLD and SGE audited clean against RSR in the same pass (FoF-keyed burst logic and Phlegma/Toxikon/DoT ordering already match)
+
 ### Fix — Pictomancer: burst windows no longer wasted on hardcast Rainbow Drips (major damage fix)
 - **The big one**: inside every Starry Muse window, the rotation hardcast ~4-second Rainbow Drips at a priority above the hammer combo, Comet, and the subtractive spells — and re-cast it on every recast, so the entire 20s buffed window drained into slow unbuffed-tier casts. In combat, Rainbow Drip now fires **only as the instant Rainbow Bright proc** (hardcasting is a pre-pull thing), matching The Balance and RSR
 - **Comet in Black is now the first GCD priority under Starry Muse** (above Star Prism and the hammer combo), instead of waiting behind the hammers

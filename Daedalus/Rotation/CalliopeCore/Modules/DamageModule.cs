@@ -396,7 +396,11 @@ public sealed class DamageModule : ICalliopeModule
             return;
         }
 
-        scheduler.PushGcd(CalliopeAbilities.IronJaws, target.GameObjectId, priority: 6,
+        // RSR parity: Iron Jaws is the TOP GCD priority — at 6 it sat below every proc and Apex,
+        // and during Raging/Battle Voice the near-continuous Hawk's Eye parade could starve a
+        // ≤3s refresh past expiry (dropping BOTH DoTs mid-burst). The gates above already keep
+        // it from firing early, so top priority only ever costs a proc one GCD of delay.
+        scheduler.PushGcd(CalliopeAbilities.IronJaws, target.GameObjectId, priority: 0,
             onDispatched: _ =>
             {
                 var minDotRemaining = System.Math.Min(context.CausticBiteRemaining, context.StormbiteRemaining);

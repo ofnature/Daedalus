@@ -78,4 +78,80 @@ public sealed class AresSurgingTempestGuardTests
     {
         Assert.True(FellCleaveQueued(surgingTempestRemaining: 30f, hasSurgingTempest: true));
     }
+
+    // ── 2026-07-20 RSR-parity audit: the guard also wraps the Nascent Chaos spenders and the
+    // Primal chain (RSR gates ChaoticCyclone/InnerChaos and PrimalRend/Ruination on the same
+    // Surging Tempest 3-GCD check — burning a 660-700 potency cast unbuffed while delaying the
+    // Storm's Eye refresh loses twice).
+
+    private System.Collections.Generic.IReadOnlyList<Daedalus.Rotation.Common.Scheduling.AbilityCandidate>
+        CollectQueue(float stRemaining, bool hasSt, bool innerChaos = false, bool primalRend = false, bool primalRuination = false)
+    {
+        var enemy = Enemy();
+        var targeting = MockBuilders.CreateMockTargetingService();
+        targeting.Setup(x => x.FindEnemyForAction(
+                It.IsAny<EnemyTargetingStrategy>(), It.IsAny<uint>(), It.IsAny<IPlayerCharacter>()))
+            .Returns(enemy.Object);
+        targeting.Setup(x => x.FindEnemy(
+                It.IsAny<EnemyTargetingStrategy>(), It.IsAny<float>(), It.IsAny<IPlayerCharacter>()))
+            .Returns(enemy.Object);
+        MockBuilders.SetupEnemyPackCount(targeting, 1);
+
+        var actionService = MockBuilders.CreateMockActionService();
+        actionService.Setup(x => x.GcdDuration).Returns(2.5f);
+
+        var config = AresTestContext.CreateDefaultWarriorConfiguration();
+        var scheduler = SchedulerFactory.CreateForTest(config: config);
+        var context = AresTestContext.CreateMock(
+            config: config,
+            actionService: actionService,
+            targetingService: targeting,
+            level: 100,
+            beastGauge: 0,
+            hasInnerRelease: false,
+            hasSurgingTempest: hasSt,
+            surgingTempestRemaining: stRemaining,
+            hasNascentChaos: innerChaos,
+            innerChaosReady: innerChaos,
+            hasPrimalRendReady: primalRend,
+            primalRuinationReady: primalRuination,
+            enemyCount: 1);
+
+        _module.CollectCandidates(context, scheduler, isMoving: false);
+        return scheduler.InspectGcdQueue();
+    }
+
+    [Fact]
+    public void BlocksInnerChaos_WhenSurgingTempestAboutToDrop()
+    {
+        var queue = CollectQueue(stRemaining: 5f, hasSt: true, innerChaos: true);
+        Assert.DoesNotContain(queue, c => c.Behavior == AresAbilities.InnerChaos);
+    }
+
+    [Fact]
+    public void AllowsInnerChaos_WhenSurgingTempestHealthy()
+    {
+        var queue = CollectQueue(stRemaining: 30f, hasSt: true, innerChaos: true);
+        Assert.Contains(queue, c => c.Behavior == AresAbilities.InnerChaos);
+    }
+
+    [Fact]
+    public void BlocksPrimalChain_WhenSurgingTempestAboutToDrop()
+    {
+        var rendQueue = CollectQueue(stRemaining: 5f, hasSt: true, primalRend: true);
+        Assert.DoesNotContain(rendQueue, c => c.Behavior == AresAbilities.PrimalRend);
+
+        var ruinQueue = CollectQueue(stRemaining: 5f, hasSt: true, primalRuination: true);
+        Assert.DoesNotContain(ruinQueue, c => c.Behavior == AresAbilities.PrimalRuination);
+    }
+
+    [Fact]
+    public void AllowsPrimalChain_WhenSurgingTempestHealthy()
+    {
+        var rendQueue = CollectQueue(stRemaining: 30f, hasSt: true, primalRend: true);
+        Assert.Contains(rendQueue, c => c.Behavior == AresAbilities.PrimalRend);
+
+        var ruinQueue = CollectQueue(stRemaining: 30f, hasSt: true, primalRuination: true);
+        Assert.Contains(ruinQueue, c => c.Behavior == AresAbilities.PrimalRuination);
+    }
 }

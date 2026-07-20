@@ -98,11 +98,10 @@ public sealed class BuffModule : BaseTankBuffModule<IAresContext>, IAresModule
             return;
         }
 
-        if (context.BeastGauge < 50 && context.SurgingTempestRemaining > 15f)
-        {
-            context.Debug.BuffState = $"Building gauge ({context.BeastGauge}/50)";
-            return;
-        }
+        // RSR parity: NO gauge gate on Inner Release — its 3 stacks are FREE Fell Cleaves, so
+        // gauge is irrelevant to the press. The old "build to 50 first" hold drifted the 60s
+        // cooldown a few GCDs every cycle (fewer IR windows over a fight) for zero benefit.
+        // RSR's only condition: Surging Tempest not about to lapse (checked above).
 
         if (!context.ActionService.IsActionReady(WARActions.InnerRelease.ActionId))
         {

@@ -74,6 +74,32 @@ public class CalliopeDotRefreshTests
             || c.Behavior == CalliopeAbilities.VenomousBite || c.Behavior == CalliopeAbilities.CausticBite);
     }
 
+    // ── Iron Jaws priority (2026-07-20 RSR-parity audit) ──
+
+    [Fact]
+    public void IronJaws_TopGcdPriority_WhenRefreshNeeded()
+    {
+        // RSR: Iron Jaws is the FIRST GCD priority. At its old priority 6 the Hawk's Eye proc
+        // parade (1-4) plus Apex (5) could starve a ≤3s refresh past expiry mid-burst.
+        var (context, scheduler) = Setup(level: 100, dotRemaining: 2f);
+
+        new DamageModule().CollectCandidates(context, scheduler, isMoving: false);
+
+        var ironJaws = Assert.Single(
+            scheduler.InspectGcdQueue(), c => c.Behavior == CalliopeAbilities.IronJaws);
+        Assert.Equal(0, ironJaws.Priority);
+    }
+
+    [Fact]
+    public void IronJaws_NotQueued_WhenDotsHealthy()
+    {
+        var (context, scheduler) = Setup(level: 100, dotRemaining: 25f);
+
+        new DamageModule().CollectCandidates(context, scheduler, isMoving: false);
+
+        Assert.DoesNotContain(scheduler.InspectGcdQueue(), c => c.Behavior == CalliopeAbilities.IronJaws);
+    }
+
     // ── Setup ──
 
     private static System.Collections.Generic.IReadOnlyList<
