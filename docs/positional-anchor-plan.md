@@ -38,12 +38,16 @@ off pending validation) and `IsPositionalArcRolloutEnabled` is **true only for H
 2. **Boundary camping becomes the standard positional mode** for the FIVE jobs that still HAVE
    positionals on live: **NIN** (Aeolian rear / Armor Crush flank), **SAM** (Gekko rear / Kasha
    flank), **RPR** (Gallows rear / Gibbet flank), **VPR coils** (Hunter's flank / Swiftskin's rear),
-   and **MNK coeurl form** (Demolish REAR; Snap Punch + Pouncing Coeurl FLANK — verified vs the
-   live sheet 2026-07-20 after a user tooltip disproved the "Dawntrail removed all MNK positionals"
-   claim from the 7.05-era RSR checkout; a later patch re-added them. Opo-opo and raptor GCDs have
-   none, so MNK's anchor is only live while raptor form is up → coeurl is next). DRG has NO
-   positionals (7.0) and the VPR finisher family lost theirs in 7.05 — their providers return
-   null / stay out of the rollout.
+   **MNK coeurl form** (Demolish REAR; Snap Punch + Pouncing Coeurl FLANK — opo-opo and raptor
+   GCDs have none, so MNK's anchor is only live while raptor form is up → coeurl is next), and
+   **DRG combo steps** (Chaotic Spring / Chaos Thrust REAR, Fang and Claw FLANK, Wheeling Thrust
+   REAR; Drakesbane / Heavens' / Spiral Blow none — anticipation is combo-position based, dual
+   ids per step; `Zeus.ComputeNextPositional` implemented 2026-07-20).
+   ⚠️ Both MNK and DRG were previously believed positional-free — user tooltips + live sheets
+   (XIVAPI ActionTransient) disproved the 7.05-era RSR checkout on 2026-07-20. **Re-verify the
+   whole positional bank against the live sheet after every patch; the RSR checkout is a snapshot,
+   not truth, for game data.** Only the VPR finisher family remains positional-free (7.05) —
+   the coils are Hunter's FLANK / Swiftskin's REAR (sheet-confirmed same day).
 
 ## Work items
 
@@ -113,5 +117,5 @@ that was the failure mode of the old BMR wiring (BMR's guess vs our rotation's r
 - No BMR positional hints, ever (this plan replaces that approach).
 - No solo-mode positionals (existing design decision stands).
 - No multi-enemy pack positionals (single-enemy gate stays).
-- DRG / VPR-finishers / MNK opo-opo+raptor GCDs: no positionals exist — keep them out.
-  (MNK COEURL form is IN scope — see Decisions #2.)
+- VPR finisher family / MNK opo-opo+raptor GCDs / DRG starter+thrust steps: no positionals —
+  keep them out. (MNK COEURL form and the DRG positional combo steps ARE in scope — Decisions #2.)

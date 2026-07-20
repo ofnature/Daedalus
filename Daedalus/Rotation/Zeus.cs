@@ -167,29 +167,28 @@ public sealed class Zeus : BaseMeleeDpsRotation<IZeusContext, IZeusModule>
     }
 
     /// <summary>
-    /// DRG positionals: Fang and Claw = flank, Wheeling Thrust = rear,
-    /// Chaos Thrust/Chaotic Spring = rear. After Disembowel → rear.
+    /// DRG positionals — LIVE-SHEET facts (verified 2026-07-20, user tooltip + XIVAPI: the
+    /// "7.0 removed all DRG positionals" claim was stale, a later patch re-added them):
+    /// Chaos Thrust / Chaotic Spring = REAR, Fang and Claw = FLANK, Wheeling Thrust = REAR;
+    /// Drakesbane / Heavens' Thrust / Spiral Blow have none. Since 7.0 these are COMBO-chained
+    /// (the old Bared / Wheel in Motion proc statuses no longer exist), so the next arc comes
+    /// from the combo position — dual ids per step (base + upgrade), same rule as ComputeComboStep.
     /// </summary>
     protected override PositionalType? GetNextRequiredPositional()
     {
         var player = ObjectTable.LocalPlayer;
         if (player == null) return null;
 
-        // Check for Fang and Claw Bared (flank proc) or Wheel in Motion (rear proc)
-        foreach (var s in player.StatusList)
-        {
-            if (s.StatusId == DRGActions.StatusIds.FangAndClawBared)
-                return PositionalType.Flank;
-            if (s.StatusId == DRGActions.StatusIds.WheelInMotion)
-                return PositionalType.Rear;
-        }
-
-        // After Disembowel (87) → next is Chaos Thrust (rear)
-        if (LastComboAction == 87)
-            return PositionalType.Rear;
-
-        return null;
+        return ComputeNextPositional(LastComboAction);
     }
+
+    internal static PositionalType? ComputeNextPositional(uint lastComboAction) => lastComboAction switch
+    {
+        87 or 36955 => PositionalType.Rear,   // Disembowel / Spiral Blow → Chaotic Spring (rear)
+        88 or 25772 => PositionalType.Rear,   // Chaos Thrust / Chaotic Spring → Wheeling Thrust (rear)
+        84 or 25771 => PositionalType.Flank,  // Full Thrust / Heavens' Thrust → Fang and Claw (flank)
+        _ => null,                            // starter/step-2/Drakesbane next → no positional
+    };
 
     /// <inheritdoc />
     protected override IPositionalAnticipationProvider? GetPositionalAnticipationProvider()

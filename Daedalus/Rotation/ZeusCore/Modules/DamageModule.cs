@@ -569,10 +569,11 @@ public sealed class DamageModule : IZeusModule
             && context.ActionService.IsActionReady(DRGActions.FangAndClaw.ActionId))
         {
             var positionalOk = context.IsAtFlank || context.HasTrueNorth || context.TargetHasPositionalImmunity;
-            // GAME FACT (melee audit 2026-07-18, RSR-verified: DRG_Reborn has ZERO positional
-            // handling): Dawntrail removed EVERY Dragoon positional — the old enforce-hold here
-            // could stall the combo at step 4 (the MNK deadlock class). Never hold; the label
-            // below stays as flavor only.
+            // LIVE-SHEET CORRECTION (2026-07-20): Fang and Claw's FLANK positional is REAL on the
+            // current patch (140→180; the 2026-07-18 "Dawntrail removed every DRG positional" note
+            // came from the stale 7.05-era RSR checkout). Still NEVER hold — a held combo step is
+            // the MNK deadlock class; the positional anchor (docs/positional-anchor-plan.md) owns
+            // getting the toon to the arc, this label feeds the overlay/debug only.
             scheduler.PushGcd(ZeusAbilities.FangAndClaw, target.GameObjectId, priority: 2,
                 onDispatched: _ =>
                 {
@@ -608,7 +609,8 @@ public sealed class DamageModule : IZeusModule
             && context.ActionService.IsActionReady(DRGActions.WheelingThrust.ActionId))
         {
             var positionalOk = context.IsAtRear || context.HasTrueNorth || context.TargetHasPositionalImmunity;
-            // Same as step 4a: Dawntrail DRG has no positionals — never hold the combo.
+            // Same as step 4a: Wheeling Thrust's REAR positional is real on live (2026-07-20
+            // correction) — but still never hold the combo; the anchor owns positioning.
             scheduler.PushGcd(ZeusAbilities.WheelingThrust, target.GameObjectId, priority: 2,
                 onDispatched: _ =>
                 {

@@ -5,6 +5,9 @@ All notable changes to Daedalus will be documented in this file.
 <!-- LATEST-START -->
 ## v0.1.34 — 2026-07-20
 
+### Fix — Dragoon: current-patch positionals restored (combo steps)
+- Same stale-data correction as Monk, caught by another live tooltip: **Chaotic Spring is rear** (140→180, combo 300→340) — and the live sheet confirms **Chaos Thrust rear, Fang and Claw flank, Wheeling Thrust rear** too (Drakesbane/Heavens'/Spiral Blow have none). The next-positional anticipation was still keying on proc statuses that died in 7.0 and missed the Spiral Blow upgrade id; it's now combo-position based with both base and upgrade ids per step. Combo steps are still never held — this feeds the overlay and the upcoming positional anchor. Hunter's Coil (flank) and Swiftskin's Coil (rear) were sheet-confirmed as already correct
+
 ### Fix — Monk: current-patch positionals restored (coeurl form only)
 - A live tooltip disproved the earlier "Dawntrail removed all Monk positionals" conclusion (based on outdated reference data) — a later patch re-added them to the **coeurl form**: Demolish is **rear**, Snap Punch and Pouncing Coeurl are **flank** (310→370, Fury 460→520); opo-opo and raptor GCDs have none. The positional overlay/anticipation now reflects this: no more phantom flank/rear prompts on opo-opo and raptor GCDs, the raptor→coeurl step anticipates the correct arc (Fury → flank, Demolish due → rear), and Pouncing Coeurl's arc label is corrected from rear to flank. GCDs remain ungated — this fixes what the overlay and upcoming positional anchor aim at, not when things cast
 
