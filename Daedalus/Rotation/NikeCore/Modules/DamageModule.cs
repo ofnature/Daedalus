@@ -305,6 +305,10 @@ public sealed class DamageModule : INikeModule
         var player = context.Player;
         if (player.Level < SAMActions.OgiNamikiri.MinLevel) return;
         if (!context.HasOgiNamikiriReady) return;
+        // RSR parity: Ogi only fires with BOTH damage buffs up (HasFugetsuAndFuka) — a 1000-potency
+        // cast without Fugetsu's +13% is a straight loss, and the Ready buff lasts 30s so there is
+        // always time to re-establish the buffs first (the combo does it naturally).
+        if (!context.HasFugetsu || !context.HasFuka) return;
         // Block re-dispatch during the server RTT window after Ogi Namikiri fires: status 2959
         // stays visible on the client for 2–3 frames before the remove-packet arrives, but
         // KaeshiNamikiriReady (2960) isn't granted yet — without this guard a second Ogi fires
@@ -347,6 +351,9 @@ public sealed class DamageModule : INikeModule
                 if (level < SAMActions.Higanbana.MinLevel) return;
                 // Skip Higanbana at 2+ targets — DoT on one mob is a DPS loss vs AoE filler
                 if (enemyCount >= 2) return;
+                // RSR parity: the 60s DoT SNAPSHOTS the damage buffs at cast — never apply it
+                // without both Fugetsu and Fuka up (a full minute of unbuffed ticks otherwise).
+                if (!context.HasFugetsu || !context.HasFuka) return;
                 if (context.HasHiganbanaOnTarget && context.HiganbanaRemaining > context.Configuration.Samurai.HiganbanaRefreshThreshold) return;
                 var targetHpPercent = target.MaxHp > 0 ? (float)target.CurrentHp / target.MaxHp : 1f;
                 if (targetHpPercent < context.Configuration.Samurai.HiganbanaMinTargetHp) return;

@@ -5,6 +5,10 @@ All notable changes to Daedalus will be documented in this file.
 <!-- LATEST-START -->
 ## v0.1.33 — 2026-07-19
 
+### Fix — Rotation audit batch 2 (fleet jobs): SAM buff gates
+- **Samurai**: Ogi Namikiri and Higanbana now require BOTH Fugetsu and Fuka before firing (RSR parity) — previously a post-downtime Ogi could cast without Fugetsu's +13%, and a badly timed Higanbana snapshot locked in a full minute of unbuffed DoT ticks
+- NIN, SMN, and AST's damage side audited clean against RSR in the same pass (Ninki pooling, demi-phase chains, and Oracle/Lord burst handling already match)
+
 ### Fix — Rotation audit vs The Balance/RSR, batch 1: WAR and BRD damage fixes
 - **Warrior**: the Surging Tempest refresh guard now also covers Inner Chaos/Chaotic Cyclone and the Primal Rend/Ruination chain (burning a 660-700 potency cast while the +10% buff lapses lost twice — the unbuffed hit AND the delayed refresh); and Inner Release no longer waits for 50 Beast Gauge (its stacks are free Fell Cleaves — the hold just drifted the 60s cooldown, costing IR windows over a fight)
 - **Bard**: Iron Jaws is now the top GCD priority (was below every proc and Apex Arrow) — during Raging Strikes/Battle Voice the continuous proc parade could starve a due refresh past expiry, dropping both DoTs mid-burst
