@@ -186,10 +186,15 @@ public sealed class Kratos : BaseMeleeDpsRotation<IKratosContext, IKratosModule>
     /// Gekko/Kasha one step after Jinpu/Shifu. Movement starts during the current GCD's animation lock
     /// so the player arrives at the correct position before the next form fires.
     ///
-    /// OpoOpo/no-form → Raptor is next → Flank
-    /// Raptor          → Coeurl is next → Rear (Demolish pending) or Flank (Demolish fresh)
-    /// Coeurl          → OpoOpo is next → Rear
-    /// FormlessFist    → OpoOpo is next → Rear
+    /// CURRENT-PATCH positional facts (live sheet 2026-07-20 — the old map here predated the
+    /// Dawntrail re-add and marked arcs on forms that have NONE): only the COEURL form GCDs carry
+    /// positionals — Pouncing Coeurl / Snap Punch = FLANK, Demolish = REAR. Opo-opo and raptor
+    /// GCDs (Bootshine/Leaping Opo, True Strike/Rising Raptor/Twin Snakes) have no positionals.
+    ///
+    /// OpoOpo/no-form → Raptor next  → none
+    /// Raptor         → Coeurl next  → mirrors GetCoeurlAction: Fury→Flank; Demolish due→Rear; else Flank
+    /// Coeurl         → OpoOpo next  → none
+    /// FormlessFist   → OpoOpo next  → none
     /// </summary>
     protected override PositionalType? GetNextRequiredPositional()
     {
@@ -198,12 +203,13 @@ public sealed class Kratos : BaseMeleeDpsRotation<IKratosContext, IKratosModule>
 
         foreach (var status in player.StatusList)
         {
-            if (status.StatusId == MNKActions.StatusIds.OpoOpoForm)
-                return PositionalType.Flank; // next form is Raptor → flank
-
             if (status.StatusId == MNKActions.StatusIds.RaptorForm)
             {
-                // Next form is Coeurl — check whether Demolish will need refreshing then.
+                // Next form is Coeurl — mirror the DamageModule's GetCoeurlAction choice so the
+                // anticipation never disagrees with the dispatcher.
+                if (_statusHelper.HasCoeurlsFury(player))
+                    return PositionalType.Flank; // Pouncing Coeurl / Snap Punch
+
                 var target = TargetingService.FindEnemyForAction(
                     Configuration.Targeting.EnemyStrategy,
                     MNKActions.Demolish.ActionId,
@@ -214,18 +220,18 @@ public sealed class Kratos : BaseMeleeDpsRotation<IKratosContext, IKratosModule>
                         || _statusHelper.GetDemolishRemaining(target, player.EntityId) < 3f;
                     return demolishNeedsRefresh ? PositionalType.Rear : PositionalType.Flank;
                 }
-                return PositionalType.Rear;
+                return PositionalType.Rear; // no Demolish visible → it will be (re)applied
             }
 
-            if (status.StatusId == MNKActions.StatusIds.CoeurlForm)
-                return PositionalType.Rear; // next form is OpoOpo → rear
-
-            if (status.StatusId == MNKActions.StatusIds.FormlessFist)
-                return PositionalType.Flank; // FormlessFist acts as OpoOpo → Raptor is next
+            if (status.StatusId == MNKActions.StatusIds.OpoOpoForm
+                || status.StatusId == MNKActions.StatusIds.CoeurlForm
+                || status.StatusId == MNKActions.StatusIds.FormlessFist)
+            {
+                return null; // next GCD (raptor / opo-opo) has no positional
+            }
         }
 
-        // No form at all → OpoOpo will be first → anticipate Raptor (flank)
-        return PositionalType.Flank;
+        return null; // no form → opo-opo first → no positional
     }
 
     /// <inheritdoc />

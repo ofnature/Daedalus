@@ -542,36 +542,31 @@ public sealed class DamageModule : IKratosModule
 
         var action = GetOpoOpoAction(context, (uint)level);
 
-        bool isRearPositional = action == MNKActions.Bootshine || action == MNKActions.LeapingOpo;
-        string positional = isRearPositional ? "(rear)" : "(flank)";
-        string positionalName = isRearPositional ? "rear" : "flank";
-        bool correctPositional = isRearPositional
-            ? (context.IsAtRear || context.HasTrueNorth || context.TargetHasPositionalImmunity)
-            : (context.IsAtFlank || context.HasTrueNorth || context.TargetHasPositionalImmunity);
-        if (ShouldSkipMnkPositional(context, correctPositional, positionalName, action)) return;
-
+        // Current-patch: opo-opo GCDs have NO positional (the old "(rear)" labels predated the
+        // Dawntrail rework — only the coeurl form carries positionals now, verified vs live sheet
+        // 2026-07-20). Free-position GCD; no positional bookkeeping.
         var stAbility = MapToAbility(action);
         scheduler.PushGcd(stAbility, target.GameObjectId, priority: 5,
             onDispatched: _ =>
             {
                 context.Debug.PlannedAction = action.Name;
-                context.Debug.DamageState = $"{action.Name} {positional}";
+                context.Debug.DamageState = action.Name;
 
                 var procStatus = context.HasLeadenFist ? "Leaden Fist active" : (context.HasOpooposFury ? "Opo-opo's Fury active" : "No proc");
                 TrainingHelper.Decision(context.TrainingService)
                     .Action(action.ActionId, action.Name)
-                    .AsPositional(correctPositional, positionalName)
+                    .AsMeleeDamage()
                     .Target(target.Name?.TextValue ?? "Target")
-                    .Reason($"Opo-opo form: {action.Name} {(correctPositional ? positional : "(WRONG)")}",
+                    .Reason($"Opo-opo form: {action.Name}",
                         action == MNKActions.DragonKick
-                            ? "Dragon Kick (flank) grants Leaden Fist buff for your next Bootshine."
-                            : "Bootshine/Leaping Opo (rear) consumes Leaden Fist for bonus damage.")
-                    .Factors(new[] { "Opo-opo form", procStatus, correctPositional ? $"At {positionalName}" : $"Not at {positionalName}" })
-                    .Alternatives(new[] { "Wrong positional (less damage)", "Wrong GCD (miss proc)" })
-                    .Tip("Opo-opo: Dragon Kick (flank) → Bootshine (rear) alternation for Leaden Fist.")
+                            ? "Dragon Kick grants Leaden Fist for your next Bootshine/Leaping Opo."
+                            : "Bootshine/Leaping Opo consumes Leaden Fist / Opo-opo's Fury for bonus damage.")
+                    .Factors(new[] { "Opo-opo form", procStatus, "No positional on opo-opo GCDs" })
+                    .Alternatives(new[] { "Wrong GCD (miss proc)" })
+                    .Tip("Opo-opo: Dragon Kick → Bootshine alternation keeps Leaden Fist flowing.")
                     .Concept("mnk_positionals")
                     .Record();
-                context.TrainingService?.RecordConceptApplication("mnk_positionals", correctPositional, $"Opo-opo {positionalName}");
+                context.TrainingService?.RecordConceptApplication("mnk_positionals", true, "Opo-opo GCD");
             });
     }
 
@@ -605,36 +600,31 @@ public sealed class DamageModule : IKratosModule
 
         var action = GetRaptorAction(context, (uint)level);
 
-        bool isRearPositional = action == MNKActions.TrueStrike || action == MNKActions.RisingRaptor;
-        string positional = isRearPositional ? "(rear)" : "(flank)";
-        string positionalName = isRearPositional ? "rear" : "flank";
-        bool correctPositional = isRearPositional
-            ? (context.IsAtRear || context.HasTrueNorth || context.TargetHasPositionalImmunity)
-            : (context.IsAtFlank || context.HasTrueNorth || context.TargetHasPositionalImmunity);
-        if (ShouldSkipMnkPositional(context, correctPositional, positionalName, action)) return;
-
+        // Current-patch: raptor GCDs have NO positional (the old "(rear)" labels predated the
+        // Dawntrail rework — only the coeurl form carries positionals now, verified vs live sheet
+        // 2026-07-20). Free-position GCD; no positional bookkeeping.
         var stAbility = MapToAbility(action);
         scheduler.PushGcd(stAbility, target.GameObjectId, priority: 5,
             onDispatched: _ =>
             {
                 context.Debug.PlannedAction = action.Name;
-                context.Debug.DamageState = $"{action.Name} {positional}";
+                context.Debug.DamageState = action.Name;
 
-                var buffStatus = $"Disciplined Fist: {(context.HasDisciplinedFist ? $"{context.DisciplinedFistRemaining:F1}s" : "missing")}";
+                var furyStatus = context.HasRaptorsFury ? "Raptor's Fury active" : "Building Raptor's Fury";
                 TrainingHelper.Decision(context.TrainingService)
                     .Action(action.ActionId, action.Name)
-                    .AsPositional(correctPositional, positionalName)
+                    .AsMeleeDamage()
                     .Target(target.Name?.TextValue ?? "Target")
-                    .Reason($"Raptor form: {action.Name} {(correctPositional ? positional : "(WRONG)")}",
+                    .Reason($"Raptor form: {action.Name}",
                         action == MNKActions.TwinSnakes
-                            ? "Twin Snakes (flank) refreshes Disciplined Fist (+15% damage buff)."
-                            : "True Strike/Rising Raptor (rear) is pure damage when buff is healthy.")
-                    .Factors(new[] { "Raptor form", buffStatus, correctPositional ? $"At {positionalName}" : $"Not at {positionalName}" })
-                    .Alternatives(new[] { "Let Disciplined Fist drop (lose 15% damage)", "Wrong positional (less damage)" })
-                    .Tip("Raptor: Twin Snakes (flank) to refresh buff, True Strike (rear) for damage.")
+                            ? "Twin Snakes grants Raptor's Fury for Rising Raptor."
+                            : "Rising Raptor spends Raptor's Fury for bonus damage.")
+                    .Factors(new[] { "Raptor form", furyStatus, "No positional on raptor GCDs" })
+                    .Alternatives(new[] { "Wrong GCD (miss Fury flow)" })
+                    .Tip("Raptor: Twin Snakes builds Fury, Rising Raptor spends it.")
                     .Concept("mnk_positionals")
                     .Record();
-                context.TrainingService?.RecordConceptApplication("mnk_positionals", correctPositional, $"Raptor {positionalName}");
+                context.TrainingService?.RecordConceptApplication("mnk_positionals", true, "Raptor GCD");
             });
     }
 
@@ -668,7 +658,10 @@ public sealed class DamageModule : IKratosModule
 
         var action = GetCoeurlAction(context, (uint)level);
 
-        bool isRearPositional = action == MNKActions.Demolish || action == MNKActions.PouncingCoeurl;
+        // Live-sheet positionals (verified 2026-07-20, user tooltip + XIVAPI ActionTransient):
+        // Demolish = REAR; Snap Punch AND Pouncing Coeurl = FLANK (310→370, Fury 460→520).
+        // Pouncing Coeurl was previously mislabeled rear here.
+        bool isRearPositional = action == MNKActions.Demolish;
         string positional = isRearPositional ? "(rear)" : "(flank)";
         string positionalName = isRearPositional ? "rear" : "flank";
         bool correctPositional = isRearPositional

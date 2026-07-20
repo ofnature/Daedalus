@@ -5,6 +5,9 @@ All notable changes to Daedalus will be documented in this file.
 <!-- LATEST-START -->
 ## v0.1.34 — 2026-07-20
 
+### Fix — Monk: current-patch positionals restored (coeurl form only)
+- A live tooltip disproved the earlier "Dawntrail removed all Monk positionals" conclusion (based on outdated reference data) — a later patch re-added them to the **coeurl form**: Demolish is **rear**, Snap Punch and Pouncing Coeurl are **flank** (310→370, Fury 460→520); opo-opo and raptor GCDs have none. The positional overlay/anticipation now reflects this: no more phantom flank/rear prompts on opo-opo and raptor GCDs, the raptor→coeurl step anticipates the correct arc (Fury → flank, Demolish due → rear), and Pouncing Coeurl's arc label is corrected from rear to flank. GCDs remain ungated — this fixes what the overlay and upcoming positional anchor aim at, not when things cast
+
 ### Fix — Rotation audit batch 2 (fleet jobs): SAM buff gates
 - **Samurai**: Ogi Namikiri and Higanbana now require BOTH Fugetsu and Fuka before firing (RSR parity) — previously a post-downtime Ogi could cast without Fugetsu's +13%, and a badly timed Higanbana snapshot locked in a full minute of unbuffed DoT ticks
 - NIN, SMN, and AST's damage side audited clean against RSR in the same pass (Ninki pooling, demi-phase chains, and Oracle/Lord burst handling already match)

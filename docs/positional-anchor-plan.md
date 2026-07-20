@@ -35,12 +35,15 @@ off pending validation) and `IsPositionalArcRolloutEnabled` is **true only for H
    AI positional ownership. When camping is live BMR gets `DesiredPositional=Any` (already
    implemented); `BmrAiConfigPolicy` must assert this on every config push so a BMR preset can't
    silently take the angle back.
-2. **Boundary camping becomes the standard positional mode** for the four jobs that still HAVE
-   positionals in 7.05+: **NIN** (Aeolian rear / Armor Crush flank), **SAM** (Gekko rear / Kasha
-   flank), **RPR** (Gallows rear / Gibbet flank), **VPR coils** (Hunter's flank / Swiftskin's rear).
-   DRG and MNK have NO positionals (7.0) and the VPR finisher family lost theirs in 7.05 — their
-   providers should return null / stay out of the rollout (audit 2026-07-18 already deleted their
-   enforce-holds; verify the providers agree).
+2. **Boundary camping becomes the standard positional mode** for the FIVE jobs that still HAVE
+   positionals on live: **NIN** (Aeolian rear / Armor Crush flank), **SAM** (Gekko rear / Kasha
+   flank), **RPR** (Gallows rear / Gibbet flank), **VPR coils** (Hunter's flank / Swiftskin's rear),
+   and **MNK coeurl form** (Demolish REAR; Snap Punch + Pouncing Coeurl FLANK — verified vs the
+   live sheet 2026-07-20 after a user tooltip disproved the "Dawntrail removed all MNK positionals"
+   claim from the 7.05-era RSR checkout; a later patch re-added them. Opo-opo and raptor GCDs have
+   none, so MNK's anchor is only live while raptor form is up → coeurl is next). DRG has NO
+   positionals (7.0) and the VPR finisher family lost theirs in 7.05 — their providers return
+   null / stay out of the rollout.
 
 ## Work items
 
@@ -69,6 +72,9 @@ need, and how many GCDs away is it?" from live combo/gauge state:
 - RPR: pending Soul Reaver/Executioner pair — Gallows (rear) preferred outside True North,
   Gibbet (flank) when the module's chooser says so. Party-only enforcement stays.
 - VPR: coil order chooser (Hunter's flank → Swiftskin's rear or the module's actual order).
+- MNK: only the raptor→coeurl transition anticipates an arc (mirrors GetCoeurlAction: Coeurl's
+  Fury → Flank, Demolish due → Rear, else Flank — already implemented in Kratos.GetNextRequiredPositional
+  2026-07-20); all other form transitions return null.
 Contract test per provider: feed a combo state, assert (arc, GCDs-until) matches what the
 DamageModule would actually cast. The anticipation must never disagree with the dispatcher —
 that was the failure mode of the old BMR wiring (BMR's guess vs our rotation's reality).
@@ -107,4 +113,5 @@ that was the failure mode of the old BMR wiring (BMR's guess vs our rotation's r
 - No BMR positional hints, ever (this plan replaces that approach).
 - No solo-mode positionals (existing design decision stands).
 - No multi-enemy pack positionals (single-enemy gate stays).
-- MNK/DRG/VPR-finishers: no positionals exist — keep them out.
+- DRG / VPR-finishers / MNK opo-opo+raptor GCDs: no positionals exist — keep them out.
+  (MNK COEURL form is IN scope — see Decisions #2.)
