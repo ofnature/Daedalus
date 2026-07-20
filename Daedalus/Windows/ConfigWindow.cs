@@ -76,7 +76,7 @@ public sealed class ConfigWindow : Window
     private readonly ConsumablesSection consumablesSection;
     private readonly DebugDisplaySection debugDisplaySection;
 
-    public ConfigWindow(Configuration configuration, Action saveConfiguration, UpdateCheckerService updateCheckerService, ITextureProvider textureProvider, Daedalus.Services.Content.IDutyContentService? dutyContentService = null)
+    public ConfigWindow(Configuration configuration, Action saveConfiguration, UpdateCheckerService updateCheckerService, ITextureProvider textureProvider, Daedalus.Services.Content.IDutyContentService? dutyContentService = null, Daedalus.Services.Plugins.PluginStatusService? pluginStatusService = null)
         : base(Loc.T(LocalizedStrings.Config.WindowTitle, "Daedalus Settings"), ImGuiWindowFlags.NoCollapse)
     {
         this.configuration = configuration;
@@ -87,7 +87,7 @@ public sealed class ConfigWindow : Window
         sidebar = new ConfigSidebar(textureProvider);
 
         // Initialize all section renderers
-        generalSection = new GeneralSection(configuration, saveConfiguration, dutyContentService);
+        generalSection = new GeneralSection(configuration, saveConfiguration, dutyContentService, pluginStatusService);
         healerSharedSection = new HealerSharedSection(configuration, saveConfiguration);
         whiteMageSection = new WhiteMageSection(configuration, saveConfiguration);
         scholarSection = new ScholarSection(configuration, saveConfiguration);

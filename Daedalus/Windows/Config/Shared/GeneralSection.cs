@@ -2,10 +2,13 @@ using System;
 using System.Linq;
 using System.Numerics;
 using Dalamud.Bindings.ImGui;
+using Dalamud.Interface;
 using Daedalus.Config;
 using Daedalus.Localization;
 using Daedalus.Services.Content;
+using Daedalus.Services.Plugins;
 using Daedalus.Services.Targeting;
+using Daedalus.Windows.Common;
 
 namespace Daedalus.Windows.Config.Shared;
 
@@ -17,6 +20,7 @@ public sealed class GeneralSection
     private readonly Configuration config;
     private readonly Action save;
     private readonly IDutyContentService? dutyContentService;
+    private readonly PluginStatusService? pluginStatusService;
 
     private string[] GetStrategyNames() =>
     [
@@ -51,15 +55,21 @@ public sealed class GeneralSection
         Loc.T(LocalizedStrings.RoleActions.SurecastModeAuto, "Use on Cooldown")
     ];
 
-    public GeneralSection(Configuration config, Action save, IDutyContentService? dutyContentService = null)
+    public GeneralSection(
+        Configuration config,
+        Action save,
+        IDutyContentService? dutyContentService = null,
+        PluginStatusService? pluginStatusService = null)
     {
         this.config = config;
         this.save = save;
         this.dutyContentService = dutyContentService;
+        this.pluginStatusService = pluginStatusService;
     }
 
     public void DrawGeneral()
     {
+        DrawPluginsSection();
         DrawAutoDutySection();
         DrawCombatBehaviorSection();
         DrawModifierKeysSection();
@@ -68,6 +78,59 @@ public sealed class GeneralSection
         DrawFarmSection();
         DrawLanguageSection();
         DrawPrivacySection();
+    }
+
+    /// <summary>
+    /// Companion-plugin checklist (Questionable-style): required plugins (vnavmesh, BossMod)
+    /// with load state and version, then the optional drivers/companions. Rows hover to a
+    /// what-is-this-for tooltip; a summary line flags missing required plugins.
+    /// </summary>
+    private void DrawPluginsSection()
+    {
+        if (pluginStatusService == null)
+            return;
+
+        if (ConfigUIHelpers.SectionHeader("Plugins", "Plugins", false))
+        {
+            ConfigUIHelpers.BeginIndent();
+
+            var statuses = pluginStatusService.GetStatuses();
+
+            ConfigUIHelpers.SectionLabel("Required:");
+            foreach (var entry in statuses.Where(e => e.Required))
+                DrawPluginRow(entry);
+
+            ConfigUIHelpers.Spacing();
+            ConfigUIHelpers.SectionLabel("Optional integrations:");
+            foreach (var entry in statuses.Where(e => !e.Required))
+                DrawPluginRow(entry);
+
+            ConfigUIHelpers.Spacing();
+            if (pluginStatusService.AllRequiredLoaded)
+                ImGui.TextColored(DaedalusTheme.StatusGreen, "All required plugins are installed.");
+            else
+                ImGui.TextColored(DaedalusTheme.StatusRed,
+                    "Missing required plugins — movement and mechanic safety are degraded.");
+
+            ConfigUIHelpers.EndIndent();
+        }
+    }
+
+    private static void DrawPluginRow(PluginStatusEntry entry)
+    {
+        var (icon, color, state) = entry switch
+        {
+            { Loaded: true } => (FontAwesomeIcon.Check, DaedalusTheme.StatusGreen, ""),
+            { Installed: true } => (FontAwesomeIcon.ExclamationCircle, DaedalusTheme.StatusYellow, "  (installed, not enabled)"),
+            _ => (FontAwesomeIcon.Times, DaedalusTheme.StatusRed, "  (not installed)"),
+        };
+
+        DaedalusTheme.StatusIcon(icon, color);
+        ImGui.SameLine(0f, 6f);
+        var version = entry.Loaded && entry.Version.Length > 0 ? $" v{entry.Version}" : "";
+        ImGui.TextUnformatted($"{entry.DisplayName}{version}{state}");
+        if (ImGui.IsItemHovered())
+            ImGui.SetTooltip(entry.Purpose);
     }
 
     private void DrawFarmSection()

@@ -10,6 +10,9 @@ All notable changes to Daedalus will be documented in this file.
 - Per healer: **SGE** Ixochole/Physis II/Holos/Pneuma/Prognosis; **WHM** the Medica/Cure III line (no more waiting on Thin Air in an emergency); **AST** the Helios line + Celestial Opposition; **SCH** Succor and Indomitability — Scholar will also spend Aetherflow through its configured reserve for the emergency Indomitability (a stack is still required)
 - Debug panels show "AoE EMERGENCY" on the firing handlers. New shared toggle: Sage settings → "Force Group Heals in Emergency" (on by default, applies to every healer); normal chip-damage behavior is unchanged
 
+### New — Plugin checklist in Settings → General
+- A collapsible **Plugins** section now shows the companion plugins Daedalus works with, with live install/enable state and version: **Required** — vnavmesh (movement/navigation) and BossMod Reborn (mechanic safety; VBM also detected); **Optional integrations** — AutoDuty, Questionable, Henchman, Charon, and Caduceus. Green check = enabled (with version), yellow = installed but not enabled, red X = not installed; hover any row for what the plugin is used for. A summary line confirms "All required plugins are installed" or warns when one is missing
+
 <!-- LATEST-END -->
 ## v0.1.31 — 2026-07-19
 
