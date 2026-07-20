@@ -433,22 +433,18 @@ public sealed class DamageModule : IIrisModule
         if (!context.Configuration.Pictomancer.EnableRainbowDrip) return;
         if (context.Player.Level < PCTActions.RainbowDrip.MinLevel) return;
 
-        if (!context.HasRainbowBright)
-        {
-            if (isMoving) return;
-            if (!context.IsInBurstWindow) return;
-            if (MechanicCastGate.ShouldBlock(context, PCTActions.RainbowDrip.CastTime))
-            {
-                context.Debug.DamageState = MechanicCastGate.FormatBlockedState(context);
-                return;
-            }
-        }
+        // RSR parity: in combat Rainbow Drip is ONLY the instant Rainbow Bright proc (granted when
+        // Hyperphantasia resolves); hardcasting belongs pre-pull. The old IsInBurstWindow branch
+        // HARDCAST ~4s Rainbow Drips inside every Starry window at priority 3 — above the hammer
+        // combo, Comet, and the subtractive spells — and re-pushed on every 6s recast, so the
+        // entire buffed window drained into unbuffed-tier hardcasts. The #1 PCT damage loss.
+        if (!context.HasRainbowBright) return;
 
         scheduler.PushGcd(IrisAbilities.RainbowDrip, target.GameObjectId, priority: 3,
             onDispatched: _ =>
             {
                 context.Debug.PlannedAction = PCTActions.RainbowDrip.Name;
-                context.Debug.DamageState = context.HasRainbowBright ? "Rainbow Drip (instant)" : "Rainbow Drip (hardcast)";
+                context.Debug.DamageState = "Rainbow Drip (Rainbow Bright)";
             });
     }
 
@@ -516,7 +512,12 @@ public sealed class DamageModule : IIrisModule
         if (context.Player.Level < PCTActions.CometInBlack.MinLevel) return;
         if (!context.HasBlackPaint) return;
 
-        scheduler.PushGcd(IrisAbilities.CometInBlack, target.GameObjectId, priority: 5,
+        // RSR parity: under Starry Muse, Comet is the FIRST GCD priority (above Star Prism and the
+        // hammer combo) — the buffed instant must land inside the window, and its cast frees the
+        // palette re-press. Outside the window it stays below the hammer combo.
+        var priority = context.HasStarryMuse ? 1 : 5;
+
+        scheduler.PushGcd(IrisAbilities.CometInBlack, target.GameObjectId, priority: priority,
             onDispatched: _ =>
             {
                 context.Debug.PlannedAction = PCTActions.CometInBlack.Name;
@@ -543,8 +544,18 @@ public sealed class DamageModule : IIrisModule
         // While Monochrome Tones is up the game morphs Holy -> Comet in Black; pushing the raw Holy id
         // just gets rejected every GCD (RSR: Holy = Paint>0 && !Monochrome; Comet handles the rest).
         if (context.HasMonochromeTones) return;
-        if (!isMoving && context.WhitePaint < 4 && !context.IsInBurstWindow) return;
-        if (!isMoving && context.PaletteGauge < context.Configuration.Pictomancer.HolyMinPalette && !context.IsInBurstWindow) return;
+
+        // RSR parity: stationary Holy is CAP PROTECTION only — paint at max (5) and NOT during
+        // Starry Muse. It must never outrank the subtractive/base combo as generic filler (520
+        // potency vs ~800+ subtractive casts), and inside the Starry window the GCDs belong to
+        // Comet/hammer/subtractive — the old in-burst bump spammed Holy over all of them. While
+        // moving it stays the instant of choice at any paint count. (The old palette-gauge gate is
+        // gone: Holy consumes PAINT, not palette — gauge was never the right resource to check.)
+        if (!isMoving)
+        {
+            if (context.HasStarryMuse) return;
+            if (context.WhitePaint < 5) return;
+        }
 
         scheduler.PushGcd(IrisAbilities.HolyInWhite, target.GameObjectId, priority: 6,
             onDispatched: _ =>

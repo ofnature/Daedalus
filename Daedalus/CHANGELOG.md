@@ -5,7 +5,10 @@ All notable changes to Daedalus will be documented in this file.
 <!-- LATEST-START -->
 ## v0.1.33 — 2026-07-19
 
-### Fix — Burst readiness pips actually light up now (and bursts can auto-fire)
+### Fix — Pictomancer: burst windows no longer wasted on hardcast Rainbow Drips (major damage fix)
+- **The big one**: inside every Starry Muse window, the rotation hardcast ~4-second Rainbow Drips at a priority above the hammer combo, Comet, and the subtractive spells — and re-cast it on every recast, so the entire 20s buffed window drained into slow unbuffed-tier casts. In combat, Rainbow Drip now fires **only as the instant Rainbow Bright proc** (hardcasting is a pre-pull thing), matching The Balance and RSR
+- **Comet in Black is now the first GCD priority under Starry Muse** (above Star Prism and the hammer combo), instead of waiting behind the hammers
+- **Holy in White no longer spams over stronger spells**: when standing still it fires only as paint-cap protection (5 paint, outside Starry) instead of outranking the subtractive combo as generic filler; while moving it remains the instant of choice at any paint count. The old palette-gauge gate on Holy is gone (Holy consumes paint, not palette — wrong resource)
 - The readiness pips in the Party Coordination window were **always red** because only Blue Mage's Moon Flute sync ever announced readiness — no other job reported, so pips stayed red and the "fire when everyone is ready" auto-burst could never trigger. Every toon now announces readiness on the heartbeat: jobs with a party raid buff (PCT Starry Muse, AST Divination, SCH Chain Stratagem, DRG/BRD/SMN/RDM/DNC/RPR/MNK/SAM/NIN/VPR/MCH) report ready **in combat when that buff is off cooldown**; jobs without one (tanks, WHM/SGE, BLM...) report ready whenever they're in combat — they have nothing to align
 - With readiness flowing, the **auto-fire works**: once every toon in the party reports ready, the group's burst window opens by itself (the alert feed logs it like a forced burst). Guard rails: auto-fire needs at least one raid-buff job in the group (an all-tank/healer group would just cycle the window forever — Force burst still works there) and won't re-fire within 30 seconds of the last window
 - BLU is unchanged — its readiness still comes from the Moon Flute coordination path
