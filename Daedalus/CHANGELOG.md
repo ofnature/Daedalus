@@ -3,7 +3,7 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
-## v0.1.33 — 2026-07-19
+## v0.1.34 — 2026-07-20
 
 ### Fix — Rotation audit batch 2 (fleet jobs): SAM buff gates
 - **Samurai**: Ogi Namikiri and Higanbana now require BOTH Fugetsu and Fuka before firing (RSR parity) — previously a post-downtime Ogi could cast without Fugetsu's +13%, and a badly timed Higanbana snapshot locked in a full minute of unbuffed DoT ticks
@@ -22,10 +22,12 @@ All notable changes to Daedalus will be documented in this file.
 - With readiness flowing, the **auto-fire works**: once every toon in the party reports ready, the group's burst window opens by itself (the alert feed logs it like a forced burst). Guard rails: auto-fire needs at least one raid-buff job in the group (an all-tank/healer group would just cycle the window forever — Force burst still works there) and won't re-fire within 30 seconds of the last window
 - BLU is unchanged — its readiness still comes from the Moon Flute coordination path
 
+<!-- LATEST-END -->
+## v0.1.33 — 2026-07-19
+
 ### New — Plugin checklist in Settings → General
 - A collapsible **Plugins** section now shows the companion plugins Daedalus works with, with live install/enable state and version: **Required** — vnavmesh (movement/navigation) and BossMod Reborn (mechanic safety; VBM also detected); **Optional integrations** — AutoDuty, Questionable, Henchman, Charon, and Caduceus. Green check = enabled (with version), yellow = installed but not enabled, red X = not installed; hover any row for what the plugin is used for. A summary line confirms "All required plugins are installed" or warns when one is missing
 
-<!-- LATEST-END -->
 ## v0.1.32 — 2026-07-19
 
 ### Fix — All healers: group heals are forced when the whole party is critical (1-HP mechanics)
