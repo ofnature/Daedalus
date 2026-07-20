@@ -42,14 +42,21 @@ public sealed class AoEHealingHandler : IHealingHandler
 
         var minTargets = AoEHealTargetHelper.GetEffectiveMinTargets(
             context.Configuration.Healing, context.PartyHelper.GetPartySize(player));
-        var shouldUse = (avgHp <= config.AoEHealThreshold && count >= minTargets) || raidwideImminent;
+
+        // AoE emergency ("everyone to 1 HP" recovery): gates, co-healer deferral, and the
+        // cross-healer reservation must not hold back group heals — see AoEEmergencyHelper.
+        var emergency = AoEEmergencyHelper.IsAoEEmergency(
+            context.PartyHelper, player, context.Configuration.Healing);
+
+        var shouldUse = (avgHp <= config.AoEHealThreshold && count >= minTargets) || raidwideImminent || emergency;
         if (!shouldUse) return;
 
         // GCD-heal gating (RSR GCDHeal parity): with a co-healer present, defer non-critical AoE GCD heals
         // (Helios line) to oGCDs and the co-healer to keep DPS uptime. Healer-role aware — a Main healer
         // never defers; a Co healer defers to the Main. Unless the party is critical (below the
         // GCD-emergency threshold) or a raidwide is imminent.
-        if (CoHealerAwarenessHelper.ShouldDeferGcdHeals(
+        if (!emergency
+            && CoHealerAwarenessHelper.ShouldDeferGcdHeals(
                 context.Configuration.Healing.HealerRole,
                 config.RestrictGcdHealsWithCoHealer,
                 context.CoHealerDetectionService?.HasCoHealer == true)
@@ -80,15 +87,18 @@ public sealed class AoEHealingHandler : IHealingHandler
 
         var castTimeMs = (int)(action.CastTime * 1000);
         if (!context.HealingCoordination.TryReserveAoEHeal(
-            context.PartyCoordinationService, action.ActionId, action.HealPotency, castTimeMs))
+            context.PartyCoordinationService, action.ActionId, action.HealPotency, castTimeMs, force: emergency))
         {
             context.Debug.AoEHealState = "Skipped (remote AOE reserved)";
             return;
         }
 
         var capturedAction = action;
+        if (emergency)
+            context.Debug.AoEHealState = "AoE EMERGENCY";
 
-        scheduler.PushGcd(behavior, player.GameObjectId, priority: Priority,
+        // Emergency priority 8: above Essential Dignity (10) and every single-target heal.
+        scheduler.PushGcd(behavior, player.GameObjectId, priority: emergency ? 8 : Priority,
             onDispatched: _ =>
             {
                 context.Debug.PlannedAction = capturedAction.Name;

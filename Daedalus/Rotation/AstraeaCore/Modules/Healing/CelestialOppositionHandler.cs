@@ -42,18 +42,29 @@ public sealed class CelestialOppositionHandler : IHealingHandler
 
         var minTargets = AoEHealTargetHelper.GetEffectiveMinTargets(
             context.Configuration.Healing, context.PartyHelper.GetPartySize(player));
-        var shouldUse = (avgHp <= config.AoEHealThreshold && count >= minTargets) || raidwideImminent;
+
+        // AoE emergency ("everyone to 1 HP" recovery): the instant AoE heal + regen must fire
+        // through the gates and the cross-healer reservation — see AoEEmergencyHelper.
+        var emergency = AoEEmergencyHelper.IsAoEEmergency(
+            context.PartyHelper, player, context.Configuration.Healing);
+
+        var shouldUse = (avgHp <= config.AoEHealThreshold && count >= minTargets) || raidwideImminent || emergency;
         if (!shouldUse) return;
 
         var action = ASTActions.CelestialOpposition;
         if (!context.HealingCoordination.TryReserveAoEHeal(
-            context.PartyCoordinationService, action.ActionId, action.HealPotency, 0))
+            context.PartyCoordinationService, action.ActionId, action.HealPotency, 0, force: emergency))
         {
             context.Debug.CelestialOppositionState = "Skipped (remote AOE reserved)";
             return;
         }
 
-        scheduler.PushOgcd(AstraeaAbilities.CelestialOpposition, player.GameObjectId, priority: Priority,
+        if (emergency)
+            context.Debug.CelestialOppositionState = "AoE EMERGENCY";
+
+        // Emergency priority 8: above Essential Dignity (10) / Celestial Intersection (15).
+        scheduler.PushOgcd(AstraeaAbilities.CelestialOpposition, player.GameObjectId,
+            priority: emergency ? 8 : Priority,
             onDispatched: _ =>
             {
                 context.Debug.PlannedAction = action.Name;

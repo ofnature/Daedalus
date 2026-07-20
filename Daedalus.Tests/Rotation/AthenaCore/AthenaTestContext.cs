@@ -374,13 +374,14 @@ public static class AthenaTestContext
     }
 
     /// <summary>
-    /// Creates a party of N healthy members (96% HP) plus M injured members (50% HP).
+    /// Creates a party of N healthy members (96% HP) plus M injured members (default 50% HP).
     /// The real CalculatePartyHealthMetrics counts them using the 0.95 injured threshold.
     /// </summary>
     public static TestableAthenaPartyHelper CreatePartyWithInjured(
         int healthyCount,
         int injuredCount,
-        Configuration? config = null)
+        Configuration? config = null,
+        float injuredHpPercent = 0.50f)
     {
         var members = new List<IBattleChara>();
         uint id = 1u;
@@ -391,10 +392,11 @@ public static class AthenaTestContext
                 entityId: id++, currentHp: 48000, maxHp: 50000).Object); // 96% — not injured
         }
 
+        var injuredHp = (uint)(50000 * injuredHpPercent);
         for (int i = 0; i < injuredCount; i++)
         {
             members.Add(MockBuilders.CreateMockBattleChara(
-                entityId: id++, currentHp: 25000, maxHp: 50000).Object); // 50% — injured
+                entityId: id++, currentHp: injuredHp, maxHp: 50000).Object);
         }
 
         return new TestableAthenaPartyHelper(members, config);

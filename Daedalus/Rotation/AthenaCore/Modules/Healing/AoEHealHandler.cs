@@ -40,7 +40,13 @@ public sealed class AoEHealHandler : IHealingHandler
 
         var minTargets = AoEHealTargetHelper.GetEffectiveMinTargets(
             context.Configuration.Healing, context.PartyHelper.GetPartySize(player));
-        var shouldUse = (avgHp <= config.AoEHealThreshold && count >= minTargets) || raidwideImminent;
+
+        // AoE emergency ("everyone to 1 HP" recovery): gates and the cross-healer reservation
+        // must not hold back group heals — see AoEEmergencyHelper.
+        var emergency = AoEEmergencyHelper.IsAoEEmergency(
+            context.PartyHelper, player, context.Configuration.Healing);
+
+        var shouldUse = (avgHp <= config.AoEHealThreshold && count >= minTargets) || raidwideImminent || emergency;
         if (!shouldUse) return;
 
         ActionDefinition action;
@@ -62,7 +68,7 @@ public sealed class AoEHealHandler : IHealingHandler
 
         var castTimeMs = (int)(action.CastTime * 1000);
         if (!context.HealingCoordination.TryReserveAoEHeal(
-            context.PartyCoordinationService, action.ActionId, action.HealPotency, castTimeMs))
+            context.PartyCoordinationService, action.ActionId, action.HealPotency, castTimeMs, force: emergency))
         {
             context.Debug.AoEHealState = "Skipped (remote AOE reserved)";
             return;
@@ -72,8 +78,11 @@ public sealed class AoEHealHandler : IHealingHandler
         var capturedAvgHp = avgHp;
         var capturedInjuredCount = injuredCount;
         var capturedRaidwideImminent = raidwideImminent;
+        if (emergency)
+            context.Debug.AoEHealState = "AoE EMERGENCY";
 
-        scheduler.PushGcd(behavior, player.GameObjectId, priority: Priority,
+        // Emergency priority 6: above single-target GCD heals (20) and Recitation prep (10).
+        scheduler.PushGcd(behavior, player.GameObjectId, priority: emergency ? 6 : Priority,
             onDispatched: _ =>
             {
                 context.Debug.PlannedAction = capturedAction.Name;

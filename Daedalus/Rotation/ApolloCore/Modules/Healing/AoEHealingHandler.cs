@@ -20,6 +20,10 @@ public sealed class AoEHealingHandler : IHealingHandler
 {
     private const byte MedicaMinLevel = 10;
 
+    /// <summary>AoE-emergency priority: below Benediction (10), above Assize (15) and every
+    /// single-target heal — group recovery owns the queue when the whole party is critical.</summary>
+    private const int EmergencyPriority = 12;
+
     public HealingPriority Priority => HealingPriority.AoEHeal;
     public string Name => "AoEHeal";
 
@@ -56,7 +60,11 @@ public sealed class AoEHealingHandler : IHealingHandler
         var hasEnoughSelfCenteredTargets = injuredCount >= effectiveMinTargets;
         var hasEnoughCureIIITargets = cureIIITargetCount >= effectiveMinTargets;
 
-        if (!hasEnoughSelfCenteredTargets && !hasEnoughCureIIITargets)
+        // AoE emergency ("everyone to 1 HP" recovery): count gates, co-healer deferral, the
+        // cross-healer reservation, and the Thin Air wait must not hold back group heals.
+        var emergency = AoEEmergencyHelper.IsAoEEmergency(context.PartyHelper, player, config.Healing);
+
+        if (!emergency && !hasEnoughSelfCenteredTargets && !hasEnoughCureIIITargets)
         {
             context.Debug.AoEStatus = $"Injured {injuredCount} (self) / {cureIIITargetCount} (CureIII) < min {effectiveMinTargets}" +
                 (raidwideImminent ? $" (raidwide via {raidwideSource})" : "");
@@ -74,7 +82,8 @@ public sealed class AoEHealingHandler : IHealingHandler
         // GCD-heal gating (RSR GCDHeal parity, role-aware): a Co healer leaves non-critical AoE GCD heals
         // to the Main healer to keep DPS uptime. Never deferred when a raidwide is imminent or party
         // average HP is critical; oGCD heals are unaffected.
-        if (action.Category == ActionCategory.GCD
+        if (!emergency
+            && action.Category == ActionCategory.GCD
             && !raidwideImminent
             && CoHealerAwarenessHelper.ShouldDeferGcdHeals(
                 config.Healing.HealerRole,
@@ -88,21 +97,24 @@ public sealed class AoEHealingHandler : IHealingHandler
 
         var castTimeMs = (int)(action.CastTime * 1000);
         if (!context.HealingCoordination.TryReserveAoEHeal(
-            context.PartyCoordinationService, action.ActionId, healAmount, castTimeMs))
+            context.PartyCoordinationService, action.ActionId, healAmount, castTimeMs, force: emergency))
         {
             context.Debug.AoEStatus = "Skipped (remote AOE reserved)";
             return;
         }
 
-        if (action.MpCost >= 1000 && action.Category == ActionCategory.GCD && ThinAirHelper.ShouldWaitForThinAir(context))
+        if (!emergency
+            && action.MpCost >= 1000 && action.Category == ActionCategory.GCD && ThinAirHelper.ShouldWaitForThinAir(context))
         {
             context.Debug.AoEStatus = "Waiting for Thin Air";
             return;
         }
 
         context.Debug.AoESelectedSpell = action.ActionId;
-        context.Debug.AoEStatus = $"Executing {action.Name}" +
-            (selectedCureIIITarget is not null ? $" on {selectedCureIIITarget.Name}" : "");
+        context.Debug.AoEStatus = emergency
+            ? $"AoE EMERGENCY — {action.Name}"
+            : $"Executing {action.Name}" +
+              (selectedCureIIITarget is not null ? $" on {selectedCureIIITarget.Name}" : "");
 
         var capturedAction = action;
         var capturedHealAmount = healAmount;
@@ -202,13 +214,14 @@ public sealed class AoEHealingHandler : IHealingHandler
             }
         };
 
+        var pushPriority = emergency ? EmergencyPriority : (int)Priority;
         if (action.Category == ActionCategory.oGCD)
         {
-            scheduler.PushOgcd(behavior, executionTarget, priority: (int)Priority, onDispatched: onDispatched);
+            scheduler.PushOgcd(behavior, executionTarget, priority: pushPriority, onDispatched: onDispatched);
         }
         else
         {
-            scheduler.PushGcd(behavior, executionTarget, priority: (int)Priority, onDispatched: onDispatched);
+            scheduler.PushGcd(behavior, executionTarget, priority: pushPriority, onDispatched: onDispatched);
         }
     }
 }

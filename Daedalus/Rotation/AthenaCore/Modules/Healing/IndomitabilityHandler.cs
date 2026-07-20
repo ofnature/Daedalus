@@ -31,18 +31,28 @@ public sealed class IndomitabilityHandler : IHealingHandler
         if (player.Level < SCHActions.Indomitability.MinLevel) return;
         if (!context.ActionService.IsActionReady(SCHActions.Indomitability.ActionId)) return;
 
+        // AoE emergency ("everyone to 1 HP" recovery): gates, the Aetherflow reserve, and the
+        // cross-healer reservation must not hold back the instant AoE heal — see AoEEmergencyHelper.
+        // A stack (or Recitation) is still required to cast at all.
+        var emergency = AoEEmergencyHelper.IsAoEEmergency(
+            context.PartyHelper, player, context.Configuration.Healing);
+
         var hasRecitation = context.StatusHelper.HasRecitation(player);
-        if (!hasRecitation && context.AetherflowService.CurrentStacks <= config.AetherflowReserve) return;
+        var stackFloor = emergency ? 0 : config.AetherflowReserve;
+        if (!hasRecitation && context.AetherflowService.CurrentStacks <= stackFloor) return;
 
         var (avgHp, _, injuredCount) = context.PartyHelper.CalculatePartyHealthMetrics(player);
-        var minTargets = AoEHealTargetHelper.GetEffectiveMinTargets(
-            context.Configuration.Healing, context.PartyHelper.GetPartySize(player));
-        if (avgHp > config.AoEHealThreshold || injuredCount < minTargets) return;
+        if (!emergency)
+        {
+            var minTargets = AoEHealTargetHelper.GetEffectiveMinTargets(
+                context.Configuration.Healing, context.PartyHelper.GetPartySize(player));
+            if (avgHp > config.AoEHealThreshold || injuredCount < minTargets) return;
+        }
 
         var action = SCHActions.Indomitability;
 
         if (!context.HealingCoordination.TryReserveAoEHeal(
-            context.PartyCoordinationService, action.ActionId, action.HealPotency, 0))
+            context.PartyCoordinationService, action.ActionId, action.HealPotency, 0, force: emergency))
         {
             context.Debug.IndomitabilityState = "Skipped (remote AOE reserved)";
             return;
@@ -51,8 +61,12 @@ public sealed class IndomitabilityHandler : IHealingHandler
         var capturedAvgHp = avgHp;
         var capturedInjuredCount = injuredCount;
         var capturedHasRecitation = hasRecitation;
+        if (emergency)
+            context.Debug.IndomitabilityState = "AoE EMERGENCY";
 
-        scheduler.PushOgcd(AthenaAbilities.Indomitability, player.GameObjectId, priority: Priority,
+        // Emergency priority 8: above Excogitation (15) / Lustrate (20) single-target triage.
+        scheduler.PushOgcd(AthenaAbilities.Indomitability, player.GameObjectId,
+            priority: emergency ? 8 : Priority,
             onDispatched: _ =>
             {
                 if (!capturedHasRecitation)
