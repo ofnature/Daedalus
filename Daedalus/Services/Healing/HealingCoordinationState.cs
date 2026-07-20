@@ -105,16 +105,23 @@ public sealed class HealingCoordinationState
     /// <param name="actionId">Action ID of the AoE heal.</param>
     /// <param name="healPotency">Heal potency of the AoE heal.</param>
     /// <param name="castTimeMs">Cast time in milliseconds (0 for instant).</param>
+    /// <param name="force">AoE-emergency bypass: reserve regardless of local/remote reservations.
+    /// The dedup exists to stop wasteful double-healing on chip damage — with the whole party
+    /// critical it would serialize recovery (one healer AoE-healing while the other defers for the
+    /// reservation window, re-armed every frame), so emergencies ignore it in both directions.</param>
     /// <returns>True if successfully reserved, false if already reserved locally or remotely.</returns>
-    public bool TryReserveAoEHeal(IPartyCoordinationService? partyCoord, uint actionId, int healPotency, int castTimeMs)
+    public bool TryReserveAoEHeal(IPartyCoordinationService? partyCoord, uint actionId, int healPotency, int castTimeMs, bool force = false)
     {
-        // Check if already reserved this frame
-        if (_aoEHealReservedThisFrame)
-            return false;
+        if (!force)
+        {
+            // Check if already reserved this frame
+            if (_aoEHealReservedThisFrame)
+                return false;
 
-        // Check if reserved by remote Daedalus instance
-        if (partyCoord?.IsAoEHealReservedByOther() == true)
-            return false;
+            // Check if reserved by remote Daedalus instance
+            if (partyCoord?.IsAoEHealReservedByOther() == true)
+                return false;
+        }
 
         // Reserve locally
         _aoEHealReservedThisFrame = true;

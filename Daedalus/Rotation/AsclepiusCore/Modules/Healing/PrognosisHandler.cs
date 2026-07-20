@@ -28,29 +28,36 @@ public sealed class PrognosisHandler : IHealingHandler
 
         var (avgHp, _, injuredCount) = AsclepiusPartyMetrics.GetAoEHealMetrics(context.PartyHelper, player);
 
-        var minTargets = AoEHealTargetHelper.GetEffectiveMinTargets(
-            context.Configuration.Healing, context.PartyHelper.GetPartySize(player));
-        if (injuredCount < minTargets) { context.Debug.AoEStatus = $"{injuredCount} < {minTargets} injured"; return; }
-        if (avgHp > config.AoEHealThreshold) { context.Debug.AoEStatus = $"Avg HP {avgHp:P0}"; return; }
-
-        // GCD-heal gating: with a co-healer covering the party, leave non-critical AoE healing to
-        // oGCDs (Ixochole/Kerachole/Holos) and the co-healer; only hard-cast Prognosis when the party
-        // is genuinely critical (below the GCD-emergency threshold). Healer-role aware — a Main healer
-        // never defers; a Co healer defers to the Main.
-        if (CoHealerAwarenessHelper.ShouldDeferGcdHeals(
-                context.Configuration.Healing.HealerRole,
-                config.RestrictGcdHealsWithCoHealer,
-                context.CoHealerDetectionService?.HasCoHealer == true)
-            && avgHp > context.Configuration.Healing.GcdEmergencyThreshold)
+        // AoE emergency ("everyone to 1 HP" recovery): gates, co-healer deferral, and the
+        // cross-healer reservation must not hold back group heals — see IsAoEEmergency.
+        var emergency = AsclepiusPartyMetrics.IsAoEEmergency(
+            context.PartyHelper, player, context.Configuration.Healing);
+        if (!emergency)
         {
-            context.Debug.AoEStatus = "Co-healer covering";
-            return;
+            var minTargets = AoEHealTargetHelper.GetEffectiveMinTargets(
+                context.Configuration.Healing, context.PartyHelper.GetPartySize(player));
+            if (injuredCount < minTargets) { context.Debug.AoEStatus = $"{injuredCount} < {minTargets} injured"; return; }
+            if (avgHp > config.AoEHealThreshold) { context.Debug.AoEStatus = $"Avg HP {avgHp:P0}"; return; }
+
+            // GCD-heal gating: with a co-healer covering the party, leave non-critical AoE healing to
+            // oGCDs (Ixochole/Kerachole/Holos) and the co-healer; only hard-cast Prognosis when the party
+            // is genuinely critical (below the GCD-emergency threshold). Healer-role aware — a Main healer
+            // never defers; a Co healer defers to the Main.
+            if (CoHealerAwarenessHelper.ShouldDeferGcdHeals(
+                    context.Configuration.Healing.HealerRole,
+                    config.RestrictGcdHealsWithCoHealer,
+                    context.CoHealerDetectionService?.HasCoHealer == true)
+                && avgHp > context.Configuration.Healing.GcdEmergencyThreshold)
+            {
+                context.Debug.AoEStatus = "Co-healer covering";
+                return;
+            }
         }
 
         var action = SGEActions.Prognosis;
         var castTimeMs = (int)(action.CastTime * 1000);
         if (!context.HealingCoordination.TryReserveAoEHeal(
-            context.PartyCoordinationService, action.ActionId, action.HealPotency, castTimeMs))
+            context.PartyCoordinationService, action.ActionId, action.HealPotency, castTimeMs, force: emergency))
         {
             context.Debug.AoEStatus = "Skipped (remote AOE reserved)";
             return;
@@ -58,8 +65,11 @@ public sealed class PrognosisHandler : IHealingHandler
 
         var capturedAvgHp = avgHp;
         var capturedInjuredCount = injuredCount;
+        if (emergency)
+            context.Debug.AoEStatus = "AoE EMERGENCY";
 
-        scheduler.PushGcd(AsclepiusAbilities.Prognosis, player.GameObjectId, priority: Priority,
+        scheduler.PushGcd(AsclepiusAbilities.Prognosis, player.GameObjectId,
+            priority: emergency ? AsclepiusPartyMetrics.AoEEmergencyPriority + 1 : Priority,
             onDispatched: _ =>
             {
                 context.Debug.PlannedAction = action.Name;

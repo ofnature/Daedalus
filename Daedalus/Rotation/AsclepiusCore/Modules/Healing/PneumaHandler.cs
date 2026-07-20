@@ -40,18 +40,29 @@ public sealed class PneumaHandler : IHealingHandler
         if (enemy == null) { context.Debug.PneumaState = "No enemy"; return; }
 
         var (avgHp, _, injuredCount) = AsclepiusPartyMetrics.GetAoEHealMetrics(context.PartyHelper, player);
-        var minTargets = AoEHealTargetHelper.GetEffectiveMinTargets(
-            context.Configuration.Healing, context.PartyHelper.GetPartySize(player));
-        if (avgHp > config.PneumaThreshold && injuredCount < minTargets)
+
+        // AoE emergency ("everyone to 1 HP" recovery): 600-potency party heal + damage in one
+        // GCD — the best possible recovery GCD, so it outranks Prognosis and the damage queue.
+        var emergency = AsclepiusPartyMetrics.IsAoEEmergency(
+            context.PartyHelper, player, context.Configuration.Healing);
+        if (!emergency)
         {
-            context.Debug.PneumaState = $"Party HP {avgHp:P0}";
-            return;
+            var minTargets = AoEHealTargetHelper.GetEffectiveMinTargets(
+                context.Configuration.Healing, context.PartyHelper.GetPartySize(player));
+            if (avgHp > config.PneumaThreshold && injuredCount < minTargets)
+            {
+                context.Debug.PneumaState = $"Party HP {avgHp:P0}";
+                return;
+            }
         }
 
         var capturedAvgHp = avgHp;
         var capturedInjuredCount = injuredCount;
+        if (emergency)
+            context.Debug.PneumaState = "AoE EMERGENCY";
 
-        scheduler.PushGcd(AsclepiusAbilities.Pneuma, enemy.GameObjectId, priority: Priority,
+        scheduler.PushGcd(AsclepiusAbilities.Pneuma, enemy.GameObjectId,
+            priority: emergency ? AsclepiusPartyMetrics.AoEEmergencyPriority : Priority,
             onDispatched: _ =>
             {
                 context.Debug.PlannedAction = SGEActions.Pneuma.Name;

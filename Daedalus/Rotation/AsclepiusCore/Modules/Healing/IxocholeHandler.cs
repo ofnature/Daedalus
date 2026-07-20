@@ -33,14 +33,22 @@ public sealed class IxocholeHandler : IHealingHandler
         if (!context.ActionService.IsActionReady(SGEActions.Ixochole.ActionId)) { context.Debug.IxocholeState = "On CD"; return; }
 
         var (avgHp, _, injuredCount) = AsclepiusPartyMetrics.GetAoEHealMetrics(context.PartyHelper, player);
-        var minTargets = AoEHealTargetHelper.GetEffectiveMinTargets(
-            context.Configuration.Healing, context.PartyHelper.GetPartySize(player));
-        if (injuredCount < minTargets) { context.Debug.IxocholeState = $"{injuredCount} < {minTargets} injured"; return; }
-        if (avgHp > config.AoEHealThreshold) { context.Debug.IxocholeState = $"Avg HP {avgHp:P0} > {config.AoEHealThreshold:P0}"; return; }
+
+        // AoE emergency ("everyone to 1 HP" recovery): the count/threshold gates and the
+        // cross-healer reservation must not hold back group heals — see IsAoEEmergency.
+        var emergency = AsclepiusPartyMetrics.IsAoEEmergency(
+            context.PartyHelper, player, context.Configuration.Healing);
+        if (!emergency)
+        {
+            var minTargets = AoEHealTargetHelper.GetEffectiveMinTargets(
+                context.Configuration.Healing, context.PartyHelper.GetPartySize(player));
+            if (injuredCount < minTargets) { context.Debug.IxocholeState = $"{injuredCount} < {minTargets} injured"; return; }
+            if (avgHp > config.AoEHealThreshold) { context.Debug.IxocholeState = $"Avg HP {avgHp:P0} > {config.AoEHealThreshold:P0}"; return; }
+        }
 
         var action = SGEActions.Ixochole;
         if (!context.HealingCoordination.TryReserveAoEHeal(
-            context.PartyCoordinationService, action.ActionId, action.HealPotency, 0))
+            context.PartyCoordinationService, action.ActionId, action.HealPotency, 0, force: emergency))
         {
             context.Debug.IxocholeState = "Skipped (remote AOE reserved)";
             return;
@@ -49,8 +57,11 @@ public sealed class IxocholeHandler : IHealingHandler
         var capturedAvgHp = avgHp;
         var capturedInjuredCount = injuredCount;
         var capturedStacks = context.AddersgallStacks;
+        if (emergency)
+            context.Debug.IxocholeState = "AoE EMERGENCY";
 
-        scheduler.PushOgcd(AsclepiusAbilities.Ixochole, player.GameObjectId, priority: Priority,
+        scheduler.PushOgcd(AsclepiusAbilities.Ixochole, player.GameObjectId,
+            priority: emergency ? AsclepiusPartyMetrics.AoEEmergencyPriority : Priority,
             onDispatched: _ =>
             {
                 context.Debug.PlannedAction = action.Name;

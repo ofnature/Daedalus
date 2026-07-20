@@ -179,6 +179,8 @@ public sealed class SageSection
                 save, v => config.Healing.GcdEmergencyThreshold = v);
             ConfigUIHelpers.Toggle("Swiftcast Emergency Heals", () => config.Healing.UseSwiftcastForEmergencyHeal, v => config.Healing.UseSwiftcastForEmergencyHeal = v,
                 "Pop Swiftcast so a critical GCD heal lands instantly (and works while moving).", save);
+            ConfigUIHelpers.Toggle("Force Group Heals in Emergency", () => config.Healing.ForceGroupHealsInEmergency, v => config.Healing.ForceGroupHealsInEmergency = v,
+                "When several party members are critically low at once (e.g. after everyone is reduced to 1 HP), AoE heals bypass their normal gates and the cross-healer reservation — every healer dumps group heals simultaneously and AoE recovery outranks single-target triage. Shared across all healers.", save);
 
             ConfigUIHelpers.Spacing();
             ConfigUIHelpers.SectionLabel(Loc.T(LocalizedStrings.Sage.AoEThresholds, "AoE Thresholds:"));

@@ -494,6 +494,14 @@ public sealed class HealingConfig
     /// </summary>
     public bool UseSwiftcastForEmergencyHeal { get; set; } = true;
 
+    /// <summary>
+    /// When several party members are critically low at once (post "everyone to 1 HP" mechanics),
+    /// force group heals to recover: AoE heal handlers bypass their min-target/avg-HP gates and the
+    /// cross-healer AoE reservation (both healers dump group heals simultaneously instead of one
+    /// deferring), and AoE recovery outranks single-target triage. Default true.
+    /// </summary>
+    public bool ForceGroupHealsInEmergency { get; set; } = true;
+
     // Preemptive Healing Settings
 
     /// <summary>

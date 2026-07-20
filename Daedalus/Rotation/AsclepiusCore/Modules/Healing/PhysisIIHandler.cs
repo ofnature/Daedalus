@@ -32,16 +32,27 @@ public sealed class PhysisIIHandler : IHealingHandler
         if (!context.ActionService.IsActionReady(SGEActions.PhysisII.ActionId)) { context.Debug.PhysisIIState = "On CD"; return; }
 
         var (avgHp, _, injuredCount) = AsclepiusPartyMetrics.GetAoEHealMetrics(context.PartyHelper, player);
-        var minTargets = AoEHealTargetHelper.GetEffectiveMinTargets(
-            context.Configuration.Healing, context.PartyHelper.GetPartySize(player));
-        if (injuredCount < minTargets) { context.Debug.PhysisIIState = $"{injuredCount} injured"; return; }
-        if (avgHp > config.PhysisIIThreshold) { context.Debug.PhysisIIState = $"Avg HP {avgHp:P0}"; return; }
+
+        // AoE emergency ("everyone to 1 HP" recovery): regen + 10% healing-received buff should
+        // land immediately under every incoming group heal — bypass the normal gates.
+        var emergency = AsclepiusPartyMetrics.IsAoEEmergency(
+            context.PartyHelper, player, context.Configuration.Healing);
+        if (!emergency)
+        {
+            var minTargets = AoEHealTargetHelper.GetEffectiveMinTargets(
+                context.Configuration.Healing, context.PartyHelper.GetPartySize(player));
+            if (injuredCount < minTargets) { context.Debug.PhysisIIState = $"{injuredCount} injured"; return; }
+            if (avgHp > config.PhysisIIThreshold) { context.Debug.PhysisIIState = $"Avg HP {avgHp:P0}"; return; }
+        }
 
         var capturedAvgHp = avgHp;
         var capturedInjuredCount = injuredCount;
         var action = SGEActions.PhysisII;
+        if (emergency)
+            context.Debug.PhysisIIState = "AoE EMERGENCY";
 
-        scheduler.PushOgcd(AsclepiusAbilities.PhysisII, player.GameObjectId, priority: Priority,
+        scheduler.PushOgcd(AsclepiusAbilities.PhysisII, player.GameObjectId,
+            priority: emergency ? AsclepiusPartyMetrics.AoEEmergencyPriority + 1 : Priority,
             onDispatched: _ =>
             {
                 context.Debug.PlannedAction = action.Name;

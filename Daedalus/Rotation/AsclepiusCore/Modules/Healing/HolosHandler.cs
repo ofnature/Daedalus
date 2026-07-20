@@ -60,7 +60,12 @@ public sealed class HolosHandler : IHealingHandler
         var addersgallEmergency = context.AddersgallStacks < 1
             && lowestHp <= context.Configuration.Healing.GcdEmergencyThreshold;
 
-        if (!addersgallEmergency)
+        // AoE emergency ("everyone to 1 HP" recovery): the panic button is exactly what the
+        // 120s cooldown is saved for — bypass the gates and outrank single-target triage.
+        var aoeEmergency = AsclepiusPartyMetrics.IsAoEEmergency(
+            context.PartyHelper, player, context.Configuration.Healing);
+
+        if (!addersgallEmergency && !aoeEmergency)
         {
             var minTargets = AoEHealTargetHelper.GetEffectiveMinTargets(
                 context.Configuration.Healing, context.PartyHelper.GetPartySize(player));
@@ -72,8 +77,11 @@ public sealed class HolosHandler : IHealingHandler
         var capturedLowestHp = lowestHp;
         var capturedInjuredCount = injuredCount;
         var action = SGEActions.Holos;
+        if (aoeEmergency)
+            context.Debug.HolosState = "AoE EMERGENCY";
 
-        scheduler.PushOgcd(AsclepiusAbilities.Holos, player.GameObjectId, priority: Priority,
+        scheduler.PushOgcd(AsclepiusAbilities.Holos, player.GameObjectId,
+            priority: aoeEmergency ? AsclepiusPartyMetrics.AoEEmergencyPriority + 2 : Priority,
             onDispatched: _ =>
             {
                 context.Debug.PlannedAction = action.Name;
