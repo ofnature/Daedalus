@@ -189,6 +189,14 @@ public sealed class Nike : BaseMeleeDpsRotation<INikeContext, INikeModule>
     protected override bool IsPositionalMovementEnabled()
         => Configuration.Samurai.EnablePositionalMovement;
 
+    /// <summary>
+    /// Positional-anchor rollout (plan P3, second job after NIN — user call 2026-07-20): SAM's
+    /// provider is dispatcher-parity (Jinpu/Shifu + Meikyo Sen routing, P2-verified) and the
+    /// P1 anchor drift applies. Still gated behind the global Nav Control "boundary camping"
+    /// switch (default OFF) — flip that on the SAM box to field-test per plan P5.
+    /// </summary>
+    protected override bool IsPositionalArcRolloutEnabled => true;
+
     /// <inheritdoc />
     protected override PositionalAnticipationContext CreatePositionalAnticipationContext(IPlayerCharacter player)
     {

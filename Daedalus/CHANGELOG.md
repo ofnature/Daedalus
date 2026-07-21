@@ -5,6 +5,9 @@ All notable changes to Daedalus will be documented in this file.
 <!-- LATEST-START -->
 ## v0.1.34 — 2026-07-20
 
+### New — Positional anchor rollout: Samurai joins Ninja
+- SAM is the second job cleared for the boundary-camping positional anchor (its Gekko/Kasha anticipation is verified to match the dispatcher exactly, including Meikyo Sen routing). Still behind the Nav Control **boundary camping** switch (off by default) — turn it on for the SAM toon to field-test: expect the toon to park at the flank/rear border ±10°, hop ~1.7y across for Gekko/Kasha, and drift back to the border after knockbacks
+
 ### Fix — Viper: coil anticipation + finisher positionals restored
 - Third live-sheet correction of the day: the **Flanksting/Hindsting finisher family has positionals on live** (Flanksting Strike + Flanksbane Fang = flank, Hindsting Strike + Hindsbane Fang = rear, 340→400) — the "removed in 7.05" note was stale reference data. The next-positional anticipation also never covered the twinblade chain; it now anticipates **Hunter's Coil (flank) → Swiftskin's Coil (rear)** during Vicewinder chains, outranking the finisher step exactly as the rotation casts them. The whole six-job positional bank (NIN/SAM/RPR/VPR/MNK/DRG) is now verified arc-by-arc against the live game sheets
 
