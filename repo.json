@@ -48,7 +48,7 @@
     "CategoryTags": ["utility"],
     "Tags": ["farm", "automation", "gil"],
     "RepoUrl": "https://github.com/ofnature/SealBreaker",
-    "AssemblyVersion": "1.1.0.4",
+    "AssemblyVersion": "1.1.0.5",
     "DalamudApiLevel": 15,
     "IconUrl": "https://raw.githubusercontent.com/ofnature/SealBreaker/main/SealBreaker/icon.png",
     "ImageUrls": [],
