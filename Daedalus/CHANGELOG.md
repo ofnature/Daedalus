@@ -3,7 +3,7 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
-## v0.1.34 — 2026-07-20
+## v0.1.35 — 2026-07-20
 
 ### Fix — Positional anchor: hazard fallback (mirror anchor instead of parking at the edge)
 - When an arena hazard covered the anchor point, the toon walked as close as it could and then just parked — the safety veto refused the spot but nothing tried an alternative. The required arc has more than one valid camping spot: the anchor now falls back to the **mirror-side boundary anchor**, then the **arc center**, and only holds position when every same-arc spot is hazarded (the Nav Control movement line then says so). A toon settled on the mirror anchor counts as "home" — it won't keep re-drifting toward the hazard side
@@ -35,6 +35,9 @@ All notable changes to Daedalus will be documented in this file.
 ### Fix — Monk: current-patch positionals restored (coeurl form only)
 - A live tooltip disproved the earlier "Dawntrail removed all Monk positionals" conclusion (based on outdated reference data) — a later patch re-added them to the **coeurl form**: Demolish is **rear**, Snap Punch and Pouncing Coeurl are **flank** (310→370, Fury 460→520); opo-opo and raptor GCDs have none. The positional overlay/anticipation now reflects this: no more phantom flank/rear prompts on opo-opo and raptor GCDs, the raptor→coeurl step anticipates the correct arc (Fury → flank, Demolish due → rear), and Pouncing Coeurl's arc label is corrected from rear to flank. GCDs remain ungated — this fixes what the overlay and upcoming positional anchor aim at, not when things cast
 
+<!-- LATEST-END -->
+## v0.1.34 — 2026-07-20
+
 ### Fix — Rotation audit batch 2 (fleet jobs): SAM buff gates
 - **Samurai**: Ogi Namikiri and Higanbana now require BOTH Fugetsu and Fuka before firing (RSR parity) — previously a post-downtime Ogi could cast without Fugetsu's +13%, and a badly timed Higanbana snapshot locked in a full minute of unbuffed DoT ticks
 - NIN, SMN, and AST's damage side audited clean against RSR in the same pass (Ninki pooling, demi-phase chains, and Oracle/Lord burst handling already match)
@@ -54,7 +57,6 @@ All notable changes to Daedalus will be documented in this file.
 - With readiness flowing, the **auto-fire works**: once every toon in the party reports ready, the group's burst window opens by itself (the alert feed logs it like a forced burst). Guard rails: auto-fire needs at least one raid-buff job in the group (an all-tank/healer group would just cycle the window forever — Force burst still works there) and won't re-fire within 30 seconds of the last window
 - BLU is unchanged — its readiness still comes from the Moon Flute coordination path
 
-<!-- LATEST-END -->
 ## v0.1.33 — 2026-07-19
 
 ### New — Plugin checklist in Settings → General
