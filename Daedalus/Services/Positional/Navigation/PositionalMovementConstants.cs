@@ -77,6 +77,26 @@ public static class PositionalMovementConstants
     /// </summary>
     public const float AnchorDriftToleranceYalms = 1.5f;
 
+    /// <summary>
+    /// Minimum interval (seconds) between drift-back moves toward the anchor (positional-anchor
+    /// stutter fix, field report 2026-07-20). A turning target drags the anchor along the stand
+    /// ring with its facing; without a cooldown the drift branch re-fired after every twitch of a
+    /// rotating mob and the toon chased the anchor step-by-step. One GCD's worth of settle time
+    /// keeps knockback recovery prompt while killing the chase. Real flank/rear hops (required-arc
+    /// changes) are NOT gated by this — only the low-urgency at-anchor drift.
+    /// </summary>
+    public const float AnchorDriftMinIntervalSeconds = 2.5f;
+
+    /// <summary>
+    /// While an owned positional-arc path is running toward the same required zone, the recomputed
+    /// destination may move this far (yalms) before the path is stopped and re-issued (stutter fix,
+    /// same field report). The old 0.5y tolerance sat BELOW the arbiter's
+    /// <see cref="MinDestinationDeltaYalms"/> (0.75y): a target turning ~6° broke the hold, we
+    /// Stop()ped the path, and the replacement submission could then be suppressed by the arbiter's
+    /// destination-delta rule — the toon halted mid-hop. Must stay above 0.75y.
+    /// </summary>
+    public const float PositionalHoldDestinationToleranceYalms = 1.0f;
+
     // --- MovementArbiter cadence (yield-to-BMR + vNav churn protection) ---
 
     /// <summary>

@@ -20,6 +20,12 @@ public sealed class PositionalMovementService : IPositionalMovementService
 
     public PositionalMovementState State { get; private set; }
 
+    /// <summary>Test seam (stutter-fix cadence: drift re-trigger cooldown).</summary>
+    internal Func<DateTime> UtcNow = () => DateTime.UtcNow;
+
+    /// <summary>Last time a positional-arc path (hop or drift) was actually queued on vNav.</summary>
+    private DateTime _lastArcQueuedUtc = DateTime.MinValue;
+
     public void Update(in PositionalMovementUpdateRequest request)
     {
         _bossModSafety.BeginUpdateSnapshot();
@@ -49,6 +55,23 @@ public sealed class PositionalMovementService : IPositionalMovementService
             }
             else if (IsAlreadyCorrect(anticipation.Required, request.AnticipationContext))
             {
+                // Stutter fix (field report 2026-07-20, first live anchor run): an in-flight arc
+                // path toward the SAME required zone runs to completion. Previously the clip gate
+                // re-evaluated every frame, so as the GCD timer ran down mid-drift, canDrift
+                // flipped false → SetSkipped → Stop() → the toon halted mid-hop, then resumed
+                // after the GCD fired — visible stutter-stepping every single GCD cycle. Mechanic
+                // telegraphs still abort at the top of Update; a required-zone CHANGE still
+                // repaths through the hop branch below.
+                if ((_vNav.IsPathRunning || _vNav.IsPathfindInProgress)
+                    && State.Phase == PositionalMovementPhase.Moving
+                    && State.TargetZone == anticipation.Required
+                    && State.SkipReason != MaxMeleeMaintenanceReason)
+                {
+                    State = new PositionalMovementState(
+                        PositionalMovementPhase.Moving, anticipation.Required, State.Destination);
+                    return;
+                }
+
                 // Anchor persistence (positional-anchor-plan P1): "anywhere inside the arc" used to
                 // idle here, so a knockback/dodge that dumped the toon at arc CENTER (or the far
                 // side) made the next flank/rear swap a long walk instead of the ~1.5y boundary hop
@@ -56,7 +79,12 @@ public sealed class PositionalMovementService : IPositionalMovementService
                 // to the boundary-biased anchor whenever we're off it by more than the tolerance —
                 // same stand math and BMR safety veto as the arc hop, budget-clamped, and never
                 // when it would clip the GCD (the drift is the lowest-urgency move we make).
+                // The re-trigger cooldown stops anchor-chasing: every time the target turns, its
+                // facing drags the anchor along the ring, and cooldown-less drift walked the toon
+                // step-by-step after every twitch of a rotating mob.
                 var canDrift = request.PositionalBoundaryBiasRadians > 0f
+                    && (UtcNow() - _lastArcQueuedUtc).TotalSeconds
+                        >= PositionalMovementConstants.AnchorDriftMinIntervalSeconds
                     && ComputeAnchorDistance(in request, target, anticipation.Required)
                         > PositionalMovementConstants.AnchorDriftToleranceYalms
                     && (request.AllowMovementDuringActionLock || !WouldClipGcd(
@@ -169,6 +197,7 @@ public sealed class PositionalMovementService : IPositionalMovementService
             return false;
         }
 
+        _lastArcQueuedUtc = UtcNow();
         State = new PositionalMovementState(PositionalMovementPhase.Moving, required, destination);
         return true;
     }
@@ -302,7 +331,8 @@ public sealed class PositionalMovementService : IPositionalMovementService
         if (!State.Destination.HasValue)
             return _vNav.IsPathRunning || _vNav.IsPathfindInProgress;
 
-        return HorizontalDistanceTo(State.Destination.Value, destination) <= 0.5f;
+        return HorizontalDistanceTo(State.Destination.Value, destination)
+            <= PositionalMovementConstants.PositionalHoldDestinationToleranceYalms;
     }
 
     /// <summary>

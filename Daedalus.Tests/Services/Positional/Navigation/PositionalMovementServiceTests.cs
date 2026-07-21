@@ -274,6 +274,94 @@ public class PositionalMovementServiceTests
         _vNav.Verify(x => x.PathfindAndMoveCloseTo(It.IsAny<Vector3>(), It.IsAny<float>(), It.IsAny<MovementIntent>(), It.IsAny<bool>()), Times.Never);
     }
 
+    // ── Anchor stutter fixes (field report 2026-07-20, first live SAM anchor run) ────────────────
+    // "Stutter stepping": (1) the clip gate stopped an in-flight drift mid-hop every time the GCD
+    // timer ran down, then resumed it after the GCD fired; (2) the 0.5y hold tolerance re-pathed on
+    // ~6° of target rotation; (3) cooldown-less drift chased the anchor around a turning mob.
+
+    [Fact]
+    public void Update_InFlightArcPathHeldThroughClipGate_NoMidHopStop()
+    {
+        var service = CreateService();
+        _anticipation.Next = new PositionalAnticipation(PositionalType.Rear, 7481, PositionalAnticipationReason.ComboSetup);
+
+        var ctx = BaseAnticipationContext with { IsAtRear = true };
+        var request = CreateRequest(anticipationContext: ctx) with
+        {
+            PlayerPosition = new Vector3(0f, 0f, -5f),
+            PositionalBoundaryBiasRadians = TenDegreesRadians,
+        };
+        service.Update(request);
+        Assert.Equal(PositionalMovementPhase.Moving, service.State.Phase);
+
+        // Path now running; the GCD timer has run down so a FRESH drift would clip. The in-flight
+        // path must run to completion instead of stop-resume every GCD cycle (the field stutter).
+        _vNav.Setup(x => x.IsPathRunning).Returns(true);
+        _action.Setup(x => x.GcdRemaining).Returns(0.10005f);
+        service.Update(request);
+
+        Assert.Equal(PositionalMovementPhase.Moving, service.State.Phase);
+        _vNav.Verify(x => x.Stop(), Times.Never);
+        _vNav.Verify(x => x.PathfindAndMoveCloseTo(It.IsAny<Vector3>(), It.IsAny<float>(), It.IsAny<MovementIntent>(), It.IsAny<bool>()), Times.Once);
+    }
+
+    [Fact]
+    public void Update_RunningHopHeldWhenTargetTurnsSlightly()
+    {
+        var service = CreateService();
+        _anticipation.Next = new PositionalAnticipation(PositionalType.Rear, 7481, PositionalAnticipationReason.ComboSetup);
+
+        var request = CreateRequest();
+        service.Update(request);
+        Assert.Equal(PositionalMovementPhase.Moving, service.State.Phase);
+
+        // Target turns ~8.6° (0.15 rad): destination shifts ~0.75y on the 5y ring — inside the 1.0y
+        // hold tolerance, so the running hop is kept, not stopped-and-reissued (which the arbiter's
+        // 0.75y destination-delta rule could then suppress, halting the toon mid-hop).
+        _vNav.Setup(x => x.IsPathRunning).Returns(true);
+        var turned = request with
+        {
+            Target = new PositionalMovementTarget(Vector3.Zero, 2f, 0.15f, false),
+        };
+        service.Update(turned);
+
+        Assert.Equal(PositionalMovementPhase.Moving, service.State.Phase);
+        _vNav.Verify(x => x.Stop(), Times.Never);
+        _vNav.Verify(x => x.PathfindAndMoveCloseTo(It.IsAny<Vector3>(), It.IsAny<float>(), It.IsAny<MovementIntent>(), It.IsAny<bool>()), Times.Once);
+    }
+
+    [Fact]
+    public void Update_DriftRetriggerHasCooldown_NoAnchorChasing()
+    {
+        var service = CreateService();
+        var now = new DateTime(2026, 7, 20, 12, 0, 0, DateTimeKind.Utc);
+        service.UtcNow = () => now;
+        _anticipation.Next = new PositionalAnticipation(PositionalType.Rear, 7481, PositionalAnticipationReason.ComboSetup);
+
+        var ctx = BaseAnticipationContext with { IsAtRear = true };
+        var request = CreateRequest(anticipationContext: ctx) with
+        {
+            PlayerPosition = new Vector3(0f, 0f, -5f),
+            PositionalBoundaryBiasRadians = TenDegreesRadians,
+        };
+
+        service.Update(request);
+        Assert.Equal(PositionalMovementPhase.Moving, service.State.Phase);
+
+        // Path completed, target turned, anchor moved again — 1s later. Still cooling down: a
+        // turning mob must not be chased step-by-step around the ring.
+        now = now.AddSeconds(1);
+        service.Update(request);
+        Assert.Equal(PositionalMovementPhase.Skipped, service.State.Phase);
+        Assert.Equal("at anchor", service.State.SkipReason);
+
+        // After the cooldown a genuine off-anchor state drifts home again.
+        now = now.AddSeconds(2);
+        service.Update(request);
+        Assert.Equal(PositionalMovementPhase.Moving, service.State.Phase);
+        _vNav.Verify(x => x.PathfindAndMoveCloseTo(It.IsAny<Vector3>(), It.IsAny<float>(), It.IsAny<MovementIntent>(), It.IsAny<bool>()), Times.Exactly(2));
+    }
+
     [Fact]
     public void AnchorGeometry_FlankRearSwapIsAShortHop()
     {

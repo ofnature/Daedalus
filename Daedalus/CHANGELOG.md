@@ -5,6 +5,9 @@ All notable changes to Daedalus will be documented in this file.
 <!-- LATEST-START -->
 ## v0.1.34 — 2026-07-20
 
+### Fix — Positional anchor: no more stutter-stepping
+- First live anchor run stutter-stepped, for three compounding reasons, all fixed: **(1)** a drift-back move was stopped mid-hop every time the GCD timer ran down and resumed after the GCD fired (move-stop-move every cycle) — an in-flight anchor move now always runs to completion (mechanic dodges still abort it instantly); **(2)** a target turning ~6° was enough to cancel-and-reissue the running path, which the movement rate-limiter could then suppress, halting the toon mid-hop — the hold tolerance is widened past the rate-limiter's threshold; **(3)** every twitch of a turning mob drags the anchor point along the ring, and the toon chased it step-by-step — drift-back now has a one-GCD cooldown (real flank/rear hops are not delayed by it)
+
 ### Fix — Auto movement now works in Trust parties (the anchor's invisible blocker)
 - Field-tested the SAM anchor in a Trust party and nothing moved: the auto-movement party gate checked the party list, but **the party list is empty in Trust/Duty Support content** — trust allies only exist in the object table, so every Trust run counted as "solo" and all auto movement (positional anchor, burst approach) was silently blocked. The gate now also scans for trust NPC allies, the same way party-wide healing already does. Genuinely solo play still never auto-moves (by design)
 
