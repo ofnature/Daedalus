@@ -354,16 +354,22 @@ public abstract class BaseMeleeDpsRotation<TContext, TModule> : BaseRotation<TCo
                 PositionalService.HasPositionalImmunity(t))
             : null;
 
+        var provider = GetPositionalAnticipationProvider();
+        var anticipationContext = CreatePositionalAnticipationContext(player);
+        var engagedEnemies = TargetingService.CountEngagedEnemies(
+            PositionalRequirementHelper.EngagedScanYalms, player);
+        var singleTargetOk = PositionalRequirementHelper.ShouldApply(engagedEnemies);
+
         var request = new PositionalMovementUpdateRequest(
-            AnticipationProvider: GetPositionalAnticipationProvider(),
-            AnticipationContext: CreatePositionalAnticipationContext(player),
+            AnticipationProvider: provider,
+            AnticipationContext: anticipationContext,
             PlayerPosition: player.Position,
             PlayerHitboxRadius: player.HitboxRadius,
             Target: movementTarget,
             ActionService: ActionService,
             InCombat: inCombat,
             EnableMovement: IsBoundaryCampingEnabled
-                && IsAutoMovementAllowed() && ShouldApplyPositionalRequirements(player),
+                && IsAutoMovementAllowed() && singleTargetOk,
             AllowMovementDuringActionLock: true,
             MaintainMaxMelee: IsMaxMeleeMaintenanceAllowed(),
             MaxMeleeTarget: ResolveMaxMeleeTarget(player, out var maxMeleeFollowsPlayer),
@@ -372,6 +378,27 @@ public abstract class BaseMeleeDpsRotation<TContext, TModule> : BaseRotation<TCo
             PositionalBoundaryBiasRadians: PositionalBoundaryBiasRadians);
 
         PositionalMovementService.Update(in request);
+
+        // Anchor gate-chain diagnostics for the Nav Control window (static-backed — see class doc).
+        PositionalAnchorDiagnostics.JobName = Name;
+        PositionalAnchorDiagnostics.UpdatedUtc = System.DateTime.UtcNow;
+        PositionalAnchorDiagnostics.CampingSwitchOn = Configuration.Nav.EnableBoundaryCamping;
+        PositionalAnchorDiagnostics.RolloutEnabled = IsPositionalArcRolloutEnabled;
+        PositionalAnchorDiagnostics.JobToggleOn = IsPositionalMovementEnabled();
+        PositionalAnchorDiagnostics.AutoMovementOn = Configuration.EnableAutoMovement;
+        PositionalAnchorDiagnostics.HasParty = PartyList.Length > 0;
+        PositionalAnchorDiagnostics.SingleTargetOk = singleTargetOk;
+        PositionalAnchorDiagnostics.EngagedEnemies = engagedEnemies;
+        PositionalAnchorDiagnostics.HasTarget = movementTarget.HasValue;
+        PositionalAnchorDiagnostics.BiasDegrees = Configuration.Nav.PositionalBoundaryBiasDegrees;
+        PositionalAnchorDiagnostics.Anticipation =
+            provider?.GetAnticipatedPositional(anticipationContext) is { } a
+                ? $"{a.Required} (next GCD)"
+                : "none";
+        var state = PositionalMovementService.State;
+        PositionalAnchorDiagnostics.ServiceState = state.SkipReason is { Length: > 0 } reason
+            ? $"{state.Phase} — {reason}"
+            : state.Phase.ToString();
     }
 
     /// <summary>

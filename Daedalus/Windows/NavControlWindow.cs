@@ -75,6 +75,7 @@ public sealed class NavControlWindow : Window
                 "How many degrees inside the required arc to stand from the flank/rear boundary. "
                 + "0 = stand at arc centers (old behavior).",
                 saveConfiguration);
+            DrawAnchorDiagnostics();
             ImGui.Unindent();
         }
 
@@ -178,6 +179,36 @@ public sealed class NavControlWindow : Window
     private static readonly Vector4 Green = Common.DaedalusTheme.StatusGreen;
     private static readonly Vector4 Yellow = Common.DaedalusTheme.StatusYellow;
     private static readonly Vector4 Red = Common.DaedalusTheme.StatusRed;
+    private static readonly Vector4 Dim = Common.DaedalusTheme.TextSecondary;
+
+    /// <summary>
+    /// Positional-anchor gate chain + live movement verdict (field origin 2026-07-20: camping was
+    /// switched on for a SAM and "nothing moved, no debugs" — the solo party gate was invisible).
+    /// Reads the static snapshot the active melee rotation writes every frame.
+    /// </summary>
+    private static void DrawAnchorDiagnostics()
+    {
+        ImGui.Spacing();
+
+        if (!Daedalus.Services.Positional.PositionalAnchorDiagnostics.IsFresh)
+        {
+            ImGui.TextColored(Dim, "Anchor: no melee job active");
+            return;
+        }
+
+        var job = Daedalus.Services.Positional.PositionalAnchorDiagnostics.JobName;
+        if (Daedalus.Services.Positional.PositionalAnchorDiagnostics.AnchorLive)
+        {
+            ImGui.TextColored(Green, $"Anchor LIVE ({job}, ±{Daedalus.Services.Positional.PositionalAnchorDiagnostics.BiasDegrees:F0}°)");
+        }
+        else
+        {
+            ImGui.TextColored(Red, $"Anchor BLOCKED ({job}): {Daedalus.Services.Positional.PositionalAnchorDiagnostics.BlockedBy}");
+        }
+
+        ImGui.TextColored(Dim, $"Next positional: {Daedalus.Services.Positional.PositionalAnchorDiagnostics.Anticipation}");
+        ImGui.TextColored(Dim, $"Movement: {Daedalus.Services.Positional.PositionalAnchorDiagnostics.ServiceState}");
+    }
 
     /// <summary>
     /// Live diagnostics for the BMR push — without this it's a black box, since BMR can't be exercised in

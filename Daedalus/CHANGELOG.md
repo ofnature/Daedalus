@@ -5,6 +5,9 @@ All notable changes to Daedalus will be documented in this file.
 <!-- LATEST-START -->
 ## v0.1.34 — 2026-07-20
 
+### New — Positional anchor diagnostics in Nav Control (why isn't it moving?)
+- Field report: boundary camping switched on, nothing moved, and nothing said why. The Nav Control window (under the Boundary Camping toggle) now shows the **live anchor gate chain**: green "Anchor LIVE" or red "Anchor BLOCKED: {first failing gate}" — the gates being the camping switch, the job's rollout status, the job's positional toggle, the auto-movement master toggle, **the party requirement (solo never auto-moves, by design — this was the invisible blocker)**, the single-target check, and target presence. Below it: the next anticipated positional and the movement service's live verdict ("Moving", "Skipped — at anchor", "would clip GCD"...)
+
 ### New — Positional anchor rollout: Samurai joins Ninja
 - SAM is the second job cleared for the boundary-camping positional anchor (its Gekko/Kasha anticipation is verified to match the dispatcher exactly, including Meikyo Sen routing). Still behind the Nav Control **boundary camping** switch (off by default) — turn it on for the SAM toon to field-test: expect the toon to park at the flank/rear border ±10°, hop ~1.7y across for Gekko/Kasha, and drift back to the border after knockbacks
 
