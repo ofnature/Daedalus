@@ -5,6 +5,9 @@ All notable changes to Daedalus will be documented in this file.
 <!-- LATEST-START -->
 ## v0.1.34 — 2026-07-20
 
+### Fix — Auto movement now works in Trust parties (the anchor's invisible blocker)
+- Field-tested the SAM anchor in a Trust party and nothing moved: the auto-movement party gate checked the party list, but **the party list is empty in Trust/Duty Support content** — trust allies only exist in the object table, so every Trust run counted as "solo" and all auto movement (positional anchor, burst approach) was silently blocked. The gate now also scans for trust NPC allies, the same way party-wide healing already does. Genuinely solo play still never auto-moves (by design)
+
 ### New — Positional anchor diagnostics in Nav Control (why isn't it moving?)
 - Field report: boundary camping switched on, nothing moved, and nothing said why. The Nav Control window (under the Boundary Camping toggle) now shows the **live anchor gate chain**: green "Anchor LIVE" or red "Anchor BLOCKED: {first failing gate}" — the gates being the camping switch, the job's rollout status, the job's positional toggle, the auto-movement master toggle, **the party requirement (solo never auto-moves, by design — this was the invisible blocker)**, the single-target check, and target presence. Below it: the next anticipated positional and the movement service's live verdict ("Moving", "Skipped — at anchor", "would clip GCD"...)
 

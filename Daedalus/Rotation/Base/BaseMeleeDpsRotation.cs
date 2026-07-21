@@ -4,6 +4,7 @@ using Dalamud.Game.ClientState.Party;
 using Dalamud.Plugin.Services;
 using Daedalus.Data;
 using Daedalus.Rotation.Common;
+using Daedalus.Rotation.Common.Helpers;
 using Daedalus.Services;
 using Daedalus.Services.Action;
 using Daedalus.Services.Debuff;
@@ -302,11 +303,30 @@ public abstract class BaseMeleeDpsRotation<TContext, TModule> : BaseRotation<TCo
 
     /// <summary>
     /// Whether vNav-driven auto movement (positional reposition, burst approach) is permitted right
-    /// now: requires the global master toggle AND a real party. Solo play never auto-moves —
+    /// now: requires the global master toggle AND allies present. Solo play never auto-moves —
     /// positional uptime barely matters against overworld / solo-duty trash and pathing around every
-    /// target looks botty. PartyList.Length &gt; 0 includes trust/duty NPCs, so dungeons still move.
+    /// target looks botty.
+    /// TRUST FIX (2026-07-20, field report — SAM anchor blocked "solo" in a trust party): the old
+    /// check was PartyList.Length &gt; 0 with a comment claiming trust NPCs count. They do NOT — the
+    /// party list is EMPTY in trust/duty-support content (bug class 6a); trust allies only exist in
+    /// the object table. Scan for them the same way the party helpers do.
     /// </summary>
-    protected bool IsAutoMovementAllowed() => Configuration.EnableAutoMovement && PartyList.Length > 0;
+    protected bool IsAutoMovementAllowed() => Configuration.EnableAutoMovement && HasPartyOrTrustAllies();
+
+    /// <summary>Real party members OR trust/duty-support NPC allies (object-table scan).</summary>
+    protected bool HasPartyOrTrustAllies()
+    {
+        if (PartyList.Length > 0)
+            return true;
+
+        foreach (var obj in ObjectTable)
+        {
+            if (BasePartyHelper.IsValidTrustNpc(obj, out _))
+                return true;
+        }
+
+        return false;
+    }
 
     /// <summary>
     /// Builds anticipation inputs shared by all melee jobs. Override to add job-specific fields.
@@ -386,7 +406,7 @@ public abstract class BaseMeleeDpsRotation<TContext, TModule> : BaseRotation<TCo
         PositionalAnchorDiagnostics.RolloutEnabled = IsPositionalArcRolloutEnabled;
         PositionalAnchorDiagnostics.JobToggleOn = IsPositionalMovementEnabled();
         PositionalAnchorDiagnostics.AutoMovementOn = Configuration.EnableAutoMovement;
-        PositionalAnchorDiagnostics.HasParty = PartyList.Length > 0;
+        PositionalAnchorDiagnostics.HasParty = HasPartyOrTrustAllies();
         PositionalAnchorDiagnostics.SingleTargetOk = singleTargetOk;
         PositionalAnchorDiagnostics.EngagedEnemies = engagedEnemies;
         PositionalAnchorDiagnostics.HasTarget = movementTarget.HasValue;

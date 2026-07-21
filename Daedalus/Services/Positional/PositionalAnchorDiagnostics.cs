@@ -44,7 +44,7 @@ public static class PositionalAnchorDiagnostics
         : !RolloutEnabled ? "job not in the anchor rollout yet (NIN/SAM only)"
         : !JobToggleOn ? "job's positional movement toggle is OFF"
         : !AutoMovementOn ? "auto movement master toggle is OFF"
-        : !HasParty ? "solo — auto movement requires a party (by design)"
+        : !HasParty ? "solo — needs a party or trust allies (by design)"
         : !SingleTargetOk ? $"multi-enemy pull ({EngagedEnemies} engaged)"
         : !HasTarget ? "no target"
         : null;
