@@ -54,6 +54,59 @@ public static class PositionalStandCalculator
     }
 
     /// <summary>
+    /// Candidate stand points for the required arc in preference order: the nearest-side boundary
+    /// anchor (identical to <see cref="Calculate"/>), then the mirror-side boundary anchor, then the
+    /// arc center(s). The movement service walks this list when the primary anchor sits inside an
+    /// arena hazard (field report 2026-07-20: the toon walked to the hazard's edge and parked instead
+    /// of taking another safe spot in the same arc). Every candidate satisfies the positional and
+    /// gets the same GCD-budget clamp as <see cref="Calculate"/>.
+    /// </summary>
+    public static Vector3[] CalculateCandidates(in PositionalStandRequest request)
+    {
+        var directions = GetCandidateDirections(in request);
+        var result = new Vector3[directions.Length];
+        var standDistance = request.TargetHitboxRadius + request.StandRadiusOffset;
+        var floorY = float.IsNaN(request.FloorY) ? request.TargetPosition.Y : request.FloorY;
+
+        for (var i = 0; i < directions.Length; i++)
+        {
+            var ideal = request.TargetPosition + directions[i] * standDistance;
+            var distToIdeal = HorizontalDistance(request.PlayerPosition, ideal);
+            var maxMove = ComputeMaxHorizontalMoveYalms(distToIdeal, request.GcdRemainingSeconds);
+            result[i] = SnapToFloorPlane(
+                ClampHorizontalDisplacement(request.PlayerPosition, ideal, maxMove), floorY);
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Min horizontal distance from the player to any boundary anchor of the required arc (both
+    /// sides). The drift trigger uses this so a toon parked on the MIRROR anchor (because the primary
+    /// side is hazarded) counts as "at anchor" instead of re-drifting toward the hazard forever.
+    /// Falls back to the single ideal at bias 0.
+    /// </summary>
+    public static float ComputeMinAnchorDistance(in PositionalStandRequest request)
+    {
+        if (request.BoundaryBiasRadians <= 0f)
+            return ComputeIdealHorizontalDistance(in request);
+
+        var standDistance = request.TargetHitboxRadius + request.StandRadiusOffset;
+        var directions = GetCandidateDirections(in request);
+
+        // Only the two boundary anchors count as "home" — the arc-center candidates are hazard
+        // refuges, and drift should still pull the toon from center back to a boundary.
+        var min = float.MaxValue;
+        for (var i = 0; i < 2 && i < directions.Length; i++)
+        {
+            var ideal = request.TargetPosition + directions[i] * standDistance;
+            min = MathF.Min(min, HorizontalDistance(request.PlayerPosition, ideal));
+        }
+
+        return min;
+    }
+
+    /// <summary>
     /// Stand point on the player→target line at melee distance (burst approach / gap close).
     /// Clamped to one GCD of movement for positional weaving.
     /// </summary>
@@ -215,6 +268,54 @@ public static class PositionalStandCalculator
         return Vector3.Dot(flankRight, toPlayerVec) >= Vector3.Dot(flankLeft, toPlayerVec)
             ? flankRight
             : flankLeft;
+    }
+
+    /// <summary>
+    /// Ordered candidate directions for <see cref="CalculateCandidates"/>. Index 0 always equals
+    /// <see cref="GetStandDirectionUnit"/>'s answer (the primary), indices 1+ are the same-arc
+    /// alternates: mirror boundary anchor, then arc center(s).
+    /// </summary>
+    private static Vector3[] GetCandidateDirections(in PositionalStandRequest request)
+    {
+        var rot = request.TargetRotationRadians;
+        var bias = request.BoundaryBiasRadians;
+
+        var toPlayer = request.PlayerPosition - request.TargetPosition;
+        toPlayer.Y = 0f;
+        var playerOnRight = toPlayer.LengthSquared() >= 1e-6f
+            && Vector3.Dot(DirectionFromRotation(rot + MathF.PI / 2f), toPlayer) >= 0f;
+        var s = playerOnRight ? 1f : -1f;
+
+        if (bias > 0f)
+        {
+            if (request.RequiredPositional == PositionalType.Rear)
+            {
+                return new[]
+                {
+                    DirectionFromRotation(rot + s * ((3f * MathF.PI / 4f) + bias)),
+                    DirectionFromRotation(rot - s * ((3f * MathF.PI / 4f) + bias)),
+                    DirectionFromRotation(rot + MathF.PI),
+                };
+            }
+
+            return new[]
+            {
+                DirectionFromRotation(rot + s * ((3f * MathF.PI / 4f) - bias)),
+                DirectionFromRotation(rot - s * ((3f * MathF.PI / 4f) - bias)),
+                DirectionFromRotation(rot + s * (MathF.PI / 2f)),
+                DirectionFromRotation(rot - s * (MathF.PI / 2f)),
+            };
+        }
+
+        if (request.RequiredPositional == PositionalType.Rear)
+            return new[] { DirectionFromRotation(rot + MathF.PI) };
+
+        // Bias 0 flank: nearest center first (identical to GetStandDirectionUnit), mirror center after.
+        return new[]
+        {
+            DirectionFromRotation(rot + s * (MathF.PI / 2f)),
+            DirectionFromRotation(rot - s * (MathF.PI / 2f)),
+        };
     }
 
     private static Vector3 DirectionFromRotation(float rotationRadians)

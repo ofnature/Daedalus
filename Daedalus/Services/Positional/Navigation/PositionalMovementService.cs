@@ -168,18 +168,39 @@ public sealed class PositionalMovementService : IPositionalMovementService
             StandRadiusOffset: ArcStandRadiusOffset(request.PlayerHitboxRadius),
             BoundaryBiasRadians: request.PositionalBoundaryBiasRadians);
 
-        var destination = _vNav.SnapToFloor(PositionalStandCalculator.Calculate(in standRequest));
-
-        var safety = _bossModSafety.QueryPositionSafety(destination);
-        if (safety is PositionSafety.Unsafe or PositionSafety.Imminent)
+        // Hazard fallback (field report 2026-07-20 #3): the primary anchor can sit inside an arena
+        // hazard — previously we skipped outright and the toon parked at the hazard's edge. The
+        // required arc has more than one valid spot: try the mirror-side boundary anchor, then the
+        // arc center(s), and only skip when every same-arc candidate is hazarded.
+        var candidates = PositionalStandCalculator.CalculateCandidates(in standRequest);
+        Vector3? chosen = null;
+        string? firstRejection = null;
+        foreach (var candidate in candidates)
         {
-            SetSkipped($"unsafe destination ({safety})");
-            return false;
+            var snapped = _vNav.SnapToFloor(candidate);
+
+            var safety = _bossModSafety.QueryPositionSafety(snapped);
+            if (safety is PositionSafety.Unsafe or PositionSafety.Imminent)
+            {
+                firstRejection ??= $"unsafe destination ({safety})";
+                continue;
+            }
+
+            if (!_bossModSafety.IsSegmentSafe(request.PlayerPosition, snapped))
+            {
+                firstRejection ??= "dash segment unsafe";
+                continue;
+            }
+
+            chosen = snapped;
+            break;
         }
 
-        if (!_bossModSafety.IsSegmentSafe(request.PlayerPosition, destination))
+        if (chosen is not { } destination)
         {
-            SetSkipped("dash segment unsafe");
+            SetSkipped(candidates.Length > 1
+                ? $"{firstRejection} — all {candidates.Length} arc spots hazarded"
+                : firstRejection);
             return false;
         }
 
@@ -365,7 +386,9 @@ public sealed class PositionalMovementService : IPositionalMovementService
             StandRadiusOffset: ArcStandRadiusOffset(request.PlayerHitboxRadius),
             BoundaryBiasRadians: request.PositionalBoundaryBiasRadians);
 
-        return PositionalStandCalculator.ComputeIdealHorizontalDistance(in standRequest);
+        // Min over BOTH boundary anchors: a toon parked on the mirror anchor (because the primary
+        // side is hazarded) is home — it must not re-drift toward the hazard every cooldown.
+        return PositionalStandCalculator.ComputeMinAnchorDistance(in standRequest);
     }
 
     private static bool IsAlreadyCorrect(PositionalType required, in PositionalAnticipationContext context)

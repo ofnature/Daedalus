@@ -409,6 +409,82 @@ public class PositionalMovementServiceTests
         _vNav.Verify(x => x.Stop(), Times.Once);
     }
 
+    // ── Hazard fallback (field report 2026-07-20 #3) ────────────────────────────────────────────
+    // The primary anchor sat inside an arena hazard: the toon walked to the hazard's edge and
+    // parked ("skipped movement cause the hazard"). The arc has more than one valid spot — try the
+    // mirror-side boundary anchor and the arc center before giving up.
+
+    [Fact]
+    public void Update_PrimaryAnchorHazarded_FallsBackToMirrorAnchor()
+    {
+        Vector3? queued = null;
+        _vNav.Setup(x => x.PathfindAndMoveCloseTo(It.IsAny<Vector3>(), It.IsAny<float>(), It.IsAny<MovementIntent>(), It.IsAny<bool>()))
+            .Callback<Vector3, float, MovementIntent, bool>((d, _, _, _) => queued = d)
+            .Returns(VNavMoveResult.Queued);
+
+        // Hazard covers the +X half of the arena — the player-side (right) boundary anchor is in it.
+        _bossMod.Setup(x => x.QueryPositionSafety(It.Is<Vector3>(v => v.X > 0.5f), It.IsAny<float>()))
+            .Returns(PositionSafety.Unsafe);
+
+        var service = CreateService();
+        _anticipation.Next = new PositionalAnticipation(PositionalType.Rear, 7481, PositionalAnticipationReason.ComboSetup);
+
+        var request = CreateRequest() with
+        {
+            PositionalBoundaryBiasRadians = TenDegreesRadians,
+        };
+        service.Update(request);
+
+        // Mirror-side rear anchor (−145°, X < 0) instead of skipping.
+        Assert.Equal(PositionalMovementPhase.Moving, service.State.Phase);
+        Assert.NotNull(queued);
+        Assert.True(queued!.Value.X < 0f, $"expected mirror-side (X<0) destination, got {queued}");
+    }
+
+    [Fact]
+    public void Update_AllArcSpotsHazarded_SkipsWithReason()
+    {
+        _bossMod.Setup(x => x.QueryPositionSafety(It.IsAny<Vector3>(), It.IsAny<float>()))
+            .Returns(PositionSafety.Unsafe);
+
+        var service = CreateService();
+        _anticipation.Next = new PositionalAnticipation(PositionalType.Rear, 7481, PositionalAnticipationReason.ComboSetup);
+
+        var request = CreateRequest() with
+        {
+            PositionalBoundaryBiasRadians = TenDegreesRadians,
+        };
+        service.Update(request);
+
+        Assert.Equal(PositionalMovementPhase.Skipped, service.State.Phase);
+        Assert.Contains("arc spots hazarded", service.State.SkipReason);
+        _vNav.Verify(x => x.PathfindAndMoveCloseTo(It.IsAny<Vector3>(), It.IsAny<float>(), It.IsAny<MovementIntent>(), It.IsAny<bool>()), Times.Never);
+    }
+
+    [Fact]
+    public void Update_ParkedOnMirrorAnchor_CountsAsAtAnchor()
+    {
+        var service = CreateService();
+        _anticipation.Next = new PositionalAnticipation(PositionalType.Rear, 7481, PositionalAnticipationReason.ComboSetup);
+
+        // Toon settled on the MIRROR rear anchor (−145° on the 5y ring) because the primary side
+        // was hazarded earlier. It is home — it must not re-drift toward the hazard every cooldown.
+        var mirrorAngle = -(135f + 10f) * System.MathF.PI / 180f;
+        var mirror = new Vector3(System.MathF.Sin(mirrorAngle) * 5f, 0f, System.MathF.Cos(mirrorAngle) * 5f);
+
+        var ctx = BaseAnticipationContext with { IsAtRear = true };
+        var request = CreateRequest(anticipationContext: ctx) with
+        {
+            PlayerPosition = mirror,
+            PositionalBoundaryBiasRadians = TenDegreesRadians,
+        };
+        service.Update(request);
+
+        Assert.Equal(PositionalMovementPhase.Skipped, service.State.Phase);
+        Assert.Equal("at anchor", service.State.SkipReason);
+        _vNav.Verify(x => x.PathfindAndMoveCloseTo(It.IsAny<Vector3>(), It.IsAny<float>(), It.IsAny<MovementIntent>(), It.IsAny<bool>()), Times.Never);
+    }
+
     [Fact]
     public void AnchorGeometry_FlankRearSwapIsAShortHop()
     {

@@ -5,6 +5,9 @@ All notable changes to Daedalus will be documented in this file.
 <!-- LATEST-START -->
 ## v0.1.34 — 2026-07-20
 
+### Fix — Positional anchor: hazard fallback (mirror anchor instead of parking at the edge)
+- When an arena hazard covered the anchor point, the toon walked as close as it could and then just parked — the safety veto refused the spot but nothing tried an alternative. The required arc has more than one valid camping spot: the anchor now falls back to the **mirror-side boundary anchor**, then the **arc center**, and only holds position when every same-arc spot is hazarded (the Nav Control movement line then says so). A toon settled on the mirror anchor counts as "home" — it won't keep re-drifting toward the hazard side
+
 ### Fix — Samurai: no more cancelled Midare/Ogi casts while the anchor moves
 - Second field report from the live anchor run: SAM started its 1.3s Iaijutsu/Ogi Namikiri cast bars mid-step and the movement cancelled them. Two-sided fix: **movement now hard-stops the instant any cast bar starts** (the run-to-completion hold never carries a path into a cast), and **the SAM rotation holds its cast-time GCDs while moving** — including during Daedalus's own anchor hops — casting the moment the toon plants, with combo/filler GCDs keeping the GCD rolling meanwhile (same rule RSR uses)
 
