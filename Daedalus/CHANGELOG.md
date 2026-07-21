@@ -5,6 +5,9 @@ All notable changes to Daedalus will be documented in this file.
 <!-- LATEST-START -->
 ## v0.1.34 — 2026-07-20
 
+### Fix — Viper: coil anticipation + finisher positionals restored
+- Third live-sheet correction of the day: the **Flanksting/Hindsting finisher family has positionals on live** (Flanksting Strike + Flanksbane Fang = flank, Hindsting Strike + Hindsbane Fang = rear, 340→400) — the "removed in 7.05" note was stale reference data. The next-positional anticipation also never covered the twinblade chain; it now anticipates **Hunter's Coil (flank) → Swiftskin's Coil (rear)** during Vicewinder chains, outranking the finisher step exactly as the rotation casts them. The whole six-job positional bank (NIN/SAM/RPR/VPR/MNK/DRG) is now verified arc-by-arc against the live game sheets
+
 ### New — Positional anchor: drift-back to the boundary (groundwork, off by default)
 - First piece of the new positional system (Daedalus owns the angle, BossMod owns dodging): when boundary camping is active, a melee toon inside the correct arc but knocked off its anchor point (the flank/rear border ± the bias angle) now **drifts back to the border during filler GCDs** — movement-budget-clamped, never clipping a GCD, always behind the BossMod safety veto. This keeps every flank↔rear swap a ~1.7-yalm hop instead of an arc-center round trip. Inert until boundary camping is enabled per job (validation rollout comes next)
 

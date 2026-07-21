@@ -71,7 +71,20 @@ is meant to prevent.
   logic walks it. Verify with tests that the sequence anchor→cross→anchor produces two short
   hops (< 2y each), not arc-center round trips.
 
-### P2 — Provider correctness pass (one session, with tests)
+### P2 — Provider correctness pass — ✅ DONE 2026-07-20
+Verified/fixed per job (all six live-sheet-checked the same day):
+- NIN ✅ provider reuses `HermesKazematoiRules.GetFinisherPositional` (the dispatcher's chooser) — already parity.
+- SAM ✅ provider mirrors Jinpu/Shifu refresh + Meikyo missing-Sen routing — already parity (tests existed).
+- RPR ✅ Enhanced Gibbet(flank)/Gallows(rear) statuses; null pre-pair is CORRECT — the module is
+  position-adaptive for the first reaver (casts whichever arc you're in), so the anchor idles and
+  the Enhanced status drives the next hop.
+- VPR ✅ FIXED: map now covers the twinblade chain (Dreadwindy/HunterCoilReady→FLANK,
+  SwiftskinCoilReady→REAR, outranks the finisher step) + venom-driven finishers. **Live-sheet
+  correction: the finisher family HAS positionals (Flank* FLANK / Hind* REAR 340→400) — the
+  "lost in 7.05" note was the stale-snapshot trap again.** `Echidna.ComputeNextPositional` testable static.
+- MNK ✅ / DRG ✅ done earlier same day (b25a6bf / 6b2b1cc).
+Whole bank live-sheet-verified 2026-07-20: NIN Aeolian-REAR/ArmorCrush-FLANK, SAM Gekko-REAR/
+Kasha-FLANK, RPR Gibbet-FLANK/Gallows-REAR, VPR coils+finishers, MNK coeurl, DRG combo steps.
 For each of NIN/SAM/RPR/VPR: the provider must answer "which arc does the NEXT positional GCD
 need, and how many GCDs away is it?" from live combo/gauge state:
 - NIN: Aeolian Edge (rear) vs Armor Crush (flank) from the Huton/Kazematoi decision the

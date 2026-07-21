@@ -169,29 +169,53 @@ public sealed class Echidna : BaseMeleeDpsRotation<IEchidnaContext, IEchidnaModu
     }
 
     /// <summary>
-    /// VPR positionals: Hindsting/Hindsbane = rear, Flanksting/Flanksbane = flank.
-    /// Determined by active venom status.
+    /// VPR positionals — LIVE-SHEET facts (verified 2026-07-20): the coils AND the finisher family
+    /// both carry positionals. Hunter's Coil = FLANK / Swiftskin's Coil = REAR (630→680);
+    /// Flanksting Strike + Flanksbane Fang = FLANK / Hindsting Strike + Hindsbane Fang = REAR
+    /// (340→400 — the earlier "finishers lost their positionals in 7.05" note came from the stale
+    /// RSR snapshot; the same re-add patch as MNK/DRG restored them).
+    /// Twinblade chain outranks the dual-wield step, mirroring TryPushTwinbladeCombo's push order.
     /// </summary>
     protected override PositionalType? GetNextRequiredPositional()
     {
         var player = ObjectTable.LocalPlayer;
         if (player == null) return null;
 
-        // Only relevant at combo step 2 (after Hunter's/Swiftskin's Sting)
-        if (LastComboAction is not (34608 or 34609)) return null;
-
+        var hasRearVenom = false;
+        var hasFlankVenom = false;
         foreach (var s in player.StatusList)
         {
-            // Hindstung/Hindsbane venoms → rear
             if (s.StatusId is VPRActions.StatusIds.HindstungVenom or VPRActions.StatusIds.HindsbaneVenom)
-                return PositionalType.Rear;
-            // Flankstung/Flanksbane venoms → flank
-            if (s.StatusId is VPRActions.StatusIds.FlankstungVenom or VPRActions.StatusIds.FlanksbaneVenom)
-                return PositionalType.Flank;
+                hasRearVenom = true;
+            else if (s.StatusId is VPRActions.StatusIds.FlankstungVenom or VPRActions.StatusIds.FlanksbaneVenom)
+                hasFlankVenom = true;
         }
 
-        // Default: flank (Flanksting is the default when no venom)
-        return PositionalType.Flank;
+        return ComputeNextPositional(_dreadCombo, LastComboAction, hasRearVenom, hasFlankVenom);
+    }
+
+    internal static PositionalType? ComputeNextPositional(
+        VPRActions.DreadCombo dreadCombo,
+        uint lastComboAction,
+        bool hasRearVenom,
+        bool hasFlankVenom)
+    {
+        // Twinblade (dread) chain: mirrors TryPushTwinbladeCombo — Hunter's Coil (flank) is the
+        // primary pick in the Ready states, Swiftskin's Coil (rear) completes the pair.
+        switch (dreadCombo)
+        {
+            case VPRActions.DreadCombo.DreadwindyReady:
+            case VPRActions.DreadCombo.HunterCoilReady:
+                return PositionalType.Flank; // Hunter's Coil next
+            case VPRActions.DreadCombo.SwiftskinCoilReady:
+                return PositionalType.Rear;  // Swiftskin's Coil next
+        }
+
+        // Dual-wield finisher step (after Hunter's/Swiftskin's Sting 34608/34609): venom decides.
+        if (lastComboAction is not (34608 or 34609)) return null;
+        if (hasRearVenom) return PositionalType.Rear;
+        if (hasFlankVenom) return PositionalType.Flank;
+        return PositionalType.Flank; // no venom → Flanksting default
     }
 
     /// <inheritdoc />
