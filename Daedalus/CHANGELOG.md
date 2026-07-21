@@ -3,6 +3,12 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.36 — 2026-07-20
+
+### Fix — Quest/hunt kill loops: one deliberate pull at a time
+- The Questionable kill bridge already pulled a single mob and finished everything aggroed before pulling fresh — but the moment the last mob died, the very next poll hard-targeted the next flagged mob with zero breathing room, which could snowball tightly packed camps. Fresh objective pulls now wait for a **3-second calm window** after the last combat contact: kill → clear all aggro → brief pause → next pull. Mobs already aggroed on you are never delayed — leftovers and wanderers still get finished immediately
+
+<!-- LATEST-END -->
 ## v0.1.35 — 2026-07-20
 
 ### Fix — Positional anchor: hazard fallback (mirror anchor instead of parking at the edge)
@@ -35,7 +41,6 @@ All notable changes to Daedalus will be documented in this file.
 ### Fix — Monk: current-patch positionals restored (coeurl form only)
 - A live tooltip disproved the earlier "Dawntrail removed all Monk positionals" conclusion (based on outdated reference data) — a later patch re-added them to the **coeurl form**: Demolish is **rear**, Snap Punch and Pouncing Coeurl are **flank** (310→370, Fury 460→520); opo-opo and raptor GCDs have none. The positional overlay/anticipation now reflects this: no more phantom flank/rear prompts on opo-opo and raptor GCDs, the raptor→coeurl step anticipates the correct arc (Fury → flank, Demolish due → rear), and Pouncing Coeurl's arc label is corrected from rear to flank. GCDs remain ungated — this fixes what the overlay and upcoming positional anchor aim at, not when things cast
 
-<!-- LATEST-END -->
 ## v0.1.34 — 2026-07-20
 
 ### Fix — Rotation audit batch 2 (fleet jobs): SAM buff gates

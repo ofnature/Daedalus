@@ -45,6 +45,7 @@ public sealed class QuestionableIpc : IDisposable
     private readonly ITargetingService _targetingService;
     private readonly IObjectTable _objectTable;
     private readonly AutomationOverrideTracker _tracker = new();
+    private readonly FreshPullSettleGate _pullGate = new();
     private readonly Stopwatch _pollClock = Stopwatch.StartNew();
 
     private ICallGateSubscriber<bool>? _isRunning;
@@ -167,10 +168,13 @@ public sealed class QuestionableIpc : IDisposable
     /// <summary>
     /// Henchman-style targeting: if the player has no live enemy target while this bridge is
     /// driving, hard-target the next kill candidate so the rotation opens on it. Priority:
-    /// nearest enemy aggroed on us (finish the pull — never someone else's mobs); then — only
-    /// during an actual Combat step — enemies the game has flagged with a quest nameplate icon,
-    /// the authoritative "counts for the objective" marker. Idle unflagged mobs are never pulled
-    /// (a nearest-anything fallback aggroed whole camps).
+    /// nearest enemy aggroed on us (finish the pull — never someone else's mobs, and always
+    /// immediately); then — only during an actual Combat step — enemies the game has flagged
+    /// with a quest nameplate icon, the authoritative "counts for the objective" marker. Fresh
+    /// flagged pulls go one deliberate mob at a time: they wait for the post-combat settle gate,
+    /// so the pull cadence is kill → clear everything aggroed → brief pause → next pull, never a
+    /// chain-pull the same second the last mob dies. Idle unflagged mobs are never pulled (a
+    /// nearest-anything fallback aggroed whole camps).
     /// </summary>
     private void TryAcquireKillTarget(bool allowQuestFlagged)
     {
@@ -178,12 +182,26 @@ public sealed class QuestionableIpc : IDisposable
         if (player == null || player.CurrentHp == 0)
             return;
 
+        // Feed the settle gate every poll: any in-combat frame counts as combat contact, so the
+        // "brief pause before the next fresh pull" clock only starts once the pull is fully over.
+        if ((player.StatusFlags & Dalamud.Game.ClientState.Objects.Enums.StatusFlags.InCombat) != 0)
+            _pullGate.ReportCombatContact();
+
         if (_targetingService.GetUserEnemyTarget() != null)
             return;
 
         var candidate = _targetingService.FindNearestAggroedEnemy(CleanupScanRangeYalms, player);
-        if (candidate == null && allowQuestFlagged)
+        if (candidate != null)
+        {
+            // Finishing an existing pull is combat contact too (covers the gap frames where the
+            // mob is aggroed but the InCombat flag hasn't caught up).
+            _pullGate.ReportCombatContact();
+        }
+        else if (allowQuestFlagged && _pullGate.CanFreshPull())
+        {
             candidate = _targetingService.FindNearestQuestFlaggedEnemy(KillTargetScanRangeYalms, player);
+        }
+
         if (candidate == null)
             return;
 
@@ -242,6 +260,31 @@ public sealed class QuestionableIpc : IDisposable
             _configuration.ExternalCombatOverride = false;
             ExternalCombatOverrideState.Source = "";
         }
+    }
+
+    /// <summary>
+    /// Pull cadence for automation kill loops: a FRESH (not-yet-aggroed) objective pull is allowed
+    /// only after a brief calm window with no combat contact. Aggroed mobs are exempt — anything
+    /// already on us is finished immediately, whatever the clock says. This keeps quest/hunt
+    /// farming to one deliberate pull at a time: kill, clear the leftovers, breathe, pull the
+    /// next — instead of hard-targeting the next flagged mob the same second the last one dies
+    /// (which snowballed camps when flagged mobs stood close together).
+    /// </summary>
+    public sealed class FreshPullSettleGate
+    {
+        /// <summary>Calm seconds required after the last combat contact before a fresh pull.</summary>
+        public const float SettleSeconds = 3f;
+
+        /// <summary>Test seam.</summary>
+        internal Func<DateTime> UtcNow = () => DateTime.UtcNow;
+
+        private DateTime _lastCombatContactUtc = DateTime.MinValue;
+
+        /// <summary>Report combat contact (in-combat frame, or an aggroed mob being finished).</summary>
+        public void ReportCombatContact() => _lastCombatContactUtc = UtcNow();
+
+        /// <summary>True once the calm window has fully elapsed since the last combat contact.</summary>
+        public bool CanFreshPull() => (UtcNow() - _lastCombatContactUtc).TotalSeconds >= SettleSeconds;
     }
 
     /// <summary>
