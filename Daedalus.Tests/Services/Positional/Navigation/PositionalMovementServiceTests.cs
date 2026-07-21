@@ -362,6 +362,53 @@ public class PositionalMovementServiceTests
         _vNav.Verify(x => x.PathfindAndMoveCloseTo(It.IsAny<Vector3>(), It.IsAny<float>(), It.IsAny<MovementIntent>(), It.IsAny<bool>()), Times.Exactly(2));
     }
 
+    // ── Cast guard (field report 2026-07-20 #2): SAM anchor walked through Midare/Ogi casts ─────
+    // AllowMovementDuringActionLock is about animation lock on instant-GCD jobs; it must never
+    // authorize movement during a real cast bar, and the run-to-completion hold must not carry a
+    // path into one.
+
+    [Fact]
+    public void Update_WhileCasting_NeverQueuesMovement()
+    {
+        var service = CreateService();
+        _anticipation.Next = new PositionalAnticipation(PositionalType.Rear, 7481, PositionalAnticipationReason.ComboSetup);
+        _action.Setup(x => x.IsCasting).Returns(true);
+
+        // Off-anchor drift scenario that would otherwise move — and lock override is on.
+        var ctx = BaseAnticipationContext with { IsAtRear = true };
+        var request = CreateRequest(anticipationContext: ctx, allowMovementDuringActionLock: true) with
+        {
+            PlayerPosition = new Vector3(0f, 0f, -5f),
+            PositionalBoundaryBiasRadians = TenDegreesRadians,
+        };
+        service.Update(request);
+
+        Assert.Equal(PositionalMovementPhase.Skipped, service.State.Phase);
+        Assert.Equal("casting", service.State.SkipReason);
+        _vNav.Verify(x => x.PathfindAndMoveCloseTo(It.IsAny<Vector3>(), It.IsAny<float>(), It.IsAny<MovementIntent>(), It.IsAny<bool>()), Times.Never);
+    }
+
+    [Fact]
+    public void Update_CastStartMidHop_StopsOwnedPath()
+    {
+        var service = CreateService();
+        _anticipation.Next = new PositionalAnticipation(PositionalType.Rear, 7481, PositionalAnticipationReason.ComboSetup);
+
+        var request = CreateRequest();
+        service.Update(request);
+        Assert.Equal(PositionalMovementPhase.Moving, service.State.Phase);
+
+        // Iaijutsu cast begins while the hop is running: stop moving IMMEDIATELY so the cast
+        // isn't cancelled — the run-to-completion hold must not outrank the cast bar.
+        _vNav.Setup(x => x.IsPathRunning).Returns(true);
+        _action.Setup(x => x.IsCasting).Returns(true);
+        service.Update(request);
+
+        Assert.Equal(PositionalMovementPhase.Skipped, service.State.Phase);
+        Assert.Equal("casting", service.State.SkipReason);
+        _vNav.Verify(x => x.Stop(), Times.Once);
+    }
+
     [Fact]
     public void AnchorGeometry_FlankRearSwapIsAShortHop()
     {

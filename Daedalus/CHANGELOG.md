@@ -5,6 +5,9 @@ All notable changes to Daedalus will be documented in this file.
 <!-- LATEST-START -->
 ## v0.1.34 — 2026-07-20
 
+### Fix — Samurai: no more cancelled Midare/Ogi casts while the anchor moves
+- Second field report from the live anchor run: SAM started its 1.3s Iaijutsu/Ogi Namikiri cast bars mid-step and the movement cancelled them. Two-sided fix: **movement now hard-stops the instant any cast bar starts** (the run-to-completion hold never carries a path into a cast), and **the SAM rotation holds its cast-time GCDs while moving** — including during Daedalus's own anchor hops — casting the moment the toon plants, with combo/filler GCDs keeping the GCD rolling meanwhile (same rule RSR uses)
+
 ### Fix — Positional anchor: no more stutter-stepping
 - First live anchor run stutter-stepped, for three compounding reasons, all fixed: **(1)** a drift-back move was stopped mid-hop every time the GCD timer ran down and resumed after the GCD fired (move-stop-move every cycle) — an in-flight anchor move now always runs to completion (mechanic dodges still abort it instantly); **(2)** a target turning ~6° was enough to cancel-and-reissue the running path, which the movement rate-limiter could then suppress, halting the toon mid-hop — the hold tolerance is widened past the rate-limiter's threshold; **(3)** every twitch of a turning mob drags the anchor point along the ring, and the toon chased it step-by-step — drift-back now has a one-GCD cooldown (real flank/rear hops are not delayed by it)
 

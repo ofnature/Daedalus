@@ -104,6 +104,11 @@ that was the failure mode of the old BMR wiring (BMR's guess vs our rotation's r
 ### P3 — Rollout & defaults flip
 - Flip `IsPositionalArcRolloutEnabled => true` for Nike, Thanatos, Echidna (Hermes already true)
   ONLY after each passes a Trust/dummy validation run (see P5).
+- **Cast-time GCD check at each rollout flip** (learned on SAM's first live run 2026-07-20: the
+  anchor walked through Midare/Ogi cast bars): the movement service has a hard `IsCasting` stop,
+  AND the job's DamageModule must hold its cast-time GCDs while `isMoving` (SAM done — Ogi +
+  Iaijutsu). At RPR rollout, gate **Communio** (and Harpe/Soulsow) the same way. VPR/MNK/DRG/NIN
+  have no combat cast bars — nothing to do there.
 - Flip `NavConfig.EnableBoundaryCamping` default to **true** once all four are validated.
 - Nav Control window: show the live anchor state per the debug rings (anchor point, current
   bias side, next-required arc) — extend the existing Max Melee Debug Rings drawing with the

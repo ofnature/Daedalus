@@ -102,8 +102,16 @@ public sealed class DamageModule : INikeModule
         // GCDs (priority order)
         TryPushKaeshiNamikiri(context, scheduler, target);
         TryPushTsubameGaeshi(context, scheduler, target);
-        TryPushOgiNamikiri(context, scheduler, target);
-        TryPushIaijutsu(context, scheduler, target, useAoE, pack.AoeRange);
+
+        // Cast-time GCDs (Ogi Namikiri / Iaijutsu, 1.3s bar) never fire while moving — starting
+        // the cast mid-step just cancels it (RSR blocks moving casts the same way). isMoving
+        // includes Daedalus's own vNav paths (anchor hops/drifts), so the toon finishes the step,
+        // plants, and casts next cycle; combo/filler GCDs below keep the GCD rolling meanwhile.
+        if (!isMoving)
+        {
+            TryPushOgiNamikiri(context, scheduler, target);
+            TryPushIaijutsu(context, scheduler, target, useAoE, pack.AoeRange);
+        }
         TryPushMeikyoFinisher(context, scheduler, target, useAoE);
         TryPushComboRotation(context, scheduler, target, enemyCount, useAoE);
     }

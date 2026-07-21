@@ -42,6 +42,17 @@ public sealed class PositionalMovementService : IPositionalMovementService
             return;
         }
 
+        // Hard cast guard (field report 2026-07-20: the SAM anchor walked through Midare/Ogi cast
+        // bars and cancelled them). AllowMovementDuringActionLock covers ANIMATION lock on
+        // instant-GCD jobs — it must never authorize movement during a real cast, and the
+        // run-to-completion hold must not carry a path into one. Unconditional: stop an owned
+        // path the moment a cast starts, and never queue movement while casting.
+        if (request.ActionService.IsCasting)
+        {
+            SetSkipped("casting");
+            return;
+        }
+
         // Skip reason to fall back on if neither a positional arc nor a max-melee back-off moves us.
         string? idleReason = null;
 
