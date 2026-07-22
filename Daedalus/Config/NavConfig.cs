@@ -52,6 +52,15 @@ public sealed class NavConfig
     public bool YieldToBmrMovement { get; set; } = true;
 
     /// <summary>
+    /// Hold BMR AI movement while the player has a cast bar up (and no danger lands before the
+    /// cast finishes). Fixes the walk-in loop: a toon outside BMR's stand distance but inside
+    /// spell range would start a cast, BMR would step, the cast died — repeating all the way in.
+    /// With the hold, casts complete and BMR steps between them. Releases instantly when danger
+    /// approaches (dodging always wins). Default true (kill-switch only).
+    /// </summary>
+    public bool HoldBmrMovementWhileCasting { get; set; } = true;
+
+    /// <summary>
     /// Disable max-melee positioning while solo (in a solo duty or with no party members present).
     /// Default false.
     /// </summary>

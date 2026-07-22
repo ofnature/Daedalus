@@ -96,6 +96,7 @@ public sealed class Plugin : IDalamudPlugin
     private readonly VNavService vNavService;
     private readonly MovementArbiter movementArbiter;
     private readonly BossModSafetyService bossModSafetyService;
+    private readonly CastMovementHoldService castMovementHoldService;
     private readonly BossModForecastService bossModForecastService;
     private readonly PositionalMovementService positionalMovementService;
     private readonly BmrAiConfigService bmrAiConfigService;
@@ -333,6 +334,8 @@ public sealed class Plugin : IDalamudPlugin
         this.bossModForecastService = new BossModForecastService(pluginInterface, log);
         this.positionalMovementService = new PositionalMovementService(movementArbiter, bossModSafetyService);
         this.bmrAiConfigService = new BmrAiConfigService(pluginInterface, bossModSafetyService, log, debugLogService, dtrBar);
+        this.castMovementHoldService = new CastMovementHoldService(
+            pluginInterface, configuration, bossModSafetyService, objectTable, log);
         this.samuraiPositionalAnticipationProvider = new SamuraiPositionalAnticipationProvider();
         this.ninjaPositionalAnticipationProvider = new NinjaPositionalAnticipationProvider();
 
@@ -637,7 +640,7 @@ public sealed class Plugin : IDalamudPlugin
         this.configWindow = new ConfigWindow(configuration, SaveConfiguration, updateCheckerService, textureProvider, dutyContentService,
             new Daedalus.Services.Plugins.PluginStatusService(pluginInterface));
         this.controlWindow = new ControlWindow(configuration, SaveConfiguration, rotationManager, textureProvider);
-        this.navControlWindow = new NavControlWindow(configuration, SaveConfiguration, bmrAiConfigService, movementArbiter);
+        this.navControlWindow = new NavControlWindow(configuration, SaveConfiguration, bmrAiConfigService, movementArbiter, castMovementHoldService);
         this.raidWindow = new RaidWindow(configuration, SaveConfiguration, dutyContentService, deathImmunityLedger);
         this.missingWindow = new MissingWindow(debugService, bluLoadoutService);
         this.bluMimicryWindow = new BluMimicryWindow(
@@ -1594,6 +1597,7 @@ public sealed class Plugin : IDalamudPlugin
             foreach (var bridge in automationBridges)
                 bridge.Update();
             questionableIpc.Update();
+            castMovementHoldService.Update();
 
             // Farm mode driver (throttled internally): targets profile mobs, roams spots, holds
             // the override while running. Also before the enabled gate.
@@ -1813,6 +1817,7 @@ public sealed class Plugin : IDalamudPlugin
         foreach (var bridge in automationBridges)
             bridge.Dispose();
         questionableIpc.Dispose();
+        castMovementHoldService.Dispose();
         farmModeService.Dispose();
         garlandDropSource.Dispose();
         partyCoordinationIpc?.Dispose();

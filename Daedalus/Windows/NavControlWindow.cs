@@ -17,18 +17,21 @@ public sealed class NavControlWindow : Window
     private readonly Action saveConfiguration;
     private readonly BmrAiConfigService bmrAiConfigService;
     private readonly IMovementArbiter? movementArbiter;
+    private readonly CastMovementHoldService? castMovementHoldService;
 
     public NavControlWindow(
         Configuration configuration,
         Action saveConfiguration,
         BmrAiConfigService bmrAiConfigService,
-        IMovementArbiter? movementArbiter = null)
+        IMovementArbiter? movementArbiter = null,
+        CastMovementHoldService? castMovementHoldService = null)
         : base("Nav Control", ImGuiWindowFlags.NoCollapse)
     {
         this.configuration = configuration;
         this.saveConfiguration = saveConfiguration;
         this.bmrAiConfigService = bmrAiConfigService;
         this.movementArbiter = movementArbiter;
+        this.castMovementHoldService = castMovementHoldService;
 
         Size = new Vector2(340, 280);
         SizeCondition = ImGuiCond.FirstUseEver;
@@ -115,6 +118,28 @@ public sealed class NavControlWindow : Window
                 saveConfiguration))
         {
             nav.YieldToBmrMovement = yield;
+        }
+
+        var castHold = nav.HoldBmrMovementWhileCasting;
+        if (ConfigUIHelpers.ToggleCheckbox(
+                "Hold BMR movement while casting",
+                ref castHold,
+                "While a cast bar is up and no mechanic lands before it finishes, BossMod's AI "
+                + "movement is paused so its micro-steps don't cancel the cast — then released the "
+                + "instant the cast ends or danger approaches (dodging always wins). Fixes the "
+                + "walk-in loop where every cast died to a step until the toon reached its stand "
+                + "distance. All jobs with cast bars. Leave ON.",
+                saveConfiguration))
+        {
+            nav.HoldBmrMovementWhileCasting = castHold;
+        }
+
+        if (castMovementHoldService is { } holdService)
+        {
+            ImGui.Indent();
+            ImGui.TextColored(holdService.Status.StartsWith("holding", StringComparison.Ordinal) ? Yellow : Dim,
+                $"Cast hold: {holdService.Status}");
+            ImGui.Unindent();
         }
 
         DrawArbiterStatus();
