@@ -93,13 +93,15 @@ public sealed class GearSnapshotService
             var player = _objectTable.LocalPlayer;
             byte gender = 0;
             uint jobId = 0;
+            var level = 100;
             if (player != null)
             {
                 gender = player.Customize[(int)Dalamud.Game.ClientState.Objects.Enums.CustomizeIndex.Gender];
                 jobId = player.ClassJob.RowId;
+                level = player.Level;
             }
 
-            Current = new GearSnapshot(pieces, gender, jobId, DateTime.UtcNow);
+            Current = new GearSnapshot(pieces, gender, jobId, DateTime.UtcNow, level);
             return Current;
         }
         catch (Exception ex)

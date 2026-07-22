@@ -115,7 +115,9 @@ public sealed record GearSnapshot(
     IReadOnlyList<GearPiece> Pieces,
     byte GenderId,
     uint JobId,
-    DateTime CapturedUtc)
+    DateTime CapturedUtc,
+    /// <summary>Player level — selects the StatConversions level modifiers. Defaults to cap.</summary>
+    int Level = 100)
 {
     public static readonly GearSnapshot Empty =
         new(Array.Empty<GearPiece>(), 0, 0, DateTime.MinValue);

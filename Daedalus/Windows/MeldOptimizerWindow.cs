@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Numerics;
 using Dalamud.Bindings.ImGui;
@@ -54,10 +54,125 @@ public sealed class MeldOptimizerWindow : Window
         DrawPaperdoll(snapshot);
 
         ImGui.Spacing();
-        // Future rows land here per the approved layout — placeholders keep the shape honest.
+        // Future row lands here per the approved layout — placeholder keeps the shape honest.
         ImGui.TextColored(Common.DaedalusTheme.TextDisabled,
-            "GCD breakpoints + Optimize Melds (phase 4/5) and aggregate stats (phase 3) land below.");
+            "GCD breakpoints + Optimize Melds (phase 4/5) land here.");
+
+        ImGui.Spacing();
+        DrawAggregatePanel(snapshot);
     }
+
+    // ── aggregate stats (phase 3) ───────────────────────────────────────────
+
+    /// <summary>Row order in the aggregate table: mains first, then substats.</summary>
+    private static readonly uint[] AggregateRows =
+    {
+        GearStatIds.Strength, GearStatIds.Dexterity, GearStatIds.Vitality,
+        GearStatIds.Intelligence, GearStatIds.Mind,
+        GearStatIds.CriticalHit, GearStatIds.Determination, GearStatIds.DirectHit,
+        GearStatIds.SkillSpeed, GearStatIds.SpellSpeed,
+        GearStatIds.Tenacity, GearStatIds.Piety,
+    };
+
+    private static void DrawAggregatePanel(GearSnapshot snapshot)
+    {
+        Common.DaedalusTheme.GoldHeader("Aggregate Stats (gear + melds)");
+        if (snapshot.Pieces.Count == 0)
+        {
+            ImGui.TextColored(Common.DaedalusTheme.TextSecondary, "No gear data.");
+            return;
+        }
+
+        var aggregate = GearStatAggregator.Aggregate(snapshot);
+        var relevant = Data.GearStatRelevance.For(snapshot.JobId);
+
+        if (!ImGui.BeginTable("##meldagg", 4, ImGuiTableFlags.RowBg | ImGuiTableFlags.BordersInnerH))
+            return;
+
+        ImGui.TableSetupColumn("Stat", ImGuiTableColumnFlags.WidthFixed, 130f);
+        ImGui.TableSetupColumn("Total", ImGuiTableColumnFlags.WidthFixed, 70f);
+        ImGui.TableSetupColumn("Derived", ImGuiTableColumnFlags.WidthFixed, 230f);
+        ImGui.TableSetupColumn("Status", ImGuiTableColumnFlags.WidthStretch);
+        ImGui.TableHeadersRow();
+
+        foreach (var statId in AggregateRows)
+        {
+            if (!aggregate.Totals.TryGetValue(statId, out var total) || total == 0)
+                continue;
+
+            var isRelevant = relevant.Contains(statId);
+            var color = isRelevant ? Common.DaedalusTheme.TextPrimary : Common.DaedalusTheme.TextDisabled;
+
+            ImGui.TableNextRow();
+            ImGui.TableNextColumn();
+            ImGui.TextColored(color, StatDisplayName(statId));
+            ImGui.TableNextColumn();
+            ImGui.TextColored(color, total.ToString());
+            ImGui.TableNextColumn();
+            ImGui.TextColored(isRelevant ? new System.Numerics.Vector4(0.72f, 0.78f, 0.85f, 1f) : Common.DaedalusTheme.TextDisabled,
+                DerivedText(statId, total, snapshot.Level));
+            ImGui.TableNextColumn();
+            DrawStatusCell(statId, aggregate, isRelevant);
+        }
+
+        ImGui.EndTable();
+    }
+
+    /// <summary>Derived column via the shared StatConversions (characterstatus-refined port).</summary>
+    private static string DerivedText(uint statId, int total, int level) => statId switch
+    {
+        GearStatIds.CriticalHit =>
+            $"chance {Data.StatConversions.CritChancePercent(total, level):F1}% · dmg {Data.StatConversions.CritDamagePercent(total, level):F1}%",
+        GearStatIds.Determination =>
+            $"+{Data.StatConversions.DeterminationBonusPercent(total, level):F1}% dmg",
+        GearStatIds.DirectHit =>
+            $"rate {Data.StatConversions.DirectHitRatePercent(total, level):F1}%",
+        GearStatIds.SkillSpeed or GearStatIds.SpellSpeed =>
+            $"GCD {Data.StatConversions.GcdSeconds(total, level):F2} · +{Data.StatConversions.SpeedBonusPercent(total, level):F1}%",
+        GearStatIds.Tenacity =>
+            $"+{Data.StatConversions.TenacityBonusPercent(total, level):F1}% dmg/mit",
+        GearStatIds.Piety =>
+            $"{Data.StatConversions.PietyMpPerTick(total, level)} MP/tick",
+        _ => "—",
+    };
+
+    private static void DrawStatusCell(uint statId, GearStatAggregator.AggregateResult aggregate, bool isRelevant)
+    {
+        // Overcap anywhere beats everything else — name the pieces so the fix is obvious.
+        string? overcapText = null;
+        foreach (var overcap in aggregate.Overcaps)
+        {
+            if (overcap.StatId != statId)
+                continue;
+            overcapText = overcapText == null
+                ? $"overcap: {SlotLabel(overcap.Slot)} +{overcap.WastedPoints}"
+                : overcapText + $", {SlotLabel(overcap.Slot)} +{overcap.WastedPoints}";
+        }
+
+        if (overcapText != null)
+            ImGui.TextColored(Common.DaedalusTheme.StatusRed, overcapText + " wasted");
+        else if (isRelevant)
+            ImGui.TextColored(Common.DaedalusTheme.StatusGreen, "good");
+        else
+            ImGui.TextColored(Common.DaedalusTheme.TextDisabled, "—");
+    }
+
+    private static string StatDisplayName(uint statId) => statId switch
+    {
+        GearStatIds.Strength => "Strength",
+        GearStatIds.Dexterity => "Dexterity",
+        GearStatIds.Vitality => "Vitality",
+        GearStatIds.Intelligence => "Intelligence",
+        GearStatIds.Mind => "Mind",
+        GearStatIds.CriticalHit => "Critical Hit",
+        GearStatIds.Determination => "Determination",
+        GearStatIds.DirectHit => "Direct Hit",
+        GearStatIds.SkillSpeed => "Skill Speed",
+        GearStatIds.SpellSpeed => "Spell Speed",
+        GearStatIds.Tenacity => "Tenacity",
+        GearStatIds.Piety => "Piety",
+        _ => GearStatIds.Name(statId),
+    };
 
     private void DrawBanner(GearSnapshot snapshot)
     {
@@ -284,3 +399,4 @@ public sealed class MeldOptimizerWindow : Window
     private static string Truncate(string text, int max)
         => text.Length <= max ? text : text[..(max - 1)] + "…";
 }
+
