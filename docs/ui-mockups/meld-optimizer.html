@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Daedalus — Meld Optimizer (ImGui mockup)</title>
+<style>
+  /* ImGui-dark + Daedalus gold identity approximation */
+  :root {
+    --win-bg: #1b1b1f; --panel: #242429; --panel2: #2b2b31; --border: #3a3a42;
+    --text: #d8d8de; --dim: #8a8a94; --gold: #d4af5a; --gold-dim: #9a7f42;
+    --green: #7ec97e; --yellow: #e0c66a; --red: #e07a6a; --blue: #6aa7e0;
+    --doll-bg: #d7d3c8;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #121214; font: 13px "Segoe UI", sans-serif; color: var(--text);
+         display: flex; justify-content: center; padding: 24px; }
+  .imgui-window { width: 1040px; background: var(--win-bg); border: 1px solid var(--border);
+                  border-radius: 6px; box-shadow: 0 8px 40px #000a; }
+  .titlebar { background: linear-gradient(#2e2e35,#26262c); padding: 6px 10px; font-weight: 600;
+              color: var(--gold); border-bottom: 1px solid var(--border); border-radius: 6px 6px 0 0;
+              display:flex; justify-content: space-between; }
+  .titlebar .winbtns { color: var(--dim); letter-spacing: 3px; }
+  .layout { display: grid; grid-template-columns: 1fr 300px; gap: 8px; padding: 8px; }
+  .paperdoll-panel { background: var(--panel); border: 1px solid var(--border); border-radius: 4px;
+                     padding: 8px; position: relative; }
+  .panel-title { color: var(--gold); font-weight: 600; margin-bottom: 6px; font-size: 12px;
+                 text-transform: uppercase; letter-spacing: 1px; }
+  .doll-canvas { position: relative; background: var(--doll-bg); border-radius: 3px; height: 470px; }
+  svg { position:absolute; inset:0; width:100%; height:100%; }
+
+  /* slot boxes */
+  .slot { position: absolute; width: 148px; background: var(--panel2); border: 1px solid var(--border);
+          border-radius: 3px; padding: 3px 6px; cursor: default; font-size: 11.5px; line-height: 1.25; }
+  .slot:hover { border-color: var(--gold); background: #33333b; }
+  .slot .iname { color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .slot .ilvl { color: var(--dim); font-size: 10.5px; }
+  .slot.subopt { border-color: var(--gold); box-shadow: 0 0 6px #d4af5a55; }
+  .slot.subopt::after { content: "suboptimal"; color: var(--gold); font-size: 9px; float: right; }
+
+  /* tooltip */
+  #tip { position: fixed; z-index: 50; display: none; background: #101013; border: 1px solid var(--gold-dim);
+         border-radius: 4px; padding: 8px 10px; font-size: 11.5px; max-width: 300px; pointer-events: none;
+         box-shadow: 0 4px 18px #000c; }
+  #tip h4 { color: var(--gold); font-size: 12px; margin-bottom: 2px; }
+  #tip .il { color: var(--dim); margin-bottom: 5px; }
+  #tip .sec { color: var(--gold-dim); text-transform: uppercase; font-size: 9.5px; margin: 5px 0 2px; }
+  #tip .oc { color: var(--red); }
+  #tip .rec { color: var(--green); }
+  #tip .caps { color: var(--dim); font-size: 10.5px; }
+
+  /* sidebar */
+  .sidebar { display: flex; flex-direction: column; gap: 8px; }
+  .side-panel { background: var(--panel); border: 1px solid var(--border); border-radius: 4px; padding: 8px; }
+  .chip-row { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+  .chip { background: var(--panel2); border: 1px solid var(--gold-dim); color: var(--gold);
+          padding: 2px 8px; border-radius: 10px; font-size: 11.5px; }
+  .chip.dim { border-color: var(--border); color: var(--dim); }
+  .gt { color: var(--dim); }
+  .note { color: var(--dim); font-size: 11px; margin-top: 5px; }
+
+  table.tiers { width: 100%; border-collapse: collapse; font-size: 11.5px; }
+  table.tiers td { padding: 2px 4px; border-bottom: 1px solid #2e2e35; }
+  tr.cur td { background: #d4af5a22; color: var(--gold); font-weight: 600; }
+  .verdict { margin-top: 6px; font-size: 11px; color: var(--yellow); }
+
+  .opt-btn { width: 100%; background: linear-gradient(#4a3d1f,#3a2f18); color: var(--gold);
+             border: 1px solid var(--gold-dim); border-radius: 4px; padding: 8px; font-weight: 600;
+             font-size: 13px; cursor: pointer; }
+  .opt-btn:hover { background: linear-gradient(#5a4a26,#46381d); }
+  #results { margin-top: 8px; display: none; }
+  .plan { background: var(--panel2); border: 1px solid var(--border); border-radius: 3px;
+          padding: 6px 8px; margin-bottom: 6px; font-size: 11.5px; }
+  .plan.best { border-color: var(--gold); }
+  .plan .delta { color: var(--green); font-weight: 700; float: right; }
+  .plan .d { color: var(--dim); font-size: 10.5px; }
+  .spin { color: var(--dim); font-size: 11.5px; display: none; margin-top: 8px; }
+
+  /* aggregate table */
+  .agg { grid-column: 1 / 3; background: var(--panel); border: 1px solid var(--border);
+         border-radius: 4px; padding: 8px; margin: 0 8px 8px; }
+  table.stats { width: 100%; border-collapse: collapse; font-size: 12px; }
+  table.stats th { color: var(--dim); text-align: left; font-weight: 500; font-size: 10.5px;
+                   text-transform: uppercase; padding: 2px 8px; border-bottom: 1px solid var(--border); }
+  table.stats td { padding: 3px 8px; border-bottom: 1px solid #2e2e35; }
+  td.good { color: var(--green); } td.warn { color: var(--yellow); } td.bad { color: var(--red); }
+  tr.dimstat td { color: var(--dim); }
+  .gender-toggle { position: absolute; top: 8px; right: 8px; font-size: 10.5px; color: var(--dim);
+                   cursor: pointer; border: 1px solid var(--border); border-radius: 3px; padding: 2px 6px;
+                   background: var(--panel2); z-index: 5; }
+</style>
+</head>
+<body>
+<div class="imgui-window">
+  <div class="titlebar"><span>Daedalus — Meld Optimizer</span><span class="winbtns">— □ ✕</span></div>
+  <div class="layout">
+
+    <!-- ══ PAPERDOLL ══ -->
+    <div class="paperdoll-panel">
+      <div class="panel-title">Gear — Nike (Samurai) · avg ilvl 758</div>
+      <div class="doll-canvas" id="canvas">
+        <div class="gender-toggle" onclick="toggleGender()">silhouette: <span id="gtxt">male</span></div>
+        <svg id="doll" viewBox="0 0 640 470" preserveAspectRatio="xMidYMid meet"></svg>
+        <!-- slot boxes are positioned by JS -->
+      </div>
+    </div>
+
+    <!-- ══ SIDEBAR ══ -->
+    <div class="sidebar">
+      <div class="side-panel">
+        <div class="panel-title">Balance Priority — SAM</div>
+        <div class="chip-row">
+          <span class="chip">Crit</span><span class="gt">&gt;</span>
+          <span class="chip">Det</span><span class="gt">&gt;</span>
+          <span class="chip">DH</span><span class="gt">&gt;</span>
+          <span class="chip dim">SkS</span>
+        </div>
+        <div class="note">SkS held at 420 base tier (2.14 GCD w/ Fuka not modeled at base). Speed melds
+        not recommended outside dedicated speed sets.</div>
+      </div>
+
+      <div class="side-panel">
+        <div class="panel-title">GCD Breakpoints — SkS</div>
+        <table class="tiers">
+          <tr><td>2.50</td><td>420 – 473</td><td class="gt">base</td></tr>
+          <tr class="cur"><td>2.49</td><td>474 – 528</td><td>← current: 486</td></tr>
+          <tr><td>2.48</td><td>529 – 583</td><td></td></tr>
+          <tr><td>2.47</td><td>584 – 638</td><td></td></tr>
+        </table>
+        <div class="verdict">Next tier needs +43 SkS ≈ 1 meld — costs 54 Crit for one 2.48 tier:
+        <b>not worth</b> (−0.11% est.)</div>
+      </div>
+
+      <div class="side-panel">
+        <button class="opt-btn" onclick="optimize()">⚙ Optimize Melds</button>
+        <div class="spin" id="spin">sweeping 18 free sockets × 4 stats…</div>
+        <div id="results">
+          <div class="panel-title" style="margin-top:8px">Ranked Plans</div>
+          <div class="plan best">#1 <span class="delta">+0.42%</span><br>
+            <span class="d">Body: DH→Crit ×2 · Legs: DH→Det · Ring R: Det→Crit</span></div>
+          <div class="plan">#2 <span class="delta">+0.35%</span><br>
+            <span class="d">Body: DH→Crit ×2 · Legs: DH→Det</span></div>
+          <div class="plan">#3 <span class="delta">+0.19%</span><br>
+            <span class="d">Ring R: Det→Crit · Feet: DH→Det</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ AGGREGATE ══ -->
+    <div class="agg">
+      <div class="panel-title">Aggregate Stats (gear + melds)</div>
+      <table class="stats">
+        <tr><th>Stat</th><th>Total</th><th>Status</th><th>Stat</th><th>Total</th><th>Status</th></tr>
+        <tr>
+          <td>Critical Hit</td><td>3102</td><td class="good">good</td>
+          <td>Skill Speed</td><td>486</td><td class="warn">mid-tier (2.49)</td>
+        </tr>
+        <tr>
+          <td>Determination</td><td>2288</td><td class="good">good</td>
+          <td class="dim">Spell Speed</td><td class="dim">420</td><td class="dim">—</td>
+        </tr>
+        <tr>
+          <td>Direct Hit</td><td>1844</td><td class="bad">overcap on Body (+12 wasted)</td>
+          <td class="dim">Piety</td><td class="dim">440</td><td class="dim">—</td>
+        </tr>
+        <tr>
+          <td>Strength</td><td>5121</td><td class="good">good</td>
+          <td class="dim">Tenacity</td><td class="dim">420</td><td class="dim">—</td>
+        </tr>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div id="tip"></div>
+
+<script>
+// ── data (fake, shaped like the real GearSnapshot) ──────────────────────────
+const GEAR = [
+ { slot:"Weapon", side:"L", a:[0.50,0.30], name:"Ultimate Raiden Blade",  ilvl:765, sub:false,
+   stats:"STR 587 · VIT 621 · Crit 551 · Det 386", melds:[["Crit",54,false],["Crit",54,false]], caps:"Crit 551 · Det 551 · DH 551 · SkS 551" },
+ { slot:"Head",   side:"L", a:[0.50,0.085],name:"Cruiserweight Kabuto",   ilvl:760, sub:false,
+   stats:"STR 271 · Crit 254 · DH 178", melds:[["Det",54,false],["Det",54,false]], caps:"Crit 254 · Det 254 · DH 254 · SkS 254" },
+ { slot:"Body",   side:"L", a:[0.50,0.32], name:"Cruiserweight Togi",     ilvl:760, sub:true,
+   stats:"STR 430 · Det 404 · DH 283", melds:[["DH",54,true],["DH",54,false],["Crit",18,false,"fixed VII overmeld"],["Crit",18,false,"fixed VII overmeld"]],
+   caps:"Crit 404 · Det 404 · DH 289 · SkS 404",
+   rec:["socket 1: DH → Crit","socket 2: DH → Crit"] },
+ { slot:"Hands",  side:"L", a:[0.285,0.47],name:"Cruiserweight Kote",     ilvl:760, sub:false,
+   stats:"STR 271 · Crit 254 · SkS 178", melds:[["Det",54,false],["Det",54,false]], caps:"Crit 254 · Det 254 · DH 254 · SkS 254" },
+ { slot:"Legs",   side:"L", a:[0.50,0.62], name:"Cruiserweight Hakama",   ilvl:760, sub:true,
+   stats:"STR 430 · Crit 404 · Det 283", melds:[["DH",54,false],["DH",54,false]], caps:"Crit 404 · Det 404 · DH 404 · SkS 404",
+   rec:["socket 1: DH → Det"] },
+ { slot:"Feet",   side:"L", a:[0.455,0.93],name:"Cruiserweight Sune-ate", ilvl:760, sub:false,
+   stats:"STR 271 · DH 254 · Det 178", melds:[["Crit",54,false],["Crit",54,false]], caps:"Crit 254 · Det 254 · DH 254 · SkS 254" },
+ { slot:"Offhand",side:"R", a:[0.50,0.30], name:"—",                      ilvl:0,  sub:false,
+   stats:"(two-handed weapon)", melds:[], caps:"—" },
+ { slot:"Ears",   side:"R", a:[0.545,0.10],name:"Cruiserweight Earring",  ilvl:755, sub:false,
+   stats:"Crit 188 · DH 132", melds:[["Det",54,false]], caps:"Crit 188 · Det 188 · DH 188" },
+ { slot:"Neck",   side:"R", a:[0.50,0.20], name:"Cruiserweight Choker",   ilvl:755, sub:false,
+   stats:"Det 188 · Crit 132", melds:[["Crit",54,false]], caps:"Crit 188 · Det 188 · DH 188" },
+ { slot:"Wrists", side:"R", a:[0.715,0.47],name:"Cruiserweight Bracelet", ilvl:755, sub:false,
+   stats:"DH 188 · Det 132", melds:[["Crit",54,false]], caps:"Crit 188 · Det 188 · DH 188" },
+ { slot:"Ring L", side:"R", a:[0.27,0.545],name:"Cruiserweight Ring",     ilvl:755, sub:false,
+   stats:"Crit 188 · Det 132", melds:[["DH",54,false]], caps:"Crit 188 · Det 188 · DH 188" },
+ { slot:"Ring R", side:"R", a:[0.73,0.545],name:"Epochal Ring",           ilvl:750, sub:true,
+   stats:"Det 180 · DH 126", melds:[["Det",54,false]], caps:"Crit 180 · Det 180 · DH 180",
+   rec:["socket 1: Det → Crit"] },
+];
+
+// ── silhouette (bathroom-sign style, normalized coords × 640×470 canvas) ────
+function silhouette(female){
+  // proportions: female variant = narrower shoulders, flared lower body ("skirt" trapezoid)
+  const cx=320, headR=34, headY=52;
+  let s = `<rect x="0" y="0" width="640" height="470" fill="#d7d3c8"/>`;
+  s += `<circle cx="${cx}" cy="${headY}" r="${headR}" fill="#17171a"/>`;
+  if(!female){
+    s += `<rect x="${cx-62}" y="${headY+42}" width="124" height="150" rx="18" fill="#17171a"/>`;        // torso
+    s += `<rect x="${cx-96}" y="${headY+48}" width="26" height="130" rx="12" fill="#17171a"/>`;         // arm L
+    s += `<rect x="${cx+70}" y="${headY+48}" width="26" height="130" rx="12" fill="#17171a"/>`;         // arm R
+    s += `<rect x="${cx-52}" y="${headY+196}" width="42" height="170" rx="14" fill="#17171a"/>`;        // leg L
+    s += `<rect x="${cx+10}" y="${headY+196}" width="42" height="170" rx="14" fill="#17171a"/>`;        // leg R
+  } else {
+    s += `<rect x="${cx-52}" y="${headY+42}" width="104" height="96" rx="16" fill="#17171a"/>`;         // torso
+    s += `<polygon points="${cx-58},${headY+130} ${cx+58},${headY+130} ${cx+86},${headY+238} ${cx-86},${headY+238}" fill="#17171a"/>`; // skirt
+    s += `<rect x="${cx-86}" y="${headY+48}" width="24" height="122" rx="11" fill="#17171a"/>`;
+    s += `<rect x="${cx+62}" y="${headY+48}" width="24" height="122" rx="11" fill="#17171a"/>`;
+    s += `<rect x="${cx-42}" y="${headY+238}" width="34" height="128" rx="12" fill="#17171a"/>`;
+    s += `<rect x="${cx+8}" y="${headY+238}" width="34" height="128" rx="12" fill="#17171a"/>`;
+  }
+  return s;
+}
+
+// ── layout: anchors, leader lines, slot boxes ───────────────────────────────
+const canvas = document.getElementById('canvas'), svg = document.getElementById('doll');
+let female = false;
+function layout(){
+  const W = 640, H = 470;
+  let svgContent = silhouette(female);
+  const lefts = GEAR.filter(g=>g.side==="L"), rights = GEAR.filter(g=>g.side==="R");
+  const colX = {L: 8, R: canvas.clientWidth - 156};
+  const stack = {L: 14, R: 14};
+  document.querySelectorAll('.slot').forEach(e=>e.remove());
+  for(const g of GEAR){
+    const ax = g.a[0]*W, ay = g.a[1]*H;
+    const boxY = stack[g.side]; stack[g.side] += 72;
+    const bx = g.side==="L" ? colX.L+148 : colX.R;               // line meets box edge
+    const scaleX = canvas.clientWidth / W;
+    svgContent += `<circle cx="${ax}" cy="${ay}" r="5" fill="#d4af5a" stroke="#17171a" stroke-width="1.5"/>`;
+    svgContent += `<line x1="${ax}" y1="${ay}" x2="${bx/scaleX}" y2="${boxY+18}" stroke="#9a7f42" stroke-width="1.4"/>`;
+    const div = document.createElement('div');
+    div.className = 'slot' + (g.sub ? ' can-sub' : '') + (optimized && g.sub ? ' subopt' : '');
+    div.style.left = colX[g.side]+'px'; div.style.top = boxY+'px';
+    div.innerHTML = `<div class="iname">${g.slot}: ${g.name}</div><div class="ilvl">${g.ilvl ? 'ilvl '+g.ilvl : ''}</div>`;
+    div.dataset.idx = GEAR.indexOf(g);
+    div.onmousemove = e => showTip(e, g);
+    div.onmouseleave = hideTip;
+    canvas.appendChild(div);
+  }
+  svg.innerHTML = svgContent;
+}
+function toggleGender(){ female = !female; document.getElementById('gtxt').textContent = female?'female':'male'; layout(); }
+
+// ── tooltips ────────────────────────────────────────────────────────────────
+const tip = document.getElementById('tip');
+let optimized = false;
+function showTip(e, g){
+  let h = `<h4>${g.name}</h4><div class="il">Item Level ${g.ilvl||'—'}</div>`;
+  h += `<div class="sec">Base Stats</div><div>${g.stats}</div>`;
+  if(g.melds.length){
+    h += `<div class="sec">Melds</div>`;
+    g.melds.forEach((m,i)=>{
+      const oc = m[2] ? ` <span class="oc">OVERCAP (+12 wasted)</span>` : '';
+      const fx = m[3] ? ` <span style="color:#8a8a94">(${m[3]})</span>` : '';
+      h += `<div>socket ${i+1}: +${m[1]} ${m[0]}${oc}${fx}</div>`;
+    });
+  }
+  h += `<div class="sec">Caps (this piece)</div><div class="caps">${g.caps}</div>`;
+  if(optimized && g.rec){
+    h += `<div class="sec">Recommended</div>`;
+    g.rec.forEach(r => h += `<div class="rec">${r}</div>`);
+  }
+  tip.innerHTML = h; tip.style.display='block';
+  tip.style.left = Math.min(e.clientX+14, innerWidth-320)+'px';
+  tip.style.top = (e.clientY+14)+'px';
+}
+function hideTip(){ tip.style.display='none'; }
+
+// ── fake optimize ───────────────────────────────────────────────────────────
+function optimize(){
+  const spin = document.getElementById('spin'), res = document.getElementById('results');
+  res.style.display='none'; spin.style.display='block';
+  setTimeout(()=>{
+    spin.style.display='none'; res.style.display='block'; optimized = true;
+    document.querySelectorAll('.slot.can-sub').forEach(e=>e.classList.add('subopt'));
+  }, 900);
+}
+
+layout();
+window.addEventListener('resize', layout);
+</script>
+</body>
+</html>
