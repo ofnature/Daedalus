@@ -97,6 +97,8 @@ public sealed class Plugin : IDalamudPlugin
     private readonly MovementArbiter movementArbiter;
     private readonly BossModSafetyService bossModSafetyService;
     private readonly CastMovementHoldService castMovementHoldService;
+    private readonly Services.Gear.StatCapService statCapService;
+    private readonly Services.Gear.GearSnapshotService gearSnapshotService;
     private readonly BossModForecastService bossModForecastService;
     private readonly PositionalMovementService positionalMovementService;
     private readonly BmrAiConfigService bmrAiConfigService;
@@ -293,6 +295,10 @@ public sealed class Plugin : IDalamudPlugin
         this.actionService = new ActionService(actionTracker, objectTable: objectTable, dataManager: dataManager,
             debugLog: debugLogService);
         this.playerStatsService = new PlayerStatsService(log, dataManager);
+
+        // Meld optimizer phase 1: gear/materia/caps snapshot pipeline (window comes in phase 2).
+        this.statCapService = new Services.Gear.StatCapService(dataManager, log);
+        this.gearSnapshotService = new Services.Gear.GearSnapshotService(dataManager, objectTable, statCapService, log);
 
         // Healing spell selector (evaluates all heals and picks the best)
         this.healingSpellSelector = new HealingSpellSelector(
@@ -1374,6 +1380,19 @@ public sealed class Plugin : IDalamudPlugin
 
             case "hardcast":
                 HandleHardcastCommand(subArg);
+                break;
+
+            case "dumpgear":
+                // Phase-1 field validation for the meld optimizer: full gear/meld/cap dump.
+                // Command handlers run on the framework thread, so the unsafe read is safe here.
+                var snapshot = gearSnapshotService.Refresh();
+                if (snapshot.Pieces.Count == 0)
+                {
+                    chatGui.Print("Daedalus: no equipped gear read (loading screen? try again in-world).");
+                    break;
+                }
+                log.Info("[dumpgear]\n" + gearSnapshotService.Describe(snapshot));
+                chatGui.Print($"Daedalus: dumped {snapshot.Pieces.Count} pieces to /xllog (job {snapshot.JobId}).");
                 break;
 
             default:
