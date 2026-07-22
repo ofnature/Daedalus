@@ -46,8 +46,12 @@ MeldPlan      { per-piece per-socket StatId assignment; StatTotals Totals; float
   everywhere, whole read wrapped in try/catch (zone-transition crash pattern from CLAUDE.md —
   never read during transitions without null guards).
 - Materia per socket: `InventoryItem.Materia[5]` (materia type row) + `MateriaGrades[5]` (grade
-  index). Lumina `Materia` sheet maps (row, grade column) → `BaseParam` + value. Grade XII = +54
-  on combat substats; anything below XII in sockets 4/5 is tagged `IsFixedOvermeld`.
+  index). Lumina `Materia` sheet maps (row, grade column) → `BaseParam` + value.
+  **Current BiS materia model (confirmed in-game 2026-07-22):** grade XII = +54 per combat
+  substat; grade XI = +18. A pentamelded piece is **3× XII + 2× XI** — the guaranteed sockets
+  plus the first overmeld take XII; overmeld sockets 4/5 only take XI. Therefore the sweep
+  covers **all XII sockets (3 on pentameld pieces, otherwise the guaranteed count)**; the two
+  XI sockets are tagged `IsFixedOvermeld` and contribute a fixed +18 floor each, never swept.
 - Base stats: Lumina `Item` sheet `BaseParam[]`/`BaseParamValue[]` arrays (+ HQ deltas not needed
   — endgame gear is always HQ-less/unique; note and ignore).
 - Gender for silhouette: `IPlayerCharacter.Customize[(int)CustomizeIndex.Gender]` (0 = male,
@@ -91,30 +95,34 @@ No service holds mutable state the window reads except the published snapshot re
 published results reference (both swapped atomically — the static-backed lesson applies:
 anything transient the UI reads must be a stable published copy, not a live field).
 
-## 4. UI layout (mirrors the mockup)
+## 4. UI layout (mirrors the mockup — v2 after feedback)
 
-Window default ~980×640, `DaedalusTheme` gold/dark identity throughout.
+Window default ~980×720, `DaedalusTheme` gold/dark identity throughout. Single-column flow:
 
 ```
-┌──────────────────────────────────────────────┬───────────────────────┐
-│  PAPERDOLL (light bg rect, DrawList)         │  BALANCE PRIORITY     │
-│   silhouette: AddCircleFilled (head)         │   job icon + name     │
-│   + AddRectFilled torso/arms/legs            │   priority chips      │
-│   (male/female proportion tables)            │   relevance notes     │
-│   12 anchors → AddLine → slot boxes          ├───────────────────────┤
-│   L column: Weapon Head Body Hands Legs Feet │  GCD BREAKPOINTS      │
-│   R column: Offhand Ears Neck Wrists R1 R2   │   tier list, current  │
-│   hover box → ImGui tooltip                  │   value highlighted   │
-│   (optimize overlay: gold outline on         │   worth-it verdict    │
-│    suboptimal pieces + diff tooltip)         ├───────────────────────┤
-│                                              │  [Optimize Melds]     │
-│                                              │  results: ranked      │
-│                                              │  plans + ΔDPS         │
-├──────────────────────────────────────────────┴───────────────────────┤
-│  AGGREGATE STATS  (table: stat | total | status)                     │
-│  job-relevant bright, irrelevant dimmed; green/yellow/red status     │
+┌──────────────────────────────────────────────────────────────────────┐
+│  BALANCE PRIORITY BANNER — job icon/name · priority chips · note     │
+├──────────────────────────────────────────────────────────────────────┤
+│  PAPERDOLL — FULL WIDTH, scales with the window                      │
+│   light bg rect · silhouette centered (male/female proportions)      │
+│   L column (window left edge): Weapon Head Body Hands Legs Feet      │
+│   R column (window right edge): Offhand Ears Neck Wrists R1 R2       │
+│   anchors → AddLine leaders → slot boxes; hover → tooltip            │
+│   (optimize overlay: gold outline on suboptimal pieces)              │
+├───────────────────────────────┬──────────────────────────────────────┤
+│  GCD BREAKPOINTS              │  [Optimize Melds] + ranked results   │
+│   tier list, current value,   │   plans + ΔDPS, spinner while        │
+│   worth-it verdict            │   sweeping                           │
+├───────────────────────────────┴──────────────────────────────────────┤
+│  AGGREGATE STATS (LAST)                                              │
+│   stat | total | derived % | status — derived column uses the        │
+│   characterstatus-refined formulas (see 5b)                          │
 └──────────────────────────────────────────────────────────────────────┘
 ```
+
+Scaling rule: slot-box columns pin to the window's left/right edges; the silhouette and its
+anchors are computed from the canvas center in pixels each frame (no fixed aspect), so widening
+the window stretches the leader lines, not the figure.
 
 - Paperdoll primitives only via `ImGui.GetWindowDrawList()` (`AddRectFilled`, `AddCircleFilled`,
   `AddLine`, `AddRect` for highlights). Anchor positions are a normalized (0..1) coordinate table
@@ -135,6 +143,19 @@ Window default ~980×640, `DaedalusTheme` gold/dark identity throughout.
   exposed as `TierFor(speed)`, `NextTier(speed)`, `PrevTier(speed)`, `PointsToNextTier(speed)`.
   Tier table unit-tested against known anchors (420 → 2.50, first 2.49 tier, etc. — asserted
   against in-game values at implementation time).
+
+### 5b. Stat → % conversion — port from characterstatus-refined
+[Kouzukii/ffxiv-characterstatus-refined](https://github.com/Kouzukii/ffxiv-characterstatus-refined)
+(the plugin that replaces the Character window with derived percentages — crit chance/damage,
+DH rate, det bonus, speed %/GCD) already carries the **exact level-modifier tables and
+conversion formulas** for every substat. Port its coefficient math (with attribution + license
+check at implementation time) into one `StatConversions` pure class:
+`CritChance(crit)`, `CritDamage(crit)`, `DhRate(dh)`, `DetBonus(det)`, `SpeedBonus(spd)`,
+`GcdSeconds(spd, baseRecast)`. This one class then feeds THREE consumers so they can never
+disagree: the aggregate panel's derived column, the GCD breakpoint sidebar, and the optimizer's
+DPS multiplier model. Unit tests assert against in-game Character-window values (e.g. the
+screenshot set: Crit 1576 → 17.3% / 152.3%, Det 1352 → +7.0%, DH 1076 → 19.5%, SkS 803 →
++2.7%) so the port is provably faithful.
 - Sidebar verdict line: "next tier needs +N SkS = M melds — costs M×54 Crit ≈ −0.4% DPS → not
   worth" — computed with the same DPS model the optimizer uses, so the two never disagree.
 
@@ -161,8 +182,9 @@ mult(totals) = critMult(crit) × dhMult(dh) × detMult(det) × speedMult(sks|sps
 DpsDelta% = mult(candidate) / mult(current) − 1
 ```
 
-- Level-100 coefficients (crit rate/damage, DH rate, det scalar, speed scalar) in one constants
-  file with a `// verified` tag and unit tests.
+- All rate/bonus math comes from the shared `StatConversions` class (section 5b — the
+  characterstatus-refined port), so the optimizer, sidebar, and aggregate panel share one
+  source of truth with a `// verified` tag and unit tests.
 - SkS/SpS contributes only at tier boundaries for GCD jobs (the formula's floor), plus DoT/auto
   scaling where the job cares — the tier table feeds this directly.
 - Output: top N (default 3) distinct plans, ranked by ΔDPS, each with per-piece per-socket
@@ -181,7 +203,7 @@ DpsDelta% = mult(candidate) / mult(current) − 1
 |---|---|---|---|
 | 1 | Gear/materia/caps reads (`GearSnapshotService`, `StatCapService`, models) | Cap formula vs known pieces; materia grade→stat mapping; snapshot decoration | `/daedalus dumpgear` debug command prints full gear + melds + caps for the equipped set |
 | 2 | Paperdoll UI (silhouette, anchors, lines, boxes, tooltips, gender variants) | Anchor-table normalization math | Window shows live gear on the figure; tooltips complete; resizing keeps layout |
-| 3 | Aggregate stat panel (`GearStatAggregator`) | Totals math; overcap clipping; relevance dimming per job | Totals match the in-game Character window for 2+ jobs |
+| 3 | Aggregate stat panel (`GearStatAggregator` + `StatConversions` port) | Totals math; overcap clipping; relevance dimming; conversion formulas vs Character-window screenshots | Totals AND derived % match the in-game Character window for 2+ jobs |
 | 4 | Sidebar (`BalancePriorities`, `GcdBreakpoints`) | Tier formula anchors; priority table integrity (all 20 jobs present) | SAM shows Crit>Det>DH with SkS dimmed; tier list highlights current value correctly |
 | 5 | Optimizer + overlay (`MeldSweepOptimizer`) | Known-optimum synthetic sets; cap respect; overmeld floor fixed; tier-crossing flag; dominance pruning correctness | Optimize returns ranked plans < 1s; overlay + diff tooltips render; ΔDPS plausible vs a community sheet spot-check |
 
