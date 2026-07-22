@@ -5,6 +5,9 @@ All notable changes to Daedalus will be documented in this file.
 <!-- LATEST-START -->
 ## v0.1.37 — 2026-07-20
 
+### Fix — Bard: buffed Iron Jaws re-snapshot actually fires now (top-parse audit)
+- Checked the rotations against rank-1 FFLogs parses from the current savage tier (patch 7.3, M5S): the one code-level gap found was Bard's buffed DoT re-snapshot. The rule "re-snapshot when Raging Strikes is up and DoTs are under 20s" **never triggered in openers** — DoTs applied at the pull still have ~30s left when Raging Strikes expires, so the buffed window came and went. It now re-snapshots in the **last seconds of Raging Strikes** (top-parse behavior: Iron Jaws ~17s into the fight with the full buff stack), carrying the +15% snapshot through ~40 more seconds of DoT ticks every burst window
+
 ### New — Casts no longer die to BossMod micro-steps (all jobs)
 - The walk-in loop is fixed: a toon inside spell range but outside BossMod's stand distance would start a cast, BMR would take a step, the cast died — repeating the whole way in. Daedalus now **pauses BMR's AI movement while a cast bar is up** and releases it the instant the cast ends, so casts complete and BMR steps between them. Universal: every cast bar counts (caster/healer hardcasts, PCT motifs, SAM Iaijutsu, PLD Clemency) — jobs without cast bars are unaffected. **Dodging always wins**: if BMR expects damage or a zone activation before the cast would finish (plus a reaction buffer), the hold releases immediately and the cast is sacrificed. Guard rails: a watchdog force-releases any hold older than 8 seconds, the hold is released on plugin unload, and a "Hold BMR movement while casting" toggle (ON by default) plus a live status line sit in Nav Control under Movement Cadence
 

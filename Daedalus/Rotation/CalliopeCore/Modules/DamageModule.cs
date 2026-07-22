@@ -384,7 +384,14 @@ public sealed class DamageModule : ICalliopeModule
         var dotRefreshThreshold = context.Configuration.Bard.DotRefreshThreshold;
         const float dotRefreshMin = 3f;
         bool needsRefresh = context.CausticBiteRemaining <= dotRefreshThreshold || context.StormbiteRemaining <= dotRefreshThreshold;
-        bool snapshotBuffs = context.HasRagingStrikes && context.CausticBiteRemaining < 20f;
+        // Buffed re-snapshot (RSR parity, confirmed vs 7.3 M5S rank-1 parse 2026-07-22): refresh in
+        // the LAST seconds of Raging Strikes so ~40s of DoT ticks carry the +15% snapshot. The old
+        // condition (RS up && dots < 20s) was a no-op in openers — dots applied at the pull still
+        // have ~30s left when RS expires, so the buffed window came and went without a re-snapshot
+        // (top parse: Iron Jaws ~17s in, dots at ~30s remaining, full buff stack).
+        bool snapshotBuffs = context.HasRagingStrikes
+            && context.RagingStrikesRemaining < 4f
+            && context.CausticBiteRemaining < 40f;
         if (!needsRefresh && !snapshotBuffs) return;
         if (context.CausticBiteRemaining < dotRefreshMin || context.StormbiteRemaining < dotRefreshMin) needsRefresh = true;
         if (!needsRefresh && !snapshotBuffs) return;
