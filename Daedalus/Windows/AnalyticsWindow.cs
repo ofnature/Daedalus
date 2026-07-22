@@ -20,8 +20,9 @@ public sealed class AnalyticsWindow : Window
     private readonly Action saveConfiguration;
     private readonly IFFlogsService? fflogsService;
     private readonly IFightSummaryService? fightSummaryService;
+    private readonly MeldOptimizerPanel? meldOptimizerPanel;
 
-    public AnalyticsWindow(IPerformanceTracker performanceTracker, Configuration configuration, Action saveConfiguration, IFFlogsService? fflogsService = null, IFightSummaryService? fightSummaryService = null)
+    public AnalyticsWindow(IPerformanceTracker performanceTracker, Configuration configuration, Action saveConfiguration, IFFlogsService? fflogsService = null, IFightSummaryService? fightSummaryService = null, MeldOptimizerPanel? meldOptimizerPanel = null)
         : base("Daedalus Analytics", ImGuiWindowFlags.NoSavedSettings)
     {
         this.performanceTracker = performanceTracker;
@@ -29,6 +30,7 @@ public sealed class AnalyticsWindow : Window
         this.saveConfiguration = saveConfiguration;
         this.fflogsService = fflogsService;
         this.fightSummaryService = fightSummaryService;
+        this.meldOptimizerPanel = meldOptimizerPanel;
 
         Size = new Vector2(500, 400);
         SizeCondition = ImGuiCond.FirstUseEver;
@@ -82,6 +84,16 @@ public sealed class AnalyticsWindow : Window
             {
                 if (fightSummaryService != null)
                     PullHistoryTab.Draw(fightSummaryService, configuration.Analytics);
+                ImGui.EndTabItem();
+            }
+
+            // Meld optimizer parked here per design decision 2026-07-22 — the tab wraps the
+            // shared MeldOptimizerPanel (same instance as the /daedalus meld shell window).
+            if (meldOptimizerPanel != null && ImGui.BeginTabItem("Melding"))
+            {
+                ImGui.BeginChild("##meldingtab");
+                meldOptimizerPanel.Draw();
+                ImGui.EndChild();
                 ImGui.EndTabItem();
             }
 

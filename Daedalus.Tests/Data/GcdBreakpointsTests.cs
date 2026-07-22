@@ -122,10 +122,15 @@ public class MeldDpsModelTests
     }
 
     [Fact]
-    public void SpeedCrossingATier_IncreasesMultiplier()
+    public void SpeedCrossingATier_IncreasesMultiplier_OnlyForSpeedValuedJobs()
     {
-        // 420 → 506 crosses into 2.49 (level 100) — the GCD uptime multiplier must move.
-        var delta = MeldDpsModel.DeltaPercent(Totals(), Totals(sks: 506), 100, GearStatIds.SkillSpeed);
-        Assert.True(delta > 0, $"expected positive, got {delta}");
+        // 420 → 506 crosses into 2.49 (level 100). Speed-priority jobs (BLM) credit the tier;
+        // everyone else deliberately values speed at ZERO (Balance: hold base tier — the naive
+        // uptime multiplier would otherwise make speed dominate every substat).
+        var valued = MeldDpsModel.DeltaPercent(Totals(), Totals(sks: 506), 100, GearStatIds.SkillSpeed, speedValued: true);
+        Assert.True(valued > 0, $"expected positive for speed-valued, got {valued}");
+
+        var unvalued = MeldDpsModel.DeltaPercent(Totals(), Totals(sks: 506), 100, GearStatIds.SkillSpeed);
+        Assert.Equal(0.0, unvalued, 6);
     }
 }

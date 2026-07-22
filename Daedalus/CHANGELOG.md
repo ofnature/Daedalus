@@ -3,6 +3,14 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.38 — 2026-07-22
+
+### New — Meld Optimizer (Analytics → Melding)
+- A full gear and melding assistant, parked in the **Analytics window's new Melding tab** (also `/daedalus meld` for a standalone window — same panel, shared state). Top to bottom: your job's **Balance meld priority** as a banner (with the job emblem); a **paperdoll** of your equipped set — silhouette matches your character's gender, twelve slot boxes with hover tooltips showing base stats, every meld (grade, fixed-XI overmelds, overcap waste in red), and per-piece stat caps; **GCD breakpoint tiers** with your live value highlighted and an honest "is the next tier worth it" verdict; and an **aggregate stat table** showing character totals with the derived percentages (crit chance/damage, DH rate, det bonus, GCD + speed, MP/tick) exactly as the Character window computes them
+- **Optimize Melds** sweeps every grade-XII socket across your job's priority stats — respecting each piece's per-stat caps and treating the two grade-XI overmeld sockets on pentamelded pieces as fixed — and returns ranked plans with a DPS delta vs your current melds. Plan #1 overlays the paperdoll: pieces needing changes get a gold outline and a "meld ↺" chip, and their tooltips list exactly which sockets to change (current → recommended). Speed stats are deliberately valued at zero for non-speed jobs (Balance rule: hold base tier — BLM is the exception and is treated speed-first)
+- The gear snapshot refreshes every 2 seconds while the panel is visible, so re-melding updates everything live
+
+<!-- LATEST-END -->
 ## v0.1.37 — 2026-07-22
 
 ### Fix — Bard: buffed Iron Jaws re-snapshot actually fires now (top-parse audit)
@@ -17,13 +25,11 @@ All notable changes to Daedalus will be documented in this file.
 ### Fix — Paladin: Clemency no longer casts into movement (all-jobs cast-gate audit)
 - A full audit of every job's cast-time actions against the shared move/cast gate (the same class of bug as the Samurai Midare fix) found exactly one hole: **Clemency** — a 1.5-second hard cast with no instant proc — had no gate, so a moving Paladin below the emergency threshold would start the cast, get it cancelled by movement, and retry every GCD. It now holds while moving (and before predicted raidwides/busters) like every other hard cast. Everything else checked clean: all caster/healer damage and heal casts, RPR's Communio/Harpe fallbacks, PCT's motifs and subtractive combo, and Smudge is confirmed wired (weaves automatically while moving, with the Swiftcast movement weave alongside)
 
-<!-- LATEST-END -->
 ## v0.1.36 — 2026-07-20
 
 ### Fix — Quest/hunt kill loops: one deliberate pull at a time
 - The Questionable kill bridge already pulled a single mob and finished everything aggroed before pulling fresh — but the moment the last mob died, the very next poll hard-targeted the next flagged mob with zero breathing room, which could snowball tightly packed camps. Fresh objective pulls now wait for a **3-second calm window** after the last combat contact: kill → clear all aggro → brief pause → next pull. Mobs already aggroed on you are never delayed — leftovers and wanderers still get finished immediately
 
-<!-- LATEST-END -->
 ## v0.1.35 — 2026-07-20
 
 ### Fix — Positional anchor: hazard fallback (mirror anchor instead of parking at the edge)

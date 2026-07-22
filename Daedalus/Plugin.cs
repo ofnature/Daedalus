@@ -99,6 +99,7 @@ public sealed class Plugin : IDalamudPlugin
     private readonly CastMovementHoldService castMovementHoldService;
     private readonly Services.Gear.StatCapService statCapService;
     private readonly Services.Gear.GearSnapshotService gearSnapshotService;
+    private readonly MeldOptimizerPanel meldOptimizerPanel;
     private readonly MeldOptimizerWindow meldOptimizerWindow;
     private DateTime lastGearRefreshUtc = DateTime.MinValue;
     private readonly BossModForecastService bossModForecastService;
@@ -649,9 +650,10 @@ public sealed class Plugin : IDalamudPlugin
             new Daedalus.Services.Plugins.PluginStatusService(pluginInterface));
         this.controlWindow = new ControlWindow(configuration, SaveConfiguration, rotationManager, textureProvider);
         this.navControlWindow = new NavControlWindow(configuration, SaveConfiguration, bmrAiConfigService, movementArbiter, castMovementHoldService);
-        this.meldOptimizerWindow = new MeldOptimizerWindow(gearSnapshotService, jobId =>
+        this.meldOptimizerPanel = new MeldOptimizerPanel(gearSnapshotService, jobId =>
             dataManager.GetExcelSheet<Lumina.Excel.Sheets.ClassJob>()?.GetRowOrDefault(jobId)?.Name.ExtractText() ?? $"Job {jobId}",
             textureProvider);
+        this.meldOptimizerWindow = new MeldOptimizerWindow(meldOptimizerPanel);
         this.raidWindow = new RaidWindow(configuration, SaveConfiguration, dutyContentService, deathImmunityLedger);
         this.missingWindow = new MissingWindow(debugService, bluLoadoutService);
         this.bluMimicryWindow = new BluMimicryWindow(
@@ -668,7 +670,7 @@ public sealed class Plugin : IDalamudPlugin
         var smartAoETab = new SmartAoETab(aoeTracker, drawCanvas, objectTable);
         this.debugWindow = new DebugWindow(debugService, configuration, timelineService, smartAoETab, debugLogService);
         this.welcomeWindow = new WelcomeWindow(configuration, SaveConfiguration, OpenConfigUI);
-        this.analyticsWindow = new AnalyticsWindow(performanceTracker, configuration, SaveConfiguration, fflogsService, fightSummaryService);
+        this.analyticsWindow = new AnalyticsWindow(performanceTracker, configuration, SaveConfiguration, fflogsService, fightSummaryService, meldOptimizerPanel);
         this.trainingWindow = new TrainingWindow(trainingService, configuration, decisionValidationService, spacedRepetitionService);
         this.changelogWindow = new ChangelogWindow();
         this.hintOverlay = new HintOverlay(realTimeCoachingService, configuration.Training);
@@ -1628,8 +1630,10 @@ public sealed class Plugin : IDalamudPlugin
             questionableIpc.Update();
             castMovementHoldService.Update();
 
-            // Meld optimizer: keep the gear snapshot fresh (2s cadence) only while the window is open.
-            if (meldOptimizerWindow.IsOpen && (DateTime.UtcNow - lastGearRefreshUtc).TotalSeconds >= 2)
+            // Meld optimizer: keep the gear snapshot fresh (2s cadence) only while the panel is
+            // actually being drawn somewhere (standalone window OR the Analytics Melding tab).
+            var panelVisible = (DateTime.UtcNow - meldOptimizerPanel.LastDrawUtc).TotalSeconds < 1.0;
+            if (panelVisible && (DateTime.UtcNow - lastGearRefreshUtc).TotalSeconds >= 2)
             {
                 gearSnapshotService.Refresh();
                 lastGearRefreshUtc = DateTime.UtcNow;

@@ -21,12 +21,20 @@ namespace Daedalus.Services.Gear;
 /// </summary>
 public static class MeldDpsModel
 {
-    public static double Multiplier(IReadOnlyDictionary<uint, int> totals, int level, uint speedStat)
+    /// <param name="speedValued">
+    /// Whether GCD-tier throughput counts (speed-priority jobs like BLM). For everyone else,
+    /// speed is deliberately valued at ZERO: the naive uptime multiplier makes speed dominate
+    /// every other substat (+0.4%/tier), which is exactly the trap The Balance guidance exists
+    /// to prevent — speed breaks 2-min burst alignment and resource loops, so "hold at base
+    /// tier" is the rule and comfort tiers are a player choice, not an optimizer output.
+    /// </param>
+    public static double Multiplier(IReadOnlyDictionary<uint, int> totals, int level, uint speedStat, bool speedValued = false)
     {
-        var crit = Get(totals, GearStatIds.CriticalHit, StatConversions.ModsFor(level).Sub);
-        var det = Get(totals, GearStatIds.Determination, StatConversions.ModsFor(level).Main);
-        var dh = Get(totals, GearStatIds.DirectHit, StatConversions.ModsFor(level).Sub);
-        var speed = Get(totals, speedStat, StatConversions.ModsFor(level).Sub);
+        // Totals are GEAR-ONLY; the character's naked base sits under them (420/440 at cap).
+        var crit = CharacterTotal(totals, GearStatIds.CriticalHit, level);
+        var det = CharacterTotal(totals, GearStatIds.Determination, level);
+        var dh = CharacterTotal(totals, GearStatIds.DirectHit, level);
+        var speed = CharacterTotal(totals, speedStat, level);
 
         var critChance = StatConversions.CritChancePercent(crit, level) / 100.0;
         var critDamage = StatConversions.CritDamagePercent(crit, level) / 100.0;
@@ -37,19 +45,21 @@ public static class MeldDpsModel
         var critMult = 1.0 + critChance * (critDamage - 1.0);
         var dhMult = 1.0 + dhRate * 0.25;
         var detMult = 1.0 + detBonus;
-        var gcdMult = 2.5 / Math.Max(0.1, gcd);
+        var gcdMult = speedValued ? 2.5 / Math.Max(0.1, gcd) : 1.0;
 
         return critMult * dhMult * detMult * gcdMult;
     }
 
-    /// <summary>Relative DPS change (fraction, e.g. 0.0042 = +0.42%) between two stat totals.</summary>
+    /// <summary>Relative DPS change (percent, e.g. 0.42 = +0.42%) between two stat totals.</summary>
     public static double DeltaPercent(
         IReadOnlyDictionary<uint, int> from,
         IReadOnlyDictionary<uint, int> to,
         int level,
-        uint speedStat)
-        => (Multiplier(to, level, speedStat) / Multiplier(from, level, speedStat) - 1.0) * 100.0;
+        uint speedStat,
+        bool speedValued = false)
+        => (Multiplier(to, level, speedStat, speedValued) / Multiplier(from, level, speedStat, speedValued) - 1.0) * 100.0;
 
-    private static int Get(IReadOnlyDictionary<uint, int> totals, uint statId, int floor)
-        => totals.TryGetValue(statId, out var value) && value > floor ? value : floor;
+    /// <summary>Gear total + naked-character floor = the value the conversion formulas expect.</summary>
+    public static int CharacterTotal(IReadOnlyDictionary<uint, int> totals, uint statId, int level)
+        => StatConversions.SubstatFloor(statId, level) + (totals.TryGetValue(statId, out var value) ? value : 0);
 }

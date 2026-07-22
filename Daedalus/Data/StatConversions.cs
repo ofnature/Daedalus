@@ -44,6 +44,17 @@ public static class StatConversions
         return best;
     }
 
+    /// <summary>
+    /// The naked-character base for a substat (what the Character window shows with no gear):
+    /// Determination and Piety measure from the MAIN-stat base; everything else from the substat
+    /// base. Gear-only totals + this floor = the Character-window value the conversions expect.
+    /// </summary>
+    public static int SubstatFloor(uint statId, int level)
+    {
+        var m = ModsFor(level);
+        return statId is 44 /* Det */ or 6 /* Piety */ ? m.Main : m.Sub;
+    }
+
     /// <summary>Critical hit chance in percent (base 5.0%).</summary>
     public static float CritChancePercent(int crit, int level)
     {
