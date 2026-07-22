@@ -54,12 +54,88 @@ public sealed class MeldOptimizerWindow : Window
         DrawPaperdoll(snapshot);
 
         ImGui.Spacing();
-        // Future row lands here per the approved layout — placeholder keeps the shape honest.
-        ImGui.TextColored(Common.DaedalusTheme.TextDisabled,
-            "GCD breakpoints + Optimize Melds (phase 4/5) land here.");
+        DrawMidRow(snapshot);
 
         ImGui.Spacing();
         DrawAggregatePanel(snapshot);
+    }
+
+    // ── GCD breakpoints + optimizer row (phase 4; optimizer itself is phase 5) ──
+
+    private static void DrawMidRow(GearSnapshot snapshot)
+    {
+        var half = (ImGui.GetContentRegionAvail().X - 8f) / 2f;
+
+        ImGui.BeginChild("##meldbreakpoints", new Vector2(half, 170f), true);
+        DrawBreakpointsPanel(snapshot);
+        ImGui.EndChild();
+
+        ImGui.SameLine();
+        ImGui.BeginChild("##meldoptimize", new Vector2(half, 170f), true);
+        Common.DaedalusTheme.GoldHeader("Optimize Melds");
+        ImGui.TextColored(Common.DaedalusTheme.TextDisabled, "Sweep + ranked plans land in phase 5.");
+        ImGui.EndChild();
+    }
+
+    private static void DrawBreakpointsPanel(GearSnapshot snapshot)
+    {
+        var priority = Data.BalancePriorities.For(snapshot.JobId);
+        var speedStat = priority.SpeedStat;
+        Common.DaedalusTheme.GoldHeader($"GCD Breakpoints — {GearStatIds.Name(speedStat)}");
+
+        if (snapshot.Pieces.Count == 0)
+        {
+            ImGui.TextColored(Common.DaedalusTheme.TextSecondary, "No gear data.");
+            return;
+        }
+
+        var aggregate = GearStatAggregator.Aggregate(snapshot);
+        var mods = Data.StatConversions.ModsFor(snapshot.Level);
+        aggregate.Totals.TryGetValue(speedStat, out var speed);
+        speed = Math.Max(speed, mods.Sub);
+
+        foreach (var tier in Data.GcdBreakpoints.Window(speed, snapshot.Level))
+        {
+            var isCurrent = speed >= tier.SpeedFrom && speed <= tier.SpeedTo;
+            var color = isCurrent ? Common.DaedalusTheme.AccentGold : Common.DaedalusTheme.TextSecondary;
+            var range = tier.SpeedTo >= 5999 ? $"{tier.SpeedFrom}+" : $"{tier.SpeedFrom} – {tier.SpeedTo}";
+            ImGui.TextColored(color, $"{tier.GcdSeconds:F2}   {range}{(isCurrent ? $"   ← current: {speed}" : "")}");
+        }
+
+        DrawTierVerdict(aggregate.Totals, speed, snapshot.Level, priority);
+    }
+
+    /// <summary>
+    /// "Is the next tier worth it?" — same MeldDpsModel the phase-5 sweep ranks with, so the two
+    /// can never disagree: cost = moving enough melds from the top-priority stat into speed.
+    /// </summary>
+    private static void DrawTierVerdict(
+        IReadOnlyDictionary<uint, int> totals, int speed, int level, Data.BalancePriorities.JobPriority priority)
+    {
+        var points = Data.GcdBreakpoints.PointsToNextTier(speed, level);
+        if (points == int.MaxValue)
+            return;
+
+        var melds = (points + 53) / 54;
+        var topStat = priority.Order[0];
+        if (topStat == priority.SpeedStat)
+        {
+            // Speed IS the priority (BLM) — next tier is simply the goal.
+            ImGui.TextColored(Common.DaedalusTheme.StatusGreen,
+                $"Next tier: +{points} {GearStatIds.Name(priority.SpeedStat)} ≈ {melds} meld{(melds == 1 ? "" : "s")} — speed-first job, take it.");
+            return;
+        }
+
+        var candidate = new Dictionary<uint, int>(totals);
+        candidate.TryGetValue(priority.SpeedStat, out var speedNow);
+        candidate[priority.SpeedStat] = Math.Max(speedNow, speed) + (melds * 54);
+        candidate.TryGetValue(topStat, out var topNow);
+        candidate[topStat] = topNow - (melds * 54);
+
+        var delta = MeldDpsModel.DeltaPercent(totals, candidate, level, priority.SpeedStat);
+        var worth = delta > 0;
+        ImGui.TextColored(worth ? Common.DaedalusTheme.StatusGreen : Common.DaedalusTheme.StatusYellow,
+            $"Next tier: +{points} {GearStatIds.Name(priority.SpeedStat)} ≈ {melds} meld{(melds == 1 ? "" : "s")} from {GearStatIds.Name(topStat)} → {(delta >= 0 ? "+" : "")}{delta:F2}% — {(worth ? "worth it" : "not worth it")}");
     }
 
     // ── aggregate stats (phase 3) ───────────────────────────────────────────
@@ -178,9 +254,32 @@ public sealed class MeldOptimizerWindow : Window
     {
         var job = snapshot.JobId != 0 ? _jobName(snapshot.JobId) : "—";
         ImGui.TextColored(Common.DaedalusTheme.AccentGold, $"⚔ {job}");
+
+        var priority = Data.BalancePriorities.For(snapshot.JobId);
+        for (var i = 0; i < priority.Order.Length; i++)
+        {
+            ImGui.SameLine();
+            if (i > 0)
+            {
+                ImGui.TextColored(Common.DaedalusTheme.TextSecondary, ">");
+                ImGui.SameLine();
+            }
+
+            ImGui.TextColored(Common.DaedalusTheme.AccentGold, GearStatIds.Name(priority.Order[i]));
+        }
+
+        // Speed stat as a dimmed trailing chip when it isn't part of the priority order.
+        if (Array.IndexOf(priority.Order, priority.SpeedStat) < 0)
+        {
+            ImGui.SameLine();
+            ImGui.TextColored(Common.DaedalusTheme.TextSecondary, ">");
+            ImGui.SameLine();
+            ImGui.TextColored(Common.DaedalusTheme.TextDisabled, GearStatIds.Name(priority.SpeedStat));
+        }
+
         ImGui.SameLine();
-        ImGui.TextColored(Common.DaedalusTheme.TextSecondary,
-            "  Balance priorities land here in phase 4.");
+        ImGui.TextColored(Common.DaedalusTheme.TextSecondary, $"   {priority.Note}");
+
         if (snapshot.Pieces.Count == 0)
         {
             ImGui.TextColored(Common.DaedalusTheme.StatusYellow,

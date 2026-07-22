@@ -53,5 +53,5 @@ public static class GearStatRelevance
 
     /// <summary>NIN/VPR (and their base classes) are the DEX melee.</summary>
     private static bool UsesDexterity(uint jobId) => jobId is
-        JobRegistry.Ninja or JobRegistry.Rogue or 41; // 41 = Viper
+        JobRegistry.Ninja or JobRegistry.Rogue or JobRegistry.Viper;
 }
