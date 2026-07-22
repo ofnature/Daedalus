@@ -99,6 +99,8 @@ public sealed class Plugin : IDalamudPlugin
     private readonly CastMovementHoldService castMovementHoldService;
     private readonly Services.Gear.StatCapService statCapService;
     private readonly Services.Gear.GearSnapshotService gearSnapshotService;
+    private readonly MeldOptimizerWindow meldOptimizerWindow;
+    private DateTime lastGearRefreshUtc = DateTime.MinValue;
     private readonly BossModForecastService bossModForecastService;
     private readonly PositionalMovementService positionalMovementService;
     private readonly BmrAiConfigService bmrAiConfigService;
@@ -647,6 +649,8 @@ public sealed class Plugin : IDalamudPlugin
             new Daedalus.Services.Plugins.PluginStatusService(pluginInterface));
         this.controlWindow = new ControlWindow(configuration, SaveConfiguration, rotationManager, textureProvider);
         this.navControlWindow = new NavControlWindow(configuration, SaveConfiguration, bmrAiConfigService, movementArbiter, castMovementHoldService);
+        this.meldOptimizerWindow = new MeldOptimizerWindow(gearSnapshotService, jobId =>
+            dataManager.GetExcelSheet<Lumina.Excel.Sheets.ClassJob>()?.GetRowOrDefault(jobId)?.Name.ExtractText() ?? $"Job {jobId}");
         this.raidWindow = new RaidWindow(configuration, SaveConfiguration, dutyContentService, deathImmunityLedger);
         this.missingWindow = new MissingWindow(debugService, bluLoadoutService);
         this.bluMimicryWindow = new BluMimicryWindow(
@@ -778,6 +782,7 @@ public sealed class Plugin : IDalamudPlugin
         windowSystem.AddWindow(mainWindow);
         windowSystem.AddWindow(controlWindow);
         windowSystem.AddWindow(navControlWindow);
+        windowSystem.AddWindow(meldOptimizerWindow);
         windowSystem.AddWindow(raidWindow);
         windowSystem.AddWindow(missingWindow);
         windowSystem.AddWindow(bluMimicryWindow);
@@ -1382,6 +1387,10 @@ public sealed class Plugin : IDalamudPlugin
                 HandleHardcastCommand(subArg);
                 break;
 
+            case "meld":
+                meldOptimizerWindow.Toggle();
+                break;
+
             case "dumpgear":
                 // Phase-1 field validation for the meld optimizer: full gear/meld/cap dump.
                 // Command handlers run on the framework thread, so the unsafe read is safe here.
@@ -1617,6 +1626,13 @@ public sealed class Plugin : IDalamudPlugin
                 bridge.Update();
             questionableIpc.Update();
             castMovementHoldService.Update();
+
+            // Meld optimizer: keep the gear snapshot fresh (2s cadence) only while the window is open.
+            if (meldOptimizerWindow.IsOpen && (DateTime.UtcNow - lastGearRefreshUtc).TotalSeconds >= 2)
+            {
+                gearSnapshotService.Refresh();
+                lastGearRefreshUtc = DateTime.UtcNow;
+            }
 
             // Farm mode driver (throttled internally): targets profile mobs, roams spots, holds
             // the override while running. Also before the enabled gate.
