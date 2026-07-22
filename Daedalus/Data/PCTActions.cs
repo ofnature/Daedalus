@@ -819,7 +819,8 @@ public static class PCTActions
     };
 
     /// <summary>
-    /// Smudge - Sprint/movement ability (Lv.20)
+    /// Smudge - 15-yalm FORWARD DASH in the facing direction, then a brief sprint buff (Lv.20).
+    /// NOT a plain sprint: an unguarded auto-use can dash off ledges — see ForwardDashGuard.
     /// </summary>
     public static readonly ActionDefinition Smudge = new()
     {

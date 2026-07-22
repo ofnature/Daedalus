@@ -117,6 +117,30 @@ public sealed class VNavService : IVNavService
         }
     }
 
+    public bool TryGetFloorPoint(Vector3 position, out Vector3 floor)
+    {
+        floor = position;
+        if (!IsAvailable)
+            return false;
+
+        EnsureSubscribers();
+
+        try
+        {
+            var snapped = _queryPointOnFloor?.InvokeFunc(position, false, DefaultFloorQueryHalfExtent);
+            if (snapped is not { } value)
+                return false;
+
+            floor = value;
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _log?.Debug(ex, "[VNavService] TryGetFloorPoint failed.");
+            return false;
+        }
+    }
+
     private void EnsureSubscribers()
     {
         _navIsReady ??= _pluginInterface.GetIpcSubscriber<bool>("vnavmesh.Nav.IsReady");

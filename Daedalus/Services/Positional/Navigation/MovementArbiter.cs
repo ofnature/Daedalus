@@ -60,6 +60,7 @@ public sealed class MovementArbiter : IMovementArbiter
     public bool IsPathRunning => _inner.IsPathRunning;
     public bool IsPathfindInProgress => _inner.IsPathfindInProgress;
     public Vector3 SnapToFloor(Vector3 position) => _inner.SnapToFloor(position);
+    public bool TryGetFloorPoint(Vector3 position, out Vector3 floor) => _inner.TryGetFloorPoint(position, out floor);
 
     public void BeginFrame()
     {

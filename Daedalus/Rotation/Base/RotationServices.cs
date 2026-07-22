@@ -18,4 +18,7 @@ public static class RotationServices
     /// so hard-casts also hold while BossMod is dodging.
     /// </summary>
     public static IMovementArbiter? MovementArbiter { get; set; }
+
+    /// <summary>BMR safety hints — used by dash guards (Smudge) to veto hazardous landing spots.</summary>
+    public static IBossModSafetyService? BossModSafety { get; set; }
 }

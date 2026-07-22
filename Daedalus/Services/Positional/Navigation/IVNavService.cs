@@ -30,4 +30,12 @@ public interface IVNavService
 
     /// <summary><c>vnavmesh.Query.Mesh.PointOnFloor</c> when available; otherwise <paramref name="position"/>.</summary>
     Vector3 SnapToFloor(Vector3 position);
+
+    /// <summary>
+    /// <c>vnavmesh.Query.Mesh.PointOnFloor</c> surfacing failure: false when vnavmesh is unavailable
+    /// or the point has no navmesh floor (off-mesh — an abyss, a wall, out of bounds). Unlike
+    /// <see cref="SnapToFloor"/>, which silently returns the input, this lets dash guards fail
+    /// closed instead of dashing into a hole.
+    /// </summary>
+    bool TryGetFloorPoint(Vector3 position, out Vector3 floor);
 }

@@ -329,6 +329,7 @@ public sealed class Plugin : IDalamudPlugin
             debugLog: debugLogService);
         Rotation.Base.RotationServices.VNav = movementArbiter;
         Rotation.Base.RotationServices.MovementArbiter = movementArbiter;
+        Rotation.Base.RotationServices.BossModSafety = bossModSafetyService;
         this.bossModForecastService = new BossModForecastService(pluginInterface, log);
         this.positionalMovementService = new PositionalMovementService(movementArbiter, bossModSafetyService);
         this.bmrAiConfigService = new BmrAiConfigService(pluginInterface, bossModSafetyService, log, debugLogService, dtrBar);

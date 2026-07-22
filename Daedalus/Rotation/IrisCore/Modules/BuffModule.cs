@@ -342,11 +342,23 @@ public sealed class BuffModule : IIrisModule
         if (context.Player.Level < PCTActions.Smudge.MinLevel) return;
         if (!context.SmudgeReady) return;
 
+        // Smudge is a 15-yalm FORWARD DASH, not a sprint (field report 2026-07-20: "weave while
+        // moving" dashed off arena ledges and past BMR's micro-adjust steps, churning walk-backs
+        // that interrupted casts). Only dash on a real vNav travel leg, moving the way we face,
+        // with navmesh floor and no BMR hazard at the dash midpoint and landing.
+        if (!ForwardDashGuard.IsForwardDashSafe(
+                context.Player.Position,
+                context.Player.Rotation,
+                ForwardDashGuard.SmudgeDashYalms,
+                Base.RotationServices.VNav,
+                Base.RotationServices.BossModSafety))
+            return;
+
         scheduler.PushOgcd(IrisAbilities.Smudge, context.Player.GameObjectId, priority: 6,
             onDispatched: _ =>
             {
                 context.Debug.PlannedAction = PCTActions.Smudge.Name;
-                context.Debug.BuffState = "Smudge (movement)";
+                context.Debug.BuffState = "Smudge (travel dash)";
             });
     }
 
