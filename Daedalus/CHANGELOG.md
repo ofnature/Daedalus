@@ -3,7 +3,7 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
-## v0.1.37 — 2026-07-20
+## v0.1.37 — 2026-07-22
 
 ### Fix — Bard: buffed Iron Jaws re-snapshot actually fires now (top-parse audit)
 - Checked the rotations against rank-1 FFLogs parses from the current savage tier (patch 7.3, M5S): the one code-level gap found was Bard's buffed DoT re-snapshot. The rule "re-snapshot when Raging Strikes is up and DoTs are under 20s" **never triggered in openers** — DoTs applied at the pull still have ~30s left when Raging Strikes expires, so the buffed window came and went. It now re-snapshots in the **last seconds of Raging Strikes** (top-parse behavior: Iron Jaws ~17s into the fight with the full buff stack), carrying the +15% snapshot through ~40 more seconds of DoT ticks every burst window
