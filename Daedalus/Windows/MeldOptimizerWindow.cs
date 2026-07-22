@@ -18,6 +18,7 @@ public sealed class MeldOptimizerWindow : Window
 {
     private readonly GearSnapshotService _gear;
     private readonly Func<uint, string> _jobName;
+    private readonly Dalamud.Plugin.Services.ITextureProvider _textureProvider;
 
     private const float CanvasHeight = 460f;
     private const float BoxWidth = 172f;
@@ -29,11 +30,15 @@ public sealed class MeldOptimizerWindow : Window
     private static readonly GearSlotId[] RightColumn =
         { GearSlotId.OffHand, GearSlotId.Ears, GearSlotId.Neck, GearSlotId.Wrists, GearSlotId.RingR, GearSlotId.RingL };
 
-    public MeldOptimizerWindow(GearSnapshotService gear, Func<uint, string> jobName)
+    public MeldOptimizerWindow(
+        GearSnapshotService gear,
+        Func<uint, string> jobName,
+        Dalamud.Plugin.Services.ITextureProvider textureProvider)
         : base("Meld Optimizer")
     {
         _gear = gear;
         _jobName = jobName;
+        _textureProvider = textureProvider;
         Size = new Vector2(980, 720);
         SizeCondition = ImGuiCond.FirstUseEver;
         SizeConstraints = new WindowSizeConstraints
@@ -253,7 +258,17 @@ public sealed class MeldOptimizerWindow : Window
     private void DrawBanner(GearSnapshot snapshot)
     {
         var job = snapshot.JobId != 0 ? _jobName(snapshot.JobId) : "—";
-        ImGui.TextColored(Common.DaedalusTheme.AccentGold, $"⚔ {job}");
+
+        // Job emblem instead of a glyph — the sword emoji isn't in the ImGui font (rendered "=").
+        var iconId = Data.JobRegistry.GetJobIconId(snapshot.JobId);
+        if (iconId != 0)
+        {
+            var wrap = _textureProvider.GetFromGameIcon(new Dalamud.Interface.Textures.GameIconLookup(iconId)).GetWrapOrEmpty();
+            ImGui.Image(wrap.Handle, new Vector2(22, 22));
+            ImGui.SameLine();
+        }
+
+        ImGui.TextColored(Common.DaedalusTheme.AccentGold, job);
 
         var priority = Data.BalancePriorities.For(snapshot.JobId);
         for (var i = 0; i < priority.Order.Length; i++)

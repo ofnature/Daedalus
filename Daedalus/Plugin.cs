@@ -650,7 +650,8 @@ public sealed class Plugin : IDalamudPlugin
         this.controlWindow = new ControlWindow(configuration, SaveConfiguration, rotationManager, textureProvider);
         this.navControlWindow = new NavControlWindow(configuration, SaveConfiguration, bmrAiConfigService, movementArbiter, castMovementHoldService);
         this.meldOptimizerWindow = new MeldOptimizerWindow(gearSnapshotService, jobId =>
-            dataManager.GetExcelSheet<Lumina.Excel.Sheets.ClassJob>()?.GetRowOrDefault(jobId)?.Name.ExtractText() ?? $"Job {jobId}");
+            dataManager.GetExcelSheet<Lumina.Excel.Sheets.ClassJob>()?.GetRowOrDefault(jobId)?.Name.ExtractText() ?? $"Job {jobId}",
+            textureProvider);
         this.raidWindow = new RaidWindow(configuration, SaveConfiguration, dutyContentService, deathImmunityLedger);
         this.missingWindow = new MissingWindow(debugService, bluLoadoutService);
         this.bluMimicryWindow = new BluMimicryWindow(
