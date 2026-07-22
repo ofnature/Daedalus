@@ -3,6 +3,12 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.37 — 2026-07-20
+
+### Fix — Paladin: Clemency no longer casts into movement (all-jobs cast-gate audit)
+- A full audit of every job's cast-time actions against the shared move/cast gate (the same class of bug as the Samurai Midare fix) found exactly one hole: **Clemency** — a 1.5-second hard cast with no instant proc — had no gate, so a moving Paladin below the emergency threshold would start the cast, get it cancelled by movement, and retry every GCD. It now holds while moving (and before predicted raidwides/busters) like every other hard cast. Everything else checked clean: all caster/healer damage and heal casts, RPR's Communio/Harpe fallbacks, PCT's motifs and subtractive combo, and Smudge is confirmed wired (weaves automatically while moving, with the Swiftcast movement weave alongside)
+
+<!-- LATEST-END -->
 ## v0.1.36 — 2026-07-20
 
 ### Fix — Quest/hunt kill loops: one deliberate pull at a time

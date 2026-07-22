@@ -84,6 +84,16 @@ public sealed class MitigationModule : IThemisModule
         if (player.CurrentMp < 2000) return;
         if (!context.ActionService.IsActionReady(PLDActions.Clemency.ActionId)) return;
 
+        // Clemency is a 1.5s hard cast with no instant proc (2026-07-20 move/cast-gate audit: this
+        // was the only ungated cast-time site left in the codebase). While moving, the cast would
+        // start and be cancelled every GCD at priority 1 — no heal AND a stalled rotation. The
+        // shared gate holds it while moving or when a mechanic lands before the cast finishes.
+        if (MechanicCastGate.ShouldBlock(context, PLDActions.Clemency.CastTime))
+        {
+            context.Debug.MitigationState = MechanicCastGate.FormatBlockedState(context);
+            return;
+        }
+
         var clemencyThreshold = context.Configuration.Tank.ClemencyThreshold;
 
         IBattleChara? target = null;
