@@ -88,12 +88,14 @@ public static class MeldSweepOptimizer
     {
         public readonly GearPiece Piece;
         public readonly int Sockets;
+        public readonly int MeldValue; // best grade this piece's ilvl can hold (+54 XII, +18 XI…)
         public readonly int[] Headroom; // per candidate index, above base+fixed
 
         public PieceState(GearPiece piece, uint[] candidates)
         {
             Piece = piece;
             Sockets = piece.SweepableSockets;
+            MeldValue = Math.Max(1, piece.SweepMeldValue);
             Headroom = new int[candidates.Length];
             for (var i = 0; i < candidates.Length; i++)
             {
@@ -154,10 +156,15 @@ public static class MeldSweepOptimizer
             ? pieces.Select(p => new List<uint>(p.Sockets)).ToArray()
             : null;
 
+        // Best possible marginal anywhere = the largest per-piece meld value (usually 54).
+        var maxMeldValue = pieces.Length > 0 ? pieces.Max(p => p.MeldValue) : MateriaXiiValue;
+
         var remaining = demand.Sum();
         while (remaining > 0)
         {
-            // Best (stat, piece) by marginal value: full 54 > partial remainder > 0.
+            // Best (stat, piece) by marginal value: full piece-grade value > partial remainder > 0.
+            // Per-piece values differ now (ilvl-gated materia grades), so high-grade pieces soak
+            // demand before low-ilvl pieces automatically.
             var bestStat = -1; var bestPiece = -1; var bestValue = -1;
             for (var s = 0; s < candidates.Length; s++)
             {
@@ -167,19 +174,19 @@ public static class MeldSweepOptimizer
                 {
                     if (socketsFree[p] == 0)
                         continue;
-                    var value = Math.Min(MateriaXiiValue, Math.Max(0, headroom[p][s]));
+                    var value = Math.Min(pieces[p].MeldValue, Math.Max(0, headroom[p][s]));
                     if (value > bestValue)
                     {
                         bestValue = value; bestStat = s; bestPiece = p;
-                        if (value == MateriaXiiValue)
-                            goto place; // can't do better than a full meld
+                        if (value == maxMeldValue)
+                            goto place; // can't do better than a full top-grade meld
                     }
                 }
             }
 
         place:
             socketsFree[bestPiece]--;
-            headroom[bestPiece][bestStat] -= MateriaXiiValue;
+            headroom[bestPiece][bestStat] -= pieces[bestPiece].MeldValue;
             demand[bestStat]--;
             effective[bestStat] += bestValue;
             placed?[bestPiece].Add(candidates[bestStat]);

@@ -21,6 +21,15 @@ public sealed class GearSnapshotService
     /// <summary>Grade index (0-based) of grade XII materia in the Materia sheet Value column.</summary>
     private const int GradeXiiIndex = 11;
 
+    /// <summary>
+    /// Per-grade minimum BASE ITEM LEVEL for melding (grade index → ilvl), read from the sheets:
+    /// each materia item's own LevelItem IS its melding requirement (field-confirmed 2026-07-23:
+    /// Heavens' Eye XI shows "Base Item: Item Level 690" and its item row is ilvl 690). Cached
+    /// per session; combat substat materia share one requirement table.
+    /// </summary>
+    private int[]? _gradeMinIlvl;
+    private short[]? _gradeValues;
+
     private readonly IDataManager _dataManager;
     private readonly IObjectTable _objectTable;
     private readonly StatCapService _statCaps;
@@ -198,6 +207,8 @@ public sealed class GearSnapshotService
                 IsFixedOvermeld: melds.Count >= sweepable || (advanced && gradeIndex < GradeXiiIndex && melds.Count >= guaranteed)));
         }
 
+        var (sweepGrade, sweepValue) = BestMeldGradeFor(ilvl, materiaSheet);
+
         return new GearPiece(
             Slot: slot,
             ItemId: invItem->ItemId,
@@ -207,7 +218,48 @@ public sealed class GearSnapshotService
             Melds: melds,
             GuaranteedSockets: guaranteed,
             AdvancedMeldingPermitted: advanced,
-            Caps: _statCaps.CapsFor(ilvl, slot, twoHanded && slot == GearSlotId.MainHand));
+            Caps: _statCaps.CapsFor(ilvl, slot, twoHanded && slot == GearSlotId.MainHand),
+            SweepMeldGrade: sweepGrade,
+            SweepMeldValue: sweepValue);
+    }
+
+    /// <summary>Highest materia grade the piece's ilvl can hold, and its substat value.</summary>
+    private (int Grade, int Value) BestMeldGradeFor(int ilvl, Lumina.Excel.ExcelSheet<LuminaMateria> materiaSheet)
+    {
+        if (_gradeMinIlvl == null || _gradeValues == null)
+        {
+            // One requirement/value table serves all combat substats — take the Crit row.
+            foreach (var materiaRow in materiaSheet)
+            {
+                if (materiaRow.BaseParam.RowId != GearStatIds.CriticalHit)
+                    continue;
+
+                var count = Math.Min(materiaRow.Item.Count, materiaRow.Value.Count);
+                var minIlvl = new int[count];
+                var values = new short[count];
+                for (var g = 0; g < count; g++)
+                {
+                    var itemRef = materiaRow.Item[g];
+                    minIlvl[g] = itemRef.RowId != 0 ? (int)(itemRef.ValueNullable?.LevelItem.RowId ?? 0) : int.MaxValue;
+                    values[g] = materiaRow.Value[g];
+                }
+
+                _gradeMinIlvl = minIlvl;
+                _gradeValues = values;
+                break;
+            }
+
+            if (_gradeMinIlvl == null || _gradeValues == null)
+                return (GradeXiiIndex + 1, 54); // sheet unavailable — fail open to the XII model
+        }
+
+        for (var g = Math.Min(GradeXiiIndex, _gradeMinIlvl.Length - 1); g >= 0; g--)
+        {
+            if (_gradeValues[g] > 0 && _gradeMinIlvl[g] <= ilvl)
+                return (g + 1, _gradeValues[g]);
+        }
+
+        return (1, _gradeValues.Length > 0 ? Math.Max((int)_gradeValues[0], 1) : 1);
     }
 
     /// <summary>Full text dump for /daedalus dumpgear — the phase-1 field validation tool.</summary>

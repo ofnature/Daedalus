@@ -183,4 +183,31 @@ public class MeldSweepOptimizerTests
         Assert.Equal(15, all.Count); // C(4+2,2)
         Assert.All(all, c => Assert.Equal(4, c.Sum()));
     }
+
+    [Fact]
+    public void Sweep_IlvlGatedGrades_UsePerPieceMeldValues()
+    {
+        // A leveling piece capped at grade XI (+18): its sockets contribute 18s, not 54s —
+        // materia grades carry a base-ilvl requirement read from the sheets.
+        var lowPiece = Piece(GearSlotId.Head, 2,
+            new Dictionary<uint, int> { [GearStatIds.CriticalHit] = 1200 },
+            new Dictionary<uint, int>
+            {
+                [GearStatIds.CriticalHit] = 9999,
+                [GearStatIds.Determination] = 9999,
+                [GearStatIds.DirectHit] = 9999,
+                [GearStatIds.SkillSpeed] = 9999,
+            }) with
+        { SweepMeldGrade = 11, SweepMeldValue = 18 };
+
+        var plans = MeldSweepOptimizer.Sweep(Snapshot(lowPiece));
+        var best = plans[0];
+
+        // 2 sockets assigned; total contribution above base is exactly 2 × 18 across candidates.
+        Assert.Equal(2, best.SocketAssignments[GearSlotId.Head].Length);
+        var contributed = best.Totals
+            .Where(kv => kv.Key != GearStatIds.CriticalHit).Sum(kv => kv.Value)
+            + (best.Totals.TryGetValue(GearStatIds.CriticalHit, out var crit) ? crit - 1200 : 0);
+        Assert.Equal(36, contributed);
+    }
 }

@@ -91,7 +91,14 @@ public sealed record GearPiece(
     /// <summary>Pentameldable (Item.IsAdvancedMeldingPermitted).</summary>
     bool AdvancedMeldingPermitted,
     /// <summary>Per-stat cap for this piece (BaseParam id → cap). Total base+melds may not exceed.</summary>
-    IReadOnlyDictionary<uint, int> Caps)
+    IReadOnlyDictionary<uint, int> Caps,
+    /// <summary>
+    /// Best materia grade this piece can hold (materia items carry a base-ilvl requirement —
+    /// grade XII needs high-ilvl gear; leveling pieces cap out at lower grades).
+    /// </summary>
+    int SweepMeldGrade = 12,
+    /// <summary>Substat value of <see cref="SweepMeldGrade"/> (+54 for XII, +18 for XI, …).</summary>
+    int SweepMeldValue = 54)
 {
     /// <summary>
     /// Sockets the optimizer may sweep: every socket that can hold a grade-XII materia.

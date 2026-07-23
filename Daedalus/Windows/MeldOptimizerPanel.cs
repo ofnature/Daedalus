@@ -324,6 +324,12 @@ public sealed class MeldOptimizerPanel
             caps += $"{GearStatIds.Name(statId)} {cap}  ";
         ImGui.TextColored(Common.DaedalusTheme.TextSecondary, caps);
 
+        // Materia grade this piece's ilvl allows (grade requirements from the game sheets).
+        ImGui.TextColored(piece.SweepMeldGrade >= 12 ? Common.DaedalusTheme.TextSecondary : Common.DaedalusTheme.StatusYellow,
+            piece.SweepMeldGrade >= 12
+                ? $"max materia: G{piece.SweepMeldGrade} (+{piece.SweepMeldValue})"
+                : $"max materia: G{piece.SweepMeldGrade} (+{piece.SweepMeldValue}) — ilvl {piece.Ilvl} too low for XII");
+
         if (plan != null)
         {
             ImGui.Spacing();
@@ -369,7 +375,7 @@ public sealed class MeldOptimizerPanel
         if (_sweeping)
         {
             ImGui.TextColored(Common.DaedalusTheme.TextSecondary,
-                $"sweeping {snapshot.Pieces.Sum(p => p.SweepableSockets)} XII sockets… (XI overmelds fixed)");
+                $"sweeping {snapshot.Pieces.Sum(p => p.SweepableSockets)} sockets at each piece's best grade… (XI overmelds fixed)");
             return;
         }
 

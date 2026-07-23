@@ -3,6 +3,12 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.39 — 2026-07-23
+
+### Fix — Melding: materia grade requirements read from the game sheets
+- Materia carries a base-item-level requirement (grade XII won't meld into low-ilvl gear — grade XI needs ilvl 690, etc.). The optimizer now reads the per-grade requirement table from the game sheets and sweeps each piece at the **best grade its ilvl can actually hold** — leveling or synced pieces are planned with +18s (or lower) instead of impossible +54s, and high-grade pieces soak the priority stats first. Each piece's tooltip shows its max materia grade, with a yellow note when the ilvl locks it below XII
+
+<!-- LATEST-END -->
 ## v0.1.38 — 2026-07-22
 
 ### New — Meld Optimizer (Analytics → Melding)
