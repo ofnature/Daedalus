@@ -525,17 +525,14 @@ public sealed class MeldOptimizerPanel
             var isRelevant = relevant.Contains(statId);
             var color = isRelevant ? Common.DaedalusTheme.TextPrimary : Common.DaedalusTheme.TextDisabled;
 
-            // Substats display as CHARACTER totals so the table matches the in-game Character
-            // window: the LIVE attribute when available (includes food — field-validated
-            // 2026-07-22), else naked floor + gear. Main attributes stay gear-only.
+            // Everything displays as CHARACTER totals so the table matches the in-game Character
+            // window: the LIVE attribute when available (includes naked base, job/clan modifiers,
+            // traits, food — none gear-derivable), else the best gear-side estimate (floor + gear
+            // for substats, gear-only for mains).
             var isSubstat = Array.IndexOf(GearStatIds.MeldableSubstats, statId) >= 0;
-            var displayTotal = total;
-            if (isSubstat)
-            {
-                displayTotal = snapshot.LiveStats?.TryGetValue(statId, out var liveValue) == true && liveValue > 0
-                    ? liveValue
-                    : total + Data.StatConversions.SubstatFloor(statId, snapshot.Level);
-            }
+            var displayTotal = snapshot.LiveStats?.TryGetValue(statId, out var liveValue) == true && liveValue > 0
+                ? liveValue
+                : isSubstat ? total + Data.StatConversions.SubstatFloor(statId, snapshot.Level) : total;
 
             ImGui.TableNextRow();
             ImGui.TableNextColumn();

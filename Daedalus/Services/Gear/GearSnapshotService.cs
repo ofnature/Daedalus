@@ -112,6 +112,15 @@ public sealed class GearSnapshotService
                     liveStats[statId] = value;
             }
 
+            // Mains too (field report 2026-07-22: ~500 STR/VIT drift = naked base × job modifier
+            // + clan + traits — not derivable from gear, so display the live value).
+            foreach (var statId in GearStatIds.MainStats)
+            {
+                var value = SafeGameAccess.GetPlayerAttribute((int)statId, null);
+                if (value > 0)
+                    liveStats[statId] = value;
+            }
+
             Current = new GearSnapshot(pieces, gender, jobId, DateTime.UtcNow, level,
                 liveStats.Count > 0 ? liveStats : null);
             return Current;

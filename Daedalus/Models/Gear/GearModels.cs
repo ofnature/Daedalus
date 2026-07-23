@@ -46,6 +46,10 @@ public static class GearStatIds
     public static readonly uint[] MeldableSubstats =
         { CriticalHit, Determination, DirectHit, SkillSpeed, SpellSpeed, Tenacity, Piety };
 
+    /// <summary>Main attributes — live-captured for display (base+traits are not gear-derivable).</summary>
+    public static readonly uint[] MainStats =
+        { Strength, Dexterity, Vitality, Intelligence, Mind };
+
     public static string Name(uint statId) => statId switch
     {
         Strength => "STR",
