@@ -16,7 +16,6 @@ All notable changes to Daedalus will be documented in this file.
 - **Optimize Melds** sweeps every grade-XII socket across your job's priority stats — respecting each piece's per-stat caps and treating the two grade-XI overmeld sockets on pentamelded pieces as fixed — and returns ranked plans with a DPS delta vs your current melds. Plan #1 overlays the paperdoll: pieces needing changes get a gold outline and a "meld ↺" chip, and their tooltips list exactly which sockets to change (current → recommended). Speed stats are deliberately valued at zero for non-speed jobs (Balance rule: hold base tier — BLM is the exception and is treated speed-first)
 - The gear snapshot refreshes every 2 seconds while the panel is visible, so re-melding updates everything live
 
-<!-- LATEST-END -->
 ## v0.1.37 — 2026-07-22
 
 ### Fix — Bard: buffed Iron Jaws re-snapshot actually fires now (top-parse audit)
