@@ -117,7 +117,13 @@ public sealed record GearSnapshot(
     uint JobId,
     DateTime CapturedUtc,
     /// <summary>Player level — selects the StatConversions level modifiers. Defaults to cap.</summary>
-    int Level = 100)
+    int Level = 100,
+    /// <summary>
+    /// LIVE character attribute totals (PlayerState) — includes food and every other buff the
+    /// gear model can't see. Preferred for display and GCD tiers; the optimizer still models
+    /// gear + naked floor (its deltas are relative, so flat food bonuses wash out).
+    /// </summary>
+    IReadOnlyDictionary<uint, int>? LiveStats = null)
 {
     public static readonly GearSnapshot Empty =
         new(Array.Empty<GearPiece>(), 0, 0, DateTime.MinValue);

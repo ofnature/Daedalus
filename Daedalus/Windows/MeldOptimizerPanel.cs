@@ -157,6 +157,9 @@ public sealed class MeldOptimizerPanel
         DrawColumn(drawList, origin, size, LeftColumn, pieces, anchors, changedSlots, left: true);
         DrawColumn(drawList, origin, size, RightColumn, pieces, anchors, changedSlots, left: false);
 
+        // The slot InvisibleButtons moved the cursor to the canvas bottom — rewind to the canvas
+        // origin before reserving, or Dummy() stacks a SECOND canvas height of dead space below.
+        ImGui.SetCursorScreenPos(origin);
         ImGui.Dummy(size);
     }
 
@@ -273,7 +276,7 @@ public sealed class MeldOptimizerPanel
             if (sub.Length > 0)
                 drawList.AddText(boxMin + new Vector2(6f, 18f), ImGui.ColorConvertFloat4ToU32(Common.DaedalusTheme.TextSecondary), sub);
             if (suboptimal)
-                drawList.AddText(boxMin + new Vector2(BoxWidth - 58f, 18f), ImGui.ColorConvertFloat4ToU32(Common.DaedalusTheme.AccentGold), "meld ↺");
+                drawList.AddText(boxMin + new Vector2(BoxWidth - 58f, 18f), ImGui.ColorConvertFloat4ToU32(Common.DaedalusTheme.AccentGold), "re-meld");
 
             if (hovered && piece != null)
                 DrawPieceTooltip(piece, suboptimal ? ActivePlan : null);
@@ -359,7 +362,7 @@ public sealed class MeldOptimizerPanel
 
         var canSweep = snapshot.Pieces.Count > 0 && !_sweeping;
         if (!canSweep) ImGui.BeginDisabled();
-        if (ImGui.Button("⚙ Optimize Melds", new Vector2(ImGui.GetContentRegionAvail().X, 26f)))
+        if (ImGui.Button("Optimize Melds", new Vector2(ImGui.GetContentRegionAvail().X, 26f)))
             StartSweep(snapshot);
         if (!canSweep) ImGui.EndDisabled();
 
@@ -437,8 +440,11 @@ public sealed class MeldOptimizerPanel
         }
 
         var aggregate = GearStatAggregator.Aggregate(snapshot);
-        // Character value = naked floor + gear — the tier tables live in character-total terms.
-        var speed = MeldDpsModel.CharacterTotal(aggregate.Totals, speedStat, snapshot.Level);
+        // Tier tables live in character-total terms: prefer the LIVE attribute (food-inclusive),
+        // fall back to naked floor + gear.
+        var speed = snapshot.LiveStats?.TryGetValue(speedStat, out var live) == true && live > 0
+            ? live
+            : MeldDpsModel.CharacterTotal(aggregate.Totals, speedStat, snapshot.Level);
 
         foreach (var tier in Data.GcdBreakpoints.Window(speed, snapshot.Level))
         {
@@ -519,12 +525,17 @@ public sealed class MeldOptimizerPanel
             var isRelevant = relevant.Contains(statId);
             var color = isRelevant ? Common.DaedalusTheme.TextPrimary : Common.DaedalusTheme.TextDisabled;
 
-            // Substats display as CHARACTER totals (naked floor + gear) so the table matches the
-            // in-game Character window; main attributes stay gear-only (their base is race/level).
+            // Substats display as CHARACTER totals so the table matches the in-game Character
+            // window: the LIVE attribute when available (includes food — field-validated
+            // 2026-07-22), else naked floor + gear. Main attributes stay gear-only.
             var isSubstat = Array.IndexOf(GearStatIds.MeldableSubstats, statId) >= 0;
-            var displayTotal = isSubstat
-                ? total + Data.StatConversions.SubstatFloor(statId, snapshot.Level)
-                : total;
+            var displayTotal = total;
+            if (isSubstat)
+            {
+                displayTotal = snapshot.LiveStats?.TryGetValue(statId, out var liveValue) == true && liveValue > 0
+                    ? liveValue
+                    : total + Data.StatConversions.SubstatFloor(statId, snapshot.Level);
+            }
 
             ImGui.TableNextRow();
             ImGui.TableNextColumn();

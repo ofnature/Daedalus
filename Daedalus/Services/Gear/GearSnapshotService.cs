@@ -101,7 +101,19 @@ public sealed class GearSnapshotService
                 level = player.Level;
             }
 
-            Current = new GearSnapshot(pieces, gender, jobId, DateTime.UtcNow, level);
+            // Live PlayerState attributes (food-inclusive) for display + GCD tiers. Field
+            // validation 2026-07-22: gear+floor matched the Character window exactly on Det/DH
+            // but drifted on Crit/Ten by a small flat amount — food, invisible to gear math.
+            var liveStats = new Dictionary<uint, int>();
+            foreach (var statId in GearStatIds.MeldableSubstats)
+            {
+                var value = SafeGameAccess.GetPlayerAttribute((int)statId, null);
+                if (value > 0)
+                    liveStats[statId] = value;
+            }
+
+            Current = new GearSnapshot(pieces, gender, jobId, DateTime.UtcNow, level,
+                liveStats.Count > 0 ? liveStats : null);
             return Current;
         }
         catch (Exception ex)
