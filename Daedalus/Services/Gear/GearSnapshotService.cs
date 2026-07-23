@@ -145,6 +145,22 @@ public sealed class GearSnapshotService
             baseStats[paramId] = existing + value;
         }
 
+        // HQ bonus (field find 2026-07-22: an HQ crafted-then-augmented ring carried +21 Crit /
+        // +15 Ten the sheet-base read missed — the exact drift seen vs the Character window).
+        // HQ deltas live in the parallel BaseParamSpecial/BaseParamValueSpecial columns.
+        if ((invItem->Flags & InventoryItem.ItemFlags.HighQuality) != 0)
+        {
+            for (var i = 0; i < row.BaseParamSpecial.Count; i++)
+            {
+                var paramId = row.BaseParamSpecial[i].RowId;
+                var value = (int)row.BaseParamValueSpecial[i];
+                if (paramId == 0 || value == 0)
+                    continue;
+                baseStats.TryGetValue(paramId, out var existing);
+                baseStats[paramId] = existing + value;
+            }
+        }
+
         // Melds in socket order. Sockets past the sweepable count are the fixed XI overmelds.
         var guaranteed = row.MateriaSlotCount;
         var advanced = row.IsAdvancedMeldingPermitted;

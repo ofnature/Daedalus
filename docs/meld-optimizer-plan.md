@@ -52,8 +52,10 @@ MeldPlan      { per-piece per-socket StatId assignment; StatTotals Totals; float
   plus the first overmeld take XII; overmeld sockets 4/5 only take XI. Therefore the sweep
   covers **all XII sockets (3 on pentameld pieces, otherwise the guaranteed count)**; the two
   XI sockets are tagged `IsFixedOvermeld` and contribute a fixed +18 floor each, never swept.
-- Base stats: Lumina `Item` sheet `BaseParam[]`/`BaseParamValue[]` arrays (+ HQ deltas not needed
-  — endgame gear is always HQ-less/unique; note and ignore).
+- Base stats: Lumina `Item` sheet `BaseParam[]`/`BaseParamValue[]` arrays, PLUS the
+  `BaseParamSpecial[]`/`BaseParamValueSpecial[]` HQ deltas when the inventory item carries the
+  HQ flag. (Original assumption "endgame gear is never HQ" was field-disproven 2026-07-22 by an
+  HQ crafted-then-augmented ring — its +21 Crit/+15 Ten HQ bonus was the Character-window drift.)
 - Gender for silhouette: `IPlayerCharacter.Customize[(int)CustomizeIndex.Gender]` (0 = male,
   1 = female). Job comes from existing Daedalus job state (already wired).
 - Cadence: refresh on window open, then every 2s while the window is open, plus manual refresh
