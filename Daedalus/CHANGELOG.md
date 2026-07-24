@@ -3,6 +3,12 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.41 — 2026-07-23
+
+### Fix — Healer heals under level sync (the real "CNJ isn't healing" root cause)
+- Follow-up field report nailed it: the level-34 Conjurer was **level-synced into a low-level dungeon**, where Cure II is synced out of the kit — but the heal picker chose spells by raw level requirement, so it kept selecting Cure II, the dispatcher rejected the uncastable spell every frame, and the toon "just cast nukes" while the tank sat at 19%. Spell selection is now **sync-aware**: every heal candidate is checked against the game's own learned/usable state (synced-out actions report not-learned), and the Cure II choice explicitly falls back to **Cure I under sync**. All heal tiers (lilies, Regen, AoE) inherit the same gate, so any synced-out heal now degrades to the next available one instead of blocking the queue
+
+<!-- LATEST-END -->
 ## v0.1.40 — 2026-07-23
 
 ### Fix — Low-level WHM/CNJ actually heals now (the overheal veto had no fallback)
@@ -10,7 +16,6 @@ All notable changes to Daedalus will be documented in this file.
 - Companion fix for the all-hardcast low-level kit: if the healer is **moving** with only a cast-time heal available and the target is below the emergency threshold, it now burns **Swiftcast** so the heal goes out instantly instead of waiting for the party to stop walking
 - Trust/Duty Support allies confirmed healable: the target pickers run through the trust-aware party enumeration (NPC allies are found via the object table since the party list is empty in that content), with new regression tests covering the "hurt support-NPC tank, empty party list" shape — and enemies can never be mistaken for heal targets
 
-<!-- LATEST-END -->
 ## v0.1.39 — 2026-07-23
 
 ### Fix — Melding: materia grade requirements read from the game sheets

@@ -129,9 +129,15 @@ public sealed class TieredHealSelectionStrategy : IHealSelectionStrategy
         // to Glare. (Validated log 2026-07-02: Cure I on an 85% tank at Lv.92, twice.)
         if (selectedAction is null)
         {
-            var cureIiUnlocked = context.Player.Level >= WHMActions.CureII.MinLevel;
+            // "Unlocked" must be SYNC-AWARE, not a raw MinLevel check (field report 2026-07-23:
+            // a Lv.34 CNJ synced into a low-level dungeon kept selecting Cure II — synced OUT and
+            // undispatchable — so the scheduler skipped it every frame and Stone fired instead;
+            // the tank sat at 19% unhealed). IsActionLearned reads the ActionManager, which
+            // reports synced-out actions as not learned, so the Cure I branch engages under sync.
+            var cureIiUnlocked = context.Player.Level >= WHMActions.CureII.MinLevel
+                && evaluator.IsActionLearned(WHMActions.CureII.ActionId);
             var gcdHeal = cureIiUnlocked ? WHMActions.CureII : WHMActions.Cure;
-            var tierLabel = cureIiUnlocked ? "Tier 3: Cure II" : "Tier 3: Cure (pre-Lv.30)";
+            var tierLabel = cureIiUnlocked ? "Tier 3: Cure II" : "Tier 3: Cure (pre-Lv.30 or synced)";
 
             var result = evaluator.EvaluateSingleTarget(
                 gcdHeal,

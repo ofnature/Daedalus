@@ -59,6 +59,12 @@ public class SpellCandidateEvaluator
     /// <param name="missingHp">The target's missing HP for overheal prevention. Use 0 to skip overheal check.</param>
     /// <param name="overhealTolerancePercent">Overheal tolerance as percentage (0.02 = 2%). Default 0.02.</param>
     /// <returns>Evaluation result indicating if spell is valid.</returns>
+    /// <summary>
+    /// Sync-aware usability passthrough for strategies choosing BETWEEN spells (e.g. Cure II vs
+    /// Cure I): a raw MinLevel comparison lies under level sync.
+    /// </summary>
+    public bool IsActionLearned(uint actionId) => actionService.IsActionLearned(actionId);
+
     public SpellEvaluationResult EvaluateSingleTarget(
         ActionDefinition action,
         byte playerLevel,
@@ -73,6 +79,16 @@ public class SpellCandidateEvaluator
             var reason = $"Level too low ({playerLevel} < {action.MinLevel})";
             TrackRejected(action, 0, reason);
             return new SpellEvaluationResult { IsValid = false, RejectionReason = reason };
+        }
+
+        // Check learned/usable — catches LEVEL SYNC (a Lv.34 CNJ synced into a Lv.20 dungeon has
+        // Cure II synced OUT; raw MinLevel checks pass but the dispatch fails every frame and the
+        // healer "just casts nukes" — field report 2026-07-23). ActionManager reports 565 for
+        // synced-out actions, so IsActionLearned is the sync-aware gate.
+        if (!actionService.IsActionLearned(action.ActionId))
+        {
+            TrackRejected(action, 0, "Not learned (quest locked or level synced out)");
+            return new SpellEvaluationResult { IsValid = false, RejectionReason = "Not learned (quest locked or level synced out)" };
         }
 
         // Check config enabled
@@ -151,6 +167,13 @@ public class SpellCandidateEvaluator
             var reason = $"Level too low ({playerLevel} < {action.MinLevel})";
             TrackRejected(action, 0, reason);
             return new SpellEvaluationResult { IsValid = false, RejectionReason = reason };
+        }
+
+        // Check learned/usable — sync-aware (see EvaluateSingleTarget; same Lv.34-CNJ field bug).
+        if (!actionService.IsActionLearned(action.ActionId))
+        {
+            TrackRejected(action, 0, "Not learned (quest locked or level synced out)");
+            return new SpellEvaluationResult { IsValid = false, RejectionReason = "Not learned (quest locked or level synced out)" };
         }
 
         // Check config enabled

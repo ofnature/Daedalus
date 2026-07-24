@@ -110,8 +110,35 @@ public class TieredHealSelectionStrategyTests
         Assert.Null(action);
     }
 
+    // ── Level sync (field report 2026-07-23): Lv.34 CNJ synced into a low-level dungeon ──
+    // Cure II passes a raw MinLevel check but is SYNCED OUT — the ActionManager reports it not
+    // learned. The old branch locked onto Cure II anyway; the scheduler rejected it every frame
+    // and the healer "just cast nukes" while the tank sat at 19%.
+
+    [Fact]
+    public void SingleHeal_Lv34_CureIISyncedOut_FallsBackToCureI()
+    {
+        var (action, _, reason) = SelectAt(
+            level: 34, missingHp: 1_300, maxHp: 1_600,
+            notLearned: new[] { WHMActions.CureII.ActionId });
+
+        Assert.NotNull(action);
+        Assert.Equal(WHMActions.Cure.ActionId, action!.ActionId);
+        Assert.Contains("synced", reason);
+    }
+
+    [Fact]
+    public void SingleHeal_Lv34_NothingSyncedOut_StillPrefersCureII()
+    {
+        var (action, _, _) = SelectAt(level: 34, missingHp: 1_300, maxHp: 1_600);
+
+        Assert.NotNull(action);
+        Assert.Equal(WHMActions.CureII.ActionId, action!.ActionId);
+    }
+
     private static (Daedalus.Models.Action.ActionDefinition? action, int healAmount, string reason)
-        SelectAt(byte level, int missingHp, bool mpConservation = false, uint maxHp = 200_000)
+        SelectAt(byte level, int missingHp, bool mpConservation = false, uint maxHp = 200_000,
+            uint[]? notLearned = null)
     {
         var player = MockBuilders.CreateMockPlayerCharacter(level: level);
         var target = new Mock<IBattleChara>();
@@ -120,6 +147,8 @@ public class TieredHealSelectionStrategyTests
 
         var actionService = MockBuilders.CreateMockActionService();
         actionService.Setup(x => x.IsActionReady(It.IsAny<uint>())).Returns(true);
+        foreach (var syncedOutId in notLearned ?? System.Array.Empty<uint>())
+            actionService.Setup(x => x.IsActionLearned(syncedOutId)).Returns(false);
         var enablement = new Mock<ISpellEnablementService>();
         enablement.Setup(x => x.IsSpellEnabled(It.IsAny<uint>())).Returns(true);
         var evaluator = new SpellCandidateEvaluator(actionService.Object, enablement.Object);
