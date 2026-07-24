@@ -13,6 +13,12 @@ namespace Daedalus.Services.Healing.Strategies;
 /// </summary>
 public sealed class TieredHealSelectionStrategy : IHealSelectionStrategy
 {
+    /// <summary>
+    /// Below this HP fraction an overheal-rejected GCD heal fires anyway (see the low-HP
+    /// override in tier 3) — an overheal beats no heal once the target is genuinely hurt.
+    /// </summary>
+    public const float ForcedGcdHealHpPercent = 0.65f;
+
     public string StrategyName => "Tier-Based";
 
     /// <inheritdoc/>
@@ -124,39 +130,44 @@ public sealed class TieredHealSelectionStrategy : IHealSelectionStrategy
         if (selectedAction is null)
         {
             var cureIiUnlocked = context.Player.Level >= WHMActions.CureII.MinLevel;
+            var gcdHeal = cureIiUnlocked ? WHMActions.CureII : WHMActions.Cure;
+            var tierLabel = cureIiUnlocked ? "Tier 3: Cure II" : "Tier 3: Cure (pre-Lv.30)";
 
-            if (cureIiUnlocked)
+            var result = evaluator.EvaluateSingleTarget(
+                gcdHeal,
+                context.Player.Level,
+                context.Mind, context.Det, context.Wd,
+                context.Target,
+                context.MissingHp,
+                context.Config.SingleTargetOverhealTolerance);
+
+            if (result.IsValid && result.Action is not null)
             {
-                var result = evaluator.EvaluateSingleTarget(
-                    WHMActions.CureII,
-                    context.Player.Level,
-                    context.Mind, context.Det, context.Wd,
-                    context.Target,
-                    context.MissingHp,
-                    context.Config.SingleTargetOverhealTolerance);
-
-                if (result.IsValid && result.Action is not null)
-                {
-                    selectedAction = result.Action;
-                    selectedHealAmount = result.HealAmount;
-                    selectionReason = "Tier 3: Cure II";
-                }
+                selectedAction = result.Action;
+                selectedHealAmount = result.HealAmount;
+                selectionReason = tierLabel;
             }
-            else
+            else if (context.HpPercent <= ForcedGcdHealHpPercent)
             {
-                var result = evaluator.EvaluateSingleTarget(
-                    WHMActions.Cure,
+                // LOW-HP OVERRIDE (field report 2026-07-23: a Lv.34 CNJ never healed in dungeons).
+                // The overheal veto assumes lilies/oGCD heals cover small deficits — below Lv.50
+                // NO such tools exist, and at low levels Cure II restores a huge fraction of a
+                // tiny HP pool, so EVERY heal was "overheal" and the healer just DPSed while the
+                // tank dropped. Below this threshold an overhealing GCD heal beats no heal at
+                // any level: re-evaluate with the tolerance wide open.
+                var forced = evaluator.EvaluateSingleTarget(
+                    gcdHeal,
                     context.Player.Level,
                     context.Mind, context.Det, context.Wd,
                     context.Target,
                     context.MissingHp,
-                    context.Config.SingleTargetOverhealTolerance);
+                    overhealTolerancePercent: 100f);
 
-                if (result.IsValid && result.Action is not null)
+                if (forced.IsValid && forced.Action is not null)
                 {
-                    selectedAction = result.Action;
-                    selectedHealAmount = result.HealAmount;
-                    selectionReason = "Tier 3: Cure (pre-Lv.30)";
+                    selectedAction = forced.Action;
+                    selectedHealAmount = forced.HealAmount;
+                    selectionReason = tierLabel + " (forced — low HP, overheal accepted)";
                 }
             }
         }

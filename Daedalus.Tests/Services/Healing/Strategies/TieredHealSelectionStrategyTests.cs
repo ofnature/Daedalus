@@ -75,13 +75,48 @@ public class TieredHealSelectionStrategyTests
         Assert.Contains("Cure", reason);
     }
 
+    // ── Low-HP override (field report 2026-07-23: Lv.34 CNJ never healed in dungeons) ──
+    // Low-level HP pools are tiny relative to Cure II, so EVERY heal tripped the overheal veto —
+    // and pre-50 kits have no lily/oGCD alternative the veto assumes. Below the forced threshold
+    // an overhealing heal must fire anyway.
+
+    [Fact]
+    public void SingleHeal_Lv34_TankAt55Percent_OverhealAccepted()
+    {
+        // Small pool: 5,000 max HP, 2,250 missing (55%). Cure II estimate exceeds the deficit →
+        // old behavior selected NOTHING; the override must force it.
+        var (action, _, reason) = SelectAt(level: 34, missingHp: 2_250, maxHp: 5_000);
+
+        Assert.NotNull(action);
+        Assert.Equal(WHMActions.CureII.ActionId, action!.ActionId);
+        Assert.Contains("forced", reason);
+    }
+
+    [Fact]
+    public void SingleHeal_Lv34_TankAt90Percent_StillSelectsNothing()
+    {
+        // Above the forced threshold the endgame contract holds: topping off is not the GCD's job.
+        var (action, _, _) = SelectAt(level: 34, missingHp: 500, maxHp: 5_000);
+
+        Assert.Null(action);
+    }
+
+    [Fact]
+    public void SingleHeal_Lv92_SmallDeficitHighHp_ForcedPathDoesNotRegress()
+    {
+        // The 2026-07-02 Cure I regression stays fixed: a 99.5% target selects nothing.
+        var (action, _, _) = SelectAt(level: 92, missingHp: 1_000);
+
+        Assert.Null(action);
+    }
+
     private static (Daedalus.Models.Action.ActionDefinition? action, int healAmount, string reason)
-        SelectAt(byte level, int missingHp, bool mpConservation = false)
+        SelectAt(byte level, int missingHp, bool mpConservation = false, uint maxHp = 200_000)
     {
         var player = MockBuilders.CreateMockPlayerCharacter(level: level);
         var target = new Mock<IBattleChara>();
-        target.Setup(x => x.MaxHp).Returns(200_000u);
-        target.Setup(x => x.CurrentHp).Returns((uint)(200_000 - missingHp));
+        target.Setup(x => x.MaxHp).Returns(maxHp);
+        target.Setup(x => x.CurrentHp).Returns((uint)(maxHp - missingHp));
 
         var actionService = MockBuilders.CreateMockActionService();
         actionService.Setup(x => x.IsActionReady(It.IsAny<uint>())).Returns(true);
@@ -97,7 +132,7 @@ public class TieredHealSelectionStrategyTests
             Det = 2000,
             Wd = 130,
             MissingHp = missingHp,
-            HpPercent = (200_000f - missingHp) / 200_000f,
+            HpPercent = (maxHp - (float)missingHp) / maxHp,
             LilyCount = 0,                    // Tier 1 skipped
             BloodLilyCount = 0,
             IsWeaveWindow = false,

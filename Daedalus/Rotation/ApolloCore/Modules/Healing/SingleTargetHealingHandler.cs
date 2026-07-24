@@ -53,7 +53,27 @@ public sealed class SingleTargetHealingHandler : IHealingHandler
         var (action, healAmount) = context.HealingSpellSelector.SelectBestSingleHeal(
             player, target, context.CanExecuteOgcd, context.HasFreecure, hasRegen, regenRemaining, isInMpConservation);
         if (action is null) return;
-        if (isMoving && action.CastTime > 0) return;
+        if (isMoving && action.CastTime > 0 && !context.HasSwiftcast)
+        {
+            // Moving with only a hardcast heal available (the ENTIRE kit below Lv.50 — no oGCD
+            // heals, no lilies): if the target is genuinely endangered, burn Swiftcast so the
+            // heal goes out instant next frame instead of waiting for the party to stop walking
+            // (field report 2026-07-23: Lv.34 CNJ in dungeons).
+            if (context.PartyHelper.GetHpPercent(target) <= context.Configuration.Healing.GcdEmergencyThreshold
+                && player.Level >= RoleActions.Swiftcast.MinLevel
+                && context.ActionService.IsActionReady(RoleActions.Swiftcast.ActionId))
+            {
+                scheduler.PushOgcd(new AbilityBehavior { Action = RoleActions.Swiftcast }, player.GameObjectId,
+                    priority: (int)Priority,
+                    onDispatched: _ =>
+                    {
+                        context.Debug.PlannedAction = "Swiftcast (emergency heal while moving)";
+                        context.Debug.PlanningState = "Single Heal";
+                    });
+            }
+
+            return;
+        }
 
         // GCD-heal gating (RSR GCDHeal parity, healer-role aware): a Co healer leaves non-critical
         // single-target GCD heals to the Main healer / oGCDs to keep DPS uptime. oGCD heals are

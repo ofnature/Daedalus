@@ -3,12 +3,19 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.40 — 2026-07-23
+
+### Fix — Low-level WHM/CNJ actually heals now (the overheal veto had no fallback)
+- A level-34 Conjurer never healed in dungeons: the "don't overheal" rule rejects any GCD heal bigger than the missing HP, assuming lilies and oGCD heals cover small deficits — but below level 50 **no such tools exist**, and at low levels Cure II restores a huge fraction of a tiny HP pool, so *every* heal was rejected as overheal and the healer just kept casting Stone while the tank dropped. New rule: once a target falls below **65% HP**, an overhealing GCD heal fires anyway — an overheal beats no heal at any level. The endgame contract is untouched (topping off a 90% tank is still not the GCD's job)
+- Companion fix for the all-hardcast low-level kit: if the healer is **moving** with only a cast-time heal available and the target is below the emergency threshold, it now burns **Swiftcast** so the heal goes out instantly instead of waiting for the party to stop walking
+- Trust/Duty Support allies confirmed healable: the target pickers run through the trust-aware party enumeration (NPC allies are found via the object table since the party list is empty in that content), with new regression tests covering the "hurt support-NPC tank, empty party list" shape — and enemies can never be mistaken for heal targets
+
+<!-- LATEST-END -->
 ## v0.1.39 — 2026-07-23
 
 ### Fix — Melding: materia grade requirements read from the game sheets
 - Materia carries a base-item-level requirement (grade XII won't meld into low-ilvl gear — grade XI needs ilvl 690, etc.). The optimizer now reads the per-grade requirement table from the game sheets and sweeps each piece at the **best grade its ilvl can actually hold** — leveling or synced pieces are planned with +18s (or lower) instead of impossible +54s, and high-grade pieces soak the priority stats first. Each piece's tooltip shows its max materia grade, with a yellow note when the ilvl locks it below XII
 
-<!-- LATEST-END -->
 ## v0.1.38 — 2026-07-22
 
 ### New — Meld Optimizer (Analytics → Melding)
