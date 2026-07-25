@@ -114,6 +114,12 @@ public sealed class PhantomJobService
     /// <summary>Last action the phantom layer actually fired (sticky, timestamped).</summary>
     public string LayerLastDispatch { get; set; } = "none yet";
 
+    /// <summary>Variant layer's CURRENT state, rewritten every frame — Debug tab readout.</summary>
+    public string VariantLastEvent { get; set; } = "—";
+
+    /// <summary>Last action the variant layer actually fired (sticky, timestamped).</summary>
+    public string VariantLastDispatch { get; set; } = "none yet";
+
     /// <summary>Active phantom job + level from the player's status stacks (combat-path read).</summary>
     public (PhantomJob Job, byte Level) GetActiveJob() => ResolveActiveJobFromPlayer();
 
@@ -161,13 +167,18 @@ public sealed class PhantomJobService
 
     private readonly Dictionary<uint, Daedalus.Models.Action.ActionDefinition> _definitionCache = [];
 
+    /// <summary>Phantom layer's convenience overload.</summary>
+    public Daedalus.Models.Action.ActionDefinition GetActionDefinition(PhantomActionDef def)
+        => GetOrBuildDefinition(def.ActionId, def.Name);
+
     /// <summary>
-    /// Builds (and caches) an ActionDefinition for a phantom action from the Lumina Action
+    /// Builds (and caches) an ActionDefinition for a duty action from the Lumina Action
     /// sheet — cast time, recast, range and GCD/oGCD category come from game data so the
     /// scheduler dispatches through the right path without hand-maintained numbers.
     /// </summary>
-    public Daedalus.Models.Action.ActionDefinition GetActionDefinition(PhantomActionDef def)
+    public Daedalus.Models.Action.ActionDefinition GetOrBuildDefinition(uint defActionId, string defName)
     {
+        var def = (ActionId: defActionId, Name: defName);
         if (_definitionCache.TryGetValue(def.ActionId, out var cached))
             return cached;
 

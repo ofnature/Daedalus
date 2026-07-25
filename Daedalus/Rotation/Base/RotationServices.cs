@@ -27,4 +27,10 @@ public static class RotationServices
     /// (BaseRotation.ExecuteInternal), inert outside the zone.
     /// </summary>
     public static Daedalus.Rotation.Phantom.PhantomActionLayer? PhantomLayer { get; set; }
+
+    /// <summary>
+    /// Variant dungeon duty-action layer — same hook sites as the phantom layer,
+    /// inert outside the five variant territories.
+    /// </summary>
+    public static Daedalus.Rotation.Phantom.VariantActionLayer? VariantLayer { get; set; }
 }

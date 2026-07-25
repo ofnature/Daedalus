@@ -606,6 +606,12 @@ public sealed class Plugin : IDalamudPlugin
             actionService, jobGauges, configuration, phantomJobService, timelineService, errorMetricsService, log,
             burstWindowService);
 
+        // Variant dungeon duty-action executor: Cure pre-empt, Spirit Dart DoT upkeep,
+        // Eagle Eye, Rampart, coordinated Raise (healers-first + shared raise buffer).
+        Daedalus.Rotation.Base.RotationServices.VariantLayer = new Daedalus.Rotation.Phantom.VariantActionLayer(
+            actionService, jobGauges, configuration, phantomJobService, timelineService, errorMetricsService, log,
+            partyCoordinationService);
+
         // Consumable service: inventory probing + recast cooldown + ShouldUseTinctureNow gate.
         // Per-fight inventory-empty warning routed through chatGui.
         this.consumableService = new Daedalus.Services.Consumables.ConsumableService(

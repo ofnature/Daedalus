@@ -106,6 +106,8 @@ public static class OccultTab
         ImGui.Text("Variant Dungeon");
         ImGui.Separator();
         ImGui.TextColored(Green, $"Territory {territoryId} — Variant/Criterion (layer active)");
+        ImGui.Text($"Variant layer: {service.VariantLastEvent}");
+        ImGui.TextColored(Dim, $"Last fired: {service.VariantLastDispatch}");
 
         ImGui.Spacing();
         ImGui.Text("Granted actions (Set statuses)");
