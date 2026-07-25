@@ -18,8 +18,15 @@ public sealed record OccultProgression
     public required byte KnowledgeLevel { get; init; }
     public required uint KnowledgeExp { get; init; }
     public required uint KnowledgeExpNeeded { get; init; }
-    public required ushort Silver { get; init; }
-    public required ushort Gold { get; init; }
+    public required uint Silver { get; init; }
+    public required uint Gold { get; init; }
+
+    /// <summary>
+    /// Diagnostic: raw bytes 0x88–0x9B of OccultCrescentState. The exp fields verify
+    /// correct but the level byte (0x92, KnowledgeLevelSync) read 0 while the game showed
+    /// Lv.18 — this dump identifies the real level byte in the field. Remove once pinned.
+    /// </summary>
+    public required string RawTailBytes { get; init; }
 }
 
 /// <summary>Point-in-time phantom detection state (Phase 1: read-only, nothing fires).</summary>
@@ -106,15 +113,20 @@ public sealed class PhantomJobService
             if (state == null)
                 return null;
 
+            // Diagnostic dump of the level-byte neighborhood (see RawTailBytes docs).
+            var raw = (byte*)state;
+            var tail = new System.Text.StringBuilder(64);
+            for (var off = 0x88; off <= 0x9B; off++)
+                tail.Append(raw[off].ToString("X2")).Append(off == 0x9B ? "" : " ");
+
             return new OccultProgression
             {
-                // KnowledgeLevelSync is the current knowledge level the zone applies —
-                // shown next to the raw exp values so a field check can confirm it.
                 KnowledgeLevel = state->KnowledgeLevelSync,
                 KnowledgeExp = state->CurrentKnowledge,
                 KnowledgeExpNeeded = state->NeededKnowledge,
-                Silver = state->Silver,
-                Gold = state->Gold,
+                Silver = _inventoryProbe.GetItemCount(PhantomJobData.SilverPieceItemId),
+                Gold = _inventoryProbe.GetItemCount(PhantomJobData.GoldPieceItemId),
+                RawTailBytes = tail.ToString(),
             };
         }
         catch (Exception ex)

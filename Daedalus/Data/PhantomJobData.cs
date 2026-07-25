@@ -75,6 +75,12 @@ public static class PhantomJobData
         new(PhantomJob.Dancer,       4805u),
     ];
 
+    // Zone currencies are ITEMS (MKDData CurrencyItem rows) — balances come from the
+    // inventory, not OccultCrescentState (its Silver field read 7628 vs a real balance
+    // of 18 in the field check; only the item counts are authoritative).
+    public const uint SilverPieceItemId = 45043; // Enlightenment Silver Piece
+    public const uint GoldPieceItemId = 45044;   // Enlightenment Gold Piece
+
     // Consumables the phantom actions burn (Chemist actions + Samurai Zeninage).
     // There is NO ether item: the Occult Ether ACTION consumes an Occult Potion — the one
     // item covers both the HP and MP restore actions (field-verified 2026-07-25).
