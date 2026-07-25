@@ -86,8 +86,11 @@ public sealed class PhantomJobService
     /// <summary>True while the player is in an Occult Crescent territory.</summary>
     public bool IsInOccultCrescent => PhantomJobData.OccultTerritoryIds.Contains((ushort)_clientState.TerritoryType);
 
-    /// <summary>Last thing the phantom action layer did (or why it held) — Debug tab readout.</summary>
+    /// <summary>Phantom layer's CURRENT state, rewritten every frame — Debug tab readout.</summary>
     public string LayerLastEvent { get; set; } = "—";
+
+    /// <summary>Last action the phantom layer actually fired (sticky, timestamped).</summary>
+    public string LayerLastDispatch { get; set; } = "none yet";
 
     /// <summary>Active phantom job + level from the player's status stacks (combat-path read).</summary>
     public (PhantomJob Job, byte Level) GetActiveJob() => ResolveActiveJobFromPlayer();

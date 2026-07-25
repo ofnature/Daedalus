@@ -41,6 +41,7 @@ public static class OccultTab
         }
 
         ImGui.Text($"Phantom layer: {service.LayerLastEvent}");
+        ImGui.TextColored(Dim, $"Last fired: {service.LayerLastDispatch}");
 
         if (!snapshot.InOccultCrescent)
             return;

@@ -40,6 +40,7 @@ public sealed class PhantomActionLayer
     private readonly IPluginLog _log;
 
     private readonly Dictionary<uint, AbilityBehavior> _behaviorCache = [];
+    private bool _dispatchedThisFrame;
 
     public PhantomActionLayer(
         ActionService actionService,
@@ -83,9 +84,9 @@ public sealed class PhantomActionLayer
             return;
         }
 
-        if (HasLockoutStatus() && inCombat)
+        if (inCombat && FindLockoutStatus() is { } lockoutId)
         {
-            _phantomJobs.LayerLastEvent = "held — rotation lockout status";
+            _phantomJobs.LayerLastEvent = $"held — lockout status {lockoutId}";
             return;
         }
 
@@ -93,6 +94,7 @@ public sealed class PhantomActionLayer
         var selfHpPct = player.MaxHp > 0 ? (float)player.CurrentHp / player.MaxHp : 1f;
 
         _scheduler.Reset();
+        _dispatchedThisFrame = false;
 
         PushSurvival(ctx, cfg, job, level, selfHpPct, inCombat);
         PushSelfMit(ctx, job, level, selfHpPct, inCombat);
@@ -100,11 +102,19 @@ public sealed class PhantomActionLayer
         PushMpRestore(ctx, cfg, job, level, inCombat);
         PushPartyBuffs(ctx, job, level, inCombat);
 
+        var queued = _scheduler.InspectGcdQueue().Count + _scheduler.InspectOgcdQueue().Count;
+
         // Only leftover capacity: the job's modules dispatched first this frame.
         if (ctx.CanExecuteOgcd)
             _scheduler.DispatchOgcd(ctx);
         if (ctx.CanExecuteGcd && !isMoving)
             _scheduler.DispatchGcd(ctx);
+
+        _phantomJobs.LayerLastEvent = _dispatchedThisFrame
+            ? "dispatched"
+            : queued == 0
+                ? $"idle — nothing eligible ({job} Lv.{level})"
+                : $"waiting — {queued} queued, no free slot";
     }
 
     private void PushSurvival(IRotationContext ctx, Config.PhantomConfig cfg, PhantomJob job, byte level, float selfHpPct, bool inCombat)
@@ -234,7 +244,10 @@ public sealed class PhantomActionLayer
 
         var name = action.Name;
         Action<IRotationContext> onDispatched = _ =>
-            _phantomJobs.LayerLastEvent = $"{DateTime.Now:HH:mm:ss} {name}";
+        {
+            _dispatchedThisFrame = true;
+            _phantomJobs.LayerLastDispatch = $"{DateTime.Now:HH:mm:ss} {name}";
+        };
 
         if (behavior.Action.IsGCD)
             _scheduler.PushGcd(behavior, targetId, priority, onDispatched);
@@ -242,14 +255,14 @@ public sealed class PhantomActionLayer
             _scheduler.PushOgcd(behavior, targetId, priority, onDispatched);
     }
 
-    private bool HasLockoutStatus()
+    private uint? FindLockoutStatus()
     {
         foreach (var statusId in PhantomActions.LockoutStatusIds)
         {
             if (_actionService.PlayerHasStatus(statusId))
-                return true;
+                return statusId;
         }
 
-        return false;
+        return null;
     }
 }
