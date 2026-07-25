@@ -15,19 +15,12 @@ public readonly record struct PhantomItemCount(uint ItemId, string Name, uint Co
 /// <summary>Zone progression read from OccultCrescentState (null when unavailable).</summary>
 public sealed record OccultProgression
 {
+    /// <summary>Current knowledge level, or 0 when unreadable.</summary>
     public required int KnowledgeLevel { get; init; }
-    public required int KnowledgeLevelCap { get; init; }
     public required uint KnowledgeExp { get; init; }
     public required uint KnowledgeExpNeeded { get; init; }
     public required uint Silver { get; init; }
     public required uint Gold { get; init; }
-
-    /// <summary>
-    /// Diagnostic: numeric AtkValues of the MKDInfo zone HUD addon (the panel that
-    /// displays "Knowledge Level 18 ▶ 18"). Used to pin the knowledge-level source if
-    /// the director-inherited GetCurrentLevel path reads 0. Remove once pinned.
-    /// </summary>
-    public required IReadOnlyList<string> MkdInfoValueRows { get; init; }
 }
 
 /// <summary>Point-in-time phantom detection state (Phase 1: read-only, nothing fires).</summary>
@@ -118,20 +111,13 @@ public sealed class PhantomJobService
             if (state == null)
                 return null;
 
-            // The knowledge level is NOT in OccultCrescentState (full-dump field check
-            // 2026-07-25: KnowledgeLevelSync only carries downsync). The director's
-            // inherited ContentDirector level accessors carry the zone level.
-            var levels = ReadDirectorLevels();
-
             return new OccultProgression
             {
-                KnowledgeLevel = levels.Current,
-                KnowledgeLevelCap = levels.Max,
+                KnowledgeLevel = ReadKnowledgeLevel(),
                 KnowledgeExp = state->CurrentKnowledge,
                 KnowledgeExpNeeded = state->NeededKnowledge,
                 Silver = _inventoryProbe.GetItemCount(PhantomJobData.SilverPieceItemId),
                 Gold = _inventoryProbe.GetItemCount(PhantomJobData.GoldPieceItemId),
-                MkdInfoValueRows = ReadMkdInfoValues(),
             };
         }
         catch (Exception ex)
@@ -204,80 +190,59 @@ public sealed class PhantomJobService
         return items;
     }
 
-    private unsafe (int Current, int Max) ReadDirectorLevels()
-    {
-        try
-        {
-            var director = FFXIVClientStructs.FFXIV.Client.Game.InstanceContent.PublicContentOccultCrescent.GetInstance();
-            if (director == null)
-                return (0, 0);
+    // MKDInfo AtkValue layout (field-pinned 2026-07-25, KL 18 Cannoneer Lv.3):
+    // [5] = knowledge level, [10] = current support job row, [17] = support job level.
+    private const int MkdInfoKnowledgeLevelIndex = 5;
+    private const int MaxPlausibleKnowledgeLevel = 99;
 
-            return ((int)director->GetCurrentLevel(), (int)director->GetMaxLevel());
-        }
-        catch (Exception ex)
-        {
-            if (!_progressionReadFaulted)
-            {
-                _progressionReadFaulted = true;
-                _log.Warning(ex, "PhantomJobService: director level read failed");
-            }
-
-            return (0, 0);
-        }
-    }
-
-    private unsafe IReadOnlyList<string> ReadMkdInfoValues()
+    /// <summary>
+    /// Current knowledge level. Primary source is the MKDInfo zone HUD's AtkValues —
+    /// the exact numbers the game renders. Fallback is the director's inherited
+    /// GetMaxLevel(): in the 2026-07-25 field check GetCurrentLevel() returned garbage
+    /// while GetMaxLevel() returned the CURRENT level (18, zone cap was 20) — the pinned
+    /// ClientStructs vtable slots look shifted, so it is fallback only, range-checked.
+    /// </summary>
+    private unsafe int ReadKnowledgeLevel()
     {
         try
         {
             var addonPtr = _gameGui.GetAddonByName("MKDInfo", 1);
-            if (addonPtr.Address == nint.Zero)
-                return ["MKDInfo addon not present"];
-
-            var addon = (FFXIVClientStructs.FFXIV.Component.GUI.AtkUnitBase*)addonPtr.Address;
-            var count = Math.Min((int)addon->AtkValuesCount, 60);
-            if (count == 0)
-                return ["MKDInfo has no AtkValues"];
-
-            var rows = new List<string>(8);
-            var sb = new System.Text.StringBuilder(96);
-            var pairsOnLine = 0;
-            for (var i = 0; i < count; i++)
+            if (addonPtr.Address != nint.Zero)
             {
-                var value = addon->AtkValues[i];
-                var text = value.Type switch
+                var addon = (FFXIVClientStructs.FFXIV.Component.GUI.AtkUnitBase*)addonPtr.Address;
+                if (addon->AtkValuesCount > MkdInfoKnowledgeLevelIndex)
                 {
-                    FFXIVClientStructs.FFXIV.Component.GUI.AtkValueType.Int => value.Int.ToString(),
-                    FFXIVClientStructs.FFXIV.Component.GUI.AtkValueType.UInt => value.UInt.ToString(),
-                    FFXIVClientStructs.FFXIV.Component.GUI.AtkValueType.Bool => value.Byte.ToString(),
-                    _ => null,
-                };
-                if (text == null)
-                    continue;
-
-                sb.Append($"{i}:{text}  ");
-                if (++pairsOnLine == 8)
-                {
-                    rows.Add(sb.ToString());
-                    sb.Clear();
-                    pairsOnLine = 0;
+                    var value = addon->AtkValues[MkdInfoKnowledgeLevelIndex];
+                    var level = value.Type switch
+                    {
+                        FFXIVClientStructs.FFXIV.Component.GUI.AtkValueType.Int => value.Int,
+                        FFXIVClientStructs.FFXIV.Component.GUI.AtkValueType.UInt => (int)value.UInt,
+                        _ => 0,
+                    };
+                    if (level is > 0 and <= MaxPlausibleKnowledgeLevel)
+                        return level;
                 }
             }
 
-            if (sb.Length > 0)
-                rows.Add(sb.ToString());
+            var director = FFXIVClientStructs.FFXIV.Client.Game.InstanceContent.PublicContentOccultCrescent.GetInstance();
+            if (director != null)
+            {
+                var level = (int)director->GetMaxLevel();
+                if (level is > 0 and <= MaxPlausibleKnowledgeLevel)
+                    return level;
+            }
 
-            return rows.Count == 0 ? ["MKDInfo has no numeric AtkValues"] : rows;
+            return 0;
         }
         catch (Exception ex)
         {
             if (!_mkdInfoReadFaulted)
             {
                 _mkdInfoReadFaulted = true;
-                _log.Warning(ex, "PhantomJobService: MKDInfo AtkValue read failed");
+                _log.Warning(ex, "PhantomJobService: knowledge level read failed");
             }
 
-            return ["MKDInfo read failed"];
+            return 0;
         }
     }
 

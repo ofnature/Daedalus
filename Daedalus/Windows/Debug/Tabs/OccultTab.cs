@@ -45,15 +45,13 @@ public static class OccultTab
 
         if (snapshot.Progression is { } prog)
         {
-            ImGui.Text($"Knowledge level: {prog.KnowledgeLevel} / cap {prog.KnowledgeLevelCap}");
+            if (prog.KnowledgeLevel > 0)
+                ImGui.Text($"Knowledge level: {prog.KnowledgeLevel}");
+            else
+                ImGui.TextColored(Yellow, "Knowledge level: unavailable");
             ImGui.SameLine();
             ImGui.TextColored(Dim, $"({prog.KnowledgeExp:N0} / {prog.KnowledgeExpNeeded:N0} exp)");
             ImGui.TextColored(Dim, $"Silver: {prog.Silver}   Gold: {prog.Gold}");
-            // Diagnostic: the MKDInfo HUD's numeric values — pins the level source if the
-            // director accessors read 0.
-            ImGui.TextColored(Dim, "MKDInfo AtkValues (index:value):");
-            foreach (var row in prog.MkdInfoValueRows)
-                ImGui.TextColored(Dim, row);
         }
         else
         {
