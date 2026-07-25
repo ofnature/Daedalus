@@ -18,12 +18,20 @@ public static class VariantBandRules
     /// <summary>Reapply the Spirit Dart DoT when our Sustained Damage has this long left.</summary>
     public const float DartRefreshSeconds = 3f;
 
+    /// <summary>Don't waste the 30s DoT on a target dying sooner than this.</summary>
+    public const float DartMinTtkSeconds = 8f;
+
     public static bool ShouldCure(VariantConfig cfg, float selfHpPct)
         => selfHpPct < cfg.CureHpPct;
 
-    /// <summary>DoT maintenance — never on-cooldown spam (2.5s recast, 30s DoT).</summary>
-    public static bool ShouldMaintainDart(VariantConfig cfg, float dotRemainingSeconds)
-        => cfg.UseSpiritDart && dotRemainingSeconds < DartRefreshSeconds;
+    /// <summary>
+    /// DoT maintenance — never on-cooldown spam (2.5s recast, 30s DoT), and never on a
+    /// target about to die (TTK gate; float.MaxValue = unknown ⇒ fire).
+    /// </summary>
+    public static bool ShouldMaintainDart(VariantConfig cfg, float dotRemainingSeconds, float targetTtkSeconds)
+        => cfg.UseSpiritDart
+           && dotRemainingSeconds < DartRefreshSeconds
+           && targetTtkSeconds >= DartMinTtkSeconds;
 
     public static bool ShouldRampart(VariantConfig cfg, bool inCombat, bool buffActive)
         => cfg.UseRampart && inCombat && (cfg.RampartSpamOnCooldown || !buffActive);

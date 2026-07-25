@@ -610,7 +610,7 @@ public sealed class Plugin : IDalamudPlugin
         // Eagle Eye, Rampart, coordinated Raise (healers-first + shared raise buffer).
         Daedalus.Rotation.Base.RotationServices.VariantLayer = new Daedalus.Rotation.Phantom.VariantActionLayer(
             actionService, jobGauges, configuration, phantomJobService, timelineService, errorMetricsService, log,
-            partyCoordinationService);
+            partyCoordinationService, timeToKillService);
 
         // Consumable service: inventory probing + recast cooldown + ShouldUseTinctureNow gate.
         // Per-fight inventory-empty warning routed through chatGui.

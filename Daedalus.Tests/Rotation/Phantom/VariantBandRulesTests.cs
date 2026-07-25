@@ -23,13 +23,24 @@ public class VariantBandRulesTests
     public void SpiritDart_IsDotMaintenance_NotOnCooldownSpam()
     {
         // DoT missing (0s) or about to fall off → reapply; healthy DoT → hold.
-        Assert.True(VariantBandRules.ShouldMaintainDart(Cfg(), 0f));
-        Assert.True(VariantBandRules.ShouldMaintainDart(Cfg(), 2f));
-        Assert.False(VariantBandRules.ShouldMaintainDart(Cfg(), 25f));
+        Assert.True(VariantBandRules.ShouldMaintainDart(Cfg(), 0f, float.MaxValue));
+        Assert.True(VariantBandRules.ShouldMaintainDart(Cfg(), 2f, float.MaxValue));
+        Assert.False(VariantBandRules.ShouldMaintainDart(Cfg(), 25f, float.MaxValue));
 
         var off = Cfg();
         off.UseSpiritDart = false;
-        Assert.False(VariantBandRules.ShouldMaintainDart(off, 0f));
+        Assert.False(VariantBandRules.ShouldMaintainDart(off, 0f, float.MaxValue));
+    }
+
+    [Fact]
+    public void SpiritDart_TtkGate_SkipsDyingTargets_FailsOpenWhenUnknown()
+    {
+        // Mob dying in 4s: the 30s DoT is a wasted weave.
+        Assert.False(VariantBandRules.ShouldMaintainDart(Cfg(), 0f, targetTtkSeconds: 4f));
+        // Healthy TTK → apply.
+        Assert.True(VariantBandRules.ShouldMaintainDart(Cfg(), 0f, targetTtkSeconds: 30f));
+        // Unknown TTK (MaxValue, e.g. fresh pull with no HP samples yet) → apply.
+        Assert.True(VariantBandRules.ShouldMaintainDart(Cfg(), 0f, targetTtkSeconds: float.MaxValue));
     }
 
     [Fact]

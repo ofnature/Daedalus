@@ -38,6 +38,7 @@ public sealed class VariantActionLayer
     private readonly Configuration _configuration;
     private readonly PhantomJobService _dutyState;
     private readonly IPartyCoordinationService? _partyCoordination;
+    private readonly Daedalus.Services.Combat.ITimeToKillService? _timeToKill;
     private readonly RotationScheduler _scheduler;
     private readonly IPluginLog _log;
 
@@ -55,12 +56,14 @@ public sealed class VariantActionLayer
         ITimelineService? timelineService,
         IErrorMetricsService? errorMetrics,
         IPluginLog log,
-        IPartyCoordinationService? partyCoordination = null)
+        IPartyCoordinationService? partyCoordination = null,
+        Daedalus.Services.Combat.ITimeToKillService? timeToKill = null)
     {
         _actionService = actionService;
         _configuration = configuration;
         _dutyState = dutyState;
         _partyCoordination = partyCoordination;
+        _timeToKill = timeToKill;
         _log = log;
         _scheduler = new RotationScheduler(actionService, jobGauges, configuration, timelineService, errorMetrics);
     }
@@ -183,8 +186,10 @@ public sealed class VariantActionLayer
             return;
 
         // Spirit Dart: DoT maintenance against OUR Sustained Damage on the target
-        // (per-source — another toon's dart never suppresses ours).
-        if (VariantBandRules.ShouldMaintainDart(cfg, GetOwnDotRemaining(ctx, target)))
+        // (per-source — another toon's dart never suppresses ours), TTK-gated so the
+        // 30s DoT never lands on a mob about to die.
+        var ttk = _timeToKill?.GetTtkSeconds(target) ?? float.MaxValue;
+        if (VariantBandRules.ShouldMaintainDart(cfg, GetOwnDotRemaining(ctx, target), ttk))
             TryPush(ctx, VariantAction.SpiritDart, PrioDartAndShot, target.GameObjectId, target);
 
         if (cfg.UseEagleEyeShot)
