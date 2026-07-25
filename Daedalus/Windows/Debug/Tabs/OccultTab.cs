@@ -49,6 +49,11 @@ public static class OccultTab
             ImGui.SameLine();
             ImGui.TextColored(Dim, $"({prog.KnowledgeExp:N0} / {prog.KnowledgeExpNeeded:N0} exp)");
             ImGui.TextColored(Dim, $"Silver: {prog.Silver}   Gold: {prog.Gold}");
+            // Diagnostic: the MKDInfo HUD's numeric values — pins the level source if the
+            // director accessors read 0.
+            ImGui.TextColored(Dim, "MKDInfo AtkValues (index:value):");
+            foreach (var row in prog.MkdInfoValueRows)
+                ImGui.TextColored(Dim, row);
         }
         else
         {

@@ -21,6 +21,13 @@ public sealed record OccultProgression
     public required uint KnowledgeExpNeeded { get; init; }
     public required uint Silver { get; init; }
     public required uint Gold { get; init; }
+
+    /// <summary>
+    /// Diagnostic: numeric AtkValues of the MKDInfo zone HUD addon (the panel that
+    /// displays "Knowledge Level 18 ▶ 18"). Used to pin the knowledge-level source if
+    /// the director-inherited GetCurrentLevel path reads 0. Remove once pinned.
+    /// </summary>
+    public required IReadOnlyList<string> MkdInfoValueRows { get; init; }
 }
 
 /// <summary>Point-in-time phantom detection state (Phase 1: read-only, nothing fires).</summary>
@@ -51,24 +58,28 @@ public sealed class PhantomJobService
     private readonly IObjectTable _objectTable;
     private readonly IDataManager _dataManager;
     private readonly IInventoryProbe _inventoryProbe;
+    private readonly IGameGui _gameGui;
     private readonly IPluginLog _log;
 
     private readonly Dictionary<uint, string> _actionNameCache = [];
     private readonly Dictionary<uint, string> _itemNameCache = [];
     private bool _slotReadFaulted;
     private bool _progressionReadFaulted;
+    private bool _mkdInfoReadFaulted;
 
     public PhantomJobService(
         IClientState clientState,
         IObjectTable objectTable,
         IDataManager dataManager,
         IInventoryProbe inventoryProbe,
+        IGameGui gameGui,
         IPluginLog log)
     {
         _clientState = clientState;
         _objectTable = objectTable;
         _dataManager = dataManager;
         _inventoryProbe = inventoryProbe;
+        _gameGui = gameGui;
         _log = log;
     }
 
@@ -120,6 +131,7 @@ public sealed class PhantomJobService
                 KnowledgeExpNeeded = state->NeededKnowledge,
                 Silver = _inventoryProbe.GetItemCount(PhantomJobData.SilverPieceItemId),
                 Gold = _inventoryProbe.GetItemCount(PhantomJobData.GoldPieceItemId),
+                MkdInfoValueRows = ReadMkdInfoValues(),
             };
         }
         catch (Exception ex)
@@ -211,6 +223,61 @@ public sealed class PhantomJobService
             }
 
             return (0, 0);
+        }
+    }
+
+    private unsafe IReadOnlyList<string> ReadMkdInfoValues()
+    {
+        try
+        {
+            var addonPtr = _gameGui.GetAddonByName("MKDInfo", 1);
+            if (addonPtr.Address == nint.Zero)
+                return ["MKDInfo addon not present"];
+
+            var addon = (FFXIVClientStructs.FFXIV.Component.GUI.AtkUnitBase*)addonPtr.Address;
+            var count = Math.Min((int)addon->AtkValuesCount, 60);
+            if (count == 0)
+                return ["MKDInfo has no AtkValues"];
+
+            var rows = new List<string>(8);
+            var sb = new System.Text.StringBuilder(96);
+            var pairsOnLine = 0;
+            for (var i = 0; i < count; i++)
+            {
+                var value = addon->AtkValues[i];
+                var text = value.Type switch
+                {
+                    FFXIVClientStructs.FFXIV.Component.GUI.AtkValueType.Int => value.Int.ToString(),
+                    FFXIVClientStructs.FFXIV.Component.GUI.AtkValueType.UInt => value.UInt.ToString(),
+                    FFXIVClientStructs.FFXIV.Component.GUI.AtkValueType.Bool => value.Byte.ToString(),
+                    _ => null,
+                };
+                if (text == null)
+                    continue;
+
+                sb.Append($"{i}:{text}  ");
+                if (++pairsOnLine == 8)
+                {
+                    rows.Add(sb.ToString());
+                    sb.Clear();
+                    pairsOnLine = 0;
+                }
+            }
+
+            if (sb.Length > 0)
+                rows.Add(sb.ToString());
+
+            return rows.Count == 0 ? ["MKDInfo has no numeric AtkValues"] : rows;
+        }
+        catch (Exception ex)
+        {
+            if (!_mkdInfoReadFaulted)
+            {
+                _mkdInfoReadFaulted = true;
+                _log.Warning(ex, "PhantomJobService: MKDInfo AtkValue read failed");
+            }
+
+            return ["MKDInfo read failed"];
         }
     }
 

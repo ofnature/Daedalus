@@ -596,7 +596,7 @@ public sealed class Plugin : IDalamudPlugin
 
         // Occult Crescent phantom-job detection (Phase 1: read-only, feeds the Debug Occult tab).
         this.phantomJobService = new Daedalus.Services.Occult.PhantomJobService(
-            clientState, objectTable, dataManager, inventoryProbe, log);
+            clientState, objectTable, dataManager, inventoryProbe, gameGui, log);
 
         // Consumable service: inventory probing + recast cooldown + ShouldUseTinctureNow gate.
         // Per-fight inventory-empty warning routed through chatGui.
