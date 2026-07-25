@@ -21,4 +21,10 @@ public static class RotationServices
 
     /// <summary>BMR safety hints — used by dash guards (Smudge) to veto hazardous landing spots.</summary>
     public static IBossModSafetyService? BossModSafety { get; set; }
+
+    /// <summary>
+    /// Occult Crescent phantom duty-action layer — runs after every job's modules
+    /// (BaseRotation.ExecuteInternal), inert outside the zone.
+    /// </summary>
+    public static Daedalus.Rotation.Phantom.PhantomActionLayer? PhantomLayer { get; set; }
 }

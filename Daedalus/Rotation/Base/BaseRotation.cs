@@ -278,6 +278,10 @@ public abstract class BaseRotation<TContext, TModule> : IRotation, IDisposable
 
         // Execute modules in priority order
         ExecuteModules(context, isMoving, inCombat);
+
+        // Occult Crescent phantom layer — after the job's modules so it only uses
+        // leftover GCD/weave capacity. Inert outside the zone.
+        RotationServices.PhantomLayer?.Execute(context, isMoving, inCombat);
     }
 
     /// <summary>

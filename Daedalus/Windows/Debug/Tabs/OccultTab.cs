@@ -40,6 +40,8 @@ public static class OccultTab
             ImGui.TextColored(Dim, $"(status {snapshot.LevelStatusId}, stacks = {snapshot.Level})");
         }
 
+        ImGui.Text($"Phantom layer: {service.LayerLastEvent}");
+
         if (!snapshot.InOccultCrescent)
             return;
 

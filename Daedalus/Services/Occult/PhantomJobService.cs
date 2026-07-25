@@ -86,6 +86,75 @@ public sealed class PhantomJobService
     /// <summary>True while the player is in an Occult Crescent territory.</summary>
     public bool IsInOccultCrescent => PhantomJobData.OccultTerritoryIds.Contains((ushort)_clientState.TerritoryType);
 
+    /// <summary>Last thing the phantom action layer did (or why it held) — Debug tab readout.</summary>
+    public string LayerLastEvent { get; set; } = "—";
+
+    /// <summary>Active phantom job + level from the player's status stacks (combat-path read).</summary>
+    public (PhantomJob Job, byte Level) GetActiveJob() => ResolveActiveJobFromPlayer();
+
+    /// <summary>Whether an action currently sits on one of the 5 duty-bar slots. Fail closed.</summary>
+    public unsafe bool IsSlotted(uint actionId)
+    {
+        try
+        {
+            for (ushort i = 0; i < DutySlotCount; i++)
+            {
+                if (FFXIVClientStructs.FFXIV.Client.Game.DutyActionManager.GetDutyActionId(i) == actionId)
+                    return true;
+            }
+
+            return false;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    /// <summary>Inventory count for a phantom consumable (Occult Potion / Elixir / Coffer).</summary>
+    public uint GetItemCount(uint itemId) => _inventoryProbe.GetItemCount(itemId);
+
+    private readonly Dictionary<uint, Daedalus.Models.Action.ActionDefinition> _definitionCache = [];
+
+    /// <summary>
+    /// Builds (and caches) an ActionDefinition for a phantom action from the Lumina Action
+    /// sheet — cast time, recast, range and GCD/oGCD category come from game data so the
+    /// scheduler dispatches through the right path without hand-maintained numbers.
+    /// </summary>
+    public Daedalus.Models.Action.ActionDefinition GetActionDefinition(PhantomActionDef def)
+    {
+        if (_definitionCache.TryGetValue(def.ActionId, out var cached))
+            return cached;
+
+        float castTime = 0f, recastTime = 2.5f, range = 0f, radius = 0f;
+        var isGcd = false;
+        var row = _dataManager.GetExcelSheet<Lumina.Excel.Sheets.Action>()?.GetRowOrDefault(def.ActionId);
+        if (row is { } action)
+        {
+            castTime = action.Cast100ms / 10f;
+            recastTime = action.Recast100ms / 10f;
+            range = action.Range < 0 ? 3f : action.Range;
+            radius = action.EffectRange;
+            // ActionCategory rows: 2 = Spell, 3 = Weaponskill (GCDs); 4 = Ability (oGCD).
+            isGcd = action.ActionCategory.RowId is 2 or 3;
+        }
+
+        var built = new Daedalus.Models.Action.ActionDefinition
+        {
+            ActionId = def.ActionId,
+            Name = def.Name,
+            MinLevel = 1, // phantom actions gate on phantom level, not job level
+            Category = isGcd ? Daedalus.Models.Action.ActionCategory.GCD : Daedalus.Models.Action.ActionCategory.oGCD,
+            TargetType = Daedalus.Models.Action.ActionTargetType.Self,
+            CastTime = castTime,
+            RecastTime = recastTime,
+            Range = range,
+            Radius = radius,
+        };
+        _definitionCache[def.ActionId] = built;
+        return built;
+    }
+
     /// <summary>
     /// Builds the current detection snapshot. Call from the framework/draw thread
     /// (reads LocalPlayer and native managers).

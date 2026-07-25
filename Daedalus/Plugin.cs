@@ -598,6 +598,11 @@ public sealed class Plugin : IDalamudPlugin
         this.phantomJobService = new Daedalus.Services.Occult.PhantomJobService(
             clientState, objectTable, dataManager, inventoryProbe, gameGui, log);
 
+        // Phantom duty-action executor (Phase 3): survival/utility/party-buff bands, runs
+        // after every job's modules via BaseRotation. Inert outside Occult Crescent.
+        Daedalus.Rotation.Base.RotationServices.PhantomLayer = new Daedalus.Rotation.Phantom.PhantomActionLayer(
+            actionService, jobGauges, configuration, phantomJobService, timelineService, errorMetricsService, log);
+
         // Consumable service: inventory probing + recast cooldown + ShouldUseTinctureNow gate.
         // Per-fight inventory-empty warning routed through chatGui.
         this.consumableService = new Daedalus.Services.Consumables.ConsumableService(

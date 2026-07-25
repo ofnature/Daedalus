@@ -133,6 +133,23 @@ public static class PhantomActions
         new(46605, "Mesmerize", PhantomJob.Dancer, 4),
     ];
 
+    /// <summary>
+    /// Rotation-critical player statuses that block ALL phantom actions while active
+    /// (RSR HasLockoutStatus parity) — a phantom weave/GCD must never stomp a burst or
+    /// combo window. IDs verified against the RSR StatusID enum.
+    /// </summary>
+    public static readonly IReadOnlyList<uint> LockoutStatusIds =
+    [
+        3670, // Reawakened (VPR)
+        2688, // Overheated (MCH)
+        1177, // Inner Release (WAR)
+        2606, // Eukrasia (SGE)
+        496,  // Mudra (NIN)
+        1186, // Ten Chi Jin (NIN)
+        3866, // Full Metal Field ready (MCH)
+        851,  // Reassembled (MCH)
+    ];
+
     /// <summary>Actions belonging to one phantom job, in unlock order.</summary>
     public static IReadOnlyList<PhantomActionDef> ForJob(PhantomJob job)
     {
