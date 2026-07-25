@@ -133,6 +133,14 @@ public sealed class VariantActionLayer
         // GCD pre-empt: Cure/Raise claim the window ahead of the job's filler.
         if (_actionService.CanExecuteGcd)
             _scheduler.DispatchGcd(ctx);
+
+        // oGCD pre-empt (field report: Spirit Dart starved behind the job's opener weaves
+        // until the pack was nearly dead): variant weaves take the FIRST weave slot. They
+        // are low-frequency (dart ~1/27s, Eagle Eye 1/60s, Rampart per buff cycle) and a
+        // 2,040-potency DoT outranks any single job weave. Real recasts block the
+        // post-pass from double-firing the same candidate.
+        if (_actionService.CanExecuteOgcd)
+            _scheduler.DispatchOgcd(ctx);
     }
 
     private void PushRaise(IRotationContext ctx, Config.VariantConfig cfg)
