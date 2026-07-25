@@ -21,6 +21,7 @@ public sealed class DebugWindow : Window
     private readonly ITimelineService? _timelineService;
     private readonly SmartAoETab? _smartAoETab;
     private readonly Daedalus.Services.Debug.DebugLogService? _debugLogService;
+    private readonly Daedalus.Services.Occult.PhantomJobService? _phantomJobService;
 
     private uint _selectedJobId; // 0 = unset; auto-selects active job on next Draw
 
@@ -80,7 +81,7 @@ public sealed class DebugWindow : Window
         (JobRegistry.BlueMage, JobRegistry.GetJobName(JobRegistry.BlueMage)),
     ];
 
-    public DebugWindow(DebugService debugService, Configuration configuration, ITimelineService? timelineService = null, SmartAoETab? smartAoETab = null, Daedalus.Services.Debug.DebugLogService? debugLogService = null)
+    public DebugWindow(DebugService debugService, Configuration configuration, ITimelineService? timelineService = null, SmartAoETab? smartAoETab = null, Daedalus.Services.Debug.DebugLogService? debugLogService = null, Daedalus.Services.Occult.PhantomJobService? phantomJobService = null)
         : base(Loc.T(LocalizedStrings.Debug.WindowTitle, "Daedalus Debug"), ImGuiWindowFlags.NoSavedSettings)
     {
         _debugService = debugService;
@@ -88,6 +89,7 @@ public sealed class DebugWindow : Window
         _timelineService = timelineService;
         _smartAoETab = smartAoETab;
         _debugLogService = debugLogService;
+        _phantomJobService = phantomJobService;
 
         Size = new Vector2(550, 450);
         SizeCondition = ImGuiCond.FirstUseEver;
@@ -199,6 +201,12 @@ public sealed class DebugWindow : Window
             if (_smartAoETab != null && ImGui.BeginTabItem(Loc.T(LocalizedStrings.Debug.TabSmartAoE, "Smart AoE")))
             {
                 _smartAoETab.Draw(_configuration);
+                ImGui.EndTabItem();
+            }
+
+            if (_phantomJobService != null && ImGui.BeginTabItem("Occult"))
+            {
+                OccultTab.Draw(_phantomJobService);
                 ImGui.EndTabItem();
             }
 

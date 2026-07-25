@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Daedalus — Occult Crescent Phantom Actions (ImGui mockup)</title>
+<style>
+  /* ImGui-dark + Daedalus gold identity approximation (matches meld-optimizer mock) */
+  :root {
+    --win-bg: #1b1b1f; --panel: #242429; --panel2: #2b2b31; --border: #3a3a42;
+    --text: #d8d8de; --dim: #8a8a94; --gold: #d4af5a; --gold-dim: #9a7f42;
+    --green: #7ec97e; --yellow: #e0c66a; --red: #e07a6a; --blue: #7ea8c9;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #121214; font: 13px "Segoe UI", sans-serif; color: var(--text);
+         display: flex; justify-content: center; gap: 20px; flex-wrap: wrap; padding: 24px; }
+  .imgui-window { width: min(560px, 96vw); background: var(--win-bg); align-self: flex-start;
+                  border: 1px solid var(--border); border-radius: 6px; box-shadow: 0 8px 40px #000a; }
+  .titlebar { background: linear-gradient(#2e2e35,#26262c); padding: 6px 10px; font-weight: 600;
+              color: var(--gold); border-bottom: 1px solid var(--border);
+              display: flex; justify-content: space-between; }
+  .titlebar .winbtns { color: var(--dim); letter-spacing: 3px; }
+  .col { display: flex; flex-direction: column; gap: 8px; padding: 8px; }
+  .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 4px; padding: 8px; }
+  .panel-title { color: var(--gold); font-weight: 600; margin-bottom: 6px; font-size: 12px;
+                 text-transform: uppercase; letter-spacing: 1px; }
+  .chip { background: var(--panel2); border: 1px solid var(--gold-dim); color: var(--gold);
+          padding: 1px 8px; border-radius: 10px; font-size: 11.5px; }
+  .chip.dim { border-color: var(--border); color: var(--dim); }
+  .chip.green { border-color: #4a7a4a; color: var(--green); }
+  .chip.red { border-color: #7a4a42; color: var(--red); }
+  .note { color: var(--dim); font-size: 11px; line-height: 1.4; }
+
+  /* ── checkboxes / sliders (visual only) ── */
+  .row { display: flex; align-items: center; gap: 8px; padding: 2px 0; font-size: 12.5px; }
+  .row .lbl { flex: 1; }
+  .cb { width: 15px; height: 15px; border: 1px solid var(--border); border-radius: 2px;
+        background: var(--panel2); cursor: pointer; flex: none; position: relative; }
+  .cb.on { border-color: var(--gold-dim); }
+  .cb.on::after { content: "✓"; color: var(--gold); position: absolute; top: -3px; left: 2px; font-size: 13px; }
+  .slider { width: 150px; height: 15px; background: var(--panel2); border: 1px solid var(--border);
+            border-radius: 2px; position: relative; flex: none; }
+  .slider .fill { position: absolute; inset: 1px auto 1px 1px; background: #4a3d1f; border-radius: 1px; }
+  .slider .val { position: absolute; inset: 0; text-align: center; font-size: 11px; color: var(--text); line-height: 15px; }
+  .combo { background: var(--panel2); border: 1px solid var(--border); border-radius: 2px;
+           padding: 1px 20px 1px 8px; font-size: 11.5px; color: var(--text); position: relative; flex: none; }
+  .combo::after { content: "▾"; color: var(--gold-dim); position: absolute; right: 5px; }
+
+  /* ── collapsible phantom-job groups ── */
+  .group { border: 1px solid var(--border); border-radius: 3px; margin-bottom: 5px; overflow: hidden; }
+  .ghdr { background: var(--panel2); padding: 4px 8px; cursor: pointer; display: flex;
+          align-items: center; gap: 7px; font-size: 12.5px; user-select: none; }
+  .ghdr:hover { background: #33333b; }
+  .ghdr .tri { color: var(--gold-dim); font-size: 10px; width: 10px; }
+  .ghdr .gname { font-weight: 600; }
+  .ghdr .glv { color: var(--dim); font-size: 11px; }
+  .ghdr .active-tag { margin-left: auto; }
+  .gbody { padding: 5px 10px 7px 26px; display: none; border-top: 1px solid var(--border); }
+  .group.open .gbody { display: block; }
+  .group.open .tri::before { content: "▾"; }
+  .group:not(.open) .tri::before { content: "▸"; }
+  .group.inactive .gname { color: var(--dim); }
+  .noopt { color: var(--dim); font-size: 11.5px; font-style: italic; padding: 2px 0; }
+
+  /* ── debug window ── */
+  .kv { display: grid; grid-template-columns: 170px 1fr; gap: 2px 10px; font-size: 12px; }
+  .kv .k { color: var(--dim); }
+  .kv .v.good { color: var(--green); } .kv .v.warn { color: var(--yellow); } .kv .v.off { color: var(--dim); }
+  .slotgrid { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
+  .dslot { background: var(--panel2); border: 1px solid var(--border); border-radius: 3px;
+           padding: 4px 8px; font-size: 11.5px; min-width: 92px; }
+  .dslot .sn { color: var(--text); }
+  .dslot .st { font-size: 10px; color: var(--green); }
+  .dslot.cd .st { color: var(--yellow); }
+  .dslot.empty { border-style: dashed; color: var(--dim); }
+  .deck { display: flex; gap: 6px; margin-top: 4px; }
+  .card { border: 1px solid var(--gold-dim); border-radius: 3px; padding: 5px 7px; font-size: 11px;
+          color: var(--gold); background: #d4af5a11; }
+  .card.played { border-color: var(--border); color: var(--dim); background: none; text-decoration: line-through; }
+  .card.current { border-color: var(--gold); box-shadow: 0 0 6px #d4af5a55; }
+  table.log { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 4px; }
+  table.log td { padding: 1px 6px; border-bottom: 1px solid #2e2e35; color: var(--dim); }
+  table.log td:first-child { color: #6a6a74; white-space: nowrap; }
+  table.log td.act { color: var(--text); }
+  table.log td.band-e { color: var(--red); } table.log td.band-u { color: var(--blue); }
+  table.log td.band-d { color: var(--gold); } table.log td.band-h { color: var(--yellow); }
+</style>
+</head>
+<body>
+
+<!-- ═════════ WINDOW 1: SETTINGS ▸ OCCULT CRESCENT ═════════ -->
+<div class="imgui-window">
+  <div class="titlebar"><span>Daedalus — Settings ▸ Occult Crescent</span><span class="winbtns">— □ ✕</span></div>
+  <div class="col">
+
+    <div class="panel" style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+      <span class="chip green">South Horn</span>
+      <span class="chip">Phantom Oracle&nbsp; Lv.4</span>
+      <span class="note" style="margin-left:auto;">Active phantom job is read from your status — nothing to configure.</span>
+    </div>
+
+    <div class="panel">
+      <div class="row"><div class="cb on" onclick="this.classList.toggle('on')"></div>
+        <div class="lbl"><b>Enable Phantom Actions</b></div></div>
+      <div class="row"><div class="cb on" onclick="this.classList.toggle('on')"></div>
+        <div class="lbl">Save damage actions for burst window</div></div>
+      <div class="note" style="margin:4px 0 0 23px;">Damage-band actions (cannons, spellblades, prediction cards…) only fire
+        inside your main job's burst window. Heals, mits and utility ignore this.<br>
+        Only actions <b>slotted on the duty bar</b> are ever used. Phantom actions never fire while a
+        rotation-critical buff is up (Reassembled, Manafication, Midare-ready…).</div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">Phantom Job Options</div>
+
+      <div class="group inactive"><div class="ghdr" onclick="this.parentElement.classList.toggle('open')">
+        <span class="tri"></span><span class="gname">Freelancer</span><span class="glv">Lv.3</span></div>
+        <div class="gbody">
+          <div class="row"><div class="lbl">Occult Resuscitation below HP%</div>
+            <div class="slider"><div class="fill" style="width:70%"></div><div class="val">70%</div></div></div>
+          <div class="row"><div class="cb" onclick="this.classList.toggle('on')"></div>
+            <div class="lbl">Use Occult Treasuresight</div></div>
+        </div></div>
+
+      <div class="group inactive"><div class="ghdr" onclick="this.parentElement.classList.toggle('open')">
+        <span class="tri"></span><span class="gname">Knight</span><span class="glv">Lv.6 — mastered</span></div>
+        <div class="gbody">
+          <div class="row"><div class="cb" onclick="this.classList.toggle('on')"></div><div class="lbl">Use Pray as a heal</div></div>
+          <div class="row"><div class="cb" onclick="this.classList.toggle('on')"></div><div class="lbl">Pledge on self (off = most-attacked ally)</div></div>
+        </div></div>
+
+      <div class="group inactive"><div class="ghdr" onclick="this.parentElement.classList.toggle('open')">
+        <span class="tri"></span><span class="gname">Monk</span><span class="glv">Lv.5</span></div>
+        <div class="gbody">
+          <div class="row"><div class="lbl">Phantom Kick max range</div>
+            <div class="slider"><div class="fill" style="width:33%"></div><div class="val">5.0y</div></div></div>
+          <div class="row"><div class="lbl">Occult Chakra when MP below</div>
+            <div class="slider"><div class="fill" style="width:30%"></div><div class="val">3000</div></div></div>
+          <div class="row"><div class="lbl">Occult Chakra when HP below</div>
+            <div class="slider"><div class="fill" style="width:30%"></div><div class="val">30%</div></div></div>
+        </div></div>
+
+      <div class="group inactive"><div class="ghdr" onclick="this.parentElement.classList.toggle('open')">
+        <span class="tri"></span><span class="gname">Chemist</span><span class="glv">Lv.4</span></div>
+        <div class="gbody">
+          <div class="row"><div class="cb on" onclick="this.classList.toggle('on')"></div><div class="lbl">Occult Potion on self only</div></div>
+          <div class="row"><div class="lbl">Potion below HP%</div>
+            <div class="slider"><div class="fill" style="width:50%"></div><div class="val">50%</div></div></div>
+          <div class="row"><div class="cb on" onclick="this.classList.toggle('on')"></div><div class="lbl">Occult Ether on self only</div></div>
+          <div class="row"><div class="lbl">Ether below MP</div>
+            <div class="slider"><div class="fill" style="width:20%"></div><div class="val">2000</div></div></div>
+          <div class="row"><div class="lbl">Occult Elixir below party avg HP%</div>
+            <div class="slider"><div class="fill" style="width:30%"></div><div class="val">30%</div></div></div>
+          <div class="note">Potion / Ether / Elixir consume inventory items — counts shown in the Debug ▸ Occult tab.</div>
+        </div></div>
+
+      <div class="group open"><div class="ghdr" onclick="this.parentElement.classList.toggle('open')">
+        <span class="tri"></span><span class="gname">Oracle</span><span class="glv">Lv.4</span>
+        <span class="chip green active-tag">active</span></div>
+        <div class="gbody">
+          <div class="row"><div class="cb on" onclick="this.classList.toggle('on')"></div><div class="lbl">Use Phantom Judgment</div></div>
+          <div class="row"><div class="cb on" onclick="this.classList.toggle('on')"></div><div class="lbl">Use Cleansing</div></div>
+          <div class="row"><div class="cb on" onclick="this.classList.toggle('on')"></div><div class="lbl">Use Blessing</div></div>
+          <div class="row"><div class="cb on" onclick="this.classList.toggle('on')"></div><div class="lbl">Use Starfall</div></div>
+          <div class="row"><div class="cb on" onclick="this.classList.toggle('on')"></div><div class="lbl">Save Invulnerability for Starfall combo</div></div>
+          <div class="row"><div class="lbl">Predict-to-heal: Judgment below party HP%</div>
+            <div class="slider"><div class="fill" style="width:70%"></div><div class="val">70%</div></div></div>
+          <div class="row"><div class="lbl">Predict-to-heal: Blessing below party HP%</div>
+            <div class="slider"><div class="fill" style="width:50%"></div><div class="val">50%</div></div></div>
+          <div class="note">Predict opens a 4-card deck; Daedalus tracks the remaining cards and plays
+            Starfall with a self-Invulnerability when safe. Deck state is visible in Debug ▸ Occult.</div>
+        </div></div>
+
+      <div class="group inactive"><div class="ghdr" onclick="this.parentElement.classList.toggle('open')">
+        <span class="tri"></span><span class="gname">Cannoneer</span><span class="glv">Lv.6 — mastered</span></div>
+        <div class="gbody">
+          <div class="row"><div class="lbl">Preferred cannon (target takes both debuffs)</div><div class="combo">Dark Cannon</div></div>
+          <div class="row"><div class="lbl">Fallback cannon (target immune to both)</div><div class="combo">Dark Cannon</div></div>
+        </div></div>
+
+      <div class="group inactive"><div class="ghdr" onclick="this.parentElement.classList.toggle('open')">
+        <span class="tri"></span><span class="gname">Geomancer</span><span class="glv">Lv.2</span></div>
+        <div class="gbody">
+          <div class="row"><div class="cb" onclick="this.classList.toggle('on')"></div><div class="lbl">Use Suspend in combat</div></div>
+          <div class="row"><div class="cb" onclick="this.classList.toggle('on')"></div><div class="lbl">Use Suspend out of combat</div></div>
+          <div class="note">Weather buffs (Sunbath, Cloudy Caress, Blessed Rain, Aetherial Gain…) are automatic —
+            the game only offers the one matching current weather.</div>
+        </div></div>
+
+      <div class="group inactive"><div class="ghdr" onclick="this.parentElement.classList.toggle('open')">
+        <span class="tri"></span><span class="gname">Bard · Ranger · Samurai · Berserker · Thief · Time Mage · Mystic Knight · Gladiator · Dancer</span></div>
+        <div class="gbody"><div class="noopt">No options — fully automated (buffs kept rolling, interrupts on demand,
+          damage held for burst, procs chained).</div></div></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═════════ WINDOW 2: DEBUG ▸ OCCULT ═════════ -->
+<div class="imgui-window">
+  <div class="titlebar"><span>Daedalus — Debug ▸ Occult</span><span class="winbtns">— □ ✕</span></div>
+  <div class="col">
+
+    <div class="panel">
+      <div class="panel-title">Detection</div>
+      <div class="kv">
+        <span class="k">Territory</span><span class="v good">1252 — South Horn ✓ (layer active)</span>
+        <span class="k">Active phantom job</span><span class="v">Oracle — Lv.4 <span class="note">(status stacks = 4)</span></span>
+        <span class="k">Knowledge level</span><span class="v">21</span>
+        <span class="k">Lockout status</span><span class="v good">none — phantom actions allowed</span>
+        <span class="k">Burst window</span><span class="v warn">inactive — damage band held</span>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">Duty bar — slotted actions (5)</div>
+      <div class="slotgrid">
+        <div class="dslot"><div class="sn">Predict</div><div class="st">ready</div></div>
+        <div class="dslot cd"><div class="sn">Phantom Judgment</div><div class="st">needs prediction</div></div>
+        <div class="dslot cd"><div class="sn">Cleansing</div><div class="st">needs prediction</div></div>
+        <div class="dslot cd"><div class="sn">Starfall</div><div class="st">needs prediction</div></div>
+        <div class="dslot"><div class="sn">Recuperation</div><div class="st">ready</div></div>
+      </div>
+      <div class="note" style="margin-top:5px;">Unslotted actions are never pushed — fail closed.</div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">Oracle prediction deck</div>
+      <div class="kv"><span class="k">Current card</span><span class="v">Prediction of Starfall — 12.3s left</span></div>
+      <div class="deck">
+        <div class="card played">Blessing</div>
+        <div class="card">Cleansing</div>
+        <div class="card">Judgment</div>
+        <div class="card current">Starfall</div>
+      </div>
+      <div class="note" style="margin-top:5px;">Holding Starfall: Invulnerability off cooldown in 4s — will combo.</div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">Consumables</div>
+      <div class="kv">
+        <span class="k">Occult Potion (47741)</span><span class="v">× 12</span>
+        <span class="k">Occult Ether</span><span class="v">× 8</span>
+        <span class="k">Occult Elixir (47743)</span><span class="v warn">× 2 — low</span>
+        <span class="k">Zeninage gil pouch (47740)</span><span class="v off">× 0 — Zeninage disabled</span>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">Recent phantom dispatches</div>
+      <table class="log">
+        <tr><td>12:04:31</td><td class="act">Predict</td><td class="band-d">damage</td><td>GCD free, burst hold lifted</td></tr>
+        <tr><td>12:04:28</td><td class="act">Blessing</td><td class="band-h">heal</td><td>party 46% &lt; 50% threshold</td></tr>
+        <tr><td>12:03:51</td><td class="act">Recuperation</td><td class="band-u">utility</td><td>dispellable on self</td></tr>
+        <tr><td>12:03:12</td><td class="act">—</td><td class="band-e">held</td><td>lockout: Midare ready</td></tr>
+      </table>
+    </div>
+
+  </div>
+</div>
+
+</body>
+</html>

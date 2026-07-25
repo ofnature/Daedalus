@@ -192,6 +192,7 @@ public sealed class Plugin : IDalamudPlugin
     private readonly Daedalus.Services.Content.DutyConfigurationService dutyConfigurationService;
     private readonly Daedalus.Services.Consumables.DalamudInventoryProbe inventoryProbe;
     private readonly Daedalus.Services.Consumables.DalamudTinctureCooldownProbe tinctureCooldownProbe;
+    private readonly Daedalus.Services.Occult.PhantomJobService phantomJobService;
     private readonly Daedalus.Services.Consumables.ConsumableService consumableService;
     private readonly Daedalus.Services.Consumables.TinctureDispatcher tinctureDispatcher;
 
@@ -593,6 +594,10 @@ public sealed class Plugin : IDalamudPlugin
         this.inventoryProbe = new Daedalus.Services.Consumables.DalamudInventoryProbe(errorMetricsService);
         this.tinctureCooldownProbe = new Daedalus.Services.Consumables.DalamudTinctureCooldownProbe(errorMetricsService);
 
+        // Occult Crescent phantom-job detection (Phase 1: read-only, feeds the Debug Occult tab).
+        this.phantomJobService = new Daedalus.Services.Occult.PhantomJobService(
+            clientState, objectTable, dataManager, inventoryProbe, log);
+
         // Consumable service: inventory probing + recast cooldown + ShouldUseTinctureNow gate.
         // Per-fight inventory-empty warning routed through chatGui.
         this.consumableService = new Daedalus.Services.Consumables.ConsumableService(
@@ -668,7 +673,7 @@ public sealed class Plugin : IDalamudPlugin
         if (lanPartyWindow != null)
             this.mainWindow.OpenLanParty = () => lanPartyWindow.Toggle();
         var smartAoETab = new SmartAoETab(aoeTracker, drawCanvas, objectTable);
-        this.debugWindow = new DebugWindow(debugService, configuration, timelineService, smartAoETab, debugLogService);
+        this.debugWindow = new DebugWindow(debugService, configuration, timelineService, smartAoETab, debugLogService, phantomJobService);
         this.welcomeWindow = new WelcomeWindow(configuration, SaveConfiguration, OpenConfigUI);
         this.analyticsWindow = new AnalyticsWindow(performanceTracker, configuration, SaveConfiguration, fflogsService, fightSummaryService, meldOptimizerPanel);
         this.trainingWindow = new TrainingWindow(trainingService, configuration, decisionValidationService, spacedRepetitionService);
