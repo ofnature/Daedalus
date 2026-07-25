@@ -87,6 +87,35 @@ public class PhantomBandRulesTests
         Assert.False(PhantomBandRules.ShouldPray(cfg, 0.95f));
     }
 
+    // ── Phase 4: damage band ──
+
+    [Fact]
+    public void DamageHold_OnlyHoldsWhenBurstDataExists()
+    {
+        // Solo field farming: no burst window ever observed (-1) → never hold.
+        Assert.False(PhantomBandRules.ShouldHoldDamage(saveForBurst: true, inBurstWindow: false, secondsSinceLastBurstStart: -1f));
+        // Burst data exists and we're between windows → hold.
+        Assert.True(PhantomBandRules.ShouldHoldDamage(saveForBurst: true, inBurstWindow: false, secondsSinceLastBurstStart: 45f));
+        // Inside the window → fire.
+        Assert.False(PhantomBandRules.ShouldHoldDamage(saveForBurst: true, inBurstWindow: true, secondsSinceLastBurstStart: 0f));
+        // Config off → never hold.
+        Assert.False(PhantomBandRules.ShouldHoldDamage(saveForBurst: false, inBurstWindow: false, secondsSinceLastBurstStart: 45f));
+    }
+
+    [Fact]
+    public void Steal_IsAnExecute_Below25Percent()
+    {
+        Assert.True(PhantomBandRules.ShouldSteal(0.20f));
+        Assert.False(PhantomBandRules.ShouldSteal(0.30f));
+    }
+
+    [Fact]
+    public void PhantomKick_RespectsConfiguredDashCap()
+    {
+        Assert.True(PhantomBandRules.ShouldPhantomKick(distanceYalms: 4f, maxRangeYalms: 5f));
+        Assert.False(PhantomBandRules.ShouldPhantomKick(distanceYalms: 9f, maxRangeYalms: 5f));
+    }
+
     [Fact]
     public void LockoutStatusList_CoversTheRsrParitySet()
     {

@@ -30,18 +30,23 @@ public sealed class PhantomActionLayer
     private const int PrioInterrupt = 30;
     private const int PrioMpRestore = 40;
     private const int PrioPartyBuff = 50;
+    private const int PrioDamage = 300;
 
     private const float InterruptMeleeRangeYalms = 5f;
+    private const float RangeBufferYalms = 0.5f;
 
     private readonly ActionService _actionService;
     private readonly Configuration _configuration;
     private readonly PhantomJobService _phantomJobs;
+    private readonly IBurstWindowService? _burstWindows;
     private readonly RotationScheduler _scheduler;
     private readonly IPluginLog _log;
 
     private readonly Dictionary<uint, AbilityBehavior> _behaviorCache = [];
     private readonly List<string> _pushRejects = [];
     private bool _dispatchedThisFrame;
+    private bool _framePrepared;
+    private bool _isMovingThisFrame;
 
     public PhantomActionLayer(
         ActionService actionService,
@@ -50,29 +55,70 @@ public sealed class PhantomActionLayer
         PhantomJobService phantomJobs,
         ITimelineService? timelineService,
         IErrorMetricsService? errorMetrics,
-        IPluginLog log)
+        IPluginLog log,
+        IBurstWindowService? burstWindows = null)
     {
         _actionService = actionService;
         _configuration = configuration;
         _phantomJobs = phantomJobs;
+        _burstWindows = burstWindows;
         _log = log;
         _scheduler = new RotationScheduler(actionService, jobGauges, configuration, timelineService, errorMetrics);
     }
 
-    /// <summary>Runs once per frame after the job modules. Never throws.</summary>
-    public void Execute(IRotationContext ctx, bool isMoving, bool inCombat)
+    /// <summary>
+    /// Runs BEFORE the job's modules: collects every band and pre-empts the GCD window
+    /// for phantom GCDs (damage GCDs and emergency heal GCDs would otherwise starve —
+    /// the job rotation wins every window; RSR checks duty actions first the same way).
+    /// Never throws.
+    /// </summary>
+    public void ExecutePreModules(IRotationContext ctx, bool isMoving, bool inCombat)
     {
         try
         {
-            ExecuteCore(ctx, isMoving, inCombat);
+            _framePrepared = false;
+            PreModulesCore(ctx, isMoving, inCombat);
         }
         catch (Exception ex)
         {
-            _log.Warning(ex, "PhantomActionLayer: execute failed");
+            _log.Warning(ex, "PhantomActionLayer: pre-modules failed");
         }
     }
 
-    private void ExecuteCore(IRotationContext ctx, bool isMoving, bool inCombat)
+    /// <summary>
+    /// Runs AFTER the job's modules: dispatches queued phantom oGCDs into leftover
+    /// weave slots (job weaves outrank phantom weaves). Never throws.
+    /// </summary>
+    public void ExecutePostModules(IRotationContext ctx, bool isMoving, bool inCombat)
+    {
+        try
+        {
+            if (!_framePrepared)
+                return;
+
+            // Live ActionService state — the context's CanExecute flags are frozen at
+            // context creation, before the job's modules consumed their slots.
+            if (_actionService.CanExecuteOgcd)
+                _scheduler.DispatchOgcd(ctx);
+            if (_actionService.CanExecuteGcd)
+                _scheduler.DispatchGcd(ctx);
+
+            var queued = _scheduler.InspectGcdQueue().Count + _scheduler.InspectOgcdQueue().Count;
+            _phantomJobs.LayerLastEvent = _dispatchedThisFrame
+                ? "dispatched"
+                : queued > 0
+                    ? $"waiting — {queued} queued, no free slot"
+                    : _pushRejects.Count > 0
+                        ? $"blocked — {_pushRejects[0]}"
+                        : "idle — nothing eligible";
+        }
+        catch (Exception ex)
+        {
+            _log.Warning(ex, "PhantomActionLayer: post-modules failed");
+        }
+    }
+
+    private void PreModulesCore(IRotationContext ctx, bool isMoving, bool inCombat)
     {
         var cfg = _configuration.Occult;
         if (!cfg.EnablePhantomActions || !_phantomJobs.IsInOccultCrescent)
@@ -96,31 +142,22 @@ public sealed class PhantomActionLayer
 
         _scheduler.Reset();
         _dispatchedThisFrame = false;
+        _isMovingThisFrame = isMoving;
         _pushRejects.Clear();
+        _framePrepared = true;
 
         PushSurvival(ctx, cfg, job, level, selfHpPct, inCombat);
         PushSelfMit(ctx, job, level, selfHpPct, inCombat);
         PushInterrupts(ctx, job, level, inCombat);
         PushMpRestore(ctx, cfg, job, level, inCombat);
         PushPartyBuffs(ctx, job, level, inCombat);
+        PushDamage(ctx, cfg, job, level, inCombat);
 
-        var queued = _scheduler.InspectGcdQueue().Count + _scheduler.InspectOgcdQueue().Count;
-
-        // Only leftover capacity: the job's modules dispatched first this frame.
-        if (ctx.CanExecuteOgcd)
-            _scheduler.DispatchOgcd(ctx);
-        if (ctx.CanExecuteGcd && !isMoving)
+        // GCD pre-empt: phantom GCDs (emergency heals first, then damage) claim the GCD
+        // window before the job's filler. Big phantom cooldowns pace this to ~1 GCD per
+        // 30-60s. The oGCD queue waits for post-modules leftover weave slots.
+        if (_actionService.CanExecuteGcd)
             _scheduler.DispatchGcd(ctx);
-
-        // Distinguish "no rule triggered" from "rule triggered but the action was
-        // rejected" — the latter names the reason (not slotted / cooldown).
-        _phantomJobs.LayerLastEvent = _dispatchedThisFrame
-            ? "dispatched"
-            : queued > 0
-                ? $"waiting — {queued} queued, no free slot"
-                : _pushRejects.Count > 0
-                    ? $"blocked — {_pushRejects[0]}"
-                    : $"idle — nothing eligible ({job} Lv.{level})";
     }
 
     private void PushSurvival(IRotationContext ctx, Config.PhantomConfig cfg, PhantomJob job, byte level, float selfHpPct, bool inCombat)
@@ -219,11 +256,94 @@ public sealed class PhantomActionLayer
         }
     }
 
+    private void PushDamage(IRotationContext ctx, Config.PhantomConfig cfg, PhantomJob job, byte level, bool inCombat)
+    {
+        if (!inCombat)
+            return;
+
+        var target = ctx.TargetingService.GetUserEnemyTarget() ?? ctx.Player.TargetObject as IBattleChara;
+        if (target is null || target.IsDead)
+            return;
+
+        var targetHpPct = target.MaxHp > 0 ? (float)target.CurrentHp / target.MaxHp : 1f;
+        var distance = System.Numerics.Vector3.Distance(ctx.Player.Position, target.Position) - target.HitboxRadius;
+
+        // Executes / non-scaling utility fire regardless of the burst hold (RSR parity).
+        if (job == PhantomJob.Thief && PhantomBandRules.ShouldSteal(targetHpPct))
+            TryPush(ctx, 41645, job, level, PrioDamage, target.GameObjectId, target); // Steal
+
+        var hold = PhantomBandRules.ShouldHoldDamage(
+            cfg.SaveDamageForBurst,
+            _burstWindows?.IsInBurstWindow ?? false,
+            _burstWindows?.SecondsSinceLastBurstStart ?? -1f);
+        if (hold)
+        {
+            _pushRejects.Add("damage held for burst window");
+            return;
+        }
+
+        switch (job)
+        {
+            case PhantomJob.Berserker:
+                TryPush(ctx, 41592, job, level, PrioDamage, target.GameObjectId, target);     // Rage
+                TryPush(ctx, 41594, job, level, PrioDamage + 1, target.GameObjectId, target); // Deadly Blow
+                break;
+
+            case PhantomJob.Samurai:
+                if (_phantomJobs.GetItemCount(PhantomJobData.ZeninageCofferItemId) > 0)
+                    TryPush(ctx, 41606, job, level, PrioDamage, target.GameObjectId, target); // Zeninage
+                TryPush(ctx, 41605, job, level, PrioDamage + 1, target.GameObjectId, target); // Iainuki
+                break;
+
+            case PhantomJob.Cannoneer:
+                TryPush(ctx, 41630, job, level, PrioDamage, target.GameObjectId, target);     // Silver Cannon
+                if (cfg.CannoneerPreferDarkCannon)
+                {
+                    TryPush(ctx, 41628, job, level, PrioDamage + 1, target.GameObjectId, target); // Dark
+                    TryPush(ctx, 41629, job, level, PrioDamage + 2, target.GameObjectId, target); // Shock
+                }
+                else
+                {
+                    TryPush(ctx, 41629, job, level, PrioDamage + 1, target.GameObjectId, target);
+                    TryPush(ctx, 41628, job, level, PrioDamage + 2, target.GameObjectId, target);
+                }
+                TryPush(ctx, 41627, job, level, PrioDamage + 3, target.GameObjectId, target); // Holy Cannon
+                TryPush(ctx, 41626, job, level, PrioDamage + 4, target.GameObjectId, target); // Phantom Fire
+                break;
+
+            case PhantomJob.MysticKnight:
+                TryPush(ctx, 46593, job, level, PrioDamage, target.GameObjectId, target);     // Blazing Spellblade
+                TryPush(ctx, 46592, job, level, PrioDamage + 1, target.GameObjectId, target); // Holy Spellblade
+                TryPush(ctx, 46591, job, level, PrioDamage + 2, target.GameObjectId, target); // Sundering Spellblade
+                break;
+
+            case PhantomJob.Gladiator:
+                TryPush(ctx, 46594, job, level, PrioDamage, target.GameObjectId, target);     // Finisher
+                TryPush(ctx, 46596, job, level, PrioDamage + 1, target.GameObjectId, target); // Long Reach
+                TryPush(ctx, 46597, job, level, PrioDamage + 2, target.GameObjectId, target); // Bladeblitz
+                break;
+
+            case PhantomJob.Monk:
+                if (PhantomBandRules.ShouldPhantomKick(distance, cfg.MonkKickMaxRangeYalms))
+                    TryPush(ctx, 41595, job, level, PrioDamage, target.GameObjectId, target); // Phantom Kick
+                break;
+
+            case PhantomJob.TimeMage:
+                TryPush(ctx, 41623, job, level, PrioDamage, target.GameObjectId, target);     // Occult Comet
+                break;
+
+            case PhantomJob.Thief:
+                TryPush(ctx, 41649, job, level, PrioDamage + 5, target.GameObjectId, target); // Pilfer Weapon
+                break;
+        }
+    }
+
     /// <summary>
     /// Common per-action gates (catalog membership, phantom level, duty-bar slot,
-    /// cooldown) and the actual scheduler push. Target 0 = self.
+    /// cooldown, range, cast-while-moving) and the actual scheduler push. Target 0 = self.
     /// </summary>
-    private void TryPush(IRotationContext ctx, uint actionId, PhantomJob job, byte level, int priority, ulong targetId = 0)
+    private void TryPush(IRotationContext ctx, uint actionId, PhantomJob job, byte level, int priority,
+        ulong targetId = 0, IBattleChara? rangeTarget = null)
     {
         PhantomActionDef? found = null;
         foreach (var def in PhantomActions.All)
@@ -257,6 +377,23 @@ public sealed class PhantomActionLayer
         {
             behavior = new AbilityBehavior { Action = _phantomJobs.GetActionDefinition(action) };
             _behaviorCache[actionId] = behavior;
+        }
+
+        if (behavior.Action.CastTime > 0 && _isMovingThisFrame)
+        {
+            _pushRejects.Add($"{action.Name} needs a hard cast (moving)");
+            return;
+        }
+
+        if (rangeTarget is not null && behavior.Action.Range > 0)
+        {
+            var dist = System.Numerics.Vector3.Distance(ctx.Player.Position, rangeTarget.Position)
+                       - rangeTarget.HitboxRadius;
+            if (dist > behavior.Action.Range + RangeBufferYalms)
+            {
+                _pushRejects.Add($"{action.Name} out of range");
+                return;
+            }
         }
 
         var name = action.Name;

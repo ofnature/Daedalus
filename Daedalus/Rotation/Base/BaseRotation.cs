@@ -276,12 +276,16 @@ public abstract class BaseRotation<TContext, TModule> : IRotation, IDisposable
         // Update debug state from all modules (skip if debug window closed for performance)
         UpdateModuleDebugStates(context);
 
+        // Occult Crescent phantom layer, pre-pass: collects candidates and pre-empts the
+        // GCD window for phantom GCDs (emergency heals, damage-band cooldowns) — the job
+        // rotation would otherwise win every window. Inert outside the zone.
+        RotationServices.PhantomLayer?.ExecutePreModules(context, isMoving, inCombat);
+
         // Execute modules in priority order
         ExecuteModules(context, isMoving, inCombat);
 
-        // Occult Crescent phantom layer — after the job's modules so it only uses
-        // leftover GCD/weave capacity. Inert outside the zone.
-        RotationServices.PhantomLayer?.Execute(context, isMoving, inCombat);
+        // Phantom layer, post-pass: queued phantom oGCDs into leftover weave slots.
+        RotationServices.PhantomLayer?.ExecutePostModules(context, isMoving, inCombat);
     }
 
     /// <summary>

@@ -60,8 +60,10 @@ public sealed class OccultSection
             "Save damage actions for burst window",
             () => config.Occult.SaveDamageForBurst,
             v => config.Occult.SaveDamageForBurst = v,
-            "Damage phantom actions (cannons, spellblades, prediction cards…) only fire inside " +
-            "the main job's burst window. Heals, mitigation and utility ignore this.",
+            "Damage phantom actions (cannons, spellblades…) only fire inside the main job's " +
+            "burst window. Only applies when burst data exists (raid buffs seen this session) — " +
+            "solo farming with no burst windows fires damage actions on cooldown. Heals, " +
+            "mitigation, utility and executes ignore this.",
             save);
 
         ImGui.Spacing();

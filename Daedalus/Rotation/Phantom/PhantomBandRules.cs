@@ -41,4 +41,21 @@ public static class PhantomBandRules
 
     public static bool ShouldPray(PhantomConfig cfg, float selfHpPct)
         => cfg.KnightPrayAsHeal && selfHpPct < PrayHpPct;
+
+    /// <summary>Thief Steal is an execute — fire on low-HP targets regardless of burst.</summary>
+    public const float StealTargetHpPct = 0.25f;
+
+    public static bool ShouldSteal(float targetHpPct) => targetHpPct < StealTargetHpPct;
+
+    /// <summary>
+    /// Damage-band burst hold. Only holds when burst data actually EXISTS
+    /// (a burst window has been observed: <paramref name="secondsSinceLastBurstStart"/> ≥ 0) —
+    /// solo field farming with no raid buffs must never starve the damage band.
+    /// </summary>
+    public static bool ShouldHoldDamage(bool saveForBurst, bool inBurstWindow, float secondsSinceLastBurstStart)
+        => saveForBurst && !inBurstWindow && secondsSinceLastBurstStart >= 0f;
+
+    /// <summary>Phantom Kick dashes to the target — cap the dash distance (config).</summary>
+    public static bool ShouldPhantomKick(float distanceYalms, float maxRangeYalms)
+        => distanceYalms <= maxRangeYalms;
 }
