@@ -357,11 +357,10 @@ public sealed class PhantomActionLayer
 
         if (found is not { } action || action.Job != job)
             return;
+        // Below the phantom-level unlock = the action simply isn't learned yet — not a
+        // fixable blocker, so it doesn't pollute the "blocked" readout.
         if (level < action.RequiredLevel)
-        {
-            _pushRejects.Add($"{found.Value.Name} needs phantom Lv.{action.RequiredLevel}");
             return;
-        }
         if (!_phantomJobs.IsSlotted(actionId))
         {
             _pushRejects.Add($"{action.Name} not on duty bar");
