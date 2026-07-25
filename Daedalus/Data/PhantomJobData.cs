@@ -76,20 +76,19 @@ public static class PhantomJobData
     ];
 
     // Consumables the phantom actions burn (Chemist actions + Samurai Zeninage).
-    // OccultEtherItemId is inferred (RSR tracks no ether item — its debug view reuses the
-    // potion item); the Debug tab shows the Lumina item name so a wrong ID is self-evident.
-    public const uint ZeninageItemId = 47740;
+    // There is NO ether item: the Occult Ether ACTION consumes an Occult Potion — the one
+    // item covers both the HP and MP restore actions (field-verified 2026-07-25).
+    // Zeninage consumes an Occult Coffer.
+    public const uint ZeninageCofferItemId = 47740;
     public const uint OccultPotionItemId = 47741;
-    public const uint OccultEtherItemId = 47742;
     public const uint OccultElixirItemId = 47743;
 
     /// <summary>Item IDs surfaced in the Debug ▸ Occult consumables block.</summary>
     public static readonly IReadOnlyList<uint> ConsumableItemIds =
     [
         OccultPotionItemId,
-        OccultEtherItemId,
         OccultElixirItemId,
-        ZeninageItemId,
+        ZeninageCofferItemId,
     ];
 
     /// <summary>

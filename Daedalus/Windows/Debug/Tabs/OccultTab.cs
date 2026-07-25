@@ -43,6 +43,18 @@ public static class OccultTab
         if (!snapshot.InOccultCrescent)
             return;
 
+        if (snapshot.Progression is { } prog)
+        {
+            ImGui.Text($"Knowledge level: {prog.KnowledgeLevel}");
+            ImGui.SameLine();
+            ImGui.TextColored(Dim, $"({prog.KnowledgeExp:N0} / {prog.KnowledgeExpNeeded:N0} exp)");
+            ImGui.TextColored(Dim, $"Silver: {prog.Silver}   Gold: {prog.Gold}");
+        }
+        else
+        {
+            ImGui.TextColored(Yellow, "Knowledge level: unavailable (state read failed)");
+        }
+
         ImGui.Spacing();
         ImGui.Text("Duty bar — slotted actions");
         ImGui.Separator();
@@ -74,5 +86,7 @@ public static class OccultTab
             else
                 ImGui.Text($"{item.Name} ({item.ItemId}): × {item.Count}");
         }
+
+        ImGui.TextColored(Dim, "Occult Potion feeds BOTH Chemist restores (Occult Potion + Occult Ether actions).");
     }
 }

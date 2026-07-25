@@ -12,6 +12,16 @@ public readonly record struct PhantomSlot(uint ActionId, string Name);
 /// <summary>A tracked occult consumable with its live inventory count.</summary>
 public readonly record struct PhantomItemCount(uint ItemId, string Name, uint Count);
 
+/// <summary>Zone progression read from OccultCrescentState (null when unavailable).</summary>
+public sealed record OccultProgression
+{
+    public required byte KnowledgeLevel { get; init; }
+    public required uint KnowledgeExp { get; init; }
+    public required uint KnowledgeExpNeeded { get; init; }
+    public required ushort Silver { get; init; }
+    public required ushort Gold { get; init; }
+}
+
 /// <summary>Point-in-time phantom detection state (Phase 1: read-only, nothing fires).</summary>
 public sealed record PhantomStateSnapshot
 {
@@ -22,6 +32,7 @@ public sealed record PhantomStateSnapshot
     public required uint LevelStatusId { get; init; }
     public required IReadOnlyList<PhantomSlot> DutySlots { get; init; }
     public required IReadOnlyList<PhantomItemCount> Items { get; init; }
+    public required OccultProgression? Progression { get; init; }
 }
 
 /// <summary>
@@ -44,6 +55,7 @@ public sealed class PhantomJobService
     private readonly Dictionary<uint, string> _actionNameCache = [];
     private readonly Dictionary<uint, string> _itemNameCache = [];
     private bool _slotReadFaulted;
+    private bool _progressionReadFaulted;
 
     public PhantomJobService(
         IClientState clientState,
@@ -82,7 +94,39 @@ public sealed class PhantomJobService
             LevelStatusId = PhantomJobData.GetLevelStatusId(job),
             DutySlots = inZone ? ReadDutySlots() : Array.Empty<PhantomSlot>(),
             Items = inZone ? ReadItemCounts() : Array.Empty<PhantomItemCount>(),
+            Progression = inZone ? ReadProgression() : null,
         };
+    }
+
+    private unsafe OccultProgression? ReadProgression()
+    {
+        try
+        {
+            var state = FFXIVClientStructs.FFXIV.Client.Game.InstanceContent.PublicContentOccultCrescent.GetState();
+            if (state == null)
+                return null;
+
+            return new OccultProgression
+            {
+                // KnowledgeLevelSync is the current knowledge level the zone applies —
+                // shown next to the raw exp values so a field check can confirm it.
+                KnowledgeLevel = state->KnowledgeLevelSync,
+                KnowledgeExp = state->CurrentKnowledge,
+                KnowledgeExpNeeded = state->NeededKnowledge,
+                Silver = state->Silver,
+                Gold = state->Gold,
+            };
+        }
+        catch (Exception ex)
+        {
+            if (!_progressionReadFaulted)
+            {
+                _progressionReadFaulted = true;
+                _log.Warning(ex, "PhantomJobService: OccultCrescentState read failed");
+            }
+
+            return null;
+        }
     }
 
     private (PhantomJob Job, byte Level) ResolveActiveJobFromPlayer()

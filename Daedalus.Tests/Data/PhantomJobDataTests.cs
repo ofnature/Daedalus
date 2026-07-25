@@ -90,11 +90,15 @@ public class PhantomJobDataTests
     }
 
     [Fact]
-    public void ConsumableItemIds_MatchRsrVerifiedIds()
+    public void ConsumableItemIds_MatchFieldVerifiedIds()
     {
-        Assert.Contains(47740u, PhantomJobData.ConsumableItemIds); // Zeninage gil pouch
-        Assert.Contains(47741u, PhantomJobData.ConsumableItemIds); // Occult Potion
-        Assert.Contains(47743u, PhantomJobData.ConsumableItemIds); // Occult Elixir
+        // Field-verified 2026-07-25 (Lumina names in Debug tab): 47740 Occult Coffer (Zeninage),
+        // 47741 Occult Potion, 47743 Occult Elixir. There is NO ether item — the Occult Ether
+        // ACTION consumes an Occult Potion, so exactly three consumables exist.
+        Assert.Equal(3, PhantomJobData.ConsumableItemIds.Count);
+        Assert.Contains(47740u, PhantomJobData.ConsumableItemIds);
+        Assert.Contains(47741u, PhantomJobData.ConsumableItemIds);
+        Assert.Contains(47743u, PhantomJobData.ConsumableItemIds);
     }
 
     [Fact]
