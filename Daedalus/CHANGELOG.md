@@ -3,6 +3,16 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.43 — 2026-07-25
+
+### New — Variant dungeon duty actions (V&C Dungeon Finder)
+- Daedalus now plays your **Variant Actions** in Variant/Criterion dungeons (Sil'dihn, Mount Rokkon, Aloalo Island, The Merchant's Tale). Detection is automatic: the two actions you picked in the Dungeon Finder are read from the instance's granted statuses, and only actions actually slotted on the duty bar are used — per-dungeon action IDs resolve on their own
+- **Variant Cure** fires instantly when you drop below the HP threshold (slider, default 60%), briefly borrowing the GCD from your filler. **Variant Spirit Dart** is maintained as a proper DoT — applied on pull, refreshed just before it falls off, tracked per-source so a partner's dart never suppresses yours, and **skipped on mobs about to die** (time-to-kill gate). **Variant Eagle Eye Shot** fires on cooldown; **Variant Rampart** keeps its 20% reduction up (optional recast-on-cooldown mode); **Variant Ultimatum** is off by default (only your main tank wants an AoE provoke)
+- **Variant Raise with party smarts**: a dead healer is always raised — even mid-combat (healers can't slot Variant Raise, so a DPS or tank is their lifeline). Dead DPS/tanks are left to a living healer's own raise instead of burning the 8-second cast; the variant raise only picks them up when no healer is alive. Every cast reserves the corpse through party coordination (LAN included), so two toons never double-raise the same body
+- Variant weaves take the **first available weave slot** rather than waiting behind the main job's cooldowns — a 2,040-potency DoT outranks any single job weave
+- Settings gains a **Variant** section (BEHAVIOR): per-action toggles and thresholds, which roles can select each action in the Finder, and live SELECTED chips in-instance. The Debug window's **Duty** tab shows granted actions, slots, and what the layer is doing
+
+<!-- LATEST-END -->
 ## v0.1.42 — 2026-07-25
 
 ### New — Occult Crescent phantom job automation (South Horn)
@@ -16,7 +26,6 @@ All notable changes to Daedalus will be documented in this file.
 - A compact **zone HUD** auto-opens in South Horn: phantom job + level, knowledge level with exp, silver/gold, consumable counts — and a ★ banner the moment you can afford a locked job's soul shard, with the vendor's map location. Closes itself when you leave; toggleable in settings
 - The Debug window's new **Occult tab** shows live detection state and what the phantom layer is doing (or exactly why it's holding)
 
-<!-- LATEST-END -->
 ## v0.1.41 — 2026-07-23
 
 ### Fix — Healer heals under level sync (the real "CNJ isn't healing" root cause)
