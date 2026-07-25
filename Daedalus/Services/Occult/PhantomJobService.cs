@@ -22,10 +22,12 @@ public sealed record OccultProgression
     public required uint Gold { get; init; }
 
     /// <summary>
-    /// Diagnostic: raw OccultCrescentState bytes in 16-byte rows (offset-labelled).
-    /// The exp fields verify correct but the level byte (0x92, KnowledgeLevelSync) read 0
-    /// and 0x88–0x9B held no 0x12 while the game showed Lv.18 — full dump to locate the
-    /// real level byte and the support-job level array. Remove once pinned.
+    /// Diagnostic: the 2026-07-25 full-state dump verified every mapped field (exp, job
+    /// exp/level arrays, current job 09=Cannoneer) but NO byte held the in-game knowledge
+    /// level (18) — KnowledgeLevelSync is only the downsync value. The level must live in
+    /// the unmapped director space after the state block (state ends at +0x9C; the
+    /// director's loaded-flag sits at state+0x265), so scan that span for candidate
+    /// bytes matching the level and show each with context. Remove once pinned.
     /// </summary>
     public required IReadOnlyList<string> RawDumpRows { get; init; }
 }
@@ -114,19 +116,30 @@ public sealed class PhantomJobService
             if (state == null)
                 return null;
 
-            // Diagnostic dump (see RawDumpRows docs). Declared struct size is 0x9C; the
-            // extra margin to 0xC0 is safe — State is embedded mid-object in the much
-            // larger PublicContentOccultCrescent, so these reads stay in-allocation.
+            // Diagnostic scan (see RawDumpRows docs). State sits at director+0x3138 and the
+            // director's StateLoaded flag is at +0x339D, so state+0x00..+0x265 is provably
+            // in-allocation. Report every 0x12 (=18, the in-game knowledge level during the
+            // field check) past the mapped 0x9C block, with a 16-byte context row each.
             var raw = (byte*)state;
-            var rows = new List<string>(12);
-            for (var rowStart = 0x00; rowStart < 0xC0; rowStart += 16)
+            var rows = new List<string>(8);
+            for (var off = 0x9C; off < 0x260; off++)
             {
-                var sb = new System.Text.StringBuilder(60);
-                sb.Append($"0x{rowStart:X2}: ");
+                if (raw[off] != 0x12)
+                    continue;
+
+                var ctxStart = off & ~0xF;
+                var sb = new System.Text.StringBuilder(72);
+                sb.Append($"hit +0x{off:X3} | 0x{ctxStart:X3}: ");
                 for (var i = 0; i < 16; i++)
-                    sb.Append(raw[rowStart + i].ToString("X2")).Append(i == 15 ? "" : " ");
+                    sb.Append(raw[ctxStart + i].ToString("X2")).Append(i == 15 ? "" : " ");
                 rows.Add(sb.ToString());
+
+                if (rows.Count >= 8)
+                    break;
             }
+
+            if (rows.Count == 0)
+                rows.Add("no 0x12 byte in state+0x9C..0x260 — level is stored elsewhere");
 
             return new OccultProgression
             {

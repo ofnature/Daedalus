@@ -49,8 +49,8 @@ public static class OccultTab
             ImGui.SameLine();
             ImGui.TextColored(Dim, $"({prog.KnowledgeExp:N0} / {prog.KnowledgeExpNeeded:N0} exp)");
             ImGui.TextColored(Dim, $"Silver: {prog.Silver}   Gold: {prog.Gold}");
-            // Diagnostic until the real level byte is pinned (0x92 read 0 vs in-game Lv.18).
-            ImGui.TextColored(Dim, "OccultCrescentState raw dump:");
+            // Diagnostic until the real level byte is pinned (struct itself holds no 0x12).
+            ImGui.TextColored(Dim, "Knowledge-level byte scan (looking for 0x12 = 18):");
             foreach (var row in prog.RawDumpRows)
                 ImGui.TextColored(Dim, row);
         }
