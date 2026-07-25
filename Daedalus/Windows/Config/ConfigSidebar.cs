@@ -19,6 +19,7 @@ public enum ConfigSection
     RoleActions,
     Consumables,
     Occult,
+    Variant,
 
     // Healers
     HealerShared,
@@ -79,7 +80,7 @@ public sealed class ConfigSidebar
     private static readonly Vector4 SelectedAccent = Daedalus.Windows.Common.DaedalusTheme.AccentGold;
     private static readonly Vector4 SearchMatchColor = Daedalus.Windows.Common.DaedalusTheme.StatusYellow;
 
-    private static readonly ConfigSection[] BehaviorSections    = [ConfigSection.General, ConfigSection.Targeting, ConfigSection.RoleActions, ConfigSection.Consumables, ConfigSection.Occult, ConfigSection.Timeline];
+    private static readonly ConfigSection[] BehaviorSections    = [ConfigSection.General, ConfigSection.Targeting, ConfigSection.RoleActions, ConfigSection.Consumables, ConfigSection.Occult, ConfigSection.Variant, ConfigSection.Timeline];
     private static readonly ConfigSection[] VisualsSections     = [ConfigSection.Display, ConfigSection.DrawHelper, ConfigSection.ActionFeed, ConfigSection.DebugDisplay];
     private static readonly ConfigSection[] MultiplayerSections = [ConfigSection.PartyCoordination];
     private static readonly ConfigSection[] HealerSections   = [ConfigSection.HealerShared, ConfigSection.WhiteMage, ConfigSection.Scholar, ConfigSection.Astrologian, ConfigSection.Sage];
@@ -151,6 +152,7 @@ public sealed class ConfigSidebar
             sectionChanged |= DrawNavItemFiltered(Loc.T(LocalizedStrings.Sidebar.RoleActions, "Role Actions"), ConfigSection.RoleActions, null, matchingSections, hasSearch);
             sectionChanged |= DrawNavItemFiltered(Loc.T(LocalizedStrings.Consumables.ConsumablesNav, "Consumables"), ConfigSection.Consumables, null, matchingSections, hasSearch);
             sectionChanged |= DrawNavItemFiltered("Occult Crescent", ConfigSection.Occult, null, matchingSections, hasSearch);
+            sectionChanged |= DrawNavItemFiltered("Variant", ConfigSection.Variant, null, matchingSections, hasSearch);
             sectionChanged |= DrawNavItemFiltered(Loc.T(LocalizedStrings.Sidebar.Timeline, "Timeline"), ConfigSection.Timeline, null, matchingSections, hasSearch);
             ImGui.Spacing();
         }

@@ -77,12 +77,15 @@ Daedalus/
 
 | Action | Band | Rule | Config |
 |--------|------|------|--------|
-| Variant Cure | emergency GCD (pre-empt) | self HP < threshold; non-healers only get offered it anyway | threshold slider (default 60%) |
-| Variant Rampart | self-mit oGCD | in combat, not already under its Vulnerability Down | "spam on cooldown" toggle (default off, RSR parity) |
-| Variant Spirit Dart | damage oGCD | on cooldown at the current target (it's the whole reason tanks/healers slot it) | enable (default on) |
-| Variant Eagle Eye Shot | damage oGCD | on cooldown at the current target | enable (default on) |
-| Variant Raise / Raise II | recovery GCD | dead party member present; hard cast — holds while moving | enable (default on) |
-| Variant Ultimatum | utility oGCD | **default OFF** — multibox parties only want the MT provoking; when enabled, fires on cooldown in combat | enable toggle |
+| Variant Cure | emergency GCD (pre-empt) | self HP < threshold; INSTANT, 14,000 potency + regen (doubled under Rehabilitation) | threshold slider (default 60%) |
+| Variant Rampart | self-mit oGCD | in combat, not already under its 60s Vulnerability Down (15s recast → can be permanent) | "spam on cooldown" toggle (default off, RSR parity) |
+| Variant Spirit Dart | damage oGCD | **DoT maintenance, NOT on-cooldown** (2.5s recast would spam): apply when the current target lacks Sustained Damage (30s), hold while it ticks, reapply on expiry — AoE application covers nearby mobs (5y radius). FindEnemyNeedingDot house pattern | enable (default on) |
+| Variant Eagle Eye Shot | damage oGCD | on cooldown at the current target (60s recast, potency scales with item level) | enable (default on) |
+| Variant Raise / Raise II | recovery GCD | dead party member present; **8s hard cast on its OWN recast timer** — holds while moving | enable (default on) |
+| Variant Ultimatum | utility oGCD | **default OFF** — multibox parties only want the MT provoking; 15s recast, 5y AoE provoke + 4s stun | enable toggle |
+
+Tooltip-verified (2026-07-25 screenshots): Cure/Raise are Spells (GCDs), the rest are
+Abilities (oGCDs) — matching the Lumina ActionCategory classification the layer already uses.
 
 Damage actions here do NOT use the occult burst-hold (they're low-impact weaves with their
 own recasts; RSR fires them freely).

@@ -204,7 +204,7 @@ public sealed class DebugWindow : Window
                 ImGui.EndTabItem();
             }
 
-            if (_phantomJobService != null && ImGui.BeginTabItem("Occult"))
+            if (_phantomJobService != null && ImGui.BeginTabItem("Duty"))
             {
                 OccultTab.Draw(_phantomJobService);
                 ImGui.EndTabItem();

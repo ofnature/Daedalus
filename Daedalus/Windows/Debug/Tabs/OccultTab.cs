@@ -6,10 +6,9 @@ using Daedalus.Services.Occult;
 namespace Daedalus.Windows.Debug.Tabs;
 
 /// <summary>
-/// Occult tab: Occult Crescent phantom-job detection readout (Phase 1 of
-/// docs/occult-phantom-plan.md). Shows territory gate, active phantom job + level
-/// (with the raw status the level was read from), duty-bar slots, and consumable
-/// counts — the field-verification surface before any phantom action ever fires.
+/// Duty tab: duty-action layer diagnostics. Occult Crescent phantom-job detection
+/// (docs/occult-phantom-plan.md) plus the Variant dungeon block
+/// (docs/variant-actions-plan.md) — the field-verification surface for both layers.
 /// </summary>
 public static class OccultTab
 {
@@ -20,6 +19,12 @@ public static class OccultTab
     public static void Draw(PhantomJobService service)
     {
         var snapshot = service.GetSnapshot();
+
+        if (service.IsInVariantDungeon)
+        {
+            DrawVariantBlock(service, snapshot.TerritoryId);
+            return;
+        }
 
         ImGui.Text("Detection");
         ImGui.Separator();
@@ -94,5 +99,48 @@ public static class OccultTab
         }
 
         ImGui.TextColored(Dim, "Occult Potion feeds BOTH Chemist restores (Occult Potion + Occult Ether actions).");
+    }
+
+    private static void DrawVariantBlock(PhantomJobService service, ushort territoryId)
+    {
+        ImGui.Text("Variant Dungeon");
+        ImGui.Separator();
+        ImGui.TextColored(Green, $"Territory {territoryId} — Variant/Criterion (layer active)");
+
+        ImGui.Spacing();
+        ImGui.Text("Granted actions (Set statuses)");
+        ImGui.Separator();
+
+        foreach (var def in Daedalus.Data.VariantActionData.All)
+        {
+            if (def.Kind == Daedalus.Data.VariantAction.RaiseII && !service.PlayerHasStatus(def.SetStatusId))
+                continue; // shares Raise's Set status; only shown when granted
+
+            var selected = service.PlayerHasStatus(def.SetStatusId);
+            if (selected)
+                ImGui.TextColored(Green, $"{def.Name} — SELECTED (status {def.SetStatusId})");
+            else
+                ImGui.TextColored(Dim, $"{def.Name} — not selected");
+        }
+
+        ImGui.Spacing();
+        ImGui.Text("Duty bar — slotted actions");
+        ImGui.Separator();
+
+        var slots = service.GetDutySlotIds();
+        if (slots.Length == 0)
+        {
+            ImGui.TextColored(Yellow, "Slot read unavailable (failed closed)");
+        }
+        else
+        {
+            for (var i = 0; i < slots.Length; i++)
+            {
+                if (slots[i] == 0)
+                    ImGui.TextColored(Dim, $"Slot {i + 1}: empty");
+                else
+                    ImGui.Text($"Slot {i + 1}: {service.ResolveActionName(slots[i])} ({slots[i]})");
+            }
+        }
     }
 }

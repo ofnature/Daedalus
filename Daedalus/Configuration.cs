@@ -190,6 +190,9 @@ public sealed class Configuration : IPluginConfiguration
     // Occult Crescent phantom actions
     public PhantomConfig Occult { get; set; } = new();
 
+    // Variant dungeon duty actions
+    public VariantConfig Variant { get; set; } = new();
+
     // Role-specific configuration - Tanks
     public TankConfig Tank { get; set; } = new();
 

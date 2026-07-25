@@ -86,6 +86,28 @@ public sealed class PhantomJobService
     /// <summary>True while the player is in an Occult Crescent territory.</summary>
     public bool IsInOccultCrescent => PhantomJobData.OccultTerritoryIds.Contains((ushort)_clientState.TerritoryType);
 
+    /// <summary>True while the player is in a Variant/Criterion dungeon territory.</summary>
+    public bool IsInVariantDungeon => VariantActionData.VariantTerritoryIds.Contains((ushort)_clientState.TerritoryType);
+
+    /// <summary>
+    /// Player status check (Set statuses, DoT/buff gates). Same scan the tank-swap and
+    /// Soteria readers use; false when the player is unavailable.
+    /// </summary>
+    public bool PlayerHasStatus(uint statusId)
+    {
+        var player = _objectTable.LocalPlayer;
+        if (player?.StatusList == null)
+            return false;
+
+        foreach (var status in player.StatusList)
+        {
+            if (status != null && status.StatusId == statusId)
+                return true;
+        }
+
+        return false;
+    }
+
     /// <summary>Phantom layer's CURRENT state, rewritten every frame — Debug tab readout.</summary>
     public string LayerLastEvent { get; set; } = "—";
 
@@ -375,6 +397,9 @@ public sealed class PhantomJobService
             return 0;
         }
     }
+
+    /// <summary>Public Lumina action-name lookup (Debug Duty tab slot display).</summary>
+    public string ResolveActionName(uint actionId) => GetActionName(actionId);
 
     private string GetActionName(uint actionId)
     {
