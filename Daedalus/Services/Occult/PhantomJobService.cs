@@ -15,21 +15,12 @@ public readonly record struct PhantomItemCount(uint ItemId, string Name, uint Co
 /// <summary>Zone progression read from OccultCrescentState (null when unavailable).</summary>
 public sealed record OccultProgression
 {
-    public required byte KnowledgeLevel { get; init; }
+    public required int KnowledgeLevel { get; init; }
+    public required int KnowledgeLevelCap { get; init; }
     public required uint KnowledgeExp { get; init; }
     public required uint KnowledgeExpNeeded { get; init; }
     public required uint Silver { get; init; }
     public required uint Gold { get; init; }
-
-    /// <summary>
-    /// Diagnostic: the 2026-07-25 full-state dump verified every mapped field (exp, job
-    /// exp/level arrays, current job 09=Cannoneer) but NO byte held the in-game knowledge
-    /// level (18) — KnowledgeLevelSync is only the downsync value. The level must live in
-    /// the unmapped director space after the state block (state ends at +0x9C; the
-    /// director's loaded-flag sits at state+0x265), so scan that span for candidate
-    /// bytes matching the level and show each with context. Remove once pinned.
-    /// </summary>
-    public required IReadOnlyList<string> RawDumpRows { get; init; }
 }
 
 /// <summary>Point-in-time phantom detection state (Phase 1: read-only, nothing fires).</summary>
@@ -116,39 +107,19 @@ public sealed class PhantomJobService
             if (state == null)
                 return null;
 
-            // Diagnostic scan (see RawDumpRows docs). State sits at director+0x3138 and the
-            // director's StateLoaded flag is at +0x339D, so state+0x00..+0x265 is provably
-            // in-allocation. Report every 0x12 (=18, the in-game knowledge level during the
-            // field check) past the mapped 0x9C block, with a 16-byte context row each.
-            var raw = (byte*)state;
-            var rows = new List<string>(8);
-            for (var off = 0x9C; off < 0x260; off++)
-            {
-                if (raw[off] != 0x12)
-                    continue;
-
-                var ctxStart = off & ~0xF;
-                var sb = new System.Text.StringBuilder(72);
-                sb.Append($"hit +0x{off:X3} | 0x{ctxStart:X3}: ");
-                for (var i = 0; i < 16; i++)
-                    sb.Append(raw[ctxStart + i].ToString("X2")).Append(i == 15 ? "" : " ");
-                rows.Add(sb.ToString());
-
-                if (rows.Count >= 8)
-                    break;
-            }
-
-            if (rows.Count == 0)
-                rows.Add("no 0x12 byte in state+0x9C..0x260 — level is stored elsewhere");
+            // The knowledge level is NOT in OccultCrescentState (full-dump field check
+            // 2026-07-25: KnowledgeLevelSync only carries downsync). The director's
+            // inherited ContentDirector level accessors carry the zone level.
+            var levels = ReadDirectorLevels();
 
             return new OccultProgression
             {
-                KnowledgeLevel = state->KnowledgeLevelSync,
+                KnowledgeLevel = levels.Current,
+                KnowledgeLevelCap = levels.Max,
                 KnowledgeExp = state->CurrentKnowledge,
                 KnowledgeExpNeeded = state->NeededKnowledge,
                 Silver = _inventoryProbe.GetItemCount(PhantomJobData.SilverPieceItemId),
                 Gold = _inventoryProbe.GetItemCount(PhantomJobData.GoldPieceItemId),
-                RawDumpRows = rows,
             };
         }
         catch (Exception ex)
@@ -219,6 +190,28 @@ public sealed class PhantomJobService
         }
 
         return items;
+    }
+
+    private unsafe (int Current, int Max) ReadDirectorLevels()
+    {
+        try
+        {
+            var director = FFXIVClientStructs.FFXIV.Client.Game.InstanceContent.PublicContentOccultCrescent.GetInstance();
+            if (director == null)
+                return (0, 0);
+
+            return ((int)director->GetCurrentLevel(), (int)director->GetMaxLevel());
+        }
+        catch (Exception ex)
+        {
+            if (!_progressionReadFaulted)
+            {
+                _progressionReadFaulted = true;
+                _log.Warning(ex, "PhantomJobService: director level read failed");
+            }
+
+            return (0, 0);
+        }
     }
 
     private string GetActionName(uint actionId)

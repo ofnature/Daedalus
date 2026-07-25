@@ -45,14 +45,10 @@ public static class OccultTab
 
         if (snapshot.Progression is { } prog)
         {
-            ImGui.Text($"Knowledge level: {prog.KnowledgeLevel}");
+            ImGui.Text($"Knowledge level: {prog.KnowledgeLevel} / cap {prog.KnowledgeLevelCap}");
             ImGui.SameLine();
             ImGui.TextColored(Dim, $"({prog.KnowledgeExp:N0} / {prog.KnowledgeExpNeeded:N0} exp)");
             ImGui.TextColored(Dim, $"Silver: {prog.Silver}   Gold: {prog.Gold}");
-            // Diagnostic until the real level byte is pinned (struct itself holds no 0x12).
-            ImGui.TextColored(Dim, "Knowledge-level byte scan (looking for 0x12 = 18):");
-            foreach (var row in prog.RawDumpRows)
-                ImGui.TextColored(Dim, row);
         }
         else
         {
