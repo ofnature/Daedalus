@@ -652,7 +652,7 @@ public sealed class Plugin : IDalamudPlugin
         this.drawCanvas = new DrawCanvas(drawingService, configuration, objectTable, clientState, targetManager, gameGui, positionalService, rotationManager, partyList);
         this.updateCheckerService = new UpdateCheckerService(PluginVersion, notificationManager, log);
         this.configWindow = new ConfigWindow(configuration, SaveConfiguration, updateCheckerService, textureProvider, dutyContentService,
-            new Daedalus.Services.Plugins.PluginStatusService(pluginInterface));
+            new Daedalus.Services.Plugins.PluginStatusService(pluginInterface), phantomJobService);
         this.controlWindow = new ControlWindow(configuration, SaveConfiguration, rotationManager, textureProvider);
         this.navControlWindow = new NavControlWindow(configuration, SaveConfiguration, bmrAiConfigService, movementArbiter, castMovementHoldService);
         this.meldOptimizerPanel = new MeldOptimizerPanel(gearSnapshotService, jobId =>

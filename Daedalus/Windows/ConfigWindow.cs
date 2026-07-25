@@ -74,9 +74,10 @@ public sealed class ConfigWindow : Window
     private readonly TimelineSection timelineSection;
     private readonly PartyCoordinationSection partyCoordinationSection;
     private readonly ConsumablesSection consumablesSection;
+    private readonly OccultSection occultSection;
     private readonly DebugDisplaySection debugDisplaySection;
 
-    public ConfigWindow(Configuration configuration, Action saveConfiguration, UpdateCheckerService updateCheckerService, ITextureProvider textureProvider, Daedalus.Services.Content.IDutyContentService? dutyContentService = null, Daedalus.Services.Plugins.PluginStatusService? pluginStatusService = null)
+    public ConfigWindow(Configuration configuration, Action saveConfiguration, UpdateCheckerService updateCheckerService, ITextureProvider textureProvider, Daedalus.Services.Content.IDutyContentService? dutyContentService = null, Daedalus.Services.Plugins.PluginStatusService? pluginStatusService = null, Daedalus.Services.Occult.PhantomJobService? phantomJobService = null)
         : base(Loc.T(LocalizedStrings.Config.WindowTitle, "Daedalus Settings"), ImGuiWindowFlags.NoCollapse)
     {
         this.configuration = configuration;
@@ -122,6 +123,7 @@ public sealed class ConfigWindow : Window
         timelineSection = new TimelineSection(configuration, saveConfiguration);
         partyCoordinationSection = new PartyCoordinationSection(configuration, saveConfiguration);
         consumablesSection = new ConsumablesSection(configuration, saveConfiguration);
+        occultSection = new OccultSection(configuration, saveConfiguration, phantomJobService);
         debugDisplaySection = new DebugDisplaySection(configuration, saveConfiguration);
 
         Size = new Vector2(650, 700);
@@ -278,6 +280,10 @@ public sealed class ConfigWindow : Window
 
             case ConfigSection.Consumables:
                 consumablesSection.Draw();
+                break;
+
+            case ConfigSection.Occult:
+                occultSection.Draw();
                 break;
 
             case ConfigSection.HealerShared:

@@ -121,6 +121,34 @@ public static class PhantomJobData
         return (PhantomJob.None, 0);
     }
 
+    /// <summary>
+    /// MKDSupportJob row index for a phantom job — the index into OccultCrescentState's
+    /// per-job exp/level arrays. Enum order matches the sheet rows (field-verified:
+    /// Cannoneer = row 9), so the mapping is a straight offset.
+    /// </summary>
+    public static int GetSupportJobRowIndex(PhantomJob job) => (int)job - 1;
+
+    /// <summary>
+    /// Where to unlock each phantom job (South Horn; sources verified 2026-07-25).
+    /// Shown in the config UI for jobs the character has not unlocked yet.
+    /// </summary>
+    public static string GetUnlockHint(PhantomJob job) => job switch
+    {
+        PhantomJob.Freelancer => "Default — always available",
+        PhantomJob.Knight or PhantomJob.Monk or PhantomJob.Bard =>
+            "Quest: New Job, Old Tricks (South Horn)",
+        PhantomJob.TimeMage or PhantomJob.Cannoneer or PhantomJob.Chemist
+            or PhantomJob.MysticKnight or PhantomJob.Dancer =>
+            "Soul Shard — Expedition Antiquarian (X:38.1 Y:7.0), 1,000 E. Silver Pieces",
+        PhantomJob.Samurai or PhantomJob.Geomancer or PhantomJob.Thief
+            or PhantomJob.Gladiator =>
+            "Soul Shard — Expedition Antiquarian (X:38.1 Y:7.0), 1,600 E. Gold Pieces",
+        PhantomJob.Oracle => "Soul Shard drop — Critical Encounter: On the Hunt",
+        PhantomJob.Ranger => "Soul Shard drop — Critical Encounter: The Black Regiment",
+        PhantomJob.Berserker => "Soul Shard drop — Critical Encounter: The Unbridled",
+        _ => string.Empty,
+    };
+
     /// <summary>Status ID for a phantom job's level status, or 0 for None.</summary>
     public static uint GetLevelStatusId(PhantomJob job)
     {

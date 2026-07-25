@@ -1,0 +1,55 @@
+namespace Daedalus.Config;
+
+/// <summary>
+/// Occult Crescent phantom action settings (Phase 2 of docs/occult-phantom-plan.md).
+/// Consumed by the Phase 3+ PhantomActionLayer; until then only the config UI reads it.
+/// Thresholds default to RSR PhantomDefault's field-tested values.
+/// </summary>
+public sealed class PhantomConfig
+{
+    /// <summary>Master toggle for the phantom action layer (in-zone only).</summary>
+    public bool EnablePhantomActions { get; set; } = true;
+
+    /// <summary>Hold damage phantom actions for the main job's burst window.
+    /// Survival/utility actions ignore this.</summary>
+    public bool SaveDamageForBurst { get; set; } = true;
+
+    // ── Freelancer ──
+    public float FreelancerResuscitationHpPct { get; set; } = 0.70f;
+    public bool UseTreasuresight { get; set; } = false;
+
+    // ── Knight ──
+    public bool KnightPrayAsHeal { get; set; } = false;
+    public bool KnightPledgeSelf { get; set; } = false;
+
+    // ── Monk ──
+    public float MonkKickMaxRangeYalms { get; set; } = 5f;
+    public int MonkChakraMpThreshold { get; set; } = 3000;
+    public float MonkChakraHpPct { get; set; } = 0.30f;
+
+    // ── Chemist ──
+    public bool ChemistPotionSelfOnly { get; set; } = true;
+    public float ChemistPotionHpPct { get; set; } = 0.50f;
+    public bool ChemistEtherSelfOnly { get; set; } = true;
+    public int ChemistEtherMpThreshold { get; set; } = 2000;
+    public float ChemistElixirPartyHpPct { get; set; } = 0.30f;
+
+    // ── Oracle ──
+    public bool OracleUseJudgment { get; set; } = true;
+    public bool OracleUseCleansing { get; set; } = true;
+    public bool OracleUseBlessing { get; set; } = true;
+    public bool OracleUseStarfall { get; set; } = true;
+    public bool OracleSaveInvulnForStarfall { get; set; } = true;
+    public float OracleJudgmentPartyHpPct { get; set; } = 0.70f;
+    public float OracleBlessingPartyHpPct { get; set; } = 0.50f;
+
+    // ── Cannoneer ──
+    /// <summary>Preferred cannon when the target takes both blind and paralysis.</summary>
+    public bool CannoneerPreferDarkCannon { get; set; } = true;
+    /// <summary>Cannon used when the target is immune to both debuffs.</summary>
+    public bool CannoneerImmuneFallbackDark { get; set; } = true;
+
+    // ── Geomancer ──
+    public bool GeomancerSuspendInCombat { get; set; } = false;
+    public bool GeomancerSuspendOutOfCombat { get; set; } = false;
+}

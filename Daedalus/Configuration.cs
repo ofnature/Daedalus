@@ -187,6 +187,9 @@ public sealed class Configuration : IPluginConfiguration
     // Consumable automation (combat tinctures)
     public ConsumablesConfig Consumables { get; set; } = new();
 
+    // Occult Crescent phantom actions
+    public PhantomConfig Occult { get; set; } = new();
+
     // Role-specific configuration - Tanks
     public TankConfig Tank { get; set; } = new();
 

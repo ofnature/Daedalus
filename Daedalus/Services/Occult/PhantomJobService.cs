@@ -34,6 +34,13 @@ public sealed record PhantomStateSnapshot
     public required IReadOnlyList<PhantomSlot> DutySlots { get; init; }
     public required IReadOnlyList<PhantomItemCount> Items { get; init; }
     public required OccultProgression? Progression { get; init; }
+
+    /// <summary>
+    /// Level of every phantom job for this character (0 = not unlocked), from
+    /// OccultCrescentState's per-job level array. Empty outside the zone or when
+    /// the state is unavailable.
+    /// </summary>
+    public required IReadOnlyDictionary<PhantomJob, byte> JobLevels { get; init; }
 }
 
 /// <summary>
@@ -100,7 +107,38 @@ public sealed class PhantomJobService
             DutySlots = inZone ? ReadDutySlots() : Array.Empty<PhantomSlot>(),
             Items = inZone ? ReadItemCounts() : Array.Empty<PhantomItemCount>(),
             Progression = inZone ? ReadProgression() : null,
+            JobLevels = inZone ? ReadAllJobLevels() : new Dictionary<PhantomJob, byte>(),
         };
+    }
+
+    /// <summary>Per-job phantom levels from OccultCrescentState (0 = not unlocked).</summary>
+    private unsafe IReadOnlyDictionary<PhantomJob, byte> ReadAllJobLevels()
+    {
+        var result = new Dictionary<PhantomJob, byte>();
+        try
+        {
+            var state = FFXIVClientStructs.FFXIV.Client.Game.InstanceContent.PublicContentOccultCrescent.GetState();
+            if (state == null)
+                return result;
+
+            var levels = state->SupportJobLevels;
+            foreach (var entry in PhantomJobData.LevelStatuses)
+            {
+                var index = PhantomJobData.GetSupportJobRowIndex(entry.Key);
+                if (index >= 0 && index < levels.Length)
+                    result[entry.Key] = levels[index];
+            }
+        }
+        catch (Exception ex)
+        {
+            if (!_progressionReadFaulted)
+            {
+                _progressionReadFaulted = true;
+                _log.Warning(ex, "PhantomJobService: job level array read failed");
+            }
+        }
+
+        return result;
     }
 
     private unsafe OccultProgression? ReadProgression()
