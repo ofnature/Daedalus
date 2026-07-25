@@ -357,56 +357,52 @@ public sealed class PhantomActionLayer
         }
     }
 
+    private DateTime? _oracleWindowStart;
+
     private void PushOracle(IRotationContext ctx, Config.PhantomConfig cfg, PhantomJob job, byte level, float selfHpPct, bool inCombat)
     {
         // Which card is the game currently offering? (Predict morphs the slot per card.)
         var activeCard =
-            _actionService.PlayerHasStatus(PhantomActions.StatusIds.PredictionOfJudgment) ? 41637u
-            : _actionService.PlayerHasStatus(PhantomActions.StatusIds.PredictionOfCleansing) ? 41638u
-            : _actionService.PlayerHasStatus(PhantomActions.StatusIds.PredictionOfBlessing) ? 41639u
-            : _actionService.PlayerHasStatus(PhantomActions.StatusIds.PredictionOfStarfall) ? 41640u
+            _actionService.PlayerHasStatus(PhantomActions.StatusIds.PredictionOfJudgment) ? OracleCardPolicy.JudgmentCard
+            : _actionService.PlayerHasStatus(PhantomActions.StatusIds.PredictionOfCleansing) ? OracleCardPolicy.CleansingCard
+            : _actionService.PlayerHasStatus(PhantomActions.StatusIds.PredictionOfBlessing) ? OracleCardPolicy.BlessingCard
+            : _actionService.PlayerHasStatus(PhantomActions.StatusIds.PredictionOfStarfall) ? OracleCardPolicy.StarfallCard
             : 0u;
 
         _oracleDeck.Update(activeCard);
 
         if (activeCard == 0)
         {
+            _oracleWindowStart = null;
             if (inCombat)
                 TryPush(ctx, 41636, job, level, PrioDamage, onExtraDispatched: _oracleDeck.OnPredictDispatched); // Predict
             return;
         }
 
-        var lastCard = _oracleDeck.IsLastCard(activeCard);
-        var partyAvg = ctx.PartyHealthMetrics.avgHpPercent;
+        // Window timer — the safety net even if the deck tracker desynced (manual Predict,
+        // plugin reload mid-window): past ForceCommitSeconds a card is ALWAYS played, or
+        // False Prediction kills the player (50,000 potency; field death 2026-07-25).
+        _oracleWindowStart ??= DateTime.UtcNow;
+        var elapsed = (float)(DateTime.UtcNow - _oracleWindowStart.Value).TotalSeconds;
 
-        switch (activeCard)
+        var decision = OracleCardPolicy.Decide(
+            activeCard,
+            cfg,
+            _oracleDeck.IsLastCard(activeCard),
+            elapsed,
+            selfHpPct,
+            ctx.PartyHealthMetrics.avgHpPercent,
+            invulnBuffUp: _actionService.PlayerHasStatus(PhantomActions.StatusIds.Invulnerability),
+            invulnReady: level >= 6 && _actionService.IsActionReady(41644));
+
+        switch (decision)
         {
-            case 41637 when cfg.OracleUseJudgment: // Phantom Judgment: heal + damage, no downside
-                TryPush(ctx, 41637, job, level, PrioDamage);
+            case OracleDecision.PlayCard:
+                TryPush(ctx, activeCard, job, level, PrioDamage);
                 break;
-
-            case 41638 when cfg.OracleUseCleansing: // Cleansing: straight damage
-                TryPush(ctx, 41638, job, level, PrioDamage);
-                break;
-
-            case 41639 when cfg.OracleUseBlessing: // Blessing: pure heal — hold until someone needs it
-                if (lastCard || partyAvg < cfg.OracleBlessingPartyHpPct || selfHpPct < cfg.OracleBlessingPartyHpPct)
-                    TryPush(ctx, 41639, job, level, lastCard ? PrioDamage : PrioEmergencySustain);
-                break;
-
-            case 41640 when cfg.OracleUseStarfall: // Starfall: massive AoE, heavy self-damage
-                var invulnUp = _actionService.PlayerHasStatus(PhantomActions.StatusIds.Invulnerability);
-                if (selfHpPct > 0.90f || invulnUp)
-                {
-                    TryPush(ctx, 41640, job, level, PrioDamage);
-                }
-                else if (cfg.OracleSaveInvulnForStarfall && level >= 6)
-                {
-                    // Make it safe first: Invulnerability on self, Starfall next window.
-                    TryPush(ctx, 41644, job, level, PrioEmergencySustain);
-                }
-                // Otherwise wait — the card rotates onward; the deck tracker knows if it
-                // was the last one (then Invulnerability above or full HP is the only out).
+            case OracleDecision.CastInvulnerability:
+                // Make Starfall safe first: Invulnerability on self, Starfall next window.
+                TryPush(ctx, 41644, job, level, PrioEmergencySustain);
                 break;
         }
     }
