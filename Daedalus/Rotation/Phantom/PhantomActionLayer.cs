@@ -152,6 +152,7 @@ public sealed class PhantomActionLayer
         PushMpRestore(ctx, cfg, job, level, inCombat);
         PushPartyBuffs(ctx, job, level, inCombat);
         PushDamage(ctx, cfg, job, level, inCombat);
+        PushStateMachines(ctx, cfg, job, level, selfHpPct, inCombat);
 
         // GCD pre-empt: phantom GCDs (emergency heals first, then damage) claim the GCD
         // window before the job's filler. Big phantom cooldowns pace this to ~1 GCD per
@@ -338,12 +339,135 @@ public sealed class PhantomActionLayer
         }
     }
 
+    private readonly OracleDeckTracker _oracleDeck = new();
+
+    private void PushStateMachines(IRotationContext ctx, Config.PhantomConfig cfg, PhantomJob job, byte level, float selfHpPct, bool inCombat)
+    {
+        switch (job)
+        {
+            case PhantomJob.Oracle:
+                PushOracle(ctx, cfg, job, level, selfHpPct, inCombat);
+                break;
+            case PhantomJob.Dancer:
+                PushDancer(ctx, job, level, inCombat);
+                break;
+            case PhantomJob.Geomancer:
+                PushGeomancer(ctx, cfg, job, level, inCombat);
+                break;
+        }
+    }
+
+    private void PushOracle(IRotationContext ctx, Config.PhantomConfig cfg, PhantomJob job, byte level, float selfHpPct, bool inCombat)
+    {
+        // Which card is the game currently offering? (Predict morphs the slot per card.)
+        var activeCard =
+            _actionService.PlayerHasStatus(PhantomActions.StatusIds.PredictionOfJudgment) ? 41637u
+            : _actionService.PlayerHasStatus(PhantomActions.StatusIds.PredictionOfCleansing) ? 41638u
+            : _actionService.PlayerHasStatus(PhantomActions.StatusIds.PredictionOfBlessing) ? 41639u
+            : _actionService.PlayerHasStatus(PhantomActions.StatusIds.PredictionOfStarfall) ? 41640u
+            : 0u;
+
+        _oracleDeck.Update(activeCard);
+
+        if (activeCard == 0)
+        {
+            if (inCombat)
+                TryPush(ctx, 41636, job, level, PrioDamage, onExtraDispatched: _oracleDeck.OnPredictDispatched); // Predict
+            return;
+        }
+
+        var lastCard = _oracleDeck.IsLastCard(activeCard);
+        var partyAvg = ctx.PartyHealthMetrics.avgHpPercent;
+
+        switch (activeCard)
+        {
+            case 41637 when cfg.OracleUseJudgment: // Phantom Judgment: heal + damage, no downside
+                TryPush(ctx, 41637, job, level, PrioDamage);
+                break;
+
+            case 41638 when cfg.OracleUseCleansing: // Cleansing: straight damage
+                TryPush(ctx, 41638, job, level, PrioDamage);
+                break;
+
+            case 41639 when cfg.OracleUseBlessing: // Blessing: pure heal — hold until someone needs it
+                if (lastCard || partyAvg < cfg.OracleBlessingPartyHpPct || selfHpPct < cfg.OracleBlessingPartyHpPct)
+                    TryPush(ctx, 41639, job, level, lastCard ? PrioDamage : PrioEmergencySustain);
+                break;
+
+            case 41640 when cfg.OracleUseStarfall: // Starfall: massive AoE, heavy self-damage
+                var invulnUp = _actionService.PlayerHasStatus(PhantomActions.StatusIds.Invulnerability);
+                if (selfHpPct > 0.90f || invulnUp)
+                {
+                    TryPush(ctx, 41640, job, level, PrioDamage);
+                }
+                else if (cfg.OracleSaveInvulnForStarfall && level >= 6)
+                {
+                    // Make it safe first: Invulnerability on self, Starfall next window.
+                    TryPush(ctx, 41644, job, level, PrioEmergencySustain);
+                }
+                // Otherwise wait — the card rotates onward; the deck tracker knows if it
+                // was the last one (then Invulnerability above or full HP is the only out).
+                break;
+        }
+    }
+
+    private void PushDancer(IRotationContext ctx, PhantomJob job, byte level, bool inCombat)
+    {
+        if (!inCombat)
+            return;
+
+        // Steps morph off Dance; each is proc-gated by its status (scheduler enforces).
+        TryPushProc(ctx, 46599, job, level, PrioDamage, PhantomActions.StatusIds.PoisedToSwordDance);
+        TryPushProc(ctx, 46600, job, level, PrioDamage + 1, PhantomActions.StatusIds.TemptedToTango);
+        TryPushProc(ctx, 46601, job, level, PrioDamage + 2, PhantomActions.StatusIds.Jitterbugged);
+        TryPushProc(ctx, 46602, job, level, PrioDamage + 3, PhantomActions.StatusIds.WillingToWaltz);
+
+        // No proc up → open the chain (Dance is the party buff/opener in the buff band).
+        var anyProc = _actionService.PlayerHasStatus(PhantomActions.StatusIds.PoisedToSwordDance)
+            || _actionService.PlayerHasStatus(PhantomActions.StatusIds.TemptedToTango)
+            || _actionService.PlayerHasStatus(PhantomActions.StatusIds.Jitterbugged)
+            || _actionService.PlayerHasStatus(PhantomActions.StatusIds.WillingToWaltz);
+        if (!anyProc)
+            TryPush(ctx, 46598, job, level, PrioPartyBuff);
+    }
+
+    private void PushGeomancer(IRotationContext ctx, Config.PhantomConfig cfg, PhantomJob job, byte level, bool inCombat)
+    {
+        if (inCombat)
+        {
+            // The six Lv.2 buffs are weather-gated — only the matching one is executable,
+            // so each push carries an executability gate on top of the recast check.
+            TryPushWeather(ctx, 41613, job, level); // Sunbath
+            TryPushWeather(ctx, 41614, job, level); // Cloudy Caress
+            TryPushWeather(ctx, 41615, job, level); // Blessed Rain
+            TryPushWeather(ctx, 41616, job, level); // Misty Mirage
+            TryPushWeather(ctx, 41617, job, level); // Hasty Mirage
+            TryPushWeather(ctx, 41618, job, level); // Aetherial Gain
+        }
+
+        var suspendWanted = inCombat ? cfg.GeomancerSuspendInCombat : cfg.GeomancerSuspendOutOfCombat;
+        if (suspendWanted && ctx.Player.TargetObject is IBattleChara { IsDead: false } target)
+            TryPush(ctx, 41620, job, level, PrioPartyBuff + 5, target.GameObjectId, target); // Suspend
+    }
+
+    private void TryPushProc(IRotationContext ctx, uint actionId, PhantomJob job, byte level, int priority, uint procStatusId)
+    {
+        if (_actionService.PlayerHasStatus(procStatusId))
+            TryPush(ctx, actionId, job, level, priority);
+    }
+
+    private void TryPushWeather(IRotationContext ctx, uint actionId, PhantomJob job, byte level)
+    {
+        if (_actionService.CanExecuteActionId(actionId))
+            TryPush(ctx, actionId, job, level, PrioPartyBuff);
+    }
+
     /// <summary>
     /// Common per-action gates (catalog membership, phantom level, duty-bar slot,
     /// cooldown, range, cast-while-moving) and the actual scheduler push. Target 0 = self.
     /// </summary>
     private void TryPush(IRotationContext ctx, uint actionId, PhantomJob job, byte level, int priority,
-        ulong targetId = 0, IBattleChara? rangeTarget = null)
+        ulong targetId = 0, IBattleChara? rangeTarget = null, Action? onExtraDispatched = null)
     {
         PhantomActionDef? found = null;
         foreach (var def in PhantomActions.All)
@@ -361,7 +485,7 @@ public sealed class PhantomActionLayer
         // fixable blocker, so it doesn't pollute the "blocked" readout.
         if (level < action.RequiredLevel)
             return;
-        if (!_phantomJobs.IsSlotted(actionId))
+        if (!IsOnDutyBar(actionId))
         {
             _pushRejects.Add($"{action.Name} not on duty bar");
             return;
@@ -400,12 +524,31 @@ public sealed class PhantomActionLayer
         {
             _dispatchedThisFrame = true;
             _phantomJobs.LayerLastDispatch = $"{DateTime.Now:HH:mm:ss} {name}";
+            onExtraDispatched?.Invoke();
         };
 
         if (behavior.Action.IsGCD)
             _scheduler.PushGcd(behavior, targetId, priority, onDispatched);
         else
             _scheduler.PushOgcd(behavior, targetId, priority, onDispatched);
+    }
+
+    /// <summary>
+    /// Duty-bar membership, morph-aware: Oracle cards, Dancer steps and Geomancer
+    /// weather variants replace their base action on the slot, so the slot's adjusted
+    /// ID must match too. Fail closed on empty slot reads.
+    /// </summary>
+    private bool IsOnDutyBar(uint actionId)
+    {
+        foreach (var slotId in _phantomJobs.GetDutySlotIds())
+        {
+            if (slotId == 0)
+                continue;
+            if (slotId == actionId || _actionService.GetAdjustedActionId(slotId) == actionId)
+                return true;
+        }
+
+        return false;
     }
 
     private uint? FindLockoutStatus()

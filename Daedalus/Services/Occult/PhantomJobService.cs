@@ -117,6 +117,26 @@ public sealed class PhantomJobService
     /// <summary>Inventory count for a phantom consumable (Occult Potion / Elixir / Coffer).</summary>
     public uint GetItemCount(uint itemId) => _inventoryProbe.GetItemCount(itemId);
 
+    /// <summary>
+    /// Raw duty-bar slot action IDs (5 entries, 0 = empty; empty array on read failure).
+    /// Callers that need morph-aware matching (Oracle cards, Dancer steps, Geomancer
+    /// weather variants) compare these through GetAdjustedActionId.
+    /// </summary>
+    public unsafe uint[] GetDutySlotIds()
+    {
+        try
+        {
+            var slots = new uint[DutySlotCount];
+            for (ushort i = 0; i < DutySlotCount; i++)
+                slots[i] = FFXIVClientStructs.FFXIV.Client.Game.DutyActionManager.GetDutyActionId(i);
+            return slots;
+        }
+        catch
+        {
+            return Array.Empty<uint>();
+        }
+    }
+
     private readonly Dictionary<uint, Daedalus.Models.Action.ActionDefinition> _definitionCache = [];
 
     /// <summary>

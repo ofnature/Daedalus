@@ -150,6 +150,21 @@ public static class PhantomActions
         851,  // Reassembled (MCH)
     ];
 
+    /// <summary>Phantom-related status IDs (verified against the RSR StatusID enum).</summary>
+    public static class StatusIds
+    {
+        public const uint PredictionOfJudgment = 4265;
+        public const uint PredictionOfCleansing = 4266;
+        public const uint PredictionOfBlessing = 4267;
+        public const uint PredictionOfStarfall = 4268;
+        public const uint PoisedToSwordDance = 4794;
+        public const uint TemptedToTango = 4795;
+        public const uint Jitterbugged = 4796;
+        public const uint WillingToWaltz = 4797;
+        public const uint PentupRage = 4236;
+        public const uint Invulnerability = 4275;
+    }
+
     /// <summary>Actions belonging to one phantom job, in unlock order.</summary>
     public static IReadOnlyList<PhantomActionDef> ForJob(PhantomJob job)
     {

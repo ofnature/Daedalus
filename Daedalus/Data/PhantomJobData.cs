@@ -149,6 +149,58 @@ public static class PhantomJobData
         _ => string.Empty,
     };
 
+    /// <summary>How a phantom job is unlocked (drives the affordable-shard banner).</summary>
+    public enum UnlockKind : byte
+    {
+        Default,
+        Quest,
+        SilverShard,
+        GoldShard,
+        CriticalEncounter,
+    }
+
+    public const int SilverShardPrice = 1000;
+    public const int GoldShardPrice = 1600;
+
+    /// <summary>Structured unlock source; Price is 0 for non-purchasable jobs.</summary>
+    public static (UnlockKind Kind, int Price) GetUnlockCost(PhantomJob job) => job switch
+    {
+        PhantomJob.Freelancer => (UnlockKind.Default, 0),
+        PhantomJob.Knight or PhantomJob.Monk or PhantomJob.Bard => (UnlockKind.Quest, 0),
+        PhantomJob.TimeMage or PhantomJob.Cannoneer or PhantomJob.Chemist
+            or PhantomJob.MysticKnight or PhantomJob.Dancer => (UnlockKind.SilverShard, SilverShardPrice),
+        PhantomJob.Samurai or PhantomJob.Geomancer or PhantomJob.Thief
+            or PhantomJob.Gladiator => (UnlockKind.GoldShard, GoldShardPrice),
+        _ => (UnlockKind.CriticalEncounter, 0),
+    };
+
+    /// <summary>
+    /// Purchasable soul shards the character can afford RIGHT NOW for jobs still locked
+    /// (level 0 in <paramref name="jobLevels"/>). Pure — feeds the zone HUD banner.
+    /// </summary>
+    public static List<(PhantomJob Job, UnlockKind Kind, int Price)> GetAffordableLockedShards(
+        IReadOnlyDictionary<PhantomJob, byte> jobLevels, uint silver, uint gold)
+    {
+        var result = new List<(PhantomJob, UnlockKind, int)>();
+        foreach (var entry in LevelStatuses)
+        {
+            if (!jobLevels.TryGetValue(entry.Key, out var level) || level > 0)
+                continue;
+
+            var (kind, price) = GetUnlockCost(entry.Key);
+            var affordable = kind switch
+            {
+                UnlockKind.SilverShard => silver >= price,
+                UnlockKind.GoldShard => gold >= price,
+                _ => false,
+            };
+            if (affordable)
+                result.Add((entry.Key, kind, price));
+        }
+
+        return result;
+    }
+
     /// <summary>Status ID for a phantom job's level status, or 0 for None.</summary>
     public static uint GetLevelStatusId(PhantomJob job)
     {

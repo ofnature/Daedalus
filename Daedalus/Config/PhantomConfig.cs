@@ -14,6 +14,10 @@ public sealed class PhantomConfig
     /// Survival/utility actions ignore this.</summary>
     public bool SaveDamageForBurst { get; set; } = true;
 
+    /// <summary>Auto-open the compact zone HUD (consumables, currency, shard banner)
+    /// when entering Occult Crescent.</summary>
+    public bool ShowOccultHud { get; set; } = true;
+
     // ── Freelancer ──
     public float FreelancerResuscitationHpPct { get; set; } = 0.70f;
     public bool UseTreasuresight { get; set; } = false;

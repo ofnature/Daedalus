@@ -182,6 +182,7 @@ public sealed class Plugin : IDalamudPlugin
     private readonly Daedalus.Services.Farm.FarmModeService farmModeService;
     private readonly Daedalus.Services.Farm.GarlandDropSource garlandDropSource;
     private readonly FarmWindow farmWindow;
+    private readonly OccultWindow occultWindow;
     private readonly UpdateCheckerService updateCheckerService;
 
     // Pull-intent state machine + consumable services (tincture automation)
@@ -812,6 +813,12 @@ public sealed class Plugin : IDalamudPlugin
         windowSystem.AddWindow(overlayWindow);
         windowSystem.AddWindow(dpsMeterWindow);
         windowSystem.AddWindow(farmWindow);
+
+        // Occult zone HUD: auto-open on entering Occult Crescent, close on leaving.
+        this.occultWindow = new OccultWindow(phantomJobService);
+        windowSystem.AddWindow(occultWindow);
+        this.clientState.TerritoryChanged += OnOccultTerritoryChanged;
+        OnOccultTerritoryChanged(clientState.TerritoryType); // plugin may load mid-zone
         overlayWindow.IsOpen = configuration.Overlay.IsVisible;
         windowSystem.AddWindow(actionFeedWindow);
         // Visibility is gated by DrawConditions via ActionFeed.IsVisible; keep the window open
@@ -1311,6 +1318,13 @@ public sealed class Plugin : IDalamudPlugin
             : offTank == coordinationBus.LocalSenderId
                 ? Daedalus.Services.Party.TankSwapRole.DesignatedOffTank
                 : Daedalus.Services.Party.TankSwapRole.DesignatedMainTank;
+    }
+
+    /// <summary>Occult zone HUD auto-visibility (config-gated).</summary>
+    private void OnOccultTerritoryChanged(uint territory)
+    {
+        var inZone = Daedalus.Data.PhantomJobData.OccultTerritoryIds.Contains((ushort)territory);
+        occultWindow.IsOpen = inZone && configuration.Occult.ShowOccultHud;
     }
 
     /// <summary>Zone-in: broadcast our job/role and open the 3s role-collection window.</summary>
@@ -1843,6 +1857,8 @@ public sealed class Plugin : IDalamudPlugin
         }
 
         framework.Update -= OnFrameworkUpdate;
+        clientState.TerritoryChanged -= OnOccultTerritoryChanged;
+
         if (lanCoordinator != null)
         {
             clientState.TerritoryChanged -= OnLanTerritoryChanged;

@@ -66,6 +66,14 @@ public sealed class OccultSection
             "mitigation, utility and executes ignore this.",
             save);
 
+        ConfigUIHelpers.Toggle(
+            "Show zone HUD window",
+            () => config.Occult.ShowOccultHud,
+            v => config.Occult.ShowOccultHud = v,
+            "Compact window that auto-opens in Occult Crescent: knowledge level, silver/gold, " +
+            "consumable counts, and a banner when you can afford a locked phantom job's soul shard.",
+            save);
+
         ImGui.Spacing();
         ImGui.TextColored(HeaderColor, "Phantom Jobs");
         ImGui.Separator();
