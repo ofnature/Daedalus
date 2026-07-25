@@ -50,7 +50,9 @@ public static class OccultTab
             ImGui.TextColored(Dim, $"({prog.KnowledgeExp:N0} / {prog.KnowledgeExpNeeded:N0} exp)");
             ImGui.TextColored(Dim, $"Silver: {prog.Silver}   Gold: {prog.Gold}");
             // Diagnostic until the real level byte is pinned (0x92 read 0 vs in-game Lv.18).
-            ImGui.TextColored(Dim, $"state[0x88–0x9B]: {prog.RawTailBytes}");
+            ImGui.TextColored(Dim, "OccultCrescentState raw dump:");
+            foreach (var row in prog.RawDumpRows)
+                ImGui.TextColored(Dim, row);
         }
         else
         {

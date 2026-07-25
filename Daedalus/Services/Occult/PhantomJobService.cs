@@ -22,11 +22,12 @@ public sealed record OccultProgression
     public required uint Gold { get; init; }
 
     /// <summary>
-    /// Diagnostic: raw bytes 0x88–0x9B of OccultCrescentState. The exp fields verify
-    /// correct but the level byte (0x92, KnowledgeLevelSync) read 0 while the game showed
-    /// Lv.18 — this dump identifies the real level byte in the field. Remove once pinned.
+    /// Diagnostic: raw OccultCrescentState bytes in 16-byte rows (offset-labelled).
+    /// The exp fields verify correct but the level byte (0x92, KnowledgeLevelSync) read 0
+    /// and 0x88–0x9B held no 0x12 while the game showed Lv.18 — full dump to locate the
+    /// real level byte and the support-job level array. Remove once pinned.
     /// </summary>
-    public required string RawTailBytes { get; init; }
+    public required IReadOnlyList<string> RawDumpRows { get; init; }
 }
 
 /// <summary>Point-in-time phantom detection state (Phase 1: read-only, nothing fires).</summary>
@@ -113,11 +114,19 @@ public sealed class PhantomJobService
             if (state == null)
                 return null;
 
-            // Diagnostic dump of the level-byte neighborhood (see RawTailBytes docs).
+            // Diagnostic dump (see RawDumpRows docs). Declared struct size is 0x9C; the
+            // extra margin to 0xC0 is safe — State is embedded mid-object in the much
+            // larger PublicContentOccultCrescent, so these reads stay in-allocation.
             var raw = (byte*)state;
-            var tail = new System.Text.StringBuilder(64);
-            for (var off = 0x88; off <= 0x9B; off++)
-                tail.Append(raw[off].ToString("X2")).Append(off == 0x9B ? "" : " ");
+            var rows = new List<string>(12);
+            for (var rowStart = 0x00; rowStart < 0xC0; rowStart += 16)
+            {
+                var sb = new System.Text.StringBuilder(60);
+                sb.Append($"0x{rowStart:X2}: ");
+                for (var i = 0; i < 16; i++)
+                    sb.Append(raw[rowStart + i].ToString("X2")).Append(i == 15 ? "" : " ");
+                rows.Add(sb.ToString());
+            }
 
             return new OccultProgression
             {
@@ -126,7 +135,7 @@ public sealed class PhantomJobService
                 KnowledgeExpNeeded = state->NeededKnowledge,
                 Silver = _inventoryProbe.GetItemCount(PhantomJobData.SilverPieceItemId),
                 Gold = _inventoryProbe.GetItemCount(PhantomJobData.GoldPieceItemId),
-                RawTailBytes = tail.ToString(),
+                RawDumpRows = rows,
             };
         }
         catch (Exception ex)
