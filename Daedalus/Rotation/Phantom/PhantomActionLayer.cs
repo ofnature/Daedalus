@@ -40,6 +40,7 @@ public sealed class PhantomActionLayer
     private readonly IPluginLog _log;
 
     private readonly Dictionary<uint, AbilityBehavior> _behaviorCache = [];
+    private readonly List<string> _pushRejects = [];
     private bool _dispatchedThisFrame;
 
     public PhantomActionLayer(
@@ -95,6 +96,7 @@ public sealed class PhantomActionLayer
 
         _scheduler.Reset();
         _dispatchedThisFrame = false;
+        _pushRejects.Clear();
 
         PushSurvival(ctx, cfg, job, level, selfHpPct, inCombat);
         PushSelfMit(ctx, job, level, selfHpPct, inCombat);
@@ -110,11 +112,15 @@ public sealed class PhantomActionLayer
         if (ctx.CanExecuteGcd && !isMoving)
             _scheduler.DispatchGcd(ctx);
 
+        // Distinguish "no rule triggered" from "rule triggered but the action was
+        // rejected" — the latter names the reason (not slotted / cooldown).
         _phantomJobs.LayerLastEvent = _dispatchedThisFrame
             ? "dispatched"
-            : queued == 0
-                ? $"idle — nothing eligible ({job} Lv.{level})"
-                : $"waiting — {queued} queued, no free slot";
+            : queued > 0
+                ? $"waiting — {queued} queued, no free slot"
+                : _pushRejects.Count > 0
+                    ? $"blocked — {_pushRejects[0]}"
+                    : $"idle — nothing eligible ({job} Lv.{level})";
     }
 
     private void PushSurvival(IRotationContext ctx, Config.PhantomConfig cfg, PhantomJob job, byte level, float selfHpPct, bool inCombat)
@@ -229,12 +235,23 @@ public sealed class PhantomActionLayer
             }
         }
 
-        if (found is not { } action || action.Job != job || level < action.RequiredLevel)
+        if (found is not { } action || action.Job != job)
             return;
+        if (level < action.RequiredLevel)
+        {
+            _pushRejects.Add($"{found.Value.Name} needs phantom Lv.{action.RequiredLevel}");
+            return;
+        }
         if (!_phantomJobs.IsSlotted(actionId))
+        {
+            _pushRejects.Add($"{action.Name} not on duty bar");
             return;
+        }
         if (!_actionService.IsActionReady(actionId))
+        {
+            _pushRejects.Add($"{action.Name} on cooldown");
             return;
+        }
 
         if (!_behaviorCache.TryGetValue(actionId, out var behavior))
         {
