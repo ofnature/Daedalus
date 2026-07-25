@@ -3,12 +3,25 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.42 — 2026-07-25
+
+### New — Occult Crescent phantom job automation (South Horn)
+- Daedalus now plays your **phantom job** alongside your main rotation in Occult Crescent. The layer detects your active phantom job and level automatically, only ever uses actions **slotted on the duty bar**, and never stomps a burst or combo window (Reassembled, Inner Release, mudras, Reawakened and friends all hold it back)
+- **Survival & utility**: Chemist Occult Potions/Elixirs (item-aware — the Ether action correctly draws from your potion stack), Monk Chakra, Freelancer Resuscitation, Knight Phantom Guard and heals, Gladiator Defend, interrupts (Mineuchi, Romeo's Ballad), and party buffs (Offensive Aria, Mighty March, Hero's Rime, Battle Bell, Ringing Respite, Phantom Aim, Magic Shell) — all woven into slots your main job leaves free
+- **Damage**: Cannoneer's full cannon kit (Silver → your preferred Dark/Shock → Holy → Phantom Fire), Mystic Knight spellblades, Gladiator Finisher/Long Reach/Bladeblitz, Berserker Rage + Deadly Blow, Samurai Zeninage (coffer-aware) + Iainuki, Monk Phantom Kick with a dash-distance cap, Time Mage Occult Comet, Thief Steal as an execute. Big phantom cooldowns briefly borrow the GCD from your filler — roughly one GCD per half-minute for much bigger hits. An optional **save-for-burst** mode holds damage actions for your burst window when burst data exists
+- **State machines**: the Oracle prediction deck (cards tracked across each Predict window, Blessing held for real heal needs, Starfall only at safe HP or under a pre-cast Invulnerability — and a card is **always** played before the prophecy can rot into the lethal False Prediction), Dancer's full proc chain, and Geomancer's weather-matched buffs
+
+### New — Occult settings & zone HUD
+- Settings gains an **Occult Crescent** section: per-phantom-job option groups with live level/locked chips, every action's unlock level, and — for jobs you haven't unlocked — exactly **where to get them** (quest, Expedition Antiquarian shard prices in silver/gold, or which Critical Encounter drops the soul shard)
+- A compact **zone HUD** auto-opens in South Horn: phantom job + level, knowledge level with exp, silver/gold, consumable counts — and a ★ banner the moment you can afford a locked job's soul shard, with the vendor's map location. Closes itself when you leave; toggleable in settings
+- The Debug window's new **Occult tab** shows live detection state and what the phantom layer is doing (or exactly why it's holding)
+
+<!-- LATEST-END -->
 ## v0.1.41 — 2026-07-23
 
 ### Fix — Healer heals under level sync (the real "CNJ isn't healing" root cause)
 - Follow-up field report nailed it: the level-34 Conjurer was **level-synced into a low-level dungeon**, where Cure II is synced out of the kit — but the heal picker chose spells by raw level requirement, so it kept selecting Cure II, the dispatcher rejected the uncastable spell every frame, and the toon "just cast nukes" while the tank sat at 19%. Spell selection is now **sync-aware**: every heal candidate is checked against the game's own learned/usable state (synced-out actions report not-learned), and the Cure II choice explicitly falls back to **Cure I under sync**. All heal tiers (lilies, Regen, AoE) inherit the same gate, so any synced-out heal now degrades to the next available one instead of blocking the queue
 
-<!-- LATEST-END -->
 ## v0.1.40 — 2026-07-23
 
 ### Fix — Low-level WHM/CNJ actually heals now (the overheal veto had no fallback)
