@@ -197,6 +197,7 @@ public sealed class ConfigSidebar
             sectionChanged |= DrawNavItemFiltered(Loc.T(LocalizedStrings.Sidebar.Warrior, "Warrior"), ConfigSection.Warrior, ConfigUIHelpers.WarriorColor, matchingSections, hasSearch);
             sectionChanged |= DrawNavItemFiltered(Loc.T(LocalizedStrings.Sidebar.DarkKnight, "Dark Knight"), ConfigSection.DarkKnight, ConfigUIHelpers.DarkKnightColor, matchingSections, hasSearch);
             sectionChanged |= DrawNavItemFiltered(Loc.T(LocalizedStrings.Sidebar.Gunbreaker, "Gunbreaker"), ConfigSection.Gunbreaker, ConfigUIHelpers.GunbreakerColor, matchingSections, hasSearch);
+            DrawComingSoonItem("Bastion (8.0)", hasSearch);
             ImGui.Spacing();
         }
 
@@ -235,6 +236,7 @@ public sealed class ConfigSidebar
             sectionChanged |= DrawNavItemFiltered(Loc.T(LocalizedStrings.Sidebar.RedMage, "Red Mage"), ConfigSection.RedMage, ConfigUIHelpers.RedMageColor, matchingSections, hasSearch);
             sectionChanged |= DrawNavItemFiltered(Loc.T(LocalizedStrings.Sidebar.Pictomancer, "Pictomancer"), ConfigSection.Pictomancer, ConfigUIHelpers.PictomancerColor, matchingSections, hasSearch);
             sectionChanged |= DrawNavItemFiltered("Blue Mage", ConfigSection.BlueMage, ConfigUIHelpers.BlackMageColor, matchingSections, hasSearch);
+            DrawComingSoonItem("Beastmaster (7.56)", hasSearch);
         }
 
         ImGui.EndChild();
@@ -268,6 +270,20 @@ public sealed class ConfigSidebar
     private static void DrawCategoryHeader(string label)
     {
         ImGui.TextColored(HeaderColor, label);
+    }
+
+    /// <summary>
+    /// Greyed, non-clickable placeholder for an announced-but-unreleased job
+    /// (no icon exists yet). Hidden while a search filter is active.
+    /// </summary>
+    private static void DrawComingSoonItem(string label, bool hasSearch)
+    {
+        if (hasSearch)
+            return;
+
+        ImGui.Indent(10);
+        ImGui.TextDisabled(label);
+        ImGui.Unindent(10);
     }
 
     private bool DrawNavItem(string label, ConfigSection section, Vector4? color = null, bool isSearchMatch = false)

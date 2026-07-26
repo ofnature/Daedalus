@@ -119,6 +119,7 @@ A full gear and melding assistant (Analytics → **Melding**, or `/daedalus meld
 | **Ranged Physical** | Bard, Machinist, Dancer | ✅ Complete |
 | **Casters** | Black Mage, Summoner, Red Mage, Pictomancer | ✅ Complete |
 | **Limited** | Blue Mage | ✅ v1 (Moon Flute planner WIP) |
+| **Announced** | Beastmaster *(7.56, limited — physical melee)*, Bastion *(8.0, tank — ranged/melee hybrid)* | 📋 Awaiting release |
 
 ### Blue Mage
 
@@ -210,7 +211,8 @@ Each rotation is named after a Greek deity:
 | Melee | Dragoon | Zeus | | | |
 | Melee | Ninja | Hermes | | | |
 | Melee | Samurai | Nike | | | |
-| Melee | Reaper | Thanatos | | | |
+| Melee | Reaper | Thanatos | Limited | Beastmaster *(7.56)* | Pan |
+| Tank | Bastion *(8.0)* | Argus | | | |
 
 ## Roadmap
 
