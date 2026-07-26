@@ -61,7 +61,13 @@ public sealed class BuffModule : ITerpsichoreModule
             }
 
             TryPushClosedPosition(context, scheduler);
-            if (!context.HasStandardFinish)
+
+            // Pre-pull dance ONLY when a pull is imminent: a live enemy hard target
+            // (players target the boss pre-pull; automation bridges hard-target the mob
+            // before walking in). Without this gate an idle Dancer re-dances every time
+            // the 60s buff drops — finisher-looping between quest mobs (field report).
+            if (!context.HasStandardFinish
+                && context.TargetingService.GetUserEnemyTarget() is { IsDead: false })
                 TryPushStandardStep(context, scheduler);
             context.Debug.BuffState = "Not in combat";
             return;
