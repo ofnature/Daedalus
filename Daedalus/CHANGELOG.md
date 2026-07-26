@@ -3,6 +3,15 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.44 — 2026-07-26
+
+### Fix — Disable always stops the rotation
+- Hitting **Disable** while a quest/hunt/dungeon automation plugin was driving combat did nothing — the automation override bypassed the master switch, and the toon kept fighting (field report: a Ninja mid-quest). Now an explicit Disable **always stops the rotation immediately**, suppressing the current automation session's override. The suppression is session-scoped: when that automation run ends (or you re-enable), everything resets — so automation still works with zero setup on the next quest or dungeon, exactly as before
+
+### UI — Announced jobs on the roster
+- The Settings sidebar now shows greyed placeholders for the announced jobs: **Beastmaster** (patch 7.56, limited melee — module codename *Pan*) under Melee DPS, and **Bastion** (8.0 tank, ranged/melee hybrid — codename *Argus*) under Tanks. They become real entries when the jobs ship
+
+<!-- LATEST-END -->
 ## v0.1.43 — 2026-07-25
 
 ### New — Variant dungeon duty actions (V&C Dungeon Finder)
@@ -12,7 +21,6 @@ All notable changes to Daedalus will be documented in this file.
 - Variant weaves take the **first available weave slot** rather than waiting behind the main job's cooldowns — a 2,040-potency DoT outranks any single job weave
 - Settings gains a **Variant** section (BEHAVIOR): per-action toggles and thresholds, which roles can select each action in the Finder, and live SELECTED chips in-instance. The Debug window's **Duty** tab shows granted actions, slots, and what the layer is doing
 
-<!-- LATEST-END -->
 ## v0.1.42 — 2026-07-25
 
 ### New — Occult Crescent phantom job automation (South Horn)
