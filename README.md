@@ -45,6 +45,8 @@ This repository URL also serves two companion plugins through the same installer
 | **Blue Mage Support** | Full BLU support with role selection (Tank/DPS/Healer), automatic Aetheric Mimicry, loadout checklists, and a spell farm planner |
 | **Fight Awareness** | Bundled savage/ultimate timelines plus live BossMod integration predict raidwides and tankbusters before they happen |
 | **Healer & Tank Coordination** | Multi-toon heal triage, mitigation stacking, tank swaps, and raise assignment — over same-machine IPC *and* cross-machine LAN |
+| **Duty Actions** | Occult Crescent phantom jobs and Variant dungeon actions played automatically alongside your main rotation |
+| **Meld Optimizer** | Balance-priority materia sweeps with a live paperdoll, GCD breakpoints, and per-socket meld plans (Analytics → Melding) |
 | **Training Mode** | Learn *why* abilities are chosen with real-time explanations and skill tracking |
 
 ## Built-in DPS Parser
@@ -83,6 +85,29 @@ Grind a material from specific overworld mobs, hands-free, until a target amount
 5. **Start farming** — progress reports in chat, a green dot marks the active run, and it stops on its own when the target count is in your bag
 
 The mob/spot list is session-only for now (not saved on logout); saved farm profiles and further polish are on the roadmap — design notes live in `docs/farm-mode.md`.
+
+## Duty Actions — Occult Crescent & Variant Dungeons
+
+Special-content action layers that run **on top of whatever job you bring** — the main rotation always keeps priority, and both layers are inert everywhere else.
+
+### Occult Crescent (South Horn)
+- **Phantom job automation** for all 16 phantom jobs: your active phantom job and level are detected automatically, and only actions slotted on the duty bar are ever used — never during burst or combo windows
+- Survival items and heals (Chemist potions/elixirs, Occult Resuscitation, Knight heals), self-mits, interrupts, party buffs, and the full damage kits (Cannoneer cannons, spellblades, Zeninage and friends), with an optional save-for-burst mode
+- **Oracle prediction deck** handled safely — cards are tracked across each Predict window, Starfall waits for safe HP or a pre-cast Invulnerability, and a card is *always* played before the prophecy can rot into the lethal False Prediction
+- **Zone HUD** auto-opens in South Horn: phantom job, knowledge level, silver/gold, consumables — and a ★ banner the moment you can afford a locked job's soul shard
+- Settings → **Occult Crescent**: per-job options, live level/locked chips, and *where to unlock every job* (quests, Antiquarian shard prices, Critical Encounter drops)
+
+### Variant Dungeons (V&C Dungeon Finder)
+- Your two selected **Variant Actions** are detected from the instance and played automatically: Variant Cure below a configurable HP threshold, Spirit Dart maintained as a per-source DoT (with a time-to-kill gate so it's never wasted on dying mobs), Eagle Eye Shot on cooldown, Rampart upkeep
+- **Variant Raise with party smarts** — dead healers are always raised, even mid-combat; dead DPS are left to a living healer instead of burning the 8s cast; corpse reservations over party coordination (LAN included) prevent double-raises
+- Settings → **Variant**: per-action options plus which roles can select each action in the Finder
+
+## Meld Optimizer
+
+A full gear and melding assistant (Analytics → **Melding**, or `/daedalus meld`):
+
+- Your job's **Balance meld priority** as a banner, a **paperdoll** of your equipped set with per-piece tooltips (stats, melds, overcap waste, per-piece caps), **GCD breakpoint tiers** with an honest "is the next tier worth it" verdict, and an **aggregate stat table** matching the Character window digit-for-digit
+- **Optimize Melds** sweeps every socket against your job's priorities — respecting per-piece stat caps, materia grade ilvl requirements, and pentameld overmeld rules — and overlays the best plan on the paperdoll with exact socket-by-socket changes
 
 ## Supported Jobs (22/22)
 
@@ -198,6 +223,9 @@ Each rotation is named after a Greek deity:
 | Training mode + coaching | ✅ Complete |
 | Built-in DPS parser (+ LAN reports, DoT attribution) | ✅ Complete |
 | Blue Mage v1 (role kit, mimicry, loadouts) | ✅ Complete |
+| Meld Optimizer (Balance priorities, sweep, paperdoll) | ✅ Complete |
+| Occult Crescent phantom job automation + zone HUD | ✅ Complete |
+| Variant dungeon actions (incl. coordinated raise) | ✅ Complete |
 | Cross-machine LAN coordination | 🚧 In progress |
 | BLU Moon Flute burst planner + multi-BLU coordination | 📋 Planned |
 | Countdown/pre-pull burst alignment IPC | 📋 Planned |
