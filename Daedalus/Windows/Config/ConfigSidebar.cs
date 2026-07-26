@@ -212,6 +212,7 @@ public sealed class ConfigSidebar
             sectionChanged |= DrawNavItemFiltered(Loc.T(LocalizedStrings.Sidebar.Monk, "Monk"), ConfigSection.Monk, ConfigUIHelpers.MonkColor, matchingSections, hasSearch);
             sectionChanged |= DrawNavItemFiltered(Loc.T(LocalizedStrings.Sidebar.Reaper, "Reaper"), ConfigSection.Reaper, ConfigUIHelpers.ReaperColor, matchingSections, hasSearch);
             sectionChanged |= DrawNavItemFiltered(Loc.T(LocalizedStrings.Sidebar.Viper, "Viper"), ConfigSection.Viper, ConfigUIHelpers.ViperColor, matchingSections, hasSearch);
+            DrawComingSoonItem("Beastmaster (7.56)", hasSearch);
             ImGui.Spacing();
         }
 
@@ -236,7 +237,6 @@ public sealed class ConfigSidebar
             sectionChanged |= DrawNavItemFiltered(Loc.T(LocalizedStrings.Sidebar.RedMage, "Red Mage"), ConfigSection.RedMage, ConfigUIHelpers.RedMageColor, matchingSections, hasSearch);
             sectionChanged |= DrawNavItemFiltered(Loc.T(LocalizedStrings.Sidebar.Pictomancer, "Pictomancer"), ConfigSection.Pictomancer, ConfigUIHelpers.PictomancerColor, matchingSections, hasSearch);
             sectionChanged |= DrawNavItemFiltered("Blue Mage", ConfigSection.BlueMage, ConfigUIHelpers.BlackMageColor, matchingSections, hasSearch);
-            DrawComingSoonItem("Beastmaster (7.56)", hasSearch);
         }
 
         ImGui.EndChild();

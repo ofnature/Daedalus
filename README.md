@@ -211,7 +211,7 @@ Each rotation is named after a Greek deity:
 | Melee | Dragoon | Zeus | | | |
 | Melee | Ninja | Hermes | | | |
 | Melee | Samurai | Nike | | | |
-| Melee | Reaper | Thanatos | Limited | Beastmaster *(7.56)* | Pan |
+| Melee | Reaper | Thanatos | Melee | Beastmaster *(7.56, limited)* | Pan |
 | Tank | Bastion *(8.0)* | Argus | | | |
 
 ## Roadmap
