@@ -100,7 +100,7 @@ public sealed class DaedalusIpc : IDisposable
     {
         if (_configuration.Enabled != enabled)
         {
-            _configuration.Enabled = enabled;
+            _configuration.SetEnabledByUser(enabled);
             _saveConfiguration();
 
             // Fire state changed event

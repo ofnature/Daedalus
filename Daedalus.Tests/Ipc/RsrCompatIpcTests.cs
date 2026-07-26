@@ -3,6 +3,7 @@ using Xunit;
 
 namespace Daedalus.Tests.Ipc;
 
+[Collection("ExternalCombatOverrideState")]
 public class RsrCompatIpcTests
 {
     // The numeric layout is the IPC wire contract with Questionable / other RSR-driving plugins

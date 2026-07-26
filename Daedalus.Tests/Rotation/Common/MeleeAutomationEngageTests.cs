@@ -18,6 +18,7 @@ namespace Daedalus.Tests.Rotation.Common;
 /// RPR's holds (Gibbet/Gallows are REAL) never fire solo, where the positional mover is
 /// disabled by design.
 /// </summary>
+[Collection("ExternalCombatOverrideState")]
 public class MeleeAutomationEngageTests
 {
     private static Mock<IBattleNpc> PassiveMark(ulong id = 7777UL)

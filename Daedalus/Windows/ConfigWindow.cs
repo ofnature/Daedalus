@@ -228,7 +228,7 @@ public sealed class ConfigWindow : Window
         var enabled = configuration.Enabled;
         if (ImGui.Checkbox(Loc.T(LocalizedStrings.Config.EnableRotation, "Enable Rotation"), ref enabled))
         {
-            configuration.Enabled = enabled;
+            configuration.SetEnabledByUser(enabled);
             saveConfiguration();
         }
 

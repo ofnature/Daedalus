@@ -1405,7 +1405,7 @@ public sealed class Plugin : IDalamudPlugin
         switch (subcommand)
         {
             case "toggle":
-                configuration.Enabled = !configuration.Enabled;
+                configuration.SetEnabledByUser(!configuration.Enabled);
                 SaveConfiguration();
                 DaedalusIpc.NotifyStateChanged(configuration.Enabled);
                 var status = configuration.Enabled ? "enabled" : "disabled";

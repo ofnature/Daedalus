@@ -97,7 +97,7 @@ public sealed class WelcomeWindow : Window
         var enabled = _configuration.Enabled;
         if (ImGui.Checkbox(Loc.T(LocalizedStrings.Welcome.EnableRotation, "Enable Daedalus"), ref enabled))
         {
-            _configuration.Enabled = enabled;
+            _configuration.SetEnabledByUser(enabled);
             _saveConfiguration();
         }
         ImGui.TextDisabled(Loc.T(

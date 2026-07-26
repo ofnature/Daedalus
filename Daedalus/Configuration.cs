@@ -27,8 +27,27 @@ public sealed class Configuration : IPluginConfiguration
     [Newtonsoft.Json.JsonIgnore]
     public bool ExternalCombatOverride
     {
-        get => ExternalCombatOverrideState.Active;
-        set => ExternalCombatOverrideState.Active = value;
+        get => ExternalCombatOverrideState.Active && !ExternalCombatOverrideState.UserSuppressed;
+        set
+        {
+            // Releasing the override ends the automation session — the next session
+            // starts fresh (a user Disable only suppresses the CURRENT session).
+            if (!value)
+                ExternalCombatOverrideState.UserSuppressed = false;
+            ExternalCombatOverrideState.Active = value;
+        }
+    }
+
+    /// <summary>
+    /// The user explicitly flipped the master switch (main window, overlay, /daedalus
+    /// toggle, IPC). Disabling while an automation bridge holds the combat override also
+    /// suppresses that override for the rest of its session — Disable always stops the
+    /// rotation. A later automation session (or re-enabling) works normally.
+    /// </summary>
+    public void SetEnabledByUser(bool enabled)
+    {
+        Enabled = enabled;
+        ExternalCombatOverrideState.UserSuppressed = !enabled && ExternalCombatOverrideState.Active;
     }
 
     /// <summary>Rotation runs when the user's master switch OR the external-combat IPC override is on.</summary>
@@ -321,6 +340,14 @@ internal static class ExternalCombatOverrideState
 
     /// <summary>Which automation plugin currently holds the override ("Henchman", "AutoDuty", "Quest"); "" when none.</summary>
     internal static string Source = "";
+
+    /// <summary>
+    /// The user explicitly hit Disable while an automation session held the override
+    /// (field report: NIN kept fighting under the quest bridge). The override stays
+    /// suppressed until that session releases it or the user re-enables — an explicit
+    /// Disable always stops the rotation.
+    /// </summary>
+    internal static bool UserSuppressed;
 }
 
 /// <summary>

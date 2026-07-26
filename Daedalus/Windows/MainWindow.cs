@@ -185,7 +185,7 @@ public sealed class MainWindow : Window
         ImGui.PushStyleColor(ImGuiCol.Text, DaedalusTheme.BgDeep);
         if (ImGui.Button(enableDisableText, new Vector2(-1, 28)))
         {
-            configuration.Enabled = !configuration.Enabled;
+            configuration.SetEnabledByUser(!configuration.Enabled);
             saveConfiguration();
         }
         ImGui.PopStyleColor(4);

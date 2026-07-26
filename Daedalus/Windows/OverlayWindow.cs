@@ -101,7 +101,7 @@ public sealed class OverlayWindow : Window
 
         if (Common.DaedalusTheme.StatusChip(statusText, color, "##OverlayToggle"))
         {
-            _configuration.Enabled = !_configuration.Enabled;
+            _configuration.SetEnabledByUser(!_configuration.Enabled);
             _saveConfiguration();
         }
 

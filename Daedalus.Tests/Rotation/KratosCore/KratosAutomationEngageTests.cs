@@ -20,6 +20,7 @@ namespace Daedalus.Tests.Rotation.KratosCore;
 /// deadlock the opener on a single front-approached target — Dawntrail removed ALL Monk
 /// positionals (RSR carries zero positional metadata), so the hold is gone.
 /// </summary>
+[Collection("ExternalCombatOverrideState")]
 public class KratosAutomationEngageTests
 {
     private readonly DamageModule _module = new();
