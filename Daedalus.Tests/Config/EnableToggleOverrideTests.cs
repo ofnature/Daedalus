@@ -4,11 +4,12 @@ using Xunit;
 namespace Daedalus.Tests.Config;
 
 /// <summary>
-/// Field report 2026-07-26: NIN kept fighting after the user hit Disable — the
-/// automation bridge's ExternalCombatOverride bypassed the master switch
-/// (EffectiveEnabled = Enabled || Override). Contract now: an explicit user Disable
-/// ALWAYS stops the rotation, suppressing the current automation session's override;
-/// the next session (or re-enabling) works normally.
+/// Field reports 2026-07-26 (NIN, then GNB on v0.1.44): automation bridges bypassed the
+/// master switch (EffectiveEnabled = Enabled || Override). A session-scoped suppression
+/// wasn't enough — Questionable releases/reacquires the override PER MOB, so it expired
+/// between kills, and disabling before the quest started never suppressed at all.
+/// Contract now: an explicit Disable blocks automation-driven combat PERSISTENTLY until
+/// the user re-enables; a never-touched toggle keeps the zero-setup automation contract.
 /// </summary>
 [Collection("ExternalCombatOverrideState")]
 public class EnableToggleOverrideTests
@@ -17,7 +18,6 @@ public class EnableToggleOverrideTests
     {
         // Process-wide static — reset so tests are order-independent.
         ExternalCombatOverrideState.Active = false;
-        ExternalCombatOverrideState.UserSuppressed = false;
         ExternalCombatOverrideState.Source = "";
         return new Configuration { Enabled = false };
     }
@@ -29,59 +29,77 @@ public class EnableToggleOverrideTests
         config.ExternalCombatOverride = true; // quest bridge engaged
         Assert.True(config.EffectiveEnabled);
 
-        config.SetEnabledByUser(false);       // the NIN field-report scenario
+        config.SetEnabledByUser(false);
 
         Assert.False(config.EffectiveEnabled);
         Assert.False(config.ExternalCombatOverride);
     }
 
     [Fact]
-    public void OverrideRelease_EndsTheSuppression_NextSessionWorks()
+    public void PerMobReleaseReacquire_StaysBlocked()
     {
+        // The GNB field report: Questionable drops and re-takes the override per kill.
         var config = Fresh();
-        config.ExternalCombatOverride = true;
         config.SetEnabledByUser(false);
+
+        config.ExternalCombatOverride = true;  // mob 1
         Assert.False(config.EffectiveEnabled);
+        config.ExternalCombatOverride = false; // "combat done."
+        config.ExternalCombatOverride = true;  // mob 2
 
-        config.ExternalCombatOverride = false; // quest ends — session over
-        config.ExternalCombatOverride = true;  // next automation session
-
-        Assert.True(config.EffectiveEnabled);  // zero-setup automation still works
+        Assert.False(config.EffectiveEnabled);
     }
 
     [Fact]
-    public void UserReEnable_ClearsTheSuppression()
+    public void DisableBeforeAutomationStarts_StillBlocks()
     {
         var config = Fresh();
-        config.ExternalCombatOverride = true;
-        config.SetEnabledByUser(false);
+        config.SetEnabledByUser(false);       // disabled while idle
 
+        config.ExternalCombatOverride = true; // quest starts later
+
+        Assert.False(config.EffectiveEnabled);
+    }
+
+    [Fact]
+    public void UserReEnable_AutomationWorksAgain()
+    {
+        var config = Fresh();
+        config.SetEnabledByUser(false);
         config.SetEnabledByUser(true);
+
+        config.ExternalCombatOverride = true;
 
         Assert.True(config.EffectiveEnabled);
         Assert.True(config.ExternalCombatOverride);
     }
 
     [Fact]
-    public void DisableWithoutOverride_DoesNotPoisonLaterAutomation()
+    public void NeverTouchedToggle_ZeroSetupAutomationStillWorks()
     {
-        var config = Fresh();
-        config.SetEnabledByUser(false);       // plain disable, no automation running
+        var config = Fresh();                 // fresh install: Enabled false, never toggled
 
-        config.ExternalCombatOverride = true; // automation starts later
+        config.ExternalCombatOverride = true;
 
-        Assert.True(config.EffectiveEnabled); // zero-setup contract intact
+        Assert.True(config.EffectiveEnabled);
     }
 
     [Fact]
-    public void BridgeReassertingTrue_DoesNotClearSuppression()
+    public void Suppression_IsPersistedConfigState()
     {
+        // Survives restarts: the flag rides the saved config, not transient statics.
         var config = Fresh();
-        config.ExternalCombatOverride = true;
         config.SetEnabledByUser(false);
 
-        config.ExternalCombatOverride = true; // bridge re-asserts every frame
+        Assert.True(config.AutomationSuppressedByDisable);
 
-        Assert.False(config.EffectiveEnabled);
+        var reloaded = new Configuration
+        {
+            Enabled = config.Enabled,
+            AutomationSuppressedByDisable = config.AutomationSuppressedByDisable,
+        };
+        reloaded.ExternalCombatOverride = true;
+
+        Assert.False(reloaded.EffectiveEnabled);
     }
 }

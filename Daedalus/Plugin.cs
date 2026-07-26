@@ -775,7 +775,9 @@ public sealed class Plugin : IDalamudPlugin
             var name = bridge.PluginName;
             bridge.OverrideChanged += enabled =>
                 chatGui.Print(enabled
-                    ? $"Daedalus rotation started — {name} is running."
+                    ? configuration.AutomationSuppressedByDisable
+                        ? $"Daedalus is disabled — ignoring combat request from {name}. Click Enable to let automation fight."
+                        : $"Daedalus rotation started — {name} is running."
                     : $"Daedalus rotation stopped — {name} finished.");
         }
 
@@ -787,9 +789,11 @@ public sealed class Plugin : IDalamudPlugin
             pluginInterface, configuration, log, targetManager, targetingService, objectTable);
         this.questionableIpc.OverrideChanged += enabled =>
             chatGui.Print(enabled
-                ? string.IsNullOrEmpty(this.questionableIpc.CurrentQuestId)
-                    ? "Daedalus rotation started — Questionable combat (objective mobs / cleanup)."
-                    : $"Daedalus rotation started — Questionable kill step (quest {this.questionableIpc.CurrentQuestId})."
+                ? configuration.AutomationSuppressedByDisable
+                    ? "Daedalus is disabled — ignoring Questionable combat request. Click Enable to let automation fight."
+                    : string.IsNullOrEmpty(this.questionableIpc.CurrentQuestId)
+                        ? "Daedalus rotation started — Questionable combat (objective mobs / cleanup)."
+                        : $"Daedalus rotation started — Questionable kill step (quest {this.questionableIpc.CurrentQuestId})."
                 : "Daedalus rotation stopped — Questionable combat done.");
 
         if (fightSummaryService != null)
