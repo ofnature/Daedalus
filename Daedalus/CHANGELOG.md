@@ -3,6 +3,15 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.45 — 2026-07-26
+
+### Fix — Disable now blocks automation for good
+- Follow-up to v0.1.44: the "session-scoped" suppression was defeated by quest plugins that release and re-take the combat override **per mob** — the suppression expired between kills and a disabled Gunbreaker kept pulling quest mobs. Disable is now **persistent**: automation-driven combat stays blocked (across quest steps, sessions, and game restarts) until you explicitly hit Enable again. While disabled, chat says *"Daedalus is disabled — ignoring combat request"* instead of the misleading "rotation started". Toons whose toggle was never touched keep the zero-setup behavior — automation just works
+
+### Fix — Dancer no longer dances endlessly out of combat
+- An idle Dancer kept doing Standard Step + finisher out of combat: the pre-pull dance re-fired every time the 60-second buff dropped, anywhere outside a sanctuary. The pre-pull dance now only starts when a pull is actually imminent — a live enemy hard target (you've targeted the boss pre-pull, or an automation plugin has targeted the next mob). In-combat dancing is unchanged
+
+<!-- LATEST-END -->
 ## v0.1.44 — 2026-07-26
 
 ### Fix — Disable always stops the rotation
@@ -11,7 +20,6 @@ All notable changes to Daedalus will be documented in this file.
 ### UI — Announced jobs on the roster
 - The Settings sidebar now shows greyed placeholders for the announced jobs: **Beastmaster** (patch 7.56, limited melee — module codename *Pan*) under Melee DPS, and **Bastion** (8.0 tank, ranged/melee hybrid — codename *Argus*) under Tanks. They become real entries when the jobs ship
 
-<!-- LATEST-END -->
 ## v0.1.43 — 2026-07-25
 
 ### New — Variant dungeon duty actions (V&C Dungeon Finder)
