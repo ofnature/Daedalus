@@ -181,10 +181,12 @@ public sealed class BmrAiConfigService
             // Field report 2026-07-26 (NIN ate point-blank AoEs): DesiredPositional pushes
             // were never restored on disable — a stale Rear/Flank flips BMR into its 2.6y
             // positional-goal mode, whose goal cells sit INSIDE boss-centered AoEs, dragging
-            // the pathfinder into the danger it should flee. Restore both movement values to
-            // BMR defaults (FollowTarget's default is true — our push matched it, no restore).
+            // the pathfinder into the danger it should flee. "Any" is the one universally
+            // safe restore. MaxDistanceToTarget is deliberately NOT restored: the config IPC
+            // is write-only so the pre-push value is unknowable, and pushing the 2.6 melee
+            // default parked ranged toons at passive melee range (second field report same
+            // day) — the last role-correct value stays instead.
             PushConfig("DesiredPositional", "Any");
-            PushConfig("MaxDistanceToTarget", "2.6");
         }
         _lastDistance = null;
         _lastPositional = null;
