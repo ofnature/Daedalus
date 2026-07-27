@@ -71,6 +71,21 @@ public sealed class BmrAiConfigPolicyTests
     public void ResolveDesiredPositional_BacklineCamping_StillAny() =>
         Assert.Equal("Any", BmrAiConfigPolicy.ResolveDesiredPositional(JobRegistry.WhiteMage, PositionalType.Rear, boundaryCampingActive: true));
 
+    [Theory]
+    [InlineData(PositionalType.Rear)]
+    [InlineData(PositionalType.Flank)]
+    public void ResolveDesiredPositional_ForbiddenZonesLive_ReturnsAny(PositionalType required) =>
+        // Field report 2026-07-26 (NIN ate point-blanks): BMR's positional-goal mode pins a
+        // 2.6y goal ring in the required arc — inside boss-centered AoEs. While any forbidden
+        // zone is live the positional preference clears so the pathfinder flees unbiased.
+        Assert.Equal("Any", BmrAiConfigPolicy.ResolveDesiredPositional(
+            JobRegistry.Ninja, required, boundaryCampingActive: false, forbiddenZonesLive: true));
+
+    [Fact]
+    public void ResolveDesiredPositional_ZonesCleared_PositionalReasserts() =>
+        Assert.Equal("Rear", BmrAiConfigPolicy.ResolveDesiredPositional(
+            JobRegistry.Ninja, PositionalType.Rear, boundaryCampingActive: false, forbiddenZonesLive: false));
+
     // ── AI-mode tracking via BMR's "bmr-ai" status-bar entry ────────────────
     // BMR has no "is AI enabled" IPC; the DTR entry text ("AI: On"/"AI: Off") is the only
     // published truth. A hidden or empty entry means UNKNOWN — never Off (BMR only writes the

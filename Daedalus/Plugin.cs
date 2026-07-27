@@ -1824,7 +1824,8 @@ public sealed class Plugin : IDalamudPlugin
             JobId: jobId,
             RequiredPositional: requiredPositional,
             RangedStandDistance: configuration.Nav.BmrRangedStandDistance,
-            BoundaryCampingActive: boundaryCamping));
+            BoundaryCampingActive: boundaryCamping,
+            ForbiddenZonesLive: bossModSafetyService.ForbiddenZonesCount > 0));
     }
 
     /// <summary>

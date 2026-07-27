@@ -28,10 +28,13 @@ public static class BmrAiConfigPolicy
     /// it follows the rotation's actual next GCD (RPR Gibbet↔Gallows, MNK forms, NIN). When boundary
     /// camping is live, melee also gets <c>Any</c>: Daedalus owns the standing angle via positional arcs,
     /// BMR only keeps range and dodges — feeding it a positional would have it fight us over the angle.
+    /// While forbidden zones are live, melee also gets <c>Any</c> — BMR's positional-goal mode pins its
+    /// goal ring at 2.6y in the required arc, which sits INSIDE boss-centered AoEs and drags the
+    /// pathfinder toward the danger (field report 2026-07-26: NIN ate point-blanks).
     /// </summary>
-    public static string ResolveDesiredPositional(uint jobId, PositionalType? requiredPositional, bool boundaryCampingActive)
+    public static string ResolveDesiredPositional(uint jobId, PositionalType? requiredPositional, bool boundaryCampingActive, bool forbiddenZonesLive = false)
     {
-        if (IsBacklineJob(jobId) || boundaryCampingActive)
+        if (IsBacklineJob(jobId) || boundaryCampingActive || forbiddenZonesLive)
             return "Any";
 
         return requiredPositional switch

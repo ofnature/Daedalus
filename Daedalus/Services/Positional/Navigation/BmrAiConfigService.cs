@@ -94,7 +94,10 @@ public sealed class BmrAiConfigService
         uint JobId,
         PositionalType? RequiredPositional,
         float RangedStandDistance,
-        bool BoundaryCampingActive = false);
+        bool BoundaryCampingActive = false,
+        /// <summary>BMR reports live forbidden zones — a positional goal would drag its
+        /// pathfinder toward boss-centered AoEs; feed "Any" until the danger clears.</summary>
+        bool ForbiddenZonesLive = false);
 
     // ── UI status (read by the Nav Control panel) ─────────────────────────────────────────────────────
     /// <summary>BossMod Reborn is installed and loaded.</summary>
@@ -155,7 +158,8 @@ public sealed class BmrAiConfigService
             pushed = true;
         }
 
-        var positional = BmrAiConfigPolicy.ResolveDesiredPositional(req.JobId, req.RequiredPositional, req.BoundaryCampingActive);
+        var positional = BmrAiConfigPolicy.ResolveDesiredPositional(
+            req.JobId, req.RequiredPositional, req.BoundaryCampingActive, req.ForbiddenZonesLive);
         if (_lastPositional != positional)
         {
             PushConfig("DesiredPositional", positional);
@@ -174,6 +178,13 @@ public sealed class BmrAiConfigService
         {
             PushConfig("ForbidActions", "false");
             PushConfig("ManualTarget", "false");
+            // Field report 2026-07-26 (NIN ate point-blank AoEs): DesiredPositional pushes
+            // were never restored on disable — a stale Rear/Flank flips BMR into its 2.6y
+            // positional-goal mode, whose goal cells sit INSIDE boss-centered AoEs, dragging
+            // the pathfinder into the danger it should flee. Restore both movement values to
+            // BMR defaults (FollowTarget's default is true — our push matched it, no restore).
+            PushConfig("DesiredPositional", "Any");
+            PushConfig("MaxDistanceToTarget", "2.6");
         }
         _lastDistance = null;
         _lastPositional = null;
