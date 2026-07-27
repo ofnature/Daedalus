@@ -40,6 +40,7 @@ public sealed class CastMovementHoldService : IDisposable
     private bool _wePaused;
     private DateTime _holdStartUtc;
     private bool _watchdogTrippedThisCast;
+    private bool _startupStaleHoldCleared;
 
     /// <summary>Test seams.</summary>
     internal Func<DateTime> UtcNow = () => DateTime.UtcNow;
@@ -65,6 +66,14 @@ public sealed class CastMovementHoldService : IDisposable
     /// <summary>Framework-thread tick.</summary>
     public void Update()
     {
+        // Stale-hold recovery (field report 2026-07-26: BMR computed dodge targets but the
+        // toon stood in the AoE as it fired): ForbidMovement is a PERSISTED BMR config value,
+        // so a crash / failed release during a plugin reload leaves BMR frozen across
+        // sessions — navigating but never moving. Clear it once per plugin lifetime as soon
+        // as BMR is reachable; our own holds re-assert within a frame when legitimate.
+        if (!_startupStaleHoldCleared && _bossModSafety.IsAvailable)
+            _startupStaleHoldCleared = SetPaused(false);
+
         var player = _objectTable.LocalPlayer;
         var casting = player is { IsCasting: true };
         if (!casting)

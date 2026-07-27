@@ -123,17 +123,30 @@ public class CastMovementHoldServiceTests
         _player.Setup(x => x.CurrentCastTime).Returns(progress);
     }
 
+    // Every test sequence starts with the startup stale-hold clear (a lone `false`):
+    // ForbidMovement is PERSISTED in BMR's config, so a crash / failed release during a
+    // plugin reload froze BMR across sessions (field report 2026-07-26: BMR computed dodge
+    // targets while the toon stood in the AoE as it fired).
+
+    [Fact]
+    public void StartupStaleHoldClear_ReleasesOnce_ThenNeverAgain()
+    {
+        _service.Update();
+        _service.Update();
+        Assert.Equal(new[] { false }, _pauseCalls);
+    }
+
     [Fact]
     public void PausesOncePerCast_ReleasesOnCastEnd()
     {
         SetCasting(true);
         _service.Update();
         _service.Update(); // still casting — no duplicate IPC spam
-        Assert.Equal(new[] { true }, _pauseCalls);
+        Assert.Equal(new[] { false, true }, _pauseCalls);
 
         SetCasting(false);
         _service.Update();
-        Assert.Equal(new[] { true, false }, _pauseCalls);
+        Assert.Equal(new[] { false, true, false }, _pauseCalls);
     }
 
     [Fact]
@@ -141,11 +154,11 @@ public class CastMovementHoldServiceTests
     {
         SetCasting(true);
         _service.Update();
-        Assert.Equal(new[] { true }, _pauseCalls);
+        Assert.Equal(new[] { false, true }, _pauseCalls);
 
         _bossMod.Setup(x => x.NextDamageInSeconds).Returns(1f);
         _service.Update();
-        Assert.Equal(new[] { true, false }, _pauseCalls); // dodging wins; the cast dies
+        Assert.Equal(new[] { false, true, false }, _pauseCalls); // dodging wins; the cast dies
     }
 
     [Fact]
@@ -156,30 +169,31 @@ public class CastMovementHoldServiceTests
 
         _now = _now.AddSeconds(9);
         _service.Update();
-        Assert.Equal(new[] { true, false }, _pauseCalls);
+        Assert.Equal(new[] { false, true, false }, _pauseCalls);
 
         // Same stuck cast keeps NOT re-pausing; a fresh cast may hold again.
         _service.Update();
-        Assert.Equal(new[] { true, false }, _pauseCalls);
+        Assert.Equal(new[] { false, true, false }, _pauseCalls);
 
         SetCasting(false);
         _service.Update();
         SetCasting(true);
         _service.Update();
-        Assert.Equal(new[] { true, false, true }, _pauseCalls);
+        Assert.Equal(new[] { false, true, false, true }, _pauseCalls);
     }
 
     [Fact]
-    public void Disabled_NeverPauses()
+    public void Disabled_StillClearsStaleHold_ButNeverPauses()
     {
+        // The stale hold may date from BEFORE the user disabled the feature — always clear it.
         _config.Nav.HoldBmrMovementWhileCasting = false;
         SetCasting(true);
         _service.Update();
-        Assert.Empty(_pauseCalls);
+        Assert.Equal(new[] { false }, _pauseCalls);
     }
 
     [Fact]
-    public void BmrMissing_NeverPauses()
+    public void BmrMissing_NeverTouchesIpc()
     {
         _bossMod.Setup(x => x.IsAvailable).Returns(false);
         SetCasting(true);
@@ -193,6 +207,6 @@ public class CastMovementHoldServiceTests
         SetCasting(true);
         _service.Update();
         _service.Dispose();
-        Assert.Equal(new[] { true, false }, _pauseCalls);
+        Assert.Equal(new[] { false, true, false }, _pauseCalls);
     }
 }
