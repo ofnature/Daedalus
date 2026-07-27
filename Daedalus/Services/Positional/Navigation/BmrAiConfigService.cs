@@ -43,6 +43,17 @@ public sealed class BmrAiConfigService
     private bool _legacyConfigCleaned;
     private bool _wasEnabled;
 
+    // Contested-slot backoff: another manager (field case: ADS's "passive - melee") re-taking
+    // the preset slot after every reclaim is a 4Hz ping-pong that helps nobody. After
+    // ContestedRetakeLimit foreign retakes we yield, surface who holds the slot, and stop
+    // touching it until the user re-toggles the feature.
+    private const int ContestedRetakeLimit = 3;
+    private int _foreignRetakes;
+    private bool _contested;
+
+    /// <summary>Non-empty while we've yielded the preset slot to a re-asserting foreign manager.</summary>
+    public string ContestedBy { get; private set; } = "";
+
     public BmrAiConfigService(IDalamudPluginInterface pi, IBossModSafetyService bmr, IPluginLog? log = null,
         Daedalus.Services.Debug.DebugLogService? debugLog = null,
         Dalamud.Plugin.Services.IDtrBar? dtrBar = null)
@@ -160,11 +171,25 @@ public sealed class BmrAiConfigService
             }
             pushed = true;
         }
-        else if (ActivePresetName() != BmrAiConfigPolicy.PresetName)
+        else if (ActivePresetName() is var active && active != BmrAiConfigPolicy.PresetName)
         {
             // Someone else grabbed the slot (AutoDuty run start etc.) — take it back only
-            // while the user has auto-manage ON; when they distrust us they untick and we
-            // never touch presets again.
+            // while the user has auto-manage ON. If a manager keeps re-taking it, yield
+            // instead of ping-ponging and tell the user who holds the slot.
+            if (_contested)
+                return;
+
+            if (++_foreignRetakes >= ContestedRetakeLimit)
+            {
+                _contested = true;
+                ContestedBy = active;
+                LastPushResult = $"preset slot contested by \"{active}\" — yielded";
+                _debugLog?.Log(Daedalus.Services.Debug.DebugLogCategory.Nav,
+                    Daedalus.Services.Debug.DebugLogSeverity.Warning,
+                    $"BMR preset slot contested by \"{active}\" after {_foreignRetakes} retakes — yielding until Auto-Manage is re-toggled");
+                return;
+            }
+
             if (ActivatePreset())
                 _lastPositional = null;
             pushed = true;
@@ -207,6 +232,9 @@ public sealed class BmrAiConfigService
         _lastPositional = null;
         _lastPushUtc = System.DateTime.MinValue;
         _wasEnabled = false;
+        _foreignRetakes = 0;
+        _contested = false;
+        ContestedBy = "";
     }
 
     private bool CreatePreset(string json)

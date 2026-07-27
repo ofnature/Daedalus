@@ -269,7 +269,14 @@ public sealed class NavControlWindow : Window
         }
 
         var preset = bmrAiConfigService.ActivePresetName();
-        if (preset == Daedalus.Services.Positional.Navigation.BmrAiConfigPolicy.PresetName)
+        if (!string.IsNullOrEmpty(bmrAiConfigService.ContestedBy))
+        {
+            ImGui.TextColored(Red, $"Preset slot CONTESTED by \"{bmrAiConfigService.ContestedBy}\" — yielded.");
+            ImGui.TextWrapped("Another plugin keeps re-taking the BMR preset slot (ADS/AutoDuty-style managers "
+                + "do this). Configure that plugin's BMR preset management, or leave this box off on this toon. "
+                + "Re-toggle the box to try reclaiming once more.");
+        }
+        else if (preset == Daedalus.Services.Positional.Navigation.BmrAiConfigPolicy.PresetName)
         {
             ImGui.TextColored(Green, "Preset: Daedalus (managed — movement only, live positional)");
         }
