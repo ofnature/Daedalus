@@ -151,10 +151,10 @@ public sealed class NavControlWindow : Window
         if (ConfigUIHelpers.ToggleCheckbox(
                 "Auto-Manage BMR AI by role",
                 ref autoBmr,
-                "For group content (not Trust): feeds BossMod Reborn's AI a role-based stand distance "
-                + "(healers/ranged hold at range, melee hug) and the live next-GCD positional, in movement-only "
-                + "mode so BMR positions while Daedalus keeps the rotation. You still enable BMR AI yourself "
-                + "(/bmrai). Does nothing if BossMod Reborn isn't loaded. Off by default.",
+                "Creates and activates a BMR autorotation preset named \"Daedalus\" (movement modules only — "
+                + "Daedalus keeps the rotation): melee/tanks hug the target with the live next-GCD positional, "
+                + "backline holds at range. Unticking releases the preset and touches NOTHING else. You still "
+                + "enable BMR AI yourself (/bmrai). Does nothing if BossMod Reborn isn't loaded. Off by default.",
                 saveConfiguration))
         {
             nav.AutoManageBmrAi = autoBmr;
@@ -268,22 +268,25 @@ public sealed class NavControlWindow : Window
                 break;
         }
 
-        var preset = bmrAiConfigService.CurrentAiPreset();
-        if (string.IsNullOrEmpty(preset))
+        var preset = bmrAiConfigService.ActivePresetName();
+        if (preset == Daedalus.Services.Positional.Navigation.BmrAiConfigPolicy.PresetName)
         {
-            ImGui.TextColored(Green, "AI preset: none (movement config active)");
+            ImGui.TextColored(Green, "Preset: Daedalus (managed — movement only, live positional)");
+        }
+        else if (string.IsNullOrEmpty(preset))
+        {
+            ImGui.TextColored(Yellow, "Preset: none — activating the Daedalus preset…");
         }
         else
         {
-            ImGui.TextColored(Yellow, $"AI preset loaded: {preset}");
-            ImGui.TextWrapped("A loaded AI preset does its own positioning and ignores Daedalus's distance/"
-                + "positional. Clear it in BMR's AI window for this to control movement.");
+            ImGui.TextColored(Yellow, $"Preset: {preset} (another manager holds the slot — will reclaim)");
         }
 
         var result = bmrAiConfigService.LastPushResult;
         if (!string.IsNullOrEmpty(result))
         {
-            var ok = result.EndsWith(": ok", StringComparison.Ordinal);
+            var ok = result.EndsWith(": ok", StringComparison.Ordinal)
+                || result is "preset active" or "preset created" or "preset released";
             ImGui.TextColored(ok ? Green : Yellow, $"Last push: {result}");
         }
 

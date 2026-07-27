@@ -7,16 +7,17 @@ using Dalamud.Plugin.Services;
 namespace Daedalus.Services.Positional.Navigation;
 
 /// <summary>
-/// Auto-manages BossMod Reborn's AI movement config by role — for group content, where AutoDuty (which
-/// only runs in Trust) isn't there to do it. When enabled, it pushes role-based <c>MaxDistanceToTarget</c>
-/// and a live <c>DesiredPositional</c> into BMR via the <c>BossMod.Configuration</c> IPC, and puts BMR in
-/// movement-only mode (<c>ForbidActions</c>/<c>ManualTarget</c>) so BMR positions while Daedalus keeps the
-/// rotation + targeting. You still enable BMR AI yourself (<c>/bmrai</c>).
+/// Auto-manages BossMod Reborn's AI movement via a first-class BMR autorotation preset named
+/// "Daedalus" (same mechanism AutoDuty uses): on enable it creates/refreshes the preset (movement
+/// modules only — Daedalus fights) and activates it; the live per-GCD positional is fed through a
+/// transient strategy on the GoToPositional module. You still enable BMR AI yourself (<c>/bmrai</c>).
 ///
-/// It does NOT touch your AI preset — but BMR's distance/positional movement only applies when NO preset
-/// is loaded, so when one is active the UI warns you to clear it. Pushes are transient (save=false), only
-/// sent on change, rate-capped, and fail-open. The <c>Configuration</c> IPC returns status/error strings,
-/// surfaced in <see cref="LastPushResult"/> for the Nav Control panel.
+/// On DISABLE the only action is clearing our own preset if it is still the active one — no raw
+/// AIConfig writes ever happen at the off transition (field report 2026-07-26: the old
+/// movement-only restore flipped <c>ForbidActions</c> at untick, which external preset managers
+/// reacted to; the tick box must do NOTHING while off). A one-time legacy AIConfig cleanup runs at
+/// ENABLE to unwind the old mode's ForbidActions/ManualTarget/DesiredPositional from earlier
+/// versions. All IPC is fail-open; results surface in <see cref="LastPushResult"/>.
 /// </summary>
 public sealed class BmrAiConfigService
 {
@@ -29,13 +30,17 @@ public sealed class BmrAiConfigService
     private readonly Dalamud.Plugin.Services.IDtrBar? _dtrBar;
 
     private ICallGateSubscriber<List<string>, bool, List<string>>? _configIpc;
-    private ICallGateSubscriber<string>? _getPresetIpc;
     private ICallGateSubscriber<bool, object>? _pauseMovementIpc;
+    private ICallGateSubscriber<string, bool, bool>? _presetCreateIpc;
+    private ICallGateSubscriber<string, bool>? _presetSetActiveIpc;
+    private ICallGateSubscriber<string>? _presetGetActiveIpc;
+    private ICallGateSubscriber<bool>? _presetClearActiveIpc;
+    private ICallGateSubscriber<string, string, string, string, bool>? _presetAddTransientIpc;
 
-    private float? _lastDistance;
+    private string? _appliedPresetJson;
     private string? _lastPositional;
     private System.DateTime _lastPushUtc = System.DateTime.MinValue;
-    private bool _movementOnlyApplied;
+    private bool _legacyConfigCleaned;
     private bool _wasEnabled;
 
     public BmrAiConfigService(IDalamudPluginInterface pi, IBossModSafetyService bmr, IPluginLog? log = null,
@@ -102,17 +107,8 @@ public sealed class BmrAiConfigService
     // ── UI status (read by the Nav Control panel) ─────────────────────────────────────────────────────
     /// <summary>BossMod Reborn is installed and loaded.</summary>
     public bool BmrAvailable => _bmr.IsAvailable;
-    /// <summary>Last result line returned by the BossMod.Configuration IPC (empty / "ok" / an error).</summary>
+    /// <summary>Last result line from the BMR IPC (config push or preset op).</summary>
     public string LastPushResult { get; private set; } = "";
-    /// <summary>The AI preset currently loaded in BMR ("" = none). A loaded preset blocks our movement config.</summary>
-    public string CurrentAiPreset()
-    {
-        if (!_bmr.IsAvailable)
-            return "";
-        EnsureSubscribers();
-        try { return _getPresetIpc?.InvokeFunc() ?? ""; }
-        catch (System.Exception ex) { _log?.Debug(ex, "[BmrAiConfigService] AI.GetPreset failed"); return ""; }
-    }
 
     public void Update(in Request req)
     {
@@ -132,14 +128,15 @@ public sealed class BmrAiConfigService
         EnsureSubscribers();
         _wasEnabled = true;
 
-        // Movement-only, once per enable session: BMR positions, Daedalus fights + targets. We do NOT clear
-        // the AI preset — that proved surprising; the UI warns instead when a preset is blocking us.
-        if (!_movementOnlyApplied)
+        // One-time migration off the old raw-AIConfig mode: earlier versions left
+        // ForbidActions/ManualTarget/DesiredPositional set. Runs at ENABLE (never at
+        // disable — the off transition must be side-effect free).
+        if (!_legacyConfigCleaned)
         {
-            PushConfig("ForbidActions", "true");
-            PushConfig("ManualTarget", "true");
-            PushConfig("FollowTarget", "true");
-            _movementOnlyApplied = true;
+            PushConfig("ForbidActions", "false");
+            PushConfig("ManualTarget", "false");
+            PushConfig("DesiredPositional", "Any");
+            _legacyConfigCleaned = true;
         }
 
         // Rate cap: nothing changes value faster than a GCD, so a sub-0.25s change means oscillation — skip
@@ -150,20 +147,37 @@ public sealed class BmrAiConfigService
 
         var pushed = false;
 
-        var distance = BmrAiConfigPolicy.ResolveMaxDistance(req.JobId, req.RangedStandDistance);
-        if (_lastDistance != distance)
+        // Create/refresh + activate the "Daedalus" preset whenever the role-shaped JSON changes
+        // (job role swap, ranged-distance slider) or another manager replaced the active preset.
+        var json = BmrAiConfigPolicy.BuildPresetJson(
+            BmrAiConfigPolicy.IsBacklineJob(req.JobId), req.RangedStandDistance);
+        if (_appliedPresetJson != json)
         {
-            PushConfig("MaxDistanceToTarget", distance.ToString("0.0", CultureInfo.InvariantCulture));
-            _lastDistance = distance;
+            if (CreatePreset(json) && ActivatePreset())
+            {
+                _appliedPresetJson = json;
+                _lastPositional = null; // fresh preset: transient strategies were reset
+            }
+            pushed = true;
+        }
+        else if (ActivePresetName() != BmrAiConfigPolicy.PresetName)
+        {
+            // Someone else grabbed the slot (AutoDuty run start etc.) — take it back only
+            // while the user has auto-manage ON; when they distrust us they untick and we
+            // never touch presets again.
+            if (ActivatePreset())
+                _lastPositional = null;
             pushed = true;
         }
 
+        // Live per-GCD positional via a transient strategy on the GoToPositional module
+        // (raw AIConfig positional is ignored while any preset is active).
         var positional = BmrAiConfigPolicy.ResolveDesiredPositional(
             req.JobId, req.RequiredPositional, req.BoundaryCampingActive, req.ForbiddenZonesLive);
-        if (_lastPositional != positional)
+        if (!BmrAiConfigPolicy.IsBacklineJob(req.JobId) && _lastPositional != positional)
         {
-            PushConfig("DesiredPositional", positional);
-            _lastPositional = positional;
+            if (SetTransientPositional(positional))
+                _lastPositional = positional;
             pushed = true;
         }
 
@@ -171,28 +185,92 @@ public sealed class BmrAiConfigService
             _lastPushUtc = now;
     }
 
-    /// <summary>On disable, hand control back to BMR (drop movement-only) and clear the throttle cache.</summary>
+    /// <summary>
+    /// On disable: clear OUR preset if it is still the active one — nothing else. The off
+    /// transition must have no observable side effects beyond releasing our own slot.
+    /// </summary>
     private void RestoreAndReset()
     {
-        if (_bmr.IsAvailable && _movementOnlyApplied)
+        if (_bmr.IsAvailable && ActivePresetName() == BmrAiConfigPolicy.PresetName)
         {
-            PushConfig("ForbidActions", "false");
-            PushConfig("ManualTarget", "false");
-            // Field report 2026-07-26 (NIN ate point-blank AoEs): DesiredPositional pushes
-            // were never restored on disable — a stale Rear/Flank flips BMR into its 2.6y
-            // positional-goal mode, whose goal cells sit INSIDE boss-centered AoEs, dragging
-            // the pathfinder into the danger it should flee. "Any" is the one universally
-            // safe restore. MaxDistanceToTarget is deliberately NOT restored: the config IPC
-            // is write-only so the pre-push value is unknowable, and pushing the 2.6 melee
-            // default parked ranged toons at passive melee range (second field report same
-            // day) — the last role-correct value stays instead.
-            PushConfig("DesiredPositional", "Any");
+            try
+            {
+                _presetClearActiveIpc?.InvokeFunc();
+                LastPushResult = "preset released";
+            }
+            catch (System.Exception ex)
+            {
+                _log?.Debug(ex, "[BmrAiConfigService] Presets.ClearActive failed");
+            }
         }
-        _lastDistance = null;
+        _appliedPresetJson = null;
         _lastPositional = null;
         _lastPushUtc = System.DateTime.MinValue;
-        _movementOnlyApplied = false;
         _wasEnabled = false;
+    }
+
+    private bool CreatePreset(string json)
+    {
+        try
+        {
+            var ok = _presetCreateIpc?.InvokeFunc(json, true) ?? false; // overwrite: true
+            LastPushResult = ok ? "preset created" : "Presets.Create rejected the Daedalus preset";
+            if (!ok)
+                _debugLog?.Log(Daedalus.Services.Debug.DebugLogCategory.Nav,
+                    Daedalus.Services.Debug.DebugLogSeverity.Warning,
+                    "BMR rejected the Daedalus preset JSON");
+            return ok;
+        }
+        catch (System.Exception ex)
+        {
+            LastPushResult = $"Presets.Create threw ({ex.Message})";
+            _log?.Debug(ex, "[BmrAiConfigService] Presets.Create failed");
+            return false;
+        }
+    }
+
+    private bool ActivatePreset()
+    {
+        try
+        {
+            var ok = _presetSetActiveIpc?.InvokeFunc(BmrAiConfigPolicy.PresetName) ?? false;
+            if (ok)
+                LastPushResult = "preset active";
+            return ok;
+        }
+        catch (System.Exception ex)
+        {
+            LastPushResult = $"Presets.SetActive threw ({ex.Message})";
+            _log?.Debug(ex, "[BmrAiConfigService] Presets.SetActive failed");
+            return false;
+        }
+    }
+
+    /// <summary>Active BMR autorotation preset name ("" when none). Shown in Nav Control.</summary>
+    public string ActivePresetName()
+    {
+        if (!_bmr.IsAvailable)
+            return "";
+        EnsureSubscribers();
+        try { return _presetGetActiveIpc?.InvokeFunc() ?? ""; }
+        catch { return ""; }
+    }
+
+    private bool SetTransientPositional(string positional)
+    {
+        try
+        {
+            return _presetAddTransientIpc?.InvokeFunc(
+                BmrAiConfigPolicy.PresetName,
+                BmrAiConfigPolicy.GoToPositionalModule,
+                "Positional",
+                positional) ?? false;
+        }
+        catch (System.Exception ex)
+        {
+            _log?.Debug(ex, "[BmrAiConfigService] Presets.AddTransientStrategy failed");
+            return false;
+        }
     }
 
     private void PushConfig(string field, string value)
@@ -226,8 +304,12 @@ public sealed class BmrAiConfigService
     private void EnsureSubscribers()
     {
         _configIpc ??= _pi.GetIpcSubscriber<List<string>, bool, List<string>>("BossMod.Configuration");
-        _getPresetIpc ??= _pi.GetIpcSubscriber<string>("BossMod.AI.GetPreset");
         _pauseMovementIpc ??= _pi.GetIpcSubscriber<bool, object>("BossMod.AI.PauseMovement");
+        _presetCreateIpc ??= _pi.GetIpcSubscriber<string, bool, bool>("BossMod.Presets.Create");
+        _presetSetActiveIpc ??= _pi.GetIpcSubscriber<string, bool>("BossMod.Presets.SetActive");
+        _presetGetActiveIpc ??= _pi.GetIpcSubscriber<string>("BossMod.Presets.GetActive");
+        _presetClearActiveIpc ??= _pi.GetIpcSubscriber<bool>("BossMod.Presets.ClearActive");
+        _presetAddTransientIpc ??= _pi.GetIpcSubscriber<string, string, string, string, bool>("BossMod.Presets.AddTransientStrategy");
     }
 
     /// <summary>

@@ -22,6 +22,48 @@ public static class BmrAiConfigPolicy
     public static float ResolveMaxDistance(uint jobId, float rangedDistance) =>
         IsBacklineJob(jobId) ? rangedDistance : MeleeStandDistance;
 
+    /// <summary>Our BMR autorotation preset name — the fleet's preset-based tooling sees us as a peer.</summary>
+    public const string PresetName = "Daedalus";
+
+    /// <summary>The BMR module fed the live per-GCD positional via a transient strategy.</summary>
+    public const string GoToPositionalModule = "BossMod.Autorotation.MiscAI.GoToPositional";
+
+    /// <summary>
+    /// Builds the "Daedalus" BMR autorotation preset JSON (schema per AutoDuty's field-proven
+    /// presets). Movement-only — no rotation modules, Daedalus fights. Melee/tanks: hug the
+    /// target + pathfind + a GoToPositional slot driven live via transient strategies.
+    /// Backline: hold range off the party + pathfind.
+    /// </summary>
+    public static string BuildPresetJson(bool backline, float rangedDistance)
+    {
+        var range = ((int)System.MathF.Round(rangedDistance)).ToString(System.Globalization.CultureInfo.InvariantCulture);
+        var modules = backline
+            ? $$"""
+                    "BossMod.Autorotation.MiscAI.StayCloseToPartyRole": [
+                      { "Track": "range", "Option": "{{range}}" }
+                    ],
+                    "BossMod.Autorotation.MiscAI.NormalMovement": [
+                      { "Track": "Destination", "Option": "Pathfind" }
+                    ]
+                """
+            : $$"""
+                    "BossMod.Autorotation.MiscAI.StayCloseToTarget": [],
+                    "{{GoToPositionalModule}}": [],
+                    "BossMod.Autorotation.MiscAI.NormalMovement": [
+                      { "Track": "Destination", "Option": "Pathfind" }
+                    ]
+                """;
+
+        return $$"""
+            {
+              "Name": "{{PresetName}}",
+              "Modules": {
+            {{modules}}
+              }
+            }
+            """;
+    }
+
     /// <summary>
     /// Maps Daedalus's next required positional to BMR's <c>Positional</c> enum name. Backline jobs and
     /// "no requirement" → <c>Any</c> (don't force a positional). Beats a static single positional because

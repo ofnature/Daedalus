@@ -86,6 +86,43 @@ public sealed class BmrAiConfigPolicyTests
         Assert.Equal("Rear", BmrAiConfigPolicy.ResolveDesiredPositional(
             JobRegistry.Ninja, PositionalType.Rear, boundaryCampingActive: false, forbiddenZonesLive: false));
 
+    // ── "Daedalus" preset JSON (schema per AutoDuty's field-proven presets) ────────────
+
+    [Fact]
+    public void PresetJson_Melee_HugsTarget_WithPositionalSlot()
+    {
+        var json = BmrAiConfigPolicy.BuildPresetJson(backline: false, rangedDistance: 15f);
+
+        Assert.Contains("\"Name\": \"Daedalus\"", json);
+        Assert.Contains("BossMod.Autorotation.MiscAI.StayCloseToTarget", json);
+        Assert.Contains(BmrAiConfigPolicy.GoToPositionalModule, json);
+        Assert.Contains("\"Option\": \"Pathfind\"", json);
+        Assert.DoesNotContain("StayCloseToPartyRole", json);
+    }
+
+    [Fact]
+    public void PresetJson_Backline_HoldsRange_NoPositional()
+    {
+        var json = BmrAiConfigPolicy.BuildPresetJson(backline: true, rangedDistance: 15f);
+
+        Assert.Contains("BossMod.Autorotation.MiscAI.StayCloseToPartyRole", json);
+        Assert.Contains("\"Option\": \"15\"", json);
+        Assert.DoesNotContain("GoToPositional", json);
+        Assert.DoesNotContain("StayCloseToTarget", json);
+    }
+
+    [Fact]
+    public void PresetJson_IsWellFormedJson()
+    {
+        foreach (var backline in new[] { true, false })
+        {
+            var json = BmrAiConfigPolicy.BuildPresetJson(backline, 20f);
+            var parsed = Newtonsoft.Json.Linq.JObject.Parse(json); // throws on malformed JSON
+            Assert.Equal("Daedalus", parsed["Name"]!.ToString());
+            Assert.NotEmpty((Newtonsoft.Json.Linq.JObject)parsed["Modules"]!);
+        }
+    }
+
     // ── AI-mode tracking via BMR's "bmr-ai" status-bar entry ────────────────
     // BMR has no "is AI enabled" IPC; the DTR entry text ("AI: On"/"AI: Off") is the only
     // published truth. A hidden or empty entry means UNKNOWN — never Off (BMR only writes the
