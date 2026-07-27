@@ -33,4 +33,11 @@ public static class RotationServices
     /// inert outside the five variant territories.
     /// </summary>
     public static Daedalus.Rotation.Phantom.VariantActionLayer? VariantLayer { get; set; }
+
+    /// <summary>
+    /// RSR-compat IPC surface — melee rotations broadcast their anticipated positional
+    /// finisher on RSR's ActionUpdater event gates so positional-following movement
+    /// plugins ("Follow RSR's desired positional") follow Daedalus.
+    /// </summary>
+    public static Daedalus.Ipc.RsrCompatIpc? RsrCompat { get; set; }
 }

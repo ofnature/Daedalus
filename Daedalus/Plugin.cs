@@ -759,6 +759,7 @@ public sealed class Plugin : IDalamudPlugin
         this.rsrCompatIpc = new RsrCompatIpc(pluginInterface, configuration, log);
         this.rsrCompatIpc.OverrideChanged += enabled =>
             chatGui.Print($"Daedalus rotation {(enabled ? "started" : "stopped")} by quest plugin.");
+        Daedalus.Rotation.Base.RotationServices.RsrCompat = rsrCompatIpc;
 
         // Automation bridges: Henchman and AutoDuty select their rotation plugin by installed
         // internal name, so the RSR-compat gates can't hook them — instead we run while their

@@ -37,6 +37,16 @@ public class RsrCompatIpcTests
         Assert.False(RsrCompatIpc.MapsToEnabled(mode));
     }
 
+    // The ActionUpdater event gate names are the wire contract with positional-following
+    // movement plugins ("Follow RotationSolverReborn's desired positional") — they subscribe
+    // by exact string (EzIPC naming: prefix + "." + member). Renaming breaks them silently.
+    [Fact]
+    public void ActionUpdaterGateNames_MatchRsrEzIpcContract()
+    {
+        Assert.Equal("RotationSolverReborn.ActionUpdater.NextGCDActionChanged", RsrCompatIpc.NextGcdActionChangedGate);
+        Assert.Equal("RotationSolverReborn.ActionUpdater.NextActionChanged", RsrCompatIpc.NextActionChangedGate);
+    }
+
     [Theory]
     [InlineData(541u)]   // striking dummy
     [InlineData(13078u)] // timeworn striking dummy

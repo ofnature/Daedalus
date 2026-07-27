@@ -376,6 +376,14 @@ public abstract class BaseMeleeDpsRotation<TContext, TModule> : BaseRotation<TCo
 
         var provider = GetPositionalAnticipationProvider();
         var anticipationContext = CreatePositionalAnticipationContext(player);
+
+        // RSR ActionUpdater parity broadcast: positional-following movement plugins subscribe
+        // to RSR's next-GCD event and derive the desired flank/rear from the action id. Publish
+        // our anticipated finisher (0 clears it) so those plugins follow Daedalus. Deduped in
+        // the IPC layer; independent of our own vNav gates.
+        var anticipated = inCombat ? provider?.GetAnticipatedPositional(anticipationContext) : null;
+        RotationServices.RsrCompat?.PublishNextGcd(anticipated?.UpcomingFinisherActionId ?? 0);
+
         var engagedEnemies = TargetingService.CountEngagedEnemies(
             PositionalRequirementHelper.EngagedScanYalms, player);
         var singleTargetOk = PositionalRequirementHelper.ShouldApply(engagedEnemies);

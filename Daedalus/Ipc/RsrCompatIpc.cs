@@ -27,6 +27,13 @@ public sealed class RsrCompatIpc : IDisposable
     private const string RsrInternalName = "RotationSolverReborn";
 
     /// <summary>
+    /// ActionUpdater event gate names — the wire contract with positional-following movement
+    /// plugins (EzIPC naming: prefix + "." + member). Never rename.
+    /// </summary>
+    public const string NextGcdActionChangedGate = "RotationSolverReborn.ActionUpdater.NextGCDActionChanged";
+    public const string NextActionChangedGate = "RotationSolverReborn.ActionUpdater.NextActionChanged";
+
+    /// <summary>
     /// Mirror of RSR's <c>StateCommandType</c>. Member names AND numeric values must match RSR
     /// (Off=0, Auto=1, TargetOnly=2, Manual=3, AutoDuty=4, Henched=5) — callers like Questionable
     /// declare their own copy and Dalamud converts by serialized value across assemblies.
@@ -51,6 +58,15 @@ public sealed class RsrCompatIpc : IDisposable
 
     private readonly ICallGateProvider<string, object>? _test;
     private readonly ICallGateProvider<StateCommandType, object>? _changeOperatingMode;
+
+    // RSR ActionUpdater event parity: RSR broadcasts its planned next action via EzIPC events
+    // ("RotationSolverReborn.ActionUpdater.NextGCDActionChanged"/"NextActionChanged").
+    // Positional-following movement plugins ("Follow RotationSolverReborn's desired positional")
+    // subscribe and derive the desired flank/rear from the action id. Daedalus broadcasts its
+    // anticipated positional finisher on the same gates so those plugins follow us instead.
+    private readonly ICallGateProvider<uint, object>? _nextGcdActionChanged;
+    private readonly ICallGateProvider<uint, object>? _nextActionChanged;
+    private uint _lastBroadcastActionId;
 
     /// <summary>True when the RSR-compat gates were registered (real RSR not loaded, no gate error).</summary>
     public bool Registered { get; }
@@ -77,6 +93,10 @@ public sealed class RsrCompatIpc : IDisposable
             _changeOperatingMode = pluginInterface.GetIpcProvider<StateCommandType, object>("RotationSolverReborn.ChangeOperatingMode");
             _changeOperatingMode.RegisterAction(ChangeOperatingMode);
 
+            // Event gates (broadcast-only — subscribers attach on their side; no RegisterAction).
+            _nextGcdActionChanged = pluginInterface.GetIpcProvider<uint, object>(NextGcdActionChangedGate);
+            _nextActionChanged = pluginInterface.GetIpcProvider<uint, object>(NextActionChangedGate);
+
             Registered = true;
             _log.Info("RSR-compat IPC registered (RotationSolverReborn.Test / .ChangeOperatingMode) — quest plugins can drive Daedalus.");
         }
@@ -85,6 +105,28 @@ public sealed class RsrCompatIpc : IDisposable
             _log.Warning(ex, "Failed to register RSR-compat IPC gates; quest-plugin integration disabled.");
             _test = null;
             _changeOperatingMode = null;
+        }
+    }
+
+    /// <summary>
+    /// Broadcasts the anticipated next GCD on the RSR ActionUpdater event gates (deduped on
+    /// change; 0 = no anticipated action, which clears the consumer's desired positional).
+    /// Fired from the melee base rotation's positional-anticipation pass each frame.
+    /// </summary>
+    public void PublishNextGcd(uint actionId)
+    {
+        if (!Registered || actionId == _lastBroadcastActionId)
+            return;
+
+        _lastBroadcastActionId = actionId;
+        try
+        {
+            _nextGcdActionChanged?.SendMessage(actionId);
+            _nextActionChanged?.SendMessage(actionId);
+        }
+        catch
+        {
+            // Subscriber threw — never let a foreign plugin break the rotation frame.
         }
     }
 
