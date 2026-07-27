@@ -23,6 +23,7 @@ public sealed class MovementArbiter : IMovementArbiter
     private bool _dangerLastFrame;
     private bool _steeringThisFrame;
     private bool _realDangerThisFrame;
+    private int _zonesThisFrame;
     private DateTime _lastNavigatingUtc = DateTime.MinValue;
     private DateTime _lastDangerUtc = DateTime.MinValue;
     private DateTime _lastRealDangerUtc = DateTime.MinValue;
@@ -95,6 +96,7 @@ public sealed class MovementArbiter : IMovementArbiter
             && (nextDamageIn <= PositionalMovementConstants.BmrYieldWindowSeconds
                 || forbiddenIn <= PositionalMovementConstants.BmrYieldWindowSeconds);
         _dangerThisFrame = bmrSteering || _realDangerThisFrame;
+        _zonesThisFrame = zones;
 
         if (_dangerThisFrame)
         {
@@ -119,10 +121,14 @@ public sealed class MovementArbiter : IMovementArbiter
 
             // Cede the input pipeline: BMR skips its own steering while a vNav path runs, so a
             // Daedalus-owned path must stop for the dodge to happen at all. Exception: an arc-intent
-            // path during steering-only danger — the ~0.4s hop is the point of the carve-out and BMR
-            // isn't dodging anything; real danger still aborts it instantly.
+            // path during steering-only danger WITH NO ZONES — the ~0.4s hop is the point of the
+            // carve-out and BMR isn't dodging anything. Steering with forbidden zones live IS a
+            // dodge in progress (field report 2026-07-26: a NIN arc path fought the dodge — the
+            // toon got 75% out of the AoE, stuttered against the vNav pull-back, and ate it), and
+            // real danger still aborts instantly.
             if (_weIssuedActivePath && _inner.IsPathRunning
-                && (_realDangerThisFrame || _lastGrantIntent == MovementIntent.MaxMelee))
+                && (_realDangerThisFrame || _lastGrantIntent == MovementIntent.MaxMelee
+                    || (bmrSteering && zones > 0)))
             {
                 LogNav("stopped owned vNav path for BMR dodge");
                 Stop();
@@ -203,8 +209,11 @@ public sealed class MovementArbiter : IMovementArbiter
         if (_dangerThisFrame)
         {
             // Arc carve-out: steering-only danger doesn't block a positional hop (BMR keeps range,
-            // Daedalus owns the angle). Real zone/damage danger blocks everything.
-            if (intent != MovementIntent.PositionalArc)
+            // Daedalus owns the angle) — but ONLY while no forbidden zones exist. Steering with
+            // zones live is a dodge in progress, and an arc path fights it head-on (field report
+            // 2026-07-26: NIN 75% out of an AoE, stuttering, ate it). Real zone/damage danger
+            // blocks everything.
+            if (intent != MovementIntent.PositionalArc || _zonesThisFrame > 0)
                 return _steeringThisFrame
                     ? MovementSuppression.BmrNavigating
                     : MovementSuppression.BmrDanger;

@@ -340,6 +340,55 @@ public class MovementArbiterTests
     }
 
     [Fact]
+    public void ArcIntent_SteeringWithZonesLive_Denied()
+    {
+        // Field report 2026-07-26: BMR steering while forbidden zones exist IS a dodge in
+        // progress — the NIN's arc path fought it (75% out of the AoE, stutter, ate it).
+        // The steering-only carve-out must not apply while any zone is live.
+        _bossMod.Setup(x => x.IsBmrNavigating).Returns(true);
+        _bossMod.Setup(x => x.ForbiddenZonesCount).Returns(2);
+        var arbiter = CreateArbiter();
+        arbiter.BeginFrame();
+
+        Assert.Equal(VNavMoveResult.Suppressed,
+            arbiter.PathfindAndMoveCloseTo(DestA, 0.35f, MovementIntent.PositionalArc));
+        Assert.Equal(MovementSuppression.BmrNavigating, arbiter.Snapshot.Suppression);
+    }
+
+    [Fact]
+    public void OwnedArcPath_SteeringWithZonesLive_StoppedForTheDodge()
+    {
+        var arbiter = CreateArbiter();
+        arbiter.BeginFrame();
+        Assert.Equal(VNavMoveResult.Queued,
+            arbiter.PathfindAndMoveCloseTo(DestA, 0.35f, MovementIntent.PositionalArc));
+        _inner.Setup(x => x.IsPathRunning).Returns(true);
+
+        _bossMod.Setup(x => x.IsBmrNavigating).Returns(true);
+        _bossMod.Setup(x => x.ForbiddenZonesCount).Returns(1);
+        arbiter.BeginFrame();
+
+        _inner.Verify(x => x.Stop(), Times.Once);
+    }
+
+    [Fact]
+    public void OwnedArcPath_SteeringOnlyNoZones_KeepsRunning()
+    {
+        // The carve-out survives: steering without zones (follow/range adjust) never stops
+        // a ~0.4s arc hop.
+        var arbiter = CreateArbiter();
+        arbiter.BeginFrame();
+        Assert.Equal(VNavMoveResult.Queued,
+            arbiter.PathfindAndMoveCloseTo(DestA, 0.35f, MovementIntent.PositionalArc));
+        _inner.Setup(x => x.IsPathRunning).Returns(true);
+
+        _bossMod.Setup(x => x.IsBmrNavigating).Returns(true);
+        arbiter.BeginFrame();
+
+        _inner.Verify(x => x.Stop(), Times.Never);
+    }
+
+    [Fact]
     public void ArcIntent_RealDangerImminent_Denied()
     {
         _bossMod.Setup(x => x.ForbiddenZoneActivationInSeconds).Returns(1.0f);
