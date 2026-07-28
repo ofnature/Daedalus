@@ -1011,4 +1011,57 @@ public class RotationSchedulerTests
 
         Assert.True(scheduler.DispatchGcd(ctx).Dispatched);
     }
+
+    // ── full-gauge spender repeat gate (field 2026-07-28: Midare Setsugekka re-pushed while
+    //    the Sen read was stale, queue-accepted, dropped at fire with "Cannot use yet." ×5) ──
+
+    [Fact]
+    public void Dispatch_BlockImmediateRepeat_RefusesWhenSameActionJustFired()
+    {
+        var actionService = ExecutingActionService();
+        actionService.Setup(x => x.WasLastGcd(9501u)).Returns(true);
+        var scheduler = Build(actionService);
+
+        var iaijutsu = TestBehaviors.InstantGcd(actionId: 9501) with { BlockImmediateRepeat = true };
+        scheduler.PushGcd(iaijutsu, targetId: 0, priority: 1);
+
+        var result = scheduler.DispatchGcd(CreateContextWithPlayerLevel(90));
+
+        Assert.False(result.Dispatched);
+        Assert.Contains(result.GateFailReasons, r => r.Contains("GaugeSpentRepeat"));
+    }
+
+    [Fact]
+    public void Dispatch_BlockImmediateRepeat_AllowsAfterAnotherGcdFired()
+    {
+        var actionService = ExecutingActionService();
+        actionService.Setup(x => x.WasLastGcd(9502u)).Returns(false); // filler fired in between
+        var scheduler = Build(actionService);
+
+        var iaijutsu = TestBehaviors.InstantGcd(actionId: 9502) with { BlockImmediateRepeat = true };
+        scheduler.PushGcd(iaijutsu, targetId: 0, priority: 1);
+
+        Assert.True(scheduler.DispatchGcd(CreateContextWithPlayerLevel(90)).Dispatched);
+    }
+
+    [Fact]
+    public void Dispatch_UnflaggedGcd_MayRepeatImmediately()
+    {
+        // Glare→Glare / IR Fell Cleave ×3 / SMN Rites: immediate repeats stay legal by default.
+        var actionService = ExecutingActionService();
+        actionService.Setup(x => x.WasLastGcd(9503u)).Returns(true);
+        var scheduler = Build(actionService);
+
+        scheduler.PushGcd(TestBehaviors.InstantGcd(actionId: 9503), targetId: 0, priority: 1);
+
+        Assert.True(scheduler.DispatchGcd(CreateContextWithPlayerLevel(90)).Dispatched);
+    }
+
+    [Fact]
+    public void NikeIaijutsu_AllCarryBlockImmediateRepeat()
+    {
+        Assert.True(Daedalus.Rotation.NikeCore.Abilities.NikeAbilities.Higanbana.BlockImmediateRepeat);
+        Assert.True(Daedalus.Rotation.NikeCore.Abilities.NikeAbilities.TenkaGoken.BlockImmediateRepeat);
+        Assert.True(Daedalus.Rotation.NikeCore.Abilities.NikeAbilities.MidareSetsugekka.BlockImmediateRepeat);
+    }
 }

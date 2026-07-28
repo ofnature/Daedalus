@@ -33,9 +33,13 @@ public static class NikeAbilities
     public static readonly AbilityBehavior Oka = new() { Action = SAMActions.Oka, Toggle = cfg => cfg.Samurai.EnableAoERotation };
 
     // --- Iaijutsu ---
-    public static readonly AbilityBehavior Higanbana = new() { Action = SAMActions.Higanbana, Toggle = cfg => cfg.Samurai.EnableIaijutsu };
-    public static readonly AbilityBehavior TenkaGoken = new() { Action = SAMActions.TenkaGoken, Toggle = cfg => cfg.Samurai.EnableIaijutsu };
-    public static readonly AbilityBehavior MidareSetsugekka = new() { Action = SAMActions.MidareSetsugekka, Toggle = cfg => cfg.Samurai.EnableIaijutsu };
+    // BlockImmediateRepeat: Iaijutsu consume ALL Sen — the gauge reads stale-valid for a tick
+    // after the cast and the module re-pushed the same Iaijutsu into the next queue window,
+    // which the game dropped with a "Cannot use yet." toast (Mistwake field, 2026-07-28).
+    // No Iaijutsu can legitimately fire twice in a row (Sen must rebuild across ≥2 GCDs).
+    public static readonly AbilityBehavior Higanbana = new() { Action = SAMActions.Higanbana, Toggle = cfg => cfg.Samurai.EnableIaijutsu, BlockImmediateRepeat = true };
+    public static readonly AbilityBehavior TenkaGoken = new() { Action = SAMActions.TenkaGoken, Toggle = cfg => cfg.Samurai.EnableIaijutsu, BlockImmediateRepeat = true };
+    public static readonly AbilityBehavior MidareSetsugekka = new() { Action = SAMActions.MidareSetsugekka, Toggle = cfg => cfg.Samurai.EnableIaijutsu, BlockImmediateRepeat = true };
 
     // --- Tendo (Lv.100) Kaeshi — slot resolution only; burst logic Phase C ---
     // No ProcBuff on any Kaeshi below — TryPushTsubameGaeshi already gates on the dual

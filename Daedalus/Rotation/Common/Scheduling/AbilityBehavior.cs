@@ -73,4 +73,15 @@ public sealed record AbilityBehavior
     /// means "no reserve — spend charges freely."
     /// </summary>
     public ChargeHoldPolicy? ChargeHold { get; init; }
+
+    /// <summary>
+    /// Full-gauge spender guard: this GCD consumes its ENTIRE gauge condition when it fires, so
+    /// the module's gauge read stays stale-valid for a server tick afterward and re-pushes the
+    /// same action — the queue accepts the duplicate and the game drops it at fire time with a
+    /// "Cannot use yet." toast (field 2026-07-28: Midare Setsugekka ×5 per pull). When set, the
+    /// scheduler refuses to dispatch this action while it is also the immediately-preceding GCD.
+    /// Opt-in ONLY: legitimate immediate repeats exist elsewhere (Inner Release Fell Cleave ×3,
+    /// SMN attunement Rites) — never set this on an action that can validly fire back-to-back.
+    /// </summary>
+    public bool BlockImmediateRepeat { get; init; }
 }

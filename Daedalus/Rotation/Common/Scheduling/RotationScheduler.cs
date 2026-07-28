@@ -183,6 +183,16 @@ public sealed class RotationScheduler
                 }
             }
 
+            // Gate: full-gauge spender repeat (see AbilityBehavior.BlockImmediateRepeat). The
+            // repeat-GCD guard's queue-window exemption can't catch this — Iaijutsu sits on the
+            // global recast, exactly the class the exemption exists for (Glare→Glare chains).
+            if (!isOgcd && candidate.Behavior.BlockImmediateRepeat
+                && _actionService.WasLastGcd(effective.ActionId))
+            {
+                RecordFail(candidate, "GaugeSpentRepeat (just fired — gauge read is stale)");
+                continue;
+            }
+
             // Gate: adjusted action probe
             if (candidate.Behavior.AdjustedActionProbe is { } probeId)
             {
