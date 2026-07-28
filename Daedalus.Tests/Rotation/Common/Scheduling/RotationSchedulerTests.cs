@@ -893,4 +893,122 @@ public class RotationSchedulerTests
         Assert.False(result.Dispatched);
         Assert.Contains(result.GateFailReasons, r => r.Contains("not facing"));
     }
+
+    // ── range gate (field 2026-07-28: SAM at range toasted "Target is not in range."
+    //    every cycle — the melee combo submitted, the game refused, THEN Enpi won the
+    //    fall-through; the gate fails clearly-out-of-range candidates without asking) ──
+
+    private static IRotationContext CreateContextWithPositionedTarget(
+        ulong targetId, float targetDistance, float targetHitbox = 0f, float playerHitbox = 0f)
+    {
+        var mock = new Mock<IRotationContext>();
+        var player = new Mock<Dalamud.Game.ClientState.Objects.SubKinds.IPlayerCharacter>();
+        player.Setup(p => p.Level).Returns((byte)90);
+        player.Setup(p => p.Position).Returns(System.Numerics.Vector3.Zero);
+        player.Setup(p => p.HitboxRadius).Returns(playerHitbox);
+        mock.Setup(c => c.Player).Returns(player.Object);
+        mock.Setup(c => c.Configuration).Returns(new Configuration());
+        var objectTable = new Mock<IObjectTable>();
+        var target = new Mock<Dalamud.Game.ClientState.Objects.Types.IGameObject>();
+        target.Setup(t => t.Position).Returns(new System.Numerics.Vector3(targetDistance, 0f, 0f));
+        target.Setup(t => t.HitboxRadius).Returns(targetHitbox);
+        objectTable.Setup(t => t.SearchById(targetId)).Returns(target.Object);
+        mock.Setup(c => c.ObjectTable).Returns(objectTable.Object);
+        return mock.Object;
+    }
+
+    private static Mock<IActionService> ExecutingActionService()
+    {
+        var actionService = MockBuilders.CreateMockActionService();
+        actionService.Setup(x => x.ExecuteGcd(It.IsAny<ActionDefinition>(), It.IsAny<ulong>()))
+            .Returns(true);
+        return actionService;
+    }
+
+    private static AbilityBehavior GcdWithRange(uint actionId, float range, string name = "TestGCD") =>
+        TestBehaviors.InstantGcd(actionId) with
+        {
+            Action = new ActionDefinition
+            {
+                ActionId = actionId,
+                Name = name,
+                MinLevel = 1,
+                Category = ActionCategory.GCD,
+                TargetType = ActionTargetType.SingleEnemy,
+                CastTime = 0f,
+                RecastTime = 2.5f,
+                Range = range,
+            },
+        };
+
+    [Fact]
+    public void Dispatch_OutOfRangeMelee_FailsSilently_RangedFallbackWins()
+    {
+        var actionService = ExecutingActionService();
+        var scheduler = Build(actionService);
+        const ulong targetId = 4001UL;
+        var ctx = CreateContextWithPositionedTarget(targetId, targetDistance: 10f);
+
+        var melee = TestBehaviors.InstantGcd(actionId: 9401); // Range 3
+        var ranged = GcdWithRange(actionId: 9402, range: 20f, name: "TestRanged");
+        scheduler.PushGcd(melee, targetId, priority: 1);
+        scheduler.PushGcd(ranged, targetId, priority: 2);
+
+        var result = scheduler.DispatchGcd(ctx);
+
+        Assert.True(result.Dispatched);
+        Assert.Equal(9402u, result.Winner!.Action.ActionId);
+        Assert.Contains(result.GateFailReasons, r => r.Contains("OutOfRange"));
+        // The melee candidate must never reach the game — that's what makes the toast.
+        actionService.Verify(
+            x => x.ExecuteGcd(It.Is<ActionDefinition>(a => a.ActionId == 9401), It.IsAny<ulong>()),
+            Times.Never);
+    }
+
+    [Fact]
+    public void Dispatch_HitboxesExtendMeleeReach_Submits()
+    {
+        // 5.4y center-to-center, but 2.0y target hitbox + 0.5y player hitbox → 2.9y effective ≤ 3.5y.
+        var actionService = ExecutingActionService();
+        var scheduler = Build(actionService);
+        const ulong targetId = 4002UL;
+        var ctx = CreateContextWithPositionedTarget(
+            targetId, targetDistance: 5.4f, targetHitbox: 2.0f, playerHitbox: 0.5f);
+
+        scheduler.PushGcd(TestBehaviors.InstantGcd(actionId: 9403), targetId, priority: 1);
+
+        Assert.True(scheduler.DispatchGcd(ctx).Dispatched);
+    }
+
+    [Fact]
+    public void Dispatch_JustBeyondQueueFlex_Fails()
+    {
+        // 3.6y effective vs Range 3 + 0.5 flex — past the queue-window tolerance.
+        var actionService = ExecutingActionService();
+        var scheduler = Build(actionService);
+        const ulong targetId = 4003UL;
+        var ctx = CreateContextWithPositionedTarget(targetId, targetDistance: 3.6f);
+
+        scheduler.PushGcd(TestBehaviors.InstantGcd(actionId: 9404), targetId, priority: 1);
+
+        var result = scheduler.DispatchGcd(ctx);
+
+        Assert.False(result.Dispatched);
+        Assert.Contains(result.GateFailReasons, r => r.Contains("OutOfRange"));
+    }
+
+    [Fact]
+    public void Dispatch_RangeZero_NeverRangeGated()
+    {
+        // Range 0 = self/PBAoE or no sheet range data — distance must not gate it.
+        var actionService = ExecutingActionService();
+        var scheduler = Build(actionService);
+        const ulong targetId = 4004UL;
+        var ctx = CreateContextWithPositionedTarget(targetId, targetDistance: 50f);
+
+        var pbaoe = GcdWithRange(actionId: 9405, range: 0f);
+        scheduler.PushGcd(pbaoe, targetId, priority: 1);
+
+        Assert.True(scheduler.DispatchGcd(ctx).Dispatched);
+    }
 }

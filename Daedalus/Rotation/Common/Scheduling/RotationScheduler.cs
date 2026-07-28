@@ -203,6 +203,23 @@ public sealed class RotationScheduler
                     RecordFail(candidate, "Target missing");
                     continue;
                 }
+
+                // Gate: range. A clearly-out-of-range submit is refused by the client with a
+                // "Target is not in range." toast on EVERY attempt (field 2026-07-28: SAM at
+                // range toasted each cycle before falling through to Enpi). Fail it here so
+                // the in-range fallback (Enpi/Tomahawk/etc.) wins without asking the game.
+                // Same math as DescribeReject, same +0.5y flex — near-range submits still go
+                // through so the server-side queue fires them the instant the approach closes.
+                if (effective.Range > 0f)
+                {
+                    var dist = Vector3.Distance(ctx.Player.Position, target.Position)
+                               - target.HitboxRadius - ctx.Player.HitboxRadius;
+                    if (dist > effective.Range + 0.5f)
+                    {
+                        RecordFail(candidate, $"OutOfRange ({dist:F0}y > {effective.Range:F0}y)");
+                        continue;
+                    }
+                }
             }
 
             // Gate: cooldown / charges
