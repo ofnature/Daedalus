@@ -602,6 +602,8 @@ public sealed unsafe class ActionService : IActionService
 
         // Execute
         var result = actionManager->UseAction(ActionType.Action, action.ActionId, targetId);
+        if (!result)
+            LogCastRefusal(action.Name, action.ActionId, targetId, submittedNotCast: false);
 
         if (result)
         {
@@ -639,6 +641,8 @@ public sealed unsafe class ActionService : IActionService
 
         // Execute at target location
         var result = actionManager->UseActionLocation(ActionType.Action, action.ActionId, 0xE0000000, &targetPosition);
+        if (!result)
+            LogCastRefusal(action.Name, action.ActionId, targetId: 0, submittedNotCast: false);
 
         if (result)
         {
@@ -688,6 +692,8 @@ public sealed unsafe class ActionService : IActionService
             return false;
 
         var result = actionManager->UseAction(ActionType.Action, rawDispatchId, targetId);
+        if (!result)
+            LogCastRefusal(action.Name, rawDispatchId, targetId, submittedNotCast: false);
 
         if (result)
         {
@@ -725,8 +731,12 @@ public sealed unsafe class ActionService : IActionService
         if (actionManager is null)
             return false;
 
-        // NO GetActionStatus pre-check — that's what "Raw" intentionally bypasses.
+        // NO GetActionStatus pre-check — that's what "Raw" intentionally bypasses. But a refused
+        // UseAction here is exactly what makes the client toast "cannot use action right now"
+        // (duty-layer path: phantom/variant actions) — log it or the toast stays undiagnosable.
         var result = actionManager->UseAction(ActionType.Action, rawDispatchId, targetId);
+        if (!result)
+            LogCastRefusal(action.Name, rawDispatchId, targetId, submittedNotCast: false);
 
         if (result)
         {
