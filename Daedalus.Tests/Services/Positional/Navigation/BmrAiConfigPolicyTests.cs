@@ -145,4 +145,25 @@ public sealed class BmrAiConfigPolicyTests
         Assert.Equal(BmrAiConfigService.BmrAiMode.Unknown, BmrAiConfigService.ParseAiDtr(shown: true, text: ""));
         Assert.Equal(BmrAiConfigService.BmrAiMode.Unknown, BmrAiConfigService.ParseAiDtr(shown: true, text: "something else"));
     }
+
+    // Contested-slot ownership (field 2026-07-27: the yield tripped on an EMPTY active preset
+    // right after enable — a cleared slot isn't contention, only a named foreign preset is).
+
+    [Fact]
+    public void CountsAsForeignOwner_EmptyOrNull_IsNotContention()
+    {
+        Assert.False(BmrAiConfigPolicy.CountsAsForeignOwner(""));
+        Assert.False(BmrAiConfigPolicy.CountsAsForeignOwner(null));
+    }
+
+    [Fact]
+    public void CountsAsForeignOwner_OurOwnPreset_IsNotContention() =>
+        Assert.False(BmrAiConfigPolicy.CountsAsForeignOwner(BmrAiConfigPolicy.PresetName));
+
+    [Fact]
+    public void CountsAsForeignOwner_NamedForeignPreset_IsContention()
+    {
+        Assert.True(BmrAiConfigPolicy.CountsAsForeignOwner("passive - melee"));
+        Assert.True(BmrAiConfigPolicy.CountsAsForeignOwner("AutoDuty"));
+    }
 }

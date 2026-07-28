@@ -191,7 +191,9 @@ public sealed class BmrAiConfigService
             if (_contested)
                 return;
 
-            if (++_foreignRetakes >= ContestedRetakeLimit)
+            // Empty active = the slot was CLEARED (zone change / BMR reload), not taken —
+            // reclaim freely; only a named foreign preset counts toward the yield.
+            if (BmrAiConfigPolicy.CountsAsForeignOwner(active) && ++_foreignRetakes >= ContestedRetakeLimit)
             {
                 _contested = true;
                 ContestedBy = active;

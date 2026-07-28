@@ -25,6 +25,16 @@ public static class BmrAiConfigPolicy
     /// <summary>Our BMR autorotation preset name — the fleet's preset-based tooling sees us as a peer.</summary>
     public const string PresetName = "Daedalus";
 
+    /// <summary>
+    /// Whether the currently active preset counts as a foreign OWNER of the slot for
+    /// contested-yield purposes. Empty/null means NO preset is active (a zone change or
+    /// BMR reload cleared the slot) — nobody owns it, so reclaiming isn't ping-pong.
+    /// Field 2026-07-27: the yield tripped on "" three frames after enable and parked
+    /// Auto-Manage until re-toggled. Only a NAMED foreign preset contends.
+    /// </summary>
+    public static bool CountsAsForeignOwner(string? activePresetName) =>
+        !string.IsNullOrEmpty(activePresetName) && activePresetName != PresetName;
+
     /// <summary>The BMR module fed the live per-GCD positional via a transient strategy.</summary>
     public const string GoToPositionalModule = "BossMod.Autorotation.MiscAI.GoToPositional";
 

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Numerics;
 using Dalamud.Game.ClientState.Objects.Types;
 using Dalamud.Plugin.Services;
@@ -1037,6 +1038,10 @@ public sealed unsafe class ActionService : IActionService
     /// Surfaces a genuine "couldn't cast this action" event to the curated debug log. Skips pure
     /// out-of-range (562) — that's normal movement between packs, not a real cast failure.
     /// </summary>
+    /// <summary>Per-action rate limit for the Debug-severity suppressed-refusal entries (562/582).</summary>
+    private const double SuppressedRefusalLogIntervalSeconds = 3.0;
+    private readonly Dictionary<uint, DateTime> _suppressedRefusalLogUtc = new();
+
     private void LogCastRefusal(string actionName, uint dispatchId, ulong targetId, bool submittedNotCast)
     {
         if (_debugLog is null)
@@ -1051,8 +1056,25 @@ public sealed unsafe class ActionService : IActionService
         // 562 = out of range (movement between packs, not a cast failure).
         // 582 = "not ready" — the GCD is already in flight / mid-cast and the scheduler re-probed the same
         // action (a duplicate-GCD probe, e.g. while a hard-cast is rolling), not a genuine refusal.
+        // These were fully silent, which made the field-reported "cannot use action right now" toasts
+        // (SAM, 2026-07-28) undiagnosable — the game shows the toast for exactly the statuses we swallow.
+        // Keep them out of the Warning stream but record them at Debug, rate-limited per action.
         if (status == 562 || status == 582)
+        {
+            var nowUtc = DateTime.UtcNow;
+            if (!_suppressedRefusalLogUtc.TryGetValue(dispatchId, out var last) ||
+                (nowUtc - last).TotalSeconds >= SuppressedRefusalLogIntervalSeconds)
+            {
+                _suppressedRefusalLogUtc[dispatchId] = nowUtc;
+                _debugLog.Log(Daedalus.Services.Debug.DebugLogCategory.Action,
+                    Daedalus.Services.Debug.DebugLogSeverity.Info,
+                    $"suppressed refusal: {NameOr(actionName, "Action")} — status {status} " +
+                    $"({(status == 562 ? "out of range" : "not ready / duplicate probe")})" +
+                    $"{(submittedNotCast ? " [submitted but not cast]" : string.Empty)}");
+            }
+
             return;
+        }
 
         var label = DescribeStatusReason(status)
             ?? (status != 0 ? $"game status {status}" : "facing / line-of-sight / moving?");

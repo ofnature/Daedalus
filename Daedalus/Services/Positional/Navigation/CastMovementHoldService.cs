@@ -71,8 +71,13 @@ public sealed class CastMovementHoldService : IDisposable
         // so a crash / failed release during a plugin reload leaves BMR frozen across
         // sessions — navigating but never moving. Clear it once per plugin lifetime as soon
         // as BMR is reachable; our own holds re-assert within a frame when legitimate.
+        // One attempt only: on BMR builds without the endpoint SetPaused fails forever, and
+        // retrying every frame just spams the log (field: continuous 20ms failure lines).
         if (!_startupStaleHoldCleared && _bossModSafety.IsAvailable)
-            _startupStaleHoldCleared = SetPaused(false);
+        {
+            SetPaused(false);
+            _startupStaleHoldCleared = true;
+        }
 
         var player = _objectTable.LocalPlayer;
         var casting = player is { IsCasting: true };
