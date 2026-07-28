@@ -42,6 +42,16 @@ public static class GearStatIds
     public const uint SkillSpeed = 45;
     public const uint SpellSpeed = 46;
 
+    // DoH/DoL params — display-only (the sweep never proposes them; hand/land jobs are
+    // guarded out of the optimizer entirely), so current melds on crafter/gatherer gear
+    // render with real names instead of the BaseParam{id} fallback.
+    public const uint Gp = 10;
+    public const uint Cp = 11;
+    public const uint Craftsmanship = 70;
+    public const uint Control = 71;
+    public const uint Gathering = 72;
+    public const uint Perception = 73;
+
     /// <summary>Substats a meld can carry (the sweep candidates, before job filtering).</summary>
     public static readonly uint[] MeldableSubstats =
         { CriticalHit, Determination, DirectHit, SkillSpeed, SpellSpeed, Tenacity, Piety };
@@ -64,6 +74,12 @@ public static class GearStatIds
         Determination => "Det",
         SkillSpeed => "SkS",
         SpellSpeed => "SpS",
+        Gp => "GP",
+        Cp => "CP",
+        Craftsmanship => "Craftsmanship",
+        Control => "Control",
+        Gathering => "Gathering",
+        Perception => "Perception",
         _ => $"BaseParam{statId}",
     };
 }

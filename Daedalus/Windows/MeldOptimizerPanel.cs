@@ -62,6 +62,18 @@ public sealed class MeldOptimizerPanel
         Common.DaedalusTheme.GoldHeader($"Gear — avg ilvl {AverageIlvl(snapshot)}");
         DrawPaperdoll(snapshot);
 
+        // Crafter/gatherer gear has no damage model — showing combat sweep plans here
+        // recommends ripping out Gathering/Perception melds for substats. Keep the
+        // paperdoll readout, drop everything the combat model drives.
+        if (Data.JobRegistry.IsHandLand(snapshot.JobId))
+        {
+            _results = null;
+            ImGui.Spacing();
+            ImGui.TextColored(Common.DaedalusTheme.StatusYellow,
+                "Meld optimizer supports combat jobs only — crafter/gatherer melds aren't modeled.");
+            return;
+        }
+
         ImGui.Spacing();
         DrawMidRow(snapshot);
 
@@ -88,6 +100,9 @@ public sealed class MeldOptimizerPanel
         }
 
         ImGui.TextColored(Common.DaedalusTheme.AccentGold, job);
+
+        if (Data.JobRegistry.IsHandLand(snapshot.JobId))
+            return; // no combat stat priority to show for crafters/gatherers
 
         var priority = Data.BalancePriorities.For(snapshot.JobId);
         for (var i = 0; i < priority.Order.Length; i++)

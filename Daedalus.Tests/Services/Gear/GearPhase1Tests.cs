@@ -144,3 +144,57 @@ public class GearStatAggregatorTests
         Assert.Equal(100 + 54 + 18 + 18, result.Totals[GearStatIds.CriticalHit]);
     }
 }
+
+/// <summary>
+/// DoH/DoL guard (2026-07-28): the optimizer ran its combat model on gatherer gear and
+/// proposed replacing Gathering/Perception melds with Det ("BaseParam73→Det ×2"). Hand/land
+/// jobs are guarded out of the sweep UI; their params get real display names.
+/// </summary>
+public class HandLandGuardTests
+{
+    [Fact]
+    public void Name_ResolvesHandLandParams()
+    {
+        // The screenshot bug: 72/73 rendered as BaseParam{id} fallbacks.
+        Assert.Equal("Gathering", GearStatIds.Name(GearStatIds.Gathering));
+        Assert.Equal("Perception", GearStatIds.Name(GearStatIds.Perception));
+        Assert.Equal("Craftsmanship", GearStatIds.Name(GearStatIds.Craftsmanship));
+        Assert.Equal("Control", GearStatIds.Name(GearStatIds.Control));
+        Assert.Equal("GP", GearStatIds.Name(GearStatIds.Gp));
+        Assert.Equal("CP", GearStatIds.Name(GearStatIds.Cp));
+    }
+
+    [Fact]
+    public void Name_UnknownParamStillFallsBack()
+    {
+        Assert.Equal("BaseParam99", GearStatIds.Name(99));
+    }
+
+    [Fact]
+    public void MeldableSubstats_NeverContainHandLandParams()
+    {
+        // The sweep candidates must stay combat-only even with the new constants present.
+        foreach (var id in new[]
+                 {
+                     GearStatIds.Gp, GearStatIds.Cp, GearStatIds.Craftsmanship,
+                     GearStatIds.Control, GearStatIds.Gathering, GearStatIds.Perception,
+                 })
+            Assert.DoesNotContain(id, GearStatIds.MeldableSubstats);
+    }
+
+    [Fact]
+    public void IsHandLand_CoversExactlyCrafterGathererRange()
+    {
+        // DoH CRP(8)–CUL(15), DoL MIN(16)–FSH(18).
+        for (var jobId = 8u; jobId <= 18u; jobId++)
+            Assert.True(Daedalus.Data.JobRegistry.IsHandLand(jobId));
+    }
+
+    [Fact]
+    public void IsHandLand_ExcludesCombatNeighborsAndAdventurer()
+    {
+        Assert.False(Daedalus.Data.JobRegistry.IsHandLand(0)); // ADV / no job
+        Assert.False(Daedalus.Data.JobRegistry.IsHandLand(Daedalus.Data.JobRegistry.Thaumaturge)); // 7, below range
+        Assert.False(Daedalus.Data.JobRegistry.IsHandLand(Daedalus.Data.JobRegistry.Paladin)); // 19, above range
+    }
+}

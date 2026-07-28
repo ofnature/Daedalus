@@ -49,6 +49,17 @@ public static class JobRegistry
     // Limited jobs
     public const uint BlueMage = 36;
 
+    // Disciples of the Hand (8–15) and Land (16–18)
+    public const uint Carpenter = 8;
+    public const uint Culinarian = 15;
+    public const uint Miner = 16;
+    public const uint Fisher = 18;
+
+    /// <summary>
+    /// Returns true if the job is a crafter or gatherer (DoH CRP–CUL 8–15, DoL MIN/BTN/FSH 16–18).
+    /// </summary>
+    public static bool IsHandLand(uint jobId) => jobId is >= Carpenter and <= Fisher;
+
     /// <summary>
     /// Returns true if the job is a healer (WHM, SCH, AST, SGE).
     /// </summary>
