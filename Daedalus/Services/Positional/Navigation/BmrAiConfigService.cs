@@ -41,6 +41,7 @@ public sealed class BmrAiConfigService
     private string? _lastPositional;
     private System.DateTime _lastPushUtc = System.DateTime.MinValue;
     private bool _legacyConfigCleaned;
+    private bool _aiPresetNameApplied;
     private bool _wasEnabled;
 
     // Contested-slot backoff: another manager (field case: ADS's "passive - melee") re-taking
@@ -150,6 +151,17 @@ public sealed class BmrAiConfigService
             _legacyConfigCleaned = true;
         }
 
+        // BMR's AI enforces AIAutorotPresetName on EVERY AI engage (SwitchToFollow looks the
+        // preset up by this persisted name — the mechanism behind the "locked to passive -
+        // melee" saga: a leftover /bmrai setpresetname from an orchestrator re-applied that
+        // preset with zero plugins running). Claim it for the Daedalus preset once per
+        // enable session so BMR itself keeps our preset installed. Never touched at disable.
+        if (!_aiPresetNameApplied)
+        {
+            PushConfig("AIAutorotPresetName", BmrAiConfigPolicy.PresetName);
+            _aiPresetNameApplied = true;
+        }
+
         // Rate cap: nothing changes value faster than a GCD, so a sub-0.25s change means oscillation — skip
         // this frame (the still-changed value pushes on the next eligible frame).
         var now = System.DateTime.UtcNow;
@@ -235,6 +247,7 @@ public sealed class BmrAiConfigService
         _foreignRetakes = 0;
         _contested = false;
         ContestedBy = "";
+        _aiPresetNameApplied = false; // flag only — the config write happens at next ENABLE
     }
 
     private bool CreatePreset(string json)
