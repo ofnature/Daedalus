@@ -77,6 +77,7 @@ public sealed class Plugin : IDalamudPlugin
     private readonly ShieldTrackingService shieldTrackingService;
     private readonly HpPredictionService hpPredictionService;
     private readonly ActionService actionService;
+    private readonly Dalamud.Plugin.Services.IToastGui toastGui;
     private readonly Daedalus.Services.Debug.DebugLogService debugLogService;
     private readonly PlayerStatsService playerStatsService;
     private readonly HealingSpellSelector healingSpellSelector;
@@ -222,8 +223,10 @@ public sealed class Plugin : IDalamudPlugin
         IGameGui gameGui,
         INotificationManager notificationManager,
         IKeyState keyState,
-        IDtrBar dtrBar)
+        IDtrBar dtrBar,
+        IToastGui toastGui)
     {
+        this.toastGui = toastGui;
         this.pluginInterface = pluginInterface;
         this.framework = framework;
         this.objectTable = objectTable;
@@ -297,6 +300,10 @@ public sealed class Plugin : IDalamudPlugin
         this.debugLogService = new Daedalus.Services.Debug.DebugLogService(
             configuration, pluginInterface.ConfigDirectory.FullName, log);
         combatEventService.AttachDebugLog(debugLogService);
+        // Error-toast capture (field 2026-07-28: "Cannot use yet." toasts with NOTHING in the
+        // refusal log — either an unlogged path or another plugin pressing). Recording every
+        // client error toast beside the [Action] stream settles whose press it was.
+        toastGui.ErrorToast += OnErrorToast;
         this.actionService = new ActionService(actionTracker, objectTable: objectTable, dataManager: dataManager,
             debugLog: debugLogService);
         this.playerStatsService = new PlayerStatsService(log, dataManager);
@@ -1850,6 +1857,21 @@ public sealed class Plugin : IDalamudPlugin
         return (queuedId, rowOpt.Value.CanTargetHostile);
     }
 
+    /// <summary>
+    /// Every client error toast ("Cannot use yet." / "Target is not in range." etc.) lands in the
+    /// debug log next to the [Action] refusal stream. If a toast has a Daedalus refusal line within
+    /// a frame of it, the press was ours (and named); if it stands alone, another plugin pressed.
+    /// </summary>
+    private void OnErrorToast(ref Dalamud.Game.Text.SeStringHandling.SeString message, ref bool isHandled)
+    {
+        var text = message.TextValue;
+        if (string.IsNullOrEmpty(text))
+            return;
+        debugLogService.Log(Daedalus.Services.Debug.DebugLogCategory.Action,
+            Daedalus.Services.Debug.DebugLogSeverity.Info,
+            $"error toast: \"{text}\"");
+    }
+
     public void Dispose()
     {
         // Save calibration data before shutdown
@@ -1869,6 +1891,7 @@ public sealed class Plugin : IDalamudPlugin
         }
 
         framework.Update -= OnFrameworkUpdate;
+        toastGui.ErrorToast -= OnErrorToast;
         clientState.TerritoryChanged -= OnOccultTerritoryChanged;
 
         if (lanCoordinator != null)
