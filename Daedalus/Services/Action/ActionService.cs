@@ -1058,9 +1058,24 @@ public sealed unsafe class ActionService : IActionService
             return;
 
         // A cast is in flight: the real GCD is casting fine, and this submit is just a duplicate re-probe of
-        // it (the scheduler re-submitting Holy/Stone while it's already mid-cast). Not a refusal — don't log.
+        // it (the scheduler re-submitting Holy/Stone while it's already mid-cast). Not a refusal — keep it
+        // out of the Warning stream, but record it (rate-limited): a mid-cast refusal still makes the client
+        // toast, and this was the last fully-silent path when hunting the SAM "not ready" toasts (2026-07-28).
         if (_lastIsCasting)
+        {
+            var midCastNowUtc = DateTime.UtcNow;
+            if (!_suppressedRefusalLogUtc.TryGetValue(dispatchId, out var lastMidCast) ||
+                (midCastNowUtc - lastMidCast).TotalSeconds >= SuppressedRefusalLogIntervalSeconds)
+            {
+                _suppressedRefusalLogUtc[dispatchId] = midCastNowUtc;
+                _debugLog.Log(Daedalus.Services.Debug.DebugLogCategory.Action,
+                    Daedalus.Services.Debug.DebugLogSeverity.Info,
+                    $"mid-cast refusal: {NameOr(actionName, "Action")} submitted while a cast is rolling" +
+                    $"{(submittedNotCast ? " [submitted but not cast]" : string.Empty)}");
+            }
+
             return;
+        }
 
         var status = targetId != 0 ? GetActionStatusCode(dispatchId, targetId) : 0u;
         // 562 = out of range (movement between packs, not a cast failure).
