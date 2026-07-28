@@ -1052,6 +1052,21 @@ public sealed unsafe class ActionService : IActionService
     private const double SuppressedRefusalLogIntervalSeconds = 3.0;
     private readonly Dictionary<uint, DateTime> _suppressedRefusalLogUtc = new();
 
+    /// <summary>
+    /// Optional live-state snapshot appended to refusal log lines (wired by Plugin: job, casting,
+    /// job-gauge reads). The Midare 572 hunt needed the Sen state AT DROP TIME to separate a
+    /// stale-gauge re-push from a client/server gauge disagreement — without it every theory fit.
+    /// </summary>
+    public Func<string>? DebugStateProbe { get; set; }
+
+    private string StateSuffix()
+    {
+        if (DebugStateProbe is null)
+            return string.Empty;
+        try { return $" [state: {DebugStateProbe()}]"; }
+        catch { return string.Empty; }
+    }
+
     private void LogCastRefusal(string actionName, uint dispatchId, ulong targetId, bool submittedNotCast)
     {
         if (_debugLog is null)
@@ -1128,7 +1143,7 @@ public sealed unsafe class ActionService : IActionService
         var verb = submittedNotCast ? "submitted but not cast" : "unable to cast";
         _debugLog.Log(Daedalus.Services.Debug.DebugLogCategory.Action,
             Daedalus.Services.Debug.DebugLogSeverity.Warning,
-            $"{verb}: {NameOr(actionName, "Action")} -> {targetName} — {label}{targetTag}");
+            $"{verb}: {NameOr(actionName, "Action")} -> {targetName} — {label}{targetTag}{StateSuffix()}");
     }
 
     /// <summary>

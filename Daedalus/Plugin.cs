@@ -306,6 +306,23 @@ public sealed class Plugin : IDalamudPlugin
         toastGui.ErrorToast += OnErrorToast;
         this.actionService = new ActionService(actionTracker, objectTable: objectTable, dataManager: dataManager,
             debugLog: debugLogService);
+        // Refusal-line state snapshot (the Midare 572 hunt): job + cast + the gauge that gates
+        // the dropped action, read AT DROP TIME. SAM first — extend per job as hunts need it.
+        this.actionService.DebugStateProbe = () =>
+        {
+            var p = objectTable.LocalPlayer;
+            if (p is null)
+                return "no player";
+            var s = $"job {p.ClassJob.RowId}, casting {(p.IsCasting ? "yes" : "no")}";
+            if (p.ClassJob.RowId == Daedalus.Data.JobRegistry.Samurai)
+            {
+                var g = jobGauges.Get<Dalamud.Game.ClientState.JobGauge.Types.SAMGauge>();
+                s += $", sen {(g.HasSetsu ? "S" : "-")}{(g.HasGetsu ? "G" : "-")}{(g.HasKa ? "K" : "-")}" +
+                     $", meditation {g.MeditationStacks}, kenki {g.Kenki}";
+            }
+
+            return s;
+        };
         this.playerStatsService = new PlayerStatsService(log, dataManager);
 
         // Meld optimizer phase 1: gear/materia/caps snapshot pipeline (window comes in phase 2).
