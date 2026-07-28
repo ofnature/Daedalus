@@ -179,6 +179,16 @@ public sealed class Hermes : BaseMeleeDpsRotation<IHermesContext, IHermesModule>
     protected override IPositionalAnticipationProvider? GetPositionalAnticipationProvider()
         => _positionalAnticipationProvider;
 
+    /// <summary>
+    /// Shukuchi return (field request 2026-07-26): after a dodge parks the NIN outside the
+    /// ring, teleport back to the safety-checked stand point instead of walking.
+    /// </summary>
+    protected override Daedalus.Models.Action.ActionDefinition? GetReturnGapCloser()
+        => Configuration.Ninja.EnableShukuchiReturn
+           && ActionService.IsActionLearned(NINActions.Shukuchi.ActionId)
+            ? NINActions.Shukuchi
+            : null;
+
     /// <inheritdoc />
     protected override bool IsPositionalMovementEnabled()
         => Configuration.Ninja.EnablePositionalMovement || Configuration.Ninja.EnforcePositionals;

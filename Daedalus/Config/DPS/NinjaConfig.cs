@@ -16,6 +16,13 @@ public sealed class NinjaConfig
     public bool EnableAoERotation { get; set; } = true;
 
     /// <summary>
+    /// Teleport back to the boss with Shukuchi when a dodge parks the NIN far outside
+    /// melee (10y+ past the stand ring, destination BMR-safety-checked). One charge per
+    /// re-engage; short hops still walk.
+    /// </summary>
+    public bool EnableShukuchiReturn { get; set; } = true;
+
+    /// <summary>
     /// Whether to use Ninjutsu abilities.
     /// </summary>
     public bool EnableNinjutsu { get; set; } = true;

@@ -290,6 +290,24 @@ public sealed class PositionalMovementService : IPositionalMovementService
         if (!_bossModSafety.IsSegmentSafe(request.PlayerPosition, destination))
             return false;
 
+        // Return gap closer (NIN Shukuchi, field request 2026-07-26): a dodge can park the melee
+        // way outside the ring — teleport to the (already safety-checked) stand point instead of
+        // walking when the gap is big enough to be worth a charge. Falls through to the walk on
+        // any miss (no charges, weave slot taken, out of teleport range, executor refused).
+        if (request.ReturnGapCloser is { } dash
+            && distance - standDistance >= PositionalMovementConstants.GapCloserMinDistanceYalms
+            && System.Numerics.Vector3.Distance(request.PlayerPosition, destination) <= dash.Range
+            && request.ActionService.CanExecuteOgcd
+            && request.ActionService.GetCurrentCharges(dash.ActionId) > 0
+            && request.ActionService.ExecuteGroundTargetedOgcd(dash, destination))
+        {
+            if (_vNav.IsPathRunning || _vNav.IsPathfindInProgress)
+                _vNav.Stop(); // the walk this teleport replaces
+            State = new PositionalMovementState(
+                PositionalMovementPhase.Moving, null, destination, MaxMeleeMaintenanceReason);
+            return true;
+        }
+
         if (_vNav.IsPathRunning || _vNav.IsPathfindInProgress)
         {
             // Another path is already running / computing — adopt it as the maintenance path so the hold

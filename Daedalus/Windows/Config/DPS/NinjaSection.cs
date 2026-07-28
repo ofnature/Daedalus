@@ -45,6 +45,14 @@ public sealed class NinjaSection
                 Loc.T(LocalizedStrings.Ninja.EnableNinjutsuDesc, "Use mudra combinations for Ninjutsu"), save);
 
             ConfigUIHelpers.Toggle(
+                "Shukuchi return after dodges",
+                () => config.Ninja.EnableShukuchiReturn,
+                v => config.Ninja.EnableShukuchiReturn = v,
+                "When a dodge parks you 10y+ outside melee, teleport back to the stand point with Shukuchi "
+                + "instead of walking. The landing spot is BossMod-safety-checked; short gaps still walk.",
+                save);
+
+            ConfigUIHelpers.Toggle(
                 Loc.T(LocalizedStrings.Ninja.EnableRaiju, "Enable Raiju"),
                 () => config.Ninja.EnableRaiju,
                 v => config.Ninja.EnableRaiju = v,

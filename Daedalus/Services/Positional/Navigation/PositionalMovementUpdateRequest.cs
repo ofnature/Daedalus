@@ -51,4 +51,9 @@ public readonly record struct PositionalMovementUpdateRequest(
     /// When > 0, stand points target the flank/rear boundary ± this margin instead of the arc center.
     /// Set to ~10° (π/18) for MNK to minimize travel between back-to-back Rear/Flank form switches.
     /// </summary>
-    float PositionalBoundaryBiasRadians = 0f);
+    float PositionalBoundaryBiasRadians = 0f,
+    /// <summary>
+    /// Ground-targeted teleport/dash (NIN Shukuchi) used instead of walking when the max-melee
+    /// return distance is large — post-dodge re-engage. Null = always walk.
+    /// </summary>
+    Daedalus.Models.Action.ActionDefinition? ReturnGapCloser = null);

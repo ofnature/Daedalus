@@ -870,6 +870,78 @@ public class PositionalMovementServiceTests
     private PositionalMovementService CreateService()
         => new(_vNav.Object, _bossMod.Object);
 
+    // ── Shukuchi return (field request 2026-07-26): teleport back after a dodge parks the
+    //    melee far outside the ring; short hops and unsafe landings still walk/skip. ──
+    // Harness numbers: standDistance = 2 + 0.5 + 3 − 0.5 = 5.0y.
+
+    private void SetupGapCloser(uint charges = 1)
+    {
+        _anticipation.Next = null;
+        _action.Setup(x => x.CanExecuteOgcd).Returns(true);
+        _action.Setup(x => x.GetCurrentCharges(NINActions.Shukuchi.ActionId)).Returns(charges);
+        _action.Setup(x => x.ExecuteGroundTargetedOgcd(NINActions.Shukuchi, It.IsAny<Vector3>()))
+            .Returns(true);
+    }
+
+    private PositionalMovementUpdateRequest GapCloserRequest(float playerZ) =>
+        CreateRequest() with
+        {
+            MaintainMaxMelee = true,
+            PlayerPosition = new Vector3(0f, 0f, playerZ),
+            ReturnGapCloser = NINActions.Shukuchi,
+        };
+
+    [Fact]
+    public void MaxMelee_FarAndSafe_TeleportsInsteadOfWalking()
+    {
+        var service = CreateService();
+        SetupGapCloser();
+
+        service.Update(GapCloserRequest(playerZ: 22f)); // 17y past the ring, dest within 20y
+
+        Assert.Equal(PositionalMovementPhase.Moving, service.State.Phase);
+        _action.Verify(x => x.ExecuteGroundTargetedOgcd(NINActions.Shukuchi, It.IsAny<Vector3>()), Times.Once);
+        _vNav.Verify(x => x.PathfindAndMoveCloseTo(It.IsAny<Vector3>(), It.IsAny<float>(), It.IsAny<bool>()), Times.Never);
+    }
+
+    [Fact]
+    public void MaxMelee_ShortGap_WalksInsteadOfBurningACharge()
+    {
+        var service = CreateService();
+        SetupGapCloser();
+
+        service.Update(GapCloserRequest(playerZ: 7f)); // 2y past the ring — not worth a charge
+
+        _action.Verify(x => x.ExecuteGroundTargetedOgcd(It.IsAny<Daedalus.Models.Action.ActionDefinition>(), It.IsAny<Vector3>()), Times.Never);
+        _vNav.Verify(x => x.PathfindAndMoveCloseTo(It.IsAny<Vector3>(), It.IsAny<float>(), It.IsAny<bool>()), Times.Once);
+    }
+
+    [Fact]
+    public void MaxMelee_NoCharges_FallsBackToWalking()
+    {
+        var service = CreateService();
+        SetupGapCloser(charges: 0);
+
+        service.Update(GapCloserRequest(playerZ: 22f));
+
+        _action.Verify(x => x.ExecuteGroundTargetedOgcd(It.IsAny<Daedalus.Models.Action.ActionDefinition>(), It.IsAny<Vector3>()), Times.Never);
+        _vNav.Verify(x => x.PathfindAndMoveCloseTo(It.IsAny<Vector3>(), It.IsAny<float>(), It.IsAny<bool>()), Times.Once);
+    }
+
+    [Fact]
+    public void MaxMelee_UnsafeDestination_NeitherTeleportsNorWalks()
+    {
+        var service = CreateService();
+        SetupGapCloser();
+        _bossMod.Setup(x => x.QueryPositionSafety(It.IsAny<Vector3>(), It.IsAny<float>()))
+            .Returns(PositionSafety.Unsafe);
+
+        service.Update(GapCloserRequest(playerZ: 22f));
+
+        _action.Verify(x => x.ExecuteGroundTargetedOgcd(It.IsAny<Daedalus.Models.Action.ActionDefinition>(), It.IsAny<Vector3>()), Times.Never);
+        _vNav.Verify(x => x.PathfindAndMoveCloseTo(It.IsAny<Vector3>(), It.IsAny<float>(), It.IsAny<bool>()), Times.Never);
+    }
+
     private PositionalMovementUpdateRequest CreateRequest(
         PositionalAnticipationContext? anticipationContext = null,
         bool allowMovementDuringActionLock = false)

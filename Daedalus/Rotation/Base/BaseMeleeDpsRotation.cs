@@ -276,6 +276,12 @@ public abstract class BaseMeleeDpsRotation<TContext, TModule> : BaseRotation<TCo
     protected virtual bool IsPositionalMovementEnabled() => false;
 
     /// <summary>
+    /// Ground-targeted teleport used for the max-melee return when the gap is large
+    /// (NIN Shukuchi). Null = this job always walks back.
+    /// </summary>
+    protected virtual Daedalus.Models.Action.ActionDefinition? GetReturnGapCloser() => null;
+
+    /// <summary>
     /// When > 0, stand points target the flank/rear boundary ± this margin instead of the arc center
     /// ("boundary camping" — a flank↔rear swap becomes a short chord hop). Global user tuning via the
     /// Nav Control slider; 0 = center of arc (pre-camping behavior).
@@ -403,7 +409,8 @@ public abstract class BaseMeleeDpsRotation<TContext, TModule> : BaseRotation<TCo
             MaxMeleeTarget: ResolveMaxMeleeTarget(player, out var maxMeleeFollowsPlayer),
             MaxMeleeTargetFollowsPlayer: maxMeleeFollowsPlayer,
             VNavFlex: Configuration.Nav.VNavFlex,
-            PositionalBoundaryBiasRadians: PositionalBoundaryBiasRadians);
+            PositionalBoundaryBiasRadians: PositionalBoundaryBiasRadians,
+            ReturnGapCloser: GetReturnGapCloser());
 
         PositionalMovementService.Update(in request);
 

@@ -43,6 +43,12 @@ public static class PositionalMovementConstants
     public const float DefaultVNavFlexYalms = 0.5f;
 
     /// <summary>
+    /// Minimum distance PAST the max-melee stand ring before the return gap closer (NIN Shukuchi)
+    /// fires instead of walking — short hops aren't worth a charge; a post-dodge park is.
+    /// </summary>
+    public const float GapCloserMinDistanceYalms = 10f;
+
+    /// <summary>
     /// Safety margin subtracted from <c>GcdRemaining</c> when deciding if a path can finish before the
     /// next GCD queue window. Tuned 0.075 → 0.10s: start reposition slightly earlier so Gekko/Kasha
     /// fire after vNav arrival. Positional-movement only — does not affect ActionService weave/GCD dispatch.
