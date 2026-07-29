@@ -352,6 +352,13 @@ public sealed class DamageModule : INikeModule
         var level = player.Level;
         if (context.SenCount == 0) return;
 
+        // Tendo (Meikyo at Lv.100): the plain 2/3-Sen Iaijutsu are INVALID while the Tendo
+        // status is up (RSR: `SenCount == N && !HasTendo`) — the game rejects them with 572
+        // "Cannot use yet." for the whole window. Pick the Tendo variants instead. Higanbana
+        // (1 Sen) is unaffected (RSR gates it on Sen only).
+        var hasTendo = level >= SAMActions.TendoSetsugekka.MinLevel
+            && context.ActionService.PlayerHasStatus(SAMActions.StatusIds.Tendo);
+
         switch (context.SenCount)
         {
             case 1:
@@ -371,12 +378,18 @@ public sealed class DamageModule : INikeModule
             case 2:
                 if (level < SAMActions.TenkaGoken.MinLevel) return;
                 if (!useAoE) return;
-                PushIaijutsu(context, scheduler, target, SAMActions.TenkaGoken, NikeAbilities.TenkaGoken, SAMActions.IaijutsuType.TenkaGoken);
+                if (hasTendo)
+                    PushIaijutsu(context, scheduler, target, SAMActions.TendoGoken, NikeAbilities.TendoGoken, SAMActions.IaijutsuType.TenkaGoken);
+                else
+                    PushIaijutsu(context, scheduler, target, SAMActions.TenkaGoken, NikeAbilities.TenkaGoken, SAMActions.IaijutsuType.TenkaGoken);
                 break;
 
             case 3:
                 if (level < SAMActions.MidareSetsugekka.MinLevel) return;
-                PushIaijutsu(context, scheduler, target, SAMActions.MidareSetsugekka, NikeAbilities.MidareSetsugekka, SAMActions.IaijutsuType.MidareSetsugekka);
+                if (hasTendo)
+                    PushIaijutsu(context, scheduler, target, SAMActions.TendoSetsugekka, NikeAbilities.TendoSetsugekka, SAMActions.IaijutsuType.MidareSetsugekka);
+                else
+                    PushIaijutsu(context, scheduler, target, SAMActions.MidareSetsugekka, NikeAbilities.MidareSetsugekka, SAMActions.IaijutsuType.MidareSetsugekka);
                 break;
         }
     }

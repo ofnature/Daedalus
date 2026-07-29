@@ -41,6 +41,14 @@ public static class NikeAbilities
     public static readonly AbilityBehavior TenkaGoken = new() { Action = SAMActions.TenkaGoken, Toggle = cfg => cfg.Samurai.EnableIaijutsu, BlockImmediateRepeat = true };
     public static readonly AbilityBehavior MidareSetsugekka = new() { Action = SAMActions.MidareSetsugekka, Toggle = cfg => cfg.Samurai.EnableIaijutsu, BlockImmediateRepeat = true };
 
+    // --- Tendo (Lv.100) Iaijutsu — while the Tendo status (Meikyo at 100) is up, the PLAIN
+    // Iaijutsu are invalid server-side (RSR: ActionCheck = Sen && !HasTendo) and the replacement
+    // is anchored on the Iaijutsu BUTTON, so submitting Midare's own id just drops with 572
+    // "Cannot use yet." for the whole Tendo window (Mistwake Lv100 field, 2026-07-28). The module
+    // must pick these variants itself. ---
+    public static readonly AbilityBehavior TendoGoken = new() { Action = SAMActions.TendoGoken, Toggle = cfg => cfg.Samurai.EnableIaijutsu, BlockImmediateRepeat = true };
+    public static readonly AbilityBehavior TendoSetsugekka = new() { Action = SAMActions.TendoSetsugekka, Toggle = cfg => cfg.Samurai.EnableIaijutsu, BlockImmediateRepeat = true };
+
     // --- Tendo (Lv.100) Kaeshi — slot resolution only; burst logic Phase C ---
     // No ProcBuff on any Kaeshi below — TryPushTsubameGaeshi already gates on the dual
     // adjusted-action / status check (TsubameGaeshiActionReady). A second ProcBuff gate in
