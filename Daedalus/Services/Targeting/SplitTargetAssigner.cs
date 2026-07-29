@@ -28,6 +28,17 @@ public static class SplitTargetAssigner
     private const float TieRatio = 0.95f;
 
     /// <summary>
+    /// Balance band: only enemies within this ratio of the HIGHEST current HP receive toons at
+    /// all. Without it the greedy's fill-every-mob-first rule pinned one DPS on a nearly-dead mob
+    /// no matter the gap — fatal on kill-together mechanics (field 2026-07-28: boss summons a
+    /// clone at its summon-time HP; the low original must be LEFT ALONE until the add burns down
+    /// to parity, or whichever dies first triggers a 9M arena nuke). Below-band mobs simply get
+    /// no assignment this pass; the 1.5s recompute pulls them back in as the gap closes, so the
+    /// pack seesaws down together and dies near-simultaneously.
+    /// </summary>
+    private const float BalanceBandRatio = 0.90f;
+
+    /// <summary>
     /// Assigns each toon to an enemy id. Returns an empty map when there is nothing to assign.
     /// Greedy under-served-first: the strongest toons go to the enemy with the highest current
     /// remaining TTK (HP / assigned-DPS), which fills every mob before doubling up and converges
@@ -41,7 +52,13 @@ public static class SplitTargetAssigner
         if (enemies.Count == 0 || toons.Count == 0)
             return result;
 
-        var sortedEnemies = enemies.OrderBy(e => e.Id).ToList();
+        // Balance band: burn only the top-HP group; leave far-lower mobs untouched until the
+        // recompute cadence pulls them back into the band (kill-together convergence).
+        var maxHp = enemies.Max(e => e.Hp);
+        var sortedEnemies = enemies
+            .Where(e => e.Hp >= maxHp * BalanceBandRatio)
+            .OrderBy(e => e.Id)
+            .ToList();
         var sortedToons = toons
             .OrderByDescending(t => t.Dps)
             .ThenBy(t => t.SenderId, StringComparer.Ordinal)

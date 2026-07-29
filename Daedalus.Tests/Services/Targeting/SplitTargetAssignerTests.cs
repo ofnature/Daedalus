@@ -38,11 +38,26 @@ public class SplitTargetAssignerTests
     }
 
     [Fact]
-    public void Assign_BiggerMob_DrawsMoreToons_ForBalancedTtk()
+    public void Assign_MobFarBelowBand_GetsNobody_EveryoneBurnsTheHigh()
     {
-        // Big mob has 2x HP; with 3 equal-DPS toons it should get 2 and the small mob 1,
-        // so both die at ~the same time.
+        // Balance band (kill-together mechanics, field 2026-07-28): boss summons a clone at its
+        // summon-time HP — the low original (1000) is far below the add (2000); EVERYONE must
+        // swap to the add and the low mob is left alone until HP converge, or whichever dies
+        // first fires a 9M arena nuke. Old fill-every-mob-first pinned a toon on the low mob.
         var enemies = new[] { Enemy(100, 2000), Enemy(200, 1000) };
+        var toons = new[] { Toon("a"), Toon("b"), Toon("c") };
+
+        var map = SplitTargetAssigner.Assign(enemies, toons);
+
+        Assert.Equal(3, map.Count);
+        Assert.All(map.Values, id => Assert.Equal(100ul, id));
+    }
+
+    [Fact]
+    public void Assign_WithinBand_SpreadsForBalancedTtk()
+    {
+        // Both mobs inside the 90% band: the classic spread — bigger draws 2 of 3 equal toons.
+        var enemies = new[] { Enemy(100, 2000), Enemy(200, 1900) };
         var toons = new[] { Toon("a"), Toon("b"), Toon("c") };
 
         var map = SplitTargetAssigner.Assign(enemies, toons);
@@ -51,6 +66,18 @@ public class SplitTargetAssignerTests
         var onSmall = map.Values.Count(id => id == 200);
         Assert.Equal(2, onBig);
         Assert.Equal(1, onSmall);
+    }
+
+    [Fact]
+    public void Assign_BandReentry_ConvergedMobs_SplitAgain()
+    {
+        // Same fight later: the add burned down to parity — both back in band, 1/1 split.
+        var enemies = new[] { Enemy(100, 1000), Enemy(200, 950) };
+        var toons = new[] { Toon("a"), Toon("b") };
+
+        var map = SplitTargetAssigner.Assign(enemies, toons);
+
+        Assert.NotEqual(map["a"], map["b"]);
     }
 
     [Fact]
