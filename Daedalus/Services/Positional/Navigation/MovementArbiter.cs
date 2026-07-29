@@ -151,10 +151,16 @@ public sealed class MovementArbiter : IMovementArbiter
 
         _dangerLastFrame = _dangerThisFrame;
 
-        // Cast-hold signal: only when BMR actually has a nav target (input injection live/starting).
-        // NOT the full danger predicate — NextDamageIn also fires on raidwides nobody dodges, and holding
-        // every hard-cast 1.5s before each raidwide would be a straight DPS regression.
-        IsExternalMovementActive = navigating;
+        // Cast-hold signal: BMR has a nav target, bridged over the raw signal's ~300ms per-frame
+        // flicker by a SHORT sticky (a Midare queued in a false-flicker frame mid-dodge got dropped
+        // with "Cannot use yet." — field 2026-07-28, Treno), or a forbidden-zone activation inside
+        // the yield window (the dodge is about to start even though steering hasn't — same field
+        // log, zone-in 1.5s). Deliberately NOT NextDamageIn — that also fires on raidwides nobody
+        // dodges, and holding every hard-cast before each raidwide is a straight DPS regression.
+        IsExternalMovementActive = navigating
+            || (_lastNavigatingUtc > DateTime.MinValue
+                && (now - _lastNavigatingUtc).TotalSeconds < PositionalMovementConstants.BmrCastHoldStickySeconds)
+            || forbiddenIn <= PositionalMovementConstants.BmrYieldWindowSeconds;
 
         var regrabRemaining = Math.Max(
             0d,

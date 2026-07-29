@@ -141,6 +141,15 @@ public static class PositionalMovementConstants
     public const float BmrSteeringStickySeconds = 3f;
 
     /// <summary>
+    /// Sticky window for the CAST-hold signal (IsExternalMovementActive) — much shorter than the
+    /// movement-ownership sticky above: it only needs to bridge the raw IsBmrNavigating per-frame
+    /// flicker (~300ms onset→clear cycles) so a hard cast can't queue into a false-flicker frame
+    /// mid-dodge (field 2026-07-28: Midare queued in a flicker gap, dropped with "Cannot use
+    /// yet."), while still releasing casters quickly once a dodge truly ends.
+    /// </summary>
+    public const float BmrCastHoldStickySeconds = 0.75f;
+
+    /// <summary>
     /// Continuous calm (seconds, no danger) after which the escalated regrab cooldown resets to base —
     /// the mechanic sequence is over.
     /// </summary>

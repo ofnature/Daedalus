@@ -531,4 +531,65 @@ public class MovementArbiterTests
         Assert.True(arbiter.IsPathfindInProgress);
         Assert.Equal(DestB, arbiter.SnapToFloor(DestA));
     }
+
+    // ── cast-hold signal (field 2026-07-28, Treno: Midare queued in a navigating false-flicker
+    //    frame mid-dodge — and once with a zone activating in 1.5s before steering began —
+    //    dropped at fire time with "Cannot use yet.") ──
+
+    [Fact]
+    public void CastHold_BridgesNavigatingFlicker()
+    {
+        var arbiter = CreateArbiter();
+        _bossMod.Setup(x => x.IsBmrNavigating).Returns(true);
+        arbiter.BeginFrame();
+        Assert.True(arbiter.IsExternalMovementActive);
+
+        // Raw signal drops for a flicker frame 0.4s later — still inside the 0.75s cast-hold sticky.
+        _bossMod.Setup(x => x.IsBmrNavigating).Returns(false);
+        Advance(0.4);
+        arbiter.BeginFrame();
+        Assert.True(arbiter.IsExternalMovementActive);
+
+        // 1.0s after the last real navigating frame: sticky expired, casters may hard-cast again.
+        Advance(0.6);
+        arbiter.BeginFrame();
+        Assert.False(arbiter.IsExternalMovementActive);
+    }
+
+    [Fact]
+    public void CastHold_ZoneActivationImminent_HoldsBeforeSteeringStarts()
+    {
+        _bossMod.Setup(x => x.ForbiddenZonesCount).Returns(1);
+        _bossMod.Setup(x => x.ForbiddenZoneActivationInSeconds).Returns(1.0f);
+
+        var arbiter = CreateArbiter();
+        arbiter.BeginFrame();
+
+        Assert.True(arbiter.IsExternalMovementActive);
+    }
+
+    [Fact]
+    public void CastHold_ZoneActivationFar_DoesNotHold()
+    {
+        // Zones appear at cast START, 5-7s out — holding casts the whole time starves Iaijutsu.
+        _bossMod.Setup(x => x.ForbiddenZonesCount).Returns(2);
+        _bossMod.Setup(x => x.ForbiddenZoneActivationInSeconds).Returns(5.3f);
+
+        var arbiter = CreateArbiter();
+        arbiter.BeginFrame();
+
+        Assert.False(arbiter.IsExternalMovementActive);
+    }
+
+    [Fact]
+    public void CastHold_RaidwideDamageOnly_DoesNotHold()
+    {
+        // NextDamageIn also fires on raidwides nobody dodges — casts keep flowing.
+        _bossMod.Setup(x => x.NextDamageInSeconds).Returns(1.0f);
+
+        var arbiter = CreateArbiter();
+        arbiter.BeginFrame();
+
+        Assert.False(arbiter.IsExternalMovementActive);
+    }
 }
