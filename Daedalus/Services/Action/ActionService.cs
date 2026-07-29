@@ -143,6 +143,18 @@ public sealed unsafe class ActionService : IActionService
     /// uptime at the observed drop rates, Dotoli Ciloc / Tozol Huatotl field logs 2026-07-05).
     /// </summary>
     private const double ReadyUncommittedGraceSeconds = 0.15;
+
+    /// <summary>
+    /// Commit grace for CAST-time GCDs. An instant queued action starts its recast within 1-2
+    /// frames of rollover, but a queued cast needs a server round-trip before the cast (and its
+    /// recast) visibly starts — the 0.15s instant grace tripped false "submitted but not cast"
+    /// reports on Midare/Tendo (probe showed the Sen ALREADY consumed: the cast fired fine,
+    /// field 2026-07-28) and armed a pointless backoff against a cast that was committing.
+    /// </summary>
+    private const double CastCommitGraceSeconds = 0.6;
+
+    /// <summary>Whether the last accepted GCD submit was a cast-time action (longer commit grace).</summary>
+    private bool _lastSubmittedIsCast;
     private DateTime _readyUncommittedSinceUtc = DateTime.MinValue;
 
     /// <summary>Current GCD state.</summary>
@@ -348,8 +360,11 @@ public sealed unsafe class ActionService : IActionService
         // GCD cycle" indefinitely. The `!recastActive` term recovers that: no active recast + >0.5s since
         // submit means nothing is in flight. The time threshold protects the normal queue-window carry
         // (the next GCD's recast activates within a frame, so secondsSinceSubmit stays tiny there).
+        // Cast submits get the longer commit grace on top — the queue submit happens ~0.4s before
+        // rollover and the cast start needs a server round-trip, so 0.5s-from-submit false-tripped.
         if (_gcdSubmittedThisCycle && (!_gcdRecastSeenSinceSubmit || !recastActive)
-            && secondsSinceSubmit > UncommittedSubmitStaleSeconds)
+            && secondsSinceSubmit > UncommittedSubmitStaleSeconds
+                                    + (_lastSubmittedIsCast ? CastCommitGraceSeconds : 0d))
         {
             _gcdSubmittedThisCycle = false;
             _nextGcdAttemptAllowed = DateTime.UtcNow.AddSeconds(FailedSubmitBackoffSeconds);
@@ -429,7 +444,8 @@ public sealed unsafe class ActionService : IActionService
                 if (_readyUncommittedSinceUtc == DateTime.MinValue)
                     _readyUncommittedSinceUtc = DateTime.UtcNow;
 
-                if ((DateTime.UtcNow - _readyUncommittedSinceUtc).TotalSeconds > ReadyUncommittedGraceSeconds)
+                var commitGrace = _lastSubmittedIsCast ? CastCommitGraceSeconds : ReadyUncommittedGraceSeconds;
+                if ((DateTime.UtcNow - _readyUncommittedSinceUtc).TotalSeconds > commitGrace)
                 {
                     _gcdSubmittedThisCycle = false;
                     _nextGcdAttemptAllowed = DateTime.UtcNow.AddSeconds(FailedSubmitBackoffSeconds);
@@ -538,6 +554,7 @@ public sealed unsafe class ActionService : IActionService
             _lastSubmittedDispatchId = dispatchId;
             _lastSubmittedTargetId = targetId;
             _lastSubmittedActionName = action.Name;
+            _lastSubmittedIsCast = action.CastTime > 0f;
             _blockedRepeatGcdDispatchId = dispatchId;
             RecordChargeBasedGcdSubmit(dispatchId);
             _gcdRecastSeenSinceSubmit = false;
@@ -698,6 +715,7 @@ public sealed unsafe class ActionService : IActionService
         if (result)
         {
             _gcdSubmittedThisCycle = true;
+            _lastSubmittedIsCast = action.CastTime > 0f;
             _blockedRepeatGcdDispatchId = actionManager->GetAdjustedActionId(rawDispatchId);
             RecordChargeBasedGcdSubmit(rawDispatchId);
             _gcdRecastSeenSinceSubmit = false;

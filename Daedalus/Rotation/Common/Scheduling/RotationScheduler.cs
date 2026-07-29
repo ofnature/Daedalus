@@ -214,6 +214,14 @@ public sealed class RotationScheduler
                     continue;
                 }
 
+                // Dead targets linger in the object table for a beat — submitting at one gets the
+                // client's "Invalid target." toast (trash-pack deaths mid-queue, field 2026-07-28).
+                if (target.IsDead)
+                {
+                    RecordFail(candidate, "Target dead");
+                    continue;
+                }
+
                 // Gate: range. A clearly-out-of-range submit is refused by the client with a
                 // "Target is not in range." toast on EVERY attempt (field 2026-07-28: SAM at
                 // range toasted each cycle before falling through to Enpi). Fail it here so

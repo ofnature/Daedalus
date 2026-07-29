@@ -1058,6 +1058,34 @@ public class RotationSchedulerTests
     }
 
     [Fact]
+    public void Dispatch_DeadTarget_FailsWithoutSubmit()
+    {
+        // Dead mobs linger in the object table; submitting at one toasts "Invalid target."
+        var actionService = ExecutingActionService();
+        var scheduler = Build(actionService);
+        const ulong targetId = 4005UL;
+
+        var mock = new Mock<IRotationContext>();
+        var player = new Mock<Dalamud.Game.ClientState.Objects.SubKinds.IPlayerCharacter>();
+        player.Setup(p => p.Level).Returns((byte)90);
+        mock.Setup(c => c.Player).Returns(player.Object);
+        mock.Setup(c => c.Configuration).Returns(new Configuration());
+        var objectTable = new Mock<IObjectTable>();
+        var deadTarget = new Mock<Dalamud.Game.ClientState.Objects.Types.IGameObject>();
+        deadTarget.Setup(t => t.IsDead).Returns(true);
+        objectTable.Setup(t => t.SearchById(targetId)).Returns(deadTarget.Object);
+        mock.Setup(c => c.ObjectTable).Returns(objectTable.Object);
+
+        scheduler.PushGcd(TestBehaviors.InstantGcd(actionId: 9506), targetId, priority: 1);
+
+        var result = scheduler.DispatchGcd(mock.Object);
+
+        Assert.False(result.Dispatched);
+        Assert.Contains(result.GateFailReasons, r => r.Contains("Target dead"));
+        actionService.Verify(x => x.ExecuteGcd(It.IsAny<ActionDefinition>(), It.IsAny<ulong>()), Times.Never);
+    }
+
+    [Fact]
     public void NikeIaijutsu_AllCarryBlockImmediateRepeat()
     {
         Assert.True(Daedalus.Rotation.NikeCore.Abilities.NikeAbilities.Higanbana.BlockImmediateRepeat);
