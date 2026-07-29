@@ -1081,7 +1081,15 @@ public sealed unsafe class ActionService : IActionService
     {
         if (DebugStateProbe is null)
             return string.Empty;
-        try { return $" [state: {DebugStateProbe()}]"; }
+        try
+        {
+            // GCD-engine internals appended for drop-report forensics: the "572 [sen ---]"
+            // lines survived the cast-grace fix, so the false-report mechanism (if that's what
+            // they are) needs the engine state AT REPORT TIME to pin down.
+            var sinceSubmit = (DateTime.UtcNow - _lastExecuteTime).TotalSeconds;
+            return $" [state: {DebugStateProbe()}, gcd {GcdRemaining:F2}, seen {(_gcdRecastSeenSinceSubmit ? "y" : "n")}, " +
+                   $"cast {(_lastSubmittedIsCast ? "y" : "n")}, sinceSubmit {sinceSubmit:F2}s]";
+        }
         catch { return string.Empty; }
     }
 
