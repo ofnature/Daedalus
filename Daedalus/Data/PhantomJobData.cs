@@ -39,13 +39,16 @@ public static class PhantomJobData
     /// <summary>The Occult Crescent: South Horn (patch 7.25).</summary>
     public const ushort SouthHornTerritoryId = 1252;
 
+    /// <summary>The Occult Crescent: North Horn (XIVAPI TerritoryType 1346, field-sighted 2026-07-28).</summary>
+    public const ushort NorthHornTerritoryId = 1346;
+
     /// <summary>
-    /// Territories where the phantom layer is active. North Horn (7.55) becomes a
-    /// one-line addition here — never gate on SouthHornTerritoryId directly.
+    /// Territories where the phantom layer is active. Never gate on a single zone id directly.
     /// </summary>
     public static readonly IReadOnlySet<ushort> OccultTerritoryIds = new HashSet<ushort>
     {
         SouthHornTerritoryId,
+        NorthHornTerritoryId,
     };
 
     /// <summary>Stack count sentinel meaning "status present but no phantom level".</summary>
@@ -78,8 +81,19 @@ public static class PhantomJobData
     // Zone currencies are ITEMS (MKDData CurrencyItem rows) — balances come from the
     // inventory, not OccultCrescentState (its Silver field read 7628 vs a real balance
     // of 18 in the field check; only the item counts are authoritative).
-    public const uint SilverPieceItemId = 45043; // Enlightenment Silver Piece
-    public const uint GoldPieceItemId = 45044;   // Enlightenment Gold Piece
+    public const uint SilverPieceItemId = 45043; // Enlightenment Silver Piece (South Horn)
+    public const uint GoldPieceItemId = 45044;   // Enlightenment Gold Piece (South Horn)
+    public const uint SilverObolItemId = 51975;  // Enlightenment Silver Obol (North Horn)
+    public const uint GoldObolItemId = 51976;    // Enlightenment Gold Obol (North Horn)
+
+    /// <summary>
+    /// The zone currency item pair for an Occult territory — North Horn mints Obols, South
+    /// Horn Pieces. Unknown/other territories fall back to the South Horn pair.
+    /// </summary>
+    public static (uint Silver, uint Gold) CurrencyItemIds(ushort territoryId) =>
+        territoryId == NorthHornTerritoryId
+            ? (SilverObolItemId, GoldObolItemId)
+            : (SilverPieceItemId, GoldPieceItemId);
 
     // Consumables the phantom actions burn (Chemist actions + Samurai Zeninage).
     // There is NO ether item: the Occult Ether ACTION consumes an Occult Potion — the one

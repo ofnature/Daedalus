@@ -62,7 +62,11 @@ public sealed class OccultWindow : Window
         }
 
         // Affordable-shard banner: locked purchasable jobs the player can buy right now.
-        if (snapshot.Progression is { } p && snapshot.JobLevels.Count > 0)
+        // South Horn only — the price table is South Horn's shard shop (silver/gold PIECES);
+        // North Horn sells different jobs for Obols (DRG/SMN/NIN/BLM/WHM/RDM shards, not yet
+        // cataloged), so comparing Obol balances against Piece prices would false-banner.
+        if (snapshot.TerritoryId == PhantomJobData.SouthHornTerritoryId
+            && snapshot.Progression is { } p && snapshot.JobLevels.Count > 0)
         {
             var affordable = PhantomJobData.GetAffordableLockedShards(snapshot.JobLevels, p.Silver, p.Gold);
             if (affordable.Count > 0)

@@ -106,4 +106,36 @@ public class PhantomJobDataTests
     {
         Assert.Contains((ushort)1252, (IEnumerable<ushort>)PhantomJobData.OccultTerritoryIds);
     }
+
+    // North Horn (added 2026-07-28, XIVAPI TerritoryType 1346; currencies are Obols not Pieces).
+
+    [Fact]
+    public void OccultTerritoryIds_ContainNorthHorn()
+    {
+        Assert.Contains((ushort)1346, (IEnumerable<ushort>)PhantomJobData.OccultTerritoryIds);
+    }
+
+    [Fact]
+    public void CurrencyItemIds_SouthHorn_ArePieces()
+    {
+        var (silver, gold) = PhantomJobData.CurrencyItemIds(PhantomJobData.SouthHornTerritoryId);
+        Assert.Equal(45043u, silver);
+        Assert.Equal(45044u, gold);
+    }
+
+    [Fact]
+    public void CurrencyItemIds_NorthHorn_AreObols()
+    {
+        var (silver, gold) = PhantomJobData.CurrencyItemIds(PhantomJobData.NorthHornTerritoryId);
+        Assert.Equal(51975u, silver);
+        Assert.Equal(51976u, gold);
+    }
+
+    [Fact]
+    public void CurrencyItemIds_UnknownTerritory_FallsBackToPieces()
+    {
+        var (silver, gold) = PhantomJobData.CurrencyItemIds(0);
+        Assert.Equal(45043u, silver);
+        Assert.Equal(45044u, gold);
+    }
 }

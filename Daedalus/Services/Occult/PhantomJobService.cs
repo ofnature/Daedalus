@@ -274,13 +274,15 @@ public sealed class PhantomJobService
             if (state == null)
                 return null;
 
+            // Zone-aware currency: North Horn mints Obols, South Horn Pieces.
+            var (silverId, goldId) = PhantomJobData.CurrencyItemIds((ushort)_clientState.TerritoryType);
             return new OccultProgression
             {
                 KnowledgeLevel = ReadKnowledgeLevel(),
                 KnowledgeExp = state->CurrentKnowledge,
                 KnowledgeExpNeeded = state->NeededKnowledge,
-                Silver = _inventoryProbe.GetItemCount(PhantomJobData.SilverPieceItemId),
-                Gold = _inventoryProbe.GetItemCount(PhantomJobData.GoldPieceItemId),
+                Silver = _inventoryProbe.GetItemCount(silverId),
+                Gold = _inventoryProbe.GetItemCount(goldId),
             };
         }
         catch (Exception ex)
