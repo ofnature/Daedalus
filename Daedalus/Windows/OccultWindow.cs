@@ -7,7 +7,7 @@ using Daedalus.Services.Occult;
 namespace Daedalus.Windows;
 
 /// <summary>
-/// Compact Occult Crescent zone HUD. Auto-opens on entering South Horn (config
+/// Compact Occult Crescent zone HUD. Auto-opens on entering an Occult zone (config
 /// toggle), closes on leaving. Shows knowledge level, currencies, phantom
 /// consumables, and a banner when a locked purchasable phantom job's soul shard
 /// is affordable with the current silver/gold.

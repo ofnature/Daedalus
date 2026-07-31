@@ -3,7 +3,7 @@ using System.Collections.Generic;
 namespace Daedalus.Data;
 
 /// <summary>
-/// Phantom Jobs — the Occult Crescent (South Horn) duty-action layer.
+/// Phantom Jobs — the Occult Crescent duty-action layer (South Horn 7.25, North Horn 7.55).
 /// The active phantom job and its level (1–6) are carried entirely by a player status:
 /// each phantom job applies a permanent status whose stack count is the phantom level
 /// (a stack count of 255 means "no level"). Only one phantom job is active at a time.
@@ -220,6 +220,17 @@ public static class PhantomJobData
     /// <summary>Whether this job's soul shard is obtainable in the given Occult territory.</summary>
     public static bool IsSoldIn(PhantomJob job, ushort territoryId) =>
         territoryId == NorthHornTerritoryId ? NorthHornJobs.Contains(job) : !NorthHornJobs.Contains(job);
+
+    /// <summary>Which Occult zone a phantom job belongs to (its roster, not its shop).</summary>
+    public static bool IsNorthHornJob(PhantomJob job) => NorthHornJobs.Contains(job);
+
+    /// <summary>Display name for an Occult territory.</summary>
+    public static string GetZoneName(ushort territoryId) => territoryId switch
+    {
+        SouthHornTerritoryId => "South Horn",
+        NorthHornTerritoryId => "North Horn",
+        _ => "Occult Crescent",
+    };
 
     public static (UnlockKind Kind, int Price) GetUnlockCost(PhantomJob job) => job switch
     {

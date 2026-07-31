@@ -11,6 +11,8 @@ namespace Daedalus.Windows.Config.Shared;
 /// option groups, and — for jobs the character has not unlocked — where to get them.
 /// Live level/locked chips come from PhantomJobService and only resolve in zone;
 /// outside the zone every job renders neutrally with its unlock source for reference.
+/// The roster is split South Horn / North Horn (24 jobs in one list buries whichever
+/// zone you are actually standing in), and the zone you are in is listed first.
 /// </summary>
 public sealed class OccultSection
 {
@@ -38,10 +40,11 @@ public sealed class OccultSection
         var snapshot = phantomJobService?.GetSnapshot();
         var inZone = snapshot?.InOccultCrescent == true;
 
+        var zoneName = inZone ? PhantomJobData.GetZoneName(snapshot!.TerritoryId) : "";
         if (inZone && snapshot!.ActiveJob != PhantomJob.None)
-            ImGui.TextColored(Green, $"In South Horn — active: Phantom {snapshot.ActiveJob} Lv.{snapshot.Level}");
+            ImGui.TextColored(Green, $"In {zoneName} — active: Phantom {snapshot.ActiveJob} Lv.{snapshot.Level}");
         else if (inZone)
-            ImGui.TextColored(Green, "In South Horn — no phantom job equipped");
+            ImGui.TextColored(Green, $"In {zoneName} — no phantom job equipped");
         else
             ImGui.TextColored(Dim, "Not in Occult Crescent — job levels and lock states resolve in zone.");
 
@@ -75,11 +78,34 @@ public sealed class OccultSection
             save);
 
         ImGui.Spacing();
-        ImGui.TextColored(HeaderColor, "Phantom Jobs");
+
+        // Split rosters: 24 jobs in one flat list buries whichever zone you're actually in.
+        // The zone you're standing in leads.
+        var northFirst = inZone && snapshot!.TerritoryId == PhantomJobData.NorthHornTerritoryId;
+        if (northFirst)
+        {
+            DrawRoster("North Horn Jobs", north: true, snapshot, inZone);
+            DrawRoster("South Horn Jobs", north: false, snapshot, inZone);
+        }
+        else
+        {
+            DrawRoster("South Horn Jobs", north: false, snapshot, inZone);
+            DrawRoster("North Horn Jobs", north: true, snapshot, inZone);
+        }
+    }
+
+    private void DrawRoster(string title, bool north, PhantomStateSnapshot? snapshot, bool inZone)
+    {
+        ImGui.TextColored(HeaderColor, title);
         ImGui.Separator();
 
         foreach (var entry in PhantomJobData.LevelStatuses)
-            DrawJobGroup(entry.Key, snapshot, inZone);
+        {
+            if (PhantomJobData.IsNorthHornJob(entry.Key) == north)
+                DrawJobGroup(entry.Key, snapshot, inZone);
+        }
+
+        ImGui.Spacing();
     }
 
     private void DrawJobGroup(PhantomJob job, PhantomStateSnapshot? snapshot, bool inZone)
