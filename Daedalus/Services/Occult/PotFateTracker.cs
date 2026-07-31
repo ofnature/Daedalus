@@ -11,13 +11,13 @@ namespace Daedalus.Services.Occult;
 ///   • completing the FATE itself: ~160 Silver + ~160 Gold Obols
 ///   • the hidden coffer the Magical Elixir leads you to, which comes in TIERS (field
 ///     2026-07-31, still being pinned down):
-///         bronze — 100 Silver + 160 Gold
-///         silver — not yet observed
-///         gold   — 1,600 Gold plus silver (a drop screenshot read 1,000 Silver, a later
-///                  report 100; the gold figure is consistent, the silver is not — treat
-///                  1,600 Gold as the reliable number until another gold chest settles it),
-///                  alongside XII materia and 30,000 gil
-/// So the tier matters enormously: a gold coffer is a whole 1,600-gold shard in one go,
+///         bronze — 100 Silver, 160 Gold, 1,000 gil, XI/XII materia
+///         silver — not yet observed (presumably between the two)
+///         gold   — 1,000 Silver, 1,600 Gold, 30,000 gil, XI/XII materia
+///     The tiers scale ~10x, and the gil confirms it: 1,000 gil on bronze against 30,000 on
+///     gold, which is what settled an earlier ambiguity over the gold chest's silver figure.
+/// So the tier matters enormously: a gold coffer is a whole silver shard AND a whole gold
+/// shard in one go, a bronze barely a tenth of that,
 /// while a trash mob pays 3-5 gold. That is why this is a tracker — being present for the
 /// FATE, and not losing the pot on the escort, is worth more than any farming routine.
 /// <para>
