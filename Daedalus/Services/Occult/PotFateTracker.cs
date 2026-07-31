@@ -54,8 +54,15 @@ public sealed class PotFateTracker
         "Daylight Pottery",
     ];
 
+    /// <summary>Lead time on the "about to pop" warning — enough to travel, not enough to idle.</summary>
+    public const double ImminentWarningSeconds = 60;
+
     private readonly IFateTable? _fateTable;
     private readonly IClientState _clientState;
+    private readonly IGameGui? _gameGui;
+    private readonly IDataManager? _dataManager;
+
+    private System.Numerics.Vector3? _activePosition;
 
     // Keyed by ZONE + name. South Horn and North Horn run their own pot FATEs and the names
     // can repeat across them, so a name-only key would have South's spawn resetting North's
@@ -65,10 +72,44 @@ public sealed class PotFateTracker
     private readonly Dictionary<(ushort Zone, string Name), double> _observedCycleSeconds = new();
     private readonly HashSet<(ushort Zone, string Name)> _activeNow = new();
 
-    public PotFateTracker(IFateTable? fateTable, IClientState clientState)
+    public PotFateTracker(IFateTable? fateTable, IClientState clientState,
+        IGameGui? gameGui = null, IDataManager? dataManager = null)
     {
         _fateTable = fateTable;
         _clientState = clientState;
+        _gameGui = gameGui;
+        _dataManager = dataManager;
+    }
+
+    /// <summary>True when the next pot is due within the warning window (or overdue).</summary>
+    public bool PotImminent => SecondsUntilNextPot() is { } s && s <= ImminentWarningSeconds;
+
+    /// <summary>Whether a live pot FATE can be flagged on the map right now.</summary>
+    public bool CanOpenMap => _activePosition is not null && _gameGui is not null && _dataManager is not null;
+
+    /// <summary>
+    /// Opens the map on the live pot FATE and drops a flag there. Uses the FATE's own world
+    /// position rather than hardcoded coordinates — the two Horns have their own pot FATEs and
+    /// published coordinates for them disagree, so the live object is the only trustworthy
+    /// source.
+    /// </summary>
+    public void OpenMapToActivePot()
+    {
+        if (_activePosition is not { } pos || _gameGui is null || _dataManager is null)
+            return;
+
+        try
+        {
+            var territory = (uint)_clientState.TerritoryType;
+            var mapId = _dataManager.GetExcelSheet<Lumina.Excel.Sheets.TerritoryType>()
+                ?.GetRowOrDefault(territory)?.Map.RowId ?? 0;
+            if (mapId != 0)
+                _gameGui.OpenMapWithMapLink(territory, mapId, pos);
+        }
+        catch
+        {
+            // Map link is a convenience — never let it take the HUD down.
+        }
     }
 
     /// <summary>Testable clock.</summary>
@@ -95,6 +136,7 @@ public sealed class PotFateTracker
 
             var key = (zone, name);
             seen.Add(key);
+            _activePosition = fate.Position;
             if (_activeNow.Contains(key))
                 continue; // already counted this spawn
 
@@ -113,6 +155,9 @@ public sealed class PotFateTracker
         _activeNow.Clear();
         foreach (var k in seen)
             _activeNow.Add(k);
+
+        if (seen.Count == 0)
+            _activePosition = null;
     }
 
     public static bool IsPotFate(string fateName) =>

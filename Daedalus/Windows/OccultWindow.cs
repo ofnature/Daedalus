@@ -115,8 +115,13 @@ public sealed class OccultWindow : Window
         if (_potFates.ActiveFate is { } live)
         {
             ImGui.TextColored(Gold, $"★ POT FATE UP — {live}");
+            if (_potFates.CanOpenMap && ImGui.Button("Show on map##potfate"))
+                _potFates.OpenMapToActivePot();
             return;
         }
+
+        if (_potFates.PotImminent)
+            ImGui.TextColored(Gold, "★ Pot FATE due within a minute — get there");
 
         // The alternating cycle means "next pot, either kind" is the actionable number.
         if (_potFates.SecondsUntilNextPot() is { } nextPot)
