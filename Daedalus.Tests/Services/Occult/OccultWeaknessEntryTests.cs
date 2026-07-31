@@ -135,6 +135,40 @@ public class OccultWeaknessClassificationTests
     }
 
     [Fact]
+    public void CriticalEncounterGroup_KeepsAddsAndDropsBystanders()
+    {
+        // Real North Horn tiers (2026-07-31): field mobs 780-850k (the zone median), encounter
+        // adds 4-7M, bosses 126-216M. Field trash standing in scan range while a CE ran was
+        // being filed under that CE.
+        const uint median = 800_000;
+        const int enough = ElementalWeaknessLog.MinZoneSamplesForRelative;
+
+        // Adds — belong to the fight.
+        Assert.True(ElementalWeaknessLog.IsCriticalEncounterParticipant(true, 4_086_110, median, enough)); // Abductor's Plume
+        Assert.True(ElementalWeaknessLog.IsCriticalEncounterParticipant(true, 6_967_100, median, enough)); // Alabaster Golem
+        Assert.True(ElementalWeaknessLog.IsCriticalEncounterParticipant(true, 216_049_771, median, enough)); // Alabaster Blade
+
+        // Bystanders — merely visible while the CE ran.
+        Assert.False(ElementalWeaknessLog.IsCriticalEncounterParticipant(true, 783_328, median, enough)); // Crescent Wraith
+        Assert.False(ElementalWeaknessLog.IsCriticalEncounterParticipant(true, 843_584, median, enough)); // Crescent Arioch
+        Assert.False(ElementalWeaknessLog.IsCriticalEncounterParticipant(true, 188_300, median, enough)); // Persistent Pot
+    }
+
+    [Fact]
+    public void CriticalEncounterGroup_NeverAppliesToMobsNotSeenInOne()
+    {
+        Assert.False(ElementalWeaknessLog.IsCriticalEncounterParticipant(false, 200_000_000, 800_000, 50));
+    }
+
+    [Fact]
+    public void CriticalEncounterGroup_ThinZone_KeepsTheRawSighting()
+    {
+        // Too little data to judge — show what was actually observed rather than hide it.
+        Assert.True(ElementalWeaknessLog.IsCriticalEncounterParticipant(true, 783_328, zoneMedianHp: 800_000, zoneSamples: 1));
+        Assert.True(ElementalWeaknessLog.IsCriticalEncounterParticipant(true, 783_328, zoneMedianHp: 0, zoneSamples: 99));
+    }
+
+    [Fact]
     public void Elements_AreFlags_SoAMobCanCarryMoreThanOne()
     {
         var e = new OccultWeaknessEntry { Elements = OccultElement.Ice };

@@ -45,8 +45,19 @@ public sealed class OccultWeaknessEntry
     /// <summary>Largest max-HP ever observed — the raw signal behind <see cref="Kind"/>.</summary>
     public uint MaxHp { get; set; }
 
-    /// <summary>Ever seen while a critical encounter was active.</summary>
+    /// <summary>
+    /// Ever seen while a critical encounter was active. RAW fact — true for the encounter's
+    /// own mobs AND for any field trash that merely stood in scan range at the time. Use
+    /// <see cref="BelongsToCriticalEncounter"/> for "is actually part of the fight".
+    /// </summary>
     public bool SeenInCriticalEncounter { get; set; }
+
+    /// <summary>
+    /// Actually part of the encounter, rather than a bystander. Filled in by
+    /// <see cref="ElementalWeaknessLog"/> — it needs the zone's HP distribution to decide.
+    /// </summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool BelongsToCriticalEncounter { get; internal set; }
 
     /// <summary>Name of the critical encounter it was seen in ("Quarried Away"), when known.</summary>
     public string CriticalEncounter { get; set; } = "";
@@ -100,6 +111,26 @@ public sealed class ElementalWeaknessLog
 
     /// <summary>Samples needed in a zone before trusting its distribution over the fallback.</summary>
     public const int MinZoneSamplesForRelative = 5;
+
+    /// <summary>
+    /// Multiple of the zone median an enemy must clear to count as part of a critical
+    /// encounter rather than a bystander. Field 2026-07-31: encounter adds run 4-7M HP
+    /// (Abductor's Plume, Alabaster Golem, Tiny Apprentice) while the ordinary "Crescent …"
+    /// field mobs standing nearby run 780-850k — roughly the zone median. Anything merely
+    /// visible while a CE ran was being filed under that CE; this is the separation.
+    /// </summary>
+    public const uint CriticalEncounterHpMultiple = 3;
+
+    /// <summary>Is this enemy part of the encounter, or just standing near it?</summary>
+    public static bool IsCriticalEncounterParticipant(
+        bool seenInCe, uint maxHp, uint zoneMedianHp, int zoneSamples)
+    {
+        if (!seenInCe)
+            return false;
+        if (zoneSamples < MinZoneSamplesForRelative || zoneMedianHp == 0)
+            return true; // not enough to judge — keep the raw sighting rather than hide it
+        return maxHp >= zoneMedianHp * CriticalEncounterHpMultiple;
+    }
 
     /// <summary>
     /// A newly observed max-HP at or below this fraction of the stored one means the encounter
@@ -203,6 +234,8 @@ public sealed class ElementalWeaknessLog
                 var median = ZoneMedianHp(e.TerritoryId);
                 var samples = _entries.Values.Count(x => x.TerritoryId == e.TerritoryId && x.MaxHp > 0);
                 e.Kind = Classify(e.MaxHp, e.SeenInCriticalEncounter, median, samples);
+                e.BelongsToCriticalEncounter =
+                    IsCriticalEncounterParticipant(e.SeenInCriticalEncounter, e.MaxHp, median, samples);
             }
 
             return all.OrderByDescending(e => e.Kind).ThenByDescending(e => e.MaxHp).ToList();

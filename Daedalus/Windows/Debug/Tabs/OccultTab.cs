@@ -135,9 +135,9 @@ public static class OccultTab
 
                 ImGui.Indent();
                 DrawEnemyGroup($"Critical Encounters###occult_ce_{zone}",
-                    inZone.Where(e => e.SeenInCriticalEncounter).ToList(), groupByEncounter: true);
+                    inZone.Where(e => e.BelongsToCriticalEncounter).ToList(), groupByEncounter: true);
                 DrawEnemyGroup($"Regular mobs###occult_mobs_{zone}",
-                    inZone.Where(e => !e.SeenInCriticalEncounter).ToList(), groupByEncounter: false);
+                    inZone.Where(e => !e.BelongsToCriticalEncounter).ToList(), groupByEncounter: false);
                 ImGui.Unindent();
             }
         }
