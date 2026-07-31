@@ -111,6 +111,31 @@ public sealed class ElementalWeaknessLog
     /// </summary>
     public const float RescaleDetectionFraction = 0.5f;
 
+    /// <summary>
+    /// Max-HP readings below this are garbage, not data. Field 2026-07-31: the Doubled Trouble
+    /// CE boss (Conjured Calofisteri) was recorded at 44 HP — a transient spawn-time read that
+    /// the rescale rule below then accepted as truth, overwriting its real multi-million pool
+    /// and demoting the boss to "trash". Nothing in a level-100 zone has double-digit max HP.
+    /// </summary>
+    public const uint MinCredibleMaxHp = 1_000;
+
+    /// <summary>
+    /// Separate sightings that must agree before a collapsed max-HP is accepted as a real
+    /// rescale. A patch is permanent and will read the same every time; spawn-time garbage
+    /// will not survive a second look.
+    /// </summary>
+    public const int RescaleConfirmations = 2;
+
+    /// <summary>Is this max-HP reading worth recording at all?</summary>
+    public static bool IsCredibleMaxHp(uint observed) => observed >= MinCredibleMaxHp;
+
+    /// <summary>
+    /// Does this reading look like a genuine downward rescale (rather than a low reading we
+    /// should ignore)? Credible magnitude AND a collapse against what we already hold.
+    /// </summary>
+    public static bool LooksLikeRescale(uint stored, uint observed) =>
+        stored > 0 && IsCredibleMaxHp(observed) && observed <= stored * RescaleDetectionFraction;
+
     private readonly IObjectTable _objectTable;
     private readonly IClientState _clientState;
     private readonly IPluginLog _log;
@@ -118,6 +143,9 @@ public sealed class ElementalWeaknessLog
     private readonly string? _filePath;
 
     private readonly Dictionary<uint, OccultWeaknessEntry> _entries = new();
+
+    /// <summary>Unconfirmed rescale candidates: NameId → (observed value, agreeing sightings).</summary>
+    private readonly Dictionary<uint, (uint Value, int Count)> _pendingRescale = new();
     private DateTime _lastScanUtc = DateTime.MinValue;
     private DateTime _lastSaveUtc = DateTime.MinValue;
     private bool _dirty;
@@ -304,15 +332,38 @@ public sealed class ElementalWeaknessLog
         // Max-HP upkeep. Normally keep the largest ever seen (we may meet an enemy mid-fight),
         // but a value that has COLLAPSED means the encounter was rescaled by a patch — take
         // the new number as truth so the table (and the zone median) stay current.
-        if (npc.MaxHp > entry.MaxHp)
+        if (!IsCredibleMaxHp(npc.MaxHp))
         {
-            entry.MaxHp = npc.MaxHp;
+            // Spawn-time / teardown garbage — never let it touch a recorded pool.
         }
-        else if (entry.MaxHp > 0 && npc.MaxHp > 0 && npc.MaxHp <= entry.MaxHp * RescaleDetectionFraction)
+        else if (npc.MaxHp > entry.MaxHp)
         {
-            _debugLog?.Log(Debug.DebugLogCategory.General, Debug.DebugLogSeverity.Info,
-                $"occult rescale: {entry.Name} max HP {entry.MaxHp:N0} -> {npc.MaxHp:N0} (encounter re-synced?)");
             entry.MaxHp = npc.MaxHp;
+            _pendingRescale.Remove(nameId);
+        }
+        else if (LooksLikeRescale(entry.MaxHp, npc.MaxHp))
+        {
+            // Collapsed pool: a patch re-syncing the encounter, or a bad frame? Only a value
+            // that shows up again on a LATER sighting is allowed to replace the truth.
+            var agreeing = _pendingRescale.TryGetValue(nameId, out var pending) && pending.Value == npc.MaxHp
+                ? pending.Count + 1
+                : 1;
+
+            if (agreeing >= RescaleConfirmations)
+            {
+                _debugLog?.Log(Debug.DebugLogCategory.General, Debug.DebugLogSeverity.Info,
+                    $"occult rescale confirmed: {entry.Name} max HP {entry.MaxHp:N0} -> {npc.MaxHp:N0}");
+                entry.MaxHp = npc.MaxHp;
+                _pendingRescale.Remove(nameId);
+            }
+            else
+            {
+                _pendingRescale[nameId] = (npc.MaxHp, agreeing);
+            }
+        }
+        else
+        {
+            _pendingRescale.Remove(nameId); // a normal reading clears any half-formed suspicion
         }
         if (ceActive)
         {

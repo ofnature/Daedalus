@@ -123,13 +123,19 @@ public static class OccultTab
             foreach (var e in entries)
             {
                 var ice = (e.Elements & Daedalus.Services.Occult.OccultElement.Ice) != 0;
+                // The CE tag shows on EVERY entry seen during an encounter, not just ones the
+                // HP line promoted — that way a boss mis-sized by a bad reading is still
+                // visibly a CE participant instead of silently reading as field trash.
                 var kind = e.Kind switch
                 {
-                    Daedalus.Services.Occult.OccultEnemyKind.CriticalEncounterBoss =>
-                        string.IsNullOrEmpty(e.CriticalEncounter) ? "CE BOSS" : $"CE BOSS: {e.CriticalEncounter}",
+                    Daedalus.Services.Occult.OccultEnemyKind.CriticalEncounterBoss => "CE BOSS",
                     Daedalus.Services.Occult.OccultEnemyKind.Elite => "elite",
                     _ => "trash",
                 };
+                if (e.SeenInCriticalEncounter && e.Kind != Daedalus.Services.Occult.OccultEnemyKind.CriticalEncounterBoss)
+                    kind += " · in CE";
+                if (!string.IsNullOrEmpty(e.CriticalEncounter))
+                    kind += $": {e.CriticalEncounter}";
                 var weakness = e.Elements == Daedalus.Services.Occult.OccultElement.None
                     ? "weakness not revealed"
                     : $"weak to {e.Elements}";

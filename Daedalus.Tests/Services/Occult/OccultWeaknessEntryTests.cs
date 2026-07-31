@@ -101,6 +101,40 @@ public class OccultWeaknessClassificationTests
     }
 
     [Fact]
+    public void GarbageMaxHp_IsNeverCredible()
+    {
+        // Field 2026-07-31: the Doubled Trouble CE boss (Conjured Calofisteri) was captured at
+        // 44 HP from a transient spawn-time read, and the rescale rule accepted it — wiping a
+        // multi-million pool and demoting a boss to "trash".
+        Assert.False(ElementalWeaknessLog.IsCredibleMaxHp(44));
+        Assert.False(ElementalWeaknessLog.IsCredibleMaxHp(0));
+        Assert.True(ElementalWeaknessLog.IsCredibleMaxHp(ElementalWeaknessLog.MinCredibleMaxHp));
+        Assert.True(ElementalWeaknessLog.IsCredibleMaxHp(216_049_771));
+    }
+
+    [Fact]
+    public void GarbageReading_NeverLooksLikeARescale()
+    {
+        // 216M -> 44 must NOT be treated as a re-sync, however large the drop looks.
+        Assert.False(ElementalWeaknessLog.LooksLikeRescale(stored: 216_049_771, observed: 44));
+    }
+
+    [Fact]
+    public void GenuineCollapse_StillLooksLikeARescale()
+    {
+        // 450M -> 9M after a sync patch: credible magnitude, real collapse. (It still needs a
+        // second agreeing sighting before it is committed — see RescaleConfirmations.)
+        Assert.True(ElementalWeaknessLog.LooksLikeRescale(stored: 450_000_000, observed: 9_000_000));
+        Assert.True(ElementalWeaknessLog.RescaleConfirmations >= 2);
+    }
+
+    [Fact]
+    public void MidFightReading_IsNotARescale()
+    {
+        Assert.False(ElementalWeaknessLog.LooksLikeRescale(stored: 216_000_000, observed: 130_000_000));
+    }
+
+    [Fact]
     public void Elements_AreFlags_SoAMobCanCarryMoreThanOne()
     {
         var e = new OccultWeaknessEntry { Elements = OccultElement.Ice };
