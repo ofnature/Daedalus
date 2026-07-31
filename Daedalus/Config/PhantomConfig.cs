@@ -22,6 +22,14 @@ public sealed class PhantomConfig
     public float FreelancerResuscitationHpPct { get; set; } = 0.70f;
     public bool UseTreasuresight { get; set; } = false;
 
+    /// <summary>
+    /// Occult Libra reveals an enemy's elemental weakness, and Freelancer is the ONLY phantom
+    /// job that carries it. Fired on targets whose weakness we have not recorded yet — it is a
+    /// 5s-recast Ability so it costs a weave, not a GCD, and every reveal both feeds the whole
+    /// party's aspected damage and fills the weakness table for every other job later.
+    /// </summary>
+    public bool FreelancerUseLibra { get; set; } = true;
+
     // ── Knight ──
     public bool KnightPrayAsHeal { get; set; } = false;
     public bool KnightPledgeSelf { get; set; } = false;

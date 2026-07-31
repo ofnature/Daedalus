@@ -25,6 +25,11 @@ public static class PhantomActions
         // ── Freelancer (levels via mastery count, so unlocks run past 6) ──
         new(41650, "Occult Resuscitation", PhantomJob.Freelancer, 5),
         new(41651, "Occult Treasuresight", PhantomJob.Freelancer, 10),
+        // Occult Libra (North Horn): FREELANCER ONLY (field-confirmed 2026-07-31) — the only
+        // way to REVEAL an enemy's elemental weakness. 30y, 5s recast, Ability (weaves).
+        // Level 1 until the real unlock level is sighted; the duty-bar gate fails closed
+        // anyway, so an optimistic level can only ever under-restrict, never mis-fire.
+        new(49094, "Occult Libra", PhantomJob.Freelancer, 1),
 
         // ── Knight ──
         new(41588, "Phantom Guard", PhantomJob.Knight, 1),
