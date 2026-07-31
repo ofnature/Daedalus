@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Daedalus.Config;
 
 namespace Daedalus.Rotation.Phantom;
@@ -120,19 +121,23 @@ public static class PhantomBandRules
     /// </summary>
     public static uint[] BlackMageNukeOrder(Daedalus.Services.Occult.OccultElement? knownWeakness)
     {
-        var lead = OccultFireIIIId;
-        if (knownWeakness is { } w)
-        {
-            if ((w & Daedalus.Services.Occult.OccultElement.Ice) != 0) lead = OccultBlizzardIIIId;
-            else if ((w & Daedalus.Services.Occult.OccultElement.Lightning) != 0) lead = OccultThunderIIIId;
-        }
+        var w = knownWeakness ?? Daedalus.Services.Occult.OccultElement.None;
 
-        return lead switch
-        {
-            OccultBlizzardIIIId => [OccultBlizzardIIIId, OccultFireIIIId, OccultThunderIIIId],
-            OccultThunderIIIId => [OccultThunderIIIId, OccultFireIIIId, OccultBlizzardIIIId],
-            _ => [OccultFireIIIId, OccultBlizzardIIIId, OccultThunderIIIId],
-        };
+        // An enemy can carry MORE THAN ONE weakness (field 2026-07-31: Crescent Soblyn showed
+        // two at once), so this is a partition, not a single "lead" pick — every matched
+        // element outranks every unmatched one, and all three fire regardless since they do
+        // not share a recast.
+        var matched = new List<uint>();
+        var rest = new List<uint>();
+        void Place(uint id, Daedalus.Services.Occult.OccultElement element)
+            => ((w & element) != 0 ? matched : rest).Add(id);
+
+        Place(OccultFireIIIId, Daedalus.Services.Occult.OccultElement.Fire);
+        Place(OccultBlizzardIIIId, Daedalus.Services.Occult.OccultElement.Ice);
+        Place(OccultThunderIIIId, Daedalus.Services.Occult.OccultElement.Lightning);
+
+        matched.AddRange(rest);
+        return matched.ToArray();
     }
 
     /// <summary>Phantom Ninja scrolls — SEPARATE 60s recasts, so both are usable.</summary>

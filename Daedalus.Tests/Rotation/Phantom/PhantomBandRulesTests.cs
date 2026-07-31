@@ -224,6 +224,32 @@ public class PhantomBandRulesTests
     }
 
     [Fact]
+    public void BlackMageOrder_PutsEveryMatchedElementFirst()
+    {
+        var E = typeof(Daedalus.Services.Occult.OccultElement);
+        // Dual weakness (field: Crescent Soblyn showed two at once) — BOTH matched nukes must
+        // outrank the unmatched one, not just whichever the picker happened to check first.
+        var order = PhantomBandRules.BlackMageNukeOrder(
+            Daedalus.Services.Occult.OccultElement.Ice | Daedalus.Services.Occult.OccultElement.Lightning);
+
+        Assert.Equal(3, order.Length);
+        Assert.Equal(PhantomBandRules.OccultFireIIIId, order[2]); // the only unmatched one, last
+        Assert.Contains(PhantomBandRules.OccultBlizzardIIIId, order[..2].ToArray());
+        Assert.Contains(PhantomBandRules.OccultThunderIIIId, order[..2].ToArray());
+    }
+
+    [Fact]
+    public void BlackMageOrder_AlwaysFiresAllThree()
+    {
+        // Independent 40s recasts — the weakness reorders, it never skips.
+        foreach (var w in new Daedalus.Services.Occult.OccultElement?[]
+                 { null, Daedalus.Services.Occult.OccultElement.Fire, Daedalus.Services.Occult.OccultElement.Wind })
+        {
+            Assert.Equal(3, PhantomBandRules.BlackMageNukeOrder(w).Distinct().Count());
+        }
+    }
+
+    [Fact]
     public void NinjaScrolls_LeadWithTheMatchingElement_ButBothStayUsable()
     {
         // Independent 60s recasts, so this is ordering, not exclusion (195 vs 150).
