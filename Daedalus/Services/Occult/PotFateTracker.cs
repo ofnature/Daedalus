@@ -16,6 +16,10 @@ namespace Daedalus.Services.Occult;
 ///         gold   — 1,000 Silver, 1,600 Gold, 30,000 gil, XI/XII materia
 ///     The tiers scale ~10x, and the gil confirms it: 1,000 gil on bronze against 30,000 on
 ///     gold, which is what settled an earlier ambiguity over the gold chest's silver figure.
+///     TIER LOOKS ZONE-BOUND (field 2026-07-31, 3 samples): both South Horn pots gave bronze,
+///     the North Horn pot gave gold. If that holds, South Horn pots are worth a TENTH of a
+///     North Horn one and the farm should never leave North Horn. Small sample — but the
+///     hypothesis is clean and matches how field ops usually scale by zone.
 /// So the tier matters enormously: a gold coffer is a whole silver shard AND a whole gold
 /// shard in one go, a bronze barely a tenth of that,
 /// while a trash mob pays 3-5 gold. That is why this is a tracker — being present for the
