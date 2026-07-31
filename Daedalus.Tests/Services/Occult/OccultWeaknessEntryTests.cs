@@ -4,55 +4,76 @@ using Xunit;
 namespace Daedalus.Tests.Services.Occult;
 
 /// <summary>
-/// The boss-or-trash verdict (2026-07-31 user ask: "x mob is weak to y element" plus "what is
-/// a boss or trash enemy"). Both inputs are FACTS read from the game — the largest max-HP ever
-/// observed, and whether a critical encounter was running at the time (dynamic-event
-/// container) — so the classification stays re-tunable from the persisted table.
+/// The boss-or-trash verdict (2026-07-31: "x mob is weak to y element" + "need to find out
+/// what is a boss or trash enemy"). Both inputs are FACTS read from the game — the largest
+/// max-HP observed, and whether a critical encounter was running (dynamic-event container).
+/// The line itself is the ZONE'S OWN median enemy HP × a multiple once there are samples, so
+/// no magic threshold survives contact with real data; the absolute value is only a bootstrap
+/// for an unseen zone.
 /// </summary>
-public class OccultWeaknessEntryTests
+public class OccultWeaknessClassificationTests
 {
-    private static OccultWeaknessEntry Entry(uint maxHp, bool inCe) => new()
-    {
-        NameId = 1234,
-        Name = "Mistwake Something",
-        MaxHp = maxHp,
-        SeenInCriticalEncounter = inCe,
-        Elements = OccultElement.Ice,
-    };
+    private const uint Fallback = ElementalWeaknessLog.BossHpThresholdFallback;
+    private const int Enough = ElementalWeaknessLog.MinZoneSamplesForRelative;
 
     [Fact]
-    public void SmallHp_IsTrash_EvenIfSeenDuringACriticalEncounter()
+    public void FewSamples_FallsBackToTheAbsoluteLine()
     {
-        // CE adds spawn alongside the boss — HP is what separates them.
-        Assert.Equal(OccultEnemyKind.Trash, Entry(80_000, inCe: true).Kind);
-        Assert.Equal(OccultEnemyKind.Trash, Entry(80_000, inCe: false).Kind);
+        // A zone we've barely seen can't vote on its own distribution yet.
+        Assert.Equal(OccultEnemyKind.Trash,
+            ElementalWeaknessLog.Classify(Fallback - 1, seenInCriticalEncounter: true, zoneMedianHp: 50_000, zoneSamples: 1));
+        Assert.Equal(OccultEnemyKind.CriticalEncounterBoss,
+            ElementalWeaknessLog.Classify(Fallback, seenInCriticalEncounter: true, zoneMedianHp: 50_000, zoneSamples: 1));
     }
 
     [Fact]
-    public void BigHp_OutsideACriticalEncounter_IsElite()
+    public void WithSamples_TheZonesOwnMedianSetsTheLine()
     {
-        Assert.Equal(OccultEnemyKind.Elite, Entry(ElementalWeaknessLog.BossHpThreshold, inCe: false).Kind);
+        // Median trash 40k → the line is 400k, so a 500k mob is a boss even though it never
+        // reaches the 1M bootstrap number. This is the whole point of self-calibrating.
+        Assert.Equal(OccultEnemyKind.CriticalEncounterBoss,
+            ElementalWeaknessLog.Classify(500_000, seenInCriticalEncounter: true, zoneMedianHp: 40_000, zoneSamples: Enough));
+        Assert.Equal(OccultEnemyKind.Trash,
+            ElementalWeaknessLog.Classify(300_000, seenInCriticalEncounter: true, zoneMedianHp: 40_000, zoneSamples: Enough));
     }
 
     [Fact]
-    public void BigHp_DuringACriticalEncounter_IsTheCriticalEncounterBoss()
+    public void HighMedianZone_DoesNotPromoteEveryMobToBoss()
     {
-        Assert.Equal(
-            OccultEnemyKind.CriticalEncounterBoss,
-            Entry(ElementalWeaknessLog.BossHpThreshold * 4, inCe: true).Kind);
+        // A zone where everything is chunky: median 2M → the line is 20M, so a 3M mob is
+        // still trash there. The absolute 1M bootstrap would have called it a boss.
+        Assert.Equal(OccultEnemyKind.Trash,
+            ElementalWeaknessLog.Classify(3_000_000, seenInCriticalEncounter: false, zoneMedianHp: 2_000_000, zoneSamples: Enough));
     }
 
     [Fact]
-    public void ThresholdIsInclusive_AtTheBoundary()
+    public void CriticalEncounterFlag_SeparatesBossFromElite()
     {
-        Assert.Equal(OccultEnemyKind.Trash, Entry(ElementalWeaknessLog.BossHpThreshold - 1, inCe: true).Kind);
-        Assert.Equal(OccultEnemyKind.CriticalEncounterBoss, Entry(ElementalWeaknessLog.BossHpThreshold, inCe: true).Kind);
+        Assert.Equal(OccultEnemyKind.CriticalEncounterBoss,
+            ElementalWeaknessLog.Classify(5_000_000, seenInCriticalEncounter: true, zoneMedianHp: 40_000, zoneSamples: Enough));
+        Assert.Equal(OccultEnemyKind.Elite,
+            ElementalWeaknessLog.Classify(5_000_000, seenInCriticalEncounter: false, zoneMedianHp: 40_000, zoneSamples: Enough));
+    }
+
+    [Fact]
+    public void CriticalEncounterAdds_StayTrash()
+    {
+        // Adds spawn alongside the boss and carry the CE flag — HP is what tells them apart.
+        Assert.Equal(OccultEnemyKind.Trash,
+            ElementalWeaknessLog.Classify(60_000, seenInCriticalEncounter: true, zoneMedianHp: 40_000, zoneSamples: Enough));
+    }
+
+    [Fact]
+    public void ZeroMedian_NeverDividesTheZoneByNothing()
+    {
+        Assert.Equal(OccultEnemyKind.Trash,
+            ElementalWeaknessLog.Classify(500_000, seenInCriticalEncounter: false, zoneMedianHp: 0, zoneSamples: Enough));
     }
 
     [Fact]
     public void Elements_AreFlags_SoAMobCanCarryMoreThanOne()
     {
-        var e = Entry(1, inCe: false);
+        var e = new OccultWeaknessEntry { Elements = OccultElement.Ice };
         e.Elements |= OccultElement.Wind;
 
         Assert.True((e.Elements & OccultElement.Ice) != 0);

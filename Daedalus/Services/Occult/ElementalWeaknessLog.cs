@@ -51,14 +51,11 @@ public sealed class OccultWeaknessEntry
     public string LastSeenUtc { get; set; } = "";
 
     /// <summary>
-    /// Boss-or-trash verdict from the recorded facts. The HP line is a starting threshold —
-    /// MaxHp is persisted precisely so it can be re-tuned from real data instead of guessed
-    /// at again.
+    /// Boss-or-trash verdict, filled in by <see cref="ElementalWeaknessLog"/> — it depends on
+    /// the whole zone's HP distribution, not on this row alone.
     /// </summary>
-    public OccultEnemyKind Kind =>
-        MaxHp < ElementalWeaknessLog.BossHpThreshold ? OccultEnemyKind.Trash
-        : SeenInCriticalEncounter ? OccultEnemyKind.CriticalEncounterBoss
-        : OccultEnemyKind.Elite;
+    [System.Text.Json.Serialization.JsonIgnore]
+    public OccultEnemyKind Kind { get; internal set; }
 }
 
 /// <summary>
@@ -79,12 +76,19 @@ public sealed class ElementalWeaknessLog
     private const double SaveDebounceSeconds = 30.0;
 
     /// <summary>
-    /// Max-HP line between trash and a boss/elite. A first cut from field scale (Occult trash
-    /// sits in the tens of thousands, critical-encounter bosses in the millions) — every
-    /// entry stores its real MaxHp, so this is tunable from the collected table rather than
-    /// permanently guessed.
+    /// Fallback max-HP line, used only until a zone has enough samples to speak for itself.
     /// </summary>
-    public const uint BossHpThreshold = 1_000_000;
+    public const uint BossHpThresholdFallback = 1_000_000;
+
+    /// <summary>
+    /// A boss dwarfs the trash around it, so the jump is a MULTIPLE of the zone's typical
+    /// enemy rather than an absolute number — this is what removes the guessed threshold:
+    /// once a zone has real samples, its own median sets the line.
+    /// </summary>
+    public const uint BossHpMultipleOfZoneMedian = 10;
+
+    /// <summary>Samples needed in a zone before trusting its distribution over the fallback.</summary>
+    public const int MinZoneSamplesForRelative = 5;
 
     private readonly IObjectTable _objectTable;
     private readonly IClientState _clientState;
@@ -115,9 +119,46 @@ public sealed class ElementalWeaknessLog
         Load();
     }
 
-    /// <summary>Everything learned so far, most-sighted first (Debug tab readout).</summary>
-    public IReadOnlyList<OccultWeaknessEntry> Entries =>
-        _entries.Values.OrderByDescending(e => e.Kind).ThenByDescending(e => e.MaxHp).ToList();
+    /// <summary>
+    /// Boss-or-trash from observed facts. The line is the zone's own median enemy HP times
+    /// <see cref="BossHpMultipleOfZoneMedian"/> once the zone has enough samples; before that
+    /// it falls back to <see cref="BossHpThresholdFallback"/>. Pure — the whole rule is here.
+    /// </summary>
+    public static OccultEnemyKind Classify(uint maxHp, bool seenInCriticalEncounter, uint zoneMedianHp, int zoneSamples)
+    {
+        var line = zoneSamples >= MinZoneSamplesForRelative && zoneMedianHp > 0
+            ? zoneMedianHp * BossHpMultipleOfZoneMedian
+            : BossHpThresholdFallback;
+
+        if (maxHp < line)
+            return OccultEnemyKind.Trash;
+        return seenInCriticalEncounter ? OccultEnemyKind.CriticalEncounterBoss : OccultEnemyKind.Elite;
+    }
+
+    /// <summary>Median observed max-HP for a territory (0 when nothing recorded there yet).</summary>
+    public uint ZoneMedianHp(ushort territoryId)
+    {
+        var hps = _entries.Values.Where(e => e.TerritoryId == territoryId && e.MaxHp > 0)
+            .Select(e => e.MaxHp).OrderBy(h => h).ToList();
+        return hps.Count == 0 ? 0u : hps[hps.Count / 2];
+    }
+
+    /// <summary>Everything learned so far, bosses first (Debug tab readout).</summary>
+    public IReadOnlyList<OccultWeaknessEntry> Entries
+    {
+        get
+        {
+            var all = _entries.Values.ToList();
+            foreach (var e in all)
+            {
+                var median = ZoneMedianHp(e.TerritoryId);
+                var samples = _entries.Values.Count(x => x.TerritoryId == e.TerritoryId && x.MaxHp > 0);
+                e.Kind = Classify(e.MaxHp, e.SeenInCriticalEncounter, median, samples);
+            }
+
+            return all.OrderByDescending(e => e.Kind).ThenByDescending(e => e.MaxHp).ToList();
+        }
+    }
 
     /// <summary>Path of the persisted table (shown in the Debug tab so it can be opened).</summary>
     public string? FilePath => _filePath;
@@ -228,7 +269,8 @@ public sealed class ElementalWeaknessLog
         if (isNew)
         {
             _debugLog?.Log(Debug.DebugLogCategory.General, Debug.DebugLogSeverity.Info,
-                $"occult weakness learned: {entry.Name} [{entry.Kind}] — {entry.Elements} (territory {territory})");
+                $"occult weakness learned: {entry.Name} — {entry.Elements} " +
+                $"({entry.MaxHp:N0} HP, territory {territory})");
         }
     }
 
