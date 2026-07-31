@@ -21,6 +21,19 @@ public enum OccultElement : byte
     Wind = 8,
 }
 
+/// <summary>How dangerous an Occult enemy is — the "boss or trash?" answer.</summary>
+public enum OccultEnemyKind : byte
+{
+    /// <summary>Ordinary field mob.</summary>
+    Trash = 0,
+
+    /// <summary>Big HP pool outside a critical encounter — forts / notorious spawns.</summary>
+    Elite = 1,
+
+    /// <summary>Big HP pool seen while a critical encounter was running.</summary>
+    CriticalEncounterBoss = 2,
+}
+
 /// <summary>One learned enemy → weakness mapping.</summary>
 public sealed class OccultWeaknessEntry
 {
@@ -28,8 +41,24 @@ public sealed class OccultWeaknessEntry
     public string Name { get; set; } = "";
     public ushort TerritoryId { get; set; }
     public OccultElement Elements { get; set; }
-    public int Sightings { get; set; }
+
+    /// <summary>Largest max-HP ever observed — the raw signal behind <see cref="Kind"/>.</summary>
+    public uint MaxHp { get; set; }
+
+    /// <summary>Ever seen while a critical encounter was active.</summary>
+    public bool SeenInCriticalEncounter { get; set; }
+
     public string LastSeenUtc { get; set; } = "";
+
+    /// <summary>
+    /// Boss-or-trash verdict from the recorded facts. The HP line is a starting threshold —
+    /// MaxHp is persisted precisely so it can be re-tuned from real data instead of guessed
+    /// at again.
+    /// </summary>
+    public OccultEnemyKind Kind =>
+        MaxHp < ElementalWeaknessLog.BossHpThreshold ? OccultEnemyKind.Trash
+        : SeenInCriticalEncounter ? OccultEnemyKind.CriticalEncounterBoss
+        : OccultEnemyKind.Elite;
 }
 
 /// <summary>
@@ -48,6 +77,14 @@ public sealed class ElementalWeaknessLog
 {
     private const double ScanIntervalSeconds = 2.0;
     private const double SaveDebounceSeconds = 30.0;
+
+    /// <summary>
+    /// Max-HP line between trash and a boss/elite. A first cut from field scale (Occult trash
+    /// sits in the tens of thousands, critical-encounter bosses in the millions) — every
+    /// entry stores its real MaxHp, so this is tunable from the collected table rather than
+    /// permanently guessed.
+    /// </summary>
+    public const uint BossHpThreshold = 1_000_000;
 
     private readonly IObjectTable _objectTable;
     private readonly IClientState _clientState;
@@ -80,7 +117,7 @@ public sealed class ElementalWeaknessLog
 
     /// <summary>Everything learned so far, most-sighted first (Debug tab readout).</summary>
     public IReadOnlyList<OccultWeaknessEntry> Entries =>
-        _entries.Values.OrderByDescending(e => e.Sightings).ToList();
+        _entries.Values.OrderByDescending(e => e.Kind).ThenByDescending(e => e.MaxHp).ToList();
 
     /// <summary>Path of the persisted table (shown in the Debug tab so it can be opened).</summary>
     public string? FilePath => _filePath;
@@ -102,6 +139,7 @@ public sealed class ElementalWeaknessLog
             if ((now - _lastScanUtc).TotalSeconds < ScanIntervalSeconds)
                 return;
             _lastScanUtc = now;
+            var ceActive = IsCriticalEncounterActive();
 
             foreach (var obj in _objectTable)
             {
@@ -110,7 +148,7 @@ public sealed class ElementalWeaknessLog
                 var element = ReadRevealedElements(npc);
                 if (element == OccultElement.None)
                     continue;
-                Record(npc, element, territory, now);
+                Record(npc, element, territory, now, ceActive);
             }
 
             if (_dirty && (now - _lastSaveUtc).TotalSeconds >= SaveDebounceSeconds)
@@ -119,6 +157,24 @@ public sealed class ElementalWeaknessLog
         catch (Exception ex)
         {
             _log.Warning(ex, "[OccultWeakness] scan failed");
+        }
+    }
+
+    /// <summary>
+    /// True while a critical encounter is running. Occult CEs are dynamic events, and the
+    /// container reports the active one — this is what separates a CE boss from an elite
+    /// field spawn with a similar HP pool.
+    /// </summary>
+    private unsafe bool IsCriticalEncounterActive()
+    {
+        try
+        {
+            var container = FFXIVClientStructs.FFXIV.Client.Game.InstanceContent.DynamicEventContainer.GetInstance();
+            return container != null && container->CurrentEventIndex >= 0;
+        }
+        catch
+        {
+            return false; // fail open: an unknown CE state just means "not marked as a boss"
         }
     }
 
@@ -143,7 +199,7 @@ public sealed class ElementalWeaknessLog
         return found;
     }
 
-    private void Record(IBattleNpc npc, OccultElement element, ushort territory, DateTime now)
+    private void Record(IBattleNpc npc, OccultElement element, ushort territory, DateTime now, bool ceActive)
     {
         var nameId = npc.NameId;
         if (nameId == 0)
@@ -162,14 +218,17 @@ public sealed class ElementalWeaknessLog
 
         var isNew = (entry.Elements & element) != element;
         entry.Elements |= element;
-        entry.Sightings++;
+        if (npc.MaxHp > entry.MaxHp)
+            entry.MaxHp = (uint)System.Math.Min(npc.MaxHp, uint.MaxValue);
+        if (ceActive)
+            entry.SeenInCriticalEncounter = true;
         entry.LastSeenUtc = now.ToString("O");
         _dirty = true;
 
         if (isNew)
         {
             _debugLog?.Log(Debug.DebugLogCategory.General, Debug.DebugLogSeverity.Info,
-                $"occult weakness learned: {entry.Name} — {entry.Elements} (territory {territory})");
+                $"occult weakness learned: {entry.Name} [{entry.Kind}] — {entry.Elements} (territory {territory})");
         }
     }
 

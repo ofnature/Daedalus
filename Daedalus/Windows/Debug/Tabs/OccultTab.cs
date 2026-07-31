@@ -123,8 +123,14 @@ public static class OccultTab
             foreach (var e in entries)
             {
                 var ice = (e.Elements & Daedalus.Services.Occult.OccultElement.Ice) != 0;
+                var kind = e.Kind switch
+                {
+                    Daedalus.Services.Occult.OccultEnemyKind.CriticalEncounterBoss => "CE BOSS",
+                    Daedalus.Services.Occult.OccultEnemyKind.Elite => "elite",
+                    _ => "trash",
+                };
                 ImGui.TextColored(ice ? Green : Dim,
-                    $"{e.Name} — {e.Elements} (zone {e.TerritoryId}, seen ×{e.Sightings})");
+                    $"{e.Name} [{kind}] — weak to {e.Elements}  (zone {e.TerritoryId}, {e.MaxHp:N0} HP)");
             }
         }
 
