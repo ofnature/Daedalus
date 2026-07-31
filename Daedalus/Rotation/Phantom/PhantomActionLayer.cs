@@ -372,6 +372,19 @@ public sealed class PhantomActionLayer
                 TryPush(ctx, 41649, job, level, PrioDamage + 5, target.GameObjectId, target); // Pilfer Weapon
                 break;
 
+            case PhantomJob.PhantomRedMage:
+                // Libra first: 5s recast Ability, reveals the affinity for 120s, and every
+                // reveal boosts the whole party's elemental damage AND fills our table. Only
+                // cast at enemies we have not identified yet.
+                if (target is IBattleNpc libraTarget && TargetWeakness?.Invoke(libraTarget.NameId) is null)
+                    TryPush(ctx, 49094, job, level, PrioPartyBuff, target.GameObjectId, target);
+
+                TryPush(ctx,
+                    PhantomBandRules.SelectRedMageNuke(
+                        target is IBattleNpc rdmTarget ? TargetWeakness?.Invoke(rdmTarget.NameId) : null),
+                    job, level, PrioDamage, target.GameObjectId, target);
+                break;
+
             case PhantomJob.PhantomNinja:
                 // All weaves (Abilities), so none of this competes for the GCD. Scrolls have
                 // independent 60s recasts — lead with the target's weak element, fire both.

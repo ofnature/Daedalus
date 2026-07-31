@@ -83,6 +83,27 @@ public static class PhantomBandRules
         return DeepFreezeId;
     }
 
+    /// <summary>Phantom Red Mage elemental trio — one shared 30s recast, like the Necromancer's.</summary>
+    public const uint OccultFireIIId = 49092;
+    public const uint OccultBlizzardIIId = 49095;
+    public const uint OccultThunderIIId = 49096;
+
+    /// <summary>
+    /// Red Mage's shared-recast trio: 300 potency, 390 on a matched weakness. Fire is the
+    /// fallback for an unknown or unmatched weakness (wind has no nuke in this kit).
+    /// </summary>
+    public static uint SelectRedMageNuke(Daedalus.Services.Occult.OccultElement? knownWeakness)
+    {
+        if (knownWeakness is { } w)
+        {
+            if ((w & Daedalus.Services.Occult.OccultElement.Fire) != 0) return OccultFireIIId;
+            if ((w & Daedalus.Services.Occult.OccultElement.Ice) != 0) return OccultBlizzardIIId;
+            if ((w & Daedalus.Services.Occult.OccultElement.Lightning) != 0) return OccultThunderIIId;
+        }
+
+        return OccultFireIIId;
+    }
+
     /// <summary>Phantom Ninja scrolls — SEPARATE 60s recasts, so both are usable.</summary>
     public const uint LightningScrollId = 49064;
     public const uint FlameScrollId = 49065;

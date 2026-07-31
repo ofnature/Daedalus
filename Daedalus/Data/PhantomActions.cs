@@ -142,14 +142,23 @@ public static class PhantomActions
         new(49065, "Flame Scroll", PhantomJob.PhantomNinja, 4),     // 150 (195 fire-weak), 5y AoE, 60s
         new(49066, "Image", PhantomJob.PhantomNinja, 6),            // 3 stacks, nullifies most physical, 30s
 
-        // North Horn ids seen in the sheet but NOT yet attributed to a job (no duty-bar
-        // sighting): 49060 Meteor / 49061 Comet (Black Mage?), 49067 Occult Cure II / 49068
-        // Occult Cure III / 49070 Occult Raise (White Mage?), 49069 Occult Blink, and 49094
-        // OCCULT LIBRA — the elemental-weakness reveal. Libra was briefly filed under
-        // Freelancer on 2026-07-31 and reverted: it does not appear on that job's panel in
-        // the field. Whoever owns it, one Debug > Duty slot listing settles it; the weakness
-        // table meanwhile fills from reveals by anyone nearby, which is how the CE bosses got
-        // identified without us ever casting it.
+        // ── Phantom Red Mage (North Horn; kit field-confirmed 2026-07-31 from the job panel
+        //    + tooltips). Fire II / Blizzard II / Thunder II SHARE one 30s recast — the same
+        //    one-nuke-three-elements shape as the Necromancer trio, so the target's weakness
+        //    picks which one fires (300, or 390 on a match). Lv.5 is the Dualcast TRAIT: any
+        //    cast-time spell makes the NEXT spell instant, so the trio effectively casts free
+        //    behind Cure II. ──
+        new(49092, "Occult Fire II", PhantomJob.PhantomRedMage, 1),      // fire
+        new(49093, "Occult Cure II", PhantomJob.PhantomRedMage, 2),      // 40,000 cure potency, 1500 MP
+        new(49094, "Occult Libra", PhantomJob.PhantomRedMage, 3),        // REVEALS elemental affinity, 120s
+        new(49095, "Occult Blizzard II", PhantomJob.PhantomRedMage, 4),  // ice
+        new(49096, "Occult Thunder II", PhantomJob.PhantomRedMage, 6),   // lightning
+
+        // North Horn ids seen in the sheet but NOT yet attributed (no sighting): 49060 Meteor,
+        // 49061 Comet, 49068 Occult Cure III, 49069 Occult Blink, 49070 Occult Raise, 49090
+        // Occult White Wind, 49091 Occult Aero III. Note Occult Cure II turned out to be RED
+        // MAGE's, not White Mage's as the id neighbourhood suggested — which is exactly why
+        // these stay uncataloged until seen on a bar.
 
         // ── Necromancer (North Horn; block starts 49097 — only field-confirmed actions are
         // cataloged, one bar screenshot per level unlock extends this) ──
