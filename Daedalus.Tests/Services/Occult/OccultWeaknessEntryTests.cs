@@ -71,6 +71,21 @@ public class OccultWeaknessClassificationTests
     }
 
     [Fact]
+    public void RealFieldScale_DarkArtistryBoss_ClassifiesFromTrashSizedMedian()
+    {
+        // Field 2026-07-31: CEs are unsynced (sized for 72 players), so the Dark Artistry
+        // boss — the Necromancer soul-stone drop — carries ~450M HP. Against a trash median
+        // of 120k the line is 1.2M, and the boss clears it by ~375x.
+        Assert.Equal(OccultEnemyKind.CriticalEncounterBoss,
+            ElementalWeaknessLog.Classify(450_000_000, seenInCriticalEncounter: true, zoneMedianHp: 120_000, zoneSamples: Enough));
+
+        // And the same zone's ordinary trash stays trash — the old 1M bootstrap would have
+        // promoted a 2M North Horn field mob to "elite" purely for being a level-100 mob.
+        Assert.Equal(OccultEnemyKind.Trash,
+            ElementalWeaknessLog.Classify(1_100_000, seenInCriticalEncounter: false, zoneMedianHp: 120_000, zoneSamples: Enough));
+    }
+
+    [Fact]
     public void Elements_AreFlags_SoAMobCanCarryMoreThanOne()
     {
         var e = new OccultWeaknessEntry { Elements = OccultElement.Ice };

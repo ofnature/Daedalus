@@ -76,9 +76,17 @@ public sealed class ElementalWeaknessLog
     private const double SaveDebounceSeconds = 30.0;
 
     /// <summary>
-    /// Fallback max-HP line, used only until a zone has enough samples to speak for itself.
+    /// Bootstrap max-HP line, used only until a zone has enough samples to speak for itself.
+    /// <para>
+    /// Field scale (2026-07-31): Occult critical encounters are NOT synced to the present
+    /// player count — their HP pools are sized for a full 72-player field, so the Dark
+    /// Artistry CE (the Necromancer soul-stone drop) carries ~450,000,000 HP against trash
+    /// orders of magnitude smaller. The gap is enormous, which is exactly why the real rule
+    /// below is RELATIVE: if Square ever syncs CE scaling those pools collapse overnight and
+    /// any absolute number written here would silently misclassify every boss.
+    /// </para>
     /// </summary>
-    public const uint BossHpThresholdFallback = 1_000_000;
+    public const uint BossHpThresholdFallback = 10_000_000;
 
     /// <summary>
     /// A boss dwarfs the trash around it, so the jump is a MULTIPLE of the zone's typical
