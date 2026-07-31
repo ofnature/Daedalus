@@ -110,13 +110,13 @@ public static class OccultTab
             return;
 
         ImGui.Spacing();
-        ImGui.Text("Elemental weaknesses learned");
+        ImGui.Text("Enemies seen — kind & elemental weakness");
         ImGui.Separator();
 
         var entries = weaknessLog.Entries;
         if (entries.Count == 0)
         {
-            ImGui.TextColored(Dim, "None yet — reveal a weakness (Occult Libra) and it is recorded here.");
+            ImGui.TextColored(Dim, "None yet — enemies are recorded on sight; weaknesses fill in when revealed.");
         }
         else
         {
@@ -125,12 +125,16 @@ public static class OccultTab
                 var ice = (e.Elements & Daedalus.Services.Occult.OccultElement.Ice) != 0;
                 var kind = e.Kind switch
                 {
-                    Daedalus.Services.Occult.OccultEnemyKind.CriticalEncounterBoss => "CE BOSS",
+                    Daedalus.Services.Occult.OccultEnemyKind.CriticalEncounterBoss =>
+                        string.IsNullOrEmpty(e.CriticalEncounter) ? "CE BOSS" : $"CE BOSS: {e.CriticalEncounter}",
                     Daedalus.Services.Occult.OccultEnemyKind.Elite => "elite",
                     _ => "trash",
                 };
+                var weakness = e.Elements == Daedalus.Services.Occult.OccultElement.None
+                    ? "weakness not revealed"
+                    : $"weak to {e.Elements}";
                 ImGui.TextColored(ice ? Green : Dim,
-                    $"{e.Name} [{kind}] — weak to {e.Elements}  (zone {e.TerritoryId}, {e.MaxHp:N0} HP)");
+                    $"{e.Name} [{kind}] — {weakness}  (zone {e.TerritoryId}, {e.MaxHp:N0} HP)");
             }
         }
 

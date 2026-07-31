@@ -48,6 +48,9 @@ public sealed class OccultWeaknessEntry
     /// <summary>Ever seen while a critical encounter was active.</summary>
     public bool SeenInCriticalEncounter { get; set; }
 
+    /// <summary>Name of the critical encounter it was seen in ("Quarried Away"), when known.</summary>
+    public string CriticalEncounter { get; set; } = "";
+
     public string LastSeenUtc { get; set; } = "";
 
     /// <summary>
@@ -208,16 +211,21 @@ public sealed class ElementalWeaknessLog
             if ((now - _lastScanUtc).TotalSeconds < ScanIntervalSeconds)
                 return;
             _lastScanUtc = now;
-            var ceActive = IsCriticalEncounterActive();
+            var (ceActive, ceName) = ReadCriticalEncounter();
 
+            // EVERY hostile enemy is recorded, not just ones with a revealed weakness: the
+            // boss/trash line is the zone MEDIAN, and a table containing only Libra'd mobs is a
+            // biased sample (reveal the boss and nothing else, and the median becomes
+            // boss-sized). Weakness flags are filled in as and when they get revealed.
             foreach (var obj in _objectTable)
             {
                 if (obj.ObjectKind != ObjectKind.BattleNpc || obj is not IBattleNpc npc)
                     continue;
-                var element = ReadRevealedElements(npc);
-                if (element == OccultElement.None)
+                if (npc.BattleNpcKind == BattleNpcSubKind.Pet)
                     continue;
-                Record(npc, element, territory, now, ceActive);
+                if (npc.MaxHp == 0)
+                    continue;
+                Record(npc, ReadRevealedElements(npc), territory, now, ceActive, ceName);
             }
 
             if (_dirty && (now - _lastSaveUtc).TotalSeconds >= SaveDebounceSeconds)
@@ -234,16 +242,21 @@ public sealed class ElementalWeaknessLog
     /// container reports the active one — this is what separates a CE boss from an elite
     /// field spawn with a similar HP pool.
     /// </summary>
-    private unsafe bool IsCriticalEncounterActive()
+    private unsafe (bool Active, string Name) ReadCriticalEncounter()
     {
         try
         {
             var container = FFXIVClientStructs.FFXIV.Client.Game.InstanceContent.DynamicEventContainer.GetInstance();
-            return container != null && container->CurrentEventIndex >= 0;
+            if (container == null || container->CurrentEventIndex < 0)
+                return (false, string.Empty);
+
+            var ev = container->GetCurrentEvent();
+            var name = ev == null ? string.Empty : ev->Name.ToString();
+            return (true, name);
         }
         catch
         {
-            return false; // fail open: an unknown CE state just means "not marked as a boss"
+            return (false, string.Empty); // unknown CE state just means "not marked as a boss"
         }
     }
 
@@ -268,7 +281,7 @@ public sealed class ElementalWeaknessLog
         return found;
     }
 
-    private void Record(IBattleNpc npc, OccultElement element, ushort territory, DateTime now, bool ceActive)
+    private void Record(IBattleNpc npc, OccultElement element, ushort territory, DateTime now, bool ceActive, string ceName)
     {
         var nameId = npc.NameId;
         if (nameId == 0)
@@ -302,7 +315,11 @@ public sealed class ElementalWeaknessLog
             entry.MaxHp = npc.MaxHp;
         }
         if (ceActive)
+        {
             entry.SeenInCriticalEncounter = true;
+            if (!string.IsNullOrEmpty(ceName))
+                entry.CriticalEncounter = ceName;
+        }
         entry.LastSeenUtc = now.ToString("O");
         _dirty = true;
 
