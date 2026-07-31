@@ -184,6 +184,11 @@ public sealed class PhantomActionLayer
         if (job == PhantomJob.Knight && PhantomBandRules.ShouldPray(cfg, selfHpPct))
             TryPush(ctx, 41589, job, level, PrioEmergencySustain + 3);
 
+        // Occult Cure II (Red Mage): 40,000 cure potency for 1,500 MP on a 2.5s recast — by
+        // far the strongest self-heal in the phantom kits, so it is worth the GCD it costs.
+        if (job == PhantomJob.PhantomRedMage && PhantomBandRules.ShouldOccultCure(cfg, selfHpPct, inCombat))
+            TryPush(ctx, 49093, job, level, PrioEmergencySustain + 1, ctx.Player.GameObjectId);
+
         // Phantom Ninja defensives (both Abilities). Image nullifies most PHYSICAL attacks for
         // 30s on a 120s timer — save it for real trouble. Smoke is +20% evasion for 90s on a
         // 5s recast, so it is simply kept up whenever it has lapsed.
@@ -289,6 +294,17 @@ public sealed class PhantomActionLayer
         var targetHpPct = target.MaxHp > 0 ? (float)target.CurrentHp / target.MaxHp : 1f;
         var distance = System.Numerics.Vector3.Distance(ctx.Player.Position, target.Position) - target.HitboxRadius;
 
+        // Occult Libra (Red Mage): utility, not damage — it must fire regardless of the burst
+        // hold, or "save damage for burst" would also stop us identifying anything. 5s recast
+        // Ability, reveals the affinity for 120s, and every reveal boosts the whole party's
+        // elemental damage AND fills the weakness table. Only at enemies we can't name yet.
+        if (job == PhantomJob.PhantomRedMage
+            && target is IBattleNpc libraTarget
+            && TargetWeakness?.Invoke(libraTarget.NameId) is null)
+        {
+            TryPush(ctx, 49094, job, level, PrioPartyBuff, target.GameObjectId, target);
+        }
+
         // Executes / non-scaling utility fire regardless of the burst hold (RSR parity).
         if (job == PhantomJob.Thief && PhantomBandRules.ShouldSteal(targetHpPct))
             TryPush(ctx, 41645, job, level, PrioDamage, target.GameObjectId, target); // Steal
@@ -373,12 +389,6 @@ public sealed class PhantomActionLayer
                 break;
 
             case PhantomJob.PhantomRedMage:
-                // Libra first: 5s recast Ability, reveals the affinity for 120s, and every
-                // reveal boosts the whole party's elemental damage AND fills our table. Only
-                // cast at enemies we have not identified yet.
-                if (target is IBattleNpc libraTarget && TargetWeakness?.Invoke(libraTarget.NameId) is null)
-                    TryPush(ctx, 49094, job, level, PrioPartyBuff, target.GameObjectId, target);
-
                 TryPush(ctx,
                     PhantomBandRules.SelectRedMageNuke(
                         target is IBattleNpc rdmTarget ? TargetWeakness?.Invoke(rdmTarget.NameId) : null),

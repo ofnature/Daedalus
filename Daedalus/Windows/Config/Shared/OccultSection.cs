@@ -235,6 +235,14 @@ public sealed class OccultSection
                     save);
                 break;
 
+            case PhantomJob.PhantomRedMage:
+                config.Occult.RedMageCureHpPct = ConfigUIHelpers.ThresholdSlider(
+                    "Occult Cure II below HP%", config.Occult.RedMageCureHpPct, 0.10f, 1f,
+                    "40,000 cure potency for 1,500 MP. It is a 1.5s spell so it costs a GCD — set this at a real deficit rather than a top-off. " +
+                    "Occult Libra fires automatically at enemies whose weakness isn't known yet; the Fire/Blizzard/Thunder II trio share one 30s recast and pick by weakness.",
+                    save);
+                break;
+
             case PhantomJob.Necromancer:
                 ImGui.TextColored(Common.DaedalusTheme.StatusRed,
                     "Deep Freeze DOOMS you for 10s — you die unless healed to FULL HP in time.");

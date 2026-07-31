@@ -58,6 +58,19 @@ public sealed class PhantomConfig
     public bool GeomancerSuspendInCombat { get; set; } = false;
     public bool GeomancerSuspendOutOfCombat { get; set; } = false;
 
+    // ── Red Mage (North Horn) ──
+    /// <summary>
+    /// Self-HP fraction below which Occult Cure II is cast (40,000 cure potency for 1,500 MP).
+    /// It is a 1.5s spell, so it costs a GCD — worth it at a real deficit, wasteful as a
+    /// top-off, hence a lower default than the utility heals.
+    /// </summary>
+    private float _redMageCureHpPct = 0.60f;
+    public float RedMageCureHpPct
+    {
+        get => _redMageCureHpPct;
+        set => _redMageCureHpPct = System.Math.Clamp(value, 0.10f, 1f);
+    }
+
     // ── Necromancer (North Horn) ──
     /// <summary>
     /// Deep Freeze: big 30y line nuke, but it costs 10% of MAX HP and DOOMS the caster for 10

@@ -83,6 +83,10 @@ public static class PhantomBandRules
         return DeepFreezeId;
     }
 
+    /// <summary>Occult Cure II (Red Mage): 40,000 potency self-heal, 1,500 MP, 2.5s recast.</summary>
+    public static bool ShouldOccultCure(PhantomConfig cfg, float selfHpPct, bool inCombat)
+        => inCombat && selfHpPct < cfg.RedMageCureHpPct;
+
     /// <summary>Phantom Red Mage elemental trio — one shared 30s recast, like the Necromancer's.</summary>
     public const uint OccultFireIIId = 49092;
     public const uint OccultBlizzardIIId = 49095;
