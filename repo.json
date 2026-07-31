@@ -6,17 +6,19 @@
     "Punchline": "Intelligent rotation assistant for all combat jobs",
     "Description": "Daedalus: An intelligent rotation assistant supporting all 21 combat jobs with healing, damage, mitigation, burst windows, party coordination, and timeline-aware fight predictions.",
     "ApplicableVersion": "any",
-    "CategoryTags": ["jobs"],
+    "CategoryTags": [
+      "jobs"
+    ],
     "RepoUrl": "https://github.com/ofnature/Daedalus",
-    "AssemblyVersion": "0.1.45.0",
+    "AssemblyVersion": "0.1.46.0",
     "DalamudApiLevel": 15,
     "IconUrl": "https://raw.githubusercontent.com/ofnature/Daedalus/main/Daedalus/images/icon.png",
     "ImageUrls": [],
     "IsHide": false,
     "IsTestingExclusive": false,
-    "DownloadLinkInstall": "https://github.com/ofnature/Daedalus/releases/download/v0.1.45/latest.zip",
-    "DownloadLinkTesting": "https://github.com/ofnature/Daedalus/releases/download/v0.1.45/latest.zip",
-    "DownloadLinkUpdate": "https://github.com/ofnature/Daedalus/releases/download/v0.1.45/latest.zip"
+    "DownloadLinkInstall": "https://github.com/ofnature/Daedalus/releases/download/v0.1.46/latest.zip",
+    "DownloadLinkTesting": "https://github.com/ofnature/Daedalus/releases/download/v0.1.46/latest.zip",
+    "DownloadLinkUpdate": "https://github.com/ofnature/Daedalus/releases/download/v0.1.46/latest.zip"
   },
   {
     "Author": "ofnature",
@@ -25,8 +27,15 @@
     "Punchline": "Auto pillion with smart seat scanning and whitelisted auto group invite.",
     "Description": "Auto pillion with smart seat scanning and whitelisted auto group invite. Companion to Daedalus.",
     "ApplicableVersion": "any",
-    "CategoryTags": ["utility"],
-    "Tags": ["utility", "multibox", "mount", "party"],
+    "CategoryTags": [
+      "utility"
+    ],
+    "Tags": [
+      "utility",
+      "multibox",
+      "mount",
+      "party"
+    ],
     "RepoUrl": "https://github.com/ofnature/Charon",
     "AssemblyVersion": "0.1.22.0",
     "DalamudApiLevel": 15,
@@ -45,8 +54,14 @@
     "Punchline": "Automates duty farming, GC turn-ins, and Duckbone buying.",
     "Description": "Automates dungeon farming, GC expert delivery, and grand company item purchasing. Supports AutoDuty and ADS.",
     "ApplicableVersion": "any",
-    "CategoryTags": ["utility"],
-    "Tags": ["farm", "automation", "gil"],
+    "CategoryTags": [
+      "utility"
+    ],
+    "Tags": [
+      "farm",
+      "automation",
+      "gil"
+    ],
     "RepoUrl": "https://github.com/ofnature/SealBreaker",
     "AssemblyVersion": "1.1.0.9",
     "DalamudApiLevel": 15,
@@ -65,8 +80,15 @@
     "Punchline": "Manual mouseover healing: party frames, triage assist, and heal keybinds for all four healers.",
     "Description": "Lightweight manual mouseover-healing tool for WHM/SCH/SGE/AST. Compact party frames that act as a mouseover source, configurable click-to-heal bindings and keybinds, and a triage highlight for the most urgent target. Never casts on its own. Companion to Daedalus.",
     "ApplicableVersion": "any",
-    "CategoryTags": ["utility"],
-    "Tags": ["healing", "mouseover", "party frames", "utility"],
+    "CategoryTags": [
+      "utility"
+    ],
+    "Tags": [
+      "healing",
+      "mouseover",
+      "party frames",
+      "utility"
+    ],
     "RepoUrl": "https://github.com/ofnature/Caduceus",
     "AssemblyVersion": "0.1.0.0",
     "DalamudApiLevel": 15,

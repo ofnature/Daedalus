@@ -3,6 +3,40 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.46 — 2026-07-30
+
+### New — North Horn (Occult Crescent)
+- The phantom layer, zone HUD, and Debug Duty tab now activate in **North Horn** — currencies show the new Silver/Gold **Obols** automatically, and phantom jobs you already know work with the existing catalog. (The six new North Horn phantom jobs get their own update once cataloged)
+
+### New — Samurai at Level 100: Tendo
+- The real cause of the "Cannot use yet." spam: at Lv100 with Meikyo up, the plain Iaijutsu are invalid — the rotation now casts **Tendo Goken / Tendo Setsugekka** (and their Kaeshi follow-ups) during the Tendo window. More damage every burst, no more rejected casts
+
+### New — Ninja: Shukuchi return
+- After a dodge parks the Ninja far from the boss, **Shukuchi teleports back** instead of walking (safety-checked destination, one charge per re-engage, toggle in Ninja settings)
+
+### New — Split targeting: kill-together balance
+- For bosses that summon a copy and nuke when either dies early: Split mode now **leaves the far-lower mob alone** until the pack converges — everyone burns the highest-HP enemy, then the group seesaws down together and dies near-simultaneously
+
+### New — BMR Auto-Manage, fully quiet
+- Auto-Manage now **claims the AI preset name itself** (the `/bmrai setpresetname Daedalus` you had to type manually) — with the name claimed, BMR AI enforces our preset and the tug-of-war disappears
+- **Manual-click grace**: click any target yourself and all automated movement (positional anchor, BMR positional pushes) holds for 4 seconds — no more stutter-stepping under your hands
+- No more preset pulses: nothing fights BMR AI while it's enforcing, the slot is untouched out of combat (the idle↔Daedalus flicker), and an already-active Daedalus preset is adopted instead of re-set (the "Changed preset from 'Daedalus' to 'Daedalus'" chat line)
+
+### Fix — Toast spam cleanup
+- Melee at range no longer spams "Target is not in range." — out-of-range actions now fail silently and the ranged filler (Enpi etc.) fires immediately
+- Submits at dying mobs no longer toast "Invalid target."
+- Queued casts (Iaijutsu, Ogi) no longer die to dodges: casts hold while BMR is steering or a zone is about to activate
+
+### Fix — Disable really stops everything
+- Party target modes (Focus/Split/Kill Adds) and Farm mode no longer keep targeting on a **disabled** toon — the master switch now stops every driver, and a farm run resumes on re-enable
+
+### Fix — Meld optimizer on crafters/gatherers
+- The optimizer no longer proposes ripping out Gathering/Perception melds for combat stats on DoH/DoL jobs — it shows the paperdoll with real stat names (Gathering, Perception, GP, CP) and a "combat jobs only" notice
+
+### Debug — self-diagnosing refusals
+- Every client error toast and every refused action now lands in the Debug Log with live job/gauge state — "it toasted something" is now a one-paste diagnosis
+
+<!-- LATEST-END -->
 ## v0.1.45 — 2026-07-26
 
 ### Fix — Disable now blocks automation for good
@@ -11,7 +45,6 @@ All notable changes to Daedalus will be documented in this file.
 ### Fix — Dancer no longer dances endlessly out of combat
 - An idle Dancer kept doing Standard Step + finisher out of combat: the pre-pull dance re-fired every time the 60-second buff dropped, anywhere outside a sanctuary. The pre-pull dance now only starts when a pull is actually imminent — a live enemy hard target (you've targeted the boss pre-pull, or an automation plugin has targeted the next mob). In-combat dancing is unchanged
 
-<!-- LATEST-END -->
 ## v0.1.44 — 2026-07-26
 
 ### Fix — Disable always stops the rotation
