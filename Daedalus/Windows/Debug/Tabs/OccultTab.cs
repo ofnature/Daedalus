@@ -175,7 +175,11 @@ public static class OccultTab
             var ordered = groupByEncounter
                 ? group.OrderBy(e => e.CriticalEncounter, StringComparer.OrdinalIgnoreCase)
                        .ThenByDescending(e => e.MaxHp).ToList()
-                : group.OrderByDescending(e => e.Kind).ThenByDescending(e => e.MaxHp).ToList();
+                // Non-CE groups (FATEs, Regular mobs): notable first, then ALPHABETICAL. These
+                // lists are dozens of similarly-sized "Crescent …" field mobs, so name order
+                // is what you can actually scan; HP order just looked arbitrary.
+                : group.OrderByDescending(e => e.Kind)
+                       .ThenBy(e => e.Name, StringComparer.OrdinalIgnoreCase).ToList();
 
             var lastEncounter = string.Empty;
             foreach (var e in ordered)
