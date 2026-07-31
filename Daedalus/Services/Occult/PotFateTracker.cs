@@ -57,9 +57,13 @@ public sealed class PotFateTracker
     private readonly IFateTable? _fateTable;
     private readonly IClientState _clientState;
 
-    private readonly Dictionary<string, DateTime> _lastSeenUtc = new(StringComparer.OrdinalIgnoreCase);
-    private readonly Dictionary<string, double> _observedCycleSeconds = new(StringComparer.OrdinalIgnoreCase);
-    private readonly HashSet<string> _activeNow = new(StringComparer.OrdinalIgnoreCase);
+    // Keyed by ZONE + name. South Horn and North Horn run their own pot FATEs and the names
+    // can repeat across them, so a name-only key would have South's spawn resetting North's
+    // timer — and the two are not interchangeable (tier looks zone-bound: North pays gold,
+    // South bronze), so conflating them would point the farm at the wrong Horn.
+    private readonly Dictionary<(ushort Zone, string Name), DateTime> _lastSeenUtc = new();
+    private readonly Dictionary<(ushort Zone, string Name), double> _observedCycleSeconds = new();
+    private readonly HashSet<(ushort Zone, string Name)> _activeNow = new();
 
     public PotFateTracker(IFateTable? fateTable, IClientState clientState)
     {
@@ -71,7 +75,7 @@ public sealed class PotFateTracker
     internal Func<DateTime> UtcNow { get; set; } = () => DateTime.UtcNow;
 
     /// <summary>A pot FATE is up right now (name), or null.</summary>
-    public string? ActiveFate => _activeNow.Count > 0 ? _activeNow.First() : null;
+    public string? ActiveFate => _activeNow.Count > 0 ? _activeNow.First().Name : null;
 
     /// <summary>Framework tick — cheap; the fate table is a handful of entries.</summary>
     public void Update()
@@ -79,8 +83,9 @@ public sealed class PotFateTracker
         if (_fateTable is null || !Data.PhantomJobData.OccultTerritoryIds.Contains((ushort)_clientState.TerritoryType))
             return;
 
+        var zone = (ushort)_clientState.TerritoryType;
         var now = UtcNow();
-        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var seen = new HashSet<(ushort, string)>();
 
         foreach (var fate in _fateTable)
         {
@@ -88,25 +93,26 @@ public sealed class PotFateTracker
             if (!IsPotFate(name))
                 continue;
 
-            seen.Add(name);
-            if (_activeNow.Contains(name))
+            var key = (zone, name);
+            seen.Add(key);
+            if (_activeNow.Contains(key))
                 continue; // already counted this spawn
 
             // Rising edge: a spawn we have not recorded. If we have seen this one before, the
             // gap between the two IS the cycle — measured beats the published figure.
-            if (_lastSeenUtc.TryGetValue(name, out var previous))
+            if (_lastSeenUtc.TryGetValue(key, out var previous))
             {
                 var gap = (now - previous).TotalSeconds;
                 if (gap > 60)
-                    _observedCycleSeconds[name] = gap;
+                    _observedCycleSeconds[key] = gap;
             }
 
-            _lastSeenUtc[name] = now;
+            _lastSeenUtc[key] = now;
         }
 
         _activeNow.Clear();
-        foreach (var name in seen)
-            _activeNow.Add(name);
+        foreach (var k in seen)
+            _activeNow.Add(k);
     }
 
     public static bool IsPotFate(string fateName) =>
@@ -119,17 +125,19 @@ public sealed class PotFateTracker
     /// </summary>
     public double? SecondsUntilExpected(string fateName)
     {
-        if (!_lastSeenUtc.TryGetValue(fateName, out var last))
+        var key = ((ushort)_clientState.TerritoryType, fateName);
+        if (!_lastSeenUtc.TryGetValue(key, out var last))
             return null;
 
-        var cycle = _observedCycleSeconds.TryGetValue(fateName, out var measured)
+        var cycle = _observedCycleSeconds.TryGetValue(key, out var measured)
             ? measured
             : ExpectedCycleSeconds * 2; // each individual FATE alternates, so ~1h apart
         return cycle - (UtcNow() - last).TotalSeconds;
     }
 
     /// <summary>Whether the cycle for this FATE came from observation rather than the default.</summary>
-    public bool CycleIsMeasured(string fateName) => _observedCycleSeconds.ContainsKey(fateName);
+    public bool CycleIsMeasured(string fateName) =>
+        _observedCycleSeconds.ContainsKey(((ushort)_clientState.TerritoryType, fateName));
 
     /// <summary>
     /// Seconds until the NEXT pot FATE of EITHER kind — the number that actually matters, since
@@ -139,11 +147,13 @@ public sealed class PotFateTracker
     /// </summary>
     public double? SecondsUntilNextPot()
     {
+        // Only THIS zone's pots — a South Horn sighting must not date a North Horn estimate.
+        var zone = (ushort)_clientState.TerritoryType;
         DateTime? latest = null;
-        foreach (var t in _lastSeenUtc.Values)
+        foreach (var kv in _lastSeenUtc)
         {
-            if (latest is null || t > latest)
-                latest = t;
+            if (kv.Key.Zone == zone && (latest is null || kv.Value > latest))
+                latest = kv.Value;
         }
 
         return latest is null ? null : ExpectedCycleSeconds - (UtcNow() - latest.Value).TotalSeconds;
@@ -151,5 +161,5 @@ public sealed class PotFateTracker
 
     /// <summary>Last time this FATE was seen up, or null.</summary>
     public DateTime? LastSeenUtc(string fateName) =>
-        _lastSeenUtc.TryGetValue(fateName, out var t) ? t : null;
+        _lastSeenUtc.TryGetValue(((ushort)_clientState.TerritoryType, fateName), out var t) ? t : null;
 }
