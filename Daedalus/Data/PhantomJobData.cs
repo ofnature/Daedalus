@@ -187,7 +187,12 @@ public static class PhantomJobData
             "Soul Shard — North Horn Currency Exchange, 1,000 E. Silver Obols",
         PhantomJob.PhantomDragoon or PhantomJob.PhantomSummoner =>
             "Soul Shard — North Horn Currency Exchange, 1,600 E. Gold Obols",
-        PhantomJob.PhantomBlueMage => "North Horn — source not yet confirmed",
+        // Blue Mage: shard drops from the "Appalling Behavior" encounter. Unlike every other
+        // phantom job its actions are LEARNED FROM ENEMIES rather than unlocked by level —
+        // you must witness a foe use the ability before killing it (e.g. Occult White Wind
+        // from Crescent Flame at North Horn X:5 Y:36). Our level-based catalog does not model
+        // that; the duty-bar gate covers it, since an unlearned action is never slotted.
+        PhantomJob.PhantomBlueMage => "Soul Shard drop — Appalling Behavior (North Horn); actions are learned from enemies, not levels",
         _ => string.Empty,
     };
 
