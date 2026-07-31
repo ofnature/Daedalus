@@ -1,3 +1,6 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Numerics;
 using Dalamud.Bindings.ImGui;
 using Daedalus.Data;
@@ -120,32 +123,88 @@ public static class OccultTab
         }
         else
         {
-            foreach (var e in entries)
+            // Zone → Critical Encounters / Regular mobs, each collapsible. Any zone id that
+            // shows up is listed, so a future Occult zone needs no code change here.
+            foreach (var zone in entries.Select(e => e.TerritoryId).Distinct().OrderBy(z => z))
             {
-                var ice = (e.Elements & Daedalus.Services.Occult.OccultElement.Ice) != 0;
-                // The CE tag shows on EVERY entry seen during an encounter, not just ones the
-                // HP line promoted — that way a boss mis-sized by a bad reading is still
-                // visibly a CE participant instead of silently reading as field trash.
-                var kind = e.Kind switch
-                {
-                    Daedalus.Services.Occult.OccultEnemyKind.CriticalEncounterBoss => "CE BOSS",
-                    Daedalus.Services.Occult.OccultEnemyKind.Elite => "elite",
-                    _ => "trash",
-                };
-                if (e.SeenInCriticalEncounter && e.Kind != Daedalus.Services.Occult.OccultEnemyKind.CriticalEncounterBoss)
-                    kind += " · in CE";
-                if (!string.IsNullOrEmpty(e.CriticalEncounter))
-                    kind += $": {e.CriticalEncounter}";
-                var weakness = e.Elements == Daedalus.Services.Occult.OccultElement.None
-                    ? "weakness not revealed"
-                    : $"weak to {e.Elements}";
-                ImGui.TextColored(ice ? Green : Dim,
-                    $"{e.Name} [{kind}] — {weakness}  (zone {e.TerritoryId}, {e.MaxHp:N0} HP)");
+                var inZone = entries.Where(e => e.TerritoryId == zone).ToList();
+                var zoneName = Daedalus.Data.PhantomJobData.GetZoneName(zone);
+
+                if (!ImGui.CollapsingHeader($"{zoneName} ({inZone.Count})###occult_zone_{zone}"))
+                    continue;
+
+                ImGui.Indent();
+                DrawEnemyGroup($"Critical Encounters###occult_ce_{zone}",
+                    inZone.Where(e => e.SeenInCriticalEncounter).ToList(), groupByEncounter: true);
+                DrawEnemyGroup($"Regular mobs###occult_mobs_{zone}",
+                    inZone.Where(e => !e.SeenInCriticalEncounter).ToList(), groupByEncounter: false);
+                ImGui.Unindent();
             }
         }
 
         if (!string.IsNullOrEmpty(weaknessLog.FilePath))
             ImGui.TextColored(Dim, weaknessLog.FilePath!);
+    }
+
+    /// <summary>One collapsible group of enemies (bosses first, then by HP).</summary>
+    private static void DrawEnemyGroup(
+        string label, List<Daedalus.Services.Occult.OccultWeaknessEntry> group, bool groupByEncounter)
+    {
+        var title = label.Contains("###")
+            ? label.Insert(label.IndexOf("###", StringComparison.Ordinal), $" ({group.Count})")
+            : $"{label} ({group.Count})";
+
+        if (!ImGui.CollapsingHeader(title))
+            return;
+
+        ImGui.Indent();
+        if (group.Count == 0)
+        {
+            ImGui.TextColored(Dim, "none recorded");
+        }
+        else
+        {
+            var ordered = groupByEncounter
+                ? group.OrderBy(e => e.CriticalEncounter, StringComparer.OrdinalIgnoreCase)
+                       .ThenByDescending(e => e.MaxHp).ToList()
+                : group.OrderByDescending(e => e.Kind).ThenByDescending(e => e.MaxHp).ToList();
+
+            var lastEncounter = string.Empty;
+            foreach (var e in ordered)
+            {
+                // Inside the CE group, break the list by encounter so it reads as a per-fight
+                // roster rather than one long list.
+                if (groupByEncounter && !string.Equals(e.CriticalEncounter, lastEncounter, StringComparison.Ordinal))
+                {
+                    lastEncounter = e.CriticalEncounter;
+                    ImGui.TextColored(Yellow, string.IsNullOrEmpty(lastEncounter) ? "(encounter unnamed)" : lastEncounter);
+                }
+
+                DrawEnemyLine(e, indented: groupByEncounter);
+            }
+        }
+
+        ImGui.Unindent();
+    }
+
+    private static void DrawEnemyLine(Daedalus.Services.Occult.OccultWeaknessEntry e, bool indented)
+    {
+        var ice = (e.Elements & Daedalus.Services.Occult.OccultElement.Ice) != 0;
+        var kind = e.Kind switch
+        {
+            Daedalus.Services.Occult.OccultEnemyKind.CriticalEncounterBoss => "CE BOSS",
+            Daedalus.Services.Occult.OccultEnemyKind.Elite => "elite",
+            _ => "trash",
+        };
+        var weakness = e.Elements == Daedalus.Services.Occult.OccultElement.None
+            ? "weakness not revealed"
+            : $"weak to {e.Elements}";
+
+        if (indented)
+            ImGui.Indent();
+        ImGui.TextColored(ice ? Green : Dim, $"{e.Name} [{kind}] — {weakness}  ({e.MaxHp:N0} HP)");
+        if (indented)
+            ImGui.Unindent();
     }
 
     private static void DrawVariantBlock(PhantomJobService service, ushort territoryId)
