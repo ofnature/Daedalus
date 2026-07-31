@@ -25,6 +25,14 @@ namespace Daedalus.Services.Occult;
 /// </summary>
 public sealed class PotFateTracker
 {
+    /// <summary>
+    /// "Cache Me if You Can" — the treasure-hunt status the Magical Elixir grants after a
+    /// Gold-rank pot FATE ("Being guided to buried treasure"). While this is up you are
+    /// hunting the coffer, which is the 1,000 Silver + 1,600 Gold payout — the single most
+    /// valuable state in the zone, so the HUD calls it out loudly.
+    /// </summary>
+    public const uint TreasureHuntStatusId = 1531;
+
     /// <summary>Published cycle: a pot FATE every ~30 minutes, alternating between the two.</summary>
     public const double ExpectedCycleSeconds = 30 * 60;
 

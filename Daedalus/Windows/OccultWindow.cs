@@ -102,6 +102,16 @@ public sealed class OccultWindow : Window
             return;
 
         ImGui.Separator();
+
+        // Treasure hunt in progress — the coffer at the end of it is 1,000 Silver + 1,600
+        // Gold Obols, so this outranks everything else the window has to say.
+        if (_phantomJobs.PlayerHasStatus(Daedalus.Services.Occult.PotFateTracker.TreasureHuntStatusId))
+        {
+            ImGui.TextColored(Gold, "★★ TREASURE HUNT ACTIVE — use the Magical Elixir to follow it");
+            ImGui.TextColored(Dim, "coffer pays 1,000 silver + 1,600 gold; the pot dies to AoEs");
+            return;
+        }
+
         if (_potFates.ActiveFate is { } live)
         {
             ImGui.TextColored(Gold, $"★ POT FATE UP — {live}");
