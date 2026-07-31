@@ -380,6 +380,15 @@ public sealed class PhantomActionLayer
         var hasDoom = _actionService.PlayerHasStatus(PhantomActions.StatusIds.DoomDispelledByFullHeal);
         var hasDrainTouch = _actionService.PlayerHasStatus(PhantomActions.StatusIds.DrainTouch);
 
+        // A healer must be present and listening: Deep Freeze's Doom is only survivable
+        // because someone tops us to 100% inside 10s. Solo, this action is suicide, so the
+        // gate is hard regardless of the other settings (user call, 2026-07-31).
+        if (HealerAvailable?.Invoke() != true)
+        {
+            _pushRejects.Add("Deep Freeze held — no healer in party (Doom would be lethal)");
+            return;
+        }
+
         if (!PhantomBandRules.ShouldDeepFreeze(cfg, selfHpPct, hasDoom, hasDrainTouch))
         {
             _pushRejects.Add(hasDoom
@@ -390,8 +399,26 @@ public sealed class PhantomActionLayer
             return;
         }
 
-        TryPush(ctx, 49098, job, level, PrioDamage + 1, target.GameObjectId, target);
+        var selfName = ctx.Player.Name?.TextValue ?? string.Empty;
+        TryPush(ctx, 49098, job, level, PrioDamage + 1, target.GameObjectId, target,
+            onExtraDispatched: () =>
+            {
+                // Announce BEFORE the Doom lands so healers are already prioritising us.
+                Daedalus.Services.Occult.DoomTopOffWatch.RequestTopOff(selfName);
+                DebugLog?.Log(Daedalus.Services.Debug.DebugLogCategory.Action,
+                    Daedalus.Services.Debug.DebugLogSeverity.Warning,
+                    $"Deep Freeze cast — DOOM on self, top-off requested for {selfName}");
+            });
     }
+
+    /// <summary>
+    /// "Is a healer present who can top this toon to full?" — wired by Plugin from the live
+    /// party plus the LAN roster. Deep Freeze refuses to fire without one.
+    /// </summary>
+    public Func<bool>? HealerAvailable { get; set; }
+
+    /// <summary>Debug-log sink (wired by Plugin) for the Deep Freeze / Doom announcements.</summary>
+    public Daedalus.Services.Debug.DebugLogService? DebugLog { get; set; }
 
     private readonly OracleDeckTracker _oracleDeck = new();
 

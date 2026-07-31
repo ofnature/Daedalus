@@ -16,7 +16,7 @@ public static class OccultTab
     private static readonly Vector4 Yellow = new(0.88f, 0.78f, 0.42f, 1f);
     private static readonly Vector4 Dim = new(0.54f, 0.54f, 0.58f, 1f);
 
-    public static void Draw(PhantomJobService service)
+    public static void Draw(PhantomJobService service, Daedalus.Services.Occult.ElementalWeaknessLog? weaknessLog = null)
     {
         var snapshot = service.GetSnapshot();
 
@@ -99,6 +99,37 @@ public static class OccultTab
         }
 
         ImGui.TextColored(Dim, "Occult Potion feeds BOTH Chemist restores (Occult Potion + Occult Ether actions).");
+
+        DrawWeaknessBlock(weaknessLog);
+    }
+
+    /// <summary>Learned elemental weaknesses (statuses 5322-5325, revealed by Occult Libra etc.).</summary>
+    private static void DrawWeaknessBlock(Daedalus.Services.Occult.ElementalWeaknessLog? weaknessLog)
+    {
+        if (weaknessLog is null)
+            return;
+
+        ImGui.Spacing();
+        ImGui.Text("Elemental weaknesses learned");
+        ImGui.Separator();
+
+        var entries = weaknessLog.Entries;
+        if (entries.Count == 0)
+        {
+            ImGui.TextColored(Dim, "None yet — reveal a weakness (Occult Libra) and it is recorded here.");
+        }
+        else
+        {
+            foreach (var e in entries)
+            {
+                var ice = (e.Elements & Daedalus.Services.Occult.OccultElement.Ice) != 0;
+                ImGui.TextColored(ice ? Green : Dim,
+                    $"{e.Name} — {e.Elements} (zone {e.TerritoryId}, seen ×{e.Sightings})");
+            }
+        }
+
+        if (!string.IsNullOrEmpty(weaknessLog.FilePath))
+            ImGui.TextColored(Dim, weaknessLog.FilePath!);
     }
 
     private static void DrawVariantBlock(PhantomJobService service, ushort territoryId)

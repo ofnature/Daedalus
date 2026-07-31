@@ -151,7 +151,9 @@ public abstract class HealerPartyHelper : BasePartyHelper, ISpikeTargetSource
 
             // Doom forces max priority — Doom only clears at 100% HP, so even a
             // target at 85% will die if not topped. Treat as near-zero effective HP.
-            if (HasDoom(member))
+            // The LAN board covers the same case announced from another box (Necromancer
+            // Deep Freeze) for members whose status list we can't read from here.
+            if (HasDoom(member) || NeedsAnnouncedTopOff(member))
                 hpPercent = 0.01f;
 
             // Overheal prevention (skip for Doom targets — they need every heal)
@@ -365,6 +367,14 @@ public abstract class HealerPartyHelper : BasePartyHelper, ISpikeTargetSource
         }
         return false;
     }
+
+    /// <summary>
+    /// A LAN-announced "heal me to full" request (Necromancer Deep Freeze Dooms its caster).
+    /// Complements <see cref="HasDoom"/>: the status read only works for members whose status
+    /// list this client can see, the announcement crosses boxes regardless.
+    /// </summary>
+    public static bool NeedsAnnouncedTopOff(IBattleChara chara)
+        => Daedalus.Services.Occult.DoomTopOffWatch.NeedsTopOff(chara.Name?.TextValue ?? string.Empty);
 
     /// <summary>
     /// Pure predicate: is the given status ID one of the Doom status IDs?

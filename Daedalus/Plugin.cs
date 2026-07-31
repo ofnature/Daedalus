@@ -44,6 +44,9 @@ public sealed class Plugin : IDalamudPlugin
 {
     public const string PluginVersion = "0.1.46";
     private const string CommandName = "/daedalus";
+
+    /// <summary>LAN relay channel for Necromancer Deep Freeze "heal me to full" announcements.</summary>
+    private const string DoomTopOffChannel = "daedalus.doom.topoff";
     private const string CommandAlias = "/dae";
 
     private readonly IDalamudPluginInterface pluginInterface;
@@ -195,6 +198,7 @@ public sealed class Plugin : IDalamudPlugin
     private readonly Daedalus.Services.Consumables.DalamudInventoryProbe inventoryProbe;
     private readonly Daedalus.Services.Consumables.DalamudTinctureCooldownProbe tinctureCooldownProbe;
     private readonly Daedalus.Services.Occult.PhantomJobService phantomJobService;
+    private readonly Daedalus.Services.Occult.ElementalWeaknessLog elementalWeaknessLog;
     private readonly Daedalus.Services.Consumables.ConsumableService consumableService;
     private readonly Daedalus.Services.Consumables.TinctureDispatcher tinctureDispatcher;
 
@@ -623,12 +627,71 @@ public sealed class Plugin : IDalamudPlugin
         this.phantomJobService = new Daedalus.Services.Occult.PhantomJobService(
             clientState, objectTable, dataManager, inventoryProbe, gameGui, log);
 
+        // Learns which Occult enemies are weak to which element (statuses 5322-5325, revealed
+        // by Occult Libra etc.) and persists the table — the ice list feeds Deep Freeze value.
+        this.elementalWeaknessLog = new Daedalus.Services.Occult.ElementalWeaknessLog(
+            objectTable, clientState, log, pluginInterface.ConfigDirectory.FullName, debugLogService);
+
         // Phantom duty-action executor (Phase 3 utility bands + Phase 4 damage band):
         // pre/post hooks around every job's modules via BaseRotation. Inert outside
         // Occult Crescent.
-        Daedalus.Rotation.Base.RotationServices.PhantomLayer = new Daedalus.Rotation.Phantom.PhantomActionLayer(
+        var phantomLayer = new Daedalus.Rotation.Phantom.PhantomActionLayer(
             actionService, jobGauges, configuration, phantomJobService, timelineService, errorMetricsService, log,
             burstWindowService);
+        phantomLayer.DebugLog = debugLogService;
+        // Necromancer Deep Freeze Dooms its caster (cleared only by a heal to FULL) — it may
+        // only fire with a healer who can top us off: a live party healer, or a LAN fleet
+        // healer that is alive and in combat with us.
+        phantomLayer.HealerAvailable = () =>
+        {
+            foreach (var member in partyList)
+            {
+                if (member.GameObject is Dalamud.Game.ClientState.Objects.Types.IBattleChara m
+                    && !m.IsDead
+                    && m.GameObjectId != objectTable.LocalPlayer?.GameObjectId
+                    && Data.JobRegistry.IsHealer(member.ClassJob.RowId))
+                    return true;
+            }
+
+            if (coordinationBus != null)
+            {
+                var now = DateTime.UtcNow;
+                foreach (var peer in coordinationBus.Roster)
+                {
+                    if (!peer.IsStale(now) && peer.HpPercent > 0f && Data.JobRegistry.IsHealer(peer.JobId))
+                        return true;
+                }
+            }
+
+            return false;
+        };
+        Daedalus.Rotation.Base.RotationServices.PhantomLayer = phantomLayer;
+
+        // Doom top-off board: announce over LAN so healers on other boxes prioritise the
+        // Doomed toon even when they cannot read its status list from where they stand.
+        Daedalus.Services.Occult.DoomTopOffWatch.OnLocalRequest = name =>
+        {
+            chatGui.Print($"Daedalus: Deep Freeze cast — DOOM on {name}, healers topping to full.");
+            coordinationBus?.PublishPluginRelay(DoomTopOffChannel, System.Text.Json.JsonSerializer.Serialize(name));
+        };
+        if (coordinationBus != null)
+        {
+            coordinationBus.OnPluginRelay += (_, channel, json) =>
+            {
+                if (!string.Equals(channel, DoomTopOffChannel, StringComparison.Ordinal))
+                    return;
+                try
+                {
+                    var name = System.Text.Json.JsonSerializer.Deserialize<string>(json);
+                    if (!string.IsNullOrWhiteSpace(name))
+                        Daedalus.Services.Occult.DoomTopOffWatch.Record(name!);
+                }
+                catch (Exception ex)
+                {
+                    log.Warning(ex, "[Doom] malformed top-off relay payload");
+                }
+            };
+        }
 
         // Variant dungeon duty-action executor: Cure pre-empt, Spirit Dart DoT upkeep,
         // Eagle Eye, Rampart, coordinated Raise (healers-first + shared raise buffer).
@@ -711,7 +774,7 @@ public sealed class Plugin : IDalamudPlugin
         if (lanPartyWindow != null)
             this.mainWindow.OpenLanParty = () => lanPartyWindow.Toggle();
         var smartAoETab = new SmartAoETab(aoeTracker, drawCanvas, objectTable);
-        this.debugWindow = new DebugWindow(debugService, configuration, timelineService, smartAoETab, debugLogService, phantomJobService);
+        this.debugWindow = new DebugWindow(debugService, configuration, timelineService, smartAoETab, debugLogService, phantomJobService, elementalWeaknessLog);
         this.welcomeWindow = new WelcomeWindow(configuration, SaveConfiguration, OpenConfigUI);
         this.analyticsWindow = new AnalyticsWindow(performanceTracker, configuration, SaveConfiguration, fflogsService, fightSummaryService, meldOptimizerPanel);
         this.trainingWindow = new TrainingWindow(trainingService, configuration, decisionValidationService, spacedRepetitionService);
@@ -1560,6 +1623,9 @@ public sealed class Plugin : IDalamudPlugin
             // Always update debug service frame counter
             debugService.Update();
 
+            // Occult elemental-weakness learning (throttled; Occult territories only).
+            elementalWeaknessLog.Update();
+
             // Movement arbiter frame sample (BMR yield state) — must run before rotation execution so
             // gating decisions are at most one frame old when movement services submit paths.
             movementArbiter.BeginFrame();
@@ -1910,6 +1976,8 @@ public sealed class Plugin : IDalamudPlugin
         // Save calibration data before shutdown
         HealingCalculator.SaveCalibration(configuration.Calibration);
         pluginInterface.SavePluginConfig(configuration);
+        elementalWeaknessLog.Save();
+        Daedalus.Services.Occult.DoomTopOffWatch.OnLocalRequest = null;
 
         // Static-backed hooks — must not survive a plugin reload with dead captures.
         Daedalus.Rotation.Common.Helpers.TrustPartyRoleHelper.DesignatedOffTankNameSource = null;
