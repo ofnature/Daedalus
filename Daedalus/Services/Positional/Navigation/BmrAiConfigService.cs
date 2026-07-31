@@ -206,6 +206,14 @@ public sealed class BmrAiConfigService
         // (job role swap, ranged-distance slider) or another manager replaced the active preset.
         var json = BmrAiConfigPolicy.BuildPresetJson(
             BmrAiConfigPolicy.IsBacklineJob(req.JobId), req.RangedStandDistance);
+        // Scan before set (field 2026-07-30: "Changed preset from 'Daedalus' to 'Daedalus'"
+        // chat spam): after a plugin reload the json cache is empty, but BMR usually still
+        // holds our preset from the previous session — ADOPT it silently instead of a
+        // redundant Create+SetActive. A REAL definition change (job role swap, ranged
+        // slider, template update via disable/enable) still re-pushes below.
+        if (_appliedPresetJson is null && ActivePresetName() == BmrAiConfigPolicy.PresetName)
+            _appliedPresetJson = json;
+
         if (_appliedPresetJson != json)
         {
             if (CreatePreset(json) && ActivatePreset())
