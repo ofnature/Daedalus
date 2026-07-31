@@ -389,6 +389,16 @@ public sealed class PhantomActionLayer
             return;
         }
 
+        // Spend the Doom where it pays: +120 potency on ice-weak (520 vs 400 under Drain
+        // Touch). Unknown weakness passes — the table has to learn from somewhere.
+        if (cfg.NecromancerDeepFreezePreferIceWeak
+            && target is IBattleNpc npcTarget
+            && IsTargetIceWeak?.Invoke(npcTarget.NameId) == false)
+        {
+            _pushRejects.Add($"Deep Freeze held — {npcTarget.Name?.TextValue ?? "target"} is not ice-weak");
+            return;
+        }
+
         if (!PhantomBandRules.ShouldDeepFreeze(cfg, selfHpPct, hasDoom, hasDrainTouch))
         {
             _pushRejects.Add(hasDoom
@@ -419,6 +429,13 @@ public sealed class PhantomActionLayer
 
     /// <summary>Debug-log sink (wired by Plugin) for the Deep Freeze / Doom announcements.</summary>
     public Daedalus.Services.Debug.DebugLogService? DebugLog { get; set; }
+
+    /// <summary>
+    /// Learned elemental weakness lookup by enemy NameId (wired by Plugin from the weakness
+    /// log). Null result = not yet learned, which never blocks — only a KNOWN non-ice-weak
+    /// target holds Deep Freeze back.
+    /// </summary>
+    public Func<uint, bool?>? IsTargetIceWeak { get; set; }
 
     private readonly OracleDeckTracker _oracleDeck = new();
 

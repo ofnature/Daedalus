@@ -224,6 +224,12 @@ public sealed class OccultSection
                         v => config.Occult.NecromancerDeepFreezeRequireDrainTouch = v,
                         "Drain Touch stops most attacks dropping you below 1 HP — it makes the HP cost survivable and raises Deep Freeze's potency (300→400, 390→520 on ice-weak targets).",
                         save);
+                    ConfigUIHelpers.Toggle("Only on ice-weak targets (once learned)",
+                        () => config.Occult.NecromancerDeepFreezePreferIceWeak,
+                        v => config.Occult.NecromancerDeepFreezePreferIceWeak = v,
+                        "Ice-weak targets take 520 potency instead of 400 (+120 per cast) — about one phantom GCD back every 4 casts. " +
+                        "Enemies whose weakness hasn't been revealed yet are still allowed, so this never blocks the action outright.",
+                        save);
                     config.Occult.NecromancerDeepFreezeMinHpPercent = ConfigUIHelpers.ThresholdSlider(
                         "Minimum HP to cast Deep Freeze",
                         config.Occult.NecromancerDeepFreezeMinHpPercent, 0.5f, 1f,

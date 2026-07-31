@@ -83,4 +83,14 @@ public sealed class PhantomConfig
     /// (300→400, 390→520 on ice-weak targets), so the combo is both safer AND stronger.
     /// </summary>
     public bool NecromancerDeepFreezeRequireDrainTouch { get; set; } = true;
+
+    /// <summary>
+    /// Spend the Doom where it pays most: hold Deep Freeze on enemies we have LEARNED are not
+    /// ice-weak. Ice-weak targets take 520 potency instead of 400 under Drain Touch (+30%, i.e.
+    /// +120 per cast), so on anything long-lived the reveal repays itself in ~4 casts — and
+    /// taking a 10%-HP cost plus a death timer for 77% of the payoff is the bad trade.
+    /// Enemies whose weakness is still unknown are ALLOWED, so this can never lock the action
+    /// out before the weakness table has learned anything.
+    /// </summary>
+    public bool NecromancerDeepFreezePreferIceWeak { get; set; } = true;
 }

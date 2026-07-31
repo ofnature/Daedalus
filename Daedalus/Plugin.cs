@@ -639,6 +639,7 @@ public sealed class Plugin : IDalamudPlugin
             actionService, jobGauges, configuration, phantomJobService, timelineService, errorMetricsService, log,
             burstWindowService);
         phantomLayer.DebugLog = debugLogService;
+        phantomLayer.IsTargetIceWeak = nameId => elementalWeaknessLog.KnownIceWeak(nameId);
         // Necromancer Deep Freeze Dooms its caster (cleared only by a heal to FULL) — it may
         // only fire with a healer who can top us off: a live party healer, or a LAN fleet
         // healer that is alive and in combat with us.
