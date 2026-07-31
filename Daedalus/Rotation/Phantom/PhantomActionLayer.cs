@@ -184,10 +184,22 @@ public sealed class PhantomActionLayer
         if (job == PhantomJob.Knight && PhantomBandRules.ShouldPray(cfg, selfHpPct))
             TryPush(ctx, 41589, job, level, PrioEmergencySustain + 3);
 
-        // Occult Cure II (Red Mage): 40,000 cure potency for 1,500 MP on a 2.5s recast — by
-        // far the strongest self-heal in the phantom kits, so it is worth the GCD it costs.
-        if (job == PhantomJob.PhantomRedMage && PhantomBandRules.ShouldOccultCure(cfg, selfHpPct, inCombat))
-            TryPush(ctx, 49093, job, level, PrioEmergencySustain + 1, ctx.Player.GameObjectId);
+        // Occult Cure II: 40,000 cure potency for 1,500 MP on a 2.5s recast — by far the
+        // strongest self-heal in the phantom kits, so it is worth the GCD it costs. Red Mage
+        // and White Mage each have their own copy (49093 / 49067 — the sheet really does
+        // carry the name twice).
+        if (PhantomBandRules.ShouldOccultCure(cfg, selfHpPct, inCombat))
+        {
+            if (job == PhantomJob.PhantomRedMage)
+                TryPush(ctx, 49093, job, level, PrioEmergencySustain + 1, ctx.Player.GameObjectId);
+            else if (job == PhantomJob.PhantomWhiteMage)
+                TryPush(ctx, 49067, job, level, PrioEmergencySustain + 1, ctx.Player.GameObjectId);
+        }
+
+        // Earthen Wall (Summoner): a 40,000-potency barrier over the whole party on a 120s
+        // timer. Party-wide, so it uses the self-mit threshold rather than a heal threshold.
+        if (job == PhantomJob.PhantomSummoner && PhantomBandRules.ShouldSelfMit(selfHpPct, inCombat))
+            TryPush(ctx, 49082, job, level, PrioSelfMit);
 
         // Phantom Ninja defensives (both Abilities). Image nullifies most PHYSICAL attacks for
         // 30s on a 120s timer — save it for real trouble. Smoke is +20% evasion for 90s on a
@@ -386,6 +398,20 @@ public sealed class PhantomActionLayer
 
             case PhantomJob.Thief:
                 TryPush(ctx, 41649, job, level, PrioDamage + 5, target.GameObjectId, target); // Pilfer Weapon
+                break;
+
+            case PhantomJob.PhantomSummoner:
+                // Megaflare leads: unaspected 1,000 on its own 90s timer, no weakness applies.
+                TryPush(ctx, 49084, job, level, PrioDamage, target.GameObjectId, target);
+                TryPush(ctx,
+                    PhantomBandRules.SelectSummonerNuke(
+                        target is IBattleNpc smnTarget ? TargetWeakness?.Invoke(smnTarget.NameId) : null),
+                    job, level, PrioDamage + 1, target.GameObjectId, target);
+                break;
+
+            case PhantomJob.PhantomWhiteMage:
+                // Occult Holy: unaspected 500 (750 vs undead), 8y, own 60s timer.
+                TryPush(ctx, 49071, job, level, PrioDamage, target.GameObjectId, target);
                 break;
 
             case PhantomJob.PhantomBlackMage:

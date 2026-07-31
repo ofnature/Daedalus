@@ -154,6 +154,29 @@ public static class PhantomActions
         new(49095, "Occult Blizzard II", PhantomJob.PhantomRedMage, 4),  // ice
         new(49096, "Occult Thunder II", PhantomJob.PhantomRedMage, 6),   // lightning
 
+        // ── Phantom Summoner (North Horn; kit field-confirmed 2026-07-31, five actions at
+        //    Lv.1-5, no traits). The heaviest hitter of the North Horn kits — 600 potency a
+        //    nuke (780 matched) and a 1,000 Megaflare — but the casts are FOUR seconds and
+        //    "cannot be affected by status effects or gear attributes", so no haste or
+        //    Dualcast shortens them. Hellfire / Judgment Bolt / Thunderstorm SHARE one 60s
+        //    recast. NOTE: Thunderstorm deals WIND damage despite the name, and is this
+        //    roster's only wind coverage. ──
+        new(49080, "Hellfire", PhantomJob.PhantomSummoner, 1),      // fire 600/780, 12y
+        new(49081, "Judgment Bolt", PhantomJob.PhantomSummoner, 2), // lightning 600/780, 12y
+        new(49082, "Earthen Wall", PhantomJob.PhantomSummoner, 3),  // 40,000-potency party barrier, 20y, 120s
+        new(49083, "Thunderstorm", PhantomJob.PhantomSummoner, 4),  // WIND 600/780, 30y cone
+        new(49084, "Megaflare", PhantomJob.PhantomSummoner, 5),     // unaspected 1,000, 15y, 90s
+
+        // ── Phantom White Mage (North Horn; kit field-confirmed 2026-07-31, five actions at
+        //    Lv.1-5, no traits). Note the sheet carries TWO "Occult Cure II" rows — 49067 is
+        //    this one, 49093 is Red Mage's, which is why neither was cataloged on id adjacency
+        //    alone. ──
+        new(49067, "Occult Cure II", PhantomJob.PhantomWhiteMage, 1),   // 40,000 cure, 1,500 MP
+        new(49068, "Occult Cure III", PhantomJob.PhantomWhiteMage, 2),  // 30,000 cure, 15y AoE, 3,000 MP
+        new(49069, "Occult Blink", PhantomJob.PhantomWhiteMage, 3),     // immune to one magic hit, 30s
+        new(49070, "Occult Raise", PhantomJob.PhantomWhiteMage, 4),     // instant, works under Res Restricted
+        new(49071, "Occult Holy", PhantomJob.PhantomWhiteMage, 5),      // 500 (750 vs undead), 8y, 60s
+
         // ── Phantom Black Mage (North Horn; kit field-confirmed 2026-07-31, job panel shows
         //    five actions at Lv.1-5 and NO traits). Unlike Red Mage's II-tier, the III-tier
         //    nukes carry NO "shares a recast" line — they are three INDEPENDENT 40s recasts,

@@ -109,6 +109,28 @@ public static class PhantomBandRules
         return OccultFireIIId;
     }
 
+    /// <summary>Phantom Summoner nukes — one shared 60s recast (Thunderstorm is WIND).</summary>
+    public const uint HellfireId = 49080;
+    public const uint JudgmentBoltId = 49081;
+    public const uint ThunderstormId = 49083;
+
+    /// <summary>
+    /// Summoner's shared-recast trio: 600 potency, 780 on a matched weakness. Covers fire,
+    /// lightning and WIND (Thunderstorm, despite the name) — no ice, so an ice-weak target
+    /// falls back to Hellfire.
+    /// </summary>
+    public static uint SelectSummonerNuke(Daedalus.Services.Occult.OccultElement? knownWeakness)
+    {
+        if (knownWeakness is { } w)
+        {
+            if ((w & Daedalus.Services.Occult.OccultElement.Fire) != 0) return HellfireId;
+            if ((w & Daedalus.Services.Occult.OccultElement.Lightning) != 0) return JudgmentBoltId;
+            if ((w & Daedalus.Services.Occult.OccultElement.Wind) != 0) return ThunderstormId;
+        }
+
+        return HellfireId;
+    }
+
     /// <summary>Phantom Black Mage III-tier — INDEPENDENT 40s recasts, so all three are usable.</summary>
     public const uint OccultFireIIIId = 49072;
     public const uint OccultBlizzardIIIId = 49073;
