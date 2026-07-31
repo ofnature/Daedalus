@@ -84,13 +84,45 @@ public class OracleDeckTrackerTests
         // Locked: Thief (gold 1600), Dancer (silver 1000), Berserker (CE drop — never listed).
         var levels = Levels((PhantomJob.Thief, 0), (PhantomJob.Dancer, 0), (PhantomJob.Berserker, 0));
 
-        var rich = PhantomJobData.GetAffordableLockedShards(levels, silver: 1200, gold: 2000);
+        var rich = PhantomJobData.GetAffordableLockedShards(levels, silver: 1200, gold: 2000, PhantomJobData.SouthHornTerritoryId);
         Assert.Contains(rich, e => e.Job == PhantomJob.Thief && e.Price == 1600);
         Assert.Contains(rich, e => e.Job == PhantomJob.Dancer && e.Price == 1000);
         Assert.DoesNotContain(rich, e => e.Job == PhantomJob.Berserker);
 
-        var broke = PhantomJobData.GetAffordableLockedShards(levels, silver: 900, gold: 100);
+        var broke = PhantomJobData.GetAffordableLockedShards(levels, silver: 900, gold: 100, PhantomJobData.SouthHornTerritoryId);
         Assert.Empty(broke);
+    }
+
+    [Fact]
+    public void AffordableShards_AreScopedToTheZonesOwnExchange()
+    {
+        // Field 2026-07-31: North Horn sells NIN/BLM/WHM/RDM at 1,000 Silver OBOLS and
+        // DRG/SMN at 1,600 Gold. The balances are that zone's currency, so a South Horn
+        // shard must never be offered against an Obol purse (or vice versa).
+        var levels = Levels(
+            (PhantomJob.Dancer, 0),        // South Horn, 1,000 silver pieces
+            (PhantomJob.PhantomNinja, 0)); // North Horn, 1,000 silver obols
+
+        var north = PhantomJobData.GetAffordableLockedShards(
+            levels, silver: 5000, gold: 5000, PhantomJobData.NorthHornTerritoryId);
+        Assert.Contains(north, e => e.Job == PhantomJob.PhantomNinja && e.Price == 1000);
+        Assert.DoesNotContain(north, e => e.Job == PhantomJob.Dancer);
+
+        var south = PhantomJobData.GetAffordableLockedShards(
+            levels, silver: 5000, gold: 5000, PhantomJobData.SouthHornTerritoryId);
+        Assert.Contains(south, e => e.Job == PhantomJob.Dancer);
+        Assert.DoesNotContain(south, e => e.Job == PhantomJob.PhantomNinja);
+    }
+
+    [Fact]
+    public void AffordableShards_NecromancerIsADropNotAPurchase()
+    {
+        var levels = Levels((PhantomJob.Necromancer, 0));
+
+        var result = PhantomJobData.GetAffordableLockedShards(
+            levels, silver: 9999, gold: 9999, PhantomJobData.NorthHornTerritoryId);
+
+        Assert.Empty(result); // Dark Artistry CE drop — no price, never bannered
     }
 
     [Fact]
@@ -98,7 +130,7 @@ public class OracleDeckTrackerTests
     {
         var levels = Levels(); // everything unlocked at Lv.1
 
-        var result = PhantomJobData.GetAffordableLockedShards(levels, silver: 9999, gold: 9999);
+        var result = PhantomJobData.GetAffordableLockedShards(levels, silver: 9999, gold: 9999, PhantomJobData.SouthHornTerritoryId);
 
         Assert.Empty(result);
     }

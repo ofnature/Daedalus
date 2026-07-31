@@ -61,24 +61,25 @@ public sealed class OccultWindow : Window
                 ImGui.Text($"{item.Name}: {item.Count:N0}");
         }
 
-        // Affordable-shard banner: locked purchasable jobs the player can buy right now.
-        // South Horn only — the price table is South Horn's shard shop (silver/gold PIECES);
-        // North Horn sells different jobs for Obols (DRG/SMN/NIN/BLM/WHM/RDM shards, not yet
-        // cataloged), so comparing Obol balances against Piece prices would false-banner.
-        if (snapshot.TerritoryId == PhantomJobData.SouthHornTerritoryId
-            && snapshot.Progression is { } p && snapshot.JobLevels.Count > 0)
+        // Affordable-shard banner: locked purchasable jobs the player can buy right now in
+        // THIS zone. Both exchanges are cataloged now, and the lookup is zone-scoped so an
+        // Obol balance is never measured against South Horn's Pieces prices (or vice versa).
+        if (snapshot.Progression is { } p && snapshot.JobLevels.Count > 0)
         {
-            var affordable = PhantomJobData.GetAffordableLockedShards(snapshot.JobLevels, p.Silver, p.Gold);
+            var affordable = PhantomJobData.GetAffordableLockedShards(snapshot.JobLevels, p.Silver, p.Gold, snapshot.TerritoryId);
             if (affordable.Count > 0)
             {
                 ImGui.Separator();
                 foreach (var (job, kind, price) in affordable)
                 {
-                    var currency = kind == PhantomJobData.UnlockKind.SilverShard ? "silver" : "gold";
+                    var unit = snapshot.TerritoryId == PhantomJobData.NorthHornTerritoryId ? "obols" : "pieces";
+                    var currency = kind == PhantomJobData.UnlockKind.SilverShard ? $"silver {unit}" : $"gold {unit}";
                     ImGui.TextColored(Gold, $"★ You can afford Phantom {job} — {price:N0} {currency}");
                 }
 
-                ImGui.TextColored(Dim, "Expedition Antiquarian (X:38.1 Y:7.0)");
+                ImGui.TextColored(Dim, snapshot.TerritoryId == PhantomJobData.NorthHornTerritoryId
+                    ? "North Horn Currency Exchange"
+                    : "Expedition Antiquarian (X:38.1 Y:7.0)");
             }
         }
     }

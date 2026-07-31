@@ -180,8 +180,14 @@ public static class PhantomJobData
         PhantomJob.Oracle => "Soul Shard drop — Critical Encounter: On the Hunt",
         PhantomJob.Ranger => "Soul Shard drop — Critical Encounter: The Black Regiment",
         PhantomJob.Berserker => "Soul Shard drop — Critical Encounter: The Unbridled",
-        // North Horn (field 2026-07-30): the Necromancer soul stone drops from Dark Artistry.
+        // North Horn (field 2026-07-30/31): shop prices read off the Currency Exchange.
         PhantomJob.Necromancer => "Soul Stone drop — Critical Encounter: Dark Artistry (North Horn)",
+        PhantomJob.PhantomNinja or PhantomJob.PhantomWhiteMage or PhantomJob.PhantomBlackMage
+            or PhantomJob.PhantomRedMage =>
+            "Soul Shard — North Horn Currency Exchange, 1,000 E. Silver Obols",
+        PhantomJob.PhantomDragoon or PhantomJob.PhantomSummoner =>
+            "Soul Shard — North Horn Currency Exchange, 1,600 E. Gold Obols",
+        PhantomJob.PhantomBlueMage => "North Horn — source not yet confirmed",
         _ => string.Empty,
     };
 
@@ -199,6 +205,22 @@ public static class PhantomJobData
     public const int GoldShardPrice = 1600;
 
     /// <summary>Structured unlock source; Price is 0 for non-purchasable jobs.</summary>
+    /// <summary>
+    /// The North Horn roster (7.55). Their shards are sold for OBOLS at the North Horn
+    /// exchange, so the affordable-shard banner must never offer them against a South Horn
+    /// Pieces balance (or vice versa) — see <see cref="IsSoldIn"/>.
+    /// </summary>
+    public static readonly IReadOnlySet<PhantomJob> NorthHornJobs = new HashSet<PhantomJob>
+    {
+        PhantomJob.PhantomNinja, PhantomJob.PhantomWhiteMage, PhantomJob.PhantomBlackMage,
+        PhantomJob.PhantomDragoon, PhantomJob.PhantomSummoner, PhantomJob.PhantomBlueMage,
+        PhantomJob.PhantomRedMage, PhantomJob.Necromancer,
+    };
+
+    /// <summary>Whether this job's soul shard is obtainable in the given Occult territory.</summary>
+    public static bool IsSoldIn(PhantomJob job, ushort territoryId) =>
+        territoryId == NorthHornTerritoryId ? NorthHornJobs.Contains(job) : !NorthHornJobs.Contains(job);
+
     public static (UnlockKind Kind, int Price) GetUnlockCost(PhantomJob job) => job switch
     {
         PhantomJob.Freelancer => (UnlockKind.Default, 0),
@@ -207,6 +229,12 @@ public static class PhantomJobData
             or PhantomJob.MysticKnight or PhantomJob.Dancer => (UnlockKind.SilverShard, SilverShardPrice),
         PhantomJob.Samurai or PhantomJob.Geomancer or PhantomJob.Thief
             or PhantomJob.Gladiator => (UnlockKind.GoldShard, GoldShardPrice),
+        // North Horn exchange — same price tiers, paid in Obols. The 1,000 tier is
+        // field-confirmed (shop screenshot, Silver Obol balance); the 1,600 tier follows the
+        // South Horn pattern and is pending a Gold Obol balance to confirm.
+        PhantomJob.PhantomNinja or PhantomJob.PhantomWhiteMage or PhantomJob.PhantomBlackMage
+            or PhantomJob.PhantomRedMage => (UnlockKind.SilverShard, SilverShardPrice),
+        PhantomJob.PhantomDragoon or PhantomJob.PhantomSummoner => (UnlockKind.GoldShard, GoldShardPrice),
         _ => (UnlockKind.CriticalEncounter, 0),
     };
 
@@ -215,12 +243,15 @@ public static class PhantomJobData
     /// (level 0 in <paramref name="jobLevels"/>). Pure — feeds the zone HUD banner.
     /// </summary>
     public static List<(PhantomJob Job, UnlockKind Kind, int Price)> GetAffordableLockedShards(
-        IReadOnlyDictionary<PhantomJob, byte> jobLevels, uint silver, uint gold)
+        IReadOnlyDictionary<PhantomJob, byte> jobLevels, uint silver, uint gold, ushort territoryId)
     {
         var result = new List<(PhantomJob, UnlockKind, int)>();
         foreach (var entry in LevelStatuses)
         {
             if (!jobLevels.TryGetValue(entry.Key, out var level) || level > 0)
+                continue;
+            // Only what THIS zone's exchange sells — the balances are that zone's currency.
+            if (!IsSoldIn(entry.Key, territoryId))
                 continue;
 
             var (kind, price) = GetUnlockCost(entry.Key);
