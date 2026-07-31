@@ -262,6 +262,7 @@ public sealed class PhantomActionLayer
     [
         PhantomJob.Berserker, PhantomJob.Samurai, PhantomJob.Cannoneer, PhantomJob.MysticKnight,
         PhantomJob.Gladiator, PhantomJob.Monk, PhantomJob.TimeMage, PhantomJob.Thief,
+        PhantomJob.Necromancer,
     ];
 
     private void PushDamage(IRotationContext ctx, Config.PhantomConfig cfg, PhantomJob job, byte level, bool inCombat)
@@ -347,6 +348,10 @@ public sealed class PhantomActionLayer
 
             case PhantomJob.Thief:
                 TryPush(ctx, 41649, job, level, PrioDamage + 5, target.GameObjectId, target); // Pilfer Weapon
+                break;
+
+            case PhantomJob.Necromancer:
+                TryPush(ctx, 49097, job, level, PrioDamage, target.GameObjectId, target); // Drain Touch
                 break;
         }
     }

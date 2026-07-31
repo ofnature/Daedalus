@@ -77,16 +77,41 @@ public class PhantomJobDataTests
     }
 
     [Fact]
-    public void LevelStatuses_CoverAllSixteenJobs_WithDistinctStatusIds()
+    public void LevelStatuses_CoverAllTwentyFourJobs_WithDistinctStatusIds()
     {
         var jobs = PhantomJobData.LevelStatuses.Select(e => e.Key).ToList();
         var statusIds = PhantomJobData.LevelStatuses.Select(e => e.Value).ToList();
 
-        Assert.Equal(16, jobs.Count);
+        // 16 South Horn + 8 North Horn (status block 5328–5335, added 2026-07-30).
+        Assert.Equal(24, jobs.Count);
         Assert.Equal(jobs.Count, jobs.Distinct().Count());
         Assert.Equal(statusIds.Count, statusIds.Distinct().Count());
         Assert.DoesNotContain(PhantomJob.None, jobs);
         Assert.Equal(0u, PhantomJobData.GetLevelStatusId(PhantomJob.None));
+    }
+
+    [Fact]
+    public void NorthHornJobs_MapToTheNewStatusBlock()
+    {
+        // XIVAPI Status sheet 2026-07-30; Necromancer field-confirmed via the status-gain
+        // flytext ("+ Phantom Necromancer") and the Duty tab's "none detected" gap.
+        Assert.Equal(5328u, PhantomJobData.GetLevelStatusId(PhantomJob.PhantomNinja));
+        Assert.Equal(5329u, PhantomJobData.GetLevelStatusId(PhantomJob.PhantomWhiteMage));
+        Assert.Equal(5330u, PhantomJobData.GetLevelStatusId(PhantomJob.PhantomBlackMage));
+        Assert.Equal(5331u, PhantomJobData.GetLevelStatusId(PhantomJob.PhantomDragoon));
+        Assert.Equal(5332u, PhantomJobData.GetLevelStatusId(PhantomJob.PhantomSummoner));
+        Assert.Equal(5333u, PhantomJobData.GetLevelStatusId(PhantomJob.PhantomBlueMage));
+        Assert.Equal(5334u, PhantomJobData.GetLevelStatusId(PhantomJob.PhantomRedMage));
+        Assert.Equal(5335u, PhantomJobData.GetLevelStatusId(PhantomJob.Necromancer));
+    }
+
+    [Fact]
+    public void Necromancer_DrainTouch_IsCataloged()
+    {
+        var drainTouch = PhantomActions.All.FirstOrDefault(a => a.ActionId == 49097);
+        Assert.NotNull(drainTouch);
+        Assert.Equal(PhantomJob.Necromancer, drainTouch!.Job);
+        Assert.Equal(1, drainTouch.RequiredLevel);
     }
 
     [Fact]

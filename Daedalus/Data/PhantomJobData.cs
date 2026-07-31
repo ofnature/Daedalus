@@ -27,6 +27,16 @@ public enum PhantomJob : byte
     MysticKnight,
     Gladiator,
     Dancer,
+
+    // North Horn block (7.55+, status ids 5328–5335)
+    PhantomNinja,
+    PhantomWhiteMage,
+    PhantomBlackMage,
+    PhantomDragoon,
+    PhantomSummoner,
+    PhantomBlueMage,
+    PhantomRedMage,
+    Necromancer,
 }
 
 /// <summary>
@@ -76,6 +86,16 @@ public static class PhantomJobData
         new(PhantomJob.MysticKnight, 4803u),
         new(PhantomJob.Gladiator,    4804u),
         new(PhantomJob.Dancer,       4805u),
+        // North Horn (7.55): status block 5328–5335, XIVAPI-enumerated 2026-07-30;
+        // Necromancer field-confirmed live (status-gain flytext "+ Phantom Necromancer").
+        new(PhantomJob.PhantomNinja,     5328u),
+        new(PhantomJob.PhantomWhiteMage, 5329u),
+        new(PhantomJob.PhantomBlackMage, 5330u),
+        new(PhantomJob.PhantomDragoon,   5331u),
+        new(PhantomJob.PhantomSummoner,  5332u),
+        new(PhantomJob.PhantomBlueMage,  5333u),
+        new(PhantomJob.PhantomRedMage,   5334u),
+        new(PhantomJob.Necromancer,      5335u),
     ];
 
     // Zone currencies are ITEMS (MKDData CurrencyItem rows) — balances come from the

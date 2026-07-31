@@ -131,6 +131,10 @@ public static class PhantomActions
         new(46603, "Quickstep", PhantomJob.Dancer, 2),
         new(46604, "Steadfast Stance", PhantomJob.Dancer, 3),
         new(46605, "Mesmerize", PhantomJob.Dancer, 4),
+
+        // ── Necromancer (North Horn; block starts 49097 — only field-confirmed actions are
+        // cataloged, one bar screenshot per level unlock extends this) ──
+        new(49097, "Drain Touch", PhantomJob.Necromancer, 1),
     ];
 
     /// <summary>
