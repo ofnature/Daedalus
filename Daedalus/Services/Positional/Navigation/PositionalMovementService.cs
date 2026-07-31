@@ -42,6 +42,18 @@ public sealed class PositionalMovementService : IPositionalMovementService
             return;
         }
 
+        // The user just clicked a target themselves — hands off the wheel. Re-anchoring against
+        // their pick stutter-stepped under manual play (field 2026-07-30). Stop any owned path
+        // and issue nothing until the grace expires.
+        if (Daedalus.Services.Targeting.ManualControlGrace.IsActive)
+        {
+            if (_vNav.IsPathRunning)
+                Cancel("manual control grace");
+            else
+                SetSkipped("manual control grace");
+            return;
+        }
+
         // Hard cast guard (field report 2026-07-20: the SAM anchor walked through Midare/Ogi cast
         // bars and cancelled them). AllowMovementDuringActionLock covers ANIMATION lock on
         // instant-GCD jobs — it must never authorize movement during a real cast, and the

@@ -267,6 +267,9 @@ public sealed class PartyTargetingCoordinator
     private void SetHardTarget(IBattleNpc enemy)
     {
         if (_targetManager.Target?.GameObjectId != enemy.GameObjectId)
+        {
+            ManualControlGrace.RecordOwnWrite(enemy.GameObjectId);
             _targetManager.Target = enemy;
+        }
     }
 }

@@ -1717,6 +1717,12 @@ public sealed class Plugin : IDalamudPlugin
                 log.Warning("External-combat override aborted: training dummy (NameId {0}) was targeted.", autoTarget.NameId);
             }
 
+            // Manual-click detection: a hard-target change no Daedalus writer registered is the
+            // USER clicking something — movement pulses hold for the grace window so we don't
+            // stutter-step under their hands. Observed every frame (even disabled) so re-enable
+            // never false-triggers on a stale diff.
+            Daedalus.Services.Targeting.ManualControlGrace.NoteFrame(targetManager.Target?.GameObjectId ?? 0);
+
             if (!configuration.EffectiveEnabled)
                 return;
 
@@ -1780,6 +1786,8 @@ public sealed class Plugin : IDalamudPlugin
         finally
         {
             // Restore after submit — the cast snapshot took its (empty) target at submit time.
+            if (previousTarget != null)
+                Daedalus.Services.Targeting.ManualControlGrace.RecordOwnWrite(previousTarget.GameObjectId);
             targetManager.Target = previousTarget;
         }
     }

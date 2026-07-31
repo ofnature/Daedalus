@@ -219,6 +219,7 @@ public sealed class FarmModeService : IDisposable
                 Profile.MobNameIds, Math.Max(scanRadius, Profile.LeashRadiusYalms), player, spot, Profile.LeashRadiusYalms);
         if (candidate != null)
         {
+            Daedalus.Services.Targeting.ManualControlGrace.RecordOwnWrite(candidate.GameObjectId);
             _targetManager.Target = candidate;
             // Latch the kill at ACQUISITION: high-level toons one-shot farm mobs inside a single
             // poll, so the "fighting" branch may never see the target alive — without this the

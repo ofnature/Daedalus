@@ -210,9 +210,13 @@ public sealed class BmrAiConfigService
         }
 
         // Live per-GCD positional via a transient strategy on the GoToPositional module
-        // (raw AIConfig positional is ignored while any preset is active).
-        var positional = BmrAiConfigPolicy.ResolveDesiredPositional(
-            req.JobId, req.RequiredPositional, req.BoundaryCampingActive, req.ForbiddenZonesLive);
+        // (raw AIConfig positional is ignored while any preset is active). Held while the user
+        // is manually clicking targets — a fresh transient pulse against their pick makes BMR
+        // micro-steer under their hands (the stutter-step report, 2026-07-30).
+        var positional = Daedalus.Services.Targeting.ManualControlGrace.IsActive
+            ? "Any"
+            : BmrAiConfigPolicy.ResolveDesiredPositional(
+                req.JobId, req.RequiredPositional, req.BoundaryCampingActive, req.ForbiddenZonesLive);
         if (!BmrAiConfigPolicy.IsBacklineJob(req.JobId) && _lastPositional != positional)
         {
             if (SetTransientPositional(positional))

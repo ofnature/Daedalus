@@ -857,6 +857,7 @@ public sealed class TargetingService : ITargetingService
     /// </summary>
     private void SetGameHardTarget(IBattleNpc enemy)
     {
+        ManualControlGrace.RecordOwnWrite(enemy.GameObjectId);
         _targetManager.Target = enemy;
         SetUserStickyTarget(enemy.GameObjectId);
     }

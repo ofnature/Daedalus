@@ -205,6 +205,7 @@ public sealed class QuestionableIpc : IDisposable
         if (candidate == null)
             return;
 
+        Daedalus.Services.Targeting.ManualControlGrace.RecordOwnWrite(candidate.GameObjectId);
         _targetManager.Target = candidate;
         _log.Debug("[AutomationBridge:Questionable] targeted kill candidate {0} (NameId {1})",
             candidate.Name, candidate.NameId);
