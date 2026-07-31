@@ -368,7 +368,7 @@ public sealed class Plugin : IDalamudPlugin
         Rotation.Base.RotationServices.BossModSafety = bossModSafetyService;
         this.bossModForecastService = new BossModForecastService(pluginInterface, log);
         this.positionalMovementService = new PositionalMovementService(movementArbiter, bossModSafetyService);
-        this.bmrAiConfigService = new BmrAiConfigService(pluginInterface, bossModSafetyService, log, debugLogService, dtrBar);
+        this.bmrAiConfigService = new BmrAiConfigService(pluginInterface, bossModSafetyService, log, debugLogService, dtrBar, commandManager);
         this.castMovementHoldService = new CastMovementHoldService(
             pluginInterface, configuration, bossModSafetyService, objectTable, log);
         this.samuraiPositionalAnticipationProvider = new SamuraiPositionalAnticipationProvider();

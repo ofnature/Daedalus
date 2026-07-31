@@ -28,6 +28,7 @@ public sealed class BmrAiConfigService
     private readonly IPluginLog? _log;
     private readonly Daedalus.Services.Debug.DebugLogService? _debugLog;
     private readonly Dalamud.Plugin.Services.IDtrBar? _dtrBar;
+    private readonly Dalamud.Plugin.Services.ICommandManager? _commandManager;
 
     private ICallGateSubscriber<List<string>, bool, List<string>>? _configIpc;
     private ICallGateSubscriber<bool, object>? _pauseMovementIpc;
@@ -60,13 +61,15 @@ public sealed class BmrAiConfigService
 
     public BmrAiConfigService(IDalamudPluginInterface pi, IBossModSafetyService bmr, IPluginLog? log = null,
         Daedalus.Services.Debug.DebugLogService? debugLog = null,
-        Dalamud.Plugin.Services.IDtrBar? dtrBar = null)
+        Dalamud.Plugin.Services.IDtrBar? dtrBar = null,
+        Dalamud.Plugin.Services.ICommandManager? commandManager = null)
     {
         _pi = pi;
         _bmr = bmr;
         _log = log;
         _debugLog = debugLog;
         _dtrBar = dtrBar;
+        _commandManager = commandManager;
     }
 
     // ── AI mode (on/off) tracking ─────────────────────────────────────────────────────────────────────
@@ -159,10 +162,25 @@ public sealed class BmrAiConfigService
         // melee" saga: a leftover /bmrai setpresetname from an orchestrator re-applied that
         // preset with zero plugins running). Claim it for the Daedalus preset once per
         // enable session so BMR itself keeps our preset installed. Never touched at disable.
+        // The Config.Modify IPC REJECTS this field ("Field not found" — it only exposes
+        // [PropertyDisplay] fields), so the claim goes through BMR's own chat command exactly
+        // like the user typing /bmrai setpresetname — ProcessCommand dispatches to BMR's
+        // registered handler directly.
         if (!_aiPresetNameApplied)
         {
-            PushConfig("AIAutorotPresetName", BmrAiConfigPolicy.PresetName);
             _aiPresetNameApplied = true;
+            if (_commandManager is not null)
+            {
+                var ok = _commandManager.ProcessCommand($"/bmrai setpresetname {BmrAiConfigPolicy.PresetName}");
+                LastPushResult = ok
+                    ? $"claimed AI preset name \"{BmrAiConfigPolicy.PresetName}\" via /bmrai"
+                    : "/bmrai command not found — is BossMod loaded?";
+                _debugLog?.Log(Daedalus.Services.Debug.DebugLogCategory.Nav,
+                    ok ? Daedalus.Services.Debug.DebugLogSeverity.Info
+                       : Daedalus.Services.Debug.DebugLogSeverity.Warning,
+                    ok ? $"AI preset name claimed: /bmrai setpresetname {BmrAiConfigPolicy.PresetName}"
+                       : "AI preset name claim failed — /bmrai handler not registered");
+            }
         }
 
         // Rate cap: nothing changes value faster than a GCD, so a sub-0.25s change means oscillation — skip
