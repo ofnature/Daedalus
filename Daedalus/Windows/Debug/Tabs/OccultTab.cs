@@ -115,6 +115,9 @@ public static class OccultTab
         ImGui.Spacing();
         ImGui.Text("Enemies seen — kind & elemental weakness");
         ImGui.Separator();
+#if !DEBUG
+        ImGui.TextColored(Yellow, "Collection is Debug-only — this is the table gathered previously.");
+#endif
 
         var entries = weaknessLog.Entries;
         if (entries.Count == 0)

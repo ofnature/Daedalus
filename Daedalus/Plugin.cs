@@ -1624,8 +1624,13 @@ public sealed class Plugin : IDalamudPlugin
             // Always update debug service frame counter
             debugService.Update();
 
-            // Occult elemental-weakness learning (throttled; Occult territories only).
+#if DEBUG
+            // Occult enemy census + weakness learning (throttled; Occult territories only).
+            // DEBUG-ONLY: this is dev-time data gathering, so shipped builds never scan the
+            // object table or write the file. They still LOAD an existing table, so once the
+            // data is collected the element pickers keep working in Release.
             elementalWeaknessLog.Update();
+#endif
 
             // Movement arbiter frame sample (BMR yield state) — must run before rotation execution so
             // gating decisions are at most one frame old when movement services submit paths.
@@ -1977,7 +1982,9 @@ public sealed class Plugin : IDalamudPlugin
         // Save calibration data before shutdown
         HealingCalculator.SaveCalibration(configuration.Calibration);
         pluginInterface.SavePluginConfig(configuration);
+#if DEBUG
         elementalWeaknessLog.Save();
+#endif
         Daedalus.Services.Occult.DoomTopOffWatch.OnLocalRequest = null;
 
         // Static-backed hooks — must not survive a plugin reload with dead captures.
