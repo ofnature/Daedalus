@@ -1572,7 +1572,11 @@ public sealed class Plugin : IDalamudPlugin
 
             // Enforce the party target mode (Focus / Split / Kill Adds) after the bus pump so mode
             // state is current this frame. Role-gated; no-op unless a mode is active and eligible.
-            partyTargetingCoordinator?.Tick();
+            // MASTER-SWITCH gated (field 2026-07-30: a DISABLED toon kept hard-targeting per the
+            // party mode — this tick runs before the EffectiveEnabled early-return below, so it
+            // needs its own gate; Disable must stop targeting like everything else).
+            if (configuration.EffectiveEnabled)
+                partyTargetingCoordinator?.Tick();
 
             // Push the window's off-tank designation into the coordination service so tank rotations
             // can read their durable swap role (bus lives outside the rotation container).
@@ -1701,8 +1705,11 @@ public sealed class Plugin : IDalamudPlugin
             }
 
             // Farm mode driver (throttled internally): targets profile mobs, roams spots, holds
-            // the override while running. Also before the enabled gate.
-            farmModeService.Update();
+            // the override while running. MASTER-SWITCH gated (2026-07-30, same class as the
+            // party-mode tick above): a disabled toon must not keep targeting/roaming — a farm
+            // run resumes where it left off on re-enable.
+            if (configuration.EffectiveEnabled)
+                farmModeService.Update();
 
             // Automation-driven combat only: never grind on a training dummy. If external targeting
             // somehow lands on a striking dummy, drop the target and end the IPC override (the
