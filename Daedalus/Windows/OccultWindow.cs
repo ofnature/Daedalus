@@ -108,6 +108,15 @@ public sealed class OccultWindow : Window
             return;
         }
 
+        // The alternating cycle means "next pot, either kind" is the actionable number.
+        if (_potFates.SecondsUntilNextPot() is { } nextPot)
+        {
+            if (nextPot <= 0)
+                ImGui.TextColored(Green, "Next pot FATE: due now");
+            else
+                ImGui.TextColored(Gold, $"Next pot FATE: ~{(int)(nextPot / 60):00}:{(int)(nextPot % 60):00}");
+        }
+
         foreach (var name in Daedalus.Services.Occult.PotFateTracker.PotFateNames)
         {
             var due = _potFates.SecondsUntilExpected(name);

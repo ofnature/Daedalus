@@ -108,6 +108,24 @@ public sealed class PotFateTracker
     /// <summary>Whether the cycle for this FATE came from observation rather than the default.</summary>
     public bool CycleIsMeasured(string fateName) => _observedCycleSeconds.ContainsKey(fateName);
 
+    /// <summary>
+    /// Seconds until the NEXT pot FATE of EITHER kind — the number that actually matters, since
+    /// both pay the same and they alternate. Seeing one spawn dates the other: the alternating
+    /// ~30 min cycle means the next pot is due half a cycle after the last one, whichever it
+    /// was. Null until something has been seen.
+    /// </summary>
+    public double? SecondsUntilNextPot()
+    {
+        DateTime? latest = null;
+        foreach (var t in _lastSeenUtc.Values)
+        {
+            if (latest is null || t > latest)
+                latest = t;
+        }
+
+        return latest is null ? null : ExpectedCycleSeconds - (UtcNow() - latest.Value).TotalSeconds;
+    }
+
     /// <summary>Last time this FATE was seen up, or null.</summary>
     public DateTime? LastSeenUtc(string fateName) =>
         _lastSeenUtc.TryGetValue(fateName, out var t) ? t : null;
