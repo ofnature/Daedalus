@@ -62,6 +62,12 @@ public sealed class OccultWeaknessEntry
     /// <summary>Name of the critical encounter it was seen in ("Quarried Away"), when known.</summary>
     public string CriticalEncounter { get; set; } = "";
 
+    /// <summary>
+    /// Ever seen carrying a FATE id. Unlike CE membership this needs no heuristic — the game
+    /// stamps the fate on the object, so a FATE mob identifies itself.
+    /// </summary>
+    public bool SeenInFate { get; set; }
+
     public string LastSeenUtc { get; set; } = "";
 
     /// <summary>
@@ -196,7 +202,9 @@ public sealed class ElementalWeaknessLog
         _filePath = string.IsNullOrEmpty(configDirectory)
             ? null
             : Path.Combine(configDirectory, "occult-weaknesses.json");
-        Load();
+        LoadSeed(); // shipped baseline first…
+        Load();     // …then this character's own observations, which win
+
     }
 
     /// <summary>
@@ -284,7 +292,7 @@ public sealed class ElementalWeaknessLog
                     continue;
                 if (npc.MaxHp == 0)
                     continue;
-                Record(npc, ReadRevealedElements(npc), territory, now, ceActive, ceName);
+                Record(npc, ReadRevealedElements(npc), territory, now, ceActive, ceName, InFate(npc));
             }
 
             if (_dirty && (now - _lastSaveUtc).TotalSeconds >= SaveDebounceSeconds)
@@ -340,7 +348,21 @@ public sealed class ElementalWeaknessLog
         return found;
     }
 
-    private void Record(IBattleNpc npc, OccultElement element, ushort territory, DateTime now, bool ceActive, string ceName)
+    /// <summary>Does this enemy belong to a FATE? Read straight off the object.</summary>
+    private static unsafe bool InFate(IBattleNpc npc)
+    {
+        try
+        {
+            var obj = (FFXIVClientStructs.FFXIV.Client.Game.Object.GameObject*)npc.Address;
+            return obj != null && obj->FateId != 0;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private void Record(IBattleNpc npc, OccultElement element, ushort territory, DateTime now, bool ceActive, string ceName, bool inFate)
     {
         var nameId = npc.NameId;
         if (nameId == 0)
@@ -396,6 +418,8 @@ public sealed class ElementalWeaknessLog
         {
             _pendingRescale.Remove(nameId); // a normal reading clears any half-formed suspicion
         }
+        if (inFate)
+            entry.SeenInFate = true;
         if (ceActive)
         {
             entry.SeenInCriticalEncounter = true;
@@ -410,6 +434,43 @@ public sealed class ElementalWeaknessLog
             _debugLog?.Log(Debug.DebugLogCategory.General, Debug.DebugLogSeverity.Info,
                 $"occult weakness learned: {entry.Name} — {entry.Elements} " +
                 $"({entry.MaxHp:N0} HP, territory {territory})");
+        }
+    }
+
+    /// <summary>
+    /// The table shipped with the plugin (embedded <c>Data/OccultWeaknessSeed.json</c>),
+    /// gathered on Debug builds and baked in so every toon starts with the reference rather
+    /// than an empty file. Loaded FIRST so a character's own observations override it.
+    /// </summary>
+    private void LoadSeed()
+    {
+        try
+        {
+            var asm = typeof(ElementalWeaknessLog).Assembly;
+            var resource = asm.GetManifestResourceNames()
+                .FirstOrDefault(n => n.EndsWith("OccultWeaknessSeed.json", StringComparison.Ordinal));
+            if (resource is null)
+                return;
+
+            using var stream = asm.GetManifestResourceStream(resource);
+            if (stream is null)
+                return;
+            using var reader = new StreamReader(stream);
+            var list = JsonSerializer.Deserialize<List<OccultWeaknessEntry>>(reader.ReadToEnd());
+            if (list is null)
+                return;
+
+            foreach (var e in list)
+            {
+                if (e.NameId != 0)
+                    _entries[e.NameId] = e;
+            }
+
+            _log.Information("[OccultWeakness] seeded {0} enemies from the shipped table", list.Count);
+        }
+        catch (Exception ex)
+        {
+            _log.Warning(ex, "[OccultWeakness] shipped seed unreadable — starting from the local file only");
         }
     }
 

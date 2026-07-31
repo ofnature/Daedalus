@@ -137,10 +137,15 @@ public static class OccultTab
                     continue;
 
                 ImGui.Indent();
+                // Three kinds of content, in descending "is this a fight worth planning for"
+                // order. CE membership needs the HP heuristic; FATE membership is stamped on
+                // the object by the game, so it is exact.
                 DrawEnemyGroup($"Critical Encounters###occult_ce_{zone}",
                     inZone.Where(e => e.BelongsToCriticalEncounter).ToList(), groupByEncounter: true);
+                DrawEnemyGroup($"FATEs###occult_fate_{zone}",
+                    inZone.Where(e => !e.BelongsToCriticalEncounter && e.SeenInFate).ToList(), groupByEncounter: false);
                 DrawEnemyGroup($"Regular mobs###occult_mobs_{zone}",
-                    inZone.Where(e => !e.BelongsToCriticalEncounter).ToList(), groupByEncounter: false);
+                    inZone.Where(e => !e.BelongsToCriticalEncounter && !e.SeenInFate).ToList(), groupByEncounter: false);
                 ImGui.Unindent();
             }
         }

@@ -1,0 +1,641 @@
+[
+  {
+    "NameId": 14517,
+    "Name": "Conjured Calofisteri",
+    "TerritoryId": 1346,
+    "Elements": 8,
+    "MaxHp": 237795973,
+    "SeenInCriticalEncounter": true,
+    "CriticalEncounter": "Doubled Trouble"
+  },
+  {
+    "NameId": 14509,
+    "Name": "Alabaster Blade",
+    "TerritoryId": 1346,
+    "Elements": 4,
+    "MaxHp": 216049771,
+    "SeenInCriticalEncounter": true,
+    "CriticalEncounter": "Quarried Away"
+  },
+  {
+    "NameId": 14791,
+    "Name": "Atlas Carbuncle",
+    "TerritoryId": 1346,
+    "Elements": 0,
+    "MaxHp": 212722510,
+    "SeenInCriticalEncounter": true,
+    "CriticalEncounter": "A Beast Unleashed"
+  },
+  {
+    "NameId": 14523,
+    "Name": "Phantom Hydra",
+    "TerritoryId": 1346,
+    "Elements": 0,
+    "MaxHp": 181486364,
+    "SeenInCriticalEncounter": true,
+    "CriticalEncounter": "Ahead of the Competition"
+  },
+  {
+    "NameId": 14795,
+    "Name": "Tiny Mage",
+    "TerritoryId": 1346,
+    "Elements": 4,
+    "MaxHp": 179933266,
+    "SeenInCriticalEncounter": true,
+    "CriticalEncounter": "Tiny Terror"
+  },
+  {
+    "NameId": 14505,
+    "Name": "Abductor",
+    "TerritoryId": 1346,
+    "Elements": 0,
+    "MaxHp": 126424243,
+    "SeenInCriticalEncounter": true,
+    "CriticalEncounter": "Lost on the Wind"
+  },
+  {
+    "NameId": 14508,
+    "Name": "Elm Gigas",
+    "TerritoryId": 1346,
+    "Elements": 4,
+    "MaxHp": 117527445,
+    "SeenInCriticalEncounter": true,
+    "CriticalEncounter": "Familiar Tactics"
+  },
+  {
+    "NameId": 14762,
+    "Name": "Ruin Hound",
+    "TerritoryId": 1346,
+    "Elements": 0,
+    "MaxHp": 25070262,
+    "SeenInCriticalEncounter": false,
+    "CriticalEncounter": ""
+  },
+  {
+    "NameId": 14799,
+    "Name": "Arcane Sphere",
+    "TerritoryId": 1346,
+    "Elements": 0,
+    "MaxHp": 9040847,
+    "SeenInCriticalEncounter": true,
+    "CriticalEncounter": "Tiny Terror"
+  },
+  {
+    "NameId": 14800,
+    "Name": "Arcane Sphere",
+    "TerritoryId": 1346,
+    "Elements": 4,
+    "MaxHp": 8157156,
+    "SeenInCriticalEncounter": true,
+    "CriticalEncounter": "Tiny Terror"
+  },
+  {
+    "NameId": 108,
+    "Name": "",
+    "TerritoryId": 1346,
+    "Elements": 0,
+    "MaxHp": 7475510,
+    "SeenInCriticalEncounter": true,
+    "CriticalEncounter": "Tiny Terror"
+  },
+  {
+    "NameId": 14519,
+    "Name": "Lithe Lock",
+    "TerritoryId": 1346,
+    "Elements": 0,
+    "MaxHp": 7475510,
+    "SeenInCriticalEncounter": true,
+    "CriticalEncounter": "Doubled Trouble"
+  },
+  {
+    "NameId": 14510,
+    "Name": "Alabaster Golem",
+    "TerritoryId": 1346,
+    "Elements": 0,
+    "MaxHp": 6967100,
+    "SeenInCriticalEncounter": true,
+    "CriticalEncounter": "Quarried Away"
+  },
+  {
+    "NameId": 14797,
+    "Name": "Flare Sphere",
+    "TerritoryId": 1346,
+    "Elements": 0,
+    "MaxHp": 6797630,
+    "SeenInCriticalEncounter": true,
+    "CriticalEncounter": "Tiny Terror"
+  },
+  {
+    "NameId": 14798,
+    "Name": "Holy Sphere",
+    "TerritoryId": 1346,
+    "Elements": 0,
+    "MaxHp": 6797630,
+    "SeenInCriticalEncounter": true,
+    "CriticalEncounter": "Tiny Terror"
+  },
+  {
+    "NameId": 14796,
+    "Name": "Tiny Apprentice",
+    "TerritoryId": 1346,
+    "Elements": 0,
+    "MaxHp": 6797630,
+    "SeenInCriticalEncounter": true,
+    "CriticalEncounter": "Tiny Terror"
+  },
+  {
+    "NameId": 14792,
+    "Name": "Topaz Stone",
+    "TerritoryId": 1346,
+    "Elements": 0,
+    "MaxHp": 6119750,
+    "SeenInCriticalEncounter": true,
+    "CriticalEncounter": "A Beast Unleashed"
+  },
+  {
+    "NameId": 14525,
+    "Name": "Ball of Fire",
+    "TerritoryId": 1346,
+    "Elements": 0,
+    "MaxHp": 5441870,
+    "SeenInCriticalEncounter": true,
+    "CriticalEncounter": "Ahead of the Competition"
+  },
+  {
+    "NameId": 14527,
+    "Name": "Ball of Levin",
+    "TerritoryId": 1346,
+    "Elements": 0,
+    "MaxHp": 5441870,
+    "SeenInCriticalEncounter": true,
+    "CriticalEncounter": "Ahead of the Competition"
+  },
+  {
+    "NameId": 14524,
+    "Name": "Holy Sphere",
+    "TerritoryId": 1346,
+    "Elements": 0,
+    "MaxHp": 5441870,
+    "SeenInCriticalEncounter": true,
+    "CriticalEncounter": "Ahead of the Competition"
+  },
+  {
+    "NameId": 14526,
+    "Name": "Swirling Orb",
+    "TerritoryId": 1346,
+    "Elements": 0,
+    "MaxHp": 5441870,
+    "SeenInCriticalEncounter": true,
+    "CriticalEncounter": "Ahead of the Competition"
+  },
+  {
+    "NameId": 541,
+    "Name": "Striking Dummy",
+    "TerritoryId": 1346,
+    "Elements": 0,
+    "MaxHp": 4716915,
+    "SeenInCriticalEncounter": false,
+    "CriticalEncounter": ""
+  },
+  {
+    "NameId": 14507,
+    "Name": "Abductor's Plume",
+    "TerritoryId": 1346,
+    "Elements": 0,
+    "MaxHp": 4086110,
+    "SeenInCriticalEncounter": true,
+    "CriticalEncounter": "Lost on the Wind"
+  },
+  {
+    "NameId": 14506,
+    "Name": "Biting Wind",
+    "TerritoryId": 1346,
+    "Elements": 0,
+    "MaxHp": 4086110,
+    "SeenInCriticalEncounter": true,
+    "CriticalEncounter": "Lost on the Wind"
+  },
+  {
+    "NameId": 14765,
+    "Name": "Iambe",
+    "TerritoryId": 1346,
+    "Elements": 0,
+    "MaxHp": 1525230,
+    "SeenInCriticalEncounter": false,
+    "CriticalEncounter": ""
+  },
+  {
+    "NameId": 14766,
+    "Name": "Winsome Seed",
+    "TerritoryId": 1346,
+    "Elements": 0,
+    "MaxHp": 1525230,
+    "SeenInCriticalEncounter": false,
+    "CriticalEncounter": ""
+  },
+  {
+    "NameId": 14911,
+    "Name": "Crescent Jester",
+    "TerritoryId": 1346,
+    "Elements": 0,
+    "MaxHp": 862414,
+    "SeenInCriticalEncounter": false,
+    "CriticalEncounter": ""
+  },
+  {
+    "NameId": 14913,
+    "Name": "Crescent Gusion",
+    "TerritoryId": 1346,
+    "Elements": 0,
+    "MaxHp": 856765,
+    "SeenInCriticalEncounter": true,
+    "CriticalEncounter": "A Beast Unleashed"
+  },
+  {
+    "NameId": 14907,
+    "Name": "Crescent Arioch",
+    "TerritoryId": 1346,
+    "Elements": 0,
+    "MaxHp": 843584,
+    "SeenInCriticalEncounter": true,
+    "CriticalEncounter": "Quarried Away"
+  },
+  {
+    "NameId": 14910,
+    "Name": "Crescent Oiseau Rare",
+    "TerritoryId": 1346,
+    "Elements": 0,
+    "MaxHp": 843584,
+    "SeenInCriticalEncounter": false,
+    "CriticalEncounter": ""
+  },
+  {
+    "NameId": 14899,
+    "Name": "Crescent Gargoyle",
+    "TerritoryId": 1346,
+    "Elements": 0,
+    "MaxHp": 813456,
+    "SeenInCriticalEncounter": true,
+    "CriticalEncounter": "Doubled Trouble"
+  },
+  {
+    "NameId": 13942,
+    "Name": "Crescent Mimic",
+    "TerritoryId": 1346,
+    "Elements": 0,
+    "MaxHp": 813456,
+    "SeenInCriticalEncounter": false,
+    "CriticalEncounter": ""
+  },
+  {
+    "NameId": 14898,
+    "Name": "Crescent Parthenope",
+    "TerritoryId": 1346,
+    "Elements": 0,
+    "MaxHp": 813456,
+    "SeenInCriticalEncounter": true,
+    "CriticalEncounter": "Doubled Trouble"
+  },
+  {
+    "NameId": 14896,
+    "Name": "Crescent Blackguard",
+    "TerritoryId": 1346,
+    "Elements": 0,
+    "MaxHp": 811573,
+    "SeenInCriticalEncounter": true,
+    "CriticalEncounter": "Doubled Trouble"
+  },
+  {
+    "NameId": 14897,
+    "Name": "Crescent Hellhound",
+    "TerritoryId": 1346,
+    "Elements": 0,
+    "MaxHp": 811573,
+    "SeenInCriticalEncounter": false,
+    "CriticalEncounter": ""
+  },
+  {
+    "NameId": 14895,
+    "Name": "Crescent Banemite",
+    "TerritoryId": 1346,
+    "Elements": 0,
+    "MaxHp": 809690,
+    "SeenInCriticalEncounter": true,
+    "CriticalEncounter": "Quarried Away"
+  },
+  {
+    "NameId": 14894,
+    "Name": "Crescent Moss Fungus",
+    "TerritoryId": 1346,
+    "Elements": 0,
+    "MaxHp": 809690,
+    "SeenInCriticalEncounter": true,
+    "CriticalEncounter": "Quarried Away"
+  },
+  {
+    "NameId": 14892,
+    "Name": "Crescent Gremlin",
+    "TerritoryId": 1346,
+    "Elements": 0,
+    "MaxHp": 805924,
+    "SeenInCriticalEncounter": false,
+    "CriticalEncounter": ""
+  },
+  {
+    "NameId": 14893,
+    "Name": "Crescent Rot-eyes",
+    "TerritoryId": 1346,
+    "Elements": 0,
+    "MaxHp": 805924,
+    "SeenInCriticalEncounter": true,
+    "CriticalEncounter": "Quarried Away"
+  },
+  {
+    "NameId": 14900,
+    "Name": "Crescent Craklaw",
+    "TerritoryId": 1346,
+    "Elements": 0,
+    "MaxHp": 804041,
+    "SeenInCriticalEncounter": true,
+    "CriticalEncounter": "Doubled Trouble"
+  },
+  {
+    "NameId": 14890,
+    "Name": "Crescent Regolith",
+    "TerritoryId": 1346,
+    "Elements": 0,
+    "MaxHp": 804041,
+    "SeenInCriticalEncounter": false,
+    "CriticalEncounter": ""
+  },
+  {
+    "NameId": 14891,
+    "Name": "Crescent Rock",
+    "TerritoryId": 1346,
+    "Elements": 0,
+    "MaxHp": 804041,
+    "SeenInCriticalEncounter": false,
+    "CriticalEncounter": ""
+  },
+  {
+    "NameId": 13939,
+    "Name": "Crescent Bomb",
+    "TerritoryId": 1346,
+    "Elements": 0,
+    "MaxHp": 802158,
+    "SeenInCriticalEncounter": true,
+    "CriticalEncounter": "Tiny Terror"
+  },
+  {
+    "NameId": 14885,
+    "Name": "Crescent Kaluk",
+    "TerritoryId": 1346,
+    "Elements": 0,
+    "MaxHp": 796509,
+    "SeenInCriticalEncounter": true,
+    "CriticalEncounter": "Familiar Tactics"
+  },
+  {
+    "NameId": 14918,
+    "Name": "Crescent Necrodium",
+    "TerritoryId": 1346,
+    "Elements": 0,
+    "MaxHp": 796509,
+    "SeenInCriticalEncounter": true,
+    "CriticalEncounter": "Familiar Tactics"
+  },
+  {
+    "NameId": 14905,
+    "Name": "Crescent Anila",
+    "TerritoryId": 1346,
+    "Elements": 0,
+    "MaxHp": 794626,
+    "SeenInCriticalEncounter": true,
+    "CriticalEncounter": "Familiar Tactics"
+  },
+  {
+    "NameId": 14882,
+    "Name": "Crescent Coeurl",
+    "TerritoryId": 1346,
+    "Elements": 0,
+    "MaxHp": 794626,
+    "SeenInCriticalEncounter": true,
+    "CriticalEncounter": "Familiar Tactics"
+  },
+  {
+    "NameId": 14919,
+    "Name": "Crescent Bicephalus",
+    "TerritoryId": 1346,
+    "Elements": 0,
+    "MaxHp": 792743,
+    "SeenInCriticalEncounter": true,
+    "CriticalEncounter": "Familiar Tactics"
+  },
+  {
+    "NameId": 14880,
+    "Name": "Crescent Kargas",
+    "TerritoryId": 1346,
+    "Elements": 0,
+    "MaxHp": 792743,
+    "SeenInCriticalEncounter": true,
+    "CriticalEncounter": "Familiar Tactics"
+  },
+  {
+    "NameId": 14881,
+    "Name": "Crescent Sand Serpent",
+    "TerritoryId": 1346,
+    "Elements": 0,
+    "MaxHp": 792743,
+    "SeenInCriticalEncounter": true,
+    "CriticalEncounter": "Ahead of the Competition"
+  },
+  {
+    "NameId": 14879,
+    "Name": "Crescent Elftoad",
+    "TerritoryId": 1346,
+    "Elements": 0,
+    "MaxHp": 790860,
+    "SeenInCriticalEncounter": true,
+    "CriticalEncounter": "Tiny Terror"
+  },
+  {
+    "NameId": 14878,
+    "Name": "Crescent Medusa",
+    "TerritoryId": 1346,
+    "Elements": 0,
+    "MaxHp": 790860,
+    "SeenInCriticalEncounter": true,
+    "CriticalEncounter": "Ahead of the Competition"
+  },
+  {
+    "NameId": 14876,
+    "Name": "Crescent Huwasi",
+    "TerritoryId": 1346,
+    "Elements": 0,
+    "MaxHp": 788977,
+    "SeenInCriticalEncounter": false,
+    "CriticalEncounter": ""
+  },
+  {
+    "NameId": 14922,
+    "Name": "Crescent Stoneshell",
+    "TerritoryId": 1346,
+    "Elements": 0,
+    "MaxHp": 788977,
+    "SeenInCriticalEncounter": false,
+    "CriticalEncounter": ""
+  },
+  {
+    "NameId": 14869,
+    "Name": "Crescent Belladonna",
+    "TerritoryId": 1346,
+    "Elements": 0,
+    "MaxHp": 783328,
+    "SeenInCriticalEncounter": true,
+    "CriticalEncounter": "Lost on the Wind"
+  },
+  {
+    "NameId": 14873,
+    "Name": "Crescent Wraith",
+    "TerritoryId": 1346,
+    "Elements": 0,
+    "MaxHp": 783328,
+    "SeenInCriticalEncounter": true,
+    "CriticalEncounter": "Lost on the Wind"
+  },
+  {
+    "NameId": 14871,
+    "Name": "Crescent Melia",
+    "TerritoryId": 1346,
+    "Elements": 0,
+    "MaxHp": 781445,
+    "SeenInCriticalEncounter": false,
+    "CriticalEncounter": ""
+  },
+  {
+    "NameId": 14870,
+    "Name": "Crescent Sapria",
+    "TerritoryId": 1346,
+    "Elements": 0,
+    "MaxHp": 781445,
+    "SeenInCriticalEncounter": false,
+    "CriticalEncounter": ""
+  },
+  {
+    "NameId": 14875,
+    "Name": "Crescent Soblyn",
+    "TerritoryId": 1346,
+    "Elements": 0,
+    "MaxHp": 779562,
+    "SeenInCriticalEncounter": false,
+    "CriticalEncounter": ""
+  },
+  {
+    "NameId": 14863,
+    "Name": "Crescent Worm",
+    "TerritoryId": 1346,
+    "Elements": 0,
+    "MaxHp": 773913,
+    "SeenInCriticalEncounter": true,
+    "CriticalEncounter": "Tiny Terror"
+  },
+  {
+    "NameId": 14864,
+    "Name": "Crescent Zu",
+    "TerritoryId": 1346,
+    "Elements": 0,
+    "MaxHp": 773913,
+    "SeenInCriticalEncounter": true,
+    "CriticalEncounter": "A Beast Unleashed"
+  },
+  {
+    "NameId": 14860,
+    "Name": "Crescent Bibliotaph",
+    "TerritoryId": 1346,
+    "Elements": 0,
+    "MaxHp": 772030,
+    "SeenInCriticalEncounter": false,
+    "CriticalEncounter": ""
+  },
+  {
+    "NameId": 14862,
+    "Name": "Crescent Cingulata",
+    "TerritoryId": 1346,
+    "Elements": 0,
+    "MaxHp": 772030,
+    "SeenInCriticalEncounter": false,
+    "CriticalEncounter": ""
+  },
+  {
+    "NameId": 14857,
+    "Name": "Crescent Cliffkite",
+    "TerritoryId": 1346,
+    "Elements": 0,
+    "MaxHp": 766381,
+    "SeenInCriticalEncounter": false,
+    "CriticalEncounter": ""
+  },
+  {
+    "NameId": 14915,
+    "Name": "Crescent Rothound",
+    "TerritoryId": 1346,
+    "Elements": 0,
+    "MaxHp": 766381,
+    "SeenInCriticalEncounter": false,
+    "CriticalEncounter": ""
+  },
+  {
+    "NameId": 14763,
+    "Name": "Ice Pillar",
+    "TerritoryId": 1346,
+    "Elements": 0,
+    "MaxHp": 681646,
+    "SeenInCriticalEncounter": false,
+    "CriticalEncounter": ""
+  },
+  {
+    "NameId": 14518,
+    "Name": "Entanglement",
+    "TerritoryId": 1346,
+    "Elements": 0,
+    "MaxHp": 448530,
+    "SeenInCriticalEncounter": true,
+    "CriticalEncounter": "Doubled Trouble"
+  },
+  {
+    "NameId": 7958,
+    "Name": "Hidden Trap",
+    "TerritoryId": 1346,
+    "Elements": 0,
+    "MaxHp": 188300,
+    "SeenInCriticalEncounter": false,
+    "CriticalEncounter": ""
+  },
+  {
+    "NameId": 13742,
+    "Name": "Persistent Pot",
+    "TerritoryId": 1346,
+    "Elements": 0,
+    "MaxHp": 188300,
+    "SeenInCriticalEncounter": true,
+    "CriticalEncounter": "Lost on the Wind"
+  },
+  {
+    "NameId": 14786,
+    "Name": "Ball of Levin",
+    "TerritoryId": 1346,
+    "Elements": 0,
+    "MaxHp": 152523,
+    "SeenInCriticalEncounter": false,
+    "CriticalEncounter": ""
+  },
+  {
+    "NameId": 14785,
+    "Name": "Cresceregina",
+    "TerritoryId": 1346,
+    "Elements": 0,
+    "MaxHp": 152523,
+    "SeenInCriticalEncounter": false,
+    "CriticalEncounter": ""
+  }
+]

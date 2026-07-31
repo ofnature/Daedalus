@@ -17,6 +17,7 @@
   <!-- Embedded timeline resources -->
   <ItemGroup>
     <EmbeddedResource Include="Timeline\Data\*.txt" />
+    <EmbeddedResource Include="Data\OccultWeaknessSeed.json" />
   </ItemGroup>
 
   <!-- Embedded training data (lessons and quizzes) - supports language subfolders -->
