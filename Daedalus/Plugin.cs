@@ -228,7 +228,8 @@ public sealed class Plugin : IDalamudPlugin
         INotificationManager notificationManager,
         IKeyState keyState,
         IDtrBar dtrBar,
-        IToastGui toastGui)
+        IToastGui toastGui,
+        Dalamud.Plugin.Services.IFateTable fateTable)
     {
         this.toastGui = toastGui;
         this.pluginInterface = pluginInterface;
@@ -630,7 +631,7 @@ public sealed class Plugin : IDalamudPlugin
         // Learns which Occult enemies are weak to which element (statuses 5322-5325, revealed
         // by Occult Libra etc.) and persists the table — the ice list feeds Deep Freeze value.
         this.elementalWeaknessLog = new Daedalus.Services.Occult.ElementalWeaknessLog(
-            objectTable, clientState, log, pluginInterface.ConfigDirectory.FullName, debugLogService);
+            objectTable, clientState, log, pluginInterface.ConfigDirectory.FullName, debugLogService, fateTable);
 
         // Phantom duty-action executor (Phase 3 utility bands + Phase 4 damage band):
         // pre/post hooks around every job's modules via BaseRotation. Inert outside

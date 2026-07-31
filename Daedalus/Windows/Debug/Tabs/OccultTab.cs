@@ -143,7 +143,8 @@ public static class OccultTab
                 DrawEnemyGroup($"Critical Encounters###occult_ce_{zone}",
                     inZone.Where(e => e.BelongsToCriticalEncounter).ToList(), groupByEncounter: true);
                 DrawEnemyGroup($"FATEs###occult_fate_{zone}",
-                    inZone.Where(e => !e.BelongsToCriticalEncounter && e.SeenInFate).ToList(), groupByEncounter: false);
+                    inZone.Where(e => !e.BelongsToCriticalEncounter && e.SeenInFate).ToList(),
+                    groupByEncounter: true, fateNames: true);
                 DrawEnemyGroup($"Regular mobs###occult_mobs_{zone}",
                     inZone.Where(e => !e.BelongsToCriticalEncounter && !e.SeenInFate).ToList(), groupByEncounter: false);
                 ImGui.Unindent();
@@ -156,7 +157,8 @@ public static class OccultTab
 
     /// <summary>One collapsible group of enemies (bosses first, then by HP).</summary>
     private static void DrawEnemyGroup(
-        string label, List<Daedalus.Services.Occult.OccultWeaknessEntry> group, bool groupByEncounter)
+        string label, List<Daedalus.Services.Occult.OccultWeaknessEntry> group, bool groupByEncounter,
+        bool fateNames = false)
     {
         var title = label.Contains("###")
             ? label.Insert(label.IndexOf("###", StringComparison.Ordinal), $" ({group.Count})")
@@ -172,8 +174,11 @@ public static class OccultTab
         }
         else
         {
+            string EncounterOf(Daedalus.Services.Occult.OccultWeaknessEntry e)
+                => fateNames ? e.Fate : e.CriticalEncounter;
+
             var ordered = groupByEncounter
-                ? group.OrderBy(e => e.CriticalEncounter, StringComparer.OrdinalIgnoreCase)
+                ? group.OrderBy(EncounterOf, StringComparer.OrdinalIgnoreCase)
                        .ThenByDescending(e => e.MaxHp).ToList()
                 // Non-CE groups (FATEs, Regular mobs): notable first, then ALPHABETICAL. These
                 // lists are dozens of similarly-sized "Crescent …" field mobs, so name order
@@ -186,10 +191,12 @@ public static class OccultTab
             {
                 // Inside the CE group, break the list by encounter so it reads as a per-fight
                 // roster rather than one long list.
-                if (groupByEncounter && !string.Equals(e.CriticalEncounter, lastEncounter, StringComparison.Ordinal))
+                if (groupByEncounter && !string.Equals(EncounterOf(e), lastEncounter, StringComparison.Ordinal))
                 {
-                    lastEncounter = e.CriticalEncounter;
-                    ImGui.TextColored(Yellow, string.IsNullOrEmpty(lastEncounter) ? "(encounter unnamed)" : lastEncounter);
+                    lastEncounter = EncounterOf(e);
+                    ImGui.TextColored(Yellow, string.IsNullOrEmpty(lastEncounter)
+                        ? (fateNames ? "(FATE unnamed — seen before names were read)" : "(encounter unnamed)")
+                        : lastEncounter);
                 }
 
                 DrawEnemyLine(e, indented: groupByEncounter);

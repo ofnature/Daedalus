@@ -68,6 +68,9 @@ public sealed class OccultWeaknessEntry
     /// </summary>
     public bool SeenInFate { get; set; }
 
+    /// <summary>Name of the FATE it was seen in ("Allure of the Occult"), when resolvable.</summary>
+    public string Fate { get; set; } = "";
+
     public string LastSeenUtc { get; set; } = "";
 
     /// <summary>
@@ -174,6 +177,7 @@ public sealed class ElementalWeaknessLog
         stored > 0 && IsCredibleMaxHp(observed) && observed <= stored * RescaleDetectionFraction;
 
     private readonly IObjectTable _objectTable;
+    private readonly Dalamud.Plugin.Services.IFateTable? _fateTable;
     private readonly IClientState _clientState;
     private readonly IPluginLog _log;
     private readonly Debug.DebugLogService? _debugLog;
@@ -193,9 +197,11 @@ public sealed class ElementalWeaknessLog
         IClientState clientState,
         IPluginLog log,
         string? configDirectory,
-        Debug.DebugLogService? debugLog = null)
+        Debug.DebugLogService? debugLog = null,
+        Dalamud.Plugin.Services.IFateTable? fateTable = null)
     {
         _objectTable = objectTable;
+        _fateTable = fateTable;
         _clientState = clientState;
         _log = log;
         _debugLog = debugLog;
@@ -292,7 +298,8 @@ public sealed class ElementalWeaknessLog
                     continue;
                 if (npc.MaxHp == 0)
                     continue;
-                Record(npc, ReadRevealedElements(npc), territory, now, ceActive, ceName, InFate(npc));
+                var (inFate, fateName) = ReadFate(npc);
+                Record(npc, ReadRevealedElements(npc), territory, now, ceActive, ceName, inFate, fateName);
             }
 
             if (_dirty && (now - _lastSaveUtc).TotalSeconds >= SaveDebounceSeconds)
@@ -348,21 +355,38 @@ public sealed class ElementalWeaknessLog
         return found;
     }
 
-    /// <summary>Does this enemy belong to a FATE? Read straight off the object.</summary>
-    private static unsafe bool InFate(IBattleNpc npc)
+    /// <summary>
+    /// The FATE this enemy belongs to: its id straight off the object, resolved to a name via
+    /// the fate table. Id 0 = not in a FATE. A live id with no matching table row still counts
+    /// as a FATE (unnamed) — the stamp is the fact, the name is a convenience.
+    /// </summary>
+    private unsafe (bool InFate, string Name) ReadFate(IBattleNpc npc)
     {
         try
         {
             var obj = (FFXIVClientStructs.FFXIV.Client.Game.Object.GameObject*)npc.Address;
-            return obj != null && obj->FateId != 0;
+            if (obj == null || obj->FateId == 0)
+                return (false, string.Empty);
+
+            var id = obj->FateId;
+            if (_fateTable != null)
+            {
+                foreach (var fate in _fateTable)
+                {
+                    if (fate.FateId == id)
+                        return (true, fate.Name.TextValue ?? string.Empty);
+                }
+            }
+
+            return (true, string.Empty);
         }
         catch
         {
-            return false;
+            return (false, string.Empty);
         }
     }
 
-    private void Record(IBattleNpc npc, OccultElement element, ushort territory, DateTime now, bool ceActive, string ceName, bool inFate)
+    private void Record(IBattleNpc npc, OccultElement element, ushort territory, DateTime now, bool ceActive, string ceName, bool inFate, string fateName)
     {
         var nameId = npc.NameId;
         if (nameId == 0)
@@ -419,7 +443,11 @@ public sealed class ElementalWeaknessLog
             _pendingRescale.Remove(nameId); // a normal reading clears any half-formed suspicion
         }
         if (inFate)
+        {
             entry.SeenInFate = true;
+            if (!string.IsNullOrEmpty(fateName))
+                entry.Fate = fateName;
+        }
         if (ceActive)
         {
             entry.SeenInCriticalEncounter = true;
