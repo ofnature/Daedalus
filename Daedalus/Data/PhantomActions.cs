@@ -25,11 +25,6 @@ public static class PhantomActions
         // ── Freelancer (levels via mastery count, so unlocks run past 6) ──
         new(41650, "Occult Resuscitation", PhantomJob.Freelancer, 5),
         new(41651, "Occult Treasuresight", PhantomJob.Freelancer, 10),
-        // Occult Libra (North Horn): FREELANCER ONLY (field-confirmed 2026-07-31) — the only
-        // way to REVEAL an enemy's elemental weakness. 30y, 5s recast, Ability (weaves).
-        // Level 1 until the real unlock level is sighted; the duty-bar gate fails closed
-        // anyway, so an optimistic level can only ever under-restrict, never mis-fire.
-        new(49094, "Occult Libra", PhantomJob.Freelancer, 1),
 
         // ── Knight ──
         new(41588, "Phantom Guard", PhantomJob.Knight, 1),
@@ -147,10 +142,14 @@ public static class PhantomActions
         new(49065, "Flame Scroll", PhantomJob.PhantomNinja, 4),     // 150 (195 fire-weak), 5y AoE, 60s
         new(49066, "Image", PhantomJob.PhantomNinja, 6),            // 3 stacks, nullifies most physical, 30s
 
-        // Neighbouring 49060-49070 ids seen in the sheet but NOT yet attributed to a job
-        // (no duty-bar sighting): 49060 Meteor / 49061 Comet (Black Mage?), 49067 Occult
-        // Cure II / 49068 Occult Cure III / 49070 Occult Raise (White Mage?), 49069 Occult
-        // Blink. Left uncataloged rather than guessed.
+        // North Horn ids seen in the sheet but NOT yet attributed to a job (no duty-bar
+        // sighting): 49060 Meteor / 49061 Comet (Black Mage?), 49067 Occult Cure II / 49068
+        // Occult Cure III / 49070 Occult Raise (White Mage?), 49069 Occult Blink, and 49094
+        // OCCULT LIBRA — the elemental-weakness reveal. Libra was briefly filed under
+        // Freelancer on 2026-07-31 and reverted: it does not appear on that job's panel in
+        // the field. Whoever owns it, one Debug > Duty slot listing settles it; the weakness
+        // table meanwhile fills from reveals by anyone nearby, which is how the CE bosses got
+        // identified without us ever casting it.
 
         // ── Necromancer (North Horn; block starts 49097 — only field-confirmed actions are
         // cataloged, one bar screenshot per level unlock extends this) ──

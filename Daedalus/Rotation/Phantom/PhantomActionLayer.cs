@@ -289,16 +289,6 @@ public sealed class PhantomActionLayer
         var targetHpPct = target.MaxHp > 0 ? (float)target.CurrentHp / target.MaxHp : 1f;
         var distance = System.Numerics.Vector3.Distance(ctx.Player.Position, target.Position) - target.HitboxRadius;
 
-        // Occult Libra: Freelancer-only, and the only way to reveal an elemental weakness.
-        // Fire it at anything we have not identified yet — a weave for a permanent entry in
-        // the weakness table (and +30% aspected damage for everyone attacking it right now).
-        if (job == PhantomJob.Freelancer && cfg.FreelancerUseLibra
-            && target is IBattleNpc libraTarget
-            && TargetWeakness?.Invoke(libraTarget.NameId) is null)
-        {
-            TryPush(ctx, 49094, job, level, PrioPartyBuff, target.GameObjectId, target);
-        }
-
         // Executes / non-scaling utility fire regardless of the burst hold (RSR parity).
         if (job == PhantomJob.Thief && PhantomBandRules.ShouldSteal(targetHpPct))
             TryPush(ctx, 41645, job, level, PrioDamage, target.GameObjectId, target); // Steal

@@ -152,12 +152,6 @@ public sealed class OccultSection
                 ConfigUIHelpers.Toggle("Use Occult Treasuresight",
                     () => config.Occult.UseTreasuresight, v => config.Occult.UseTreasuresight = v,
                     null, save);
-                ConfigUIHelpers.Toggle("Use Occult Libra on unidentified enemies",
-                    () => config.Occult.FreelancerUseLibra, v => config.Occult.FreelancerUseLibra = v,
-                    "Freelancer is the only phantom job with Libra, and Libra is the only way to reveal an elemental weakness. " +
-                    "Fires on enemies whose weakness isn't recorded yet — it weaves (5s recast, no GCD cost), boosts everyone's aspected damage on that target, " +
-                    "and permanently fills the weakness table shown in Debug > Duty.",
-                    save);
                 break;
 
             case PhantomJob.Knight:
