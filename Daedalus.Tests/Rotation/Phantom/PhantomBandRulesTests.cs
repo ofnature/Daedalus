@@ -146,20 +146,20 @@ public class PhantomBandRulesTests
     {
         var cfg = new PhantomConfig();
         Assert.False(cfg.NecromancerUseDeepFreeze);
-        Assert.False(PhantomBandRules.ShouldDeepFreeze(cfg, selfHpPct: 1f, hasDoom: false, hasDrainTouchBuff: true));
+        Assert.False(PhantomBandRules.ShouldFireDoomNuke(cfg, selfHpPct: 1f, hasDoom: false, hasDrainTouchBuff: true));
     }
 
     [Fact]
     public void DeepFreeze_AllConditionsMet_Fires()
     {
-        Assert.True(PhantomBandRules.ShouldDeepFreeze(
+        Assert.True(PhantomBandRules.ShouldFireDoomNuke(
             DeepFreezeOptedIn(), selfHpPct: 1f, hasDoom: false, hasDrainTouchBuff: true));
     }
 
     [Fact]
     public void DeepFreeze_NeverStacksASecondDeathTimer()
     {
-        Assert.False(PhantomBandRules.ShouldDeepFreeze(
+        Assert.False(PhantomBandRules.ShouldFireDoomNuke(
             DeepFreezeOptedIn(), selfHpPct: 1f, hasDoom: true, hasDrainTouchBuff: true));
     }
 
@@ -167,14 +167,14 @@ public class PhantomBandRulesTests
     public void DeepFreeze_HeldBelowTheHpFloor()
     {
         // 94% with a 95% floor: the 10% cost would land at ~84% with a 10s clock running.
-        Assert.False(PhantomBandRules.ShouldDeepFreeze(
+        Assert.False(PhantomBandRules.ShouldFireDoomNuke(
             DeepFreezeOptedIn(), selfHpPct: 0.94f, hasDoom: false, hasDrainTouchBuff: true));
     }
 
     [Fact]
     public void DeepFreeze_HeldWithoutDrainTouch_WhenRequired()
     {
-        Assert.False(PhantomBandRules.ShouldDeepFreeze(
+        Assert.False(PhantomBandRules.ShouldFireDoomNuke(
             DeepFreezeOptedIn(), selfHpPct: 1f, hasDoom: false, hasDrainTouchBuff: false));
     }
 
@@ -184,10 +184,10 @@ public class PhantomBandRulesTests
         var cfg = DeepFreezeOptedIn();
         cfg.NecromancerDeepFreezeRequireDrainTouch = false;
 
-        Assert.True(PhantomBandRules.ShouldDeepFreeze(cfg, 1f, hasDoom: false, hasDrainTouchBuff: false));
+        Assert.True(PhantomBandRules.ShouldFireDoomNuke(cfg, 1f, hasDoom: false, hasDrainTouchBuff: false));
         // Doom and the HP floor are NOT waivable — they are the death conditions.
-        Assert.False(PhantomBandRules.ShouldDeepFreeze(cfg, 1f, hasDoom: true, hasDrainTouchBuff: false));
-        Assert.False(PhantomBandRules.ShouldDeepFreeze(cfg, 0.5f, hasDoom: false, hasDrainTouchBuff: false));
+        Assert.False(PhantomBandRules.ShouldFireDoomNuke(cfg, 1f, hasDoom: true, hasDrainTouchBuff: false));
+        Assert.False(PhantomBandRules.ShouldFireDoomNuke(cfg, 0.5f, hasDoom: false, hasDrainTouchBuff: false));
     }
 
     [Fact]
@@ -197,6 +197,54 @@ public class PhantomBandRulesTests
         Assert.Equal(0.5f, cfg.NecromancerDeepFreezeMinHpPercent); // never below half HP
         cfg.NecromancerDeepFreezeMinHpPercent = 2f;
         Assert.Equal(1f, cfg.NecromancerDeepFreezeMinHpPercent);
+    }
+
+    // ── North Horn element pickers ──
+
+    [Fact]
+    public void NecromancerTrio_FiresTheElementTheTargetIsWeakTo()
+    {
+        // Deep Freeze / Hell Wind / Chaos Drive share ONE 40s recast, so this is an exclusive
+        // choice: 520 potency instead of 400 under Drain Touch.
+        Assert.Equal(PhantomBandRules.DeepFreezeId,
+            PhantomBandRules.SelectElementalNuke(Daedalus.Services.Occult.OccultElement.Ice));
+        Assert.Equal(PhantomBandRules.HellWindId,
+            PhantomBandRules.SelectElementalNuke(Daedalus.Services.Occult.OccultElement.Wind));
+        Assert.Equal(PhantomBandRules.ChaosDriveId,
+            PhantomBandRules.SelectElementalNuke(Daedalus.Services.Occult.OccultElement.Lightning));
+    }
+
+    [Fact]
+    public void NecromancerTrio_UnknownOrUnmatchedWeakness_FallsBackNotBlocks()
+    {
+        // Unknown must never mean "fire nothing"; fire weakness has no nuke in this kit.
+        Assert.Equal(PhantomBandRules.DeepFreezeId, PhantomBandRules.SelectElementalNuke(null));
+        Assert.Equal(PhantomBandRules.DeepFreezeId,
+            PhantomBandRules.SelectElementalNuke(Daedalus.Services.Occult.OccultElement.Fire));
+    }
+
+    [Fact]
+    public void NinjaScrolls_LeadWithTheMatchingElement_ButBothStayUsable()
+    {
+        // Independent 60s recasts, so this is ordering, not exclusion (195 vs 150).
+        Assert.Equal(PhantomBandRules.FlameScrollId,
+            PhantomBandRules.PreferredScroll(Daedalus.Services.Occult.OccultElement.Fire));
+        Assert.Equal(PhantomBandRules.LightningScrollId,
+            PhantomBandRules.PreferredScroll(Daedalus.Services.Occult.OccultElement.Lightning));
+        Assert.Equal(PhantomBandRules.LightningScrollId, PhantomBandRules.PreferredScroll(null));
+    }
+
+    [Fact]
+    public void PhantomNinja_KitIsCataloged()
+    {
+        var nin = PhantomActions.ForJob(PhantomJob.PhantomNinja);
+        Assert.Contains(nin, a => a.ActionId == 49062 && a.RequiredLevel == 1); // Fuma Shuriken
+        Assert.Contains(nin, a => a.ActionId == 49063 && a.RequiredLevel == 2); // Smoke
+        Assert.Contains(nin, a => a.ActionId == 49064 && a.RequiredLevel == 3); // Lightning Scroll
+        Assert.Contains(nin, a => a.ActionId == 49065 && a.RequiredLevel == 4); // Flame Scroll
+        Assert.Contains(nin, a => a.ActionId == 49066 && a.RequiredLevel == 6); // Image
+        // Lv.5 is the First Strike TRAIT — passive, never an action.
+        Assert.DoesNotContain(nin, a => a.RequiredLevel == 5);
     }
 
     [Fact]

@@ -132,12 +132,36 @@ public static class PhantomActions
         new(46604, "Steadfast Stance", PhantomJob.Dancer, 3),
         new(46605, "Mesmerize", PhantomJob.Dancer, 4),
 
+        // ── Phantom Ninja (North Horn; kit field-confirmed 2026-07-31 from the Phantom Job
+        //    panel + tooltips). Everything is an Ability (weave), so none of it costs a GCD.
+        //    Lv.5 is the First Strike TRAIT (faster casts/recasts/auto-attacks for 25s on
+        //    entering combat) — passive, nothing to press. ──
+        new(49062, "Fuma Shuriken", PhantomJob.PhantomNinja, 1),    // 230 potency, 60s, single target
+        new(49063, "Smoke", PhantomJob.PhantomNinja, 2),            // +20% evasion, 90s, 5s recast
+        new(49064, "Lightning Scroll", PhantomJob.PhantomNinja, 3), // 150 (195 lightning-weak), 5y AoE, 60s
+        new(49065, "Flame Scroll", PhantomJob.PhantomNinja, 4),     // 150 (195 fire-weak), 5y AoE, 60s
+        new(49066, "Image", PhantomJob.PhantomNinja, 6),            // 3 stacks, nullifies most physical, 30s
+
+        // Neighbouring 49060-49070 ids seen in the sheet but NOT yet attributed to a job
+        // (no duty-bar sighting): 49060 Meteor / 49061 Comet (Black Mage?), 49067 Occult
+        // Cure II / 49068 Occult Cure III / 49070 Occult Raise (White Mage?), 49069 Occult
+        // Blink. Left uncataloged rather than guessed.
+
         // ── Necromancer (North Horn; block starts 49097 — only field-confirmed actions are
         // cataloged, one bar screenshot per level unlock extends this) ──
         new(49097, "Drain Touch", PhantomJob.Necromancer, 1),
-        // Deep Freeze: 1.5s cast, 40s recast, 30y line. Costs 10% MAX HP and DOOMS the caster
+        // The Doom nukes. All are 1.5s cast / 30y line, cost 10% MAX HP and DOOM the caster
         // for 10s (cleared only by a heal to FULL). Off by default — see PhantomConfig.
-        new(49098, "Deep Freeze", PhantomJob.Necromancer, 2),
+        //
+        // Deep Freeze / Hell Wind / Chaos Drive SHARE ONE 40s RECAST: they are a single nuke
+        // in three elements (ice / wind / lightning), so the only question is WHICH element
+        // the target is weak to — 300 base, 390 weak, or 400/520 under Drain Touch.
+        new(49098, "Deep Freeze", PhantomJob.Necromancer, 2),   // ice
+        new(49099, "Hell Wind", PhantomJob.Necromancer, 2),     // wind  (+10% Petrify w/ Drain Touch)
+        new(49100, "Chaos Drive", PhantomJob.Necromancer, 2),   // lightning (+Paralysis w/ Drain Touch)
+        // Doomsday: its own 120s recast, unaspected (350, 500 under Drain Touch) so no
+        // weakness applies, and it strips one buff from the target under Drain Touch.
+        new(49101, "Doomsday", PhantomJob.Necromancer, 2),
     ];
 
     /// <summary>
@@ -182,6 +206,9 @@ public static class PhantomActions
 
         /// <summary>Target debuff that boosts ice-aspected phantom damage (Deep Freeze).</summary>
         public const uint IceWeakness = 5323;
+
+        /// <summary>Phantom Ninja Smoke: "Evasion is enhanced" (+20%, 90s).</summary>
+        public const uint Smoke = 5327;
     }
 
     /// <summary>Actions belonging to one phantom job, in unlock order.</summary>

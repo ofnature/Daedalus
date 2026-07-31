@@ -59,8 +59,46 @@ public static class PhantomBandRules
     public static bool ShouldPhantomKick(float distanceYalms, float maxRangeYalms)
         => distanceYalms <= maxRangeYalms;
 
+    /// <summary>Necromancer elemental nuke ids — one shared 40s recast, three elements.</summary>
+    public const uint DeepFreezeId = 49098;   // ice
+    public const uint HellWindId = 49099;     // wind
+    public const uint ChaosDriveId = 49100;   // lightning
+
     /// <summary>
-    /// Necromancer Deep Freeze — a SUICIDE-RISK gate, not a DPS gate. The action costs 10% of
+    /// Picks which of the three shared-recast nukes to fire. They are the same button in
+    /// different elements, so the target's revealed weakness decides: 520 potency instead of
+    /// 400 under Drain Touch (+30%). An unknown weakness falls back to ice — Deep Freeze is
+    /// the one the player is likeliest to have slotted, and the duty-bar gate covers the rest.
+    /// Fire weakness has no matching nuke in this kit, so it also falls through.
+    /// </summary>
+    public static uint SelectElementalNuke(Daedalus.Services.Occult.OccultElement? knownWeakness)
+    {
+        if (knownWeakness is { } w)
+        {
+            if ((w & Daedalus.Services.Occult.OccultElement.Ice) != 0) return DeepFreezeId;
+            if ((w & Daedalus.Services.Occult.OccultElement.Wind) != 0) return HellWindId;
+            if ((w & Daedalus.Services.Occult.OccultElement.Lightning) != 0) return ChaosDriveId;
+        }
+
+        return DeepFreezeId;
+    }
+
+    /// <summary>Phantom Ninja scrolls — SEPARATE 60s recasts, so both are usable.</summary>
+    public const uint LightningScrollId = 49064;
+    public const uint FlameScrollId = 49065;
+
+    /// <summary>
+    /// Which Ninja scroll to fire FIRST. Unlike the Necromancer trio these have independent
+    /// recasts, so this is ordering rather than an exclusive choice: lead with the element
+    /// the target is weak to (195 potency instead of 150) and the other still follows.
+    /// </summary>
+    public static uint PreferredScroll(Daedalus.Services.Occult.OccultElement? knownWeakness)
+        => knownWeakness is { } w && (w & Daedalus.Services.Occult.OccultElement.Fire) != 0
+            ? FlameScrollId
+            : LightningScrollId;
+
+    /// <summary>
+    /// Necromancer Doom nukes — a SUICIDE-RISK gate, not a DPS gate. The action costs 10% of
     /// max HP and applies Doom to the caster for 10s, dispelled ONLY by a heal back to FULL.
     /// The Oracle False Prediction death (2026-07-25) is the precedent: an unattended toon that
     /// cannot clear the timer simply dies. Every condition must hold:
@@ -70,7 +108,7 @@ public static class PhantomBandRules
     ///   • the Drain Touch self-buff is up when required — "attacks cannot reduce own HP below
     ///     1" is what makes the cost survivable, and it raises the potency too.
     /// </summary>
-    public static bool ShouldDeepFreeze(
+    public static bool ShouldFireDoomNuke(
         PhantomConfig cfg, float selfHpPct, bool hasDoom, bool hasDrainTouchBuff)
     {
         if (!cfg.NecromancerUseDeepFreeze)

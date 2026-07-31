@@ -28,7 +28,7 @@ public class PhantomActionsTests
         {
             var inOriginalBlock = def.ActionId is >= 41588 and <= 41651;
             var inNewJobBlock = def.ActionId is >= 46590 and <= 46605;
-            var inNorthHornBlock = def.ActionId is >= 49094 and <= 49150; // 7.55 jobs (Drain Touch 49097)
+            var inNorthHornBlock = def.ActionId is >= 49060 and <= 49150; // 7.55 jobs (Ninja 49062+, Necromancer 49097+)
             Assert.True(inOriginalBlock || inNewJobBlock || inNorthHornBlock,
                 $"{def.Name} ({def.ActionId}) outside the known phantom action ID blocks");
         }

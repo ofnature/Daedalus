@@ -250,11 +250,17 @@ public sealed class OccultSection
                         v => config.Occult.NecromancerDeepFreezeRequireDrainTouch = v,
                         "Drain Touch stops most attacks dropping you below 1 HP — it makes the HP cost survivable and raises Deep Freeze's potency (300→400, 390→520 on ice-weak targets).",
                         save);
-                    ConfigUIHelpers.Toggle("Only on ice-weak targets (once learned)",
-                        () => config.Occult.NecromancerDeepFreezePreferIceWeak,
-                        v => config.Occult.NecromancerDeepFreezePreferIceWeak = v,
-                        "Ice-weak targets take 520 potency instead of 400 (+120 per cast) — about one phantom GCD back every 4 casts. " +
-                        "Enemies whose weakness hasn't been revealed yet are still allowed, so this never blocks the action outright.",
+                    ConfigUIHelpers.Toggle("Match the target's elemental weakness",
+                        () => config.Occult.NecromancerMatchElementalWeakness,
+                        v => config.Occult.NecromancerMatchElementalWeakness = v,
+                        "Deep Freeze (ice), Hell Wind (wind) and Chaos Drive (lightning) share one 40s recast — they are one nuke in three elements. " +
+                        "Fires whichever matches the target's revealed weakness: 520 potency instead of 400 (+120 a cast). Unknown weakness falls back to Deep Freeze.",
+                        save);
+                    ConfigUIHelpers.Toggle("Use Doomsday (120s, strips a buff)",
+                        () => config.Occult.NecromancerUseDoomsday,
+                        v => config.Occult.NecromancerUseDoomsday = v,
+                        "Unaspected 350 potency (500 under Drain Touch) on its own 120s recast, and it removes one beneficial status from the target. " +
+                        "Dooms you exactly like the elemental nukes, so the same healer requirement applies.",
                         save);
                     config.Occult.NecromancerDeepFreezeMinHpPercent = ConfigUIHelpers.ThresholdSlider(
                         "Minimum HP to cast Deep Freeze",

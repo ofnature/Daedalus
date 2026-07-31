@@ -217,14 +217,12 @@ public sealed class ElementalWeaknessLog
         _entries.TryGetValue(nameId, out var e) && (e.Elements & element) != 0;
 
     /// <summary>
-    /// Tri-state ice check for damage decisions: true = learned ice-weak, false = learned and
-    /// NOT ice-weak, null = never revealed on this enemy. Callers must treat null as "go
-    /// ahead" — a weakness we have not seen yet is not evidence of its absence.
+    /// Every revealed weakness for an enemy, or null when nothing has been revealed. Null must
+    /// be read as "unknown", never as "no weakness" — an unrevealed weakness is not evidence
+    /// of its absence, and treating it as such would starve the nuke picker.
     /// </summary>
-    public bool? KnownIceWeak(uint nameId) =>
-        _entries.TryGetValue(nameId, out var e) && e.Elements != OccultElement.None
-            ? (e.Elements & OccultElement.Ice) != 0
-            : null;
+    public OccultElement? KnownWeakness(uint nameId) =>
+        _entries.TryGetValue(nameId, out var w) && w.Elements != OccultElement.None ? w.Elements : null;
 
     /// <summary>Framework tick — throttled scan of nearby enemies for revealed weaknesses.</summary>
     public void Update()

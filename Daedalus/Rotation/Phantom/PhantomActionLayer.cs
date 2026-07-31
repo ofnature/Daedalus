@@ -183,6 +183,17 @@ public sealed class PhantomActionLayer
 
         if (job == PhantomJob.Knight && PhantomBandRules.ShouldPray(cfg, selfHpPct))
             TryPush(ctx, 41589, job, level, PrioEmergencySustain + 3);
+
+        // Phantom Ninja defensives (both Abilities). Image nullifies most PHYSICAL attacks for
+        // 30s on a 120s timer — save it for real trouble. Smoke is +20% evasion for 90s on a
+        // 5s recast, so it is simply kept up whenever it has lapsed.
+        if (job == PhantomJob.PhantomNinja && inCombat)
+        {
+            if (PhantomBandRules.ShouldSelfMit(selfHpPct, inCombat))
+                TryPush(ctx, 49066, job, level, PrioSelfMit);
+            if (!_actionService.PlayerHasStatus(PhantomActions.StatusIds.Smoke))
+                TryPush(ctx, 49063, job, level, PrioSelfMit + 1);
+        }
     }
 
     private void PushSelfMit(IRotationContext ctx, PhantomJob job, byte level, float selfHpPct, bool inCombat)
@@ -289,7 +300,7 @@ public sealed class PhantomActionLayer
         if (job == PhantomJob.Necromancer)
         {
             TryPush(ctx, 49097, job, level, PrioDamage, target.GameObjectId, target); // Drain Touch
-            PushNecromancerDeepFreeze(ctx, cfg, job, level, target);
+            PushNecromancerDoomNukes(ctx, cfg, job, level, target);
         }
 
         var hold = PhantomBandRules.ShouldHoldDamage(
@@ -360,6 +371,19 @@ public sealed class PhantomActionLayer
             case PhantomJob.Thief:
                 TryPush(ctx, 41649, job, level, PrioDamage + 5, target.GameObjectId, target); // Pilfer Weapon
                 break;
+
+            case PhantomJob.PhantomNinja:
+                // All weaves (Abilities), so none of this competes for the GCD. Scrolls have
+                // independent 60s recasts — lead with the target's weak element, fire both.
+                TryPush(ctx, 49062, job, level, PrioDamage, target.GameObjectId, target); // Fuma Shuriken
+                var scroll = PhantomBandRules.PreferredScroll(
+                    target is IBattleNpc scrollTarget ? TargetWeakness?.Invoke(scrollTarget.NameId) : null);
+                var otherScroll = scroll == PhantomBandRules.FlameScrollId
+                    ? PhantomBandRules.LightningScrollId
+                    : PhantomBandRules.FlameScrollId;
+                TryPush(ctx, scroll, job, level, PrioDamage + 1, target.GameObjectId, target);
+                TryPush(ctx, otherScroll, job, level, PrioDamage + 2, target.GameObjectId, target);
+                break;
         }
     }
 
@@ -369,7 +393,7 @@ public sealed class PhantomActionLayer
     /// .ShouldDeepFreeze"/>; every refusal names itself in the Duty tab so an unfired Deep
     /// Freeze is never a mystery.
     /// </summary>
-    private void PushNecromancerDeepFreeze(
+    private void PushNecromancerDoomNukes(
         IRotationContext ctx, Config.PhantomConfig cfg, PhantomJob job, byte level, IBattleChara target)
     {
         if (!cfg.NecromancerUseDeepFreeze)
@@ -389,36 +413,49 @@ public sealed class PhantomActionLayer
             return;
         }
 
-        // Spend the Doom where it pays: +120 potency on ice-weak (520 vs 400 under Drain
-        // Touch). Unknown weakness passes — the table has to learn from somewhere.
-        if (cfg.NecromancerDeepFreezePreferIceWeak
-            && target is IBattleNpc npcTarget
-            && IsTargetIceWeak?.Invoke(npcTarget.NameId) == false)
-        {
-            _pushRejects.Add($"Deep Freeze held — {npcTarget.Name?.TextValue ?? "target"} is not ice-weak");
-            return;
-        }
-
-        if (!PhantomBandRules.ShouldDeepFreeze(cfg, selfHpPct, hasDoom, hasDrainTouch))
+        if (!PhantomBandRules.ShouldFireDoomNuke(cfg, selfHpPct, hasDoom, hasDrainTouch))
         {
             _pushRejects.Add(hasDoom
-                ? "Deep Freeze held — Doom already ticking"
+                ? "Doom nuke held — Doom already ticking"
                 : selfHpPct < cfg.NecromancerDeepFreezeMinHpPercent
-                    ? $"Deep Freeze held — HP {selfHpPct:P0} below the {cfg.NecromancerDeepFreezeMinHpPercent:P0} floor"
-                    : "Deep Freeze held — needs the Drain Touch buff first");
+                    ? $"Doom nuke held — HP {selfHpPct:P0} below the {cfg.NecromancerDeepFreezeMinHpPercent:P0} floor"
+                    : "Doom nuke held — needs the Drain Touch buff first");
             return;
         }
 
+        // Element choice: the trio share one recast, so fire the one the target is weak to.
+        var weakness = cfg.NecromancerMatchElementalWeakness && target is IBattleNpc npcTarget
+            ? TargetWeakness?.Invoke(npcTarget.NameId)
+            : null;
+        var nukeId = PhantomBandRules.SelectElementalNuke(weakness);
         var selfName = ctx.Player.Name?.TextValue ?? string.Empty;
-        TryPush(ctx, 49098, job, level, PrioDamage + 1, target.GameObjectId, target,
-            onExtraDispatched: () =>
-            {
-                // Announce BEFORE the Doom lands so healers are already prioritising us.
-                Daedalus.Services.Occult.DoomTopOffWatch.RequestTopOff(selfName);
-                DebugLog?.Log(Daedalus.Services.Debug.DebugLogCategory.Action,
-                    Daedalus.Services.Debug.DebugLogSeverity.Warning,
-                    $"Deep Freeze cast — DOOM on self, top-off requested for {selfName}");
-            });
+
+        // Doomsday when enabled: own 120s timer, biggest hit (500 under Drain Touch) and it
+        // strips a buff. Only one can land — the Doom gate stops whichever loses the race.
+        if (cfg.NecromancerUseDoomsday)
+        {
+            TryPush(ctx, 49101, job, level, PrioDamage + 1, target.GameObjectId, target,
+                onExtraDispatched: () => AnnounceDoom(selfName, "Doomsday"));
+        }
+
+        TryPush(ctx, nukeId, job, level, PrioDamage + 2, target.GameObjectId, target,
+            onExtraDispatched: () => AnnounceDoom(selfName, NukeName(nukeId)));
+    }
+
+    private static string NukeName(uint id) => id switch
+    {
+        PhantomBandRules.HellWindId => "Hell Wind",
+        PhantomBandRules.ChaosDriveId => "Chaos Drive",
+        _ => "Deep Freeze",
+    };
+
+    /// <summary>Announce BEFORE the Doom lands so healers are already prioritising us.</summary>
+    private void AnnounceDoom(string selfName, string actionName)
+    {
+        Daedalus.Services.Occult.DoomTopOffWatch.RequestTopOff(selfName);
+        DebugLog?.Log(Daedalus.Services.Debug.DebugLogCategory.Action,
+            Daedalus.Services.Debug.DebugLogSeverity.Warning,
+            $"{actionName} cast — DOOM on self, top-off requested for {selfName}");
     }
 
     /// <summary>
@@ -431,11 +468,11 @@ public sealed class PhantomActionLayer
     public Daedalus.Services.Debug.DebugLogService? DebugLog { get; set; }
 
     /// <summary>
-    /// Learned elemental weakness lookup by enemy NameId (wired by Plugin from the weakness
-    /// log). Null result = not yet learned, which never blocks — only a KNOWN non-ice-weak
-    /// target holds Deep Freeze back.
+    /// Learned elemental weaknesses for an enemy NameId (wired by Plugin from the weakness
+    /// log). Null = never revealed, which is not evidence of absence — the nuke picker just
+    /// falls back to its default element.
     /// </summary>
-    public Func<uint, bool?>? IsTargetIceWeak { get; set; }
+    public Func<uint, Daedalus.Services.Occult.OccultElement?>? TargetWeakness { get; set; }
 
     private readonly OracleDeckTracker _oracleDeck = new();
 

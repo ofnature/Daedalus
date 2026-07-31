@@ -92,5 +92,12 @@ public sealed class PhantomConfig
     /// Enemies whose weakness is still unknown are ALLOWED, so this can never lock the action
     /// out before the weakness table has learned anything.
     /// </summary>
-    public bool NecromancerDeepFreezePreferIceWeak { get; set; } = true;
+    public bool NecromancerMatchElementalWeakness { get; set; } = true;
+
+    /// <summary>
+    /// Doomsday: unaspected (350, or 500 under Drain Touch), its own 120s recast, and it
+    /// strips one beneficial status from the target under Drain Touch. Dooms the caster the
+    /// same way the elemental nukes do, so it lives behind the same healer requirement.
+    /// </summary>
+    public bool NecromancerUseDoomsday { get; set; } = false;
 }
