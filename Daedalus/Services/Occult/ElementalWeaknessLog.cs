@@ -98,6 +98,16 @@ public sealed class ElementalWeaknessLog
     /// <summary>Samples needed in a zone before trusting its distribution over the fallback.</summary>
     public const int MinZoneSamplesForRelative = 5;
 
+    /// <summary>
+    /// A newly observed max-HP at or below this fraction of the stored one means the encounter
+    /// was RESCALED, not that we caught it mid-fight — replace the record instead of keeping
+    /// the old maximum. North Horn shipped 2026-07-28 with critical encounters unsynced to
+    /// player count (450M / 250M pools); South Horn got that fixed after launch, so the same
+    /// correction is expected here within days. Without this the table would carry pre-patch
+    /// numbers forever and drag every zone median with them.
+    /// </summary>
+    public const float RescaleDetectionFraction = 0.5f;
+
     private readonly IObjectTable _objectTable;
     private readonly IClientState _clientState;
     private readonly IPluginLog _log;
@@ -267,8 +277,20 @@ public sealed class ElementalWeaknessLog
 
         var isNew = (entry.Elements & element) != element;
         entry.Elements |= element;
+
+        // Max-HP upkeep. Normally keep the largest ever seen (we may meet an enemy mid-fight),
+        // but a value that has COLLAPSED means the encounter was rescaled by a patch — take
+        // the new number as truth so the table (and the zone median) stay current.
         if (npc.MaxHp > entry.MaxHp)
-            entry.MaxHp = (uint)System.Math.Min(npc.MaxHp, uint.MaxValue);
+        {
+            entry.MaxHp = npc.MaxHp;
+        }
+        else if (entry.MaxHp > 0 && npc.MaxHp > 0 && npc.MaxHp <= entry.MaxHp * RescaleDetectionFraction)
+        {
+            _debugLog?.Log(Debug.DebugLogCategory.General, Debug.DebugLogSeverity.Info,
+                $"occult rescale: {entry.Name} max HP {entry.MaxHp:N0} -> {npc.MaxHp:N0} (encounter re-synced?)");
+            entry.MaxHp = npc.MaxHp;
+        }
         if (ceActive)
             entry.SeenInCriticalEncounter = true;
         entry.LastSeenUtc = now.ToString("O");

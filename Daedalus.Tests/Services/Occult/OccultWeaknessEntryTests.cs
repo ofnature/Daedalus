@@ -86,6 +86,21 @@ public class OccultWeaknessClassificationTests
     }
 
     [Fact]
+    public void RescaleFraction_TreatsACollapsedPoolAsAPatch_NotAMidFightReading()
+    {
+        // North Horn CEs launched unsynced (450M / 250M). South Horn was corrected after
+        // launch, so the same fix is expected here — a boss that reappears at a fraction of
+        // its recorded HP has been rescaled, and the stored maximum must give way.
+        const uint prePatch = 450_000_000;
+        var postPatch = (uint)(prePatch * ElementalWeaknessLog.RescaleDetectionFraction) - 1;
+        Assert.True(postPatch <= prePatch * ElementalWeaknessLog.RescaleDetectionFraction);
+
+        // A normal mid-fight reading (boss at 60% HP) is NOT a rescale — it must not overwrite.
+        var midFight = (uint)(prePatch * 0.6f);
+        Assert.False(midFight <= prePatch * ElementalWeaknessLog.RescaleDetectionFraction);
+    }
+
+    [Fact]
     public void Elements_AreFlags_SoAMobCanCarryMoreThanOne()
     {
         var e = new OccultWeaknessEntry { Elements = OccultElement.Ice };
