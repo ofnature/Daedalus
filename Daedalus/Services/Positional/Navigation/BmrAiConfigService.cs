@@ -52,6 +52,9 @@ public sealed class BmrAiConfigService
     private int _foreignRetakes;
     private bool _contested;
 
+    /// <summary>Log-once for the AI-enforced yield; re-arms on Auto-Manage re-toggle.</summary>
+    private bool _aiEnforcedYieldLogged;
+
     /// <summary>Non-empty while we've yielded the preset slot to a re-asserting foreign manager.</summary>
     public string ContestedBy { get; private set; } = "";
 
@@ -193,15 +196,38 @@ public sealed class BmrAiConfigService
 
             // Empty active = the slot was CLEARED (zone change / BMR reload), not taken —
             // reclaim freely; only a named foreign preset counts toward the yield.
-            if (BmrAiConfigPolicy.CountsAsForeignOwner(active) && ++_foreignRetakes >= ContestedRetakeLimit)
+            if (BmrAiConfigPolicy.CountsAsForeignOwner(active))
             {
-                _contested = true;
-                ContestedBy = active;
-                LastPushResult = $"preset slot contested by \"{active}\" — yielded";
-                _debugLog?.Log(Daedalus.Services.Debug.DebugLogCategory.Nav,
-                    Daedalus.Services.Debug.DebugLogSeverity.Warning,
-                    $"BMR preset slot contested by \"{active}\" after {_foreignRetakes} retakes — yielding until Auto-Manage is re-toggled");
-                return;
+                // BMR AI ON: its AIManager re-enforces the persisted AIAutorotPresetName every
+                // frame — even ONE retake ping-pongs SetActive and resets BMR's movement state,
+                // stutter-stepping the toon (field 2026-07-30: "pulses trying to lock in
+                // Daedalus", stutter while manually following). While the AI is on and a named
+                // preset holds the slot, yield IMMEDIATELY — no 3-strike, no pulses. Auto-Manage
+                // re-engages on its own when the AI turns off or the slot frees up.
+                if (AiMode() == BmrAiMode.On)
+                {
+                    LastPushResult = $"BMR AI is enforcing \"{active}\" — holding (no pulses while AI is on)";
+                    if (!_aiEnforcedYieldLogged)
+                    {
+                        _aiEnforcedYieldLogged = true;
+                        _debugLog?.Log(Daedalus.Services.Debug.DebugLogCategory.Nav,
+                            Daedalus.Services.Debug.DebugLogSeverity.Warning,
+                            $"BMR AI on + preset \"{active}\" enforced — holding all SetActive pulses until the AI turns off");
+                    }
+
+                    return; // NOT latched: reclaim resumes automatically once the AI is off / slot frees
+                }
+
+                if (++_foreignRetakes >= ContestedRetakeLimit)
+                {
+                    _contested = true;
+                    ContestedBy = active;
+                    LastPushResult = $"preset slot contested by \"{active}\" — yielded";
+                    _debugLog?.Log(Daedalus.Services.Debug.DebugLogCategory.Nav,
+                        Daedalus.Services.Debug.DebugLogSeverity.Warning,
+                        $"BMR preset slot contested by \"{active}\" after {_foreignRetakes} retakes — yielding until Auto-Manage is re-toggled");
+                    return;
+                }
             }
 
             if (ActivatePreset())
@@ -252,6 +278,7 @@ public sealed class BmrAiConfigService
         _wasEnabled = false;
         _foreignRetakes = 0;
         _contested = false;
+        _aiEnforcedYieldLogged = false;
         ContestedBy = "";
         _aiPresetNameApplied = false; // flag only — the config write happens at next ENABLE
     }
