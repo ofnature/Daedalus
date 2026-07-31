@@ -9,10 +9,17 @@ namespace Daedalus.Services.Occult;
 /// Watches the Occult Crescent magic-pot FATEs — far and away the best currency in the zone.
 /// There are TWO payouts and the second dwarfs the first (field 2026-07-31):
 ///   • completing the FATE itself: ~160 Silver + ~160 Gold Obols
-///   • the hidden coffer the Magical Elixir leads you to: 1,000 Silver + 1,600 Gold Obols,
-///     XII materia and 30,000 gil — a full silver shard AND a full gold shard from one chest
-/// For comparison a trash mob pays 3-5 gold, so one coffer is worth ~400 kills. Two coffers
-/// buy every remaining phantom job.
+///   • the hidden coffer the Magical Elixir leads you to, which comes in TIERS (field
+///     2026-07-31, still being pinned down):
+///         bronze — 100 Silver + 160 Gold
+///         silver — not yet observed
+///         gold   — 1,600 Gold plus silver (a drop screenshot read 1,000 Silver, a later
+///                  report 100; the gold figure is consistent, the silver is not — treat
+///                  1,600 Gold as the reliable number until another gold chest settles it),
+///                  alongside XII materia and 30,000 gil
+/// So the tier matters enormously: a gold coffer is a whole 1,600-gold shard in one go,
+/// while a trash mob pays 3-5 gold. That is why this is a tracker — being present for the
+/// FATE, and not losing the pot on the escort, is worth more than any farming routine.
 /// <para>
 /// The pot FATEs run on a ~30 minute cycle and ALTERNATE between the two spawn points, so
 /// each individual one comes round about every hour. Because the reward is gated by the timer
