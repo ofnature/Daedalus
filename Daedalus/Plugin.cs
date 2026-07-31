@@ -1857,7 +1857,8 @@ public sealed class Plugin : IDalamudPlugin
             RequiredPositional: requiredPositional,
             RangedStandDistance: configuration.Nav.BmrRangedStandDistance,
             BoundaryCampingActive: boundaryCamping,
-            ForbiddenZonesLive: bossModSafetyService.ForbiddenZonesCount > 0));
+            ForbiddenZonesLive: bossModSafetyService.ForbiddenZonesCount > 0,
+            InCombat: condition[Dalamud.Game.ClientState.Conditions.ConditionFlag.InCombat]));
     }
 
     /// <summary>

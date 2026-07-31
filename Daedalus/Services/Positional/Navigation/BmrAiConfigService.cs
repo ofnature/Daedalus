@@ -120,7 +120,10 @@ public sealed class BmrAiConfigService
         bool BoundaryCampingActive = false,
         /// <summary>BMR reports live forbidden zones — a positional goal would drag its
         /// pathfinder toward boss-centered AoEs; feed "Any" until the danger clears.</summary>
-        bool ForbiddenZonesLive = false);
+        bool ForbiddenZonesLive = false,
+        /// <summary>Slot writes (create/activate/reclaim) happen only in combat — BMR
+        /// re-evaluates the idle preset out of combat and reclaiming flickers it.</summary>
+        bool InCombat = false);
 
     // ── UI status (read by the Nav Control panel) ─────────────────────────────────────────────────────
     /// <summary>BossMod Reborn is installed and loaded.</summary>
@@ -182,6 +185,14 @@ public sealed class BmrAiConfigService
                        : "AI preset name claim failed — /bmrai handler not registered");
             }
         }
+
+        // Out of combat the slot is left COMPLETELY alone. BMR clears/re-evaluates the active
+        // preset while idle, and our empty-slot reclaim re-activated it each time — the
+        // "idle → Daedalus → idle" flicker (field 2026-07-30). The preset's modules are combat
+        // movement; there is nothing for it to do out of combat, and combat start reclaims it
+        // within a frame. The one-shots above (legacy cleanup, preset-name claim) still ran.
+        if (!req.InCombat)
+            return;
 
         // Rate cap: nothing changes value faster than a GCD, so a sub-0.25s change means oscillation — skip
         // this frame (the still-changed value pushes on the next eligible frame).
