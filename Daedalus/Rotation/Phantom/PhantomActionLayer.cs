@@ -262,7 +262,8 @@ public sealed class PhantomActionLayer
     [
         PhantomJob.Berserker, PhantomJob.Samurai, PhantomJob.Cannoneer, PhantomJob.MysticKnight,
         PhantomJob.Gladiator, PhantomJob.Monk, PhantomJob.TimeMage, PhantomJob.Thief,
-        PhantomJob.Necromancer,
+        // NOT Necromancer: its only cataloged action (Drain Touch) fires pre-hold like Steal,
+        // so the "damage held" line would be a lie for it.
     ];
 
     private void PushDamage(IRotationContext ctx, Config.PhantomConfig cfg, PhantomJob job, byte level, bool inCombat)
@@ -280,6 +281,12 @@ public sealed class PhantomActionLayer
         // Executes / non-scaling utility fire regardless of the burst hold (RSR parity).
         if (job == PhantomJob.Thief && PhantomBandRules.ShouldSteal(targetHpPct))
             TryPush(ctx, 41645, job, level, PrioDamage, target.GameObjectId, target); // Steal
+
+        // Drain Touch is a 40s sustain drain, not a burst nuke — holding it for a burst
+        // window left a Lv1 Necromancer firing NOTHING (field 2026-07-30, Duty tab:
+        // "damage held", Last fired: none). Fires on cooldown like the Steal exemption.
+        if (job == PhantomJob.Necromancer)
+            TryPush(ctx, 49097, job, level, PrioDamage, target.GameObjectId, target); // Drain Touch
 
         var hold = PhantomBandRules.ShouldHoldDamage(
             cfg.SaveDamageForBurst,
@@ -348,10 +355,6 @@ public sealed class PhantomActionLayer
 
             case PhantomJob.Thief:
                 TryPush(ctx, 41649, job, level, PrioDamage + 5, target.GameObjectId, target); // Pilfer Weapon
-                break;
-
-            case PhantomJob.Necromancer:
-                TryPush(ctx, 49097, job, level, PrioDamage, target.GameObjectId, target); // Drain Touch
                 break;
         }
     }

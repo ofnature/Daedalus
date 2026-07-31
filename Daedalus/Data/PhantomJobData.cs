@@ -180,6 +180,8 @@ public static class PhantomJobData
         PhantomJob.Oracle => "Soul Shard drop — Critical Encounter: On the Hunt",
         PhantomJob.Ranger => "Soul Shard drop — Critical Encounter: The Black Regiment",
         PhantomJob.Berserker => "Soul Shard drop — Critical Encounter: The Unbridled",
+        // North Horn (field 2026-07-30): the Necromancer soul stone drops from Dark Artistry.
+        PhantomJob.Necromancer => "Soul Stone drop — Critical Encounter: Dark Artistry (North Horn)",
         _ => string.Empty,
     };
 
