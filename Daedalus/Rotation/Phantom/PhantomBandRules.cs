@@ -108,6 +108,33 @@ public static class PhantomBandRules
         return OccultFireIIId;
     }
 
+    /// <summary>Phantom Black Mage III-tier — INDEPENDENT 40s recasts, so all three are usable.</summary>
+    public const uint OccultFireIIIId = 49072;
+    public const uint OccultBlizzardIIIId = 49073;
+    public const uint OccultThunderIIIId = 49074;
+
+    /// <summary>
+    /// Black Mage nukes in the order they should be pushed. They do NOT share a recast (unlike
+    /// Red Mage's II-tier), so the weakness decides which LEADS, not which is skipped —
+    /// 520 potency on a match, 400 otherwise, and the other two still fire.
+    /// </summary>
+    public static uint[] BlackMageNukeOrder(Daedalus.Services.Occult.OccultElement? knownWeakness)
+    {
+        var lead = OccultFireIIIId;
+        if (knownWeakness is { } w)
+        {
+            if ((w & Daedalus.Services.Occult.OccultElement.Ice) != 0) lead = OccultBlizzardIIIId;
+            else if ((w & Daedalus.Services.Occult.OccultElement.Lightning) != 0) lead = OccultThunderIIIId;
+        }
+
+        return lead switch
+        {
+            OccultBlizzardIIIId => [OccultBlizzardIIIId, OccultFireIIIId, OccultThunderIIIId],
+            OccultThunderIIIId => [OccultThunderIIIId, OccultFireIIIId, OccultBlizzardIIIId],
+            _ => [OccultFireIIIId, OccultBlizzardIIIId, OccultThunderIIIId],
+        };
+    }
+
     /// <summary>Phantom Ninja scrolls — SEPARATE 60s recasts, so both are usable.</summary>
     public const uint LightningScrollId = 49064;
     public const uint FlameScrollId = 49065;

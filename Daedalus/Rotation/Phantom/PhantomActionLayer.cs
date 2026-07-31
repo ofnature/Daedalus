@@ -388,6 +388,15 @@ public sealed class PhantomActionLayer
                 TryPush(ctx, 41649, job, level, PrioDamage + 5, target.GameObjectId, target); // Pilfer Weapon
                 break;
 
+            case PhantomJob.PhantomBlackMage:
+                // Flare leads: unaspected 500 on its own 60s timer, so no weakness applies.
+                TryPush(ctx, 49076, job, level, PrioDamage, target.GameObjectId, target);
+                var blmOrder = PhantomBandRules.BlackMageNukeOrder(
+                    target is IBattleNpc blmTarget ? TargetWeakness?.Invoke(blmTarget.NameId) : null);
+                for (var i = 0; i < blmOrder.Length; i++)
+                    TryPush(ctx, blmOrder[i], job, level, PrioDamage + 1 + i, target.GameObjectId, target);
+                break;
+
             case PhantomJob.PhantomRedMage:
                 TryPush(ctx,
                     PhantomBandRules.SelectRedMageNuke(

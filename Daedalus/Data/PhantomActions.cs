@@ -154,6 +154,17 @@ public static class PhantomActions
         new(49095, "Occult Blizzard II", PhantomJob.PhantomRedMage, 4),  // ice
         new(49096, "Occult Thunder II", PhantomJob.PhantomRedMage, 6),   // lightning
 
+        // ── Phantom Black Mage (North Horn; kit field-confirmed 2026-07-31, job panel shows
+        //    five actions at Lv.1-5 and NO traits). Unlike Red Mage's II-tier, the III-tier
+        //    nukes carry NO "shares a recast" line — they are three INDEPENDENT 40s recasts,
+        //    so all three are usable and the weakness only decides the order. 400 potency,
+        //    520 on a match. ──
+        new(49072, "Occult Fire III", PhantomJob.PhantomBlackMage, 1),
+        new(49073, "Occult Blizzard III", PhantomJob.PhantomBlackMage, 2),
+        new(49074, "Occult Thunder III", PhantomJob.PhantomBlackMage, 3),
+        new(49075, "Occult Toad", PhantomJob.PhantomBlackMage, 4),   // -99% damage dealt, 20s
+        new(49076, "Occult Flare", PhantomJob.PhantomBlackMage, 5),  // unaspected 500, 8y, 2.3s cast
+
         // North Horn ids seen in the sheet but NOT yet attributed (no sighting): 49060 Meteor,
         // 49061 Comet, 49068 Occult Cure III, 49069 Occult Blink, 49070 Occult Raise, 49090
         // Occult White Wind, 49091 Occult Aero III. Note Occult Cure II turned out to be RED
