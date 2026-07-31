@@ -229,6 +229,28 @@ public static class PhantomJobData
     /// <summary>Which Occult zone a phantom job belongs to (its roster, not its shop).</summary>
     public static bool IsNorthHornJob(PhantomJob job) => NorthHornJobs.Contains(job);
 
+    /// <summary>
+    /// Human display name for a phantom job. The North Horn enum members carry their own
+    /// "Phantom" prefix (PhantomRedMage etc.) because the plain names collide with the real
+    /// jobs — so callers that prepend "Phantom " were rendering "Phantom PhantomRedMage"
+    /// (field 2026-07-31). Strip it here and spell out the multi-word names.
+    /// </summary>
+    public static string GetJobDisplayName(PhantomJob job)
+    {
+        var name = job switch
+        {
+            PhantomJob.TimeMage => "Time Mage",
+            PhantomJob.MysticKnight => "Mystic Knight",
+            PhantomJob.PhantomWhiteMage => "White Mage",
+            PhantomJob.PhantomBlackMage => "Black Mage",
+            PhantomJob.PhantomBlueMage => "Blue Mage",
+            PhantomJob.PhantomRedMage => "Red Mage",
+            _ => job.ToString(),
+        };
+
+        return name.StartsWith("Phantom", System.StringComparison.Ordinal) ? name["Phantom".Length..] : name;
+    }
+
     /// <summary>Display name for an Occult territory.</summary>
     public static string GetZoneName(ushort territoryId) => territoryId switch
     {

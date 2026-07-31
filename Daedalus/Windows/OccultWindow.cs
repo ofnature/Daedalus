@@ -1,3 +1,4 @@
+using System;
 using System.Numerics;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.Windowing;
@@ -19,11 +20,13 @@ public sealed class OccultWindow : Window
     private static readonly Vector4 Dim = new(0.54f, 0.54f, 0.58f, 1f);
 
     private readonly PhantomJobService _phantomJobs;
+    private readonly Daedalus.Services.Occult.PotFateTracker? _potFates;
 
-    public OccultWindow(PhantomJobService phantomJobs)
+    public OccultWindow(PhantomJobService phantomJobs, Daedalus.Services.Occult.PotFateTracker? potFates = null)
         : base("Occult Crescent##DaedalusOccultHud",
             ImGuiWindowFlags.AlwaysAutoResize | ImGuiWindowFlags.NoFocusOnAppearing)
     {
+        _potFates = potFates;
         _phantomJobs = phantomJobs;
     }
 
@@ -37,7 +40,7 @@ public sealed class OccultWindow : Window
         }
 
         if (snapshot.ActiveJob != PhantomJob.None)
-            ImGui.TextColored(Green, $"Phantom {snapshot.ActiveJob}  Lv.{snapshot.Level}");
+            ImGui.TextColored(Green, $"Phantom {PhantomJobData.GetJobDisplayName(snapshot.ActiveJob)}  Lv.{snapshot.Level}");
         else
             ImGui.TextColored(Dim, "No phantom job equipped");
 
@@ -61,6 +64,9 @@ public sealed class OccultWindow : Window
                 ImGui.Text($"{item.Name}: {item.Count:N0}");
         }
 
+        DrawPotFates();
+
+
         // Affordable-shard banner: locked purchasable jobs the player can buy right now in
         // THIS zone. Both exchanges are cataloged now, and the lookup is zone-scoped so an
         // Obol balance is never measured against South Horn's Pieces prices (or vice versa).
@@ -74,12 +80,51 @@ public sealed class OccultWindow : Window
                 {
                     var unit = snapshot.TerritoryId == PhantomJobData.NorthHornTerritoryId ? "obols" : "pieces";
                     var currency = kind == PhantomJobData.UnlockKind.SilverShard ? $"silver {unit}" : $"gold {unit}";
-                    ImGui.TextColored(Gold, $"★ You can afford Phantom {job} — {price:N0} {currency}");
+                    ImGui.TextColored(Gold, $"★ You can afford Phantom {PhantomJobData.GetJobDisplayName(job)} — {price:N0} {currency}");
                 }
 
                 ImGui.TextColored(Dim, snapshot.TerritoryId == PhantomJobData.NorthHornTerritoryId
                     ? "North Horn Currency Exchange"
                     : "Expedition Antiquarian (X:38.1 Y:7.0)");
+            }
+        }
+    }
+
+    /// <summary>
+    /// Magic-pot FATE watch. A pot pays ~160 Silver AND ~160 Gold Obols — one is worth 30-50
+    /// trash kills — and they run on a ~30 minute cycle alternating between the two spawns, so
+    /// the only real cost is not being there. Estimates are labelled as such until a second
+    /// spawn of the same FATE lets the tracker measure the real gap.
+    /// </summary>
+    private void DrawPotFates()
+    {
+        if (_potFates is null)
+            return;
+
+        ImGui.Separator();
+        if (_potFates.ActiveFate is { } live)
+        {
+            ImGui.TextColored(Gold, $"★ POT FATE UP — {live}");
+            return;
+        }
+
+        foreach (var name in Daedalus.Services.Occult.PotFateTracker.PotFateNames)
+        {
+            var due = _potFates.SecondsUntilExpected(name);
+            if (due is null)
+            {
+                ImGui.TextColored(Dim, $"{name}: not seen yet");
+                continue;
+            }
+
+            var tag = _potFates.CycleIsMeasured(name) ? "" : " (est)";
+            if (due <= 0)
+                ImGui.TextColored(Green, $"{name}: due now{tag}");
+            else
+            {
+                var mins = (int)(due.Value / 60);
+                var secs = (int)(due.Value % 60);
+                ImGui.TextColored(Dim, $"{name}: ~{mins:00}:{secs:00}{tag}");
             }
         }
     }

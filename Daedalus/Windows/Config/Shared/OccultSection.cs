@@ -42,7 +42,7 @@ public sealed class OccultSection
 
         var zoneName = inZone ? PhantomJobData.GetZoneName(snapshot!.TerritoryId) : "";
         if (inZone && snapshot!.ActiveJob != PhantomJob.None)
-            ImGui.TextColored(Green, $"In {zoneName} — active: Phantom {snapshot.ActiveJob} Lv.{snapshot.Level}");
+            ImGui.TextColored(Green, $"In {zoneName} — active: Phantom {JobLabel(snapshot.ActiveJob)} Lv.{snapshot.Level}");
         else if (inZone)
             ImGui.TextColored(Green, $"In {zoneName} — no phantom job equipped");
         else
@@ -299,10 +299,5 @@ public sealed class OccultSection
         }
     }
 
-    private static string JobLabel(PhantomJob job) => job switch
-    {
-        PhantomJob.TimeMage => "Time Mage",
-        PhantomJob.MysticKnight => "Mystic Knight",
-        _ => job.ToString(),
-    };
+    private static string JobLabel(PhantomJob job) => PhantomJobData.GetJobDisplayName(job);
 }

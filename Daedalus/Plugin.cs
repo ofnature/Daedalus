@@ -199,6 +199,7 @@ public sealed class Plugin : IDalamudPlugin
     private readonly Daedalus.Services.Consumables.DalamudTinctureCooldownProbe tinctureCooldownProbe;
     private readonly Daedalus.Services.Occult.PhantomJobService phantomJobService;
     private readonly Daedalus.Services.Occult.ElementalWeaknessLog elementalWeaknessLog;
+    private readonly Daedalus.Services.Occult.PotFateTracker potFateTracker;
     private readonly Daedalus.Services.Consumables.ConsumableService consumableService;
     private readonly Daedalus.Services.Consumables.TinctureDispatcher tinctureDispatcher;
 
@@ -630,6 +631,7 @@ public sealed class Plugin : IDalamudPlugin
 
         // Learns which Occult enemies are weak to which element (statuses 5322-5325, revealed
         // by Occult Libra etc.) and persists the table — the ice list feeds Deep Freeze value.
+        this.potFateTracker = new Daedalus.Services.Occult.PotFateTracker(fateTable, clientState);
         this.elementalWeaknessLog = new Daedalus.Services.Occult.ElementalWeaknessLog(
             objectTable, clientState, log, pluginInterface.ConfigDirectory.FullName, debugLogService, fateTable);
 
@@ -915,7 +917,7 @@ public sealed class Plugin : IDalamudPlugin
         windowSystem.AddWindow(farmWindow);
 
         // Occult zone HUD: auto-open on entering Occult Crescent, close on leaving.
-        this.occultWindow = new OccultWindow(phantomJobService);
+        this.occultWindow = new OccultWindow(phantomJobService, potFateTracker);
         windowSystem.AddWindow(occultWindow);
         this.clientState.TerritoryChanged += OnOccultTerritoryChanged;
         OnOccultTerritoryChanged(clientState.TerritoryType); // plugin may load mid-zone
@@ -1624,6 +1626,11 @@ public sealed class Plugin : IDalamudPlugin
 
             // Always update debug service frame counter
             debugService.Update();
+
+            // Magic-pot FATE watch — ships in Release: the pots are the zone's best currency
+            // and the reward is gated by the ~30 min cycle, so knowing when the next one is due
+            // is worth more than any farming routine.
+            potFateTracker.Update();
 
 #if DEBUG
             // Occult enemy census + weakness learning (throttled; Occult territories only).
