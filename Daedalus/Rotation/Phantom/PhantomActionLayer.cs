@@ -285,8 +285,12 @@ public sealed class PhantomActionLayer
         // Drain Touch is a 40s sustain drain, not a burst nuke — holding it for a burst
         // window left a Lv1 Necromancer firing NOTHING (field 2026-07-30, Duty tab:
         // "damage held", Last fired: none). Fires on cooldown like the Steal exemption.
+        // It also grants the HP-floor buff Deep Freeze leans on, so it always leads.
         if (job == PhantomJob.Necromancer)
+        {
             TryPush(ctx, 49097, job, level, PrioDamage, target.GameObjectId, target); // Drain Touch
+            PushNecromancerDeepFreeze(ctx, cfg, job, level, target);
+        }
 
         var hold = PhantomBandRules.ShouldHoldDamage(
             cfg.SaveDamageForBurst,
@@ -357,6 +361,36 @@ public sealed class PhantomActionLayer
                 TryPush(ctx, 41649, job, level, PrioDamage + 5, target.GameObjectId, target); // Pilfer Weapon
                 break;
         }
+    }
+
+    /// <summary>
+    /// Deep Freeze (Necromancer Lv.2): 30y line nuke that costs 10% max HP and DOOMS the
+    /// caster for 10s — cleared only by a heal to FULL. Gated by <see cref="PhantomBandRules
+    /// .ShouldDeepFreeze"/>; every refusal names itself in the Duty tab so an unfired Deep
+    /// Freeze is never a mystery.
+    /// </summary>
+    private void PushNecromancerDeepFreeze(
+        IRotationContext ctx, Config.PhantomConfig cfg, PhantomJob job, byte level, IBattleChara target)
+    {
+        if (!cfg.NecromancerUseDeepFreeze)
+            return; // opt-in; silent when off (not a blocker the user needs to see)
+
+        var maxHp = ctx.Player.MaxHp;
+        var selfHpPct = maxHp > 0 ? (float)ctx.Player.CurrentHp / maxHp : 1f;
+        var hasDoom = _actionService.PlayerHasStatus(PhantomActions.StatusIds.DoomDispelledByFullHeal);
+        var hasDrainTouch = _actionService.PlayerHasStatus(PhantomActions.StatusIds.DrainTouch);
+
+        if (!PhantomBandRules.ShouldDeepFreeze(cfg, selfHpPct, hasDoom, hasDrainTouch))
+        {
+            _pushRejects.Add(hasDoom
+                ? "Deep Freeze held — Doom already ticking"
+                : selfHpPct < cfg.NecromancerDeepFreezeMinHpPercent
+                    ? $"Deep Freeze held — HP {selfHpPct:P0} below the {cfg.NecromancerDeepFreezeMinHpPercent:P0} floor"
+                    : "Deep Freeze held — needs the Drain Touch buff first");
+            return;
+        }
+
+        TryPush(ctx, 49098, job, level, PrioDamage + 1, target.GameObjectId, target);
     }
 
     private readonly OracleDeckTracker _oracleDeck = new();

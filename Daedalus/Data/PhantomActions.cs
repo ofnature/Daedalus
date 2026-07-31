@@ -135,6 +135,9 @@ public static class PhantomActions
         // ── Necromancer (North Horn; block starts 49097 — only field-confirmed actions are
         // cataloged, one bar screenshot per level unlock extends this) ──
         new(49097, "Drain Touch", PhantomJob.Necromancer, 1),
+        // Deep Freeze: 1.5s cast, 40s recast, 30y line. Costs 10% MAX HP and DOOMS the caster
+        // for 10s (cleared only by a heal to FULL). Off by default — see PhantomConfig.
+        new(49098, "Deep Freeze", PhantomJob.Necromancer, 2),
     ];
 
     /// <summary>
@@ -167,6 +170,18 @@ public static class PhantomActions
         public const uint WillingToWaltz = 4797;
         public const uint PentupRage = 4236;
         public const uint Invulnerability = 4275;
+
+        // ── Necromancer (North Horn) ──
+        /// <summary>Self-buff from Drain Touch: "most attacks cannot reduce own HP to less
+        /// than 1" — the survival half of the Deep Freeze combo (its 10% HP cost).</summary>
+        public const uint DrainTouch = 5326;
+
+        /// <summary>The Doom Deep Freeze puts on YOU (10s). "Dissipates once fully healed" —
+        /// anything short of a heal to FULL inside the window is death.</summary>
+        public const uint DoomDispelledByFullHeal = 1769;
+
+        /// <summary>Target debuff that boosts ice-aspected phantom damage (Deep Freeze).</summary>
+        public const uint IceWeakness = 5323;
     }
 
     /// <summary>Actions belonging to one phantom job, in unlock order.</summary>

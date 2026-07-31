@@ -129,4 +129,83 @@ public class PhantomBandRulesTests
         Assert.Contains(1186u, PhantomActions.LockoutStatusIds); // Ten Chi Jin
         Assert.Contains(851u, PhantomActions.LockoutStatusIds);  // Reassembled
     }
+
+    // ── Necromancer Deep Freeze (North Horn): a SUICIDE gate, not a DPS gate. Costs 10% max
+    //    HP and Dooms the caster 10s, cleared only by a heal to FULL (Oracle False Prediction
+    //    precedent — an unattended toon that can't clear the timer just dies). ──
+
+    private static PhantomConfig DeepFreezeOptedIn() => new()
+    {
+        NecromancerUseDeepFreeze = true,
+        NecromancerDeepFreezeRequireDrainTouch = true,
+        NecromancerDeepFreezeMinHpPercent = 0.95f,
+    };
+
+    [Fact]
+    public void DeepFreeze_OffByDefault_NeverFires()
+    {
+        var cfg = new PhantomConfig();
+        Assert.False(cfg.NecromancerUseDeepFreeze);
+        Assert.False(PhantomBandRules.ShouldDeepFreeze(cfg, selfHpPct: 1f, hasDoom: false, hasDrainTouchBuff: true));
+    }
+
+    [Fact]
+    public void DeepFreeze_AllConditionsMet_Fires()
+    {
+        Assert.True(PhantomBandRules.ShouldDeepFreeze(
+            DeepFreezeOptedIn(), selfHpPct: 1f, hasDoom: false, hasDrainTouchBuff: true));
+    }
+
+    [Fact]
+    public void DeepFreeze_NeverStacksASecondDeathTimer()
+    {
+        Assert.False(PhantomBandRules.ShouldDeepFreeze(
+            DeepFreezeOptedIn(), selfHpPct: 1f, hasDoom: true, hasDrainTouchBuff: true));
+    }
+
+    [Fact]
+    public void DeepFreeze_HeldBelowTheHpFloor()
+    {
+        // 94% with a 95% floor: the 10% cost would land at ~84% with a 10s clock running.
+        Assert.False(PhantomBandRules.ShouldDeepFreeze(
+            DeepFreezeOptedIn(), selfHpPct: 0.94f, hasDoom: false, hasDrainTouchBuff: true));
+    }
+
+    [Fact]
+    public void DeepFreeze_HeldWithoutDrainTouch_WhenRequired()
+    {
+        Assert.False(PhantomBandRules.ShouldDeepFreeze(
+            DeepFreezeOptedIn(), selfHpPct: 1f, hasDoom: false, hasDrainTouchBuff: false));
+    }
+
+    [Fact]
+    public void DeepFreeze_DrainTouchRequirementCanBeWaived_ButOtherGatesHold()
+    {
+        var cfg = DeepFreezeOptedIn();
+        cfg.NecromancerDeepFreezeRequireDrainTouch = false;
+
+        Assert.True(PhantomBandRules.ShouldDeepFreeze(cfg, 1f, hasDoom: false, hasDrainTouchBuff: false));
+        // Doom and the HP floor are NOT waivable — they are the death conditions.
+        Assert.False(PhantomBandRules.ShouldDeepFreeze(cfg, 1f, hasDoom: true, hasDrainTouchBuff: false));
+        Assert.False(PhantomBandRules.ShouldDeepFreeze(cfg, 0.5f, hasDoom: false, hasDrainTouchBuff: false));
+    }
+
+    [Fact]
+    public void DeepFreeze_HpFloorIsClampedToSaneRange()
+    {
+        var cfg = new PhantomConfig { NecromancerDeepFreezeMinHpPercent = 0.1f };
+        Assert.Equal(0.5f, cfg.NecromancerDeepFreezeMinHpPercent); // never below half HP
+        cfg.NecromancerDeepFreezeMinHpPercent = 2f;
+        Assert.Equal(1f, cfg.NecromancerDeepFreezeMinHpPercent);
+    }
+
+    [Fact]
+    public void Necromancer_StatusIds_MatchTheSheets()
+    {
+        // XIVAPI 2026-07-31: 5326 Drain Touch (self HP-floor buff), 1769 the Doom variant whose
+        // description is "dissipates once fully healed", 5323 Ice Weakness (Deep Freeze bonus).
+        Assert.Equal(5326u, PhantomActions.StatusIds.DrainTouch);
+        Assert.Equal(1769u, PhantomActions.StatusIds.DoomDispelledByFullHeal);
+        Assert.Equal(5323u, PhantomActions.StatusIds.IceWeakness);
+    }
 }

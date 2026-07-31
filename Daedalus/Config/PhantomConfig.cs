@@ -56,4 +56,31 @@ public sealed class PhantomConfig
     // ── Geomancer ──
     public bool GeomancerSuspendInCombat { get; set; } = false;
     public bool GeomancerSuspendOutOfCombat { get; set; } = false;
+
+    // ── Necromancer (North Horn) ──
+    /// <summary>
+    /// Deep Freeze: big 30y line nuke, but it costs 10% of MAX HP and DOOMS the caster for 10
+    /// seconds — the Doom is dispelled ONLY by a heal back to FULL HP. Miss that and the toon
+    /// dies (same class as the Oracle False Prediction death). OFF by default: turn it on only
+    /// when a healer (or your own kit) reliably tops this toon to 100% within the window.
+    /// </summary>
+    public bool NecromancerUseDeepFreeze { get; set; } = false;
+
+    /// <summary>
+    /// Minimum HP fraction required before Deep Freeze is allowed to fire — the 10% max-HP
+    /// cost plus incoming damage must not leave the toon in a hole it can't be healed out of.
+    /// </summary>
+    private float _necromancerDeepFreezeMinHpPercent = 0.95f;
+    public float NecromancerDeepFreezeMinHpPercent
+    {
+        get => _necromancerDeepFreezeMinHpPercent;
+        set => _necromancerDeepFreezeMinHpPercent = System.Math.Clamp(value, 0.5f, 1f);
+    }
+
+    /// <summary>
+    /// Require the Drain Touch self-buff ("attacks cannot reduce own HP below 1") before Deep
+    /// Freeze. That buff is what makes the HP cost survivable and raises Deep Freeze's potency
+    /// (300→400, 390→520 on ice-weak targets), so the combo is both safer AND stronger.
+    /// </summary>
+    public bool NecromancerDeepFreezeRequireDrainTouch { get; set; } = true;
 }

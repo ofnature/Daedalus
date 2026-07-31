@@ -209,6 +209,30 @@ public sealed class OccultSection
                     save);
                 break;
 
+            case PhantomJob.Necromancer:
+                ImGui.TextColored(Common.DaedalusTheme.StatusRed,
+                    "Deep Freeze DOOMS you for 10s — you die unless healed to FULL HP in time.");
+                ConfigUIHelpers.Toggle("Use Deep Freeze (dangerous — needs a healer)",
+                    () => config.Occult.NecromancerUseDeepFreeze, v => config.Occult.NecromancerUseDeepFreeze = v,
+                    "Costs 10% of max HP and applies Doom to yourself. The Doom is dispelled ONLY by a heal back to 100%. " +
+                    "Leave this off for solo or unattended play.",
+                    save);
+                if (config.Occult.NecromancerUseDeepFreeze)
+                {
+                    ConfigUIHelpers.Toggle("Require the Drain Touch buff first (recommended)",
+                        () => config.Occult.NecromancerDeepFreezeRequireDrainTouch,
+                        v => config.Occult.NecromancerDeepFreezeRequireDrainTouch = v,
+                        "Drain Touch stops most attacks dropping you below 1 HP — it makes the HP cost survivable and raises Deep Freeze's potency (300→400, 390→520 on ice-weak targets).",
+                        save);
+                    config.Occult.NecromancerDeepFreezeMinHpPercent = ConfigUIHelpers.ThresholdSlider(
+                        "Minimum HP to cast Deep Freeze",
+                        config.Occult.NecromancerDeepFreezeMinHpPercent, 0.5f, 1f,
+                        "Below this, Deep Freeze is held — the 10% cost plus incoming damage must leave a hole a healer can climb you out of.",
+                        save);
+                }
+
+                break;
+
             default:
                 ImGui.TextColored(Dim, "No options — fully automated.");
                 break;

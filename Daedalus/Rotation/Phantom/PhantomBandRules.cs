@@ -58,4 +58,29 @@ public static class PhantomBandRules
     /// <summary>Phantom Kick dashes to the target — cap the dash distance (config).</summary>
     public static bool ShouldPhantomKick(float distanceYalms, float maxRangeYalms)
         => distanceYalms <= maxRangeYalms;
+
+    /// <summary>
+    /// Necromancer Deep Freeze — a SUICIDE-RISK gate, not a DPS gate. The action costs 10% of
+    /// max HP and applies Doom to the caster for 10s, dispelled ONLY by a heal back to FULL.
+    /// The Oracle False Prediction death (2026-07-25) is the precedent: an unattended toon that
+    /// cannot clear the timer simply dies. Every condition must hold:
+    ///   • the user opted in (off by default),
+    ///   • no Doom already ticking — never stack a second death timer,
+    ///   • HP at/above the configured floor so the 10% cost lands somewhere recoverable,
+    ///   • the Drain Touch self-buff is up when required — "attacks cannot reduce own HP below
+    ///     1" is what makes the cost survivable, and it raises the potency too.
+    /// </summary>
+    public static bool ShouldDeepFreeze(
+        PhantomConfig cfg, float selfHpPct, bool hasDoom, bool hasDrainTouchBuff)
+    {
+        if (!cfg.NecromancerUseDeepFreeze)
+            return false;
+        if (hasDoom)
+            return false;
+        if (selfHpPct < cfg.NecromancerDeepFreezeMinHpPercent)
+            return false;
+        if (cfg.NecromancerDeepFreezeRequireDrainTouch && !hasDrainTouchBuff)
+            return false;
+        return true;
+    }
 }
