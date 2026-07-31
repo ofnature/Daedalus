@@ -183,10 +183,18 @@ public sealed class ElementalWeaknessLog
     private readonly Debug.DebugLogService? _debugLog;
     private readonly string? _filePath;
 
-    private readonly Dictionary<uint, OccultWeaknessEntry> _entries = new();
+    /// <summary>
+    /// Keyed by ZONE + NameId, not NameId alone. The same enemy exists in both Horns with
+    /// different stats — Persistent Pot is 883,127 HP in South Horn and 188,300 in North
+    /// (field 2026-07-31) — so a NameId-only key made them overwrite each other, and the
+    /// 4.7x gap between them even looked like a rescale.
+    /// </summary>
+    private readonly Dictionary<ulong, OccultWeaknessEntry> _entries = new();
+
+    private static ulong Key(ushort territoryId, uint nameId) => ((ulong)territoryId << 32) | nameId;
 
     /// <summary>Unconfirmed rescale candidates: NameId → (observed value, agreeing sightings).</summary>
-    private readonly Dictionary<uint, (uint Value, int Count)> _pendingRescale = new();
+    private readonly Dictionary<ulong, (uint Value, int Count)> _pendingRescale = new();
     private DateTime _lastScanUtc = DateTime.MinValue;
     private DateTime _lastSaveUtc = DateTime.MinValue;
     private bool _dirty;
@@ -261,7 +269,8 @@ public sealed class ElementalWeaknessLog
 
     /// <summary>True when this enemy has been observed weak to the given element.</summary>
     public bool IsWeakTo(uint nameId, OccultElement element) =>
-        _entries.TryGetValue(nameId, out var e) && (e.Elements & element) != 0;
+        _entries.TryGetValue(Key((ushort)_clientState.TerritoryType, nameId), out var e)
+        && (e.Elements & element) != 0;
 
     /// <summary>
     /// Every revealed weakness for an enemy, or null when nothing has been revealed. Null must
@@ -269,7 +278,10 @@ public sealed class ElementalWeaknessLog
     /// of its absence, and treating it as such would starve the nuke picker.
     /// </summary>
     public OccultElement? KnownWeakness(uint nameId) =>
-        _entries.TryGetValue(nameId, out var w) && w.Elements != OccultElement.None ? w.Elements : null;
+        _entries.TryGetValue(Key((ushort)_clientState.TerritoryType, nameId), out var w)
+        && w.Elements != OccultElement.None
+            ? w.Elements
+            : null;
 
     /// <summary>Framework tick — throttled scan of nearby enemies for revealed weaknesses.</summary>
     public void Update()
@@ -392,7 +404,8 @@ public sealed class ElementalWeaknessLog
         if (nameId == 0)
             return;
 
-        if (!_entries.TryGetValue(nameId, out var entry))
+        var key = Key(territory, nameId);
+        if (!_entries.TryGetValue(key, out var entry))
         {
             entry = new OccultWeaknessEntry
             {
@@ -400,7 +413,7 @@ public sealed class ElementalWeaknessLog
                 Name = npc.Name?.TextValue ?? $"#{nameId}",
                 TerritoryId = territory,
             };
-            _entries[nameId] = entry;
+            _entries[key] = entry;
         }
 
         var isNew = (entry.Elements & element) != element;
@@ -416,13 +429,13 @@ public sealed class ElementalWeaknessLog
         else if (npc.MaxHp > entry.MaxHp)
         {
             entry.MaxHp = npc.MaxHp;
-            _pendingRescale.Remove(nameId);
+            _pendingRescale.Remove(key);
         }
         else if (LooksLikeRescale(entry.MaxHp, npc.MaxHp))
         {
             // Collapsed pool: a patch re-syncing the encounter, or a bad frame? Only a value
             // that shows up again on a LATER sighting is allowed to replace the truth.
-            var agreeing = _pendingRescale.TryGetValue(nameId, out var pending) && pending.Value == npc.MaxHp
+            var agreeing = _pendingRescale.TryGetValue(key, out var pending) && pending.Value == npc.MaxHp
                 ? pending.Count + 1
                 : 1;
 
@@ -431,16 +444,16 @@ public sealed class ElementalWeaknessLog
                 _debugLog?.Log(Debug.DebugLogCategory.General, Debug.DebugLogSeverity.Info,
                     $"occult rescale confirmed: {entry.Name} max HP {entry.MaxHp:N0} -> {npc.MaxHp:N0}");
                 entry.MaxHp = npc.MaxHp;
-                _pendingRescale.Remove(nameId);
+                _pendingRescale.Remove(key);
             }
             else
             {
-                _pendingRescale[nameId] = (npc.MaxHp, agreeing);
+                _pendingRescale[key] = (npc.MaxHp, agreeing);
             }
         }
         else
         {
-            _pendingRescale.Remove(nameId); // a normal reading clears any half-formed suspicion
+            _pendingRescale.Remove(key); // a normal reading clears any half-formed suspicion
         }
         if (inFate)
         {
@@ -491,7 +504,7 @@ public sealed class ElementalWeaknessLog
             foreach (var e in list)
             {
                 if (e.NameId != 0)
-                    _entries[e.NameId] = e;
+                    _entries[Key(e.TerritoryId, e.NameId)] = e;
             }
 
             _log.Information("[OccultWeakness] seeded {0} enemies from the shipped table", list.Count);
@@ -515,7 +528,7 @@ public sealed class ElementalWeaknessLog
             foreach (var e in list)
             {
                 if (e.NameId != 0)
-                    _entries[e.NameId] = e;
+                    _entries[Key(e.TerritoryId, e.NameId)] = e;
             }
         }
         catch (Exception ex)
