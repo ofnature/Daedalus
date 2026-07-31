@@ -257,6 +257,13 @@ public sealed class PhantomActionLayer
         }
     }
 
+    /// <summary>Jobs with entries in the damage band below — the burst hold only concerns these.</summary>
+    private static readonly HashSet<PhantomJob> DamageBandJobs =
+    [
+        PhantomJob.Berserker, PhantomJob.Samurai, PhantomJob.Cannoneer, PhantomJob.MysticKnight,
+        PhantomJob.Gladiator, PhantomJob.Monk, PhantomJob.TimeMage, PhantomJob.Thief,
+    ];
+
     private void PushDamage(IRotationContext ctx, Config.PhantomConfig cfg, PhantomJob job, byte level, bool inCombat)
     {
         if (!inCombat)
@@ -279,7 +286,12 @@ public sealed class PhantomActionLayer
             _burstWindows?.SecondsSinceLastBurstStart ?? -1f);
         if (hold)
         {
-            _pushRejects.Add("damage held for burst window");
+            // Only report the hold for jobs that HAVE damage-band actions. The state-machine
+            // jobs (Dancer/Oracle/Geomancer) run in a separate pass the hold never touches —
+            // showing "damage held" on a Dancer read as the whole layer being stalled while
+            // Jitterbug kept firing fine (field 2026-07-30 Duty-tab screenshot).
+            if (DamageBandJobs.Contains(job))
+                _pushRejects.Add("damage held for burst window");
             return;
         }
 
