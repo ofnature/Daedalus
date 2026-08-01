@@ -42,7 +42,7 @@ namespace Daedalus;
 
 public sealed class Plugin : IDalamudPlugin
 {
-    public const string PluginVersion = "0.1.46";
+    public const string PluginVersion = "0.1.47";
     private const string CommandName = "/daedalus";
 
     /// <summary>LAN relay channel for Necromancer Deep Freeze "heal me to full" announcements.</summary>
@@ -643,6 +643,7 @@ public sealed class Plugin : IDalamudPlugin
             actionService, jobGauges, configuration, phantomJobService, timelineService, errorMetricsService, log,
             burstWindowService);
         phantomLayer.DebugLog = debugLogService;
+        phantomLayer.PartyCoordination = partyCoordinationService;
         phantomLayer.TargetWeakness = nameId => elementalWeaknessLog.KnownWeakness(nameId);
         // Necromancer Deep Freeze Dooms its caster (cleared only by a heal to FULL) — it may
         // only fire with a healer who can top us off: a live party healer, or a LAN fleet

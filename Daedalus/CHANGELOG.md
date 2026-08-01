@@ -3,10 +3,12 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
-## v0.1.46 — 2026-07-30
+## v0.1.47 — 2026-08-01
 
-### New — North Horn (Occult Crescent)
-- The phantom layer, zone HUD, and Debug Duty tab now activate in **North Horn** — currencies show the new Silver/Gold **Obols** automatically, and phantom jobs you already know work with the existing catalog. (The six new North Horn phantom jobs get their own update once cataloged)
+### New — Phantom jobs can raise
+- **Chemist's Revive** and **Phantom White Mage's Occult Raise** are now used automatically. Neither depends on Swiftcast, and Occult Raise is instant — so a phantom job can pick someone up when the healer can't, which matters when the Occult death timer is what sends you back to base
+- A dead healer is always raised first; a dead DPS is left to a living healer. Raises are reserved across your party so two toons never cast on the same corpse
+- Toggle in the Occult settings ("Use phantom raise", on by default)
 
 ### New — Shard Critical Encounter alerts
 - The Occult window now calls out a live **Critical Encounter that drops a phantom job's Soul Shard** — Oracle, Ranger, Berserker and Necromancer have no other unlock route, and the encounters run on their own timers
@@ -26,6 +28,12 @@ All notable changes to Daedalus will be documented in this file.
 - Both kinds of line **hide while you're in combat** and come back when the fight ends
 - **Both Horns.** These aren't gated to a zone: chests work anywhere coffers spawn, including dungeons, and carrot lines work in North Horn as well as South
 - A **Debug: label nearby world objects** toggle sits alongside them — it stamps each nearby object's kind, id and name on screen, so if something doesn't get a line you can see what it actually is
+
+<!-- LATEST-END -->
+## v0.1.46 — 2026-07-30
+
+### New — North Horn (Occult Crescent)
+- The phantom layer, zone HUD, and Debug Duty tab now activate in **North Horn** — currencies show the new Silver/Gold **Obols** automatically, and phantom jobs you already know work with the existing catalog. (The six new North Horn phantom jobs get their own update once cataloged)
 
 ### New — Samurai at Level 100: Tendo
 - The real cause of the "Cannot use yet." spam: at Lv100 with Meikyo up, the plain Iaijutsu are invalid — the rotation now casts **Tendo Goken / Tendo Setsugekka** (and their Kaeshi follow-ups) during the Tendo window. More damage every burst, no more rejected casts
@@ -55,7 +63,6 @@ All notable changes to Daedalus will be documented in this file.
 ### Debug — self-diagnosing refusals
 - Every client error toast and every refused action now lands in the Debug Log with live job/gauge state — "it toasted something" is now a one-paste diagnosis
 
-<!-- LATEST-END -->
 ## v0.1.45 — 2026-07-26
 
 ### Fix — Disable now blocks automation for good

@@ -26,6 +26,7 @@ public sealed class PhantomActionLayer
 {
     // Ascending scheduler priorities within the layer's own queues.
     private const int PrioEmergencySustain = 10;
+    private const int PrioRaise = 15;
     private const int PrioSelfMit = 20;
     private const int PrioInterrupt = 30;
     private const int PrioMpRestore = 40;
@@ -34,6 +35,17 @@ public sealed class PhantomActionLayer
 
     private const float InterruptMeleeRangeYalms = 5f;
     private const float RangeBufferYalms = 0.5f;
+
+    // Raise wiring — mirrors VariantActionLayer, which solved the same problem.
+    private const ushort RaisePendingStatusId = 148;
+    private const float RaiseRangeSquared = 900f; // 30y cast range
+    private const int RaiseCastMs = 8000;
+
+    /// <summary>Chemist's Revive — a hard cast, phantom Lv3.</summary>
+    private const uint ChemistReviveId = 41634;
+
+    /// <summary>Phantom White Mage's Occult Raise — INSTANT, and works under Resurrection Restricted.</summary>
+    private const uint OccultRaiseId = 49070;
 
     private readonly ActionService _actionService;
     private readonly Configuration _configuration;
@@ -150,6 +162,7 @@ public sealed class PhantomActionLayer
         PushSelfMit(ctx, job, level, selfHpPct, inCombat);
         PushInterrupts(ctx, job, level, inCombat);
         PushMpRestore(ctx, cfg, job, level, inCombat);
+        PushPhantomRaise(ctx, cfg, job, level);
         PushPartyBuffs(ctx, job, level, inCombat);
         PushDamage(ctx, cfg, job, level, inCombat);
         PushStateMachines(ctx, cfg, job, level, selfHpPct, inCombat);
@@ -257,6 +270,85 @@ public sealed class PhantomActionLayer
             if (PhantomBandRules.ShouldUseEther(cfg, player.CurrentMp, player.MaxMp, potionCount, inCombat))
                 TryPush(ctx, 41633, job, level, PrioMpRestore + 1);
         }
+    }
+
+    /// <summary>
+    /// Raise with the phantom job's own spell. Independent of Swiftcast, which is what makes it
+    /// worth having alongside a real healer: a healer with Swiftcast down may not reach a corpse
+    /// before the Occult death timer returns it to base.
+    /// </summary>
+    private void PushPhantomRaise(IRotationContext ctx, Config.PhantomConfig cfg, PhantomJob job, byte level)
+    {
+        var raiseId = job switch
+        {
+            PhantomJob.Chemist => ChemistReviveId,
+            PhantomJob.PhantomWhiteMage => OccultRaiseId,
+            _ => 0u,
+        };
+        if (raiseId == 0u)
+            return;
+
+        var (deadHealer, deadOther, livingHealer) = ScanPartyForRaise(ctx);
+        var decision = PhantomBandRules.DecideRaise(cfg, deadHealer != null, deadOther != null, livingHealer);
+        if (decision == PhantomRaiseDecision.None)
+            return;
+
+        var target = decision == PhantomRaiseDecision.RaiseHealer ? deadHealer! : deadOther!;
+        var targetId = (uint)target.GameObjectId;
+
+        // Shared raise buffer: never double-cast a corpse another toon is already raising.
+        if (PartyCoordination?.IsRaiseTargetReservedByOther(targetId) == true)
+        {
+            _pushRejects.Add("raise target reserved by another toon");
+            return;
+        }
+
+        // Occult Raise is instant, so it reserves for a moment rather than a full cast.
+        var castMs = raiseId == OccultRaiseId ? 0 : RaiseCastMs;
+
+        TryPush(ctx, raiseId, job, level, PrioRaise, target.GameObjectId, target,
+            onExtraDispatched: () =>
+                PartyCoordination?.ReserveRaiseTarget(targetId, raiseId, castMs, usingSwiftcast: false));
+    }
+
+    /// <summary>
+    /// Dead party members in raise range, split by role. Mirrors the Variant layer's scan —
+    /// corpses with Raise already pending are skipped so two toons don't stack casts.
+    /// </summary>
+    private (IBattleChara? DeadHealer, IBattleChara? DeadOther, bool LivingHealerPresent) ScanPartyForRaise(
+        IRotationContext ctx)
+    {
+        IBattleChara? deadHealer = null;
+        IBattleChara? deadOther = null;
+        var livingHealer = false;
+
+        foreach (var member in ctx.PartyList)
+        {
+            if (member?.GameObject is not IBattleChara chara || chara.GameObjectId == ctx.Player.GameObjectId)
+                continue;
+
+            var jobId = Daedalus.Rotation.Common.Helpers.TrustPartyRoleHelper.ResolveJobId(chara, ctx.PartyList);
+            var isHealer = JobRegistry.IsHealer(jobId);
+
+            if (!chara.IsDead)
+            {
+                if (isHealer)
+                    livingHealer = true;
+                continue;
+            }
+
+            if (HasStatus(chara, RaisePendingStatusId))
+                continue;
+            if (System.Numerics.Vector3.DistanceSquared(ctx.Player.Position, chara.Position) > RaiseRangeSquared)
+                continue;
+
+            if (isHealer)
+                deadHealer ??= chara;
+            else
+                deadOther ??= chara;
+        }
+
+        return (deadHealer, deadOther, livingHealer);
     }
 
     private void PushPartyBuffs(IRotationContext ctx, PhantomJob job, byte level, bool inCombat)
@@ -543,6 +635,26 @@ public sealed class PhantomActionLayer
     public Func<uint, Daedalus.Services.Occult.OccultElement?>? TargetWeakness { get; set; }
 
     private readonly OracleDeckTracker _oracleDeck = new();
+
+    /// <summary>
+    /// Shared raise reservation so a fleet never stacks raises on one corpse. Optional — set by
+    /// the plugin alongside the other injected hooks; null in tests.
+    /// </summary>
+    public Daedalus.Services.Party.IPartyCoordinationService? PartyCoordination { get; set; }
+
+    private static bool HasStatus(IBattleChara chara, uint statusId)
+    {
+        if (chara.StatusList == null)
+            return false;
+
+        foreach (var status in chara.StatusList)
+        {
+            if (status != null && status.StatusId == statusId)
+                return true;
+        }
+
+        return false;
+    }
 
     private void PushStateMachines(IRotationContext ctx, Config.PhantomConfig cfg, PhantomJob job, byte level, float selfHpPct, bool inCombat)
     {

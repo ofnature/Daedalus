@@ -8,6 +8,14 @@ namespace Daedalus.Rotation.Phantom;
 /// interrupt / MP / party buffs). Kept free of game services so every rule is
 /// unit-testable; <see cref="PhantomActionLayer"/> feeds them live values.
 /// </summary>
+/// <summary>Which corpse the phantom raise should take, if any.</summary>
+public enum PhantomRaiseDecision
+{
+    None,
+    RaiseHealer,
+    RaiseOther,
+}
+
 public static class PhantomBandRules
 {
     /// <summary>Self HP fraction below which the self-mits (Phantom Guard, Defend) fire.</summary>
@@ -15,6 +23,24 @@ public static class PhantomBandRules
 
     /// <summary>Self HP fraction below which Pray fires (when configured as a heal).</summary>
     public const float PrayHpPct = 0.85f;
+
+    /// <summary>
+    /// Who the phantom raise should pick up. Same policy as the Variant layer, for the same
+    /// reason: a dead healer is always raised because nobody else can restart the party, while
+    /// a dead DPS is left to a living healer — the healer's raise is stronger and the phantom
+    /// caster is usually mid-rotation. With no healer alive, anyone is worth raising.
+    /// </summary>
+    public static PhantomRaiseDecision DecideRaise(
+        PhantomConfig cfg, bool deadHealerPresent, bool deadOtherPresent, bool livingHealerPresent)
+    {
+        if (!cfg.UsePhantomRaise)
+            return PhantomRaiseDecision.None;
+        if (deadHealerPresent)
+            return PhantomRaiseDecision.RaiseHealer;
+        if (deadOtherPresent && !livingHealerPresent)
+            return PhantomRaiseDecision.RaiseOther;
+        return PhantomRaiseDecision.None;
+    }
 
     public static bool ShouldUsePotion(PhantomConfig cfg, float selfHpPct, uint potionCount, bool inCombat)
         => inCombat && potionCount > 0 && selfHpPct < cfg.ChemistPotionHpPct;

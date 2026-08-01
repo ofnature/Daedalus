@@ -56,6 +56,17 @@ public sealed class PhantomConfig
 
     // ── Freelancer ──
     public float FreelancerResuscitationHpPct { get; set; } = 0.70f;
+
+    /// <summary>
+    /// Raise dead party members with the phantom job's own raise — Chemist's Revive or Phantom
+    /// White Mage's Occult Raise.
+    /// <para>
+    /// Worth having even on a party with a real healer: these are independent of Swiftcast, and
+    /// Occult Raise is instant. A healer whose Swiftcast is down may not reach you before the
+    /// death timer returns you to base.
+    /// </para>
+    /// </summary>
+    public bool UsePhantomRaise { get; set; } = true;
     public bool UseTreasuresight { get; set; } = false;
 
 
