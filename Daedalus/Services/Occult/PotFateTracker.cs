@@ -69,18 +69,20 @@ public sealed class PotFateTracker
     /// <summary>
     /// Magic-pot FATEs per zone, matched case-insensitively against live FATE names. Each Horn
     /// runs TWO of them and they are NOT the same FATEs — the names below are confirmed North
-    /// Horn (wiki + field); South Horn's "Pleading Pots" is field-confirmed too, but its
-    /// SECOND FATE is still unnamed and deliberately absent rather than guessed. South matters
-    /// as much as North now — its pots pay the PIECES that Arcanaut's armour upgrades need,
-    /// which is the dearer project of the two.
+    /// Horn (wiki + field), and South Horn's two are field-confirmed as well. All four are
+    /// now known, so the tracker works in both Horns. South matters as much as North — its
+    /// pots pay the PIECES that Arcanaut's armour upgrades need, the dearer project of the
+    /// two.
     /// </summary>
     public static readonly IReadOnlyDictionary<ushort, IReadOnlyList<string>> PotFatesByZone =
         new Dictionary<ushort, IReadOnlyList<string>>
         {
             [Data.PhantomJobData.NorthHornTerritoryId] = new[] { "In a Pot of Bother", "Daylight Pottery" },
-            // South Horn: "Pleading Pots" field-confirmed 2026-07-31. There are two per Horn,
-            // so one more name is still missing here.
-            [Data.PhantomJobData.SouthHornTerritoryId] = new[] { "Pleading Pots" },
+            // South Horn, both field-confirmed 2026-07-31: "Pleading Pots" at the southern
+            // spot, "Persistent Pots" at the northern one. (Note "Persistent Pots" the FATE is
+            // distinct from "Persistent Pot" the escortable NPC that appears in the enemy
+            // census — near-identical names, different things.)
+            [Data.PhantomJobData.SouthHornTerritoryId] = new[] { "Pleading Pots", "Persistent Pots" },
         };
 
     /// <summary>The pot FATEs for the zone the player is standing in (empty when unknown).</summary>
