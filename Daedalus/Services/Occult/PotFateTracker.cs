@@ -13,10 +13,11 @@ namespace Daedalus.Services.Occult;
 ///     2026-07-31, still being pinned down):
 ///         bronze — 100 Silver, 160 Gold, 1,000 gil, XI/XII materia (confirmed in BOTH Horns:
 ///                  identical amounts, only the currency differs — Pieces south, Obols north)
-///         silver — not yet observed (presumably between the two)
+///         silver — 300 Silver, 480 Gold, 5,000 gil, XI/XII materia (exactly 3x bronze)
 ///         gold   — 1,000 Silver, 1,600 Gold, 30,000 gil, XI/XII materia
-///     The tiers scale ~10x, and the gil confirms it: 1,000 gil on bronze against 30,000 on
-///     gold, which is what settled an earlier ambiguity over the gold chest's silver figure.
+///     The tiers are exact multiples of bronze: silver 3x, gold 10x, consistently across
+///     obols/pieces AND gil. That regularity is what settled an earlier ambiguity over the
+///     gold chest's silver figure.
 ///     CURRENCY IS PER ZONE (field 2026-07-31, confirmed): South Horn pays Enlightenment
 ///     PIECES, North Horn pays OBOLS.
 ///     TIER LOOKS PER SPOT, NOT PER ZONE. Each Horn has a northern-positioned pot FATE and a
