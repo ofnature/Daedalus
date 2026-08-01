@@ -754,7 +754,7 @@ public sealed class Plugin : IDalamudPlugin
             movementArbiter);
 
         this.drawingService = new DrawingService(pluginInterface, configuration.DrawHelper, gameGui, log);
-        this.drawCanvas = new DrawCanvas(drawingService, configuration, objectTable, clientState, targetManager, gameGui, positionalService, rotationManager, partyList);
+        this.drawCanvas = new DrawCanvas(drawingService, configuration, objectTable, clientState, targetManager, gameGui, positionalService, rotationManager, partyList, dataManager);
         this.updateCheckerService = new UpdateCheckerService(PluginVersion, notificationManager, log);
         this.configWindow = new ConfigWindow(configuration, SaveConfiguration, updateCheckerService, textureProvider, dutyContentService,
             new Daedalus.Services.Plugins.PluginStatusService(pluginInterface), phantomJobService);

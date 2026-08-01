@@ -20,6 +20,24 @@ public readonly record struct PhantomActionDef(uint ActionId, string Name, Phant
 /// </summary>
 public static class PhantomActions
 {
+    /// <summary>
+    /// Party buffs mapped to the status they grant. These have recasts far shorter than their
+    /// durations (Offensive Aria: 5s recast, 70s buff), so the layer paces them on the status
+    /// being down rather than on the cooldown — otherwise they re-fire every few seconds.
+    /// Status ids are the same-named rows in the phantom block, XIVAPI-verified 2026-07-31.
+    /// </summary>
+    public static readonly IReadOnlyDictionary<uint, uint> PartyBuffStatusByAction =
+        new Dictionary<uint, uint>
+        {
+            [41608] = 4247, // Offensive Aria
+            [41607] = 4246, // Mighty March
+            [41610] = 4249, // Hero's Rime
+            [41611] = 4251, // Battle Bell
+            [41619] = 4257, // Ringing Respite
+            [41599] = 4240, // Phantom Aim
+            [46590] = 4788, // Magic Shell
+        };
+
     public static readonly IReadOnlyList<PhantomActionDef> All =
     [
         // ── Freelancer (levels via mastery count, so unlocks run past 6) ──

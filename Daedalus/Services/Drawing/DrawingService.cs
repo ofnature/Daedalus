@@ -221,6 +221,27 @@ public sealed class DrawingService : IDisposable
             DrawCircleFilled(position, size, color);
     }
 
+    /// <summary>
+    /// Straight line between two world points. Works on both backends.
+    /// </summary>
+    public void DrawLine(Vector3 from, Vector3 to, uint color, float thickness = 2f)
+    {
+        if (_backend == DrawBackend.Pictomancy)
+        {
+            if (_drawList == null) return;
+            _drawList.PathLineTo(from);
+            _drawList.PathLineTo(to);
+            _drawList.PathStroke(color, PctStrokeFlags.None, thickness);
+            return;
+        }
+
+        if (_backend != DrawBackend.ScreenSpace) return;
+        if (!_gameGui.WorldToScreen(from, out var screenFrom)) return;
+        if (!_gameGui.WorldToScreen(to, out var screenTo)) return;
+
+        _screenDrawList.AddLine(screenFrom, screenTo, color, thickness);
+    }
+
     public void PathLineTo(Vector3 point)
     {
         _drawList?.PathLineTo(point);

@@ -13,6 +13,48 @@ namespace Daedalus.Tests.Data;
 /// </summary>
 public class PhantomActionsTests
 {
+    // ── Party buff → status pairing ──
+    // These ids were entered by hand from the Status sheet, so they get a guard.
+
+    [Fact]
+    public void PartyBuffStatuses_AllActionsExistInCatalog()
+    {
+        foreach (var actionId in PhantomActions.PartyBuffStatusByAction.Keys)
+            Assert.Contains(PhantomActions.All, a => a.ActionId == actionId);
+    }
+
+    [Fact]
+    public void PartyBuffStatuses_AreDistinctPerAction()
+    {
+        var statuses = PhantomActions.PartyBuffStatusByAction.Values.ToList();
+
+        Assert.Equal(statuses.Count, statuses.Distinct().Count());
+    }
+
+    [Fact]
+    public void PartyBuffStatuses_AreNonZero()
+    {
+        Assert.All(PhantomActions.PartyBuffStatusByAction.Values, id => Assert.NotEqual(0u, id));
+    }
+
+    /// <summary>
+    /// The reported bug: Offensive Aria (5s recast, 70s buff) was pushed on cooldown and chain-cast.
+    /// Its status must be mapped or the layer falls back to recast pacing and the spam returns.
+    /// </summary>
+    [Fact]
+    public void PartyBuffStatuses_MapOffensiveAriaToItsBuff()
+    {
+        Assert.Equal(4247u, PhantomActions.PartyBuffStatusByAction[41608]);
+    }
+
+    [Fact]
+    public void PartyBuffStatuses_CoverEveryBardGeomancerRangerAndMysticKnightBuff()
+    {
+        uint[] expected = [41608, 41607, 41610, 41611, 41619, 41599, 46590];
+
+        Assert.All(expected, id => Assert.True(PhantomActions.PartyBuffStatusByAction.ContainsKey(id)));
+    }
+
     [Fact]
     public void Catalog_ActionIdsAreUnique()
     {

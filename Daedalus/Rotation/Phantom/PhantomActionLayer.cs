@@ -264,23 +264,24 @@ public sealed class PhantomActionLayer
         if (!inCombat)
             return;
 
-        // Real recast timers pace these; the ready-gate inside TryPush prevents spam.
+        // Paced by the BUFF, not the recast — see TryPushBuff. Status ids are the same-named
+        // statuses in the phantom block (XIVAPI-verified 2026-07-31).
         switch (job)
         {
             case PhantomJob.Bard:
-                TryPush(ctx, 41608, job, level, PrioPartyBuff);     // Offensive Aria
-                TryPush(ctx, 41607, job, level, PrioPartyBuff + 1); // Mighty March
-                TryPush(ctx, 41610, job, level, PrioPartyBuff + 2); // Hero's Rime
+                TryPushBuff(ctx, 41608, job, level, PrioPartyBuff);     // Offensive Aria
+                TryPushBuff(ctx, 41607, job, level, PrioPartyBuff + 1); // Mighty March
+                TryPushBuff(ctx, 41610, job, level, PrioPartyBuff + 2); // Hero's Rime
                 break;
             case PhantomJob.Geomancer:
-                TryPush(ctx, 41611, job, level, PrioPartyBuff);     // Battle Bell
-                TryPush(ctx, 41619, job, level, PrioPartyBuff + 1); // Ringing Respite
+                TryPushBuff(ctx, 41611, job, level, PrioPartyBuff);     // Battle Bell
+                TryPushBuff(ctx, 41619, job, level, PrioPartyBuff + 1); // Ringing Respite
                 break;
             case PhantomJob.Ranger:
-                TryPush(ctx, 41599, job, level, PrioPartyBuff);     // Phantom Aim
+                TryPushBuff(ctx, 41599, job, level, PrioPartyBuff);     // Phantom Aim
                 break;
             case PhantomJob.MysticKnight:
-                TryPush(ctx, 46590, job, level, PrioPartyBuff);     // Magic Shell
+                TryPushBuff(ctx, 46590, job, level, PrioPartyBuff);     // Magic Shell
                 break;
         }
     }
@@ -652,6 +653,22 @@ public sealed class PhantomActionLayer
     {
         if (_actionService.PlayerHasStatus(procStatusId))
             TryPush(ctx, actionId, job, level, priority);
+    }
+
+    /// <summary>
+    /// Party buffs: push only while the buff is DOWN. Their recasts are far shorter than their
+    /// durations (Offensive Aria: 5s recast, 70s buff), so pacing on the recast alone re-fires
+    /// them every few seconds — the cooldown gate in <see cref="TryPush"/> cannot prevent that.
+    /// Re-application lands within one recast of expiry, which is a negligible gap on a 70s buff.
+    /// </summary>
+    private void TryPushBuff(IRotationContext ctx, uint actionId, PhantomJob job, byte level, int priority)
+    {
+        // Fail-open: an action with no mapped status falls back to recast pacing.
+        if (PhantomActions.PartyBuffStatusByAction.TryGetValue(actionId, out var buffStatusId)
+            && _actionService.PlayerHasStatus(buffStatusId))
+            return;
+
+        TryPush(ctx, actionId, job, level, priority);
     }
 
     private void TryPushWeather(IRotationContext ctx, uint actionId, PhantomJob job, byte level)

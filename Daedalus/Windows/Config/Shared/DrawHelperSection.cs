@@ -128,6 +128,57 @@ public sealed class DrawHelperSection
             ColorPicker("Ally Out of Range", dh.AstCardAllyOutOfRangeColor, v => { dh.AstCardAllyOutOfRangeColor = v; save(); });
         }
 
+        ImGui.Spacing();
+
+        // Treasure chest lines
+        ImGui.Separator();
+        ImGui.Text(Loc.T(LocalizedStrings.DrawHelper.TreasureLinesHeader, "Treasure Chests"));
+        var showTreasure = dh.ShowTreasureLines;
+        if (ImGui.Checkbox(Loc.T(LocalizedStrings.DrawHelper.ShowTreasureLines, "Show lines to treasure chests"), ref showTreasure)) { dh.ShowTreasureLines = showTreasure; save(); }
+        if (ImGui.IsItemHovered())
+        {
+            ImGui.SetTooltip(Loc.T(LocalizedStrings.DrawHelper.ShowTreasureLinesDesc,
+                "Draws a line from you to every treasure coffer in range, with a ring at its base. Works anywhere coffers spawn."));
+        }
+        if (dh.ShowTreasureLines)
+        {
+            var treasureRange = dh.TreasureLineMaxDistance;
+            if (ImGui.SliderFloat(Loc.T(LocalizedStrings.DrawHelper.TreasureLineMaxDistance, "Max Distance (y)"), ref treasureRange, 10f, 200f, "%.0f"))
+            {
+                dh.TreasureLineMaxDistance = treasureRange;
+                save();
+            }
+            ColorPicker("Bronze", dh.BronzeChestLineColor, v => { dh.BronzeChestLineColor = v; save(); });
+            ColorPicker("Silver", dh.SilverChestLineColor, v => { dh.SilverChestLineColor = v; save(); });
+            ColorPicker("Gold", dh.GoldChestLineColor, v => { dh.GoldChestLineColor = v; save(); });
+            ColorPicker("Unrecognised", dh.UnknownChestLineColor, v => { dh.UnknownChestLineColor = v; save(); });
+        }
+
+        var showCarrots = dh.ShowCarrotLines;
+        if (ImGui.Checkbox(Loc.T(LocalizedStrings.DrawHelper.ShowCarrotLines, "Show lines to carrot spots"), ref showCarrots)) { dh.ShowCarrotLines = showCarrots; save(); }
+        if (ImGui.IsItemHovered())
+        {
+            ImGui.SetTooltip(Loc.T(LocalizedStrings.DrawHelper.ShowCarrotLinesDesc,
+                "Occult Crescent only — the dig spots you use a Fortune Carrot on to raise a chest."));
+        }
+        if (dh.ShowCarrotLines)
+        {
+            var carrotRange = dh.CarrotLineMaxDistance;
+            if (ImGui.SliderFloat(Loc.T(LocalizedStrings.DrawHelper.CarrotLineMaxDistance, "Max Distance (y)##carrot"), ref carrotRange, 10f, 200f, "%.0f"))
+            {
+                dh.CarrotLineMaxDistance = carrotRange;
+                save();
+            }
+            ColorPicker("Line Color##carrot", dh.CarrotLineColor, v => { dh.CarrotLineColor = v; save(); });
+        }
+
+        var labelObjects = dh.LabelWorldObjects;
+        if (ImGui.Checkbox(Loc.T(LocalizedStrings.DrawHelper.LabelWorldObjects, "Debug: label nearby world objects"), ref labelObjects)) { dh.LabelWorldObjects = labelObjects; save(); }
+        if (ImGui.IsItemHovered())
+        {
+            ImGui.SetTooltip(Loc.T(LocalizedStrings.DrawHelper.LabelWorldObjectsDesc,
+                "Stamps the ObjectKind and name over every non-creature object within 30y. Use this to check what kind a chest reports if no line appears."));
+        }
     }
 
     private static void ColorPicker(string label, uint currentColor, Action<uint> setter)

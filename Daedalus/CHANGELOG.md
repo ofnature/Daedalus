@@ -8,6 +8,16 @@ All notable changes to Daedalus will be documented in this file.
 ### New — North Horn (Occult Crescent)
 - The phantom layer, zone HUD, and Debug Duty tab now activate in **North Horn** — currencies show the new Silver/Gold **Obols** automatically, and phantom jobs you already know work with the existing catalog. (The six new North Horn phantom jobs get their own update once cataloged)
 
+### Fix — Phantom party buffs were being chain-cast
+- Occult party buffs are now held while the buff is up instead of fired on cooldown. **Offensive Aria** has a 5s recast but a 70s buff, so it was re-cast every few seconds and crowded out real actions — same for Mighty March, Hero's Rime, Battle Bell, Ringing Respite, Phantom Aim and Magic Shell
+
+### New — Lines to chests and carrot spots
+- Draw Helper can now draw a **line from you to every treasure coffer in range**, with a ring at its base, **coloured by tier** — bronze, silver, gold. The line drops as soon as you loot the chest (Draw Helper → Treasure Chests)
+- A second toggle draws **green lines to Occult Crescent carrot spots** — the dig sites you use a Fortune Carrot on to raise a chest
+- Both kinds of line **hide while you're in combat** and come back when the fight ends
+- **Both Horns.** These aren't gated to a zone: chests work anywhere coffers spawn, including dungeons, and carrot lines work in North Horn as well as South
+- A **Debug: label nearby world objects** toggle sits alongside them — it stamps each nearby object's kind, id and name on screen, so if something doesn't get a line you can see what it actually is
+
 ### New — Samurai at Level 100: Tendo
 - The real cause of the "Cannot use yet." spam: at Lv100 with Meikyo up, the plain Iaijutsu are invalid — the rotation now casts **Tendo Goken / Tendo Setsugekka** (and their Kaeshi follow-ups) during the Tendo window. More damage every burst, no more rejected casts
 

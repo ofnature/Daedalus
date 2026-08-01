@@ -234,6 +234,15 @@ public static class LocalizedStrings
         public const string AstCardRangeHeader = "DrawHelper.AstCardRangeHeader";
         public const string ShowAstCardRange = "DrawHelper.ShowAstCardRange";
         public const string AstCardRangeDesc = "DrawHelper.AstCardRangeDesc";
+        public const string TreasureLinesHeader = "DrawHelper.TreasureLinesHeader";
+        public const string ShowTreasureLines = "DrawHelper.ShowTreasureLines";
+        public const string ShowTreasureLinesDesc = "DrawHelper.ShowTreasureLinesDesc";
+        public const string TreasureLineMaxDistance = "DrawHelper.TreasureLineMaxDistance";
+        public const string ShowCarrotLines = "DrawHelper.ShowCarrotLines";
+        public const string ShowCarrotLinesDesc = "DrawHelper.ShowCarrotLinesDesc";
+        public const string CarrotLineMaxDistance = "DrawHelper.CarrotLineMaxDistance";
+        public const string LabelWorldObjects = "DrawHelper.LabelWorldObjects";
+        public const string LabelWorldObjectsDesc = "DrawHelper.LabelWorldObjectsDesc";
     }
 
     /// <summary>Keys for targeting settings section.</summary>

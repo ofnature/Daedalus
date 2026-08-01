@@ -36,6 +36,10 @@ public sealed class DrawCanvas : Window
     private readonly IPositionalService _positionalService;
     private readonly RotationManager _rotationManager;
     private readonly IPartyList _partyList;
+    private readonly IDataManager _dataManager;
+
+    // Coffer BaseId → scenery model id, resolved once per coffer type.
+    private readonly Dictionary<uint, uint> _sceneryIdByBaseId = [];
 
     // AoE test mode state
     private Vector3 _simPlayerPos;
@@ -82,7 +86,8 @@ public sealed class DrawCanvas : Window
         IGameGui gameGui,
         IPositionalService positionalService,
         RotationManager rotationManager,
-        IPartyList partyList)
+        IPartyList partyList,
+        IDataManager dataManager)
         : base("##DaedalusDrawCanvas",
             ImGuiWindowFlags.NoInputs
             | ImGuiWindowFlags.NoTitleBar
@@ -102,6 +107,7 @@ public sealed class DrawCanvas : Window
         _positionalService = positionalService;
         _rotationManager = rotationManager;
         _partyList = partyList;
+        _dataManager = dataManager;
 
         IsOpen = true;
         RespectCloseHotkey = false;
@@ -139,6 +145,21 @@ public sealed class DrawCanvas : Window
 
                 if (Config.ShowAstCardRange && JobRegistry.IsAstrologian(player.ClassJob.RowId))
                     DrawAstCardRange(player);
+
+                // Guide lines are a navigation aid, not a combat overlay — they clutter a fight and
+                // the loot isn't going anywhere. BOCCHI suppresses its radar in combat for the same reason.
+                var inCombat = (player.StatusFlags & StatusFlags.InCombat) != 0;
+
+                if (Config.ShowTreasureLines && !inCombat)
+                    DrawGuideLines(player, WorldLineSelector.IsChestLineCandidate,
+                        Config.TreasureLineMaxDistance, ChestLineColor);
+
+                if (Config.ShowCarrotLines && !inCombat)
+                    DrawGuideLines(player, WorldLineSelector.IsCarrotLineCandidate,
+                        Config.CarrotLineMaxDistance, _ => Config.CarrotLineColor);
+
+                if (Config.LabelWorldObjects)
+                    DrawWorldObjectLabels(player);
 
                 var target = _targetManager.Target;
                 if (target != null)
@@ -455,6 +476,74 @@ public sealed class DrawCanvas : Window
             if (dist > 50f) continue;
 
             _drawing.DrawCircle(npc.Position, npc.HitboxRadius, Config.EnemyHitboxColor);
+        }
+    }
+
+    /// <summary>
+    /// A line from the player to every object the filter accepts, plus a ring at its foot.
+    /// Both ends are lifted off the ground so the line reads against the floor rather than clipping into it.
+    /// </summary>
+    private void DrawGuideLines(
+        IPlayerCharacter player,
+        Func<IGameObject, Vector3, float, bool> filter,
+        float maxDistance,
+        Func<IGameObject, uint> colorFor)
+    {
+        var origin = player.Position with { Y = player.Position.Y + 1f };
+
+        foreach (var obj in _objectTable)
+        {
+            if (!filter(obj, player.Position, maxDistance)) continue;
+
+            var color = colorFor(obj);
+            var destination = SnapToFloor(obj.Position);
+            _drawing.DrawLine(origin, destination with { Y = destination.Y + 0.5f }, color);
+            _drawing.DrawCircle(destination, 1f, color);
+        }
+    }
+
+    /// <summary>Coffer line colour by tier — bronze, silver, or purple when the model isn't recognised.</summary>
+    private uint ChestLineColor(IGameObject chest) => WorldLineSelector.TierFromSceneryId(ResolveSceneryId(chest.BaseId)) switch
+    {
+        TreasureTier.Bronze => Config.BronzeChestLineColor,
+        TreasureTier.Silver => Config.SilverChestLineColor,
+        TreasureTier.Gold => Config.GoldChestLineColor,
+        _ => Config.UnknownChestLineColor,
+    };
+
+    /// <summary>
+    /// Scenery (SGB) model id for a coffer, from the Treasure sheet. Cached — this runs per
+    /// coffer per frame, and the mapping never changes within a session.
+    /// </summary>
+    private uint ResolveSceneryId(uint baseId)
+    {
+        if (_sceneryIdByBaseId.TryGetValue(baseId, out var cached)) return cached;
+
+        var sceneryId = _dataManager.GetExcelSheet<Lumina.Excel.Sheets.Treasure>()?.GetRowOrDefault(baseId)?.SGB.RowId ?? 0u;
+        _sceneryIdByBaseId[baseId] = sceneryId;
+        return sceneryId;
+    }
+
+    /// <summary>
+    /// Diagnostic: stamps ObjectKind + name over every nearby non-creature object. This is how you
+    /// find out what kind a given chest actually reports — turn it on, stand next to one, read the label.
+    /// </summary>
+    private void DrawWorldObjectLabels(IPlayerCharacter player)
+    {
+        const float labelRange = 30f;
+        var drawList = ImGui.GetBackgroundDrawList();
+
+        foreach (var obj in _objectTable)
+        {
+            if (!WorldLineSelector.IsLabelCandidate(obj.ObjectKind)) continue;
+            if (Vector3.DistanceSquared(player.Position, obj.Position) > labelRange * labelRange) continue;
+            if (!_gameGui.WorldToScreen(obj.Position with { Y = obj.Position.Y + 1f }, out var screenPos)) continue;
+
+            // BaseId and targetability are what a line filter can key on, so the label carries both.
+            var targetable = obj.IsTargetable ? " [T]" : string.Empty;
+            var text = $"{obj.ObjectKind}#{obj.BaseId}{targetable}: {obj.Name.TextValue}";
+            drawList.AddText(screenPos + new Vector2(1, 1), 0xFF000000u, text);
+            drawList.AddText(screenPos, 0xFFFFFFFFu, text);
         }
     }
 
