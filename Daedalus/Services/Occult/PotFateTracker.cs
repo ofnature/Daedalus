@@ -11,7 +11,8 @@ namespace Daedalus.Services.Occult;
 ///   • completing the FATE itself: ~160 Silver + ~160 Gold Obols
 ///   • the hidden coffer the Magical Elixir leads you to, which comes in TIERS (field
 ///     2026-07-31, still being pinned down):
-///         bronze — 100 Silver, 160 Gold, 1,000 gil, XI/XII materia
+///         bronze — 100 Silver, 160 Gold, 1,000 gil, XI/XII materia (confirmed in BOTH Horns:
+///                  identical amounts, only the currency differs — Pieces south, Obols north)
 ///         silver — not yet observed (presumably between the two)
 ///         gold   — 1,000 Silver, 1,600 Gold, 30,000 gil, XI/XII materia
 ///     The tiers scale ~10x, and the gil confirms it: 1,000 gil on bronze against 30,000 on
