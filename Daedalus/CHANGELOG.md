@@ -8,6 +8,10 @@ All notable changes to Daedalus will be documented in this file.
 ### New — North Horn (Occult Crescent)
 - The phantom layer, zone HUD, and Debug Duty tab now activate in **North Horn** — currencies show the new Silver/Gold **Obols** automatically, and phantom jobs you already know work with the existing catalog. (The six new North Horn phantom jobs get their own update once cataloged)
 
+### Fix — Pot FATE timer no longer resets when the plugin reloads
+- The countdown is worked out from spawns the plugin has watched, and that history only lived in memory — so any plugin reload wiped it and the warning stayed silent until a pot actually popped. It now survives a reload for as long as you stay in the Horn
+- Leaving the Horn still clears it deliberately: the zone is instanced, so a timer from the instance you left says nothing about the one you come back to. Re-entering waits for a fresh spawn, same as before
+
 ### Fix — Phantom party buffs were being chain-cast
 - Occult party buffs are now held while the buff is up instead of fired on cooldown. **Offensive Aria** has a 5s recast but a 70s buff, so it was re-cast every few seconds and crowded out real actions — same for Mighty March, Hero's Rime, Battle Bell, Ringing Respite, Phantom Aim and Magic Shell
 

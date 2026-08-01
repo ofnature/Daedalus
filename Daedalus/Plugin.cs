@@ -631,7 +631,8 @@ public sealed class Plugin : IDalamudPlugin
 
         // Learns which Occult enemies are weak to which element (statuses 5322-5325, revealed
         // by Occult Libra etc.) and persists the table — the ice list feeds Deep Freeze value.
-        this.potFateTracker = new Daedalus.Services.Occult.PotFateTracker(fateTable, clientState, gameGui, dataManager);
+        this.potFateTracker = new Daedalus.Services.Occult.PotFateTracker(fateTable, clientState, gameGui, dataManager,
+            configuration.Occult, SaveConfiguration);
         this.elementalWeaknessLog = new Daedalus.Services.Occult.ElementalWeaknessLog(
             objectTable, clientState, log, pluginInterface.ConfigDirectory.FullName, debugLogService, fateTable);
 

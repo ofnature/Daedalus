@@ -110,13 +110,96 @@ public sealed class PotFateTracker
     private readonly Dictionary<(ushort Zone, string Name), double> _observedCycleSeconds = new();
     private readonly HashSet<(ushort Zone, string Name)> _activeNow = new();
 
+    private readonly Config.PhantomConfig? _config;
+    private readonly System.Action? _save;
+
     public PotFateTracker(IFateTable? fateTable, IClientState clientState,
-        IGameGui? gameGui = null, IDataManager? dataManager = null)
+        IGameGui? gameGui = null, IDataManager? dataManager = null,
+        Config.PhantomConfig? config = null, System.Action? save = null)
     {
         _fateTable = fateTable;
         _clientState = clientState;
         _gameGui = gameGui;
         _dataManager = dataManager;
+        _config = config;
+        _save = save;
+
+        LoadHistory();
+    }
+
+    /// <summary>
+    /// Seed the in-memory history from config. Without this the countdown restarts from "never
+    /// seen one" on every plugin reload, which is silent failure — the HUD simply shows nothing
+    /// until a pot spawns, by which point you have already missed the travel window.
+    /// </summary>
+    private void LoadHistory()
+    {
+        if (_config?.PotFateHistory is not { Count: > 0 } history)
+            return;
+
+        foreach (var entry in history)
+        {
+            if (!TryParseHistoryKey(entry.Key, out var key))
+                continue;
+
+            _lastSeenUtc[key] = DateTimeOffset.FromUnixTimeSeconds(entry.Value.LastSeenUnixSeconds).UtcDateTime;
+            if (entry.Value.CycleSeconds is { } cycle && cycle > 0)
+                _observedCycleSeconds[key] = cycle;
+        }
+    }
+
+    private void SaveHistory((ushort Zone, string Name) key)
+    {
+        if (_config is null)
+            return;
+
+        var stored = new Config.PotFateSighting
+        {
+            LastSeenUnixSeconds = new DateTimeOffset(DateTime.SpecifyKind(_lastSeenUtc[key], DateTimeKind.Utc))
+                .ToUnixTimeSeconds(),
+            CycleSeconds = _observedCycleSeconds.TryGetValue(key, out var cycle) ? cycle : null,
+        };
+
+        _config.PotFateHistory[HistoryKey(key)] = stored;
+        _save?.Invoke();
+    }
+
+    /// <summary>
+    /// Forget everything. Guarded so the no-op case costs nothing — <see cref="Update"/> runs
+    /// every framework tick and must not rewrite the config file while out of the zone.
+    /// </summary>
+    internal void ClearHistory()
+    {
+        var hadMemory = _lastSeenUtc.Count > 0 || _observedCycleSeconds.Count > 0 || _activeNow.Count > 0;
+        var hadStored = _config is { PotFateHistory.Count: > 0 };
+        if (!hadMemory && !hadStored)
+            return;
+
+        _lastSeenUtc.Clear();
+        _observedCycleSeconds.Clear();
+        _activeNow.Clear();
+        _activePosition = null;
+
+        if (hadStored)
+        {
+            _config!.PotFateHistory.Clear();
+            _save?.Invoke();
+        }
+    }
+
+    private static string HistoryKey((ushort Zone, string Name) key) => $"{key.Zone}:{key.Name}";
+
+    private static bool TryParseHistoryKey(string raw, out (ushort Zone, string Name) key)
+    {
+        key = default;
+        var split = raw.IndexOf(':');
+        if (split <= 0 || split == raw.Length - 1)
+            return false;
+        if (!ushort.TryParse(raw[..split], out var zone))
+            return false;
+
+        key = (zone, raw[(split + 1)..]);
+        return true;
     }
 
     /// <summary>True when the next pot is due within the warning window (or overdue).</summary>
@@ -159,10 +242,20 @@ public sealed class PotFateTracker
     /// <summary>Framework tick — cheap; the fate table is a handful of entries.</summary>
     public void Update()
     {
-        if (_fateTable is null || !Data.PhantomJobData.OccultTerritoryIds.Contains((ushort)_clientState.TerritoryType))
-            return;
-
         var zone = (ushort)_clientState.TerritoryType;
+
+        // Leaving the Horn drops the history. The zone is instanced, so a timestamp from the
+        // instance you just left says nothing about the one you come back to — re-entering
+        // needs a fresh spawn to restart the clock. Persistence only has to survive a plugin
+        // reload WITHIN a visit, which is the case that was silently failing.
+        if (!Data.PhantomJobData.OccultTerritoryIds.Contains(zone))
+        {
+            ClearHistory();
+            return;
+        }
+
+        if (_fateTable is null)
+            return;
         var now = UtcNow();
         var seen = new HashSet<(ushort, string)>();
 
@@ -188,6 +281,7 @@ public sealed class PotFateTracker
             }
 
             _lastSeenUtc[key] = now;
+            SaveHistory(key);
         }
 
         _activeNow.Clear();

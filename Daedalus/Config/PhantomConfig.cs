@@ -1,4 +1,18 @@
+using System.Collections.Generic;
+
 namespace Daedalus.Config;
+
+/// <summary>
+/// One remembered pot FATE spawn. Unix seconds rather than DateTime so the round trip through
+/// the config file can't lose the UTC kind.
+/// </summary>
+public sealed class PotFateSighting
+{
+    public long LastSeenUnixSeconds { get; set; }
+
+    /// <summary>Cycle measured from two observed spawns, or null while only the default is known.</summary>
+    public double? CycleSeconds { get; set; }
+}
 
 /// <summary>
 /// Occult Crescent phantom action settings (Phase 2 of docs/occult-phantom-plan.md).
@@ -9,6 +23,17 @@ public sealed class PhantomConfig
 {
     /// <summary>Master toggle for the phantom action layer (in-zone only).</summary>
     public bool EnablePhantomActions { get; set; } = true;
+
+    /// <summary>
+    /// Pot FATE sighting history, keyed "{territoryId}:{fateName}".
+    /// <para>
+    /// Persisted deliberately: the countdown is derived from observation, so holding it only in
+    /// memory means every plugin reload — including every Debug rebuild — forgets when the last
+    /// pot was and the warning stays silent until one actually spawns. Field-reported
+    /// 2026-07-31 after two pots were missed that way.
+    /// </para>
+    /// </summary>
+    public Dictionary<string, PotFateSighting> PotFateHistory { get; set; } = [];
 
     /// <summary>Hold damage phantom actions for the main job's burst window.
     /// Survival/utility actions ignore this.</summary>
