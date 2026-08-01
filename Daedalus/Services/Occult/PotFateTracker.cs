@@ -16,8 +16,15 @@ namespace Daedalus.Services.Occult;
 ///         gold   — 1,000 Silver, 1,600 Gold, 30,000 gil, XI/XII materia
 ///     The tiers scale ~10x, and the gil confirms it: 1,000 gil on bronze against 30,000 on
 ///     gold, which is what settled an earlier ambiguity over the gold chest's silver figure.
-///     The two Horns pay DIFFERENT CURRENCIES, not different amounts of one (field
-///     2026-07-31): South Horn pots pay Enlightenment PIECES, North Horn pots pay OBOLS.
+///     CURRENCY IS PER ZONE (field 2026-07-31, confirmed): South Horn pays Enlightenment
+///     PIECES, North Horn pays OBOLS.
+///     TIER LOOKS PER SPOT, NOT PER ZONE. Each Horn has a northern-positioned pot FATE and a
+///     southern-positioned one, and within NORTH HORN the southern spot (In a Pot of Bother,
+///     11.0/25.8) produced bronze coffers twice while the northern spot (Daylight Pottery,
+///     26.2/11.6) produced gold — the bronze drops paid obols, which is what places them in
+///     North Horn rather than South. If that holds, the spot you run matters as much as the
+///     zone: same currency, ~10x the payout. Needs more samples, and an earlier note in this
+///     file wrongly read the same evidence as a zone difference.
 ///     They are therefore not competing — they fund different things:
 ///         Obols (North) -> phantom job soul shards, 1,000-1,600 each
 ///         Pieces (South) -> Arcanaut's armour upgrades, and those are far dearer:
