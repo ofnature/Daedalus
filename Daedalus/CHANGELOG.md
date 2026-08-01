@@ -3,6 +3,12 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.48 — unreleased
+
+### New — Pot FATEs say which spot they are
+- Each Horn runs a **northern and a southern** pot spot, and the coffer tier looks tied to the spot rather than the zone — inside North Horn the northern spot has produced gold coffers while the southern one produced bronze. The HUD now labels them: *Daylight Pottery (north pots)*, *In a Pot of Bother (south pots)*, and the same for South Horn's pair
+
+<!-- LATEST-END -->
 ## v0.1.47 — 2026-08-01
 
 ### New — Phantom jobs can raise
@@ -29,7 +35,6 @@ All notable changes to Daedalus will be documented in this file.
 - **Both Horns.** These aren't gated to a zone: chests work anywhere coffers spawn, including dungeons, and carrot lines work in North Horn as well as South
 - A **Debug: label nearby world objects** toggle sits alongside them — it stamps each nearby object's kind, id and name on screen, so if something doesn't get a line you can see what it actually is
 
-<!-- LATEST-END -->
 ## v0.1.46 — 2026-07-30
 
 ### New — North Horn (Occult Crescent)

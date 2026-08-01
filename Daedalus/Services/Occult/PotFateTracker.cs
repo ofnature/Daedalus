@@ -86,6 +86,39 @@ public sealed class PotFateTracker
             [Data.PhantomJobData.SouthHornTerritoryId] = new[] { "Pleading Pots", "Persistent Pots" },
         };
 
+    /// <summary>
+    /// Where each pot FATE sits WITHIN its own Horn. Both Horns run a northern and a southern
+    /// spot, and the coffer tier looks spot-bound rather than zone-bound — inside North Horn the
+    /// northern spot (Daylight Pottery, 26.2/11.6) produced gold coffers while the southern one
+    /// (In a Pot of Bother, 11.0/25.8) produced bronze. So which spot you travel to matters as
+    /// much as which Horn you are in, and the HUD says which is which.
+    /// <para>
+    /// South Horn's pair is labelled from the same field notes: Persistent Pots is the northern
+    /// spot, Pleading Pots the southern one.
+    /// </para>
+    /// </summary>
+    public static readonly IReadOnlyDictionary<string, string> SpotLabels =
+        new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["Daylight Pottery"] = "north pots",
+            ["In a Pot of Bother"] = "south pots",
+            ["Persistent Pots"] = "north pots",
+            ["Pleading Pots"] = "south pots",
+        };
+
+    /// <summary>The in-Horn spot label for a pot FATE, or empty when it isn't one we know.</summary>
+    public static string DescribeSpot(string fateName) =>
+        !string.IsNullOrWhiteSpace(fateName) && SpotLabels.TryGetValue(fateName, out var label)
+            ? label
+            : string.Empty;
+
+    /// <summary>FATE name with its spot label appended, e.g. "Daylight Pottery (north pots)".</summary>
+    public static string NameWithSpot(string fateName)
+    {
+        var spot = DescribeSpot(fateName);
+        return spot.Length == 0 ? fateName : $"{fateName} ({spot})";
+    }
+
     /// <summary>The pot FATEs for the zone the player is standing in (empty when unknown).</summary>
     public IReadOnlyList<string> PotFateNames =>
         PotFatesByZone.TryGetValue((ushort)_clientState.TerritoryType, out var names)

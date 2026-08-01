@@ -139,7 +139,8 @@ public sealed class OccultWindow : Window
 
         if (_potFates.ActiveFate is { } live)
         {
-            ImGui.TextColored(Gold, $"★ POT FATE UP — {live}");
+            ImGui.TextColored(Gold,
+                $"★ POT FATE UP — {Daedalus.Services.Occult.PotFateTracker.NameWithSpot(live)}");
             if (_potFates.CanOpenMap && ImGui.Button("Show on map##potfate"))
                 _potFates.OpenMapToActivePot();
             return;
@@ -159,21 +160,24 @@ public sealed class OccultWindow : Window
 
         foreach (var name in _potFates.PotFateNames)
         {
+            // Spot label matters as much as the name: within a Horn the two spots have produced
+            // different coffer tiers, so "north pots" / "south pots" is the actionable part.
+            var label = Daedalus.Services.Occult.PotFateTracker.NameWithSpot(name);
             var due = _potFates.SecondsUntilExpected(name);
             if (due is null)
             {
-                ImGui.TextColored(Dim, $"{name}: not seen yet");
+                ImGui.TextColored(Dim, $"{label}: not seen yet");
                 continue;
             }
 
             var tag = _potFates.CycleIsMeasured(name) ? "" : " (est)";
             if (due <= 0)
-                ImGui.TextColored(Green, $"{name}: due now{tag}");
+                ImGui.TextColored(Green, $"{label}: due now{tag}");
             else
             {
                 var mins = (int)(due.Value / 60);
                 var secs = (int)(due.Value % 60);
-                ImGui.TextColored(Dim, $"{name}: ~{mins:00}:{secs:00}{tag}");
+                ImGui.TextColored(Dim, $"{label}: ~{mins:00}:{secs:00}{tag}");
             }
         }
     }
