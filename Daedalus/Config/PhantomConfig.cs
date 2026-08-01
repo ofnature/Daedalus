@@ -12,7 +12,18 @@ public sealed class PhantomConfig
 
     /// <summary>Hold damage phantom actions for the main job's burst window.
     /// Survival/utility actions ignore this.</summary>
-    public bool SaveDamageForBurst { get; set; } = true;
+    /// <summary>
+    /// Hold phantom damage actions for the main job's burst window.
+    /// <para>
+    /// DEFAULT CHANGED 2026-07-31 after measuring it: phantom nukes hit FAR harder than a main
+    /// job GCD, because "potency scales with item level" means their numbers are not
+    /// comparable to job potencies at all. Field reading on a fire-weak target: Occult Fire II
+    /// landed 75,000-120,000 against a 57,000 maximum from the character's own class skills —
+    /// so a phantom cast that displaces a job GCD is a large net GAIN, not the loss the
+    /// potency figures suggest. Holding them for burst just leaves that damage unspent.
+    /// </para>
+    /// </summary>
+    public bool SaveDamageForBurst { get; set; } = false;
 
     /// <summary>Auto-open the compact zone HUD (consumables, currency, shard banner)
     /// when entering Occult Crescent.</summary>

@@ -400,6 +400,15 @@ public sealed class PhantomActionLayer
                 TryPush(ctx, 41649, job, level, PrioDamage + 5, target.GameObjectId, target); // Pilfer Weapon
                 break;
 
+            case PhantomJob.PhantomDragoon:
+                // Lance first — 300 plus a drain that overheals into a 60s barrier, so it is
+                // damage AND sustain. Occult Jump is the bigger hit (500 with the Lv.4 trait)
+                // and carries a 90% damage cut for its 2s, but it is a Weaponskill and takes
+                // the GCD, so it follows.
+                TryPush(ctx, 49079, job, level, PrioDamage, target.GameObjectId, target);
+                TryPush(ctx, 49077, job, level, PrioDamage + 1, target.GameObjectId, target);
+                break;
+
             case PhantomJob.PhantomSummoner:
                 // Megaflare leads: unaspected 1,000 on its own 90s timer, no weakness applies.
                 TryPush(ctx, 49084, job, level, PrioDamage, target.GameObjectId, target);

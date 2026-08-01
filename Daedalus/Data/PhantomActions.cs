@@ -154,6 +154,15 @@ public static class PhantomActions
         new(49095, "Occult Blizzard II", PhantomJob.PhantomRedMage, 4),  // ice
         new(49096, "Occult Thunder II", PhantomJob.PhantomRedMage, 6),   // lightning
 
+        // ── Phantom Dragoon (North Horn; kit field-confirmed 2026-07-31). The smallest kit
+        //    on the roster: THREE actions (Lv.1-3) plus a Lv.4 trait, where every other job
+        //    has five. Occult Jump is a Weaponskill; the other two are Abilities. ──
+        new(49077, "Occult Jump", PhantomJob.PhantomDragoon, 1),  // 400 potency + 60% damage taken down 2s
+        new(49078, "Step Forth", PhantomJob.PhantomDragoon, 2),   // 10y directional hop, 10s
+        new(49079, "Lance", PhantomJob.PhantomDragoon, 3),        // 300, drains as HP, overheal becomes a 60s barrier
+        // Lv.4 trait "Enhanced Occult Jump": Jump 400 -> 500 potency and its damage
+        // reduction 60% -> 90%. Passive; nothing to press.
+
         // ── Phantom Summoner (North Horn; kit field-confirmed 2026-07-31, five actions at
         //    Lv.1-5, no traits). The heaviest hitter of the North Horn kits — 600 potency a
         //    nuke (780 matched) and a 1,000 Megaflare — but the casts are FOUR seconds and
