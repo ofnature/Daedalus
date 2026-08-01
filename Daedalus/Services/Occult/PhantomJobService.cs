@@ -41,6 +41,12 @@ public sealed record PhantomStateSnapshot
     /// the state is unavailable.
     /// </summary>
     public required IReadOnlyDictionary<PhantomJob, byte> JobLevels { get; init; }
+
+    /// <summary>
+    /// Names of the Critical Encounters that are not Inactive right now (registering, warming
+    /// up, or in progress). Empty outside the zone.
+    /// </summary>
+    public required IReadOnlyList<string> ActiveCriticalEncounters { get; init; }
 }
 
 /// <summary>
@@ -66,6 +72,7 @@ public sealed class PhantomJobService
     private bool _slotReadFaulted;
     private bool _progressionReadFaulted;
     private bool _mkdInfoReadFaulted;
+    private bool _criticalEncounterReadFaulted;
 
     public PhantomJobService(
         IClientState clientState,
@@ -233,7 +240,44 @@ public sealed class PhantomJobService
             Items = inZone ? ReadItemCounts() : Array.Empty<PhantomItemCount>(),
             Progression = inZone ? ReadProgression() : null,
             JobLevels = inZone ? ReadAllJobLevels() : new Dictionary<PhantomJob, byte>(),
+            ActiveCriticalEncounters = inZone ? ReadActiveCriticalEncounters() : [],
         };
+    }
+
+    /// <summary>
+    /// Live Critical Encounters that are not Inactive. Read from the Occult director's dynamic
+    /// event container — the same source BOCCHI uses; CEs are dynamic events, not FATEs, so the
+    /// FATE table never sees them.
+    /// </summary>
+    private unsafe IReadOnlyList<string> ReadActiveCriticalEncounters()
+    {
+        var result = new List<string>();
+        try
+        {
+            var director = FFXIVClientStructs.FFXIV.Client.Game.InstanceContent.PublicContentOccultCrescent.GetInstance();
+            if (director == null)
+                return result;
+
+            foreach (var dynamicEvent in director->DynamicEventContainer.Events)
+            {
+                if (dynamicEvent.State == FFXIVClientStructs.FFXIV.Client.Game.InstanceContent.DynamicEventState.Inactive)
+                    continue;
+
+                var name = dynamicEvent.Name.ToString();
+                if (!string.IsNullOrWhiteSpace(name))
+                    result.Add(name);
+            }
+        }
+        catch (Exception ex)
+        {
+            if (!_criticalEncounterReadFaulted)
+            {
+                _criticalEncounterReadFaulted = true;
+                _log.Warning(ex, "PhantomJobService: critical encounter read failed");
+            }
+        }
+
+        return result;
     }
 
     /// <summary>Per-job phantom levels from OccultCrescentState (0 = not unlocked).</summary>

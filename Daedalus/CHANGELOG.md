@@ -8,6 +8,10 @@ All notable changes to Daedalus will be documented in this file.
 ### New — North Horn (Occult Crescent)
 - The phantom layer, zone HUD, and Debug Duty tab now activate in **North Horn** — currencies show the new Silver/Gold **Obols** automatically, and phantom jobs you already know work with the existing catalog. (The six new North Horn phantom jobs get their own update once cataloged)
 
+### New — Shard Critical Encounter alerts
+- The Occult window now calls out a live **Critical Encounter that drops a phantom job's Soul Shard** — Oracle, Ranger, Berserker and Necromancer have no other unlock route, and the encounters run on their own timers
+- It only fires for jobs you **haven't unlocked yet**. Once the job is yours the encounter is just another CE and the banner stays quiet
+
 ### Fix — Pot FATE timer no longer resets when the plugin reloads
 - The countdown is worked out from spawns the plugin has watched, and that history only lived in memory — so any plugin reload wiped it and the warning stayed silent until a pot actually popped. It now survives a reload for as long as you stay in the Horn
 - Leaving the Horn still clears it deliberately: the zone is instanced, so a timer from the instance you left says nothing about the one you come back to. Re-entering waits for a fresh spawn, same as before
@@ -18,6 +22,7 @@ All notable changes to Daedalus will be documented in this file.
 ### New — Lines to chests and carrot spots
 - Draw Helper can now draw a **line from you to every treasure coffer in range**, with a ring at its base, **coloured by tier** — bronze, silver, gold. The line drops as soon as you loot the chest (Draw Helper → Treasure Chests)
 - A second toggle draws **green lines to Occult Crescent carrot spots** — the dig sites you use a Fortune Carrot on to raise a chest
+- The **pot FATE's hidden Gold Coffer** gets a line too. It isn't a normal treasure chest under the hood, so chests-only detection walked straight past the most valuable coffer in the zone
 - Both kinds of line **hide while you're in combat** and come back when the fight ends
 - **Both Horns.** These aren't gated to a zone: chests work anywhere coffers spawn, including dungeons, and carrot lines work in North Horn as well as South
 - A **Debug: label nearby world objects** toggle sits alongside them — it stamps each nearby object's kind, id and name on screen, so if something doesn't get a line you can see what it actually is

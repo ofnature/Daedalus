@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 
 namespace Daedalus.Data;
@@ -137,6 +138,55 @@ public static class PhantomJobData
     /// A stack count of <see cref="NoLevelStacks"/> counts as level 0 (RSR rule);
     /// the first phantom status with a real level wins (only one is ever active).
     /// </summary>
+    /// <summary>
+    /// Critical Encounters that drop a job's Soul Shard / Soul Stone — the only way to unlock
+    /// these four. Matched case-insensitively against the live DynamicEvent name.
+    /// </summary>
+    public static readonly IReadOnlyList<(string EncounterName, PhantomJob Job)> ShardCriticalEncounters =
+    [
+        ("On the Hunt", PhantomJob.Oracle),
+        ("The Black Regiment", PhantomJob.Ranger),
+        ("The Unbridled", PhantomJob.Berserker),
+        ("Dark Artistry", PhantomJob.Necromancer),
+    ];
+
+    /// <summary>
+    /// Of the Critical Encounters running right now, the ones that drop a shard for a job this
+    /// character has NOT unlocked yet. A job already at level 1+ has its shard, so its encounter
+    /// is just another CE and doesn't warrant an alert.
+    /// <para>
+    /// A job missing from <paramref name="jobLevels"/> counts as locked — outside the zone the
+    /// level array is empty, and silence is the right answer there anyway since no CE is running.
+    /// </para>
+    /// </summary>
+    public static IReadOnlyList<(string EncounterName, PhantomJob Job)> UnclaimedShardEncounters(
+        IEnumerable<string> activeEncounterNames,
+        IReadOnlyDictionary<PhantomJob, byte> jobLevels)
+    {
+        var result = new List<(string, PhantomJob)>();
+        if (activeEncounterNames is null)
+            return result;
+
+        foreach (var name in activeEncounterNames)
+        {
+            if (string.IsNullOrWhiteSpace(name))
+                continue;
+
+            foreach (var (encounterName, job) in ShardCriticalEncounters)
+            {
+                if (!name.Contains(encounterName, StringComparison.OrdinalIgnoreCase))
+                    continue;
+                if (jobLevels is not null && jobLevels.TryGetValue(job, out var level) && level > 0)
+                    continue;
+
+                result.Add((encounterName, job));
+                break;
+            }
+        }
+
+        return result;
+    }
+
     public static (PhantomJob Job, byte Level) ResolveActiveJob(
         IEnumerable<(uint StatusId, byte Stacks)> playerStatuses)
     {

@@ -50,6 +50,45 @@ public sealed class WorldLineSelectorTests
         Assert.False(WorldLineSelector.IsChestLineCandidate(obj, Vector3.Zero, 100f));
     }
 
+    /// <summary>
+    /// Gold coffers are EventObj, not Treasure — field-confirmed. Keying chests on ObjectKind
+    /// alone silently skipped the most valuable chest in the zone.
+    /// </summary>
+    [Fact]
+    public void IsChestLineCandidate_AcceptsGoldCofferEventObject()
+    {
+        var gold = Obj(ObjectKind.EventObj, new Vector3(0f, 0f, 10f),
+            baseId: WorldLineSelector.PotGoldCofferBaseId);
+
+        Assert.True(WorldLineSelector.IsChestLineCandidate(gold, Vector3.Zero, 100f));
+    }
+
+    [Fact]
+    public void IsChestLineCandidate_RejectsOpenedGoldCoffer()
+    {
+        var looted = Obj(ObjectKind.EventObj, new Vector3(0f, 0f, 10f),
+            targetable: false, baseId: WorldLineSelector.PotGoldCofferBaseId);
+
+        Assert.False(WorldLineSelector.IsChestLineCandidate(looted, Vector3.Zero, 100f));
+    }
+
+    [Fact]
+    public void TierFromCofferBaseId_MapsGoldCoffer()
+    {
+        Assert.Equal(TreasureTier.Gold, WorldLineSelector.TierFromCofferBaseId(WorldLineSelector.PotGoldCofferBaseId));
+        Assert.Equal(TreasureTier.Unknown, WorldLineSelector.TierFromCofferBaseId(WorldLineSelector.CarrotBaseId));
+    }
+
+    /// <summary>A carrot spot must not be mistaken for a coffer just because both are EventObj.</summary>
+    [Fact]
+    public void IsChestLineCandidate_RejectsCarrotSpot()
+    {
+        var carrot = Obj(ObjectKind.EventObj, new Vector3(0f, 0f, 10f),
+            baseId: WorldLineSelector.CarrotBaseId);
+
+        Assert.False(WorldLineSelector.IsChestLineCandidate(carrot, Vector3.Zero, 100f));
+    }
+
     /// <summary>An opened coffer stops being targetable — the line should drop with it.</summary>
     [Fact]
     public void IsChestLineCandidate_RejectsOpenedCoffer()

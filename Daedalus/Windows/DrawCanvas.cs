@@ -503,13 +503,21 @@ public sealed class DrawCanvas : Window
     }
 
     /// <summary>Coffer line colour by tier — bronze, silver, or purple when the model isn't recognised.</summary>
-    private uint ChestLineColor(IGameObject chest) => WorldLineSelector.TierFromSceneryId(ResolveSceneryId(chest.BaseId)) switch
+    private uint ChestLineColor(IGameObject chest) => ChestTier(chest) switch
     {
         TreasureTier.Bronze => Config.BronzeChestLineColor,
         TreasureTier.Silver => Config.SilverChestLineColor,
         TreasureTier.Gold => Config.GoldChestLineColor,
         _ => Config.UnknownChestLineColor,
     };
+
+    /// <summary>
+    /// Gold coffers are EventObj and carry no Treasure-sheet row, so they resolve by BaseId;
+    /// everything else goes through the scenery model.
+    /// </summary>
+    private TreasureTier ChestTier(IGameObject chest) => chest.ObjectKind == ObjectKind.EventObj
+        ? WorldLineSelector.TierFromCofferBaseId(chest.BaseId)
+        : WorldLineSelector.TierFromSceneryId(ResolveSceneryId(chest.BaseId));
 
     /// <summary>
     /// Scenery (SGB) model id for a coffer, from the Treasure sheet. Cached — this runs per

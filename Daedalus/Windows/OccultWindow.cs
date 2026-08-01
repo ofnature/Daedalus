@@ -64,6 +64,8 @@ public sealed class OccultWindow : Window
                 ImGui.Text($"{item.Name}: {item.Count:N0}");
         }
 
+        DrawShardEncounters(snapshot);
+
         DrawPotFates();
 
 
@@ -96,6 +98,29 @@ public sealed class OccultWindow : Window
     /// the only real cost is not being there. Estimates are labelled as such until a second
     /// spawn of the same FATE lets the tracker measure the real gap.
     /// </summary>
+    /// <summary>
+    /// Live Critical Encounters that drop a Soul Shard for a job this character has NOT
+    /// unlocked. These four jobs have no other unlock route, and the encounters are on their own
+    /// timers, so missing one costs a whole job. Goes quiet the moment the job is unlocked —
+    /// after that the encounter is just another CE and doesn't need a banner.
+    /// </summary>
+    private void DrawShardEncounters(Daedalus.Services.Occult.PhantomStateSnapshot snapshot)
+    {
+        var unclaimed = PhantomJobData.UnclaimedShardEncounters(
+            snapshot.ActiveCriticalEncounters, snapshot.JobLevels);
+        if (unclaimed.Count == 0)
+            return;
+
+        ImGui.Separator();
+        foreach (var (encounter, job) in unclaimed)
+        {
+            ImGui.TextColored(Gold,
+                $"★★ {encounter} UP — drops the {PhantomJobData.GetJobDisplayName(job)} shard");
+        }
+
+        ImGui.TextColored(Dim, "you don't have this job yet — CE drop is the only way to unlock it");
+    }
+
     private void DrawPotFates()
     {
         if (_potFates is null)

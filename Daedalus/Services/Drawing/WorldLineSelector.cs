@@ -26,6 +26,23 @@ public static class WorldLineSelector
     /// <summary>EventObj BaseId of an Occult Crescent carrot spot — the one a Fortune Carrot turns into a chest.</summary>
     public const uint CarrotBaseId = 2010139;
 
+    /// <summary>
+    /// The POT FATE gold coffer — the hidden one a Magical Elixir leads you to, and the single
+    /// biggest payout in the zone. Field-confirmed 2026-07-31 as
+    /// <see cref="ObjectKind.EventObj"/> BaseId 2014741, targetable, named "Gold Coffer".
+    /// <para>
+    /// It is NOT an <see cref="ObjectKind.Treasure"/> object, so the tier-by-scenery-model path
+    /// below can never see it — keying chests on ObjectKind alone silently skipped it. Ordinary
+    /// world coffers do report as Treasure (bronze and silver both field-confirmed the same
+    /// day), so both routes are live.
+    /// </para>
+    /// <para>
+    /// UNKNOWN: the bronze and silver POT coffers almost certainly have their own EventObj
+    /// BaseIds near this one, and are not covered here. Label one to capture its id.
+    /// </para>
+    /// </summary>
+    public const uint PotGoldCofferBaseId = 2014741;
+
     // Other known Occult EventObj ids, kept for reference: bunny chest 2012936,
     // knowledge crystal 2007457, trap 2014584, big trap 2014585.
 
@@ -34,9 +51,10 @@ public static class WorldLineSelector
     /// consecutive coffer models — 1596 is <c>sgbg_w_tbx_001_01a</c>, 1597 <c>..._002_01a</c>,
     /// 1598 <c>..._003_01a</c>.
     /// <para>
-    /// Bronze and silver are BOCCHI's, field-proven. Gold is INFERRED from that model sequence
-    /// and not yet confirmed against a live gold coffer — BOCCHI stops at silver, so gold shows
-    /// as Unknown there. If a gold coffer ever draws in the wrong colour, this line is why.
+    /// Bronze and silver are BOCCHI's, field-proven 2026-07-31. Gold is INFERRED from the model
+    /// sequence and is probably dead weight: the gold coffers seen in the field are EventObj
+    /// (see <see cref="PotGoldCofferBaseId"/>), not Treasure rows, so nothing reaches 1598 here.
+    /// Kept because it costs nothing and may cover a Treasure-sheet gold chest elsewhere.
     /// </para>
     /// </summary>
     private const uint BronzeSceneryId = 1596;
@@ -54,11 +72,17 @@ public static class WorldLineSelector
     /// </summary>
     public static bool IsChestLineCandidate(IGameObject obj, Vector3 origin, float maxDistance)
     {
-        if (obj.ObjectKind != ObjectKind.Treasure) return false;
+        var isCoffer = obj.ObjectKind == ObjectKind.Treasure
+            || (obj.ObjectKind == ObjectKind.EventObj && obj.BaseId == PotGoldCofferBaseId);
+        if (!isCoffer) return false;
         if (obj.IsDead || !obj.IsTargetable) return false;
 
         return WithinRange(obj, origin, maxDistance);
     }
+
+    /// <summary>Tier for coffers that live outside the Treasure sheet, matched on BaseId.</summary>
+    public static TreasureTier TierFromCofferBaseId(uint baseId) =>
+        baseId == PotGoldCofferBaseId ? TreasureTier.Gold : TreasureTier.Unknown;
 
     /// <summary>
     /// Occult Crescent carrot spots. Matched on BaseId — carrots share
