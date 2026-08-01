@@ -31,6 +31,10 @@ namespace Daedalus.Services.Occult;
 ///         Pieces (South) -> Arcanaut's armour upgrades, and those are far dearer:
 ///                           +1 costs 3 Aetherspun Silver (1,200 Pieces each) plus
 ///                           3 Aetherial Fixative (1,600 Pieces each) PER PIECE
+///     +2 is NOT purely a currency problem: Aetherspun Gold is a CHEST DROP, not a purchase
+///     (field 2026-07-31) — best odds from SILVER non-pot chests, ~16% for 1-3. So the +2
+///     tier is RNG-gated on top of the Pieces cost, and the chest hunt matters as much as the
+///     currency grind.
 ///     An earlier note here claimed South pots were worth a tenth of North ones and the farm
 ///     should stay north. That was wrong — it compared a bronze South chest against a gold
 ///     North one as though the numbers shared a unit. Which Horn to farm depends entirely on
