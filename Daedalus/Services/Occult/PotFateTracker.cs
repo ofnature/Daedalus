@@ -16,10 +16,17 @@ namespace Daedalus.Services.Occult;
 ///         gold   — 1,000 Silver, 1,600 Gold, 30,000 gil, XI/XII materia
 ///     The tiers scale ~10x, and the gil confirms it: 1,000 gil on bronze against 30,000 on
 ///     gold, which is what settled an earlier ambiguity over the gold chest's silver figure.
-///     TIER LOOKS ZONE-BOUND (field 2026-07-31, 3 samples): both South Horn pots gave bronze,
-///     the North Horn pot gave gold. If that holds, South Horn pots are worth a TENTH of a
-///     North Horn one and the farm should never leave North Horn. Small sample — but the
-///     hypothesis is clean and matches how field ops usually scale by zone.
+///     The two Horns pay DIFFERENT CURRENCIES, not different amounts of one (field
+///     2026-07-31): South Horn pots pay Enlightenment PIECES, North Horn pots pay OBOLS.
+///     They are therefore not competing — they fund different things:
+///         Obols (North) -> phantom job soul shards, 1,000-1,600 each
+///         Pieces (South) -> Arcanaut's armour upgrades, and those are far dearer:
+///                           +1 costs 3 Aetherspun Silver (1,200 Pieces each) plus
+///                           3 Aetherial Fixative (1,600 Pieces each) PER PIECE
+///     An earlier note here claimed South pots were worth a tenth of North ones and the farm
+///     should stay north. That was wrong — it compared a bronze South chest against a gold
+///     North one as though the numbers shared a unit. Which Horn to farm depends entirely on
+///     whether you need shards or armour.
 /// So the tier matters enormously: a gold coffer is a whole silver shard AND a whole gold
 /// shard in one go, a bronze barely a tenth of that,
 /// while a trash mob pays 3-5 gold. That is why this is a tracker — being present for the
