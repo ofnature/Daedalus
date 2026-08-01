@@ -54,12 +54,26 @@ public sealed class PotFateTracker
     /// <summary>Published cycle: a pot FATE every ~30 minutes, alternating between the two.</summary>
     public const double ExpectedCycleSeconds = 30 * 60;
 
-    /// <summary>The magic-pot FATEs. Matched case-insensitively against live FATE names.</summary>
-    public static readonly IReadOnlyList<string> PotFateNames =
-    [
-        "In a Pot of Bother",
-        "Daylight Pottery",
-    ];
+    /// <summary>
+    /// Magic-pot FATEs per zone, matched case-insensitively against live FATE names. Each Horn
+    /// runs TWO of them and they are NOT the same FATEs — the names below are confirmed North
+    /// Horn (wiki + field). South Horn's two are not yet named reliably: sources only offer
+    /// "Pleading Pot" as a candidate, so it is left empty rather than guessed. A South Horn
+    /// entry can be added the moment one is seen in the Duty tab / fate list — and it matters,
+    /// because South pots pay the PIECES that Arcanaut's armour upgrades need.
+    /// </summary>
+    public static readonly IReadOnlyDictionary<ushort, IReadOnlyList<string>> PotFatesByZone =
+        new Dictionary<ushort, IReadOnlyList<string>>
+        {
+            [Data.PhantomJobData.NorthHornTerritoryId] = new[] { "In a Pot of Bother", "Daylight Pottery" },
+            [Data.PhantomJobData.SouthHornTerritoryId] = System.Array.Empty<string>(),
+        };
+
+    /// <summary>The pot FATEs for the zone the player is standing in (empty when unknown).</summary>
+    public IReadOnlyList<string> PotFateNames =>
+        PotFatesByZone.TryGetValue((ushort)_clientState.TerritoryType, out var names)
+            ? names
+            : System.Array.Empty<string>();
 
     /// <summary>Lead time on the "about to pop" warning — enough to travel, not enough to idle.</summary>
     public const double ImminentWarningSeconds = 60;
@@ -138,7 +152,7 @@ public sealed class PotFateTracker
         foreach (var fate in _fateTable)
         {
             var name = fate.Name.TextValue ?? string.Empty;
-            if (!IsPotFate(name))
+            if (!IsPotFate(zone, name))
                 continue;
 
             var key = (zone, name);
@@ -167,8 +181,10 @@ public sealed class PotFateTracker
             _activePosition = null;
     }
 
-    public static bool IsPotFate(string fateName) =>
-        PotFateNames.Any(n => string.Equals(n, fateName, StringComparison.OrdinalIgnoreCase));
+    /// <summary>Is this a pot FATE in the given zone?</summary>
+    public static bool IsPotFate(ushort territoryId, string fateName) =>
+        PotFatesByZone.TryGetValue(territoryId, out var names)
+        && names.Any(n => string.Equals(n, fateName, StringComparison.OrdinalIgnoreCase));
 
     /// <summary>
     /// Seconds until this FATE is next expected, or null if it has never been seen (nothing to

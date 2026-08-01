@@ -132,7 +132,7 @@ public sealed class OccultWindow : Window
                 ImGui.TextColored(Gold, $"Next pot FATE: ~{(int)(nextPot / 60):00}:{(int)(nextPot % 60):00}");
         }
 
-        foreach (var name in Daedalus.Services.Occult.PotFateTracker.PotFateNames)
+        foreach (var name in _potFates.PotFateNames)
         {
             var due = _potFates.SecondsUntilExpected(name);
             if (due is null)
