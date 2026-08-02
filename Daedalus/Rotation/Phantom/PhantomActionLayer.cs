@@ -473,6 +473,12 @@ public sealed class PhantomActionLayer
         }
 
         PruneDeadSince(ctx);
+
+        // Nobody in the party needs it — look for a stranger. A CE floor is mostly other
+        // people's bodies, and an instant raise costs us nothing but the recast.
+        if (deadHealer is null && deadOther is null && _configuration.Occult.RaiseNonPartyPlayers)
+            deadOther = FindDeadBystander(ctx);
+
         return (deadHealer, deadOther, livingHealer);
     }
 
@@ -502,6 +508,38 @@ public sealed class PhantomActionLayer
         }
 
         return false;
+    }
+
+    /// <summary>
+    /// A dead player outside the party, within raise range. Only players — never a downed NPC —
+    /// and never one who already has a raise pending, so two raisers do not stack on one body.
+    /// </summary>
+    private IBattleChara? FindDeadBystander(IRotationContext ctx)
+    {
+        if (ctx.ObjectTable is null)
+            return null;
+
+        IBattleChara? nearest = null;
+        var nearestDistance = float.MaxValue;
+
+        foreach (var obj in ctx.ObjectTable)
+        {
+            if (obj is not Dalamud.Game.ClientState.Objects.SubKinds.IPlayerCharacter pc)
+                continue;
+            if (pc.GameObjectId == ctx.Player.GameObjectId || !pc.IsDead)
+                continue;
+            if (HasStatus(pc, RaisePendingStatusId))
+                continue;
+
+            var distanceSquared = System.Numerics.Vector3.DistanceSquared(ctx.Player.Position, pc.Position);
+            if (distanceSquared > RaiseRangeSquared || distanceSquared >= nearestDistance)
+                continue;
+
+            nearest = pc;
+            nearestDistance = distanceSquared;
+        }
+
+        return nearest;
     }
 
     /// <summary>
@@ -541,9 +579,12 @@ public sealed class PhantomActionLayer
         if (nearest < float.MaxValue)
             return $"dead ally {nearest:F0}y away — out of 30y range";
 
-        return unreadable > 0
-            ? $"nobody down ({unreadable} party member(s) not readable from here)"
-            : "nobody down";
+        if (unreadable > 0)
+            return $"nobody down ({unreadable} party member(s) not readable from here)";
+
+        return _configuration.Occult.RaiseNonPartyPlayers
+            ? "nobody down (party or nearby)"
+            : "nobody down in party (bystander raising is off)";
     }
 
     /// <summary>How long this corpse has been down, or 0 when it has only just been seen.</summary>

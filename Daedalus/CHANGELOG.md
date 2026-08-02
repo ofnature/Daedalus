@@ -5,6 +5,10 @@ All notable changes to Daedalus will be documented in this file.
 <!-- LATEST-START -->
 ## v0.1.52 — unreleased
 
+### New — Phantom White Mage raises strangers too
+- In a 72-player Critical Encounter most bodies on the floor aren't in your party, so a party-only scan reported "nobody down" with someone lying a few yalms away. **Occult Raise** now picks up nearby players regardless of party — it's instant and costs only its own recast, which is the whole reason to carry it into a CE
+- Your own party always comes first; strangers are only considered when nobody in the party needs it. Toggle in the Occult settings if you'd rather not
+
 ### Fix — Phantom raise no longer queues behind your job's abilities
 - The raise was being chosen correctly and then sat waiting for a free weave slot that your own rotation kept taking first — the Duty tab read *"raising <name>"* and *"1 queued, no free slot"* at the same time
 - A raise now goes ahead of a job ability. Everything else the phantom layer does still waits its turn, as before

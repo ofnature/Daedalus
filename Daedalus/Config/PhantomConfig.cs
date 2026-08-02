@@ -163,6 +163,21 @@ public sealed class PhantomConfig
     public bool UsePhantomRaise { get; set; } = true;
 
     /// <summary>
+    /// Also raise dead players who are NOT in your party.
+    /// <para>
+    /// In a 72-player Critical Encounter most bodies on the floor belong to strangers, so a
+    /// party-only scan reports "nobody down" while someone lies a few yalms away. Occult Raise
+    /// is instant and costs nothing but the recast, which makes picking them up close to free —
+    /// and it is the entire point of carrying the ability into a CE.
+    /// </para>
+    /// <para>
+    /// Party members always take precedence; strangers are only considered once nobody in the
+    /// party needs it.
+    /// </para>
+    /// </summary>
+    public bool RaiseNonPartyPlayers { get; set; } = true;
+
+    /// <summary>
     /// Every coffer spawn point we've seen in an Occult zone, with its tier. Pure evidence —
     /// nothing reads it yet beyond a count. It exists so that questions we can't answer today
     /// (is a spot's tier fixed? do gold coffers repeat?) become answerable from real samples
