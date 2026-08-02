@@ -33,6 +33,7 @@ public sealed class ChestLedger
     private readonly IClientState? _clientState;
     private readonly IDataManager? _dataManager;
     private readonly System.Action? _save;
+    private readonly string? _configDirectory;
 
     /// <summary>
     /// An EventObj coffer that vanishes while you're standing on it was opened. Beyond this
@@ -71,13 +72,33 @@ public sealed class ChestLedger
         IObjectTable? objectTable,
         IClientState? clientState,
         IDataManager? dataManager,
-        System.Action? save)
+        System.Action? save,
+        string? configDirectory = null)
     {
+        _configDirectory = configDirectory;
         _config = config;
         _objectTable = objectTable;
         _clientState = clientState;
         _dataManager = dataManager;
         _save = save;
+    }
+
+    /// <summary>Spawn points on record across every zone.</summary>
+    public int TotalEntries => _config?.ChestLedger.Count ?? 0;
+
+    /// <summary>How many recorded coffers have actually been opened — the trustworthy samples.</summary>
+    public int TotalOpened
+    {
+        get
+        {
+            if (_config is null)
+                return 0;
+
+            var total = 0;
+            foreach (var entry in _config.ChestLedger)
+                total += entry.TimesOpened;
+            return total;
+        }
     }
 
     /// <summary>How many distinct spawn points are on record for the zone you're standing in.</summary>
@@ -298,8 +319,9 @@ public sealed class ChestLedger
     /// weakness table took (collect in Debug, commit the file, Release loads it). Returns the
     /// path written, or null when there's nothing to write.
     /// </summary>
-    public string? ExportSeed(string directory)
+    public string? ExportSeed(string? directory = null)
     {
+        directory ??= _configDirectory;
         if (_config is null || _config.ChestLedger.Count == 0 || string.IsNullOrWhiteSpace(directory))
             return null;
 

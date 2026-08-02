@@ -23,6 +23,7 @@ public sealed class DebugWindow : Window
     private readonly Daedalus.Services.Debug.DebugLogService? _debugLogService;
     private readonly Daedalus.Services.Occult.PhantomJobService? _phantomJobService;
     private readonly Daedalus.Services.Occult.ElementalWeaknessLog? _weaknessLog;
+    private readonly Daedalus.Services.Occult.ChestLedger? _chestLedger;
 
     private uint _selectedJobId; // 0 = unset; auto-selects active job on next Draw
 
@@ -83,7 +84,8 @@ public sealed class DebugWindow : Window
     ];
 
     public DebugWindow(DebugService debugService, Configuration configuration, ITimelineService? timelineService = null, SmartAoETab? smartAoETab = null, Daedalus.Services.Debug.DebugLogService? debugLogService = null, Daedalus.Services.Occult.PhantomJobService? phantomJobService = null,
-        Daedalus.Services.Occult.ElementalWeaknessLog? weaknessLog = null)
+        Daedalus.Services.Occult.ElementalWeaknessLog? weaknessLog = null,
+        Daedalus.Services.Occult.ChestLedger? chestLedger = null)
         : base(Loc.T(LocalizedStrings.Debug.WindowTitle, "Daedalus Debug"), ImGuiWindowFlags.NoSavedSettings)
     {
         _debugService = debugService;
@@ -93,6 +95,7 @@ public sealed class DebugWindow : Window
         _debugLogService = debugLogService;
         _phantomJobService = phantomJobService;
         _weaknessLog = weaknessLog;
+        _chestLedger = chestLedger;
 
         Size = new Vector2(550, 450);
         SizeCondition = ImGuiCond.FirstUseEver;
@@ -209,7 +212,7 @@ public sealed class DebugWindow : Window
 
             if (_phantomJobService != null && ImGui.BeginTabItem("Duty"))
             {
-                OccultTab.Draw(_phantomJobService, _weaknessLog);
+                OccultTab.Draw(_phantomJobService, _weaknessLog, _chestLedger);
                 ImGui.EndTabItem();
             }
 

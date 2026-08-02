@@ -19,7 +19,42 @@ public static class OccultTab
     private static readonly Vector4 Yellow = new(0.88f, 0.78f, 0.42f, 1f);
     private static readonly Vector4 Dim = new(0.54f, 0.54f, 0.58f, 1f);
 
-    public static void Draw(PhantomJobService service, Daedalus.Services.Occult.ElementalWeaknessLog? weaknessLog = null)
+    /// <summary>
+    /// Chest ledger: what has been collected, and the button that writes it out for baking into
+    /// a shipped seed. Debug-only, same as the collection itself.
+    /// </summary>
+    private static void DrawChestLedgerBlock(Daedalus.Services.Occult.ChestLedger? ledger)
+    {
+        if (ledger is null)
+            return;
+
+        ImGui.Text("Chest ledger");
+        ImGui.Separator();
+
+        var zoneCount = ledger.EntriesForCurrentZone();
+        var total = ledger.TotalEntries;
+        ImGui.TextColored(total > 0 ? Green : Dim,
+            $"{zoneCount} spot(s) recorded here, {total} across all zones ({ledger.TotalOpened} opened)");
+
+        if (ImGui.Button("Export seed##chestledger"))
+            _lastSeedExport = ledger.ExportSeed() ?? "nothing to export";
+
+        if (ImGui.IsItemHovered())
+            ImGui.SetTooltip("Writes occult-chests.json to the plugin config folder, for baking into a shipped seed.");
+
+        if (!string.IsNullOrEmpty(_lastSeedExport))
+            ImGui.TextColored(Dim, _lastSeedExport);
+
+        ImGui.Spacing();
+    }
+
+    /// <summary>Path of the last seed export, so the button can say where it went.</summary>
+    private static string? _lastSeedExport;
+
+    public static void Draw(
+        PhantomJobService service,
+        Daedalus.Services.Occult.ElementalWeaknessLog? weaknessLog = null,
+        Daedalus.Services.Occult.ChestLedger? chestLedger = null)
     {
         var snapshot = service.GetSnapshot();
 
@@ -28,6 +63,8 @@ public static class OccultTab
             DrawVariantBlock(service, snapshot.TerritoryId);
             return;
         }
+
+        DrawChestLedgerBlock(chestLedger);
 
         ImGui.Text("Detection");
         ImGui.Separator();

@@ -635,7 +635,8 @@ public sealed class Plugin : IDalamudPlugin
         this.potFateTracker = new Daedalus.Services.Occult.PotFateTracker(fateTable, clientState, gameGui, dataManager,
             configuration.Occult, SaveConfiguration);
         this.chestLedger = new Daedalus.Services.Occult.ChestLedger(
-            configuration.Occult, objectTable, clientState, dataManager, SaveConfiguration);
+            configuration.Occult, objectTable, clientState, dataManager, SaveConfiguration,
+            pluginInterface.ConfigDirectory.FullName);
         this.elementalWeaknessLog = new Daedalus.Services.Occult.ElementalWeaknessLog(
             objectTable, clientState, log, pluginInterface.ConfigDirectory.FullName, debugLogService, fateTable);
 
@@ -783,7 +784,7 @@ public sealed class Plugin : IDalamudPlugin
         if (lanPartyWindow != null)
             this.mainWindow.OpenLanParty = () => lanPartyWindow.Toggle();
         var smartAoETab = new SmartAoETab(aoeTracker, drawCanvas, objectTable);
-        this.debugWindow = new DebugWindow(debugService, configuration, timelineService, smartAoETab, debugLogService, phantomJobService, elementalWeaknessLog);
+        this.debugWindow = new DebugWindow(debugService, configuration, timelineService, smartAoETab, debugLogService, phantomJobService, elementalWeaknessLog, chestLedger);
         this.welcomeWindow = new WelcomeWindow(configuration, SaveConfiguration, OpenConfigUI);
         this.analyticsWindow = new AnalyticsWindow(performanceTracker, configuration, SaveConfiguration, fflogsService, fightSummaryService, meldOptimizerPanel);
         this.trainingWindow = new TrainingWindow(trainingService, configuration, decisionValidationService, spacedRepetitionService);
