@@ -41,6 +41,26 @@ Two caveats:
 - It filters to SGB 1596/1597 — **bronze and silver only**. Consistent with our own finding that
   the pot gold coffer is an `EventObj` and has no Treasure-sheet row at all.
 
+## ⚠ Field finding 2026-08-01: world coffer tier is PER SPAWN
+
+A world coffer spot produced **silver on one visit and bronze on another** — observed directly,
+not inferred from our SGB read, so it isn't a detection artifact.
+
+Consequences:
+
+- **Location does not predict tier for world coffers.** The best any predictor can offer is a
+  distribution ("this spot has gone bronze twice and silver once"), never a guarantee. Phase 1's
+  layout scan still tells you where chests *can* be, which remains useful — it just can't tell
+  you what they'll be worth.
+- The ledger was rebuilt for exactly this: entries carry a `TierCounts` distribution instead of a
+  single tier, because the original design silently overwrote conflicting samples and would have
+  hidden this.
+- **It does NOT automatically disprove the per-spot claim for POT coffers.** Those are a
+  different mechanism — EventObj rather than Treasure-sheet objects, awarded by a FATE rather
+  than found in the world. The claim in `PotFateTracker` that North Horn's northern spot pays
+  gold and its southern spot bronze rests on a handful of samples and is now under more
+  suspicion, but it has not been tested directly. Treat it as unproven either way.
+
 ## Problem A — tier prediction (do this first)
 
 Everything needed is already in the repo:

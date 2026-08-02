@@ -20,6 +20,13 @@ namespace Daedalus.Services.Occult;
 ///     gold chest's silver figure.
 ///     CURRENCY IS PER ZONE (field 2026-07-31, confirmed): South Horn pays Enlightenment
 ///     PIECES, North Horn pays OBOLS.
+///     ⚠ UNDER SUSPICION (field 2026-08-01): a WORLD coffer spot produced silver on one visit
+///     and bronze on another, observed directly. So for world coffers the tier is rolled PER
+///     SPAWN and location predicts nothing. That does not automatically carry over to POT
+///     coffers — they are a different mechanism (EventObj awarded by a FATE, not Treasure-sheet
+///     objects found in the world) — but the per-spot claim below rests on a handful of samples
+///     and the same "generalised from one observation" error has already been made twice in this
+///     file. Treat it as unproven until the chest ledger has real counts.
 ///     TIER LOOKS PER SPOT, NOT PER ZONE. Each Horn has a northern-positioned pot FATE and a
 ///     southern-positioned one, and within NORTH HORN the southern spot (In a Pot of Bother,
 ///     11.0/25.8) produced bronze coffers twice while the northern spot (Daylight Pottery,
