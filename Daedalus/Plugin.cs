@@ -202,6 +202,7 @@ public sealed class Plugin : IDalamudPlugin
     private readonly Daedalus.Services.Occult.PotFateTracker potFateTracker;
     private readonly Daedalus.Services.Occult.ChestLedger chestLedger;
     private readonly Daedalus.Services.Occult.PotTreasureHunt potTreasureHunt;
+    private readonly Daedalus.Services.Debug.DeathReleaseWatch deathReleaseWatch;
     private readonly Daedalus.Services.Consumables.ConsumableService consumableService;
     private readonly Daedalus.Services.Consumables.TinctureDispatcher tinctureDispatcher;
 
@@ -654,6 +655,7 @@ public sealed class Plugin : IDalamudPlugin
             pluginInterface.ConfigDirectory.FullName);
         this.potTreasureHunt = new Daedalus.Services.Occult.PotTreasureHunt(
             chatGui, objectTable, clientState, configuration.Occult, SaveConfiguration, log);
+        this.deathReleaseWatch = new Daedalus.Services.Debug.DeathReleaseWatch(objectTable, debugLogService);
         this.elementalWeaknessLog = new Daedalus.Services.Occult.ElementalWeaknessLog(
             objectTable, clientState, log, pluginInterface.ConfigDirectory.FullName, debugLogService, fateTable);
 
@@ -1656,6 +1658,7 @@ public sealed class Plugin : IDalamudPlugin
             potFateTracker.Update();
             chestLedger.Update();
             potTreasureHunt.Update();
+            deathReleaseWatch.Update();
 
 #if DEBUG
             // Occult enemy census + weakness learning (throttled; Occult territories only).

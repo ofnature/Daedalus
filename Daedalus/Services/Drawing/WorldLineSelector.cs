@@ -41,11 +41,16 @@ public static class WorldLineSelector
     /// day), so both routes are live.
     /// </para>
     /// <para>
-    /// UNKNOWN: the bronze and silver POT coffers almost certainly have their own EventObj
-    /// BaseIds near this one, and are not covered here. Label one to capture its id.
+    /// The family is consecutive: 2014741 Gold and 2014743 BRONZE are both field-confirmed from
+    /// ledger data (2026-08-02), which makes 2014742 almost certainly Silver. Tiering reads the
+    /// object NAME rather than these ids, so an unobserved member still classifies correctly —
+    /// the ids matter for telling pot coffers apart from carrot chests, which share the kind.
     /// </para>
     /// </summary>
     public const uint PotGoldCofferBaseId = 2014741;
+
+    /// <summary>Pot BRONZE coffer — field-confirmed from ledger data 2026-08-02.</summary>
+    public const uint PotBronzeCofferBaseId = 2014743;
 
     // Other known Occult EventObj ids, kept for reference: bunny chest 2012936,
     // knowledge crystal 2007457, trap 2014584, big trap 2014585.
