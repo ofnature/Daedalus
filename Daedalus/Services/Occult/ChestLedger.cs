@@ -325,12 +325,91 @@ public sealed class ChestLedger
         if (_config is null || _config.ChestLedger.Count == 0 || string.IsNullOrWhiteSpace(directory))
             return null;
 
-        var path = System.IO.Path.Combine(directory, "occult-chests.json");
+        // Character-stamped: a fleet collects on several toons at once, and if they share a
+        // Dalamud config folder a fixed filename means the second client silently overwrites the
+        // first's samples. Merge the files afterwards with Merge().
+        var path = System.IO.Path.Combine(directory, $"occult-chests{ExportSuffix()}.json");
         var json = System.Text.Json.JsonSerializer.Serialize(
             _config.ChestLedger,
             new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
         System.IO.File.WriteAllText(path, json);
         return path;
+    }
+
+    /// <summary>"-Character Name" for the export filename, or empty when the name is unknown.</summary>
+    private string ExportSuffix()
+    {
+        var name = _objectTable?.LocalPlayer?.Name.TextValue;
+        return string.IsNullOrWhiteSpace(name) ? string.Empty : "-" + SanitizeForFileName(name);
+    }
+
+    public static string SanitizeForFileName(string value)
+    {
+        var invalid = System.IO.Path.GetInvalidFileNameChars();
+        var builder = new System.Text.StringBuilder(value.Length);
+        foreach (var c in value)
+            builder.Append(Array.IndexOf(invalid, c) >= 0 || c == ' ' ? '_' : c);
+        return builder.ToString();
+    }
+
+    /// <summary>
+    /// Fold one toon's ledger into another. Several boxes collect in parallel, so the samples
+    /// arrive split and have to be combined before any of it means anything.
+    /// <para>
+    /// Counts SUM (they're independent observations), the earliest first-seen and latest
+    /// last-seen win, and a known tier beats Unknown — same rule as <see cref="Record"/>, for
+    /// the same reason: a bad read must never erase a good one. Returns the number of entries
+    /// that were new rather than merged.
+    /// </para>
+    /// </summary>
+    public static int Merge(List<ChestLedgerEntry> into, IEnumerable<ChestLedgerEntry>? incoming)
+    {
+        if (into is null || incoming is null)
+            return 0;
+
+        var added = 0;
+        foreach (var entry in incoming)
+        {
+            if (entry is null)
+                continue;
+
+            var match = FindSpot(into, entry.Zone, new Vector3(entry.X, entry.Y, entry.Z));
+            if (match is null)
+            {
+                into.Add(entry);
+                added++;
+                continue;
+            }
+
+            match.TimesSeen += entry.TimesSeen;
+            match.TimesOpened += entry.TimesOpened;
+
+            if (entry.FirstSeenUnixSeconds > 0
+                && (match.FirstSeenUnixSeconds == 0 || entry.FirstSeenUnixSeconds < match.FirstSeenUnixSeconds))
+                match.FirstSeenUnixSeconds = entry.FirstSeenUnixSeconds;
+
+            if (entry.LastSeenUnixSeconds > match.LastSeenUnixSeconds)
+                match.LastSeenUnixSeconds = entry.LastSeenUnixSeconds;
+
+            if (!string.Equals(entry.Tier, "Unknown", StringComparison.OrdinalIgnoreCase)
+                && string.Equals(match.Tier, "Unknown", StringComparison.OrdinalIgnoreCase))
+                match.Tier = entry.Tier;
+        }
+
+        return added;
+    }
+
+    private static ChestLedgerEntry? FindSpot(List<ChestLedgerEntry> ledger, ushort zone, Vector3 position)
+    {
+        foreach (var entry in ledger)
+        {
+            if (entry.Zone != zone)
+                continue;
+            if (Vector3.DistanceSquared(new Vector3(entry.X, entry.Y, entry.Z), position) <= SameSpotYalms * SameSpotYalms)
+                return entry;
+        }
+
+        return null;
     }
 
     /// <summary>Batch writes — the config file must not be rewritten every frame.</summary>

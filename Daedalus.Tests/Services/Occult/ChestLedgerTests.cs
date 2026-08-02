@@ -124,6 +124,87 @@ public sealed class ChestLedgerTests
         Assert.False(ChestLedger.Record(null!, Zone, Vector3.Zero, TreasureTier.Bronze, T0));
     }
 
+    // ── Merging two toons' ledgers ──
+
+    private static ChestLedgerEntry Entry(float x, string tier, int seen, int opened, long first, long last) =>
+        new() { Zone = Zone, X = x, Y = 0, Z = 0, Tier = tier, TimesSeen = seen, TimesOpened = opened,
+                FirstSeenUnixSeconds = first, LastSeenUnixSeconds = last };
+
+    [Fact]
+    public void Merge_SumsCountsForTheSameSpot()
+    {
+        var mine = new List<ChestLedgerEntry> { Entry(10, "Bronze", 3, 1, 100, 200) };
+        var theirs = new List<ChestLedgerEntry> { Entry(11, "Bronze", 2, 2, 150, 300) };
+
+        var added = ChestLedger.Merge(mine, theirs);
+
+        Assert.Equal(0, added);
+        Assert.Single(mine);
+        Assert.Equal(5, mine[0].TimesSeen);
+        Assert.Equal(3, mine[0].TimesOpened);
+    }
+
+    [Fact]
+    public void Merge_KeepsEarliestFirstSeenAndLatestLastSeen()
+    {
+        var mine = new List<ChestLedgerEntry> { Entry(10, "Bronze", 1, 0, 500, 600) };
+        var theirs = new List<ChestLedgerEntry> { Entry(10, "Bronze", 1, 0, 100, 900) };
+
+        ChestLedger.Merge(mine, theirs);
+
+        Assert.Equal(100, mine[0].FirstSeenUnixSeconds);
+        Assert.Equal(900, mine[0].LastSeenUnixSeconds);
+    }
+
+    [Fact]
+    public void Merge_AddsSpotsTheOtherToonFoundFirst()
+    {
+        var mine = new List<ChestLedgerEntry> { Entry(10, "Bronze", 1, 0, 100, 100) };
+        var theirs = new List<ChestLedgerEntry> { Entry(500, "Gold", 1, 1, 100, 100) };
+
+        var added = ChestLedger.Merge(mine, theirs);
+
+        Assert.Equal(1, added);
+        Assert.Equal(2, mine.Count);
+    }
+
+    /// <summary>One toon may never have identified the model. A known tier must win.</summary>
+    [Fact]
+    public void Merge_LetsAKnownTierFillAnUnknownOne()
+    {
+        var mine = new List<ChestLedgerEntry> { Entry(10, "Unknown", 1, 0, 100, 100) };
+        var theirs = new List<ChestLedgerEntry> { Entry(10, "Gold", 1, 1, 100, 100) };
+
+        ChestLedger.Merge(mine, theirs);
+
+        Assert.Equal("Gold", mine[0].Tier);
+    }
+
+    [Fact]
+    public void Merge_UnknownNeverDowngradesAKnownTier()
+    {
+        var mine = new List<ChestLedgerEntry> { Entry(10, "Gold", 1, 1, 100, 100) };
+        var theirs = new List<ChestLedgerEntry> { Entry(10, "Unknown", 1, 0, 100, 100) };
+
+        ChestLedger.Merge(mine, theirs);
+
+        Assert.Equal("Gold", mine[0].Tier);
+    }
+
+    [Fact]
+    public void Merge_IsSafeOnNulls()
+    {
+        Assert.Equal(0, ChestLedger.Merge(null!, new List<ChestLedgerEntry>()));
+        Assert.Equal(0, ChestLedger.Merge(new List<ChestLedgerEntry>(), null));
+    }
+
+    [Fact]
+    public void SanitizeForFileName_MakesACharacterNameSafe()
+    {
+        Assert.Equal("Aria_Ishere", ChestLedger.SanitizeForFileName("Aria Ishere"));
+        Assert.DoesNotContain('/', ChestLedger.SanitizeForFileName("A/B"));
+    }
+
     // ── Pickup detection ──
 
     [Fact]
