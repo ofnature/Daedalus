@@ -148,6 +148,18 @@ At `immediately`, drop the map and **draw the estimate in the world** using the 
   and reality landing together confirms the geometry, and a consistent offset is calibration
   data you can see rather than infer.
 
+Make that ring the **activation area** rather than a bare marker: a crimson circle centred on the
+estimate, with the radius you have to be within for the coffer to spawn. One circle then says
+both "it is about here" and "stand inside this and it appears", and crimson cannot be confused
+with the gold/silver/bronze of a real coffer. Snap it to the floor like the other rings.
+
+The activation radius is UNKNOWN and should not be guessed at tightly — a circle drawn too small
+is the bad direction to be wrong in, because you walk to its edge, nothing spawns, and you
+conclude the prediction failed when you were merely out of range. Err generous, and MEASURE it:
+when the coffer spawns, record the player's distance to it at that instant. That is the
+activation radius observed rather than assumed, and a few hunts pin it exactly — the same trick
+`Calibrate` uses for the distance bands.
+
 Build it always-on behind a dev toggle FIRST. Watching the region shrink across a real hunt is
 how the geometry and the guessed bands get validated; debugging a predictor you cannot see is
 miserable. Apply the bounded-and-small trigger once it is proven.
