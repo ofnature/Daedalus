@@ -1,4 +1,4 @@
-namespace Daedalus.Rotation.Common.Modules;
+﻿namespace Daedalus.Rotation.Common.Modules;
 
 /// <summary>
 /// Explains why a healer has no raise target.
@@ -11,8 +11,14 @@ public static class RaiseTargetDescription
     /// healer toward a corpse, so in an open zone the second could hold for a whole fight while
     /// reading as though nobody needed raising.
     /// </summary>
-    public static string Describe(float? nearestDeadDistance, float raiseRangeYalms)
+    public static string Describe(
+        float? nearestDeadDistance, float raiseRangeYalms, bool resurrectionBlocked = false)
     {
+        // Checked first: a blocked corpse explains everything else, and reporting a range or
+        // target problem over it would send the next reader somewhere useless.
+        if (resurrectionBlocked)
+            return "Resurrection blocked here — ordinary raises cannot land (Occult Raise only)";
+
         if (nearestDeadDistance is not { } distance)
             return "No target";
 

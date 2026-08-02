@@ -179,7 +179,8 @@ public sealed class ResurrectionModule : BaseResurrectionModule<IApolloContext>,
         {
             // "No target" hides an out-of-range corpse, and nothing moves a healer to one.
             SetRaiseState(context, DescribeMissingRaiseTarget(
-                context.PartyHelper.DistanceToNearestDeadPartyMember(player), RaiseAction.Range));
+                context.PartyHelper.DistanceToNearestDeadPartyMember(player), RaiseAction.Range,
+                context.PartyHelper.AnyDeadAllyResurrectionBlocked(player)));
             SetRaiseTarget(context, "None");
             return;
         }

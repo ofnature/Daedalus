@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Numerics;
 using Dalamud.Game.ClientState.Objects.SubKinds;
 using Dalamud.Game.ClientState.Objects.Types;
@@ -185,6 +185,48 @@ public abstract class HealerPartyHelper : BasePartyHelper, ISpikeTargetSource
     /// <param name="includeAlliance">Also scan for dead alliance members OUTSIDE the party
     /// (instanced duties only) when the party has no raise candidate.</param>
     /// <returns>The highest-priority dead party member without raise pending, or null.</returns>
+    /// <summary>
+    /// Occult Crescent blocks resurrection in some content: 4262 "Resurrection Restricted" and
+    /// 4263 "Resurrection Denied". Our Phantom White Mage catalog notes Occult Raise works under
+    /// the former, which implies ordinary raises do not — so a healer standing over a corpse with
+    /// everything ready can be unable to do anything at all, with no reason visible anywhere.
+    /// </summary>
+    public static readonly uint[] ResurrectionBlockedStatusIds = [4262, 4263];
+
+    /// <summary>True when this corpse cannot be raised by ordinary means.</summary>
+    public static bool IsResurrectionBlocked(IBattleChara chara)
+    {
+        if (chara.StatusList is null)
+            return false;
+
+        foreach (var status in chara.StatusList)
+        {
+            if (status is null)
+                continue;
+            foreach (var blocked in ResurrectionBlockedStatusIds)
+            {
+                if (status.StatusId == blocked)
+                    return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>Any dead ally carrying a resurrection block, whatever the range.</summary>
+    public bool AnyDeadAllyResurrectionBlocked(IPlayerCharacter player)
+    {
+        foreach (var member in GetAllPartyMembers(player, includeDead: true))
+        {
+            if (member.EntityId == player.EntityId || !member.IsDead)
+                continue;
+            if (IsResurrectionBlocked(member))
+                return true;
+        }
+
+        return false;
+    }
+
     /// <summary>
     /// Distance to the nearest dead party member IGNORING raise range, or null when nobody is
     /// down. Exists so "no target" can be told apart from "there is a body, it is just too far":

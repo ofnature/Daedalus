@@ -43,6 +43,9 @@ public interface IPartyHelper : ISpikeTargetSource
     /// </summary>
     float? DistanceToNearestDeadPartyMember(IPlayerCharacter player);
 
+    /// <summary>Any dead ally carrying an Occult resurrection block, whatever the range.</summary>
+    bool AnyDeadAllyResurrectionBlocked(IPlayerCharacter player);
+
     /// <summary>
     /// Gets predicted HP percent for a target.
     /// </summary>

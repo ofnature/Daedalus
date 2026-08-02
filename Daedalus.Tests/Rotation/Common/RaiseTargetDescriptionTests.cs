@@ -10,8 +10,8 @@ namespace Daedalus.Tests.Rotation.Common;
 /// </summary>
 public sealed class RaiseTargetDescriptionTests
 {
-    private static string Describe(float? nearest, float range)
-        => RaiseTargetDescription.Describe(nearest, range);
+    private static string Describe(float? nearest, float range, bool blocked = false)
+        => RaiseTargetDescription.Describe(nearest, range, blocked);
 
     [Fact]
     public void NobodyDead_StillReadsAsNoTarget()
@@ -37,5 +37,29 @@ public sealed class RaiseTargetDescriptionTests
     {
         Assert.Equal("No target", Describe(12f, 30f));
         Assert.Equal("No target", Describe(30f, 30f));
+    }
+
+    /// <summary>
+    /// Occult content can forbid ordinary raises (statuses 4262/4263). A healer stood over the
+    /// corpse with everything ready then does nothing, and every other explanation — range,
+    /// no target — is a distraction, so the block is reported ahead of them.
+    /// </summary>
+    [Fact]
+    public void ResurrectionBlocked_OutranksEveryOtherExplanation()
+    {
+        var adjacent = Describe(2f, 30f, blocked: true);
+        var distant = Describe(500f, 30f, blocked: true);
+        var nobody = Describe(null, 30f, blocked: true);
+
+        Assert.Contains("Resurrection blocked", adjacent);
+        Assert.Equal(adjacent, distant);
+        Assert.Equal(adjacent, nobody);
+    }
+
+    [Fact]
+    public void NotBlocked_KeepsTheOrdinaryExplanations()
+    {
+        Assert.Equal("No target", Describe(null, 30f, blocked: false));
+        Assert.Contains("out of 30y raise range", Describe(200f, 30f, blocked: false));
     }
 }
