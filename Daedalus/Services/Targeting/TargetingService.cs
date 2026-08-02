@@ -450,6 +450,14 @@ public sealed class TargetingService : ITargetingService
         // active quest / levequest / treasure hunt (RSR parity: ObjectHelper.GetNamePlateIcon).
         // The authoritative "these are the mobs the quest wants dead" signal — no quest-data
         // lookup needed, and it never flags unrelated ambient mobs.
+        //
+        // Known ids (RSR's decode): 60092 hunt log, 60094 treasure mob, 60096 relic weapon,
+        // 60097 hunt bill, 60098 Crescent, 71244 leve, 71204/71144/71224/71344 quests.
+        // Field 2026-08-02: 60099 observed on North Horn field mobs (Turali Ratel, Chirwagur
+        // Engraver) — one past RSR's "Crescent" id and not in their catalog. Carriers dropped
+        // phantom dispellers during Gerolt's delivery quest, so it LOOKS like the Crescent
+        // quest-drop marker, but that is two samples, not a decode. Any-nonzero already
+        // includes it here.
         IBattleNpc? nearest = null;
         var nearestDist = float.MaxValue;
         foreach (var enemy in GetValidEnemies(maxRange, player))
