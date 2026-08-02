@@ -3,7 +3,7 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
-## v0.1.48 — unreleased
+## v0.1.48 — 2026-08-01
 
 ### Fix — FATE enemies were missing from the shipped enemy table
 - The built-in Occult enemy table shipped with **no FATE information at all** — it was baked before FATE tracking existed, so it carried Critical Encounter data and nothing else. Anyone who wasn't collecting their own data saw an empty FATE list
