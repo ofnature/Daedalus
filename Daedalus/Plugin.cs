@@ -279,6 +279,21 @@ public sealed class Plugin : IDalamudPlugin
             pluginInterface.SavePluginConfig(configuration);
         }
 
+        // Version 4 -> 5: the pot hunt calibration collected before 2026-08-02 is invalid, not
+        // merely noisy. OnCofferFound ran every tick a coffer stayed visible, so activation
+        // radii were the player's distance each FRAME (500 samples spanning 3y to 126y, none of
+        // them the trigger distance), and readings were matched against any nearby coffer
+        // including ordinary world chests — which produced 159-degree angular errors and a
+        // "VeryFar" reading measured at 6y. Averaging that into the arc suggestion would give a
+        // confident, wrong number, so it is cleared rather than kept.
+        if (configuration.Version < 5)
+        {
+            configuration.Occult.PotHuntCalibration.Clear();
+            configuration.Occult.ActivationRadiusSamples.Clear();
+            configuration.Version = 5;
+            pluginInterface.SavePluginConfig(configuration);
+        }
+
         // Initialize localization (must be early, before UI construction)
         this.localization = new DaedalusLocalization(clientState, configuration, log);
         this.gameDataLocalizer = new GameDataLocalizer(dataManager);

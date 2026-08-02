@@ -1,4 +1,4 @@
-using Daedalus.Config;
+﻿using Daedalus.Config;
 using Xunit;
 
 namespace Daedalus.Tests.Config;
@@ -16,9 +16,9 @@ public sealed class ConfigMigrationTests
     /// pinned together here.
     /// </summary>
     [Fact]
-    public void CurrentConfigVersion_IsFour()
+    public void CurrentConfigVersion_IsFive()
     {
-        Assert.Equal(4, new Daedalus.Configuration().Version);
+        Assert.Equal(5, new Daedalus.Configuration().Version);
     }
 
     /// <summary>
@@ -38,7 +38,7 @@ public sealed class ConfigMigrationTests
     {
         var config = new Daedalus.Configuration();
 
-        Assert.False(config.Version < 4);
+        Assert.False(config.Version < 5);
         Assert.False(config.Occult.SaveDamageForBurst);
     }
 }
