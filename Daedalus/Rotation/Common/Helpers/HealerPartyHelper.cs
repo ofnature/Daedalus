@@ -186,10 +186,14 @@ public abstract class HealerPartyHelper : BasePartyHelper, ISpikeTargetSource
     /// (instanced duties only) when the party has no raise candidate.</param>
     /// <returns>The highest-priority dead party member without raise pending, or null.</returns>
     /// <summary>
-    /// Occult Crescent blocks resurrection in some content: 4262 "Resurrection Restricted" and
-    /// 4263 "Resurrection Denied". Our Phantom White Mage catalog notes Occult Raise works under
-    /// the former, which implies ordinary raises do not — so a healer standing over a corpse with
-    /// everything ready can be unable to do anything at all, with no reason visible anywhere.
+    /// Occult statuses 4262 "Resurrection Restricted" and 4263 "Resurrection Denied", which
+    /// ordinary raises cannot beat.
+    /// <para>
+    /// NOT the cause of the CE raise failures — field-corrected 2026-08-02: normal revives DO
+    /// work inside CE arenas. Kept because the check is cheap and its SILENCE is now evidence:
+    /// if a raise fails in a CE and this never fires, resurrection blocking is ruled out rather
+    /// than merely unexamined. Where it does apply, only Occult Raise lands.
+    /// </para>
     /// </summary>
     public static readonly uint[] ResurrectionBlockedStatusIds = [4262, 4263];
 
