@@ -1,4 +1,4 @@
-namespace Daedalus.Config;
+﻿namespace Daedalus.Config;
 
 /// <summary>
 /// Configuration for the Draw Helper feature — world-space visual overlays.
@@ -44,6 +44,13 @@ public sealed class DrawHelperConfig
     public uint GoldChestLineColor { get; set; } = 0xFF00D7FFu; // gold
     public uint UnknownChestLineColor { get; set; } = 0xFFCC3399u; // purple — tier not recognised
     public float TreasureLineMaxDistance { get; set; } = 100f;
+
+    // Client-marked mobs — anything the game itself has tagged with a nameplate icon
+    // (quest gold icon, hunt bills, the Crescent 60099 mark). Unlike the chest/carrot lines
+    // these DRAW IN COMBAT: the marked mobs are the reason you are fighting.
+    public bool ShowMarkedMobLines { get; set; } = false;
+    public uint MarkedMobLineColor { get; set; } = 0xFFFF00FFu; // magenta (ABGR), matching the mark
+    public float MarkedMobLineMaxDistance { get; set; } = 80f;
 
     // Occult Crescent carrot spots — use a Fortune Carrot on one to raise a chest.
     public bool ShowCarrotLines { get; set; } = false;

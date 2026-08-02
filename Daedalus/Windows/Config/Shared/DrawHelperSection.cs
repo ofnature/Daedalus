@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Numerics;
 using Dalamud.Bindings.ImGui;
 using Daedalus.Localization;
@@ -170,6 +170,24 @@ public sealed class DrawHelperSection
                 save();
             }
             ColorPicker("Line Color##carrot", dh.CarrotLineColor, v => { dh.CarrotLineColor = v; save(); });
+        }
+
+        var showMarked = dh.ShowMarkedMobLines;
+        if (ImGui.Checkbox(Loc.T(LocalizedStrings.DrawHelper.ShowMarkedMobLines, "Show lines to marked mobs"), ref showMarked)) { dh.ShowMarkedMobLines = showMarked; save(); }
+        if (ImGui.IsItemHovered())
+        {
+            ImGui.SetTooltip(Loc.T(LocalizedStrings.DrawHelper.ShowMarkedMobLinesDesc,
+                "Draws a line to any mob the game itself has marked — quest targets, hunt bills, Occult quest-drop mobs. Unlike the chest lines, these stay visible in combat."));
+        }
+        if (dh.ShowMarkedMobLines)
+        {
+            var markedRange = dh.MarkedMobLineMaxDistance;
+            if (ImGui.SliderFloat(Loc.T(LocalizedStrings.DrawHelper.MarkedMobLineMaxDistance, "Max Distance (y)##marked"), ref markedRange, 10f, 200f, "%.0f"))
+            {
+                dh.MarkedMobLineMaxDistance = markedRange;
+                save();
+            }
+            ColorPicker("Line Color##marked", dh.MarkedMobLineColor, v => { dh.MarkedMobLineColor = v; save(); });
         }
 
         var labelObjects = dh.LabelWorldObjects;

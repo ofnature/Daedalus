@@ -1,4 +1,4 @@
-namespace Daedalus.Localization;
+﻿namespace Daedalus.Localization;
 
 /// <summary>
 /// Localization string key constants organized by domain.
@@ -241,6 +241,9 @@ public static class LocalizedStrings
         public const string ShowCarrotLines = "DrawHelper.ShowCarrotLines";
         public const string ShowCarrotLinesDesc = "DrawHelper.ShowCarrotLinesDesc";
         public const string CarrotLineMaxDistance = "DrawHelper.CarrotLineMaxDistance";
+        public const string ShowMarkedMobLines = "DrawHelper.ShowMarkedMobLines";
+        public const string ShowMarkedMobLinesDesc = "DrawHelper.ShowMarkedMobLinesDesc";
+        public const string MarkedMobLineMaxDistance = "DrawHelper.MarkedMobLineMaxDistance";
         public const string LabelWorldObjects = "DrawHelper.LabelWorldObjects";
         public const string LabelWorldObjectsDesc = "DrawHelper.LabelWorldObjectsDesc";
     }

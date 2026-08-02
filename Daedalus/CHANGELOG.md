@@ -5,6 +5,9 @@ All notable changes to Daedalus will be documented in this file.
 <!-- LATEST-START -->
 ## v0.1.52 — unreleased
 
+### New — Lines to marked mobs
+- A new Draw Helper toggle draws a **magenta line to any mob the game itself has marked** — quest targets, hunt bills, and the Occult quest-drop mark — so you can see where they are within range instead of scanning nameplates. Unlike the chest and carrot lines these stay visible **in combat**, since the marked mobs are the reason you're fighting
+
 ### Debug — The object labeller now reads the game's own markers
 - Mobs carrying a **client-drawn marker** — the quest gold icon, hunt-bill tags, and the rest — are now stamped with the marker's icon id. That number is how a marker you can see becomes a filter the plugin can act on, the same route the carrot and Knowledge Crystal ids took
 

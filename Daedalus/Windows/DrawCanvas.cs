@@ -158,6 +158,11 @@ public sealed class DrawCanvas : Window
                     DrawGuideLines(player, WorldLineSelector.IsCarrotLineCandidate,
                         Config.CarrotLineMaxDistance, _ => Config.CarrotLineColor);
 
+                // Marked mobs draw in combat on purpose — they are the reason you're fighting.
+                if (Config.ShowMarkedMobLines)
+                    DrawGuideLines(player, IsMarkedMobCandidate,
+                        Config.MarkedMobLineMaxDistance, _ => Config.MarkedMobLineColor);
+
                 if (Config.LabelWorldObjects)
                     DrawWorldObjectLabels(player);
 
@@ -747,6 +752,19 @@ public sealed class DrawCanvas : Window
     private static uint ApplyAlpha(uint color, uint alpha)
     {
         return (alpha << 24) | (color & 0x00FFFFFFu);
+    }
+
+    /// <summary>
+    /// A living, targetable mob the CLIENT has marked with a nameplate icon — quest targets,
+    /// hunt bills, the Crescent quest-drop mark. The game decides what counts; we just point.
+    /// </summary>
+    private bool IsMarkedMobCandidate(IGameObject obj, Vector3 origin, float maxDistance)
+    {
+        if (obj.ObjectKind != ObjectKind.BattleNpc) return false;
+        if (obj.IsDead || !obj.IsTargetable) return false;
+        if (ReadNamePlateIconId(obj) == 0) return false;
+
+        return Vector3.DistanceSquared(origin, obj.Position) <= maxDistance * maxDistance;
     }
 
     /// <summary>
