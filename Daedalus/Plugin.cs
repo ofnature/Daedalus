@@ -656,6 +656,7 @@ public sealed class Plugin : IDalamudPlugin
         this.potTreasureHunt = new Daedalus.Services.Occult.PotTreasureHunt(
             chatGui, objectTable, clientState, configuration.Occult, SaveConfiguration, log);
         this.deathReleaseWatch = new Daedalus.Services.Debug.DeathReleaseWatch(objectTable, debugLogService);
+        Daedalus.Rotation.Base.RotationServices.DebugLog = debugLogService;
         this.elementalWeaknessLog = new Daedalus.Services.Occult.ElementalWeaknessLog(
             objectTable, clientState, log, pluginInterface.ConfigDirectory.FullName, debugLogService, fateTable);
 

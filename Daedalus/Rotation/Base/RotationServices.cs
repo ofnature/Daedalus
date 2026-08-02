@@ -40,4 +40,10 @@ public static class RotationServices
     /// plugins ("Follow RSR's desired positional") follow Daedalus.
     /// </summary>
     public static Daedalus.Ipc.RsrCompatIpc? RsrCompat { get; set; }
+
+    /// <summary>
+    /// Debug log, for diagnostics that need to reach the player rather than a debug panel they
+    /// would have to already be watching. Optional — null in tests.
+    /// </summary>
+    public static Daedalus.Services.Debug.DebugLogService? DebugLog { get; set; }
 }

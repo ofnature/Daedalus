@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using Dalamud.Game.ClientState.Objects.Types;
 using Daedalus.Config;
 using Daedalus.Data;
@@ -27,7 +27,11 @@ public sealed class ResurrectionModule : BaseResurrectionModule<IAsclepiusContex
 
     protected override bool HasSwiftcast(IAsclepiusContext context) => context.HasSwiftcast;
 
-    protected override void SetRaiseState(IAsclepiusContext context, string state) => context.Debug.RaiseState = state;
+    protected override void SetRaiseState(IAsclepiusContext context, string state)
+    {
+        context.Debug.RaiseState = state;
+        LogRaiseState(state);
+    }
     protected override void SetRaiseTarget(IAsclepiusContext context, string target) => context.Debug.RaiseTarget = target;
     protected override void SetPlanningState(IAsclepiusContext context, string state) => context.Debug.PlanningState = state;
     protected override void SetPlannedAction(IAsclepiusContext context, string action) => context.Debug.PlannedAction = action;

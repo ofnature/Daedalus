@@ -1,4 +1,4 @@
-using Dalamud.Game.ClientState.Objects.Types;
+﻿using Dalamud.Game.ClientState.Objects.Types;
 using Daedalus.Models.Action;
 using Daedalus.Services.Party;
 
@@ -51,6 +51,34 @@ public abstract class BaseResurrectionModule<TContext> : IHealerRotationModule<T
     /// Sets the raise state in the job-specific debug state.
     /// </summary>
     protected abstract void SetRaiseState(TContext context, string state);
+
+    private string? _lastLoggedRaiseState;
+
+    /// <summary>
+    /// Mirror a raise-state change into the Debug Log. The healer's debug tab already shows it,
+    /// but that requires having the tab open and knowing to look — and a raise that silently
+    /// never happens is precisely when nobody is looking. Deduped, so this logs transitions
+    /// rather than frames.
+    /// <para>
+    /// Skips the resting states ("No target", "Disabled"), which are the normal condition when
+    /// nobody is dead and would otherwise drown the log.
+    /// </para>
+    /// </summary>
+    protected void LogRaiseState(string state)
+    {
+        if (string.Equals(state, _lastLoggedRaiseState, System.StringComparison.Ordinal))
+            return;
+
+        _lastLoggedRaiseState = state;
+
+        if (string.IsNullOrEmpty(state) || state is "No target" or "Disabled")
+            return;
+
+        Daedalus.Rotation.Base.RotationServices.DebugLog?.Log(
+            Daedalus.Services.Debug.DebugLogCategory.Action,
+            Daedalus.Services.Debug.DebugLogSeverity.Info,
+            $"Raise: {state}");
+    }
 
     /// <summary>
     /// Sets the raise target in the job-specific debug state.
