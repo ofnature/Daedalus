@@ -179,19 +179,6 @@ public sealed class PhantomJobService
         }
     }
 
-    /// <summary>
-    /// Phantom actions whose sheet category does not describe how they behave. Occult Raise is
-    /// ActionCategory 2 (Spell) but does not consume the GCD in play — field-confirmed
-    /// 2026-08-02, and corroborated by its 5.0s recast, which is not a GCD multiple and is what
-    /// an independent cooldown looks like.
-    /// <para>
-    /// Getting this wrong is not cosmetic: classified as a GCD it went into the GCD queue and
-    /// competed with the job's own filler, so a queued raise sat behind Enpi indefinitely while
-    /// a body lay in front of it. As an oGCD it weaves instead.
-    /// </para>
-    /// </summary>
-    private static readonly HashSet<uint> OgcdDespiteCategory = [49070];
-
     private readonly Dictionary<uint, Daedalus.Models.Action.ActionDefinition> _definitionCache = [];
 
     /// <summary>Phantom layer's convenience overload.</summary>
@@ -219,7 +206,7 @@ public sealed class PhantomJobService
             range = action.Range < 0 ? 3f : action.Range;
             radius = action.EffectRange;
             // ActionCategory rows: 2 = Spell, 3 = Weaponskill (GCDs); 4 = Ability (oGCD).
-            isGcd = action.ActionCategory.RowId is 2 or 3 && !OgcdDespiteCategory.Contains(def.ActionId);
+            isGcd = action.ActionCategory.RowId is 2 or 3;
         }
 
         var built = new Daedalus.Models.Action.ActionDefinition
