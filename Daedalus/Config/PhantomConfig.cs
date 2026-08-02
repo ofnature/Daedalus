@@ -40,6 +40,29 @@ public sealed class ChestLedgerEntry
     /// </summary>
     public int TimesOpened { get; set; }
 
+    /// <summary>
+    /// This coffer was seen while "Cache Me if You Can" (the pot FATE treasure hunt) was up.
+    /// <para>
+    /// The discriminator the whole pot-coffer question turns on: a hunt coffer is otherwise
+    /// indistinguishable from a world coffer — same object kind, same name, same fields — so
+    /// without this the candidate positions can never be separated from ordinary chests.
+    /// Sticky: once true it stays true, since a spot that has EVER produced a hunt coffer is a
+    /// candidate regardless of what else spawns there.
+    /// </para>
+    /// </summary>
+    public bool FoundDuringTreasureHunt { get; set; }
+
+    /// <summary>
+    /// Source of this coffer — the two are entirely different mechanics and must never be
+    /// pooled: <c>EventObj</c> coffers come from POTS (the hidden hunt coffer), while
+    /// <c>Treasure</c> chests are rolled PER PLAYER when you enter the instance.
+    /// <para>
+    /// That second point is why a spot's tier looks fixed within a visit and re-rolls on the
+    /// next one, and it is the discriminator any predictor has to split on first.
+    /// </para>
+    /// </summary>
+    public string Source { get; set; } = "Treasure";
+
     public long FirstSeenUnixSeconds { get; set; }
     public long LastSeenUnixSeconds { get; set; }
 }

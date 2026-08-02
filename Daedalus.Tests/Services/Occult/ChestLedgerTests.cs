@@ -143,34 +143,82 @@ public sealed class ChestLedgerTests
     /// looted spot read "Bronze: 2" off one chest while an unlooted one read "Bronze: 1" —
     /// a distribution skewed by exactly the open count (caught in field data 2026-08-01).
     /// </summary>
+    /// <summary>
+    /// World chests are rolled per player on instance entry, so a chest cannot change tier while
+    /// you stand in the instance that spawned it. The caller counts a spot ONCE per visit and
+    /// passes countTier:false for every later sighting — otherwise one roll masquerades as a
+    /// dozen independent samples and every spot looks rock-solid consistent.
+    /// </summary>
     [Fact]
-    public void Record_OpeningAChestDoesNotCountItsTierTwice()
+    public void Record_CountsOneTierObservationPerVisit()
     {
         var ledger = new List<ChestLedgerEntry>();
-        ChestLedger.Record(ledger, Zone, new Vector3(10, 0, 10), TreasureTier.Bronze, T0);
-        ChestLedger.Record(ledger, Zone, new Vector3(10, 0, 10), TreasureTier.Bronze, T0.AddSeconds(14), opened: true);
+        ChestLedger.Record(ledger, Zone, new Vector3(10, 0, 10), TreasureTier.Bronze, T0, countTier: true);
+        ChestLedger.Record(ledger, Zone, new Vector3(10, 0, 10), TreasureTier.Bronze, T0.AddSeconds(14),
+            opened: true, countTier: false);
+        ChestLedger.Record(ledger, Zone, new Vector3(10, 0, 10), TreasureTier.Bronze, T0.AddMinutes(5),
+            countTier: false);
 
         var entry = Assert.Single(ledger);
-        Assert.Equal(1, entry.TimesSeen);
         Assert.Equal(1, entry.TimesOpened);
         Assert.Equal(1, entry.TierCounts["Bronze"]);
     }
 
-    /// <summary>Tier observations can never outnumber sightings.</summary>
+    /// <summary>A later visit re-rolls the chest, so that observation does count.</summary>
     [Fact]
-    public void Record_TierCountsNeverExceedTimesSeen()
+    public void Record_ASecondVisitAddsAnObservation()
     {
         var ledger = new List<ChestLedgerEntry>();
-        var t = T0;
-        for (var i = 0; i < 6; i++)
-        {
-            ChestLedger.Record(ledger, Zone, new Vector3(10, 0, 10), TreasureTier.Silver, t, opened: i % 2 == 0);
-            t = t.AddSeconds(20);
-        }
+        ChestLedger.Record(ledger, Zone, new Vector3(10, 0, 10), TreasureTier.Bronze, T0, countTier: true);
+        ChestLedger.Record(ledger, Zone, new Vector3(10, 0, 10), TreasureTier.Silver, T0.AddHours(1), countTier: true);
 
-        var entry = ledger[0];
-        var counted = entry.TierCounts.Values.Sum();
-        Assert.True(counted <= entry.TimesSeen, $"counted {counted} tiers across {entry.TimesSeen} sightings");
+        var entry = Assert.Single(ledger);
+        Assert.Equal(1, entry.TierCounts["Bronze"]);
+        Assert.Equal(1, entry.TierCounts["Silver"]);
+        Assert.True(ChestLedger.IsMixedTier(entry));
+    }
+
+    // ── Source and hunt tagging ──
+
+    [Fact]
+    public void Record_TagsTheCofferSource()
+    {
+        var ledger = new List<ChestLedgerEntry>();
+        ChestLedger.Record(ledger, Zone, new Vector3(10, 0, 10), TreasureTier.Gold, T0, source: "EventObj");
+
+        Assert.Equal("EventObj", ledger[0].Source);
+    }
+
+    /// <summary>
+    /// The discriminator the pot-coffer question turns on — a hunt coffer is otherwise identical
+    /// to a world coffer. Sticky, because a spot that has ever produced one stays a candidate.
+    /// </summary>
+    [Fact]
+    public void Record_HuntTagIsStickyOnceSet()
+    {
+        var ledger = new List<ChestLedgerEntry>();
+        ChestLedger.Record(ledger, Zone, new Vector3(10, 0, 10), TreasureTier.Gold, T0,
+            duringTreasureHunt: true, source: "EventObj");
+        ChestLedger.Record(ledger, Zone, new Vector3(10, 0, 10), TreasureTier.Gold, T0.AddHours(1),
+            duringTreasureHunt: false, countTier: true);
+
+        Assert.True(ledger[0].FoundDuringTreasureHunt);
+    }
+
+    [Fact]
+    public void Merge_CarriesTheHuntTagAndSourceAcrossToons()
+    {
+        var mine = new List<ChestLedgerEntry>();
+        ChestLedger.Record(mine, Zone, new Vector3(10, 0, 10), TreasureTier.Gold, T0);
+
+        var theirs = new List<ChestLedgerEntry>();
+        ChestLedger.Record(theirs, Zone, new Vector3(10, 0, 10), TreasureTier.Gold, T0,
+            duringTreasureHunt: true, source: "EventObj");
+
+        ChestLedger.Merge(mine, theirs);
+
+        Assert.True(mine[0].FoundDuringTreasureHunt);
+        Assert.Equal("EventObj", mine[0].Source);
     }
 
     /// <summary>Entries written before TierCounts existed must still join the distribution.</summary>

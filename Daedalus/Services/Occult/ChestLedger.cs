@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Numerics;
 using Dalamud.Game.ClientState.Objects.Types;
@@ -45,6 +45,21 @@ public sealed class ChestLedger
 
     private bool _dirty;
     private DateTime _lastSaveUtc = DateTime.MinValue;
+
+#if DEBUG
+    /// <summary>
+    /// Spots whose tier has already been counted THIS visit, cleared on leaving the zone.
+    /// <para>
+    /// World chests are rolled per player when you enter the instance, so a chest cannot change
+    /// tier while you are standing in the instance that spawned it. Counting every sighting made
+    /// one roll look like a dozen independent samples and would have shown every spot as
+    /// rock-solid consistent — the exact opposite of the truth, which is that the tier is
+    /// re-rolled on the next entry.
+    /// </para>
+    /// </summary>
+    private readonly HashSet<string> _countedThisVisit = [];
+    private ushort _lastZone;
+#endif
 
 #if DEBUG
     /// <summary>
@@ -136,12 +151,22 @@ public sealed class ChestLedger
             return;
 
         var zone = (ushort)_clientState.TerritoryType;
+        if (zone != _lastZone)
+        {
+            // New instance = fresh rolls, so every spot becomes countable again.
+            _countedThisVisit.Clear();
+            _lastZone = zone;
+        }
+
         if (!Data.PhantomJobData.OccultTerritoryIds.Contains(zone))
             return;
 
         var now = UtcNow();
         var player = _objectTable.LocalPlayer;
         var seen = new HashSet<ulong>();
+
+        // Read once per tick, not per coffer.
+        var duringHunt = IsTreasureHuntActive(player);
 
         foreach (var obj in _objectTable)
         {
@@ -179,7 +204,13 @@ public sealed class ChestLedger
             if (justOpened)
                 tracked.Counted = true;
 
-            if (Record(_config.ChestLedger, zone, obj.Position, tier, now, opened: justOpened))
+            // One tier observation per spot per visit — see _countedThisVisit.
+            var spotKey = $"{zone}:{(int)obj.Position.X}:{(int)obj.Position.Z}";
+            var countTier = _countedThisVisit.Add(spotKey);
+
+            if (Record(_config.ChestLedger, zone, obj.Position, tier, now,
+                    opened: justOpened, duringTreasureHunt: duringHunt, countTier: countTier,
+                    source: isEventObj ? "EventObj" : "Treasure"))
                 _dirty = true;
         }
 
@@ -198,7 +229,9 @@ public sealed class ChestLedger
                 if (!coffer.IsEventObj || coffer.Counted || !DespawnedIntoPickup(coffer.LastDistance))
                     continue;
 
-                if (Record(_config.ChestLedger, zone, coffer.Position, coffer.Tier, now, opened: true))
+                if (Record(_config.ChestLedger, zone, coffer.Position, coffer.Tier, now,
+                        opened: true, duringTreasureHunt: duringHunt,
+                        source: coffer.IsEventObj ? "EventObj" : "Treasure"))
                     _dirty = true;
             }
 
@@ -253,7 +286,8 @@ public sealed class ChestLedger
 
     public static bool Record(
         List<ChestLedgerEntry> ledger, ushort zone, Vector3 position, TreasureTier tier, DateTime nowUtc,
-        bool opened = false)
+        bool opened = false, bool duringTreasureHunt = false, bool countTier = true,
+        string source = "Treasure")
     {
         if (ledger is null)
             return false;
@@ -289,13 +323,29 @@ public sealed class ChestLedger
                 changed = true;
             }
 
+            if (!string.IsNullOrWhiteSpace(source) && entry.Source != source)
+            {
+                entry.Source = source;
+                changed = true;
+            }
+
+            // Sticky: a spot that has ever produced a hunt coffer stays a candidate.
+            if (duringTreasureHunt && !entry.FoundDuringTreasureHunt)
+            {
+                entry.FoundDuringTreasureHunt = true;
+                changed = true;
+            }
+
             // Count the tier rather than overwrite it: a spot that genuinely varies must show as
             // varying, and two toons disagreeing is evidence, not noise.
             if (tier != TreasureTier.Unknown)
             {
                 BackfillTierCounts(entry);
-                if (newSighting)
+                if (countTier)
+                {
                     CountTier(entry, tierName);
+                    changed = true;
+                }
             }
 
             if (changed)
@@ -315,11 +365,15 @@ public sealed class ChestLedger
             Z = position.Z,
             TimesSeen = 1,
             TimesOpened = opened ? 1 : 0,
+            FoundDuringTreasureHunt = duringTreasureHunt,
+            Source = source,
             FirstSeenUnixSeconds = stamp,
             LastSeenUnixSeconds = stamp,
         };
-        if (tier != TreasureTier.Unknown)
+        if (tier != TreasureTier.Unknown && countTier)
             CountTier(added, tierName);
+        else if (tier != TreasureTier.Unknown)
+            added.Tier = tierName;
         else
             added.Tier = tierName;
 
@@ -400,6 +454,9 @@ public sealed class ChestLedger
 
             match.TimesSeen += entry.TimesSeen;
             match.TimesOpened += entry.TimesOpened;
+            match.FoundDuringTreasureHunt |= entry.FoundDuringTreasureHunt;
+            if (!string.IsNullOrWhiteSpace(entry.Source) && entry.Source != "Treasure")
+                match.Source = entry.Source;
 
             if (entry.FirstSeenUnixSeconds > 0
                 && (match.FirstSeenUnixSeconds == 0 || entry.FirstSeenUnixSeconds < match.FirstSeenUnixSeconds))
@@ -551,6 +608,26 @@ public sealed class ChestLedger
         {
             return false;
         }
+    }
+
+    /// <summary>
+    /// "Cache Me if You Can" — the status the Magical Elixir grants after a pot FATE, while you
+    /// are hunting the hidden coffer. Fails closed: an unreadable status list reads as "not
+    /// hunting", which loses a tag rather than mislabelling an ordinary world chest as a
+    /// candidate.
+    /// </summary>
+    private static bool IsTreasureHuntActive(Dalamud.Game.ClientState.Objects.SubKinds.IPlayerCharacter? player)
+    {
+        if (player?.StatusList is not { } statuses)
+            return false;
+
+        foreach (var status in statuses)
+        {
+            if (status != null && status.StatusId == PotFateTracker.TreasureHuntStatusId)
+                return true;
+        }
+
+        return false;
     }
 
     private uint ResolveSceneryId(uint baseId)
