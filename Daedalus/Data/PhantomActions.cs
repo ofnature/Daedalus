@@ -166,6 +166,22 @@ public static class PhantomActions
         //    picks which one fires (300, or 390 on a match). Lv.5 is the Dualcast TRAIT: any
         //    cast-time spell makes the NEXT spell instant, so the trio effectively casts free
         //    behind Cure II. ──
+        // ── Phantom Blue Mage (North Horn; tooltips field-captured 2026-08-02). Sits in a
+        //    contiguous 49085-49091 block immediately before Red Mage's. Unlike every other
+        //    phantom job its actions are LEARNED FROM ENEMIES, so the levels below are the
+        //    TRAIT tiers that make each learnable ("Occult Learning I/II/III") rather than a
+        //    guarantee you have it — the duty-bar slot gate is what proves you actually do.
+        //    Aero I/II/III are the same button in ascending grades, so only the best learned
+        //    one is ever worth firing. ──
+        new(49085, "Occult Aero", PhantomJob.PhantomBlueMage, 1),          // wind, 150 (195 vs wind-weak), 30s
+        new(49086, "Occult Missile", PhantomJob.PhantomBlueMage, 1),       // 35% chance of 75% CURRENT HP, 30s
+        new(49087, "Occult Aqua Breath", PhantomJob.PhantomBlueMage, 1),   // unaspected 300, 5y AoE, 60s
+        new(49088, "Occult Mighty Guard", PhantomJob.PhantomBlueMage, 2),  // party 20% mit 15s, 20y, 120s
+        new(49089, "Occult Aero II", PhantomJob.PhantomBlueMage, 2),       // wind, upgrade of Aero
+        // Lv.3 pair INFERRED from the Learning III trait tier — the tooltip was not captured.
+        new(49090, "Occult White Wind", PhantomJob.PhantomBlueMage, 3),    // party heal = own CURRENT HP, 150s
+        new(49091, "Occult Aero III", PhantomJob.PhantomBlueMage, 3),      // wind, top grade
+
         new(49092, "Occult Fire II", PhantomJob.PhantomRedMage, 1),      // fire
         new(49093, "Occult Cure II", PhantomJob.PhantomRedMage, 2),      // 40,000 cure potency, 1500 MP
         new(49094, "Occult Libra", PhantomJob.PhantomRedMage, 3),        // REVEALS elemental affinity, 120s

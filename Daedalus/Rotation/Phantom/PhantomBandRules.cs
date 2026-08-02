@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using Daedalus.Config;
 
 namespace Daedalus.Rotation.Phantom;
@@ -109,6 +109,28 @@ public static class PhantomBandRules
 
         return DeepFreezeId;
     }
+
+    /// <summary>
+    /// Occult White Wind heals for the caster's CURRENT HP, so its value rises the healthier
+    /// you are — the instinct to save it for an emergency is backwards. Fire it in the band
+    /// where the party is hurt enough to need it but the caster still has HP worth copying.
+    /// </summary>
+    public const float WhiteWindUpperHpPct = 0.80f;
+    public const float WhiteWindLowerHpPct = 0.40f;
+
+    /// <summary>Phantom Blue Mage — Aero grades, all the same button.</summary>
+    public const uint OccultAeroId = 49085;
+    public const uint OccultAeroIIId = 49089;
+    public const uint OccultAeroIIIId = 49091;
+
+    /// <summary>
+    /// The best Aero grade the job has reached. They are one button in ascending grades, so
+    /// firing a lower one is strictly wasted — the duty-bar gate still has the final say on
+    /// whether it was actually learned, since Blue Mage learns from enemies rather than levels.
+    /// </summary>
+    public static uint BestAero(byte phantomLevel) => phantomLevel >= 3
+        ? OccultAeroIIIId
+        : phantomLevel >= 2 ? OccultAeroIIId : OccultAeroId;
 
     /// <summary>Occult Cure II (Red Mage): 40,000 potency self-heal, 1,500 MP, 2.5s recast.</summary>
     public static bool ShouldOccultCure(PhantomConfig cfg, float selfHpPct, bool inCombat)

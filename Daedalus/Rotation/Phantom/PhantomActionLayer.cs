@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using Dalamud.Game.ClientState.Objects.Types;
 using Dalamud.Plugin.Services;
@@ -238,6 +238,17 @@ public sealed class PhantomActionLayer
             if (!_actionService.PlayerHasStatus(PhantomActions.StatusIds.Smoke))
                 TryPush(ctx, 49063, job, level, PrioSelfMit + 1);
         }
+
+        // Occult White Wind (Blue Mage): heals self and nearby party for the caster's CURRENT
+        // HP. So it is worth MORE the healthier you are — firing it at death's door heals
+        // almost nothing. Gate on being hurt enough to want it but healthy enough for it to
+        // land for something, and let the 150s recast do the rest of the pacing.
+        if (job == PhantomJob.PhantomBlueMage && inCombat
+            && selfHpPct < PhantomBandRules.WhiteWindUpperHpPct
+            && selfHpPct > PhantomBandRules.WhiteWindLowerHpPct)
+        {
+            TryPush(ctx, 49090, job, level, PrioEmergencySustain + 1);
+        }
     }
 
     private void PushSelfMit(IRotationContext ctx, PhantomJob job, byte level, float selfHpPct, bool inCombat)
@@ -249,6 +260,12 @@ public sealed class PhantomActionLayer
             TryPush(ctx, 41588, job, level, PrioSelfMit); // Phantom Guard
         if (job == PhantomJob.Gladiator)
             TryPush(ctx, 46595, job, level, PrioSelfMit); // Defend
+
+        // Occult Mighty Guard (Blue Mage): 20% off self AND nearby party for 15s on a 120s
+        // recast. Cheap enough to treat as a self-mit rather than hoarding it for a raidwide
+        // we cannot see coming — the layer has no timeline awareness here.
+        if (job == PhantomJob.PhantomBlueMage && inCombat && selfHpPct < PhantomBandRules.SelfMitHpPct)
+            TryPush(ctx, 49088, job, level, PrioSelfMit);
     }
 
     private void PushInterrupts(IRotationContext ctx, PhantomJob job, byte level, bool inCombat)
@@ -406,6 +423,7 @@ public sealed class PhantomActionLayer
         // Keep this in step with the case labels in PushDamage below.
         PhantomJob.PhantomDragoon, PhantomJob.PhantomSummoner, PhantomJob.PhantomWhiteMage,
         PhantomJob.PhantomBlackMage, PhantomJob.PhantomRedMage, PhantomJob.PhantomNinja,
+        PhantomJob.PhantomBlueMage,
         // NOT Necromancer: its only cataloged action (Drain Touch) fires pre-hold like Steal,
         // so the "damage held" line would be a lie for it.
     ];
@@ -546,6 +564,18 @@ public sealed class PhantomActionLayer
                     target is IBattleNpc blmTarget ? TargetWeakness?.Invoke(blmTarget.NameId) : null);
                 for (var i = 0; i < blmOrder.Length; i++)
                     TryPush(ctx, blmOrder[i], job, level, PrioDamage + 1 + i, target.GameObjectId, target);
+                break;
+
+            case PhantomJob.PhantomBlueMage:
+                // Aqua Breath first: 300 unaspected in a 5y splash beats Aero's single-target
+                // 150 whenever more than one thing is standing there, and it ignores weakness.
+                TryPush(ctx, 49087, job, level, PrioDamage, target.GameObjectId, target);
+                // Missile is a coin flip for 75% of CURRENT hp — worthless on a nearly-dead
+                // target and enormous on a fresh one, so it leads only while the pack is healthy.
+                if (targetHpPct > 0.5f)
+                    TryPush(ctx, 49086, job, level, PrioDamage + 1, target.GameObjectId, target);
+                TryPush(ctx, PhantomBandRules.BestAero(level), job, level, PrioDamage + 2,
+                    target.GameObjectId, target);
                 break;
 
             case PhantomJob.PhantomRedMage:

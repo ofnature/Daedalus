@@ -1,8 +1,16 @@
-# Changelog
+﻿# Changelog
 
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.50 — unreleased
+
+### New — Phantom Blue Mage
+- The Blue Mage kit is now played: **Occult Aqua Breath** leads (300 unaspected in a splash beats single-target Aero whenever more than one enemy is there), **Occult Missile** while the target is still healthy — it's a coin flip for 75% of *current* HP, so it's worth most early — then the best **Occult Aero** grade you've learned
+- **Occult Mighty Guard** goes out as party mitigation, and **Occult White Wind** heals for your *current* HP, so it fires while you still have HP worth copying rather than being saved until it would heal for nothing
+- Blue Mage learns its actions from enemies rather than by level, so anything you haven't learned simply stays unslotted and is skipped
+
+<!-- LATEST-END -->
 ## v0.1.49 — 2026-08-02
 
 ### New — Enemy table grows again
@@ -23,7 +31,6 @@ All notable changes to Daedalus will be documented in this file.
 - Phantom nukes hit far harder than your own job's GCDs, so holding them for a burst window just leaves that damage unspent. The setting has defaulted **off** since the last update, but that only applied to brand-new configs — anyone who'd used Daedalus before kept it on, and their phantom jobs sat there healing and doing nothing else
 - It's now turned off once, automatically, on update. Turn it back on in the Occult settings if you want the old behaviour and it will stay on
 
-<!-- LATEST-END -->
 ## v0.1.48 — 2026-08-01
 
 ### Fix — FATE enemies were missing from the shipped enemy table
