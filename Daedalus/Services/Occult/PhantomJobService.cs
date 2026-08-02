@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using Dalamud.Plugin.Services;
 using Daedalus.Data;
@@ -117,6 +117,13 @@ public sealed class PhantomJobService
 
     /// <summary>Phantom layer's CURRENT state, rewritten every frame — Debug tab readout.</summary>
     public string LayerLastEvent { get; set; } = "—";
+
+    /// <summary>
+    /// What the phantom raise is doing, or why it is not. A raise that silently never happens is
+    /// the single thing this layer has been hardest to diagnose — level, duty-bar slot, range,
+    /// the healer deferral and the GCD pre-empt each produced the same visible nothing.
+    /// </summary>
+    public string RaiseState { get; set; } = "—";
 
     /// <summary>Last action the phantom layer actually fired (sticky, timestamped).</summary>
     public string LayerLastDispatch { get; set; } = "none yet";

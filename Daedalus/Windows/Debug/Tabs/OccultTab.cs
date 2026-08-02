@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
@@ -86,6 +86,9 @@ public static class OccultTab
         }
 
         ImGui.Text($"Phantom layer: {service.LayerLastEvent}");
+        ImGui.TextColored(
+            service.RaiseState.StartsWith("raising", StringComparison.OrdinalIgnoreCase) ? Green : Dim,
+            $"Phantom raise: {service.RaiseState}");
         ImGui.TextColored(Dim, $"Last fired: {service.LayerLastDispatch}");
 
         if (!snapshot.InOccultCrescent)

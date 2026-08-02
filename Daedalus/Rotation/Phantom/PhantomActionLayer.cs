@@ -329,7 +329,16 @@ public sealed class PhantomActionLayer
             _ => 0u,
         };
         if (raiseId == 0u)
+        {
+            _phantomJobs.RaiseState = "job has no raise";
             return;
+        }
+
+        if (!cfg.UsePhantomRaise)
+        {
+            _phantomJobs.RaiseState = "disabled in settings";
+            return;
+        }
 
         var (deadHealer, deadOther, livingHealer) = ScanPartyForRaise(ctx);
 
@@ -352,7 +361,12 @@ public sealed class PhantomActionLayer
 
         var decision = PhantomBandRules.DecideRaise(cfg, deadHealer != null, deadOther != null, livingHealer);
         if (decision == PhantomRaiseDecision.None)
+        {
+            _phantomJobs.RaiseState = deadHealer is null && deadOther is null
+                ? "nobody down in range"
+                : $"holding — waiting on the healer ({SecondsDown(deadOther!.GameObjectId):F0}s)";
             return;
+        }
 
         var target = decision == PhantomRaiseDecision.RaiseHealer ? deadHealer! : deadOther!;
         var targetId = (uint)target.GameObjectId;
@@ -361,11 +375,15 @@ public sealed class PhantomActionLayer
         if (PartyCoordination?.IsRaiseTargetReservedByOther(targetId) == true)
         {
             _pushRejects.Add("raise target reserved by another toon");
+            _phantomJobs.RaiseState = $"reserved by another toon — {target.Name?.TextValue}";
             return;
         }
 
         // Occult Raise is instant, so it reserves for a moment rather than a full cast.
         var castMs = raiseId == OccultRaiseId ? 0 : RaiseCastMs;
+
+        _phantomJobs.RaiseState =
+            $"raising {target.Name?.TextValue ?? "ally"}{(instantRaise ? " (instant)" : string.Empty)}";
 
         TryPush(ctx, raiseId, job, level, PrioRaise, target.GameObjectId, target,
             onExtraDispatched: () =>
