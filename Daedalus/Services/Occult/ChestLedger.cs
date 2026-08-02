@@ -34,9 +34,34 @@ public sealed class ChestLedger
     private readonly IDataManager? _dataManager;
     private readonly System.Action? _save;
 
+    /// <summary>
+    /// An EventObj coffer that vanishes while you're standing on it was opened. Beyond this
+    /// distance a despawn is more likely to be you walking out of range.
+    /// </summary>
+    public const float OpenProximityYalms = 6f;
+
     private readonly Dictionary<uint, uint> _sceneryIdByBaseId = [];
+
     private bool _dirty;
     private DateTime _lastSaveUtc = DateTime.MinValue;
+
+#if DEBUG
+    /// <summary>
+    /// Coffers currently in view, so an open can be spotted as a TRANSITION. Debug-only, like
+    /// the collection it serves — Release never populates it.
+    /// </summary>
+    private readonly Dictionary<ulong, TrackedCoffer> _tracked = [];
+
+    private sealed class TrackedCoffer
+    {
+        public Vector3 Position;
+        public TreasureTier Tier;
+        public bool WasOpened;
+        public bool IsEventObj;
+        public float LastDistance;
+        public bool Counted;
+    }
+#endif
 
     /// <summary>Test seam.</summary>
     internal Func<DateTime> UtcNow { get; set; } = () => DateTime.UtcNow;
@@ -93,17 +118,71 @@ public sealed class ChestLedger
         if (!Data.PhantomJobData.OccultTerritoryIds.Contains(zone))
             return;
 
+        var now = UtcNow();
+        var player = _objectTable.LocalPlayer;
+        var seen = new HashSet<ulong>();
+
         foreach (var obj in _objectTable)
         {
-            if (!WorldLineSelector.IsChestLineCandidate(obj, obj.Position, float.MaxValue))
+            // Deliberately NOT the guide-line filter: that requires IsTargetable, and an opened
+            // coffer stops being targetable at the exact moment we care about.
+            var isEventObj = obj.ObjectKind == Dalamud.Game.ClientState.Objects.Enums.ObjectKind.EventObj;
+            var isCoffer = obj.ObjectKind == Dalamud.Game.ClientState.Objects.Enums.ObjectKind.Treasure
+                || (isEventObj && IsCofferName(obj.Name.TextValue));
+            if (!isCoffer)
                 continue;
 
-            var tier = obj.ObjectKind == Dalamud.Game.ClientState.Objects.Enums.ObjectKind.EventObj
-                ? WorldLineSelector.TierFromCofferBaseId(obj.BaseId)
+            seen.Add(obj.GameObjectId);
+
+            // EventObj coffers carry the tier in their NAME ("Gold Coffer"); Treasure objects
+            // carry it in their scenery model.
+            var tier = isEventObj
+                ? TierFromCofferName(obj.Name.TextValue)
                 : WorldLineSelector.TierFromSceneryId(ResolveSceneryId(obj.BaseId));
 
-            if (Record(_config.ChestLedger, zone, obj.Position, tier, UtcNow()))
+            if (!_tracked.TryGetValue(obj.GameObjectId, out var tracked))
+            {
+                tracked = new TrackedCoffer();
+                _tracked[obj.GameObjectId] = tracked;
+            }
+
+            var nowOpened = !isEventObj && IsOpened(obj);
+            var justOpened = BecameOpened(tracked.WasOpened, nowOpened);
+
+            tracked.Position = obj.Position;
+            tracked.Tier = tier;
+            tracked.WasOpened = nowOpened;
+            tracked.IsEventObj = isEventObj;
+            tracked.LastDistance = player is null ? float.MaxValue : Vector3.Distance(player.Position, obj.Position);
+
+            if (justOpened)
+                tracked.Counted = true;
+
+            if (Record(_config.ChestLedger, zone, obj.Position, tier, now, opened: justOpened))
                 _dirty = true;
+        }
+
+        // Despawn pass: an EventObj coffer has no Opened flag, so vanishing next to you is the
+        // only evidence it was looted.
+        if (_tracked.Count > 0)
+        {
+            var gone = new List<ulong>();
+            foreach (var kv in _tracked)
+            {
+                if (seen.Contains(kv.Key))
+                    continue;
+
+                gone.Add(kv.Key);
+                var coffer = kv.Value;
+                if (!coffer.IsEventObj || coffer.Counted || !DespawnedIntoPickup(coffer.LastDistance))
+                    continue;
+
+                if (Record(_config.ChestLedger, zone, coffer.Position, coffer.Tier, now, opened: true))
+                    _dirty = true;
+            }
+
+            foreach (var id in gone)
+                _tracked.Remove(id);
         }
 
         FlushIfDue();
@@ -119,8 +198,41 @@ public sealed class ChestLedger
     /// a tier we actually identified.
     /// </para>
     /// </summary>
+    /// <summary>
+    /// Pot coffers are EventObj and name themselves — "Gold Coffer", "Silver Coffer". That is a
+    /// far better handle than their BaseIds, only one of which we have ever observed.
+    /// </summary>
+    public static bool IsCofferName(string? name) =>
+        !string.IsNullOrWhiteSpace(name) && name.Contains("Coffer", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>Tier from a coffer's display name.</summary>
+    public static TreasureTier TierFromCofferName(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+            return TreasureTier.Unknown;
+        if (name.Contains("Gold", StringComparison.OrdinalIgnoreCase))
+            return TreasureTier.Gold;
+        if (name.Contains("Silver", StringComparison.OrdinalIgnoreCase))
+            return TreasureTier.Silver;
+        if (name.Contains("Bronze", StringComparison.OrdinalIgnoreCase))
+            return TreasureTier.Bronze;
+
+        return TreasureTier.Unknown;
+    }
+
+    /// <summary>
+    /// An open is the TRANSITION, not the state — a coffer reads Opened for as long as it lingers,
+    /// so counting the state would count it once per frame.
+    /// </summary>
+    public static bool BecameOpened(bool previouslyOpened, bool nowOpened) => !previouslyOpened && nowOpened;
+
+    /// <summary>An EventObj coffer vanishing this close to you was looted, not walked away from.</summary>
+    public static bool DespawnedIntoPickup(float lastDistanceYalms) =>
+        lastDistanceYalms <= OpenProximityYalms;
+
     public static bool Record(
-        List<ChestLedgerEntry> ledger, ushort zone, Vector3 position, TreasureTier tier, DateTime nowUtc)
+        List<ChestLedgerEntry> ledger, ushort zone, Vector3 position, TreasureTier tier, DateTime nowUtc,
+        bool opened = false)
     {
         if (ledger is null)
             return false;
@@ -141,6 +253,12 @@ public sealed class ChestLedger
             if (stamp - entry.LastSeenUnixSeconds >= 60)
             {
                 entry.TimesSeen++;
+                changed = true;
+            }
+
+            if (opened)
+            {
+                entry.TimesOpened++;
                 changed = true;
             }
 
@@ -167,6 +285,7 @@ public sealed class ChestLedger
             Z = position.Z,
             Tier = tierName,
             TimesSeen = 1,
+            TimesOpened = opened ? 1 : 0,
             FirstSeenUnixSeconds = stamp,
             LastSeenUnixSeconds = stamp,
         });
@@ -205,6 +324,28 @@ public sealed class ChestLedger
         _dirty = false;
         _lastSaveUtc = now;
         _save?.Invoke();
+    }
+
+    /// <summary>
+    /// The coffer's Opened flag, straight off the ClientStructs Treasure struct — the same read
+    /// BOCCHI uses. Fails closed: an unreadable struct reads as "not opened", which loses a
+    /// sample rather than inventing one.
+    /// </summary>
+    private static unsafe bool IsOpened(IGameObject obj)
+    {
+        try
+        {
+            if (obj.Address == nint.Zero)
+                return false;
+
+            var treasure = (FFXIVClientStructs.FFXIV.Client.Game.Object.Treasure*)obj.Address;
+            return treasure != null
+                && treasure->Flags.HasFlag(FFXIVClientStructs.FFXIV.Client.Game.Object.Treasure.TreasureFlags.Opened);
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     private uint ResolveSceneryId(uint baseId)

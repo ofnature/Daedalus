@@ -17,6 +17,14 @@ public sealed class ChestLedgerEntry
     public string Tier { get; set; } = "Unknown";
 
     public int TimesSeen { get; set; }
+
+    /// <summary>
+    /// How many times a coffer at this spot was actually OPENED. Seen is enough to trust the
+    /// location; opened is what makes the tier trustworthy, since a coffer you merely walked
+    /// past may have been someone else's.
+    /// </summary>
+    public int TimesOpened { get; set; }
+
     public long FirstSeenUnixSeconds { get; set; }
     public long LastSeenUnixSeconds { get; set; }
 }

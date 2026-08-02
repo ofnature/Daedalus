@@ -123,4 +123,78 @@ public sealed class ChestLedgerTests
     {
         Assert.False(ChestLedger.Record(null!, Zone, Vector3.Zero, TreasureTier.Bronze, T0));
     }
+
+    // ── Pickup detection ──
+
+    [Fact]
+    public void Record_CountsAnOpenSeparatelyFromASighting()
+    {
+        var ledger = new List<ChestLedgerEntry>();
+        ChestLedger.Record(ledger, Zone, new Vector3(10, 0, 10), TreasureTier.Gold, T0);
+        Assert.Equal(0, ledger[0].TimesOpened);
+
+        ChestLedger.Record(ledger, Zone, new Vector3(10, 0, 10), TreasureTier.Gold, T0.AddSeconds(5), opened: true);
+
+        Assert.Equal(1, ledger[0].TimesOpened);
+        Assert.Equal(1, ledger[0].TimesSeen); // still the same visit
+    }
+
+    [Fact]
+    public void Record_FirstSightingCanItselfBeAnOpen()
+    {
+        var ledger = new List<ChestLedgerEntry>();
+        ChestLedger.Record(ledger, Zone, new Vector3(10, 0, 10), TreasureTier.Silver, T0, opened: true);
+
+        Assert.Equal(1, ledger[0].TimesOpened);
+    }
+
+    /// <summary>
+    /// A coffer reads Opened for as long as it lingers, so counting the state rather than the
+    /// transition would count one pickup once per frame.
+    /// </summary>
+    [Theory]
+    [InlineData(false, true, true)]   // just opened
+    [InlineData(false, false, false)] // still shut
+    [InlineData(true, true, false)]   // already counted, still sitting there
+    [InlineData(true, false, false)]  // flags went backwards; not an open
+    public void BecameOpened_OnlyFiresOnTheTransition(bool previously, bool now, bool expected)
+    {
+        Assert.Equal(expected, ChestLedger.BecameOpened(previously, now));
+    }
+
+    [Theory]
+    [InlineData(0f, true)]
+    [InlineData(6f, true)]
+    [InlineData(6.1f, false)]
+    [InlineData(40f, false)]
+    public void DespawnedIntoPickup_OnlyCountsAVanishNextToYou(float distance, bool expected)
+    {
+        Assert.Equal(expected, ChestLedger.DespawnedIntoPickup(distance));
+    }
+
+    // ── Name-based tiering (pot coffers are EventObj and name themselves) ──
+
+    [Theory]
+    [InlineData("Gold Coffer", TreasureTier.Gold)]
+    [InlineData("Silver Coffer", TreasureTier.Silver)]
+    [InlineData("Bronze Coffer", TreasureTier.Bronze)]
+    [InlineData("gold coffer", TreasureTier.Gold)]
+    [InlineData("Treasure Coffer", TreasureTier.Unknown)]
+    [InlineData("", TreasureTier.Unknown)]
+    [InlineData(null, TreasureTier.Unknown)]
+    public void TierFromCofferName_ReadsTheTierOffTheName(string? name, TreasureTier expected)
+    {
+        Assert.Equal(expected, ChestLedger.TierFromCofferName(name));
+    }
+
+    [Theory]
+    [InlineData("Gold Coffer", true)]
+    [InlineData("Bronze Coffer", true)]
+    [InlineData("Destination", false)]
+    [InlineData("", false)]
+    [InlineData(null, false)]
+    public void IsCofferName_SeparatesCoffersFromOtherEventObjects(string? name, bool expected)
+    {
+        Assert.Equal(expected, ChestLedger.IsCofferName(name));
+    }
 }
