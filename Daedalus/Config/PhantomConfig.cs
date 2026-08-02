@@ -29,9 +29,14 @@ public sealed class ChestLedgerEntry
     public int TimesSeen { get; set; }
 
     /// <summary>
-    /// How many times a coffer at this spot was actually OPENED. Seen is enough to trust the
-    /// location; opened is what makes the tier trustworthy, since a coffer you merely walked
-    /// past may have been someone else's.
+    /// How many times a coffer at this spot was opened — **witnessed, not necessarily by you**.
+    /// <para>
+    /// Detection is the Opened flag transition (or a nearby despawn), and neither carries an
+    /// owner, so in a 72-player zone this counts other people's chests too. That is fine for
+    /// what the ledger is for: the location and the tier are true regardless of who looted it,
+    /// and other players' spawns are extra samples rather than noise. It is NOT a record of
+    /// what you personally picked up.
+    /// </para>
     /// </summary>
     public int TimesOpened { get; set; }
 
