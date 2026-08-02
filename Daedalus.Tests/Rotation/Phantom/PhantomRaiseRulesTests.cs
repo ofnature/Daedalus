@@ -119,4 +119,18 @@ public sealed class PhantomRaiseRulesTests
     {
         Assert.False(PhantomBandRules.ShouldYieldGcdForRaise(canRaise, corpse));
     }
+
+    /// <summary>
+    /// An instant oGCD raise costs a weave slot, not the GCD a healer needs, so there is nothing
+    /// to defer FOR — and the Occult death timer can return a body to base well inside any grace
+    /// period. The caller drops livingHealerPresent outright for those.
+    /// </summary>
+    [Fact]
+    public void DecideRaise_AnInstantRaiseActsEvenBesideALivingHealer()
+    {
+        var decision = PhantomBandRules.DecideRaise(Config(),
+            deadHealerPresent: false, deadOtherPresent: true, livingHealerPresent: false);
+
+        Assert.Equal(PhantomRaiseDecision.RaiseOther, decision);
+    }
 }

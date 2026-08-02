@@ -5,6 +5,10 @@ All notable changes to Daedalus will be documented in this file.
 <!-- LATEST-START -->
 ## v0.1.51 — unreleased
 
+### Fix — Phantom White Mage raises immediately
+- **Occult Raise** was waiting to see whether a living healer would do it first. That deferral makes sense for a slow hardcast, but Occult Raise is an instant ability — it costs a weave, not the cast your healer needs — so waiting bought nothing and could cost the body, since the death timer can send someone back to base before the wait was over
+- It now raises as soon as it sees a body. Chemist's Revive is a hardcast, so that one still waits its turn
+
 ### Fix — One toon pulling no longer drags the whole fleet into combat
 - "Start when a party member is in combat" had **no distance limit**, so a single toon pulling put every other box into combat anywhere in the zone. They'd then each engage whatever hostile happened to be within range of *them*, and healers would start firing heals, all while stood on the far side of the map
 - An ally's fight now only counts as yours if they're within 50y — wide enough for a pull spread across a large arena, nowhere near a whole zone

@@ -333,9 +333,17 @@ public sealed class PhantomActionLayer
 
         var (deadHealer, deadOther, livingHealer) = ScanPartyForRaise(ctx);
 
-        // Stop deferring once a body has lain there too long: a living healer that has not
-        // raised in ten seconds is not about to, and the deferral then means nobody does.
-        if (livingHealer && deadOther is not null
+        // Occult Raise is an INSTANT oGCD, so it never competes with the healer's raise — it
+        // costs a weave slot, not the GCD they need, and the raise-pending check already stops
+        // a double raise. Deferring it buys nothing and can cost the body: the Occult death
+        // timer can return someone to base well inside the grace period. Chemist's Revive is a
+        // hardcast and does compete, so that one still waits its turn.
+        var instantRaise = raiseId == OccultRaiseId;
+        if (instantRaise)
+        {
+            livingHealer = false;
+        }
+        else if (livingHealer && deadOther is not null
             && SecondsDown(deadOther.GameObjectId) > PhantomBandRules.LivingHealerGraceSeconds)
         {
             livingHealer = false;
