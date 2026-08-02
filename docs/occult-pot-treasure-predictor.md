@@ -82,7 +82,41 @@ generalised from one sample.
 Persist it the same way the sighting history now persists, but **do not clear it on leaving the
 zone** — unlike the spawn timer, tier evidence accumulates across visits and instances.
 
-## Problem B — locating the hidden pot coffer
+## ✅ Problem B is SOLVED in principle — it's triangulation (2026-08-01)
+
+The mechanic, from the field:
+
+- The elixir reports a **direction and a distance band**:
+  `You sense something [far, far | far | immediately] to the <compass direction>.`
+  The hunt ends with `You discover a treasure coffer!`
+- **The coffer does not exist as an object until you are within interact range.** This settles
+  the question this doc previously listed as unknown #1: no client-side detection can ever point
+  at it early, the layout scan cannot see it, and Treasuresight is irrelevant to finding it. Our
+  chest lines only ever draw it once you are already on top of it.
+- Therefore triangulation is not the best approach, it is the **only** one.
+
+Each reading is a ring segment — a cone from where you stood, bounded by the distance band. Two
+readings from well-separated spots intersect; a few collapse the region to something sweepable.
+
+Built and tested: `Services/Occult/PotTreasureTriangulation.cs` (pure geometry, no game state) —
+message parsing against the real wording, cone + band containment, feasible-set filtering,
+centre estimation over a sampled grid, `CrossingQuality` to advise when another reading is worth
+taking, and `Calibrate` to recover the true band edges from a find.
+
+**Only "immediately" (<10y) is a confirmed distance.** The other bands are guesses and the
+windows deliberately overlap, because bands that are too tight make honest readings contradict
+and yield nothing, whereas over-wide ones merely cost search area. Every completed hunt yields
+ground truth via `Calibrate`, so the edges are recoverable from data.
+
+### Remaining work (UI + wiring)
+
+1. Subscribe to chat, feed lines through `TryReadElixir` with the player's current position, and
+   clear the set on `IsDiscovery` or when status 1531 drops.
+2. A small map window: player, each reading's ring segment, the shrinking overlap, and any
+   hunt-tagged candidate spots from the chest ledger that survive it.
+3. Record `Calibrate` samples on each find so the guessed bands converge.
+
+## Problem B — original notes (superseded by the section above)
 
 Honest position: **we do not know how the hunt works mechanically**, so this cannot start as
 prediction.

@@ -65,25 +65,33 @@ public static class PotTreasureTriangulation
     public const float DefaultHalfAngleRadians = MathF.PI / 8f;
 
     /// <summary>
-    /// Distance band edges, in yalms.
+    /// Distance band windows, in yalms.
     /// <para>
-    /// "Immediate" under 10y and "within targeting range" are field-reported. The outer edge of
-    /// "far" is a GUESS — all we know is that "far, far" is further still — so it is deliberately
-    /// generous: an over-wide band only costs search area, while one that is too tight can make
-    /// two honest readings look contradictory and produce no answer at all.
+    /// ONLY "immediately" is confirmed (under 10y, field-reported). The rest are GUESSES built
+    /// from "just outside targeting range" and "further still", so the windows deliberately
+    /// OVERLAP. That is the safe direction to be wrong in: an over-wide band only costs search
+    /// area, whereas bands that are too tight make two perfectly honest readings contradict each
+    /// other and collapse the answer to nothing.
+    /// </para>
+    /// <para>
+    /// These are calibratable rather than permanent guesses — the hunt ends with "You discover a
+    /// treasure coffer!", so the distance from each reading's origin to the coffer is ground
+    /// truth for the band that reading used. Enough hunts and the real edges fall out of the data.
     /// </para>
     /// </summary>
-    public const float ImmediateRangeYalms = 10f;
-    public const float TargetRangeYalms = 25f;
-    public const float FarRangeYalms = 60f;
+    public const float ImmediateRangeYalms = 10f;   // CONFIRMED
+    public const float TargetRangeYalms = 30f;      // guess — "within targeting range" plus slack
+    public const float FarInnerYalms = 20f;         // guess — overlaps Within on purpose
+    public const float FarOuterYalms = 80f;         // guess
+    public const float VeryFarInnerYalms = 50f;     // guess — overlaps Far on purpose
 
     /// <summary>Inclusive distance window a band allows, in yalms.</summary>
     public static (float Min, float Max) BandRange(ElixirProximity proximity) => proximity switch
     {
         ElixirProximity.Immediate => (0f, ImmediateRangeYalms),
         ElixirProximity.Within => (0f, TargetRangeYalms),
-        ElixirProximity.Far => (TargetRangeYalms, FarRangeYalms),
-        ElixirProximity.VeryFar => (FarRangeYalms, float.MaxValue),
+        ElixirProximity.Far => (FarInnerYalms, FarOuterYalms),
+        ElixirProximity.VeryFar => (VeryFarInnerYalms, float.MaxValue),
         _ => (0f, float.MaxValue),
     };
 
@@ -191,6 +199,40 @@ public static class PotTreasureTriangulation
             ParseProximity(text));
         return true;
     }
+
+    /// <summary>
+    /// Ground truth for the guessed bands. The coffer does not exist as an object until you are
+    /// within interact range, so it can never be spotted early — but the moment it appears, the
+    /// distance from each earlier reading to that spot tells you what the band word actually
+    /// meant. Collect these across hunts and the real band edges fall out.
+    /// </summary>
+    public static List<(ElixirProximity Band, float ActualDistance)> Calibrate(
+        IReadOnlyList<ElixirBearing>? bearings, Vector3 discoveredAt)
+    {
+        var samples = new List<(ElixirProximity, float)>();
+        if (bearings is null)
+            return samples;
+
+        foreach (var bearing in bearings)
+        {
+            if (bearing.Proximity == ElixirProximity.Unknown)
+                continue;
+
+            var dx = discoveredAt.X - bearing.Origin.X;
+            var dz = discoveredAt.Z - bearing.Origin.Z;
+            samples.Add((bearing.Proximity, MathF.Sqrt((dx * dx) + (dz * dz))));
+        }
+
+        return samples;
+    }
+
+    /// <summary>
+    /// Did every reading actually contain the coffer? A false here means an assumption is wrong —
+    /// the arc is narrower than <see cref="DefaultHalfAngleRadians"/>, or a band edge is off — and
+    /// is worth surfacing rather than silently tolerating.
+    /// </summary>
+    public static bool AllReadingsAgreeWith(IReadOnlyList<ElixirBearing>? bearings, Vector3 discoveredAt)
+        => SatisfiesAll(discoveredAt, bearings);
 
     /// <summary>Signed difference between two headings, wrapped to [−π, π].</summary>
     public static float NormalizeAngle(float radians)

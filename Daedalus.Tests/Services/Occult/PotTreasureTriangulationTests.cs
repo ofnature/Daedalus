@@ -262,6 +262,51 @@ public sealed class PotTreasureTriangulationTests
         Assert.Null(PotTreasureTriangulation.EstimateCentre(bearings, Vector3.Zero, 100f));
     }
 
+    // ── Calibrating the guessed bands against a real find ──
+
+    /// <summary>
+    /// Only "immediately" is confirmed; the other bands are guesses. The coffer only spawns once
+    /// you are in interact range, so the find itself is the first hard distance we ever get —
+    /// measure every earlier reading against it.
+    /// </summary>
+    [Fact]
+    public void Calibrate_MeasuresEachReadingAgainstWhereItWasFound()
+    {
+        var bearings = new List<ElixirBearing>
+        {
+            new(Vector3.Zero, 0f, Half, ElixirProximity.VeryFar),
+            new(new Vector3(0, 0, 70), 0f, Half, ElixirProximity.Immediate),
+        };
+
+        var samples = PotTreasureTriangulation.Calibrate(bearings, new Vector3(0, 0, 75));
+
+        Assert.Equal(2, samples.Count);
+        Assert.Equal(ElixirProximity.VeryFar, samples[0].Band);
+        Assert.Equal(75f, samples[0].ActualDistance, precision: 2);
+        Assert.Equal(5f, samples[1].ActualDistance, precision: 2);
+    }
+
+    [Fact]
+    public void Calibrate_SkipsReadingsWithNoBand()
+    {
+        var bearings = new List<ElixirBearing> { new(Vector3.Zero, 0f, Half) };
+
+        Assert.Empty(PotTreasureTriangulation.Calibrate(bearings, new Vector3(0, 0, 40)));
+    }
+
+    /// <summary>If a find falls outside its own readings, an assumption is wrong — say so.</summary>
+    [Fact]
+    public void AllReadingsAgreeWith_FlagsAContradictoryFind()
+    {
+        var bearings = new List<ElixirBearing>
+        {
+            new(Vector3.Zero, 0f, Half, ElixirProximity.Within), // south, close
+        };
+
+        Assert.True(PotTreasureTriangulation.AllReadingsAgreeWith(bearings, new Vector3(0, 0, 20)));
+        Assert.False(PotTreasureTriangulation.AllReadingsAgreeWith(bearings, new Vector3(0, 0, -20)));
+    }
+
     // ── Advice on where to read next ──
 
     [Fact]
