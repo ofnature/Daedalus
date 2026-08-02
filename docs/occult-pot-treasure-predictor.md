@@ -108,13 +108,51 @@ windows deliberately overlap, because bands that are too tight make honest readi
 and yield nothing, whereas over-wide ones merely cost search area. Every completed hunt yields
 ground truth via `Calibrate`, so the edges are recoverable from data.
 
-### Remaining work (UI + wiring)
+### Implementation plan
 
-1. Subscribe to chat, feed lines through `TryReadElixir` with the player's current position, and
-   clear the set on `IsDiscovery` or when status 1531 drops.
-2. A small map window: player, each reading's ring segment, the shrinking overlap, and any
-   hunt-tagged candidate spots from the chest ledger that survive it.
-3. Record `Calibrate` samples on each find so the guessed bands converge.
+**The candidate list cannot be seeded up front.** The coffer has no object until you are on top
+of it, so "all possible spawns" does not exist to be trimmed. Two sources instead, and the engine
+takes either:
+
+- **Grid** (`EstimateCentre`) — sample points over the search area and keep what satisfies every
+  reading. Works from the very first hunt, needs no history. This is what v1 must use.
+- **Known spots** (`Feasible`) — past finds, from ledger entries with `FoundDuringTreasureHunt`.
+  Only becomes useful once hunts accumulate AND finds repeat, which is still unproven. Treat as
+  an accelerator layered on the grid, never as the primary.
+
+So the trimming model is right; the starting set is a grid, not a spawn list.
+
+**P1 — `PotTreasureHunt` service.** Subscribe to chat. Feed every line through `TryReadElixir`
+with the player's live position; append the bearing. Reset the set on `IsDiscovery`, on status
+1531 dropping, and on zone change. On discovery, run `Calibrate` and `AllReadingsAgreeWith` and
+store the samples. No UI — testable on its own, and it starts gathering band calibration data
+immediately.
+
+**P2 — the map.** A small window, top-down, autoscaled to the feasible region:
+- player position and facing
+- each reading as a ring segment from where it was taken
+- the surviving grid cells (the overlap) as a shaded region, shrinking with each reading
+- a suggested walk-to point (the centroid) and `CrossingQuality` advice — "walk further before
+  reading again" when the next reading would barely narrow anything
+- world-space drawing via `DrawingService` is optional and secondary; the 2D map is the feature
+
+**P3 — ledger priors.** Once several hunts are logged, overlay hunt-tagged spots that survive the
+readings. If finds repeat, this collapses the search instantly; if they never repeat, the overlay
+simply stays empty and costs nothing — and that itself answers whether spawn points are fixed.
+
+**P4 — close the calibration loop.** With enough `Calibrate` samples, replace the guessed band
+edges with measured ones. Watch `AllReadingsAgreeWith`: a find outside its own readings means the
+arc is narrower than 22.5° or a band edge is wrong.
+
+### Edge cases to handle in P1
+
+- Only the local player's messages count — a party member's elixir must not add bearings.
+- A reading taken while moving records the position at message time; close enough, but it is why
+  the arc should stay generous.
+- Elixir use may be limited per hunt; if so, `CrossingQuality` matters more, since a wasted
+  reading from a bad spot is expensive.
+- Two hunts back to back must not share bearings — hence resetting on discovery, not just on
+  status loss.
 
 ## Problem B — original notes (superseded by the section above)
 
