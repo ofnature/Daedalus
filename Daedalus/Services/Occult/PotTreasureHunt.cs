@@ -247,9 +247,14 @@ public sealed class PotTreasureHunt : IDisposable
     /// needs to be, measured rather than assumed.
     /// <para>
     /// Each hunt contributes one sample per reading, so this converges in a couple of runs.
-    /// Compare against <see cref="PotTreasureTriangulation.DefaultHalfAngleRadians"/> (22.5 deg):
-    /// if the measured worst case exceeds it, the arc is too narrow and honest readings will
-    /// start excluding the real answer.
+    /// <para>
+    /// Read it against <see cref="PotTreasureTriangulation.DefaultHalfAngleRadians"/> (22.5°),
+    /// which is a CEILING: eight compass words partition 360° into 45° sectors, so a reported
+    /// direction cannot mean more than ±22.5° without "south" overlapping "southeast".
+    /// Comfortably below means the arc can be tightened for sharper overlaps. ABOVE means
+    /// something is wrong rather than narrow — a sixteen-point compass (±11.25°), a heading
+    /// convention error, or an origin recorded after the player moved.
+    /// </para>
     /// </para>
     /// Null until a hunt has been completed.
     /// </summary>

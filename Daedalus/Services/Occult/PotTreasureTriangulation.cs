@@ -68,12 +68,24 @@ public enum ElixirProximity
 public static class PotTreasureTriangulation
 {
     /// <summary>
-    /// Default half-width of a reading's arc. An eight-point compass divides 360° into 45°
-    /// sectors, so a reported direction is ±22.5°. Widen it if the game turns out to be vaguer
-    /// than that — too wide only costs search area, while too narrow can exclude the real spot
-    /// and make the overlap empty.
+    /// Half-width of a reading's arc: ±22.5°.
+    /// <para>
+    /// This is a CEILING, not a guess. Eight compass words partition 360° into 45° sectors, so a
+    /// reported direction can mean at most ±22.5° — any wider and "south" would overlap
+    /// "southeast" and the word could not tell them apart.
+    /// </para>
+    /// <para>
+    /// So a measured worst-case error should come out at or below this. Well below (say ≤15°)
+    /// means the arc can be TIGHTENED for sharper overlaps. ABOVE it means something is wrong
+    /// rather than merely narrow — likely candidates: the game uses a sixteen-point compass
+    /// (which would be ±11.25°, narrower still), the heading convention is off, or the reading's
+    /// origin was recorded after the player had already moved.
+    /// </para>
     /// </summary>
     public const float DefaultHalfAngleRadians = MathF.PI / 8f;
+
+    /// <summary>Sector width of a sixteen-point compass, if the game turns out to use one.</summary>
+    public const float SixteenPointHalfAngleRadians = MathF.PI / 16f;
 
     /// <summary>
     /// Distance band windows, in yalms.
