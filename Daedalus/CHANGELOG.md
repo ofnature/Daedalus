@@ -3,6 +3,13 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.49 — unreleased
+
+### Fix — "Save damage for burst" is now switched off for everyone
+- Phantom nukes hit far harder than your own job's GCDs, so holding them for a burst window just leaves that damage unspent. The setting has defaulted **off** since the last update, but that only applied to brand-new configs — anyone who'd used Daedalus before kept it on, and their phantom jobs sat there healing and doing nothing else
+- It's now turned off once, automatically, on update. Turn it back on in the Occult settings if you want the old behaviour and it will stay on
+
+<!-- LATEST-END -->
 ## v0.1.48 — 2026-08-01
 
 ### Fix — FATE enemies were missing from the shipped enemy table

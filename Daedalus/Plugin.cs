@@ -263,6 +263,20 @@ public sealed class Plugin : IDalamudPlugin
             pluginInterface.SavePluginConfig(configuration);
         }
 
+        // Version 3 -> 4: SaveDamageForBurst was the old shipped default and nobody chose it
+        // deliberately. Measured 2026-07-31: phantom nukes land 75,000-120,000 against a 57,000
+        // maximum from the character's own skills, so holding them for a burst window simply
+        // leaves that damage unspent. Changing the DEFAULT did nothing for configs that had
+        // already persisted true — field 2026-08-01, a Lv4 Phantom Red Mage cast nothing but
+        // Cure II for a whole fight because damage was held all the way through.
+        // Anyone who re-enables it afterwards keeps their choice (Version stays 4).
+        if (configuration.Version < 4)
+        {
+            configuration.Occult.SaveDamageForBurst = false;
+            configuration.Version = 4;
+            pluginInterface.SavePluginConfig(configuration);
+        }
+
         // Initialize localization (must be early, before UI construction)
         this.localization = new DaedalusLocalization(clientState, configuration, log);
         this.gameDataLocalizer = new GameDataLocalizer(dataManager);
