@@ -63,6 +63,12 @@ public sealed class PhantomActionLayer
     /// </summary>
     private readonly Dictionary<ulong, DateTime> _deadSince = [];
     private bool _dispatchedThisFrame;
+
+    /// <summary>
+    /// A raise went into the queue this frame, so it may pre-empt a job weave instead of waiting
+    /// for leftovers. Everything else the layer queues still yields to the job.
+    /// </summary>
+    private bool _raiseQueuedThisFrame;
     private bool _framePrepared;
     private bool _isMovingThisFrame;
 
@@ -174,6 +180,7 @@ public sealed class PhantomActionLayer
 
         _scheduler.Reset();
         _dispatchedThisFrame = false;
+        _raiseQueuedThisFrame = false;
         _isMovingThisFrame = isMoving;
         _pushRejects.Clear();
         _framePrepared = true;
@@ -186,6 +193,14 @@ public sealed class PhantomActionLayer
         PushPartyBuffs(ctx, job, level, inCombat);
         PushDamage(ctx, cfg, job, level, inCombat);
         PushStateMachines(ctx, cfg, job, level, selfHpPct, inCombat);
+
+        // Weave pre-empt for a RAISE only. Phantom oGCDs normally wait for whatever weave slots
+        // the job leaves over, which is right for mitigation and buffs and wrong for a raise:
+        // field 2026-08-02 showed "raising Rosa Discord (instant)" sat at "1 queued, no free
+        // slot" because the job's own weaves took every slot first. A body on the floor beats
+        // any single job weave, and the Occult death timer does not wait for one to come free.
+        if (_raiseQueuedThisFrame && _actionService.CanExecuteOgcd)
+            _scheduler.DispatchOgcd(ctx);
 
         // GCD pre-empt: phantom GCDs (emergency heals first, then damage) claim the GCD
         // window before the job's filler. Big phantom cooldowns pace this to ~1 GCD per
@@ -384,6 +399,7 @@ public sealed class PhantomActionLayer
 
         _phantomJobs.RaiseState =
             $"raising {target.Name?.TextValue ?? "ally"}{(instantRaise ? " (instant)" : string.Empty)}";
+        _raiseQueuedThisFrame = true;
 
         TryPush(ctx, raiseId, job, level, PrioRaise, target.GameObjectId, target,
             onExtraDispatched: () =>

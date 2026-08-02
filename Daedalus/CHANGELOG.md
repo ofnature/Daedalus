@@ -3,6 +3,13 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.52 — unreleased
+
+### Fix — Phantom raise no longer queues behind your job's abilities
+- The raise was being chosen correctly and then sat waiting for a free weave slot that your own rotation kept taking first — the Duty tab read *"raising <name>"* and *"1 queued, no free slot"* at the same time
+- A raise now goes ahead of a job ability. Everything else the phantom layer does still waits its turn, as before
+
+<!-- LATEST-END -->
 ## v0.1.51 — 2026-08-02
 
 ### Fix — Phantom White Mage raises immediately
@@ -13,7 +20,6 @@ All notable changes to Daedalus will be documented in this file.
 - "Start when a party member is in combat" had **no distance limit**, so a single toon pulling put every other box into combat anywhere in the zone. They'd then each engage whatever hostile happened to be within range of *them*, and healers would start firing heals, all while stood on the far side of the map
 - An ally's fight now only counts as yours if they're within 50y — wide enough for a pull spread across a large arena, nowhere near a whole zone
 
-<!-- LATEST-END -->
 ## v0.1.50 — 2026-08-02
 
 ### Fix — Healers can raise again in Occult Crescent
