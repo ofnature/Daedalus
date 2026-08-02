@@ -383,6 +383,15 @@ public sealed class PhantomActionLayer
     [
         PhantomJob.Berserker, PhantomJob.Samurai, PhantomJob.Cannoneer, PhantomJob.MysticKnight,
         PhantomJob.Gladiator, PhantomJob.Monk, PhantomJob.TimeMage, PhantomJob.Thief,
+        // North Horn jobs — MISSING until 2026-08-01, which made the hold invisible for every
+        // one of them: PushDamage returned silently and the Duty tab read "idle — nothing
+        // eligible" instead of "damage held for burst window". Field report: a Lv4 Phantom Red
+        // Mage on an ice-weak mob, Blizzard slotted, firing nothing but Cure II all fight (Cure
+        // is survival, and survival ignores the hold — which is exactly why it looked like the
+        // damage band was broken rather than held).
+        // Keep this in step with the case labels in PushDamage below.
+        PhantomJob.PhantomDragoon, PhantomJob.PhantomSummoner, PhantomJob.PhantomWhiteMage,
+        PhantomJob.PhantomBlackMage, PhantomJob.PhantomRedMage, PhantomJob.PhantomNinja,
         // NOT Necromancer: its only cataloged action (Drain Touch) fires pre-hold like Steal,
         // so the "damage held" line would be a lie for it.
     ];

@@ -5,6 +5,10 @@ All notable changes to Daedalus will be documented in this file.
 <!-- LATEST-START -->
 ## v0.1.48 — unreleased
 
+### Fix — North Horn phantom jobs said "nothing eligible" while holding damage
+- When phantom damage is held for your burst window, the Duty tab says so — but **every North Horn job was missing from that list**, so the hold happened silently and the tab read "idle — nothing eligible" instead. A Level 4 Phantom Red Mage on an ice-weak mob, Blizzard slotted, cast nothing but Cure II for a whole fight, because healing ignores the hold and damage doesn't
+- If your phantom jobs seem to do nothing but heal, check **Save damage for burst** in the Occult settings — it now defaults **off** (phantom nukes hit far harder than a job GCD, so holding them wastes them), but configs made before that change kept it on
+
 ### Fix — Sage never placed Kardia on the tank
 - Kardia could decide the tank already had Kardion **without ever seeing the buff** — it assumed so whenever no one else visibly carried it, then locked that guess in and suppressed the recast for good. The tank went the whole zone with no Kardion while the Debug panel cheerfully reported "Kardion on tank". It now trusts the tank's actual buffs whenever it can read them, and only falls back to assuming when the tank genuinely can't be seen
 
