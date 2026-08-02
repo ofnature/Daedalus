@@ -93,7 +93,11 @@ public sealed class PhantomActionLayer
         }
         catch (Exception ex)
         {
-            _log.Warning(ex, "PhantomActionLayer: pre-modules failed");
+            // Surface the fault. Without this the layer silently does nothing and the Duty tab
+            // keeps its stale "idle — nothing eligible", because a throw here leaves
+            // _framePrepared false and the post-modules pass returns before updating the status.
+            // An exception reading as "nothing to do" has already cost real debugging time.
+            ReportFault("pre-modules", ex);
         }
     }
 
@@ -126,8 +130,18 @@ public sealed class PhantomActionLayer
         }
         catch (Exception ex)
         {
-            _log.Warning(ex, "PhantomActionLayer: post-modules failed");
+            ReportFault("post-modules", ex);
         }
+    }
+
+    /// <summary>
+    /// Put a fault where it can be seen. The Debug Log gets the stack trace; the Duty tab gets
+    /// enough to know the layer is broken rather than idle.
+    /// </summary>
+    private void ReportFault(string stage, Exception ex)
+    {
+        _log.Warning(ex, $"PhantomActionLayer: {stage} failed");
+        _phantomJobs.LayerLastEvent = $"FAULTED in {stage} — {ex.GetType().Name}: {ex.Message}";
     }
 
     private void PreModulesCore(IRotationContext ctx, bool isMoving, bool inCombat)
