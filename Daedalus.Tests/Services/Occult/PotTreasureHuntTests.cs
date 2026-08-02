@@ -104,6 +104,36 @@ public sealed class PotTreasureHuntTests
         Assert.Equal(5.4f, Hunt(config).MaxObservedActivationRadius!.Value, precision: 3);
     }
 
+    // ── Solving the arc from data ──
+
+    /// <summary>
+    /// The arc stops being a guess: each reading measured against the find gives the angle it was
+    /// off by, and the arc must be at least as wide as the worst one.
+    /// </summary>
+    [Fact]
+    public void MaxObservedAngularError_TakesTheWorstReading()
+    {
+        var config = new PhantomConfig();
+        config.PotHuntCalibration.AddRange(
+        [
+            new PotHuntCalibrationSample { Band = "Far", AngularErrorRadians = 0.10f },
+            new PotHuntCalibrationSample { Band = "Within", AngularErrorRadians = 0.38f },
+            new PotHuntCalibrationSample { Band = "VeryFar", AngularErrorRadians = 0.21f },
+        ]);
+
+        var hunt = Hunt(config);
+
+        Assert.Equal(0.38f, hunt.MaxObservedAngularErrorRadians!.Value, precision: 3);
+        Assert.Equal(21.77f, hunt.MaxObservedAngularErrorDegrees!.Value, precision: 1);
+    }
+
+    [Fact]
+    public void MaxObservedAngularError_IsNullUntilAHuntCompletes()
+    {
+        Assert.Null(Hunt().MaxObservedAngularErrorRadians);
+        Assert.Null(Hunt().MaxObservedAngularErrorDegrees);
+    }
+
     [Fact]
     public void MaxObservedActivationRadius_IgnoresAnEmptySampleSet()
     {

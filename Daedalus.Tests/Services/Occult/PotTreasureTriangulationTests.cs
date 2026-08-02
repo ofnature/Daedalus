@@ -286,12 +286,49 @@ public sealed class PotTreasureTriangulationTests
         Assert.Equal(5f, samples[1].ActualDistance, precision: 2);
     }
 
+    /// <summary>
+    /// The arc solves itself: reported direction versus the true bearing to the find. A reading
+    /// that said "south" for something 30° off south proves the arc is at least 30° wide.
+    /// </summary>
     [Fact]
-    public void Calibrate_SkipsReadingsWithNoBand()
+    public void Calibrate_MeasuresHowFarOffEachReadingWas()
     {
-        var bearings = new List<ElixirBearing> { new(Vector3.Zero, 0f, Half) };
+        // Reported south (0 rad); the coffer actually sat 45° round, to the south-east.
+        var bearings = new List<ElixirBearing>
+        {
+            new(Vector3.Zero, 0f, Half, ElixirProximity.Within),
+        };
 
-        Assert.Empty(PotTreasureTriangulation.Calibrate(bearings, new Vector3(0, 0, 40)));
+        var sample = Assert.Single(PotTreasureTriangulation.Calibrate(bearings, new Vector3(50, 0, 50)));
+
+        Assert.Equal(MathF.PI / 4f, sample.AngularErrorRadians, precision: 3);
+    }
+
+    [Fact]
+    public void Calibrate_ReportsNoAngularErrorForAPerfectReading()
+    {
+        var bearings = new List<ElixirBearing>
+        {
+            new(Vector3.Zero, MathF.PI / 2f, Half, ElixirProximity.Far), // east
+        };
+
+        var sample = Assert.Single(PotTreasureTriangulation.Calibrate(bearings, new Vector3(40, 0, 0)));
+
+        Assert.Equal(0f, sample.AngularErrorRadians, precision: 3);
+    }
+
+    /// <summary>Standing on top of the find makes the bearing meaningless — don't call that an error.</summary>
+    [Fact]
+    public void Calibrate_TreatsAZeroDistanceFindAsNoError()
+    {
+        var bearings = new List<ElixirBearing>
+        {
+            new(Vector3.Zero, MathF.PI, Half, ElixirProximity.Immediate),
+        };
+
+        var sample = Assert.Single(PotTreasureTriangulation.Calibrate(bearings, new Vector3(0.3f, 0, 0.3f)));
+
+        Assert.Equal(0f, sample.AngularErrorRadians, precision: 3);
     }
 
     /// <summary>If a find falls outside its own readings, an assumption is wrong — say so.</summary>

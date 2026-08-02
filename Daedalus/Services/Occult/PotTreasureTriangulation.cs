@@ -19,6 +19,17 @@ public readonly record struct ElixirBearing(
     ElixirProximity Proximity = ElixirProximity.Unknown);
 
 /// <summary>
+/// One reading measured against where the coffer actually was.
+/// <para>
+/// <paramref name="AngularErrorRadians"/> is the whole arc question answered: the reported
+/// direction versus the true bearing to the find. The arc must be at least as wide as the worst
+/// error, so a handful of hunts replaces the 22.5° guess with a measurement.
+/// </para>
+/// </summary>
+public readonly record struct ElixirCalibrationSample(
+    ElixirProximity Band, float ActualDistance, float AngularErrorRadians);
+
+/// <summary>
 /// How far the elixir says the treasure is. The wording carries a distance band as well as a
 /// direction, so a single reading bounds a ring segment rather than an open wedge — which is
 /// why one reading already narrows things and two crossing ones narrow them hard.
@@ -206,21 +217,27 @@ public static class PotTreasureTriangulation
     /// distance from each earlier reading to that spot tells you what the band word actually
     /// meant. Collect these across hunts and the real band edges fall out.
     /// </summary>
-    public static List<(ElixirProximity Band, float ActualDistance)> Calibrate(
+    public static List<ElixirCalibrationSample> Calibrate(
         IReadOnlyList<ElixirBearing>? bearings, Vector3 discoveredAt)
     {
-        var samples = new List<(ElixirProximity, float)>();
+        var samples = new List<ElixirCalibrationSample>();
         if (bearings is null)
             return samples;
 
         foreach (var bearing in bearings)
         {
-            if (bearing.Proximity == ElixirProximity.Unknown)
-                continue;
-
             var dx = discoveredAt.X - bearing.Origin.X;
             var dz = discoveredAt.Z - bearing.Origin.Z;
-            samples.Add((bearing.Proximity, MathF.Sqrt((dx * dx) + (dz * dz))));
+            var distance = MathF.Sqrt((dx * dx) + (dz * dz));
+
+            // How far off the reported compass direction the treasure actually was. The arc has
+            // to be at least this wide, so the largest error ever seen IS the half-angle —
+            // no need to guess at 22.5 degrees once a few hunts have been measured.
+            var error = distance < 1f
+                ? 0f
+                : MathF.Abs(NormalizeAngle(MathF.Atan2(dx, dz) - bearing.HeadingRadians));
+
+            samples.Add(new ElixirCalibrationSample(bearing.Proximity, distance, error));
         }
 
         return samples;

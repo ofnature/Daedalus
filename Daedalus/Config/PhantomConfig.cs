@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 
 namespace Daedalus.Config;
 
@@ -87,6 +87,13 @@ public sealed class PotHuntCalibrationSample
 {
     public string Band { get; set; } = string.Empty;
     public float ActualDistance { get; set; }
+
+    /// <summary>
+    /// How far off the reported compass direction the treasure actually was, in radians. The
+    /// arc must be at least as wide as the worst of these, so enough samples turn the guessed
+    /// 22.5 degrees into a measurement.
+    /// </summary>
+    public float AngularErrorRadians { get; set; }
 }
 
 /// <summary>

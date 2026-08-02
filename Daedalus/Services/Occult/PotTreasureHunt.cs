@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Numerics;
 using Dalamud.Game.ClientState.Objects.Enums;
@@ -187,15 +187,16 @@ public sealed class PotTreasureHunt : IDisposable
 
         var changed = false;
 
-        foreach (var (band, distance) in PotTreasureTriangulation.Calibrate(_bearings, position))
+        foreach (var sample in PotTreasureTriangulation.Calibrate(_bearings, position))
         {
             if (_config.PotHuntCalibration.Count >= MaxSamples)
                 break;
 
             _config.PotHuntCalibration.Add(new PotHuntCalibrationSample
             {
-                Band = band.ToString(),
-                ActualDistance = distance,
+                Band = sample.Band.ToString(),
+                ActualDistance = sample.ActualDistance,
+                AngularErrorRadians = sample.AngularErrorRadians,
             });
             changed = true;
         }
@@ -240,6 +241,39 @@ public sealed class PotTreasureHunt : IDisposable
             return max > 0f ? max : null;
         }
     }
+
+    /// <summary>
+    /// The widest angle by which a reading has ever been wrong — i.e. how wide the arc actually
+    /// needs to be, measured rather than assumed.
+    /// <para>
+    /// Each hunt contributes one sample per reading, so this converges in a couple of runs.
+    /// Compare against <see cref="PotTreasureTriangulation.DefaultHalfAngleRadians"/> (22.5 deg):
+    /// if the measured worst case exceeds it, the arc is too narrow and honest readings will
+    /// start excluding the real answer.
+    /// </para>
+    /// Null until a hunt has been completed.
+    /// </summary>
+    public float? MaxObservedAngularErrorRadians
+    {
+        get
+        {
+            if (_config?.PotHuntCalibration is not { Count: > 0 } samples)
+                return null;
+
+            var max = 0f;
+            foreach (var sample in samples)
+            {
+                if (sample.AngularErrorRadians > max)
+                    max = sample.AngularErrorRadians;
+            }
+
+            return max > 0f ? max : null;
+        }
+    }
+
+    /// <summary>The same figure in degrees, for anything user-facing.</summary>
+    public float? MaxObservedAngularErrorDegrees
+        => MaxObservedAngularErrorRadians is { } radians ? radians * 180f / MathF.PI : null;
 
     /// <summary>Drop the current hunt's readings. A new hunt must never inherit old bearings.</summary>
     public void Reset()
