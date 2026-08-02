@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Numerics;
 using Dalamud.Bindings.ImGui;
@@ -543,13 +543,28 @@ public sealed class DrawCanvas : Window
 
         foreach (var obj in _objectTable)
         {
-            if (!WorldLineSelector.IsLabelCandidate(obj.ObjectKind)) continue;
             if (Vector3.DistanceSquared(player.Position, obj.Position) > labelRange * labelRange) continue;
-            if (!_gameGui.WorldToScreen(obj.Position with { Y = obj.Position.Y + 1f }, out var screenPos)) continue;
 
-            // BaseId and targetability are what a line filter can key on, so the label carries both.
-            var targetable = obj.IsTargetable ? " [T]" : string.Empty;
-            var text = $"{obj.ObjectKind}#{obj.BaseId}{targetable}: {obj.Name.TextValue}";
+            // Creatures are only labelled when the CLIENT has marked them — the nameplate icon
+            // (quest gold icon, hunt-bill marks, and whatever that magenta triangle is). The id
+            // is the point: it is how a marker seen in the world becomes a filter in code, the
+            // same way the carrot BaseId and the Knowledge Crystal id were captured.
+            string text;
+            if (obj.ObjectKind is ObjectKind.BattleNpc or ObjectKind.EventNpc)
+            {
+                var iconId = ReadNamePlateIconId(obj);
+                if (iconId == 0) continue;
+                text = $"Icon#{iconId}: {obj.Name.TextValue}";
+            }
+            else
+            {
+                if (!WorldLineSelector.IsLabelCandidate(obj.ObjectKind)) continue;
+                // BaseId and targetability are what a line filter can key on, so the label carries both.
+                var targetable = obj.IsTargetable ? " [T]" : string.Empty;
+                text = $"{obj.ObjectKind}#{obj.BaseId}{targetable}: {obj.Name.TextValue}";
+            }
+
+            if (!_gameGui.WorldToScreen(obj.Position with { Y = obj.Position.Y + 1f }, out var screenPos)) continue;
             drawList.AddText(screenPos + new Vector2(1, 1), 0xFF000000u, text);
             drawList.AddText(screenPos, 0xFFFFFFFFu, text);
         }
@@ -732,6 +747,24 @@ public sealed class DrawCanvas : Window
     private static uint ApplyAlpha(uint color, uint alpha)
     {
         return (alpha << 24) | (color & 0x00FFFFFFu);
+    }
+
+    /// <summary>
+    /// The client's own marker over a mob — quest gold icon, hunt-bill tag, etc. Fail closed.
+    /// </summary>
+    private static unsafe uint ReadNamePlateIconId(IGameObject obj)
+    {
+        try
+        {
+            if (obj.Address == nint.Zero)
+                return 0;
+            var native = (FFXIVClientStructs.FFXIV.Client.Game.Object.GameObject*)obj.Address;
+            return native == null ? 0u : native->NamePlateIconId;
+        }
+        catch
+        {
+            return 0;
+        }
     }
 
     /// <summary>

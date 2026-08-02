@@ -5,6 +5,9 @@ All notable changes to Daedalus will be documented in this file.
 <!-- LATEST-START -->
 ## v0.1.52 — unreleased
 
+### Debug — The object labeller now reads the game's own markers
+- Mobs carrying a **client-drawn marker** — the quest gold icon, hunt-bill tags, and the rest — are now stamped with the marker's icon id. That number is how a marker you can see becomes a filter the plugin can act on, the same route the carrot and Knowledge Crystal ids took
+
 ### Fix — The raise stopped failing its facing check
 - The raise kept being refused for facing: the game's auto-face turns you toward your **hard target** — the enemy you're fighting — not toward the ally your raise is aimed at, so a corpse behind you failed the check on every attempt. Turning toward them after the failure didn't help either, because your very next weaponskill auto-faced you straight back
 - The fix is a swap-fire-restore: for the instant of the submit the body becomes your hard target — the only thing the game's auto-face actually obeys — and your enemy target is put back in the same frame, before your rotation can notice. Turning the character without the target swap turned out not to be enough in the field
