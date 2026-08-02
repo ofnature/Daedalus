@@ -3,6 +3,25 @@ using System.Collections.Generic;
 namespace Daedalus.Config;
 
 /// <summary>
+/// One recorded coffer spawn point: where it was, what tier, and how often it has been seen.
+/// Position is stored flat rather than as a Vector3 so the config round trip stays boring.
+/// </summary>
+public sealed class ChestLedgerEntry
+{
+    public ushort Zone { get; set; }
+    public float X { get; set; }
+    public float Y { get; set; }
+    public float Z { get; set; }
+
+    /// <summary>Tier name — Bronze / Silver / Gold / Unknown.</summary>
+    public string Tier { get; set; } = "Unknown";
+
+    public int TimesSeen { get; set; }
+    public long FirstSeenUnixSeconds { get; set; }
+    public long LastSeenUnixSeconds { get; set; }
+}
+
+/// <summary>
 /// One remembered pot FATE spawn. Unix seconds rather than DateTime so the round trip through
 /// the config file can't lose the UTC kind.
 /// </summary>
@@ -67,6 +86,18 @@ public sealed class PhantomConfig
     /// </para>
     /// </summary>
     public bool UsePhantomRaise { get; set; } = true;
+
+    /// <summary>
+    /// Every coffer spawn point we've seen in an Occult zone, with its tier. Pure evidence —
+    /// nothing reads it yet beyond a count. It exists so that questions we can't answer today
+    /// (is a spot's tier fixed? do gold coffers repeat?) become answerable from real samples
+    /// rather than from one lucky observation.
+    /// <para>
+    /// Unlike the pot FATE timer this is NOT cleared on leaving the zone: spawn points are a
+    /// property of the map, not of the instance.
+    /// </para>
+    /// </summary>
+    public List<ChestLedgerEntry> ChestLedger { get; set; } = [];
     public bool UseTreasuresight { get; set; } = false;
 
 

@@ -200,6 +200,7 @@ public sealed class Plugin : IDalamudPlugin
     private readonly Daedalus.Services.Occult.PhantomJobService phantomJobService;
     private readonly Daedalus.Services.Occult.ElementalWeaknessLog elementalWeaknessLog;
     private readonly Daedalus.Services.Occult.PotFateTracker potFateTracker;
+    private readonly Daedalus.Services.Occult.ChestLedger chestLedger;
     private readonly Daedalus.Services.Consumables.ConsumableService consumableService;
     private readonly Daedalus.Services.Consumables.TinctureDispatcher tinctureDispatcher;
 
@@ -633,6 +634,8 @@ public sealed class Plugin : IDalamudPlugin
         // by Occult Libra etc.) and persists the table — the ice list feeds Deep Freeze value.
         this.potFateTracker = new Daedalus.Services.Occult.PotFateTracker(fateTable, clientState, gameGui, dataManager,
             configuration.Occult, SaveConfiguration);
+        this.chestLedger = new Daedalus.Services.Occult.ChestLedger(
+            configuration.Occult, objectTable, clientState, dataManager, SaveConfiguration);
         this.elementalWeaknessLog = new Daedalus.Services.Occult.ElementalWeaknessLog(
             objectTable, clientState, log, pluginInterface.ConfigDirectory.FullName, debugLogService, fateTable);
 
@@ -1633,6 +1636,7 @@ public sealed class Plugin : IDalamudPlugin
             // and the reward is gated by the ~30 min cycle, so knowing when the next one is due
             // is worth more than any farming routine.
             potFateTracker.Update();
+            chestLedger.Update();
 
 #if DEBUG
             // Occult enemy census + weakness learning (throttled; Occult territories only).
