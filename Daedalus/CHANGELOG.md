@@ -26,7 +26,6 @@ All notable changes to Daedalus will be documented in this file.
 ### New — Pot FATEs say which spot they are
 - Each Horn runs a **northern and a southern** pot spot, and the coffer tier looks tied to the spot rather than the zone — inside North Horn the northern spot has produced gold coffers while the southern one produced bronze. The HUD now labels them: *Daylight Pottery (north pots)*, *In a Pot of Bother (south pots)*, and the same for South Horn's pair
 
-<!-- LATEST-END -->
 ## v0.1.47 — 2026-08-01
 
 ### New — Phantom jobs can raise
