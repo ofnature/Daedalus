@@ -280,6 +280,37 @@ public sealed class ChestLedgerTests
         Assert.Equal(2014741u, mine[0].BaseId);
     }
 
+    /// <summary>
+    /// Carrot spots share the ledger's plumbing but are not chests — and must never be mistaken
+    /// for pot-hunt candidates, even when logged mid-hunt.
+    /// </summary>
+    [Fact]
+    public void IsPotHuntCandidate_RejectsACarrotSpot()
+    {
+        var carrot = new ChestLedgerEntry
+        {
+            Zone = Zone,
+            Source = ChestLedger.SourceCarrot,
+            FoundDuringTreasureHunt = true,
+            BaseId = 2010139,
+        };
+
+        Assert.False(ChestLedger.IsPotHuntCandidate(carrot));
+    }
+
+    [Fact]
+    public void Record_StoresCarrotSpotsWithoutATier()
+    {
+        var ledger = new List<ChestLedgerEntry>();
+        ChestLedger.Record(ledger, Zone, new Vector3(10, 0, 10), TreasureTier.Unknown, T0,
+            countTier: false, source: ChestLedger.SourceCarrot, baseId: 2010139);
+
+        var entry = Assert.Single(ledger);
+        Assert.Equal(ChestLedger.SourceCarrot, entry.Source);
+        Assert.Equal(2010139u, entry.BaseId);
+        Assert.Empty(entry.TierCounts);
+    }
+
     [Fact]
     public void Merge_CarriesTheHuntTagAndSourceAcrossToons()
     {

@@ -29,6 +29,17 @@ public sealed class ChestLedger
     public const string SourceTreasure = "Treasure";
 
     /// <summary>
+    /// A carrot dig spot — not a chest, but recorded here to reuse the dedupe, persistence,
+    /// merge and export machinery rather than duplicating it.
+    /// <para>
+    /// Worth mapping in its own right: BOCCHI ships 25 hardcoded carrot positions but is South
+    /// Horn only, so North Horn's are unmapped anywhere. These entries carry no tier — the tier
+    /// belongs to whatever chest a Fortune Carrot raises, which is a separate observation.
+    /// </para>
+    /// </summary>
+    public const string SourceCarrot = "Carrot";
+
+    /// <summary>
     /// A genuine pot-hunt candidate: recorded during a hunt AND an EventObj coffer.
     /// <para>
     /// Both halves are required. The hunt flag is set on ANY coffer seen while the hunt is up, so
@@ -199,10 +210,21 @@ public sealed class ChestLedger
             // Deliberately NOT the guide-line filter: that requires IsTargetable, and an opened
             // coffer stops being targetable at the exact moment we care about.
             var isEventObj = obj.ObjectKind == Dalamud.Game.ClientState.Objects.Enums.ObjectKind.EventObj;
+            var isCarrot = isEventObj && obj.BaseId == WorldLineSelector.CarrotBaseId;
             var isCoffer = obj.ObjectKind == Dalamud.Game.ClientState.Objects.Enums.ObjectKind.Treasure
                 || (isEventObj && IsCofferName(obj.Name.TextValue));
-            if (!isCoffer)
+            if (!isCoffer && !isCarrot)
                 continue;
+
+            // Carrot spots are fixed map furniture: record the position once and move on. No
+            // tier, no open tracking, and no per-visit re-counting — nothing about them varies.
+            if (isCarrot)
+            {
+                if (Record(_config.ChestLedger, zone, obj.Position, TreasureTier.Unknown, now,
+                        countTier: false, source: SourceCarrot, baseId: obj.BaseId))
+                    _dirty = true;
+                continue;
+            }
 
             seen.Add(obj.GameObjectId);
 
