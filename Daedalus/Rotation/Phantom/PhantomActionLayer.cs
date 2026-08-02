@@ -69,6 +69,13 @@ public sealed class PhantomActionLayer
     /// for leftovers. Everything else the layer queues still yields to the job.
     /// </summary>
     private bool _raiseQueuedThisFrame;
+
+    /// <summary>
+    /// Consecutive pre-modules checks where a raise sat queued but the GCD was sampled busy.
+    /// A handful is normal (Enpi rolling); an ever-growing streak means the window is NEVER
+    /// sampled open from this layer, which is a finding in itself.
+    /// </summary>
+    private int _raiseGcdBusySamples;
     private bool _framePrepared;
     private bool _isMovingThisFrame;
 
@@ -238,8 +245,25 @@ public sealed class PhantomActionLayer
         // above, added to stop phantom casts starving a healer's Raise, was starving the
         // phantom's OWN raise instead. Field 2026-08-02: "raising Rosa Discord (instant)" stuck
         // at "1 queued, no free slot" while a body lay in front of it.
+        if (!_raiseQueuedThisFrame)
+            _raiseGcdBusySamples = 0;
+
         if (_actionService.CanExecuteGcd && (_raiseQueuedThisFrame || !RaisePendingForJob(ctx)))
-            _scheduler.DispatchGcd(ctx);
+        {
+            var gcdResult = _scheduler.DispatchGcd(ctx);
+
+            // The post-modules stall line reads "GCD not ready" almost tautologically — by then
+            // the job has just consumed the window. THIS is the attempt that matters: the raise
+            // gets first crack here, and if the scheduler rejects it, it said why. Stop
+            // discarding the answer.
+            if (_raiseQueuedThisFrame)
+                ReportRaiseDispatchOutcome(gcdResult);
+        }
+        else if (_raiseQueuedThisFrame)
+        {
+            _raiseGcdBusySamples++;
+            _phantomJobs.RaiseState += $" — GCD busy at check ({_raiseGcdBusySamples} in a row)";
+        }
     }
 
     private void PushSurvival(IRotationContext ctx, Config.PhantomConfig cfg, PhantomJob job, byte level, float selfHpPct, bool inCombat)
@@ -480,6 +504,36 @@ public sealed class PhantomActionLayer
             deadOther = FindDeadBystander(ctx);
 
         return (deadHealer, deadOther, livingHealer);
+    }
+
+    /// <summary>
+    /// What actually happened when the queued raise met the scheduler. Either it fired, or the
+    /// scheduler names the gate that refused it, or something else outbid it for the window.
+    /// </summary>
+    private void ReportRaiseDispatchOutcome(SchedulerDispatchResult result)
+    {
+        _raiseGcdBusySamples = 0;
+
+        if (result.Dispatched
+            && result.Winner is { } winner
+            && (winner.Action.ActionId == OccultRaiseId || winner.Action.ActionId == ChemistReviveId))
+        {
+            _phantomJobs.RaiseState += " — dispatched";
+            return;
+        }
+
+        foreach (var reason in result.GateFailReasons)
+        {
+            if (reason.StartsWith("Occult Raise", StringComparison.Ordinal)
+                || reason.StartsWith("Revive", StringComparison.Ordinal))
+            {
+                _phantomJobs.RaiseState += $" — scheduler: {reason}";
+                return;
+            }
+        }
+
+        if (result.Dispatched)
+            _phantomJobs.RaiseState += $" — lost the window to {result.Winner?.Action.Name}";
     }
 
     /// <summary>
