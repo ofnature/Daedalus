@@ -23,7 +23,11 @@ public enum TreasureTier
 /// </summary>
 public static class WorldLineSelector
 {
-    /// <summary>EventObj BaseId of an Occult Crescent carrot spot — the one a Fortune Carrot turns into a chest.</summary>
+    /// <summary>
+    /// EventObj BaseId of an Occult Crescent carrot spot — the one a Fortune Carrot turns into a
+    /// chest. Sourced from BOCCHI, which is South Horn only, so North Horn was an open question:
+    /// field-confirmed 2026-08-01 that BOTH Horns use this same id.
+    /// </summary>
     public const uint CarrotBaseId = 2010139;
 
     /// <summary>
