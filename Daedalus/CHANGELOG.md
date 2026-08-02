@@ -5,6 +5,10 @@ All notable changes to Daedalus will be documented in this file.
 <!-- LATEST-START -->
 ## v0.1.52 — unreleased
 
+### Fix — The raise stopped failing its facing check
+- The raise kept being refused for facing: the game's auto-face turns you toward your **hard target** — the enemy you're fighting — not toward the ally your raise is aimed at, so a corpse behind you failed the check on every attempt. Turning toward them after the failure didn't help either, because your very next weaponskill auto-faced you straight back
+- The character now turns toward the body in the instant before the raise is submitted — the one moment it can stick. Your enemy target is never touched
+
 ### New — Phantom White Mage raises strangers too
 - In a 72-player Critical Encounter most bodies on the floor aren't in your party, so a party-only scan reported "nobody down" with someone lying a few yalms away. **Occult Raise** now picks up nearby players regardless of party — it's instant and costs only its own recast, which is the whole reason to carry it into a CE
 - Your own party always comes first; strangers are only considered when nobody in the party needs it. Toggle in the Occult settings if you'd rather not

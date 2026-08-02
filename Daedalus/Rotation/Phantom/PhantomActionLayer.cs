@@ -70,6 +70,9 @@ public sealed class PhantomActionLayer
     /// </summary>
     private bool _raiseQueuedThisFrame;
 
+    /// <summary>Who the queued raise is aimed at, so the dispatch can pre-face them.</summary>
+    private ulong _raiseTargetIdThisFrame;
+
     /// <summary>
     /// Consecutive pre-modules checks where a raise sat queued but the GCD was sampled busy.
     /// A handful is normal (Enpi rolling); an ever-growing streak means the window is NEVER
@@ -229,7 +232,10 @@ public sealed class PhantomActionLayer
         // slot" because the job's own weaves took every slot first. A body on the floor beats
         // any single job weave, and the Occult death timer does not wait for one to come free.
         if (_raiseQueuedThisFrame && _actionService.CanExecuteOgcd)
+        {
+            _actionService.FaceTarget(_raiseTargetIdThisFrame);
             _scheduler.DispatchOgcd(ctx);
+        }
 
         // GCD pre-empt: phantom GCDs (emergency heals first, then damage) claim the GCD
         // window before the job's filler. Big phantom cooldowns pace this to ~1 GCD per
@@ -250,6 +256,15 @@ public sealed class PhantomActionLayer
 
         if (_actionService.CanExecuteGcd && (_raiseQueuedThisFrame || !RaisePendingForJob(ctx)))
         {
+            // Face the corpse in the instant before our own submit — the only slot where it can
+            // stick. Client auto-face turns you toward your HARD target (the enemy), so an
+            // ally-targeted raise pre-fails facing, and post-failure recovery loses the race:
+            // the job's next GCD auto-faces you straight back within the same frame. Field
+            // 2026-08-02 — the raise failed the facing/LoS gate on every attempt while the
+            // recovery and Enpi fought over the character's rotation.
+            if (_raiseQueuedThisFrame)
+                _actionService.FaceTarget(_raiseTargetIdThisFrame);
+
             var gcdResult = _scheduler.DispatchGcd(ctx);
 
             // The post-modules stall line reads "GCD not ready" almost tautologically — by then
@@ -451,6 +466,7 @@ public sealed class PhantomActionLayer
         _phantomJobs.RaiseState =
             $"raising {target.Name?.TextValue ?? "ally"}{(instantRaise ? " (instant)" : string.Empty)}";
         _raiseQueuedThisFrame = true;
+        _raiseTargetIdThisFrame = targetId;
 
         TryPush(ctx, raiseId, job, level, PrioRaise, target.GameObjectId, target,
             onExtraDispatched: () =>

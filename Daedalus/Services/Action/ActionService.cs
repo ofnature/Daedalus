@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Numerics;
 using Dalamud.Game.ClientState.Objects.Types;
@@ -1202,6 +1202,20 @@ public sealed unsafe class ActionService : IActionService
         LogCastRefusal(_lastSubmittedActionName, _lastSubmittedDispatchId, _lastSubmittedTargetId,
             submittedNotCast: true);
     }
+
+    /// <summary>
+    /// Face a target BEFORE submitting an action at it, instead of recovering after the game
+    /// refuses. Rotation write only — never touches the hard target, so a combat job keeps its
+    /// enemy targeted.
+    /// <para>
+    /// Exists for ally-targeted submits (the phantom raise): client auto-face only turns you
+    /// toward your HARD target, which mid-combat is the enemy, so an action at a corpse behind
+    /// you pre-fails facing every attempt. Post-failure recovery loses the race — the job's next
+    /// GCD auto-faces you straight back within the same frame — so the only slot that works is
+    /// the instant before our own submit.
+    /// </para>
+    /// </summary>
+    public void FaceTarget(ulong targetId) => FaceTargetDirectly(targetId);
 
     private void TryFaceRecovery(uint dispatchId, ulong targetId)
     {
