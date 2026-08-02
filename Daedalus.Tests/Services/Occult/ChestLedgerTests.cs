@@ -138,6 +138,65 @@ public sealed class ChestLedgerTests
         Assert.Equal("Bronze", ledger[0].Tier);
     }
 
+    /// <summary>
+    /// A tier observation belongs to a SIGHTING. Counting it on the open event too made every
+    /// looted spot read "Bronze: 2" off one chest while an unlooted one read "Bronze: 1" —
+    /// a distribution skewed by exactly the open count (caught in field data 2026-08-01).
+    /// </summary>
+    [Fact]
+    public void Record_OpeningAChestDoesNotCountItsTierTwice()
+    {
+        var ledger = new List<ChestLedgerEntry>();
+        ChestLedger.Record(ledger, Zone, new Vector3(10, 0, 10), TreasureTier.Bronze, T0);
+        ChestLedger.Record(ledger, Zone, new Vector3(10, 0, 10), TreasureTier.Bronze, T0.AddSeconds(14), opened: true);
+
+        var entry = Assert.Single(ledger);
+        Assert.Equal(1, entry.TimesSeen);
+        Assert.Equal(1, entry.TimesOpened);
+        Assert.Equal(1, entry.TierCounts["Bronze"]);
+    }
+
+    /// <summary>Tier observations can never outnumber sightings.</summary>
+    [Fact]
+    public void Record_TierCountsNeverExceedTimesSeen()
+    {
+        var ledger = new List<ChestLedgerEntry>();
+        var t = T0;
+        for (var i = 0; i < 6; i++)
+        {
+            ChestLedger.Record(ledger, Zone, new Vector3(10, 0, 10), TreasureTier.Silver, t, opened: i % 2 == 0);
+            t = t.AddSeconds(20);
+        }
+
+        var entry = ledger[0];
+        var counted = entry.TierCounts.Values.Sum();
+        Assert.True(counted <= entry.TimesSeen, $"counted {counted} tiers across {entry.TimesSeen} sightings");
+    }
+
+    /// <summary>Entries written before TierCounts existed must still join the distribution.</summary>
+    [Fact]
+    public void BackfillTierCounts_FoldsAnOldScalarTierIn()
+    {
+        var old = new ChestLedgerEntry { Zone = Zone, Tier = "Gold", TimesSeen = 3 };
+
+        ChestLedger.BackfillTierCounts(old);
+
+        Assert.Equal(3, old.TierCounts["Gold"]);
+    }
+
+    [Fact]
+    public void BackfillTierCounts_LeavesUnknownAndExistingCountsAlone()
+    {
+        var unknown = new ChestLedgerEntry { Zone = Zone, Tier = "Unknown", TimesSeen = 2 };
+        ChestLedger.BackfillTierCounts(unknown);
+        Assert.Empty(unknown.TierCounts);
+
+        var already = new ChestLedgerEntry { Zone = Zone, Tier = "Bronze", TimesSeen = 5 };
+        already.TierCounts["Silver"] = 1;
+        ChestLedger.BackfillTierCounts(already);
+        Assert.Single(already.TierCounts);
+    }
+
     [Fact]
     public void IsMixedTier_IsFalseForAConsistentSpot()
     {

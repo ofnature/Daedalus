@@ -270,8 +270,14 @@ public sealed class ChestLedger
 
             // Same spot, already counted this visit? Only re-count once the sighting is a
             // genuinely new one — a chest sits there for minutes and Update runs every frame.
+            // A tier observation belongs to a SIGHTING, not to an event. Counting it whenever
+            // anything changed made an open count a second time, so every looted spot read
+            // "Bronze: 2" off a single chest while an unlooted one read "Bronze: 1" — a
+            // distribution skewed by exactly the open count (field data 2026-08-01).
+            var newSighting = stamp - entry.LastSeenUnixSeconds >= 60;
             var changed = false;
-            if (stamp - entry.LastSeenUnixSeconds >= 60)
+
+            if (newSighting)
             {
                 entry.TimesSeen++;
                 changed = true;
@@ -285,10 +291,11 @@ public sealed class ChestLedger
 
             // Count the tier rather than overwrite it: a spot that genuinely varies must show as
             // varying, and two toons disagreeing is evidence, not noise.
-            if (tier != TreasureTier.Unknown && changed)
+            if (tier != TreasureTier.Unknown)
             {
-                CountTier(entry, tierName);
-                changed = true;
+                BackfillTierCounts(entry);
+                if (newSighting)
+                    CountTier(entry, tierName);
             }
 
             if (changed)
@@ -379,6 +386,8 @@ public sealed class ChestLedger
             if (entry is null)
                 continue;
 
+            BackfillTierCounts(entry);
+
             var match = FindSpot(into, entry.Zone, new Vector3(entry.X, entry.Y, entry.Z));
             if (match is null)
             {
@@ -386,6 +395,8 @@ public sealed class ChestLedger
                 added++;
                 continue;
             }
+
+            BackfillTierCounts(match);
 
             match.TimesSeen += entry.TimesSeen;
             match.TimesOpened += entry.TimesOpened;
@@ -435,6 +446,25 @@ public sealed class ChestLedger
         entry.TierCounts ??= [];
         entry.TierCounts[tierName] = entry.TierCounts.TryGetValue(tierName, out var seen) ? seen + 1 : 1;
         entry.Tier = DominantTier(entry);
+    }
+
+    /// <summary>
+    /// Entries recorded before TierCounts existed carry only the scalar Tier. Fold it in as
+    /// observations so old samples join the distribution instead of reading as zero.
+    /// </summary>
+    public static void BackfillTierCounts(ChestLedgerEntry entry)
+    {
+        if (entry is null)
+            return;
+
+        entry.TierCounts ??= [];
+        if (entry.TierCounts.Count > 0)
+            return;
+        if (string.IsNullOrWhiteSpace(entry.Tier)
+            || string.Equals(entry.Tier, "Unknown", StringComparison.OrdinalIgnoreCase))
+            return;
+
+        entry.TierCounts[entry.Tier] = Math.Max(1, entry.TimesSeen);
     }
 
     /// <summary>The most-observed tier at a spot, or "Unknown" when nothing has been identified.</summary>
