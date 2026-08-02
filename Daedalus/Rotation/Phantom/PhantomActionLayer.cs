@@ -190,7 +190,13 @@ public sealed class PhantomActionLayer
         // GCD pre-empt: phantom GCDs (emergency heals first, then damage) claim the GCD
         // window before the job's filler. Big phantom cooldowns pace this to ~1 GCD per
         // 30-60s. The oGCD queue waits for post-modules leftover weave slots.
-        if (_actionService.CanExecuteGcd)
+        //
+        // ...but NOT while a body is waiting on a raise. Raise is a GCD, and this pre-empt runs
+        // before the job's modules, so a phantom heal or nuke taking the window stops a healer
+        // ever casting it. Field 2026-08-02: Sage raises worked everywhere EXCEPT the Horns —
+        // which is exactly where this layer runs. A phantom cast is worth a fraction of getting
+        // a player back on their feet, so the window goes to the job.
+        if (_actionService.CanExecuteGcd && !RaisePendingForJob(ctx))
             _scheduler.DispatchGcd(ctx);
     }
 
@@ -399,6 +405,34 @@ public sealed class PhantomActionLayer
 
         PruneDeadSince(ctx);
         return (deadHealer, deadOther, livingHealer);
+    }
+
+    /// <summary>
+    /// A raisable body is waiting and this job can do something about it, so the phantom layer
+    /// must not take the GCD. Deliberately broad: any dead ally in raise range without a raise
+    /// already pending, on a job that can raise at all.
+    /// </summary>
+    private bool RaisePendingForJob(IRotationContext ctx)
+    {
+        var jobCanRaise = JobRegistry.IsHealer(ctx.Player.ClassJob.RowId);
+        if (!jobCanRaise)
+            return false;
+
+        foreach (var member in ctx.PartyList)
+        {
+            if (member?.GameObject is not IBattleChara chara || chara.GameObjectId == ctx.Player.GameObjectId)
+                continue;
+            if (!chara.IsDead)
+                continue;
+            if (HasStatus(chara, RaisePendingStatusId))
+                continue;
+            if (System.Numerics.Vector3.DistanceSquared(ctx.Player.Position, chara.Position) > RaiseRangeSquared)
+                continue;
+
+            return PhantomBandRules.ShouldYieldGcdForRaise(jobCanRaise, raisableCorpseInRange: true);
+        }
+
+        return false;
     }
 
     /// <summary>How long this corpse has been down, or 0 when it has only just been seen.</summary>

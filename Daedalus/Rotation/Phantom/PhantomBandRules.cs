@@ -31,6 +31,19 @@ public static class PhantomBandRules
     /// caster is usually mid-rotation. With no healer alive, anyone is worth raising.
     /// </summary>
     /// <summary>
+    /// Whether the phantom layer must give the GCD back to the job.
+    /// <para>
+    /// The layer pre-empts the GCD before the job's own modules run, which is right for a filler
+    /// and wrong for a raise: Raise is a GCD, so a phantom heal or nuke holding the window stops
+    /// a healer ever casting it. Field 2026-08-02 — Sage raises worked everywhere EXCEPT the
+    /// Horns, the only place this layer runs. A phantom cast is worth a fraction of getting a
+    /// player back up.
+    /// </para>
+    /// </summary>
+    public static bool ShouldYieldGcdForRaise(bool jobCanRaise, bool raisableCorpseInRange)
+        => jobCanRaise && raisableCorpseInRange;
+
+    /// <summary>
     /// How long a corpse may lie there with a living healer present before the phantom stops
     /// deferring and raises it anyway.
     /// <para>

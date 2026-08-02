@@ -97,4 +97,26 @@ public sealed class PhantomRaiseRulesTests
         Assert.True(PhantomBandRules.LivingHealerGraceSeconds <= 20f,
             "any longer and the corpse is released before the phantom bothers");
     }
+
+    // ── The phantom layer must not eat the raise ──
+
+    /// <summary>
+    /// The layer pre-empts the GCD before the job's modules run. Raise is a GCD, so a phantom
+    /// cast holding the window stops a healer ever casting it — which is why Sage raises worked
+    /// everywhere EXCEPT the Horns, the only place this layer runs.
+    /// </summary>
+    [Fact]
+    public void ShouldYieldGcd_WhenAHealerHasABodyToRaise()
+    {
+        Assert.True(PhantomBandRules.ShouldYieldGcdForRaise(jobCanRaise: true, raisableCorpseInRange: true));
+    }
+
+    [Theory]
+    [InlineData(true, false)]   // healer, nobody down — keep pre-empting
+    [InlineData(false, true)]   // body down, but this job cannot raise anyway
+    [InlineData(false, false)]
+    public void ShouldYieldGcd_OnlyWhenBothHold(bool canRaise, bool corpse)
+    {
+        Assert.False(PhantomBandRules.ShouldYieldGcdForRaise(canRaise, corpse));
+    }
 }

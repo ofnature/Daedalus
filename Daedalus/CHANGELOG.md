@@ -5,6 +5,10 @@ All notable changes to Daedalus will be documented in this file.
 <!-- LATEST-START -->
 ## v0.1.50 — unreleased
 
+### Fix — Healers can raise again in Occult Crescent
+- Raise worked everywhere except the Horns, and the phantom layer was the reason: it claims the GCD before your job's own rotation, and **Raise is a GCD**, so a phantom heal or nuke kept taking the window your healer needed. The layer now hands the GCD back whenever there's a body it can pick up
+- Getting someone on their feet is worth far more than a phantom cast, so this yields unconditionally rather than weighing them up
+
 ### Fix — Phantom raise no longer waits forever on a healer
 - Phantom raises deliberately leave a dead DPS to a living healer, since the healer's raise is better. But if that healer doesn't act — out of range, out of MP, or otherwise stuck — nobody was raising them at all
 - The phantom now gives the healer **ten seconds** and then steps in. A dead *healer* is still raised immediately, as before
