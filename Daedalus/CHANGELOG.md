@@ -5,6 +5,10 @@ All notable changes to Daedalus will be documented in this file.
 <!-- LATEST-START -->
 ## v0.1.48 — unreleased
 
+### Fix — FATE enemies were missing from the shipped enemy table
+- The built-in Occult enemy table shipped with **no FATE information at all** — it was baked before FATE tracking existed, so it carried Critical Encounter data and nothing else. Anyone who wasn't collecting their own data saw an empty FATE list
+- Re-baked: **220 enemies across both Horns** (up from 71), now including 33 seen in FATEs across 16 named FATEs, all four pot FATEs among them
+
 ### Fix — North Horn phantom jobs said "nothing eligible" while holding damage
 - When phantom damage is held for your burst window, the Duty tab says so — but **every North Horn job was missing from that list**, so the hold happened silently and the tab read "idle — nothing eligible" instead. A Level 4 Phantom Red Mage on an ice-weak mob, Blizzard slotted, cast nothing but Cure II for a whole fight, because healing ignores the hold and damage doesn't
 - If your phantom jobs seem to do nothing but heal, check **Save damage for burst** in the Occult settings — it now defaults **off** (phantom nukes hit far harder than a job GCD, so holding them wastes them), but configs made before that change kept it on
