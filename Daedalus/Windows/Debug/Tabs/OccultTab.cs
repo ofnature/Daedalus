@@ -197,9 +197,26 @@ public static class OccultTab
         string label, List<Daedalus.Services.Occult.OccultWeaknessEntry> group, bool groupByEncounter,
         bool fateNames = false)
     {
+        // Grouped views count ENCOUNTERS as well as enemies — "(36)" on the CE header read as
+        // 36 Critical Encounters when it was 36 mobs across a handful of them.
+        string counts;
+        if (groupByEncounter)
+        {
+            var encounters = group
+                .Select(e => fateNames ? e.Fate : e.CriticalEncounter)
+                .Where(n => !string.IsNullOrWhiteSpace(n))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Count();
+            counts = $" ({encounters} {(fateNames ? "FATEs" : "CEs")}, {group.Count} enemies)";
+        }
+        else
+        {
+            counts = $" ({group.Count})";
+        }
+
         var title = label.Contains("###")
-            ? label.Insert(label.IndexOf("###", StringComparison.Ordinal), $" ({group.Count})")
-            : $"{label} ({group.Count})";
+            ? label.Insert(label.IndexOf("###", StringComparison.Ordinal), counts)
+            : $"{label}{counts}";
 
         if (!ImGui.CollapsingHeader(title))
             return;

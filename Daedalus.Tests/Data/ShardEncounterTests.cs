@@ -88,7 +88,7 @@ public sealed class ShardEncounterTests
     }
 
     [Fact]
-    public void ShardCriticalEncounters_CoverTheFourDropOnlyJobs()
+    public void ShardCriticalEncounters_CoverTheDropOnlyJobs()
     {
         var jobs = new List<PhantomJob>();
         foreach (var (_, job) in PhantomJobData.ShardCriticalEncounters)
@@ -98,5 +98,46 @@ public sealed class ShardEncounterTests
         Assert.Contains(PhantomJob.Ranger, jobs);
         Assert.Contains(PhantomJob.Berserker, jobs);
         Assert.Contains(PhantomJob.Necromancer, jobs);
+        Assert.Contains(PhantomJob.PhantomBlueMage, jobs);
+    }
+
+    /// <summary>
+    /// Blue Mage was missed on the first pass — its unlock hint doesn't share the
+    /// "Critical Encounter:" wording, so a text search for the others skipped it and the banner
+    /// never fired when Appalling Behavior popped.
+    /// <para>
+    /// Derive the requirement from the unlock data instead of trusting a hand-written list:
+    /// every job unlocked by a CE must name the encounter that drops its shard.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public void EveryCriticalEncounterUnlockedJob_NamesItsEncounter()
+    {
+        var named = new HashSet<PhantomJob>();
+        foreach (var (_, job) in PhantomJobData.ShardCriticalEncounters)
+            named.Add(job);
+
+        var missing = new List<PhantomJob>();
+        foreach (PhantomJob job in System.Enum.GetValues<PhantomJob>())
+        {
+            if (job == PhantomJob.None)
+                continue;
+            if (PhantomJobData.GetUnlockCost(job).Kind != PhantomJobData.UnlockKind.CriticalEncounter)
+                continue;
+            if (!named.Contains(job))
+                missing.Add(job);
+        }
+
+        Assert.Empty(missing);
+    }
+
+    [Fact]
+    public void UnclaimedShardEncounters_FlagsAppallingBehaviourForBlueMage()
+    {
+        var result = PhantomJobData.UnclaimedShardEncounters(
+            ["Appalling Behavior"], Levels((PhantomJob.PhantomBlueMage, 0)));
+
+        var (_, job) = Assert.Single(result);
+        Assert.Equal(PhantomJob.PhantomBlueMage, job);
     }
 }

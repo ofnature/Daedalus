@@ -148,6 +148,12 @@ public static class PhantomJobData
         ("The Black Regiment", PhantomJob.Ranger),
         ("The Unbridled", PhantomJob.Berserker),
         ("Dark Artistry", PhantomJob.Necromancer),
+        // Missed on the first pass (field 2026-08-01: no banner when it popped) because its
+        // unlock hint doesn't use the "Critical Encounter:" wording the others share.
+        // Blue Mage also LEARNS its actions from enemies rather than by level, so the level
+        // array may not describe it the way it does the rest — if the banner keeps nagging
+        // after you own the job, that is why.
+        ("Appalling Behavior", PhantomJob.PhantomBlueMage),
     ];
 
     /// <summary>
