@@ -63,6 +63,18 @@ public sealed class ChestLedgerEntry
     /// </summary>
     public string Source { get; set; } = "Treasure";
 
+    /// <summary>
+    /// The object's BaseId — recorded so coffer TYPES stay separable later even where the name
+    /// and object kind match.
+    /// <para>
+    /// Specifically: chests raised by a Fortune Carrot are expected to be EventObj as well, and
+    /// one opened during a pot hunt would otherwise satisfy every candidate test. Keeping the id
+    /// means that can be untangled from data already collected, instead of gathering it again.
+    /// Known so far: pot Gold Coffer = 2014741; carrot chest id UNKNOWN.
+    /// </para>
+    /// </summary>
+    public uint BaseId { get; set; }
+
     public long FirstSeenUnixSeconds { get; set; }
     public long LastSeenUnixSeconds { get; set; }
 }

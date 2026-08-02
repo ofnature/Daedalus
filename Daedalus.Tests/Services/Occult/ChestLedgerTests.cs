@@ -205,6 +205,81 @@ public sealed class ChestLedgerTests
         Assert.True(ledger[0].FoundDuringTreasureHunt);
     }
 
+    /// <summary>
+    /// The trap: the hunt flag lands on ANY coffer seen while the hunt is up, so an ordinary
+    /// per-player chest walked past mid-hunt looks like a candidate. Both halves are required, or
+    /// the location predictor gets seeded with spawns that can never be the answer.
+    /// </summary>
+    [Fact]
+    public void IsPotHuntCandidate_RejectsANormalChestFoundMidHunt()
+    {
+        var normalChestDuringHunt = new ChestLedgerEntry
+        {
+            Zone = Zone,
+            Source = ChestLedger.SourceTreasure,
+            FoundDuringTreasureHunt = true,
+        };
+
+        Assert.False(ChestLedger.IsPotHuntCandidate(normalChestDuringHunt));
+    }
+
+    [Fact]
+    public void IsPotHuntCandidate_AcceptsAPotCofferFoundDuringAHunt()
+    {
+        var potCoffer = new ChestLedgerEntry
+        {
+            Zone = Zone,
+            Source = ChestLedger.SourceEventObj,
+            FoundDuringTreasureHunt = true,
+        };
+
+        Assert.True(ChestLedger.IsPotHuntCandidate(potCoffer));
+    }
+
+    [Fact]
+    public void IsPotHuntCandidate_RejectsAPotCofferSeenOutsideAHunt()
+    {
+        var potCoffer = new ChestLedgerEntry
+        {
+            Zone = Zone,
+            Source = ChestLedger.SourceEventObj,
+            FoundDuringTreasureHunt = false,
+        };
+
+        Assert.False(ChestLedger.IsPotHuntCandidate(potCoffer));
+        Assert.False(ChestLedger.IsPotHuntCandidate(null));
+    }
+
+    /// <summary>
+    /// Carrot chests are expected to be EventObj as well, so kind and hunt flag alone will not
+    /// tell them apart from a pot coffer. The BaseId is recorded now so that separation is
+    /// possible later from data already gathered.
+    /// </summary>
+    [Fact]
+    public void Record_KeepsTheBaseIdSoCofferTypesStaySeparable()
+    {
+        var ledger = new List<ChestLedgerEntry>();
+        ChestLedger.Record(ledger, Zone, new Vector3(10, 0, 10), TreasureTier.Gold, T0,
+            duringTreasureHunt: true, source: ChestLedger.SourceEventObj, baseId: 2014741);
+
+        Assert.Equal(2014741u, ledger[0].BaseId);
+    }
+
+    [Fact]
+    public void Merge_FillsInABaseIdTheOtherToonCaptured()
+    {
+        var mine = new List<ChestLedgerEntry>();
+        ChestLedger.Record(mine, Zone, new Vector3(10, 0, 10), TreasureTier.Gold, T0);
+
+        var theirs = new List<ChestLedgerEntry>();
+        ChestLedger.Record(theirs, Zone, new Vector3(10, 0, 10), TreasureTier.Gold, T0,
+            source: ChestLedger.SourceEventObj, baseId: 2014741);
+
+        ChestLedger.Merge(mine, theirs);
+
+        Assert.Equal(2014741u, mine[0].BaseId);
+    }
+
     [Fact]
     public void Merge_CarriesTheHuntTagAndSourceAcrossToons()
     {

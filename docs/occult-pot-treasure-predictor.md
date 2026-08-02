@@ -116,7 +116,10 @@ takes either:
 
 - **Grid** (`EstimateCentre`) — sample points over the search area and keep what satisfies every
   reading. Works from the very first hunt, needs no history. This is what v1 must use.
-- **Known spots** (`Feasible`) — past finds, from ledger entries with `FoundDuringTreasureHunt`.
+- **Known spots** (`Feasible`) — past finds, via `ChestLedger.IsPotHuntCandidate`, which requires
+  BOTH the hunt flag AND `Source == EventObj`. Never filter on the hunt flag alone: it is set on
+  any coffer seen while the hunt is up, so an ordinary per-player chest walked past mid-hunt
+  would otherwise be treated as a candidate spawn.
   Only becomes useful once hunts accumulate AND finds repeat, which is still unproven. Treat as
   an accelerator layered on the grid, never as the primary.
 

@@ -22,6 +22,31 @@ public sealed class ChestLedger
     /// <summary>Two sightings closer than this are the same spawn point.</summary>
     public const float SameSpotYalms = 3f;
 
+    /// <summary>Pot coffer — the hidden one an elixir hunt leads to.</summary>
+    public const string SourceEventObj = "EventObj";
+
+    /// <summary>Ordinary world chest, rolled per player on instance entry.</summary>
+    public const string SourceTreasure = "Treasure";
+
+    /// <summary>
+    /// A genuine pot-hunt candidate: recorded during a hunt AND an EventObj coffer.
+    /// <para>
+    /// Both halves are required. The hunt flag is set on ANY coffer seen while the hunt is up, so
+    /// an ordinary per-player chest you happen to walk past mid-hunt gets flagged too — and those
+    /// have nothing to do with the pot. Pooling them into the candidate set would seed the
+    /// location predictor with spawns that can never be the answer.
+    /// </para>
+    /// <para>
+    /// NOT YET SUFFICIENT: chests raised by a Fortune Carrot are expected to be EventObj too, and
+    /// one opened mid-hunt would pass both tests. No carrot chest has been observed yet, so its
+    /// BaseId is unknown — <see cref="ChestLedgerEntry.BaseId"/> is recorded on every entry so
+    /// the two can be separated retroactively once it is, rather than needing a re-collect.
+    /// </para>
+    /// </summary>
+    public static bool IsPotHuntCandidate(ChestLedgerEntry? entry)
+        => entry is { FoundDuringTreasureHunt: true }
+           && string.Equals(entry.Source, SourceEventObj, StringComparison.OrdinalIgnoreCase);
+
     /// <summary>
     /// Ceiling on stored spots, so a long-lived config can't grow without bound. Generous —
     /// a Horn has far fewer spawn points than this.
@@ -74,6 +99,7 @@ public sealed class ChestLedger
         public TreasureTier Tier;
         public bool WasOpened;
         public bool IsEventObj;
+        public uint BaseId;
         public float LastDistance;
         public bool Counted;
     }
@@ -199,6 +225,7 @@ public sealed class ChestLedger
             tracked.Tier = tier;
             tracked.WasOpened = nowOpened;
             tracked.IsEventObj = isEventObj;
+            tracked.BaseId = obj.BaseId;
             tracked.LastDistance = player is null ? float.MaxValue : Vector3.Distance(player.Position, obj.Position);
 
             if (justOpened)
@@ -210,7 +237,7 @@ public sealed class ChestLedger
 
             if (Record(_config.ChestLedger, zone, obj.Position, tier, now,
                     opened: justOpened, duringTreasureHunt: duringHunt, countTier: countTier,
-                    source: isEventObj ? "EventObj" : "Treasure"))
+                    source: isEventObj ? SourceEventObj : SourceTreasure, baseId: obj.BaseId))
                 _dirty = true;
         }
 
@@ -231,7 +258,7 @@ public sealed class ChestLedger
 
                 if (Record(_config.ChestLedger, zone, coffer.Position, coffer.Tier, now,
                         opened: true, duringTreasureHunt: duringHunt,
-                        source: coffer.IsEventObj ? "EventObj" : "Treasure"))
+                        source: coffer.IsEventObj ? SourceEventObj : SourceTreasure, baseId: coffer.BaseId))
                     _dirty = true;
             }
 
@@ -287,7 +314,7 @@ public sealed class ChestLedger
     public static bool Record(
         List<ChestLedgerEntry> ledger, ushort zone, Vector3 position, TreasureTier tier, DateTime nowUtc,
         bool opened = false, bool duringTreasureHunt = false, bool countTier = true,
-        string source = "Treasure")
+        string source = SourceTreasure, uint baseId = 0)
     {
         if (ledger is null)
             return false;
@@ -320,6 +347,12 @@ public sealed class ChestLedger
             if (opened)
             {
                 entry.TimesOpened++;
+                changed = true;
+            }
+
+            if (baseId != 0 && entry.BaseId != baseId)
+            {
+                entry.BaseId = baseId;
                 changed = true;
             }
 
@@ -367,6 +400,7 @@ public sealed class ChestLedger
             TimesOpened = opened ? 1 : 0,
             FoundDuringTreasureHunt = duringTreasureHunt,
             Source = source,
+            BaseId = baseId,
             FirstSeenUnixSeconds = stamp,
             LastSeenUnixSeconds = stamp,
         };
@@ -455,7 +489,10 @@ public sealed class ChestLedger
             match.TimesSeen += entry.TimesSeen;
             match.TimesOpened += entry.TimesOpened;
             match.FoundDuringTreasureHunt |= entry.FoundDuringTreasureHunt;
-            if (!string.IsNullOrWhiteSpace(entry.Source) && entry.Source != "Treasure")
+            if (entry.BaseId != 0 && match.BaseId == 0)
+                match.BaseId = entry.BaseId;
+
+            if (!string.IsNullOrWhiteSpace(entry.Source) && entry.Source != SourceTreasure)
                 match.Source = entry.Source;
 
             if (entry.FirstSeenUnixSeconds > 0
