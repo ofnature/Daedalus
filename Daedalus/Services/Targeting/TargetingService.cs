@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -881,6 +881,45 @@ public sealed class TargetingService : ITargetingService
 
     /// <inheritdoc />
     public ulong GetGameHardTargetId() => _targetManager.Target?.GameObjectId ?? 0;
+
+    /// <inheritdoc />
+    public ulong SwapHardTargetForSubmit(ulong gameObjectId)
+    {
+        var previous = _targetManager.Target?.GameObjectId ?? 0;
+        if (gameObjectId == 0 || previous == gameObjectId)
+            return previous;
+
+        // SearchById, NOT ResolveEnemyById: the whole point is targets the enemy filters drop —
+        // the phantom raise aims at dead players, and EnsureHardTarget no-ops on those.
+        var obj = _objectTable.SearchById(gameObjectId);
+        if (obj == null)
+            return previous;
+
+        ManualControlGrace.RecordOwnWrite(gameObjectId);
+        _targetManager.Target = obj;
+        return previous;
+    }
+
+    /// <inheritdoc />
+    public void RestoreHardTargetAfterSubmit(ulong previousId, ulong swappedId)
+    {
+        // Never clobber a target that changed underneath us mid-swap.
+        if (_targetManager.Target?.GameObjectId != swappedId)
+            return;
+
+        if (previousId == 0)
+        {
+            _targetManager.Target = null;
+            return;
+        }
+
+        var previous = _objectTable.SearchById(previousId);
+        if (previous != null)
+        {
+            ManualControlGrace.RecordOwnWrite(previousId);
+            _targetManager.Target = previous;
+        }
+    }
 
     /// <summary>
     /// Layer 3: bypass StrictCurrentTargetStrategy for explicit-strategy → aggregate fallback.

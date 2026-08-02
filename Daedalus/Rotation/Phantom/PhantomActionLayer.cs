@@ -233,8 +233,10 @@ public sealed class PhantomActionLayer
         // any single job weave, and the Occult death timer does not wait for one to come free.
         if (_raiseQueuedThisFrame && _actionService.CanExecuteOgcd)
         {
+            var prevOgcd = ctx.TargetingService.SwapHardTargetForSubmit(_raiseTargetIdThisFrame);
             _actionService.FaceTarget(_raiseTargetIdThisFrame);
             _scheduler.DispatchOgcd(ctx);
+            ctx.TargetingService.RestoreHardTargetAfterSubmit(prevOgcd, _raiseTargetIdThisFrame);
         }
 
         // GCD pre-empt: phantom GCDs (emergency heals first, then damage) claim the GCD
@@ -262,10 +264,22 @@ public sealed class PhantomActionLayer
             // the job's next GCD auto-faces you straight back within the same frame. Field
             // 2026-08-02 — the raise failed the facing/LoS gate on every attempt while the
             // recovery and Enpi fought over the character's rotation.
+            // Swap-fire-restore, all inside this frame before the job's modules run. Rotation
+            // write alone did NOT beat the facing gate in the field, and the recovery hook
+            // cannot help: EnsureHardTarget resolves through the enemy filters, which silently
+            // drop a corpse — so the game's auto-face never had the right target to work with.
+            // The swap gives it one for exactly the duration of the submit.
+            var prevTarget = 0ul;
             if (_raiseQueuedThisFrame)
+            {
+                prevTarget = ctx.TargetingService.SwapHardTargetForSubmit(_raiseTargetIdThisFrame);
                 _actionService.FaceTarget(_raiseTargetIdThisFrame);
+            }
 
             var gcdResult = _scheduler.DispatchGcd(ctx);
+
+            if (_raiseQueuedThisFrame)
+                ctx.TargetingService.RestoreHardTargetAfterSubmit(prevTarget, _raiseTargetIdThisFrame);
 
             // The post-modules stall line reads "GCD not ready" almost tautologically — by then
             // the job has just consumed the window. THIS is the attempt that matters: the raise

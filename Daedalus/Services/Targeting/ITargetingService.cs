@@ -1,4 +1,4 @@
-using Dalamud.Game.ClientState.Objects.SubKinds;
+﻿using Dalamud.Game.ClientState.Objects.SubKinds;
 using Dalamud.Game.ClientState.Objects.Types;
 
 namespace Daedalus.Services.Targeting;
@@ -156,6 +156,17 @@ public interface ITargetingService
 
     /// <summary>Current game hard-target GameObjectId, or 0 if none. Used for stuck diagnostics.</summary>
     ulong GetGameHardTargetId();
+
+    /// <summary>
+    /// Momentarily hard-target ANY object — including a dead player — so the game's auto-face
+    /// handles the next submit natively. Returns the previous hard-target id (0 = none) for
+    /// <see cref="RestoreHardTargetAfterSubmit"/>. Unlike <see cref="EnsureHardTarget"/> this
+    /// does not resolve through the enemy filters, which silently drop corpses.
+    /// </summary>
+    ulong SwapHardTargetForSubmit(ulong gameObjectId);
+
+    /// <summary>Undo the swap — restores only if the swapped target is still current.</summary>
+    void RestoreHardTargetAfterSubmit(ulong previousId, ulong swappedId);
 
     /// <summary>
     /// Returns true when damage targeting should be paused because the player has
