@@ -131,7 +131,32 @@ with the player's live position; append the bearing. Reset the set on `IsDiscove
 store the samples. No UI — testable on its own, and it starts gathering band calibration data
 immediately.
 
-**P2 — the map.** A small window, top-down, autoscaled to the feasible region:
+**P2 — when to show what.** Trigger on whether the region is BOUNDED and small, not on reading
+count or band. `far, far` has no maximum distance, so one such reading is an unbounded wedge and
+worth nothing on a map — a compass arrow and the band text say everything. `far` and `within` are
+bounded on the first reading (20-80y, 0-30y) and earn a map straight away, as do any two crossing
+cones. Deferring the map until the final band gets this backwards: at `immediately` you are
+within 10y and the coffer spawns as you approach, so a picture adds least there.
+
+At `immediately`, drop the map and **draw the estimate in the world** using the same
+`DrawingService` calls as the chest guide lines — a ring at the estimated position. Two rules:
+
+- It must look clearly different from a real coffer ring. We are drawing a prediction for an
+  object that does not exist yet, and if it looks like a sighting it will be trusted like one.
+- It must vanish the moment the real coffer spawns, or there are two markers a few yalms apart
+  with no way to tell which is which. That handoff doubles as a free accuracy check: prediction
+  and reality landing together confirms the geometry, and a consistent offset is calibration
+  data you can see rather than infer.
+
+Build it always-on behind a dev toggle FIRST. Watching the region shrink across a real hunt is
+how the geometry and the guessed bands get validated; debugging a predictor you cannot see is
+miserable. Apply the bounded-and-small trigger once it is proven.
+
+Draw band edges softly rather than as hard lines — the direction and overlap geometry are
+trustworthy, the distances are not until `Calibrate` has samples, and a crisp edge implies
+precision we do not have.
+
+The map itself, when shown — a small window, top-down, autoscaled to the feasible region:
 - player position and facing
 - each reading as a ring segment from where it was taken
 - the surviving grid cells (the overlap) as a shaded region, shrinking with each reading
