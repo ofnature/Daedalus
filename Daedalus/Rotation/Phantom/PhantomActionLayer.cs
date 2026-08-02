@@ -131,11 +131,17 @@ public sealed class PhantomActionLayer
             if (_actionService.CanExecuteGcd)
                 _scheduler.DispatchGcd(ctx);
 
-            var queued = _scheduler.InspectGcdQueue().Count + _scheduler.InspectOgcdQueue().Count;
+            // Name the queued action and WHICH capability refused it. "no free slot" was true
+            // but useless: a raise sat queued for minutes and the line could not distinguish a
+            // busy GCD from a full weave window from a scheduler-level rejection.
+            var gcdQueue = _scheduler.InspectGcdQueue();
+            var ogcdQueue = _scheduler.InspectOgcdQueue();
+            var queued = gcdQueue.Count + ogcdQueue.Count;
+
             _phantomJobs.LayerLastEvent = _dispatchedThisFrame
                 ? "dispatched"
                 : queued > 0
-                    ? $"waiting — {queued} queued, no free slot"
+                    ? DescribeQueueStall(gcdQueue.Count, ogcdQueue.Count)
                     : _pushRejects.Count > 0
                         ? $"blocked — {_pushRejects[0]}"
                         : "idle — nothing eligible";
@@ -144,6 +150,22 @@ public sealed class PhantomActionLayer
         {
             ReportFault("post-modules", ex);
         }
+    }
+
+    /// <summary>
+    /// Why a queued phantom action is not going out. Distinguishes "the GCD is rolling" from
+    /// "no weave slot" from "the scheduler refused it", which the old single message conflated.
+    /// </summary>
+    private string DescribeQueueStall(int gcdQueued, int ogcdQueued)
+    {
+        if (gcdQueued > 0 && !_actionService.CanExecuteGcd)
+            return $"waiting — {gcdQueued} GCD queued, GCD not ready";
+        if (ogcdQueued > 0 && !_actionService.CanExecuteOgcd)
+            return $"waiting — {ogcdQueued} oGCD queued, no weave slot";
+
+        // Capability said yes and the dispatch still did not happen, so the scheduler itself
+        // rejected it — range, line of sight, facing, or an action-level gate.
+        return $"waiting — {gcdQueued + ogcdQueued} queued, scheduler refused (range/LoS/facing?)";
     }
 
     /// <summary>
