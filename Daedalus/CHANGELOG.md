@@ -5,6 +5,10 @@ All notable changes to Daedalus will be documented in this file.
 <!-- LATEST-START -->
 ## v0.1.52 — unreleased
 
+### Fix — Occult Raise finally goes off
+- It was being treated as a spell that uses your global cooldown, because that's what the game data says it is. In play it doesn't — so the raise queued up behind your job's own rotation and waited there while someone lay dead in front of you. On a Samurai stuck at range that meant it sat behind Enpi indefinitely
+- It's now treated as an ability, which is how it actually behaves, so it weaves in between your casts like it should
+
 ### Fix — Phantom raise no longer queues behind your job's abilities
 - The raise was being chosen correctly and then sat waiting for a free weave slot that your own rotation kept taking first — the Duty tab read *"raising <name>"* and *"1 queued, no free slot"* at the same time
 - A raise now goes ahead of a job ability. Everything else the phantom layer does still waits its turn, as before
