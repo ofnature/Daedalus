@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using Dalamud.Game.ClientState.Objects.SubKinds;
 using Dalamud.Game.ClientState.Objects.Types;
 using Daedalus.Rotation.Common.Helpers;
@@ -36,6 +36,12 @@ public interface IPartyHelper : ISpikeTargetSource
     /// Finds a dead party member that needs resurrection.
     /// </summary>
     IBattleChara? FindDeadPartyMemberNeedingRaise(IPlayerCharacter player, bool includeAlliance = false);
+
+    /// <summary>
+    /// Distance to the nearest dead party member IGNORING raise range, or null when nobody is
+    /// down. Lets a healer say "there is a body, it is just too far" instead of "No target".
+    /// </summary>
+    float? DistanceToNearestDeadPartyMember(IPlayerCharacter player);
 
     /// <summary>
     /// Gets predicted HP percent for a target.

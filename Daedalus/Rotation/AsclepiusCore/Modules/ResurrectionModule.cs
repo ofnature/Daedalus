@@ -138,7 +138,14 @@ public sealed class ResurrectionModule : BaseResurrectionModule<IAsclepiusContex
         if (player.CurrentMp < RaiseMpCost) { SetRaiseState(context, $"MP {player.CurrentMp} < {RaiseMpCost}"); return; }
 
         var target = FindDeadPartyMemberNeedingRaise(context);
-        if (target is null) { SetRaiseState(context, "No target"); SetRaiseTarget(context, "None"); return; }
+        if (target is null)
+        {
+            // "No target" hides an out-of-range corpse, and nothing moves a healer to one.
+            SetRaiseState(context, DescribeMissingRaiseTarget(
+                context.PartyHelper.DistanceToNearestDeadPartyMember(player), RaiseAction.Range));
+            SetRaiseTarget(context, "None");
+            return;
+        }
 
         var targetName = target.Name?.TextValue ?? "Unknown";
         SetRaiseTarget(context, targetName);

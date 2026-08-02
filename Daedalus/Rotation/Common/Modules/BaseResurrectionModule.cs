@@ -52,6 +52,10 @@ public abstract class BaseResurrectionModule<TContext> : IHealerRotationModule<T
     /// </summary>
     protected abstract void SetRaiseState(TContext context, string state);
 
+    /// <summary>Why there is no raise target — see <see cref="RaiseTargetDescription"/>.</summary>
+    protected static string DescribeMissingRaiseTarget(float? nearestDeadDistance, float raiseRangeYalms)
+        => RaiseTargetDescription.Describe(nearestDeadDistance, raiseRangeYalms);
+
     private string? _lastLoggedRaiseState;
 
     /// <summary>

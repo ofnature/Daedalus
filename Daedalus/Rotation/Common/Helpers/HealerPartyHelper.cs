@@ -185,6 +185,32 @@ public abstract class HealerPartyHelper : BasePartyHelper, ISpikeTargetSource
     /// <param name="includeAlliance">Also scan for dead alliance members OUTSIDE the party
     /// (instanced duties only) when the party has no raise candidate.</param>
     /// <returns>The highest-priority dead party member without raise pending, or null.</returns>
+    /// <summary>
+    /// Distance to the nearest dead party member IGNORING raise range, or null when nobody is
+    /// down. Exists so "no target" can be told apart from "there is a body, it is just too far":
+    /// the finder below filters by range, so an out-of-reach corpse is indistinguishable from an
+    /// empty party — and nothing moves a healer toward a body, so in an open zone that state can
+    /// persist for the whole fight while reading as though nobody needed raising.
+    /// </summary>
+    public float? DistanceToNearestDeadPartyMember(IPlayerCharacter player)
+    {
+        float? nearest = null;
+
+        foreach (var member in GetAllPartyMembers(player, includeDead: true))
+        {
+            if (member.EntityId == player.EntityId || !member.IsDead)
+                continue;
+            if (HasRaiseStatus(member))
+                continue;
+
+            var distance = Vector3.Distance(player.Position, member.Position);
+            if (nearest is null || distance < nearest)
+                nearest = distance;
+        }
+
+        return nearest;
+    }
+
     public IBattleChara? FindDeadPartyMemberNeedingRaise(
         IPlayerCharacter player, float rangeSquared, bool includeAlliance = false)
     {
