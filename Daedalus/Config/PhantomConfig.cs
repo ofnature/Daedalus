@@ -80,6 +80,16 @@ public sealed class ChestLedgerEntry
 }
 
 /// <summary>
+/// One measured elixir reading: what the game called the distance, and how far it actually
+/// turned out to be once the coffer was found. Ground truth for the guessed distance bands.
+/// </summary>
+public sealed class PotHuntCalibrationSample
+{
+    public string Band { get; set; } = string.Empty;
+    public float ActualDistance { get; set; }
+}
+
+/// <summary>
 /// One remembered pot FATE spawn. Unix seconds rather than DateTime so the round trip through
 /// the config file can't lose the UTC kind.
 /// </summary>
@@ -156,6 +166,20 @@ public sealed class PhantomConfig
     /// </para>
     /// </summary>
     public List<ChestLedgerEntry> ChestLedger { get; set; } = [];
+
+    /// <summary>
+    /// Elixir readings measured against where the coffer actually turned out to be. Only
+    /// "immediately" (&lt;10y) is a confirmed band; these samples are how the rest stop being
+    /// guesses.
+    /// </summary>
+    public List<PotHuntCalibrationSample> PotHuntCalibration { get; set; } = [];
+
+    /// <summary>
+    /// Distance from the player to the coffer at the instant it spawned — i.e. the interact
+    /// range that triggers it. Measured rather than assumed, so the "activation area" ring can
+    /// be sized from observation.
+    /// </summary>
+    public List<float> ActivationRadiusSamples { get; set; } = [];
     public bool UseTreasuresight { get; set; } = false;
 
 

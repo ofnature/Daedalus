@@ -201,6 +201,7 @@ public sealed class Plugin : IDalamudPlugin
     private readonly Daedalus.Services.Occult.ElementalWeaknessLog elementalWeaknessLog;
     private readonly Daedalus.Services.Occult.PotFateTracker potFateTracker;
     private readonly Daedalus.Services.Occult.ChestLedger chestLedger;
+    private readonly Daedalus.Services.Occult.PotTreasureHunt potTreasureHunt;
     private readonly Daedalus.Services.Consumables.ConsumableService consumableService;
     private readonly Daedalus.Services.Consumables.TinctureDispatcher tinctureDispatcher;
 
@@ -651,6 +652,8 @@ public sealed class Plugin : IDalamudPlugin
         this.chestLedger = new Daedalus.Services.Occult.ChestLedger(
             configuration.Occult, objectTable, clientState, dataManager, SaveConfiguration,
             pluginInterface.ConfigDirectory.FullName);
+        this.potTreasureHunt = new Daedalus.Services.Occult.PotTreasureHunt(
+            chatGui, objectTable, clientState, configuration.Occult, SaveConfiguration, log);
         this.elementalWeaknessLog = new Daedalus.Services.Occult.ElementalWeaknessLog(
             objectTable, clientState, log, pluginInterface.ConfigDirectory.FullName, debugLogService, fateTable);
 
@@ -1652,6 +1655,7 @@ public sealed class Plugin : IDalamudPlugin
             // is worth more than any farming routine.
             potFateTracker.Update();
             chestLedger.Update();
+            potTreasureHunt.Update();
 
 #if DEBUG
             // Occult enemy census + weakness learning (throttled; Occult territories only).
@@ -2078,6 +2082,7 @@ public sealed class Plugin : IDalamudPlugin
         serviceContainer?.Dispose();
 
         performanceTracker.Dispose();
+        potTreasureHunt.Dispose(); // unhooks the chat handler
         dpsMeterService.Dispose();
         drawingService.Dispose();
         localization.Dispose();
