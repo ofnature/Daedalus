@@ -283,9 +283,11 @@ public sealed class ChestLedger
                 changed = true;
             }
 
-            if (tier != TreasureTier.Unknown && entry.Tier != tierName)
+            // Count the tier rather than overwrite it: a spot that genuinely varies must show as
+            // varying, and two toons disagreeing is evidence, not noise.
+            if (tier != TreasureTier.Unknown && changed)
             {
-                entry.Tier = tierName;
+                CountTier(entry, tierName);
                 changed = true;
             }
 
@@ -298,19 +300,23 @@ public sealed class ChestLedger
         if (ledger.Count >= MaxEntries)
             return false;
 
-        ledger.Add(new ChestLedgerEntry
+        var added = new ChestLedgerEntry
         {
             Zone = zone,
             X = position.X,
             Y = position.Y,
             Z = position.Z,
-            Tier = tierName,
             TimesSeen = 1,
             TimesOpened = opened ? 1 : 0,
             FirstSeenUnixSeconds = stamp,
             LastSeenUnixSeconds = stamp,
-        });
+        };
+        if (tier != TreasureTier.Unknown)
+            CountTier(added, tierName);
+        else
+            added.Tier = tierName;
 
+        ledger.Add(added);
         return true;
     }
 
@@ -391,12 +397,80 @@ public sealed class ChestLedger
             if (entry.LastSeenUnixSeconds > match.LastSeenUnixSeconds)
                 match.LastSeenUnixSeconds = entry.LastSeenUnixSeconds;
 
-            if (!string.Equals(entry.Tier, "Unknown", StringComparison.OrdinalIgnoreCase)
-                && string.Equals(match.Tier, "Unknown", StringComparison.OrdinalIgnoreCase))
-                match.Tier = entry.Tier;
+            // Sum the tier distributions. Two toons watching one spot and reporting different
+            // tiers is EVIDENCE the spot varies — keeping only the first would erase exactly the
+            // signal a predictor needs.
+            if (entry.TierCounts is { Count: > 0 })
+            {
+                match.TierCounts ??= [];
+                foreach (var kv in entry.TierCounts)
+                {
+                    match.TierCounts[kv.Key] = match.TierCounts.TryGetValue(kv.Key, out var seen)
+                        ? seen + kv.Value
+                        : kv.Value;
+                }
+
+                match.Tier = DominantTier(match);
+            }
+            else if (!string.Equals(entry.Tier, "Unknown", StringComparison.OrdinalIgnoreCase)
+                     && string.Equals(match.Tier, "Unknown", StringComparison.OrdinalIgnoreCase))
+            {
+                // Older export with no distribution — fold the scalar in as one observation.
+                CountTier(match, entry.Tier);
+            }
         }
 
         return added;
+    }
+
+    /// <summary>
+    /// Record one tier observation and refresh the convenience <see cref="ChestLedgerEntry.Tier"/>
+    /// field to whichever tier now leads. Ties keep the existing label rather than flapping.
+    /// </summary>
+    public static void CountTier(ChestLedgerEntry entry, string tierName)
+    {
+        if (entry is null || string.IsNullOrWhiteSpace(tierName))
+            return;
+
+        entry.TierCounts ??= [];
+        entry.TierCounts[tierName] = entry.TierCounts.TryGetValue(tierName, out var seen) ? seen + 1 : 1;
+        entry.Tier = DominantTier(entry);
+    }
+
+    /// <summary>The most-observed tier at a spot, or "Unknown" when nothing has been identified.</summary>
+    public static string DominantTier(ChestLedgerEntry entry)
+    {
+        if (entry?.TierCounts is not { Count: > 0 })
+            return entry?.Tier ?? "Unknown";
+
+        var best = "Unknown";
+        var bestCount = 0;
+        foreach (var kv in entry.TierCounts)
+        {
+            if (kv.Value > bestCount)
+            {
+                best = kv.Key;
+                bestCount = kv.Value;
+            }
+        }
+
+        return best;
+    }
+
+    /// <summary>True when a spot has produced more than one tier — the interesting case.</summary>
+    public static bool IsMixedTier(ChestLedgerEntry entry)
+    {
+        if (entry?.TierCounts is not { Count: > 1 })
+            return false;
+
+        var distinct = 0;
+        foreach (var kv in entry.TierCounts)
+        {
+            if (kv.Value > 0)
+                distinct++;
+        }
+
+        return distinct > 1;
     }
 
     private static ChestLedgerEntry? FindSpot(List<ChestLedgerEntry> ledger, ushort zone, Vector3 position)

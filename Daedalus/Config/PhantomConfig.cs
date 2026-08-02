@@ -13,8 +13,18 @@ public sealed class ChestLedgerEntry
     public float Y { get; set; }
     public float Z { get; set; }
 
-    /// <summary>Tier name — Bronze / Silver / Gold / Unknown.</summary>
+    /// <summary>Most-observed tier at this spot — a convenience view over <see cref="TierCounts"/>.</summary>
     public string Tier { get; set; } = "Unknown";
+
+    /// <summary>
+    /// How many times each tier has been seen at this spot, e.g. {"Bronze":3,"Silver":1}.
+    /// <para>
+    /// A spot can genuinely produce different tiers on different spawns, and two toons watching
+    /// the same spot will disagree. Keeping a single tier field threw that away — last write
+    /// won and the conflict vanished. A predictor needs the distribution, not the last sample.
+    /// </para>
+    /// </summary>
+    public Dictionary<string, int> TierCounts { get; set; } = [];
 
     public int TimesSeen { get; set; }
 

@@ -107,6 +107,65 @@ public sealed class ChestLedgerTests
         Assert.Equal("Silver", ledger[0].Tier);
     }
 
+    // ── A spot that produces more than one tier ──
+
+    /// <summary>
+    /// Field-observed: the same location reporting different qualities. Overwriting the tier
+    /// hid that entirely — the distribution is the whole point.
+    /// </summary>
+    [Fact]
+    public void Record_KeepsEveryTierSeenAtASpot()
+    {
+        var ledger = new List<ChestLedgerEntry>();
+        ChestLedger.Record(ledger, Zone, new Vector3(10, 0, 10), TreasureTier.Bronze, T0);
+        ChestLedger.Record(ledger, Zone, new Vector3(10, 0, 10), TreasureTier.Silver, T0.AddMinutes(5));
+        ChestLedger.Record(ledger, Zone, new Vector3(10, 0, 10), TreasureTier.Bronze, T0.AddMinutes(10));
+
+        var entry = Assert.Single(ledger);
+        Assert.Equal(2, entry.TierCounts["Bronze"]);
+        Assert.Equal(1, entry.TierCounts["Silver"]);
+        Assert.True(ChestLedger.IsMixedTier(entry));
+    }
+
+    [Fact]
+    public void Record_TierFieldTracksTheMostObservedTier()
+    {
+        var ledger = new List<ChestLedgerEntry>();
+        ChestLedger.Record(ledger, Zone, new Vector3(10, 0, 10), TreasureTier.Silver, T0);
+        ChestLedger.Record(ledger, Zone, new Vector3(10, 0, 10), TreasureTier.Bronze, T0.AddMinutes(5));
+        ChestLedger.Record(ledger, Zone, new Vector3(10, 0, 10), TreasureTier.Bronze, T0.AddMinutes(10));
+
+        Assert.Equal("Bronze", ledger[0].Tier);
+    }
+
+    [Fact]
+    public void IsMixedTier_IsFalseForAConsistentSpot()
+    {
+        var ledger = new List<ChestLedgerEntry>();
+        ChestLedger.Record(ledger, Zone, new Vector3(10, 0, 10), TreasureTier.Gold, T0);
+        ChestLedger.Record(ledger, Zone, new Vector3(10, 0, 10), TreasureTier.Gold, T0.AddMinutes(5));
+
+        Assert.False(ChestLedger.IsMixedTier(ledger[0]));
+    }
+
+    /// <summary>Two toons disagreeing about a spot is evidence, not a conflict to resolve.</summary>
+    [Fact]
+    public void Merge_SumsTierDistributionsAcrossToons()
+    {
+        var mine = new List<ChestLedgerEntry>();
+        ChestLedger.Record(mine, Zone, new Vector3(10, 0, 10), TreasureTier.Bronze, T0);
+
+        var theirs = new List<ChestLedgerEntry>();
+        ChestLedger.Record(theirs, Zone, new Vector3(10, 0, 10), TreasureTier.Gold, T0);
+
+        ChestLedger.Merge(mine, theirs);
+
+        var entry = Assert.Single(mine);
+        Assert.Equal(1, entry.TierCounts["Bronze"]);
+        Assert.Equal(1, entry.TierCounts["Gold"]);
+        Assert.True(ChestLedger.IsMixedTier(entry));
+    }
+
     [Fact]
     public void Record_StopsAtTheEntryCap()
     {
