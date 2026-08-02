@@ -56,6 +56,12 @@ public sealed class PhantomActionLayer
 
     private readonly Dictionary<uint, AbilityBehavior> _behaviorCache = [];
     private readonly List<string> _pushRejects = [];
+
+    /// <summary>
+    /// When each corpse was first seen dead, so the phantom raise can stop deferring to a living
+    /// healer that is not actually acting. Cleared as bodies get up or leave.
+    /// </summary>
+    private readonly Dictionary<ulong, DateTime> _deadSince = [];
     private bool _dispatchedThisFrame;
     private bool _framePrepared;
     private bool _isMovingThisFrame;
@@ -320,6 +326,16 @@ public sealed class PhantomActionLayer
             return;
 
         var (deadHealer, deadOther, livingHealer) = ScanPartyForRaise(ctx);
+
+        // Stop deferring once a body has lain there too long: a living healer that has not
+        // raised in ten seconds is not about to, and the deferral then means nobody does.
+        if (livingHealer && deadOther is not null
+            && SecondsDown(deadOther.GameObjectId) > PhantomBandRules.LivingHealerGraceSeconds)
+        {
+            livingHealer = false;
+            _pushRejects.Add("healer has not raised in time — stepping in");
+        }
+
         var decision = PhantomBandRules.DecideRaise(cfg, deadHealer != null, deadOther != null, livingHealer);
         if (decision == PhantomRaiseDecision.None)
             return;
@@ -373,13 +389,49 @@ public sealed class PhantomActionLayer
             if (System.Numerics.Vector3.DistanceSquared(ctx.Player.Position, chara.Position) > RaiseRangeSquared)
                 continue;
 
+            _deadSince.TryAdd(chara.GameObjectId, DateTime.UtcNow);
+
             if (isHealer)
                 deadHealer ??= chara;
             else
                 deadOther ??= chara;
         }
 
+        PruneDeadSince(ctx);
         return (deadHealer, deadOther, livingHealer);
+    }
+
+    /// <summary>How long this corpse has been down, or 0 when it has only just been seen.</summary>
+    private double SecondsDown(ulong gameObjectId)
+        => _deadSince.TryGetValue(gameObjectId, out var since)
+            ? (DateTime.UtcNow - since).TotalSeconds
+            : 0d;
+
+    /// <summary>Forget anyone who got up, so a later death starts its clock fresh.</summary>
+    private void PruneDeadSince(IRotationContext ctx)
+    {
+        if (_deadSince.Count == 0)
+            return;
+
+        var stillDown = new HashSet<ulong>();
+        foreach (var member in ctx.PartyList)
+        {
+            if (member?.GameObject is IBattleChara chara && chara.IsDead)
+                stillDown.Add(chara.GameObjectId);
+        }
+
+        if (stillDown.Count == _deadSince.Count)
+            return;
+
+        var gone = new List<ulong>();
+        foreach (var id in _deadSince.Keys)
+        {
+            if (!stillDown.Contains(id))
+                gone.Add(id);
+        }
+
+        foreach (var id in gone)
+            _deadSince.Remove(id);
     }
 
     private void PushPartyBuffs(IRotationContext ctx, PhantomJob job, byte level, bool inCombat)

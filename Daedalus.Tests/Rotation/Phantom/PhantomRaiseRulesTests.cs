@@ -1,4 +1,4 @@
-using Daedalus.Config;
+﻿using Daedalus.Config;
 using Daedalus.Rotation.Phantom;
 using Xunit;
 
@@ -69,5 +69,32 @@ public sealed class PhantomRaiseRulesTests
     public void UsePhantomRaise_DefaultsOn()
     {
         Assert.True(new PhantomConfig().UsePhantomRaise);
+    }
+
+    /// <summary>
+    /// "Leave it to the living healer" assumes the healer acts. Field evidence says it often
+    /// does not — out of range, out of MP, or blocked by something still unpinned — and the
+    /// deferral then means nobody raises at all. After the grace period the caller drops
+    /// livingHealerPresent so the phantom steps in.
+    /// </summary>
+    [Fact]
+    public void DecideRaise_StepsInOnceTheHealerHasBeenGivenItsChance()
+    {
+        var deferred = PhantomBandRules.DecideRaise(Config(),
+            deadHealerPresent: false, deadOtherPresent: true, livingHealerPresent: true);
+        var afterGrace = PhantomBandRules.DecideRaise(Config(),
+            deadHealerPresent: false, deadOtherPresent: true, livingHealerPresent: false);
+
+        Assert.Equal(PhantomRaiseDecision.None, deferred);
+        Assert.Equal(PhantomRaiseDecision.RaiseOther, afterGrace);
+    }
+
+    /// <summary>Long enough for a Swiftcast raise or an 8s hardcast to land first when things work.</summary>
+    [Fact]
+    public void LivingHealerGrace_OutlastsAHardcastRaise()
+    {
+        Assert.True(PhantomBandRules.LivingHealerGraceSeconds >= 8f);
+        Assert.True(PhantomBandRules.LivingHealerGraceSeconds <= 20f,
+            "any longer and the corpse is released before the phantom bothers");
     }
 }

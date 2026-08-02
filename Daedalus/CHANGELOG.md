@@ -5,6 +5,10 @@ All notable changes to Daedalus will be documented in this file.
 <!-- LATEST-START -->
 ## v0.1.50 — unreleased
 
+### Fix — Phantom raise no longer waits forever on a healer
+- Phantom raises deliberately leave a dead DPS to a living healer, since the healer's raise is better. But if that healer doesn't act — out of range, out of MP, or otherwise stuck — nobody was raising them at all
+- The phantom now gives the healer **ten seconds** and then steps in. A dead *healer* is still raised immediately, as before
+
 ### New — Phantom Blue Mage
 - The Blue Mage kit is now played: **Occult Aqua Breath** leads (300 unaspected in a splash beats single-target Aero whenever more than one enemy is there), **Occult Missile** while the target is still healthy — it's a coin flip for 75% of *current* HP, so it's worth most early — then the best **Occult Aero** grade you've learned
 - **Occult Mighty Guard** goes out as party mitigation, and **Occult White Wind** heals for your *current* HP, so it fires while you still have HP worth copying rather than being saved until it would heal for nothing

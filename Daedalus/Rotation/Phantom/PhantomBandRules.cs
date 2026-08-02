@@ -30,6 +30,18 @@ public static class PhantomBandRules
     /// a dead DPS is left to a living healer — the healer's raise is stronger and the phantom
     /// caster is usually mid-rotation. With no healer alive, anyone is worth raising.
     /// </summary>
+    /// <summary>
+    /// How long a corpse may lie there with a living healer present before the phantom stops
+    /// deferring and raises it anyway.
+    /// <para>
+    /// "Leave it to the healer" assumes the healer will act. Field evidence says that assumption
+    /// fails often enough to matter — a healer can be out of range, out of MP, or blocked by
+    /// something none of us has pinned down yet — and the deferral then means nobody raises at
+    /// all. Long enough that a Swiftcast raise or an 8s hardcast lands first when things work.
+    /// </para>
+    /// </summary>
+    public const float LivingHealerGraceSeconds = 10f;
+
     public static PhantomRaiseDecision DecideRaise(
         PhantomConfig cfg, bool deadHealerPresent, bool deadOtherPresent, bool livingHealerPresent)
     {
