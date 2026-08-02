@@ -211,7 +211,12 @@ public sealed class PhantomActionLayer
         // ever casting it. Field 2026-08-02: Sage raises worked everywhere EXCEPT the Horns —
         // which is exactly where this layer runs. A phantom cast is worth a fraction of getting
         // a player back on their feet, so the window goes to the job.
-        if (_actionService.CanExecuteGcd && !RaisePendingForJob(ctx))
+        // ...unless the thing WE queued is itself the raise. Occult Raise is ActionCategory 2
+        // (Spell), so despite being instant-cast it goes in the GCD queue — meaning the yield
+        // above, added to stop phantom casts starving a healer's Raise, was starving the
+        // phantom's OWN raise instead. Field 2026-08-02: "raising Rosa Discord (instant)" stuck
+        // at "1 queued, no free slot" while a body lay in front of it.
+        if (_actionService.CanExecuteGcd && (_raiseQueuedThisFrame || !RaisePendingForJob(ctx)))
             _scheduler.DispatchGcd(ctx);
     }
 
@@ -357,11 +362,11 @@ public sealed class PhantomActionLayer
 
         var (deadHealer, deadOther, livingHealer) = ScanPartyForRaise(ctx);
 
-        // Occult Raise is an INSTANT oGCD, so it never competes with the healer's raise — it
-        // costs a weave slot, not the GCD they need, and the raise-pending check already stops
-        // a double raise. Deferring it buys nothing and can cost the body: the Occult death
-        // timer can return someone to base well inside the grace period. Chemist's Revive is a
-        // hardcast and does compete, so that one still waits its turn.
+        // Occult Raise is INSTANT (Cast100ms 0) though it is ActionCategory 2 and so occupies
+        // the GCD — an earlier note here claimed it was an oGCD costing only a weave, which was
+        // wrong. It still should not wait: the cast is instantaneous, the recast is 5s, and the
+        // Occult death timer can return a body to base inside any grace period. Chemist's Revive
+        // is a genuine hardcast and does compete, so that one still waits its turn.
         var instantRaise = raiseId == OccultRaiseId;
         if (instantRaise)
         {

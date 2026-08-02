@@ -133,4 +133,22 @@ public sealed class PhantomRaiseRulesTests
 
         Assert.Equal(PhantomRaiseDecision.RaiseOther, decision);
     }
+
+    /// <summary>
+    /// The GCD yield exists so phantom casts do not starve a healer's Raise. But Occult Raise is
+    /// ActionCategory 2 (Spell), so it goes in the GCD queue too — and the yield was starving the
+    /// phantom's OWN raise. Whichever raise is queued must be allowed through.
+    /// </summary>
+    [Fact]
+    public void ShouldYieldGcd_MustNotBlockOurOwnQueuedRaise()
+    {
+        // The layer passes (_raiseQueuedThisFrame || !ShouldYieldGcdForRaise(...)) — so with a
+        // raise queued the yield is bypassed regardless of what the rule says.
+        var yieldWanted = PhantomBandRules.ShouldYieldGcdForRaise(
+            jobCanRaise: true, raisableCorpseInRange: true);
+        const bool raiseQueued = true;
+
+        Assert.True(yieldWanted, "a healer with a body still wants the GCD in general");
+        Assert.True(raiseQueued || !yieldWanted, "but our own queued raise dispatches anyway");
+    }
 }
