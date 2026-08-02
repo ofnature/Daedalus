@@ -383,7 +383,7 @@ public sealed class PhantomActionLayer
         if (decision == PhantomRaiseDecision.None)
         {
             _phantomJobs.RaiseState = deadHealer is null && deadOther is null
-                ? "nobody down in range"
+                ? DescribeNoRaiseTarget(ctx)
                 : $"holding — waiting on the healer ({SecondsDown(deadOther!.GameObjectId):F0}s)";
             return;
         }
@@ -480,6 +480,48 @@ public sealed class PhantomActionLayer
         }
 
         return false;
+    }
+
+    /// <summary>
+    /// Why the scan found nothing. "Nobody down in range" hid three different situations — an
+    /// actually-empty party, a body beyond the 30y cast range, and a body whose object we cannot
+    /// read at all — and nothing moves a phantom job toward a corpse, so the middle case can
+    /// persist indefinitely while reading as though there were nothing to do.
+    /// </summary>
+    private string DescribeNoRaiseTarget(IRotationContext ctx)
+    {
+        var nearest = float.MaxValue;
+        var unreadable = 0;
+
+        foreach (var member in ctx.PartyList)
+        {
+            if (member is null || member.GameObject is null)
+            {
+                unreadable++;
+                continue;
+            }
+
+            if (member.GameObject is not IBattleChara chara
+                || chara.GameObjectId == ctx.Player.GameObjectId
+                || !chara.IsDead)
+            {
+                continue;
+            }
+
+            if (HasStatus(chara, RaisePendingStatusId))
+                return $"{chara.Name?.TextValue} already has a raise pending";
+
+            var distance = System.Numerics.Vector3.Distance(ctx.Player.Position, chara.Position);
+            if (distance < nearest)
+                nearest = distance;
+        }
+
+        if (nearest < float.MaxValue)
+            return $"dead ally {nearest:F0}y away — out of 30y range";
+
+        return unreadable > 0
+            ? $"nobody down ({unreadable} party member(s) not readable from here)"
+            : "nobody down";
     }
 
     /// <summary>How long this corpse has been down, or 0 when it has only just been seen.</summary>
