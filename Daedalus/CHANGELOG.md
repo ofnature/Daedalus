@@ -3,7 +3,21 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
-## v0.1.49 — unreleased
+## v0.1.49 — 2026-08-02
+
+### New — Enemy table grows again
+- The built-in Occult enemy table is up to **234 enemies** across both Horns, merged from live play. Elemental weaknesses fill in as they're revealed, so the element pickers (Necromancer trio, Ninja scrolls, Red Mage nukes) pick correctly on more of the zone
+
+### Fix — Healers now tell you why a raise didn't happen
+- A raise that never fires used to be silent. The reason now goes to the **Debug Log** the moment it changes, so you don't need a panel open to catch it
+- **"No target" was hiding an out-of-range body.** The finder filters by spell range, so a corpse 200y away looked identical to nobody being dead — it now says *"Dead ally 240y away — out of 30y raise range"*
+- Also detects the Occult resurrection-block statuses, for the content where ordinary raises genuinely cannot land
+
+### Fix — A broken phantom layer no longer claims it's idle
+- If the phantom layer hit an error it silently stopped doing anything while the Duty tab kept reporting "idle — nothing eligible". It now says it faulted, and what the error was
+
+### Debug — Deaths are timed
+- Every death is logged with how long it lasted and whether it ended in a **raise** or a **release**, which separates "nobody could reach me" from "something clicked the return prompt for me"
 
 ### Fix — "Save damage for burst" is now switched off for everyone
 - Phantom nukes hit far harder than your own job's GCDs, so holding them for a burst window just leaves that damage unspent. The setting has defaulted **off** since the last update, but that only applied to brand-new configs — anyone who'd used Daedalus before kept it on, and their phantom jobs sat there healing and doing nothing else
