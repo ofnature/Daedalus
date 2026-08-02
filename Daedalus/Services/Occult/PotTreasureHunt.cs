@@ -280,6 +280,55 @@ public sealed class PotTreasureHunt : IDisposable
     public float? MaxObservedAngularErrorDegrees
         => MaxObservedAngularErrorRadians is { } radians ? radians * 180f / MathF.PI : null;
 
+    /// <summary>
+    /// Samples required before the arc is tightened from its 22.5° default. Counts READINGS,
+    /// not hunts — each hunt contributes one per elixir use, so this is perhaps twenty to thirty
+    /// hunts. Raise it if you want a hundred actual runs behind the number.
+    /// </summary>
+    public const int MinCalibrationSamples = 100;
+
+    /// <summary>One degree of headroom over the worst reading ever seen.</summary>
+    public const float CalibrationMarginRadians = MathF.PI / 180f;
+
+    /// <summary>How many readings have been measured against a find so far.</summary>
+    public int CalibrationSampleCount => _config?.PotHuntCalibration.Count ?? 0;
+
+    /// <summary>
+    /// The arc half-width to actually use: 22.5° until there is enough evidence, then the worst
+    /// error ever observed plus a degree of headroom.
+    /// <para>
+    /// Deliberately conservative in both directions. It holds at the default until
+    /// <see cref="MinCalibrationSamples"/> readings are in, because the observed maximum is a
+    /// LOWER BOUND that only grows — tighten to 17° after three hunts and the next genuine 18°
+    /// case is silently excluded, which sends you confidently to the wrong place with no
+    /// indication anything is wrong. It also never exceeds 22.5°, since eight compass words
+    /// cannot mean more than that; a measurement above the ceiling is a bug to investigate, not
+    /// an arc to widen.
+    /// </para>
+    /// </summary>
+    public float SuggestedHalfAngleRadians
+    {
+        get
+        {
+            if (CalibrationSampleCount < MinCalibrationSamples)
+                return PotTreasureTriangulation.DefaultHalfAngleRadians;
+
+            if (MaxObservedAngularErrorRadians is not { } worst || worst <= 0f)
+                return PotTreasureTriangulation.DefaultHalfAngleRadians;
+
+            return MathF.Min(
+                PotTreasureTriangulation.DefaultHalfAngleRadians,
+                worst + CalibrationMarginRadians);
+        }
+    }
+
+    /// <summary>The same figure in degrees, for anything user-facing.</summary>
+    public float SuggestedHalfAngleDegrees => SuggestedHalfAngleRadians * 180f / MathF.PI;
+
+    /// <summary>True once the suggestion is measured rather than the shipped default.</summary>
+    public bool IsArcCalibrated
+        => CalibrationSampleCount >= MinCalibrationSamples && MaxObservedAngularErrorRadians > 0f;
+
     /// <summary>Drop the current hunt's readings. A new hunt must never inherit old bearings.</summary>
     public void Reset()
     {

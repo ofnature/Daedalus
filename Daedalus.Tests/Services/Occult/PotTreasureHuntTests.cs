@@ -134,6 +134,68 @@ public sealed class PotTreasureHuntTests
         Assert.Null(Hunt().MaxObservedAngularErrorDegrees);
     }
 
+    // ── Suggested arc ──
+
+    private static PhantomConfig ConfigWithSamples(int count, float worstErrorRadians)
+    {
+        var config = new PhantomConfig();
+        for (var i = 0; i < count; i++)
+        {
+            config.PotHuntCalibration.Add(new PotHuntCalibrationSample
+            {
+                Band = "Within",
+                AngularErrorRadians = i == 0 ? worstErrorRadians : worstErrorRadians * 0.5f,
+            });
+        }
+
+        return config;
+    }
+
+    /// <summary>
+    /// The observed maximum is a lower bound that only grows. Tightening to it after a handful
+    /// of hunts means the next genuinely wider reading is silently excluded — so hold at the
+    /// default until there is real evidence.
+    /// </summary>
+    [Fact]
+    public void SuggestedHalfAngle_HoldsAtTheDefaultUntilEnoughSamples()
+    {
+        var hunt = Hunt(ConfigWithSamples(PotTreasureHunt.MinCalibrationSamples - 1, 0.20f));
+
+        Assert.Equal(PotTreasureTriangulation.DefaultHalfAngleRadians, hunt.SuggestedHalfAngleRadians, precision: 5);
+        Assert.False(hunt.IsArcCalibrated);
+    }
+
+    [Fact]
+    public void SuggestedHalfAngle_TightensToTheWorstReadingPlusAMargin()
+    {
+        var hunt = Hunt(ConfigWithSamples(PotTreasureHunt.MinCalibrationSamples, 0.20f));
+
+        Assert.True(hunt.IsArcCalibrated);
+        Assert.Equal(0.20f + PotTreasureHunt.CalibrationMarginRadians, hunt.SuggestedHalfAngleRadians, precision: 5);
+        Assert.True(hunt.SuggestedHalfAngleDegrees < 22.5f, "a 0.2 rad worst case should tighten the arc");
+    }
+
+    /// <summary>
+    /// Eight compass words cannot mean more than ±22.5°, so a measurement above the ceiling is a
+    /// bug to investigate — never an arc to widen past it.
+    /// </summary>
+    [Fact]
+    public void SuggestedHalfAngle_NeverExceedsTheCompassCeiling()
+    {
+        var hunt = Hunt(ConfigWithSamples(PotTreasureHunt.MinCalibrationSamples, 1.2f));
+
+        Assert.Equal(PotTreasureTriangulation.DefaultHalfAngleRadians, hunt.SuggestedHalfAngleRadians, precision: 5);
+    }
+
+    [Fact]
+    public void SuggestedHalfAngle_FallsBackWhenSamplesCarryNoError()
+    {
+        var hunt = Hunt(ConfigWithSamples(PotTreasureHunt.MinCalibrationSamples, 0f));
+
+        Assert.Equal(PotTreasureTriangulation.DefaultHalfAngleRadians, hunt.SuggestedHalfAngleRadians, precision: 5);
+        Assert.False(hunt.IsArcCalibrated);
+    }
+
     [Fact]
     public void MaxObservedActivationRadius_IgnoresAnEmptySampleSet()
     {
