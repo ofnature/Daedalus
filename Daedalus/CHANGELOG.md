@@ -3,6 +3,13 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.51 — unreleased
+
+### Fix — One toon pulling no longer drags the whole fleet into combat
+- "Start when a party member is in combat" had **no distance limit**, so a single toon pulling put every other box into combat anywhere in the zone. They'd then each engage whatever hostile happened to be within range of *them*, and healers would start firing heals, all while stood on the far side of the map
+- An ally's fight now only counts as yours if they're within 50y — wide enough for a pull spread across a large arena, nowhere near a whole zone
+
+<!-- LATEST-END -->
 ## v0.1.50 — 2026-08-02
 
 ### Fix — Healers can raise again in Occult Crescent
@@ -21,7 +28,6 @@ All notable changes to Daedalus will be documented in this file.
 - **Occult Mighty Guard** goes out as party mitigation, and **Occult White Wind** heals for your *current* HP, so it fires while you still have HP worth copying rather than being saved until it would heal for nothing
 - Blue Mage learns its actions from enemies rather than by level, so anything you haven't learned simply stays unslotted and is skipped
 
-<!-- LATEST-END -->
 ## v0.1.49 — 2026-08-02
 
 ### New — Enemy table grows again
