@@ -3,7 +3,7 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
-## v0.1.51 — unreleased
+## v0.1.51 — 2026-08-02
 
 ### Fix — Phantom White Mage raises immediately
 - **Occult Raise** was waiting to see whether a living healer would do it first. That deferral makes sense for a slow hardcast, but Occult Raise is an instant ability — it costs a weave, not the cast your healer needs — so waiting bought nothing and could cost the body, since the death timer can send someone back to base before the wait was over

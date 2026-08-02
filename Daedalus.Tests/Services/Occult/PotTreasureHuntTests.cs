@@ -1,4 +1,4 @@
-using System.Numerics;
+﻿using System.Numerics;
 using Daedalus.Config;
 using Daedalus.Services.Occult;
 using Xunit;
@@ -203,5 +203,19 @@ public sealed class PotTreasureHuntTests
         config.ActivationRadiusSamples.Add(0f);
 
         Assert.Null(Hunt(config).MaxObservedActivationRadius);
+    }
+
+    /// <summary>
+    /// The find must be recorded ONCE. It previously fired every tick the coffer stayed visible,
+    /// producing 500 activation samples from a handful of hunts — none of them the trigger
+    /// distance, since the player kept walking while it logged.
+    /// </summary>
+    [Fact]
+    public void FindProximity_RejectsACofferTooFarToBeThisHuntsOne()
+    {
+        Assert.True(PotTreasureHunt.FindProximityYalms > PotTreasureTriangulation.ImmediateRangeYalms,
+            "must at least cover the 'immediately' band");
+        Assert.True(PotTreasureHunt.FindProximityYalms < 50f,
+            "a coffer across the field is an ordinary world chest, not this hunt's");
     }
 }

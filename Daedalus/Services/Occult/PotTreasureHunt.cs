@@ -27,6 +27,14 @@ public sealed class PotTreasureHunt : IDisposable
     /// <summary>Keep the sample lists bounded; far more than enough to pin either number.</summary>
     public const int MaxSamples = 500;
 
+    /// <summary>
+    /// A coffer further than this is not the one this hunt just revealed. The hunt coffer only
+    /// spawns once you are in interact range, so a coffer across the field is an ordinary world
+    /// chest — pairing readings against those produced 159-degree "angular errors" and a
+    /// "VeryFar" reading measured at 6y.
+    /// </summary>
+    public const float FindProximityYalms = 20f;
+
     private readonly IChatGui? _chatGui;
     private readonly IObjectTable? _objectTable;
     private readonly IClientState? _clientState;
@@ -36,6 +44,14 @@ public sealed class PotTreasureHunt : IDisposable
 
     private readonly List<ElixirBearing> _bearings = [];
     private bool _huntActive;
+
+    /// <summary>
+    /// The find has already been recorded for this hunt. Without it OnCofferFound ran every tick
+    /// the coffer stayed visible, logging the player's distance each frame — 500 "activation
+    /// radius" samples from a handful of hunts, spanning 3y to 126y, none of which was the
+    /// trigger distance.
+    /// </summary>
+    private bool _foundThisHunt;
     private ushort _lastZone;
     private bool _subscribed;
 
@@ -124,7 +140,11 @@ public sealed class PotTreasureHunt : IDisposable
             if (!ChestLedger.IsCofferName(obj.Name.TextValue))
                 continue;
 
-            OnCofferFound(obj.Position, Vector3.Distance(player.Position, obj.Position));
+            var distance = Vector3.Distance(player.Position, obj.Position);
+            if (distance > FindProximityYalms)
+                continue;
+
+            OnCofferFound(obj.Position, distance);
             return;
         }
     }
@@ -157,6 +177,10 @@ public sealed class PotTreasureHunt : IDisposable
     /// </summary>
     private void OnCofferFound(Vector3 position, float playerDistance)
     {
+        if (_foundThisHunt)
+            return;
+
+        _foundThisHunt = true;
         LastFoundAt = position;
         LastFindContradictedReadings = _bearings.Count > 0
             && !PotTreasureTriangulation.AllReadingsAgreeWith(_bearings, position);
@@ -334,6 +358,7 @@ public sealed class PotTreasureHunt : IDisposable
     {
         _bearings.Clear();
         _huntActive = false;
+        _foundThisHunt = false;
     }
 
     private static bool IsTreasureHuntActive(Dalamud.Game.ClientState.Objects.SubKinds.IPlayerCharacter? player)
