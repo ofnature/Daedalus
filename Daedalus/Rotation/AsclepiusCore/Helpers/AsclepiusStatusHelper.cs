@@ -244,14 +244,7 @@ public sealed class AsclepiusStatusHelper : BaseStatusHelper
         IObjectTable objectTable,
         IPartyList partyList)
     {
-        if (!HasKardia(player))
-            return false;
-
-        // Defense in depth: inference can never attribute an invisible buff to a caster — with
-        // a co-Sage present, "somebody's Kardion is on the tank" proves nothing about OURS.
-        if (HasCoSage(player, partyList))
-            return false;
-
+        var anotherAllyBearsKardion = false;
         if (partyList.Length > 0)
         {
             foreach (var member in partyList)
@@ -263,11 +256,49 @@ public sealed class AsclepiusStatusHelper : BaseStatusHelper
                     continue;
 
                 if (TryDetectKardionOn(chara, player, objectTable, partyList, out _))
-                    return false;
+                {
+                    anotherAllyBearsKardion = true;
+                    break;
+                }
             }
         }
 
-        return true;
+        return CanInferKardionOnTank(
+            HasKardia(player),
+            HasCoSage(player, partyList),
+            tankStatusesReadable: tank.StatusList != null,
+            anotherAllyBearsKardion);
+    }
+
+    /// <summary>
+    /// The inference rule, pure so it can be tested — the version buried in the scan above got
+    /// this wrong and cost a tank its Kardion for a whole zone.
+    /// <para>
+    /// Inference is a last resort for a tank whose statuses we CANNOT see. When the tank's own
+    /// status list is readable the scan has already looked there, so an absent Kardion is
+    /// genuinely absent; concluding otherwise makes <c>PrimeTankKardionLatch</c> confirm a guess
+    /// and suppress the recast permanently. Field 2026-08-01 (Occult Crescent): Debug read
+    /// "Kardion on tank (pre-pull)" against a tank with no buff, and Kardia never fired.
+    /// </para>
+    /// <para>
+    /// With a co-Sage present it also proves nothing — "somebody's Kardion is on the tank" says
+    /// nothing about whose.
+    /// </para>
+    /// </summary>
+    public static bool CanInferKardionOnTank(
+        bool playerHasKardia,
+        bool coSagePresent,
+        bool tankStatusesReadable,
+        bool anotherAllyBearsKardion)
+    {
+        if (!playerHasKardia)
+            return false;
+        if (coSagePresent)
+            return false;
+        if (tankStatusesReadable)
+            return false;
+
+        return !anotherAllyBearsKardion;
     }
 
     /// <summary>

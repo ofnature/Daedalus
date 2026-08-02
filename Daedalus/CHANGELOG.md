@@ -5,6 +5,9 @@ All notable changes to Daedalus will be documented in this file.
 <!-- LATEST-START -->
 ## v0.1.48 — unreleased
 
+### Fix — Sage never placed Kardia on the tank
+- Kardia could decide the tank already had Kardion **without ever seeing the buff** — it assumed so whenever no one else visibly carried it, then locked that guess in and suppressed the recast for good. The tank went the whole zone with no Kardion while the Debug panel cheerfully reported "Kardion on tank". It now trusts the tank's actual buffs whenever it can read them, and only falls back to assuming when the tank genuinely can't be seen
+
 ### New — Pot FATEs say which spot they are
 - Each Horn runs a **northern and a southern** pot spot, and the coffer tier looks tied to the spot rather than the zone — inside North Horn the northern spot has produced gold coffers while the southern one produced bronze. The HUD now labels them: *Daylight Pottery (north pots)*, *In a Pot of Bother (south pots)*, and the same for South Horn's pair
 
