@@ -516,6 +516,18 @@ public sealed unsafe class ActionService : IActionService
             return false;
         }
 
+        // Pre-face retry: the previous submit at this target died on the facing check (BMR
+        // steering leaves the character faced along its movement, and even forced auto-face
+        // provably fails there — the BLU evade case). Rotation is written in the instant before
+        // our own submit, the one slot movement cannot immediately overwrite. NEVER during a
+        // look-away: turning into a gaze to land a Dosis is a death trade.
+        if (_faceRetryTargetId != 0 && _faceRetryTargetId == targetId)
+        {
+            if (!Daedalus.Rotation.Common.Helpers.PlayerSafetyHelper.IsLookAwayMechanicActive(_objectTable))
+                FaceTargetDirectly(targetId);
+            _faceRetryTargetId = 0;
+        }
+
         var dispatchId = actionManager->GetAdjustedActionId(action.ActionId);
         if (ShouldBlockRepeatGcd(dispatchId, actionManager))
         {
@@ -1199,6 +1211,7 @@ public sealed unsafe class ActionService : IActionService
                 ? $"submitted but not cast (game status {status})"
                 : "submitted but not cast (line-of-sight / facing / moving?)";
         TryFaceRecovery(_lastSubmittedDispatchId, _lastSubmittedTargetId);
+        _faceRetryTargetId = _lastSubmittedTargetId;
         LogCastRefusal(_lastSubmittedActionName, _lastSubmittedDispatchId, _lastSubmittedTargetId,
             submittedNotCast: true);
     }
@@ -1230,6 +1243,14 @@ public sealed unsafe class ActionService : IActionService
     }
 
     private DateTime _lastFacingRecoveryUtc = DateTime.MinValue;
+
+    /// <summary>
+    /// A GCD at this target was just dropped for facing — pre-face the very next submit.
+    /// One-shot: writing rotation every frame while BMR steers would fight the dodge itself;
+    /// writing it once, in the instant before our own retry, is the only slot that sticks
+    /// (same finding as the raise). Cleared on use.
+    /// </summary>
+    private ulong _faceRetryTargetId;
 
     /// <inheritdoc/>
     public void NotifyFacingRejection(ulong targetId)

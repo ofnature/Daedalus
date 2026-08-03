@@ -5,6 +5,10 @@ All notable changes to Daedalus will be documented in this file.
 <!-- LATEST-START -->
 ## v0.1.53 — unreleased
 
+### Fix — Casts stop dying to facing while BossMod steers
+- The mid-fight stall fingerprint, caught live: *"submitted but not cast: Dosis III — facing/line-of-sight"*, then a 4-second gap. While BossMod runs you out of danger your character faces the movement direction, so every cast at the boss — **instants included** — dies on the facing check, and turning you back after the failure loses to the very next movement frame
+- When a cast drops for facing, the character now turns toward the target **in the instant before the retry** — the one moment movement can't overwrite it. Never during a look-away mechanic: turning into a gaze to land a cast is a death trade, so the gaze guard wins
+
 ### Debug — Combat summaries stop hiding excused downtime
 - "Uptime 100%" only ever meant *no unforced idling* — a fight could contain two 12-second GCD stalls binned as movement or mechanic time and the summary wouldn't breathe a word. The combat-end line now names them: *"144s, uptime 100% — excused: movement 18s, mechanic 6s"*. The excuses may be legitimate; they must be visible
 - "Stuck" reports no longer list the dup-guard's own *"already submitted"* echo — but game status 582 stays visible on purpose, since a sustained 582 streak turned out to be the only symptom those stalls had
