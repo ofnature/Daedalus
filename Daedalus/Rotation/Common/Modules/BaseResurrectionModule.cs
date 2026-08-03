@@ -271,6 +271,30 @@ public abstract class BaseResurrectionModule<TContext> : IHealerRotationModule<T
             // "wait for Swiftcast" waits for the impossible. Field 2026-08-02: battle ended and
             // the toon was simply left dead, state frozen at "Waiting for Swiftcast (0.0s)".
             var canWaitForSwiftcast = context.InCombat && swiftcastCooldown <= 10f;
+            // Committing to an 8s cast must not outrank staying alive: the hold pauses BMR's
+            // dodging for the whole cast, so starting a hardcast on unsafe ground is how the
+            // healer dies mid-raise (field 2026-08-02 — the raise finally fired, and the caster
+            // died casting it). Also skip while too hurt to survive unhealable chip damage.
+            // Fail-open: no BMR means QueryPositionSafety says Safe. OOC both checks pass.
+            if (!canWaitForSwiftcast && context.InCombat)
+            {
+                var casterHpPct = player.MaxHp > 0 ? (float)player.CurrentHp / player.MaxHp : 1f;
+                if (casterHpPct < 0.40f)
+                {
+                    SetRaiseState(context, $"Too hurt to hardcast ({casterHpPct:P0})");
+                    return false;
+                }
+
+                if (Daedalus.Rotation.Base.RotationServices.BossModSafety is { IsAvailable: true } bmrSafety
+                    && bmrSafety.QueryPositionSafety(player.Position, 9f)
+                        is Daedalus.Services.Positional.Navigation.PositionSafety.Unsafe
+                        or Daedalus.Services.Positional.Navigation.PositionSafety.Imminent)
+                {
+                    SetRaiseState(context, "Hardcast unsafe here — ground danger inside the cast window");
+                    return false;
+                }
+            }
+
             if (!canWaitForSwiftcast && isMoving)
             {
                 Daedalus.Services.Positional.RaiseCastHold.Request(10f);

@@ -11,6 +11,10 @@ All notable changes to Daedalus will be documented in this file.
 ### Debug — The object labeller now reads the game's own markers
 - Mobs carrying a **client-drawn marker** — the quest gold icon, hunt-bill tags, and the rest — are now stamped with the marker's icon id. That number is how a marker you can see becomes a filter the plugin can act on, the same route the carrot and Knowledge Crystal ids took
 
+### Fix — Hardcasting a raise no longer gets the healer killed
+- The 8-second hardcast plants the healer and pauses BossMod's dodging for the whole cast — so the raise finally firing revealed the next problem: the caster dying mid-cast. Two guards now apply: a hardcast **won't start** on ground that turns dangerous inside the cast window or below 40% HP, and if danger appears **under** the caster mid-cast, the movement hold releases so BossMod dodges — the cast interrupts, which beats dying with the raise half-finished
+- Both checks fail open without BossMod, and neither applies out of combat
+
 ### Fix — Raises have been silently broken since late July — now actually fixed
 - A safeguard added on July 28th (to stop "Invalid target." toasts on dying trash) rejected **every action aimed at a dead target** — which is every raise, everywhere, on every healer. The scheduler's own readout finally said it plainly: *"Egeiro: Target dead"* while a party member lay dead through the last 20% of a boss. Raises may now target the dead; everything else keeps the safeguard
 - Second bug in the same fight: after combat ended the Sage sat at *"Waiting for Swiftcast"* forever, because Swiftcast physically cannot be cast out of combat — abilities only fire in combat. Out of combat healers now **hardcast the raise immediately**, which is free when nothing is attacking you

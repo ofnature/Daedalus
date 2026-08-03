@@ -1752,6 +1752,24 @@ public sealed class Plugin : IDalamudPlugin
             // stationary (edge-toggled; the hold is expiry-driven so it can never stick).
             {
                 var holdActive = Daedalus.Services.Positional.RaiseCastHold.Active;
+
+                // Mid-cast bail: the hold pauses BMR's dodging, so if the ground turns deadly
+                // UNDER the caster, holding on kills them. Release, let BMR dodge — the cast
+                // interrupts, which beats dying with the raise half-finished.
+                if (holdActive
+                    && bossModSafetyService.IsAvailable
+                    && objectTable.LocalPlayer is { } raiseHolder
+                    && bossModSafetyService.QueryPositionSafety(raiseHolder.Position, 2f)
+                        is Daedalus.Services.Positional.Navigation.PositionSafety.Unsafe
+                        or Daedalus.Services.Positional.Navigation.PositionSafety.Imminent)
+                {
+                    Daedalus.Services.Positional.RaiseCastHold.Clear();
+                    holdActive = false;
+                    debugLogService.Log(Daedalus.Services.Debug.DebugLogCategory.Nav,
+                        Daedalus.Services.Debug.DebugLogSeverity.Warning,
+                        "Raise hold released — ground danger under the caster; letting BMR dodge (cast interrupts)");
+                }
+
                 if (holdActive != _raiseHoldPaused)
                 {
                     bmrAiConfigService.SetAiMovementPaused(holdActive);
