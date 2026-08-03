@@ -3,7 +3,7 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
-## v0.1.52 — unreleased
+## v0.1.52 — 2026-08-02
 
 ### New — Lines to marked mobs
 - A new Draw Helper toggle draws a **magenta line to any mob the game itself has marked** — quest targets, hunt bills, and the Occult quest-drop mark — so you can see where they are within range instead of scanning nameplates. Unlike the chest and carrot lines these stay visible **in combat**, since the marked mobs are the reason you're fighting

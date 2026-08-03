@@ -21,7 +21,7 @@
     "CriticalEncounter": "Lost on the Wind",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T20:25:53.1715750Z"
+    "LastSeenUtc": "2026-08-02T22:50:31.8592959Z"
   },
   {
     "NameId": 14507,
@@ -33,7 +33,7 @@
     "CriticalEncounter": "Lost on the Wind",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T16:33:44.0166985Z"
+    "LastSeenUtc": "2026-08-02T22:49:57.5874758Z"
   },
   {
     "NameId": 14727,
@@ -45,7 +45,7 @@
     "CriticalEncounter": "",
     "SeenInFate": true,
     "Fate": "Eye to Eye",
-    "LastSeenUtc": "2026-08-02T17:52:24.3661584Z"
+    "LastSeenUtc": "2026-08-02T22:09:15.4680679Z"
   },
   {
     "NameId": 14509,
@@ -177,7 +177,7 @@
     "CriticalEncounter": "",
     "SeenInFate": true,
     "Fate": "Waved Away",
-    "LastSeenUtc": "2026-08-02T18:10:24.9905851Z"
+    "LastSeenUtc": "2026-08-02T22:37:27.7554017Z"
   },
   {
     "NameId": 14791,
@@ -232,12 +232,12 @@
     "Name": "Ball of Levin",
     "TerritoryId": 1346,
     "Elements": 0,
-    "MaxHp": 659050,
+    "MaxHp": 822871,
     "SeenInCriticalEncounter": false,
     "CriticalEncounter": "",
     "SeenInFate": true,
     "Fate": "Thunderregnum",
-    "LastSeenUtc": "2026-08-02T20:09:46.5859885Z"
+    "LastSeenUtc": "2026-08-02T22:30:08.7700613Z"
   },
   {
     "NameId": 14904,
@@ -249,7 +249,7 @@
     "CriticalEncounter": "",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T19:58:15.0912291Z"
+    "LastSeenUtc": "2026-08-02T20:59:43.8209461Z"
   },
   {
     "NameId": 14506,
@@ -261,7 +261,7 @@
     "CriticalEncounter": "Lost on the Wind",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T16:35:11.0531816Z"
+    "LastSeenUtc": "2026-08-02T22:50:25.7890947Z"
   },
   {
     "NameId": 14777,
@@ -273,7 +273,7 @@
     "CriticalEncounter": "",
     "SeenInFate": true,
     "Fate": "Gale-force Encounter",
-    "LastSeenUtc": "2026-08-02T19:10:50.4218856Z"
+    "LastSeenUtc": "2026-08-02T22:26:08.3417495Z"
   },
   {
     "NameId": 13637,
@@ -309,7 +309,7 @@
     "CriticalEncounter": "",
     "SeenInFate": true,
     "Fate": "Shoreline Showdown",
-    "LastSeenUtc": "2026-08-02T19:06:50.9854475Z"
+    "LastSeenUtc": "2026-08-02T22:28:09.5086088Z"
   },
   {
     "NameId": 13814,
@@ -357,7 +357,7 @@
     "CriticalEncounter": "Cursed Resurgence",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T20:05:17.0476359Z"
+    "LastSeenUtc": "2026-08-02T22:39:56.8013003Z"
   },
   {
     "NameId": 13886,
@@ -381,7 +381,7 @@
     "CriticalEncounter": "Familiar Tactics",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T20:03:45.0761611Z"
+    "LastSeenUtc": "2026-08-02T22:25:17.9920286Z"
   },
   {
     "NameId": 14920,
@@ -393,7 +393,7 @@
     "CriticalEncounter": "Imbalanced Diet",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T20:07:15.7001413Z"
+    "LastSeenUtc": "2026-08-02T22:41:39.6312325Z"
   },
   {
     "NameId": 13937,
@@ -477,7 +477,7 @@
     "CriticalEncounter": "Quarried Away",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T19:44:59.3541963Z"
+    "LastSeenUtc": "2026-08-02T22:42:42.1862826Z"
   },
   {
     "NameId": 14869,
@@ -489,7 +489,7 @@
     "CriticalEncounter": "Lost on the Wind",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T20:25:53.1715750Z"
+    "LastSeenUtc": "2026-08-02T22:50:35.8905783Z"
   },
   {
     "NameId": 14860,
@@ -501,7 +501,7 @@
     "CriticalEncounter": "Forbidden Folios",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T20:06:10.0340526Z"
+    "LastSeenUtc": "2026-08-02T22:26:34.5150678Z"
   },
   {
     "NameId": 14919,
@@ -513,7 +513,7 @@
     "CriticalEncounter": "Accept No Imitators",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T20:21:40.4773104Z"
+    "LastSeenUtc": "2026-08-02T22:37:29.7673643Z"
   },
   {
     "NameId": 14887,
@@ -525,7 +525,7 @@
     "CriticalEncounter": "Cursed Resurgence",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T20:04:19.8620799Z"
+    "LastSeenUtc": "2026-08-02T22:25:01.8930514Z"
   },
   {
     "NameId": 14877,
@@ -537,7 +537,7 @@
     "CriticalEncounter": "Appalling Behavior",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T20:20:36.8091517Z"
+    "LastSeenUtc": "2026-08-02T20:32:28.0720429Z"
   },
   {
     "NameId": 14896,
@@ -549,7 +549,7 @@
     "CriticalEncounter": "Doubled Trouble",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T20:02:15.3102782Z"
+    "LastSeenUtc": "2026-08-02T22:24:37.8436104Z"
   },
   {
     "NameId": 13898,
@@ -585,7 +585,7 @@
     "CriticalEncounter": "Tiny Terror",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T19:14:23.6731724Z"
+    "LastSeenUtc": "2026-08-02T20:45:57.3820679Z"
   },
   {
     "NameId": 14914,
@@ -597,7 +597,7 @@
     "CriticalEncounter": "Web of Terror",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T18:02:23.5573611Z"
+    "LastSeenUtc": "2026-08-02T22:08:23.2459189Z"
   },
   {
     "NameId": 13916,
@@ -633,7 +633,7 @@
     "CriticalEncounter": "",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T19:44:59.3541963Z"
+    "LastSeenUtc": "2026-08-02T21:58:59.0781680Z"
   },
   {
     "NameId": 13900,
@@ -693,7 +693,7 @@
     "CriticalEncounter": "",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T20:06:22.2919368Z"
+    "LastSeenUtc": "2026-08-02T22:26:48.8066348Z"
   },
   {
     "NameId": 13903,
@@ -717,7 +717,7 @@
     "CriticalEncounter": "",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T20:20:51.1090308Z"
+    "LastSeenUtc": "2026-08-02T22:53:13.0109727Z"
   },
   {
     "NameId": 14882,
@@ -729,7 +729,7 @@
     "CriticalEncounter": "Familiar Tactics",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T20:03:49.2311606Z"
+    "LastSeenUtc": "2026-08-02T22:25:26.0215902Z"
   },
   {
     "NameId": 13885,
@@ -753,7 +753,7 @@
     "CriticalEncounter": "Doubled Trouble",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T20:00:31.1758728Z"
+    "LastSeenUtc": "2026-08-02T22:42:16.0010054Z"
   },
   {
     "NameId": 13901,
@@ -789,7 +789,7 @@
     "CriticalEncounter": "Appalling Behavior",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T19:33:19.5931080Z"
+    "LastSeenUtc": "2026-08-02T22:52:30.7797681Z"
   },
   {
     "NameId": 13918,
@@ -837,19 +837,19 @@
     "CriticalEncounter": "Tiny Terror",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T19:34:09.6201390Z"
+    "LastSeenUtc": "2026-08-02T22:05:04.2431815Z"
   },
   {
     "NameId": 14774,
     "Name": "Crescent Fan",
     "TerritoryId": 1346,
     "Elements": 4,
-    "MaxHp": 4338808,
+    "MaxHp": 4431452,
     "SeenInCriticalEncounter": false,
     "CriticalEncounter": "",
     "SeenInFate": true,
     "Fate": "In a Pot of Bother",
-    "LastSeenUtc": "2026-08-02T19:56:00.8111524Z"
+    "LastSeenUtc": "2026-08-02T22:21:35.3302498Z"
   },
   {
     "NameId": 13876,
@@ -921,7 +921,7 @@
     "CriticalEncounter": "",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T16:59:29.0166147Z"
+    "LastSeenUtc": "2026-08-02T22:24:37.8436104Z"
   },
   {
     "NameId": 13871,
@@ -957,7 +957,7 @@
     "CriticalEncounter": "Doubled Trouble",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T20:01:26.3553546Z"
+    "LastSeenUtc": "2026-08-02T22:24:11.7563690Z"
   },
   {
     "NameId": 13746,
@@ -993,7 +993,7 @@
     "CriticalEncounter": "",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T19:58:17.1421104Z"
+    "LastSeenUtc": "2026-08-02T20:59:45.8217849Z"
   },
   {
     "NameId": 13923,
@@ -1017,7 +1017,7 @@
     "CriticalEncounter": "Web of Terror",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T18:01:40.7528028Z"
+    "LastSeenUtc": "2026-08-02T22:37:29.7673643Z"
   },
   {
     "NameId": 13922,
@@ -1041,7 +1041,7 @@
     "CriticalEncounter": "Dark Artistry",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T20:20:57.2746271Z"
+    "LastSeenUtc": "2026-08-02T22:36:13.2265671Z"
   },
   {
     "NameId": 13928,
@@ -1101,7 +1101,7 @@
     "CriticalEncounter": "",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T19:41:53.5128070Z"
+    "LastSeenUtc": "2026-08-02T22:40:37.1015546Z"
   },
   {
     "NameId": 14771,
@@ -1113,7 +1113,7 @@
     "CriticalEncounter": "",
     "SeenInFate": true,
     "Fate": "Daylight Pottery",
-    "LastSeenUtc": "2026-08-02T20:25:21.8754667Z"
+    "LastSeenUtc": "2026-08-02T22:51:47.2988291Z"
   },
   {
     "NameId": 14913,
@@ -1125,7 +1125,7 @@
     "CriticalEncounter": "A Beast Unleashed",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T20:02:15.3102782Z"
+    "LastSeenUtc": "2026-08-02T22:24:37.8436104Z"
   },
   {
     "NameId": 13897,
@@ -1149,7 +1149,7 @@
     "CriticalEncounter": "",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T20:04:13.7605138Z"
+    "LastSeenUtc": "2026-08-02T22:26:18.3783875Z"
   },
   {
     "NameId": 13935,
@@ -1209,7 +1209,7 @@
     "CriticalEncounter": "Web of Terror",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T20:02:15.3102782Z"
+    "LastSeenUtc": "2026-08-02T22:36:47.4334182Z"
   },
   {
     "NameId": 14876,
@@ -1221,7 +1221,7 @@
     "CriticalEncounter": "Appalling Behavior",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T20:20:59.3696991Z"
+    "LastSeenUtc": "2026-08-02T22:50:52.8915758Z"
   },
   {
     "NameId": 13875,
@@ -1245,7 +1245,7 @@
     "CriticalEncounter": "Web of Terror",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T20:02:13.2985847Z"
+    "LastSeenUtc": "2026-08-02T22:24:37.8436104Z"
   },
   {
     "NameId": 14885,
@@ -1257,7 +1257,7 @@
     "CriticalEncounter": "Familiar Tactics",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T20:04:03.5500958Z"
+    "LastSeenUtc": "2026-08-02T22:26:10.3511898Z"
   },
   {
     "NameId": 14880,
@@ -1269,7 +1269,7 @@
     "CriticalEncounter": "Familiar Tactics",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T20:03:53.3565079Z"
+    "LastSeenUtc": "2026-08-02T22:25:22.0023761Z"
   },
   {
     "NameId": 13883,
@@ -1317,7 +1317,7 @@
     "CriticalEncounter": "Imbalanced Diet",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T19:29:43.0595326Z"
+    "LastSeenUtc": "2026-08-02T20:32:40.3263353Z"
   },
   {
     "NameId": 13933,
@@ -1341,7 +1341,7 @@
     "CriticalEncounter": "A Beast Unleashed",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T19:06:58.8636245Z"
+    "LastSeenUtc": "2026-08-02T22:28:19.5850763Z"
   },
   {
     "NameId": 14871,
@@ -1353,7 +1353,7 @@
     "CriticalEncounter": "Dark Artistry",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T20:25:52.5542356Z"
+    "LastSeenUtc": "2026-08-02T22:52:25.5064644Z"
   },
   {
     "NameId": 13905,
@@ -1377,7 +1377,7 @@
     "CriticalEncounter": "",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T17:19:07.6309220Z"
+    "LastSeenUtc": "2026-08-02T21:29:53.2360477Z"
   },
   {
     "NameId": 13942,
@@ -1413,7 +1413,7 @@
     "CriticalEncounter": "Quarried Away",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T19:43:37.6357352Z"
+    "LastSeenUtc": "2026-08-02T22:42:42.1862826Z"
   },
   {
     "NameId": 13941,
@@ -1437,7 +1437,7 @@
     "CriticalEncounter": "Appalling Behavior",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T20:20:36.8091517Z"
+    "LastSeenUtc": "2026-08-02T20:33:14.9520203Z"
   },
   {
     "NameId": 14918,
@@ -1449,7 +1449,7 @@
     "CriticalEncounter": "Familiar Tactics",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T19:11:04.2933721Z"
+    "LastSeenUtc": "2026-08-02T22:26:18.3783875Z"
   },
   {
     "NameId": 14910,
@@ -1497,7 +1497,7 @@
     "CriticalEncounter": "Accept No Imitators",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T20:25:52.5542356Z"
+    "LastSeenUtc": "2026-08-02T22:52:30.7797681Z"
   },
   {
     "NameId": 13911,
@@ -1521,7 +1521,7 @@
     "CriticalEncounter": "Doubled Trouble",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T20:02:15.3102782Z"
+    "LastSeenUtc": "2026-08-02T22:24:21.7948559Z"
   },
   {
     "NameId": 13913,
@@ -1545,7 +1545,7 @@
     "CriticalEncounter": "Cursed Resurgence",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T20:04:50.4204355Z"
+    "LastSeenUtc": "2026-08-02T22:38:50.2514391Z"
   },
   {
     "NameId": 14890,
@@ -1557,7 +1557,7 @@
     "CriticalEncounter": "",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T19:41:47.3574820Z"
+    "LastSeenUtc": "2026-08-02T22:42:44.1916856Z"
   },
   {
     "NameId": 14891,
@@ -1569,7 +1569,7 @@
     "CriticalEncounter": "",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T20:00:31.1758728Z"
+    "LastSeenUtc": "2026-08-02T22:42:32.1123585Z"
   },
   {
     "NameId": 13887,
@@ -1593,7 +1593,7 @@
     "CriticalEncounter": "Quarried Away",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T19:41:57.6186116Z"
+    "LastSeenUtc": "2026-08-02T22:40:35.1001334Z"
   },
   {
     "NameId": 14915,
@@ -1605,7 +1605,7 @@
     "CriticalEncounter": "",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T20:20:51.1090308Z"
+    "LastSeenUtc": "2026-08-02T22:40:23.0335822Z"
   },
   {
     "NameId": 14874,
@@ -1617,7 +1617,7 @@
     "CriticalEncounter": "Accept No Imitators",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T19:28:35.9443672Z"
+    "LastSeenUtc": "2026-08-02T22:08:03.1705322Z"
   },
   {
     "NameId": 14881,
@@ -1629,7 +1629,7 @@
     "CriticalEncounter": "Ahead of the Competition",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T19:59:35.7920289Z"
+    "LastSeenUtc": "2026-08-02T22:25:01.8930514Z"
   },
   {
     "NameId": 14870,
@@ -1641,7 +1641,7 @@
     "CriticalEncounter": "",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T20:25:52.5542356Z"
+    "LastSeenUtc": "2026-08-02T22:52:30.7797681Z"
   },
   {
     "NameId": 13899,
@@ -1665,7 +1665,7 @@
     "CriticalEncounter": "",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T19:11:41.1650966Z"
+    "LastSeenUtc": "2026-08-02T22:40:31.0667036Z"
   },
   {
     "NameId": 13874,
@@ -1689,7 +1689,7 @@
     "CriticalEncounter": "Accept No Imitators",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T20:25:52.5542356Z"
+    "LastSeenUtc": "2026-08-02T22:52:30.7797681Z"
   },
   {
     "NameId": 14922,
@@ -1701,7 +1701,7 @@
     "CriticalEncounter": "Dark Artistry",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T20:10:49.9696687Z"
+    "LastSeenUtc": "2026-08-02T22:29:06.0213555Z"
   },
   {
     "NameId": 14912,
@@ -1749,7 +1749,7 @@
     "CriticalEncounter": "Imbalanced Diet",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T20:07:15.7001413Z"
+    "LastSeenUtc": "2026-08-02T22:02:20.4351616Z"
   },
   {
     "NameId": 14818,
@@ -1833,7 +1833,7 @@
     "CriticalEncounter": "Imbalanced Diet",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T20:07:15.7001413Z"
+    "LastSeenUtc": "2026-08-02T22:09:37.5809767Z"
   },
   {
     "NameId": 13896,
@@ -1893,7 +1893,7 @@
     "CriticalEncounter": "Cursed Resurgence",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T20:05:17.0476359Z"
+    "LastSeenUtc": "2026-08-02T22:39:56.8013003Z"
   },
   {
     "NameId": 14863,
@@ -1905,7 +1905,7 @@
     "CriticalEncounter": "Tiny Terror",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T20:07:15.7001413Z"
+    "LastSeenUtc": "2026-08-02T22:26:50.8393310Z"
   },
   {
     "NameId": 14873,
@@ -1917,7 +1917,7 @@
     "CriticalEncounter": "Lost on the Wind",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T20:25:53.1715750Z"
+    "LastSeenUtc": "2026-08-02T22:50:35.8905783Z"
   },
   {
     "NameId": 13919,
@@ -1977,7 +1977,7 @@
     "CriticalEncounter": "",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T19:09:47.3379750Z"
+    "LastSeenUtc": "2026-08-02T20:40:03.5127610Z"
   },
   {
     "NameId": 14864,
@@ -1989,7 +1989,7 @@
     "CriticalEncounter": "A Beast Unleashed",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T20:06:24.3461565Z"
+    "LastSeenUtc": "2026-08-02T22:26:52.8495003Z"
   },
   {
     "NameId": 14785,
@@ -2001,7 +2001,7 @@
     "CriticalEncounter": "",
     "SeenInFate": true,
     "Fate": "Thunderregnum",
-    "LastSeenUtc": "2026-08-02T20:09:56.7676169Z"
+    "LastSeenUtc": "2026-08-02T22:30:40.9941225Z"
   },
   {
     "NameId": 14772,
@@ -2013,7 +2013,7 @@
     "CriticalEncounter": "",
     "SeenInFate": true,
     "Fate": "Daylight Pottery",
-    "LastSeenUtc": "2026-08-02T20:25:52.5542356Z"
+    "LastSeenUtc": "2026-08-02T22:52:01.3883846Z"
   },
   {
     "NameId": 13747,
@@ -2037,7 +2037,7 @@
     "CriticalEncounter": "",
     "SeenInFate": true,
     "Fate": "Scale Model",
-    "LastSeenUtc": "2026-08-02T20:05:00.6046081Z"
+    "LastSeenUtc": "2026-08-02T22:39:32.6393958Z"
   },
   {
     "NameId": 13819,
@@ -2056,12 +2056,12 @@
     "Name": "Demi-Medusa",
     "TerritoryId": 1346,
     "Elements": 2,
-    "MaxHp": 16523325,
+    "MaxHp": 27538875,
     "SeenInCriticalEncounter": false,
     "CriticalEncounter": "",
     "SeenInFate": true,
     "Fate": "Scale Model",
-    "LastSeenUtc": "2026-08-02T20:05:15.0423253Z"
+    "LastSeenUtc": "2026-08-02T22:39:54.7936254Z"
   },
   {
     "NameId": 14508,
@@ -2092,12 +2092,12 @@
     "Name": "Evil-seer",
     "TerritoryId": 1346,
     "Elements": 1,
-    "MaxHp": 587496,
+    "MaxHp": 7532000,
     "SeenInCriticalEncounter": false,
     "CriticalEncounter": "",
     "SeenInFate": true,
     "Fate": "Eye to Eye",
-    "LastSeenUtc": "2026-08-02T17:52:48.8702109Z"
+    "LastSeenUtc": "2026-08-02T22:09:15.4680679Z"
   },
   {
     "NameId": 13855,
@@ -2133,7 +2133,7 @@
     "CriticalEncounter": "",
     "SeenInFate": true,
     "Fate": "Shoreline Showdown",
-    "LastSeenUtc": "2026-08-02T19:06:40.8201150Z"
+    "LastSeenUtc": "2026-08-02T22:27:47.3315510Z"
   },
   {
     "NameId": 14769,
@@ -2145,19 +2145,19 @@
     "CriticalEncounter": "",
     "SeenInFate": true,
     "Fate": "Shoreline Showdown",
-    "LastSeenUtc": "2026-08-02T19:06:16.4425110Z"
+    "LastSeenUtc": "2026-08-02T22:27:21.0792309Z"
   },
   {
     "NameId": 14775,
     "Name": "Greater Fan",
     "TerritoryId": 1346,
     "Elements": 4,
-    "MaxHp": 34710468,
+    "MaxHp": 35451617,
     "SeenInCriticalEncounter": false,
     "CriticalEncounter": "",
     "SeenInFate": true,
     "Fate": "In a Pot of Bother",
-    "LastSeenUtc": "2026-08-02T19:56:49.8708746Z"
+    "LastSeenUtc": "2026-08-02T22:21:43.3871673Z"
   },
   {
     "NameId": 13820,
@@ -2181,7 +2181,7 @@
     "CriticalEncounter": "",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T19:44:49.0661364Z"
+    "LastSeenUtc": "2026-08-02T22:43:08.4182231Z"
   },
   {
     "NameId": 13748,
@@ -2205,7 +2205,7 @@
     "CriticalEncounter": "",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T20:02:15.3102782Z"
+    "LastSeenUtc": "2026-08-02T22:24:37.8436104Z"
   },
   {
     "NameId": 13661,
@@ -2277,7 +2277,7 @@
     "CriticalEncounter": "",
     "SeenInFate": true,
     "Fate": "Inconstant Gardener",
-    "LastSeenUtc": "2026-08-02T19:04:57.5164975Z"
+    "LastSeenUtc": "2026-08-02T22:35:12.8361339Z"
   },
   {
     "NameId": 14763,
@@ -2289,7 +2289,7 @@
     "CriticalEncounter": "",
     "SeenInFate": true,
     "Fate": "Territorial Dispute",
-    "LastSeenUtc": "2026-08-02T19:33:31.0556018Z"
+    "LastSeenUtc": "2026-08-02T21:19:58.4824829Z"
   },
   {
     "NameId": 13912,
@@ -2349,7 +2349,7 @@
     "CriticalEncounter": "",
     "SeenInFate": true,
     "Fate": "Raging Thrall",
-    "LastSeenUtc": "2026-08-02T20:07:09.4996991Z"
+    "LastSeenUtc": "2026-08-02T22:02:16.3983195Z"
   },
   {
     "NameId": 13729,
@@ -2553,7 +2553,7 @@
     "CriticalEncounter": "",
     "SeenInFate": true,
     "Fate": "A Rotten Affair",
-    "LastSeenUtc": "2026-08-02T19:40:21.5733677Z"
+    "LastSeenUtc": "2026-08-02T21:58:51.0399241Z"
   },
   {
     "NameId": 13742,
@@ -2565,7 +2565,7 @@
     "CriticalEncounter": "Imbalanced Diet",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T20:25:52.5542356Z"
+    "LastSeenUtc": "2026-08-02T22:53:00.9480457Z"
   },
   {
     "NameId": 14773,
@@ -2577,7 +2577,7 @@
     "CriticalEncounter": "",
     "SeenInFate": true,
     "Fate": "In a Pot of Bother",
-    "LastSeenUtc": "2026-08-02T19:56:45.7981668Z"
+    "LastSeenUtc": "2026-08-02T22:21:37.3829821Z"
   },
   {
     "NameId": 14770,
@@ -2589,7 +2589,7 @@
     "CriticalEncounter": "",
     "SeenInFate": true,
     "Fate": "Daylight Pottery",
-    "LastSeenUtc": "2026-08-02T20:25:50.4851444Z"
+    "LastSeenUtc": "2026-08-02T22:51:56.5190142Z"
   },
   {
     "NameId": 13742,
@@ -2632,24 +2632,24 @@
     "Name": "Poison Cloud",
     "TerritoryId": 1346,
     "Elements": 0,
-    "MaxHp": 540421,
+    "MaxHp": 706125,
     "SeenInCriticalEncounter": false,
     "CriticalEncounter": "",
     "SeenInFate": true,
     "Fate": "Allure of the Occult",
-    "LastSeenUtc": "2026-08-02T19:35:42.4971329Z"
+    "LastSeenUtc": "2026-08-02T22:41:53.7978286Z"
   },
   {
     "NameId": 14767,
     "Name": "Regnant Chimera",
     "TerritoryId": 1346,
     "Elements": 8,
-    "MaxHp": 25081560,
+    "MaxHp": 35114184,
     "SeenInCriticalEncounter": false,
     "CriticalEncounter": "",
     "SeenInFate": true,
     "Fate": "Shoreline Showdown",
-    "LastSeenUtc": "2026-08-02T19:06:50.9854475Z"
+    "LastSeenUtc": "2026-08-02T22:28:11.5261788Z"
   },
   {
     "NameId": 14762,
@@ -2661,19 +2661,19 @@
     "CriticalEncounter": "",
     "SeenInFate": true,
     "Fate": "Territorial Dispute",
-    "LastSeenUtc": "2026-08-02T19:33:31.0556018Z"
+    "LastSeenUtc": "2026-08-02T21:20:32.6943742Z"
   },
   {
     "NameId": 14738,
     "Name": "Sensual Sandy",
     "TerritoryId": 1346,
     "Elements": 1,
-    "MaxHp": 30858604,
+    "MaxHp": 61717208,
     "SeenInCriticalEncounter": false,
     "CriticalEncounter": "",
     "SeenInFate": true,
     "Fate": "Allure of the Occult",
-    "LastSeenUtc": "2026-08-02T19:35:42.4971329Z"
+    "LastSeenUtc": "2026-08-02T22:42:09.9584683Z"
   },
   {
     "NameId": 13703,
@@ -2697,7 +2697,7 @@
     "CriticalEncounter": "",
     "SeenInFate": true,
     "Fate": "Gale-force Encounter",
-    "LastSeenUtc": "2026-08-02T19:10:50.4218856Z"
+    "LastSeenUtc": "2026-08-02T22:26:08.3417495Z"
   },
   {
     "NameId": 541,
@@ -2709,7 +2709,7 @@
     "CriticalEncounter": "",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T20:20:51.1090308Z"
+    "LastSeenUtc": "2026-08-02T22:53:21.0584259Z"
   },
   {
     "NameId": 541,
@@ -2805,7 +2805,7 @@
     "CriticalEncounter": "",
     "SeenInFate": true,
     "Fate": "Inconstant Gardener",
-    "LastSeenUtc": "2026-08-02T19:04:57.5164975Z"
+    "LastSeenUtc": "2026-08-02T22:34:48.6740748Z"
   },
   {
     "NameId": 14789,
