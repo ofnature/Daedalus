@@ -1,4 +1,4 @@
-using System.Numerics;
+﻿using System.Numerics;
 using Daedalus.Data;
 using Daedalus.Models.Action;
 using Daedalus.Services.Action;
@@ -20,6 +20,8 @@ public class SpellCandidateEvaluatorTests
     /// </summary>
     private class MockActionService : IActionService
     {
+        public void FaceTarget(ulong targetId) { }
+
         public GcdState CurrentGcdState => GcdState.Ready;
         public float GcdRemaining => 0f;
         public float GcdDuration => 2.5f;

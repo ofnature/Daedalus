@@ -1,4 +1,4 @@
-using Daedalus.Models.Action;
+﻿using Daedalus.Models.Action;
 using Daedalus.Services.Action;
 
 namespace Daedalus.Data;
@@ -767,6 +767,7 @@ public static class RDMActions
     /// </summary>
     public static readonly ActionDefinition Verraise = new()
     {
+        CanTargetDead = true,
         ActionId = 7523,
         Name = "Verraise",
         MinLevel = 64,

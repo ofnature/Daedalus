@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using Dalamud.Game.ClientState.JobGauge;
 using Dalamud.Game.ClientState.Objects.SubKinds;
@@ -142,6 +142,7 @@ public sealed class Asclepius : BaseHealerRotation<IAsclepiusContext, IAsclepius
 
         // Initialize scheduler
         _scheduler = new RotationScheduler(actionService, jobGauges, configuration, timelineService, errorMetrics);
+        _scheduler.TargetingService = targetingService; // enables the corpse hard-target swap for raises
 
         // Initialize Sage-specific services
         _addersgallService = new AddersgallTrackingService(jobGauges);

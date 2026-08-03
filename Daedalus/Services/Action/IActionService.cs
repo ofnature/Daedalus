@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Numerics;
 using Daedalus.Models.Action;
 
@@ -9,6 +9,12 @@ namespace Daedalus.Services.Action;
 /// </summary>
 public interface IActionService
 {
+    /// <summary>
+    /// Face a target before submitting an action at it. Rotation write only — never touches the
+    /// hard target. See ActionService.FaceTarget for why post-failure recovery cannot work.
+    /// </summary>
+    void FaceTarget(ulong targetId);
+
     /// <summary>
     /// Current GCD state (Ready, Rolling, WeaveWindow, Casting, AnimationLock).
     /// </summary>

@@ -216,6 +216,9 @@ public sealed class PhantomJobService
             MinLevel = 1, // phantom actions gate on phantom level, not job level
             Category = isGcd ? Daedalus.Models.Action.ActionCategory.GCD : Daedalus.Models.Action.ActionCategory.oGCD,
             TargetType = Daedalus.Models.Action.ActionTargetType.Self,
+            // Occult Raise / Chemist Revive aim at corpses; without this the scheduler's
+            // dead-target gate rejects them on every attempt.
+            CanTargetDead = def.ActionId is 49070 or 41634,
             CastTime = castTime,
             RecastTime = recastTime,
             Range = range,

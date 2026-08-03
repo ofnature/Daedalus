@@ -11,6 +11,11 @@ All notable changes to Daedalus will be documented in this file.
 ### Debug — The object labeller now reads the game's own markers
 - Mobs carrying a **client-drawn marker** — the quest gold icon, hunt-bill tags, and the rest — are now stamped with the marker's icon id. That number is how a marker you can see becomes a filter the plugin can act on, the same route the carrot and Knowledge Crystal ids took
 
+### Fix — Raises have been silently broken since late July — now actually fixed
+- A safeguard added on July 28th (to stop "Invalid target." toasts on dying trash) rejected **every action aimed at a dead target** — which is every raise, everywhere, on every healer. The scheduler's own readout finally said it plainly: *"Egeiro: Target dead"* while a party member lay dead through the last 20% of a boss. Raises may now target the dead; everything else keeps the safeguard
+- Second bug in the same fight: after combat ended the Sage sat at *"Waiting for Swiftcast"* forever, because Swiftcast physically cannot be cast out of combat — abilities only fire in combat. Out of combat healers now **hardcast the raise immediately**, which is free when nothing is attacking you
+- And raises now momentarily hard-target the body for the instant of the cast, so the game's auto-face works with them instead of against them — same fix the phantom raise needed. Your enemy target is restored in the same frame
+
 ### Fix — The raise stopped failing its facing check
 - The raise kept being refused for facing: the game's auto-face turns you toward your **hard target** — the enemy you're fighting — not toward the ally your raise is aimed at, so a corpse behind you failed the check on every attempt. Turning toward them after the failure didn't help either, because your very next weaponskill auto-faced you straight back
 - The fix is a swap-fire-restore: for the instant of the submit the body becomes your hard target — the only thing the game's auto-face actually obeys — and your enemy target is put back in the same frame, before your rotation can notice. Turning the character without the target swap turned out not to be enough in the field

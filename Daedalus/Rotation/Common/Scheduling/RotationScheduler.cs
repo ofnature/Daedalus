@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Numerics;
 using Dalamud.Plugin.Services;
@@ -27,6 +27,13 @@ public sealed class RotationScheduler
     private readonly List<AbilityCandidate> _gcdQueue = new(capacity: 32);
     private readonly List<AbilityCandidate> _ogcdQueue = new(capacity: 32);
     private readonly List<string> _lastFailReasons = new(capacity: 16);
+
+    /// <summary>
+    /// Optional, healers only: lets a CanTargetDead submit momentarily hard-target its corpse so
+    /// the client's auto-face works — proven necessary on the phantom raise, where rotation
+    /// writes alone lost the race to the job's own auto-face every frame.
+    /// </summary>
+    public Daedalus.Services.Targeting.ITargetingService? TargetingService { get; set; }
     private int _insertionCounter;
 
     public RotationScheduler(
@@ -216,7 +223,7 @@ public sealed class RotationScheduler
 
                 // Dead targets linger in the object table for a beat — submitting at one gets the
                 // client's "Invalid target." toast (trash-pack deaths mid-queue, field 2026-07-28).
-                if (target.IsDead)
+                if (target.IsDead && !effective.CanTargetDead)
                 {
                     RecordFail(candidate, "Target dead");
                     continue;
@@ -345,6 +352,24 @@ public sealed class RotationScheduler
                 dispatched = isOgcd
                     ? _actionService.ExecuteOgcdRaw(effective, rawId, candidate.TargetId)
                     : _actionService.ExecuteGcdRaw(effective, rawId, candidate.TargetId);
+            }
+            else if (effective.CanTargetDead && TargetingService is { } targeting && candidate.TargetId != 0)
+            {
+                // Swap-fire-restore: the corpse becomes the hard target for exactly this submit,
+                // because auto-face obeys the hard target and nothing else. Restored before the
+                // job's modules can observe it; refuses to clobber a target changed mid-swap.
+                var previousHardTarget = targeting.SwapHardTargetForSubmit(candidate.TargetId);
+                _actionService.FaceTarget(candidate.TargetId);
+                try
+                {
+                    dispatched = isOgcd
+                        ? _actionService.ExecuteOgcd(effective, candidate.TargetId)
+                        : _actionService.ExecuteGcd(effective, candidate.TargetId);
+                }
+                finally
+                {
+                    targeting.RestoreHardTargetAfterSubmit(previousHardTarget, candidate.TargetId);
+                }
             }
             else
             {

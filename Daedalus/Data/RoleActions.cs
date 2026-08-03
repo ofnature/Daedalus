@@ -1,4 +1,4 @@
-using Daedalus.Models.Action;
+﻿using Daedalus.Models.Action;
 
 namespace Daedalus.Data;
 
@@ -93,6 +93,7 @@ public static class RoleActions
     /// <summary>WHM/CNJ resurrection.</summary>
     public static readonly ActionDefinition Raise = new()
     {
+        CanTargetDead = true,
         ActionId = 125,
         Name = "Raise",
         MinLevel = 12,
@@ -108,6 +109,7 @@ public static class RoleActions
     /// <summary>SCH/SMN Arcanist-line resurrection.</summary>
     public static readonly ActionDefinition Resurrection = new()
     {
+        CanTargetDead = true,
         ActionId = 173,
         Name = "Resurrection",
         MinLevel = 12,
@@ -123,6 +125,7 @@ public static class RoleActions
     /// <summary>SGE resurrection.</summary>
     public static readonly ActionDefinition Egeiro = new()
     {
+        CanTargetDead = true,
         ActionId = 24287,
         Name = "Egeiro",
         MinLevel = 12,
@@ -138,6 +141,7 @@ public static class RoleActions
     /// <summary>AST resurrection.</summary>
     public static readonly ActionDefinition Ascend = new()
     {
+        CanTargetDead = true,
         ActionId = 3603,
         Name = "Ascend",
         MinLevel = 12,

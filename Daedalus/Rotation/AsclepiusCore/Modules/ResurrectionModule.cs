@@ -182,7 +182,11 @@ public sealed class ResurrectionModule : BaseResurrectionModule<IAsclepiusContex
         if (config.Resurrection.AllowHardcastRaise)
         {
             var swiftcastCooldown = context.ActionService.GetCooldownRemaining(SwiftcastAction.ActionId);
-            if (swiftcastCooldown > 10f && isMoving)
+            // Out of combat, Swiftcast can NEVER be cast — oGCD dispatch is combat-gated — so
+            // "wait for Swiftcast" waits for the impossible. Field 2026-08-02: battle ended and
+            // the toon was simply left dead, state frozen at "Waiting for Swiftcast (0.0s)".
+            var canWaitForSwiftcast = context.InCombat && swiftcastCooldown <= 10f;
+            if (!canWaitForSwiftcast && isMoving)
             {
                 // BMR AI's constant micro-follow kept isMoving true for whole fights, so the
                 // hardcast branch never opened (alliance-raid field report 2026-07-19). Hold
@@ -191,7 +195,7 @@ public sealed class ResurrectionModule : BaseResurrectionModule<IAsclepiusContex
                 SetRaiseState(context, "Stopping to hardcast raise");
                 return;
             }
-            if (swiftcastCooldown > 10f)
+            if (!canWaitForSwiftcast)
             {
                 const int hardcastMs = 8000;
                 var reservedHardcastId = (uint)target.GameObjectId;

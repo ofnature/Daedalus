@@ -215,7 +215,11 @@ public sealed class ResurrectionModule : BaseResurrectionModule<IAstraeaContext>
         if (config.Resurrection.AllowHardcastRaise && !isMoving)
         {
             var swiftcastCooldown = context.ActionService.GetCooldownRemaining(SwiftcastAction.ActionId);
-            if (swiftcastCooldown > 10f)
+            // Out of combat, Swiftcast can NEVER be cast — oGCD dispatch is combat-gated — so
+            // "wait for Swiftcast" waits for the impossible. Field 2026-08-02: battle ended and
+            // the toon was simply left dead, state frozen at "Waiting for Swiftcast (0.0s)".
+            var canWaitForSwiftcast = context.InCombat && swiftcastCooldown <= 10f;
+            if (!canWaitForSwiftcast)
             {
                 if (ShouldWaitForPreRaiseBuff(context)) { SetRaiseState(context, "Waiting for buff"); return; }
 

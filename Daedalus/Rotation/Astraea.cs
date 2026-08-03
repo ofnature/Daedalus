@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using Dalamud.Game.ClientState.JobGauge;
 using Dalamud.Game.ClientState.Objects.SubKinds;
 using Dalamud.Game.ClientState.Party;
@@ -138,6 +138,7 @@ public sealed class Astraea : BaseHealerRotation<IAstraeaContext, IAstraeaModule
 
         // Initialize scheduler
         _scheduler = new RotationScheduler(actionService, jobGauges, configuration, timelineService, errorMetrics);
+        _scheduler.TargetingService = targetingService; // enables the corpse hard-target swap for raises
         _earthlyStarService = new EarthlyStarService(objectTable);
 
         // Initialize helpers

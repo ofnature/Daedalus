@@ -267,14 +267,18 @@ public abstract class BaseResurrectionModule<TContext> : IHealerRotationModule<T
         {
             var swiftcastCooldown = context.ActionService.GetCooldownRemaining(SwiftcastAction.ActionId);
 
-            if (swiftcastCooldown > 10f && isMoving)
+            // Out of combat, Swiftcast can NEVER be cast — oGCD dispatch is combat-gated — so
+            // "wait for Swiftcast" waits for the impossible. Field 2026-08-02: battle ended and
+            // the toon was simply left dead, state frozen at "Waiting for Swiftcast (0.0s)".
+            var canWaitForSwiftcast = context.InCombat && swiftcastCooldown <= 10f;
+            if (!canWaitForSwiftcast && isMoving)
             {
                 Daedalus.Services.Positional.RaiseCastHold.Request(10f);
                 SetRaiseState(context, "Stopping to hardcast raise");
                 return false;
             }
 
-            if (swiftcastCooldown > 10f)
+            if (!canWaitForSwiftcast)
             {
                 if (ShouldWaitForPreRaiseBuff(context))
                 {

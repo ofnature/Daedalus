@@ -1,4 +1,4 @@
-using Daedalus.Services.Calculation;
+﻿using Daedalus.Services.Calculation;
 
 namespace Daedalus.Models.Action;
 
@@ -8,6 +8,17 @@ namespace Daedalus.Models.Action;
 /// </summary>
 public sealed class ActionDefinition
 {
+    /// <summary>
+    /// This action is MEANT for a dead target (Raise, Egeiro, Ascend, Resurrection, Verraise,
+    /// the phantom raises). The scheduler's dead-target gate — added 2026-07-28 to stop
+    /// "Invalid target." toasts on dying trash — rejects dead targets universally, which is
+    /// right for every action except the ones whose entire purpose is a corpse. Field
+    /// 2026-08-02: "Egeiro: Target dead" in the GCD chain while a party member lay dead.
+    /// Also opts the submit into the scheduler's hard-target swap, since client auto-face
+    /// obeys the hard target and an ally-targeted cast pre-fails facing without it.
+    /// </summary>
+    public bool CanTargetDead { get; init; }
+
     /// <summary>The game's action ID.</summary>
     public required uint ActionId { get; init; }
 
