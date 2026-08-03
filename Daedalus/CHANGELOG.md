@@ -11,6 +11,10 @@ All notable changes to Daedalus will be documented in this file.
 ### Debug — The object labeller now reads the game's own markers
 - Mobs carrying a **client-drawn marker** — the quest gold icon, hunt-bill tags, and the rest — are now stamped with the marker's icon id. That number is how a marker you can see becomes a filter the plugin can act on, the same route the carrot and Knowledge Crystal ids took
 
+### Fix — The Raise Priority setting now does something
+- The dropdown has been wired to nothing since it shipped — all three modes behaved identically. It now controls the decision it always described: **Raise First** hardcasts the moment that's the faster path, **Balanced** keeps today's behaviour (wait up to 10s for Swiftcast), and **Heal First** never commits to an 8-second hardcast in combat — Swiftcast raises only, healing never interrupted
+- All three hardcast freely once combat ends, and all keep the new safety guards
+
 ### Fix — Hardcasting a raise no longer gets the healer killed
 - The 8-second hardcast plants the healer and pauses BossMod's dodging for the whole cast — so the raise finally firing revealed the next problem: the caster dying mid-cast. Two guards now apply: a hardcast **won't start** on ground that turns dangerous inside the cast window or below 40% HP, and if danger appears **under** the caster mid-cast, the movement hold releases so BossMod dodges — the cast interrupts, which beats dying with the raise half-finished
 - Both checks fail open without BossMod, and neither applies out of combat

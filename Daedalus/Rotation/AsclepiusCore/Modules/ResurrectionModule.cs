@@ -185,7 +185,8 @@ public sealed class ResurrectionModule : BaseResurrectionModule<IAsclepiusContex
             // Out of combat, Swiftcast can NEVER be cast — oGCD dispatch is combat-gated — so
             // "wait for Swiftcast" waits for the impossible. Field 2026-08-02: battle ended and
             // the toon was simply left dead, state frozen at "Waiting for Swiftcast (0.0s)".
-            var canWaitForSwiftcast = context.InCombat && swiftcastCooldown <= 10f;
+            var canWaitForSwiftcast = context.InCombat
+                && swiftcastCooldown <= RaiseModePolicy.SwiftcastWaitThresholdSeconds(config.Resurrection.RaiseMode);
             // Committing to an 8s cast must not outrank staying alive: the hold pauses BMR's
             // dodging for the whole cast, so starting a hardcast on unsafe ground is how the
             // healer dies mid-raise (field 2026-08-02 — the raise finally fired, and the caster
@@ -238,7 +239,9 @@ public sealed class ResurrectionModule : BaseResurrectionModule<IAsclepiusContex
             }
             else
             {
-                SetRaiseState(context, $"Waiting for Swiftcast ({swiftcastCooldown:F1}s)");
+                SetRaiseState(context, config.Resurrection.RaiseMode == Daedalus.Config.RaiseExecutionMode.HealFirst
+                    ? $"Heal-first — Swiftcast raises only ({swiftcastCooldown:F1}s)"
+                    : $"Waiting for Swiftcast ({swiftcastCooldown:F1}s)");
             }
         }
         else if (!hasSwiftcast && !config.Resurrection.AllowHardcastRaise)
