@@ -1,4 +1,5 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
+using System;
 using System.Linq;
 
 namespace Daedalus.Rotation.Common.Helpers;
@@ -23,9 +24,21 @@ public static class StuckReasonHelper
         if (dispatched || gateFailReasons.Count == 0)
             return null;
 
-        var joined = string.Join("; ", gateFailReasons.Take(MaxShown));
-        return gateFailReasons.Count > MaxShown
-            ? $"Stuck — {joined}; +{gateFailReasons.Count - MaxShown} more"
+        // "Already submitted" is our own dup guard confirming the accepted cast is in flight —
+        // pure noise, filtered. Game status 582 is NOT filtered, deliberately: it looked like
+        // the same noise until a field log (2026-08-02) showed two ~12s GCD stalls whose ONLY
+        // symptom was sustained 582 spam — hiding it would have hidden the stall entirely.
+        var real = gateFailReasons.Where(r => !IsBenign(r)).ToList();
+        if (real.Count == 0)
+            return null;
+
+        var joined = string.Join("; ", real.Take(MaxShown));
+        return real.Count > MaxShown
+            ? $"Stuck — {joined}; +{real.Count - MaxShown} more"
             : $"Stuck — {joined}";
     }
+
+    /// <summary>Only our own dup guard is noise; a game-status reject is always worth showing.</summary>
+    public static bool IsBenign(string reason)
+        => reason.Contains("already submitted", StringComparison.OrdinalIgnoreCase);
 }

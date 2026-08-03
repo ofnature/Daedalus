@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
@@ -370,7 +370,22 @@ public sealed class ActionTracker : IActionTracker
             {
                 lastCombatGcdUptime = CalculateGcdUptime();
                 var duration = (DateTime.Now - combatStartTime.Value).TotalSeconds;
-                InsertMarker($"--- Combat ended ({duration:F0}s, uptime {lastCombatGcdUptime:F0}%) ---");
+
+                // Name the EXCUSED downtime. "100% uptime" only means no UNFORCED idling — a
+                // fight can hide two 12s stalls binned as movement or mechanic time (field
+                // 2026-08-02: Herpekaris, 144s, "100%", two ~12s GCD gaps while the boss took
+                // party damage). The excuses may be right, but they must be visible.
+                var excused = "";
+                if (movementDowntimeSeconds >= 1 || mechanicDowntimeSeconds >= 1 || deathDowntimeSeconds >= 1)
+                {
+                    var parts = new List<string>(3);
+                    if (movementDowntimeSeconds >= 1) parts.Add($"movement {movementDowntimeSeconds:F0}s");
+                    if (mechanicDowntimeSeconds >= 1) parts.Add($"mechanic {mechanicDowntimeSeconds:F0}s");
+                    if (deathDowntimeSeconds >= 1) parts.Add($"dead {deathDowntimeSeconds:F0}s");
+                    excused = $" — excused: {string.Join(", ", parts)}";
+                }
+
+                InsertMarker($"--- Combat ended ({duration:F0}s, uptime {lastCombatGcdUptime:F0}%{excused}) ---");
             }
             combatStartTime = null;
         }

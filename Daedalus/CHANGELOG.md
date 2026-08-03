@@ -3,6 +3,13 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.53 — unreleased
+
+### Debug — Combat summaries stop hiding excused downtime
+- "Uptime 100%" only ever meant *no unforced idling* — a fight could contain two 12-second GCD stalls binned as movement or mechanic time and the summary wouldn't breathe a word. The combat-end line now names them: *"144s, uptime 100% — excused: movement 18s, mechanic 6s"*. The excuses may be legitimate; they must be visible
+- "Stuck" reports no longer list the dup-guard's own *"already submitted"* echo — but game status 582 stays visible on purpose, since a sustained 582 streak turned out to be the only symptom those stalls had
+
+<!-- LATEST-END -->
 ## v0.1.52 — 2026-08-02
 
 ### New — Lines to marked mobs
@@ -36,7 +43,6 @@ All notable changes to Daedalus will be documented in this file.
 - The raise was being chosen correctly and then sat waiting for a free weave slot that your own rotation kept taking first — the Duty tab read *"raising <name>"* and *"1 queued, no free slot"* at the same time
 - A raise now goes ahead of a job ability. Everything else the phantom layer does still waits its turn, as before
 
-<!-- LATEST-END -->
 ## v0.1.51 — 2026-08-02
 
 ### Fix — Phantom White Mage raises immediately
