@@ -3,7 +3,7 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
-## v0.1.53 — unreleased
+## v0.1.53 — 2026-08-04
 
 ### Fix — You can target your party again (controller players especially)
 - In combat, selecting **anything that isn't an enemy** — a party member to heal, an NPC, an object — was snapped straight back to the boss on the next frame. The combat auto-retarget (the "my target died, pick the next one" recovery) treats a non-enemy hard target as *invalid* and seized it back. On a **controller**, where cycling is how you select party members at all, this made it impossible to select anything but the boss during a fight, and it made manual healing effectively impossible
