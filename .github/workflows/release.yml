@@ -36,7 +36,22 @@ jobs:
         run: dotnet build Daedalus.sln -c Release --no-restore -p:DalamudLibPath=$HOME/dalamud/
 
       - name: Create Release Archive
-        run: cp Daedalus/bin/Release/Daedalus/latest.zip Daedalus.zip
+        run: |
+          # The asset MUST stay named latest.zip: every release since v0.1.x has used that
+          # name and repo.json's DownloadLink* point straight at it. Renaming it silently
+          # breaks installs for everyone already on the feed.
+          #
+          # Find it rather than hardcoding the path — DalamudPackager's output directory
+          # moves with the build platform (a solution build can land it under
+          # bin/x64/Release/), so a fixed path fails the first time that changes.
+          ZIP=$(find Daedalus/bin -name latest.zip -path '*Release*' | head -1)
+          if [ -z "$ZIP" ]; then
+            echo "ERROR: DalamudPackager produced no latest.zip" >&2
+            find Daedalus/bin -type f -name '*.zip' | head -20 >&2
+            exit 1
+          fi
+          echo "Packaged: $ZIP"
+          cp "$ZIP" latest.zip
 
       - name: Extract Version
         id: version
@@ -59,7 +74,7 @@ jobs:
           # Update ONLY the Daedalus entry; preserve all other plugins.
           NEW_VERSION="${{ steps.version.outputs.version }}"
           TAG="${{ github.ref_name }}"
-          ZIP_URL="https://github.com/RoseOfficial/Daedalus/releases/download/${TAG}/Daedalus.zip"
+          ZIP_URL="https://github.com/ofnature/Daedalus/releases/download/${TAG}/latest.zip"
           DAEDALUS_API=$(jq -r '.DalamudApiLevel' Daedalus/Daedalus.json)
           # Tags are 3-part (vX.Y.Z); Dalamud.NET.Sdk auto-pads the bundled
           # manifest's AssemblyVersion to 4-part (X.Y.Z.0). repo.json must use
@@ -87,7 +102,7 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: Daedalus.zip
+          files: latest.zip
           generate_release_notes: true
 
       - name: Commit repo.json
@@ -114,5 +129,5 @@ jobs:
           description: |
             ${{ steps.changelog.outputs.notes }}
 
-            **[Download from GitHub](https://github.com/RoseOfficial/Daedalus/releases/tag/${{ github.ref_name }})** • Refresh your plugin list to update
+            **[Download from GitHub](https://github.com/ofnature/Daedalus/releases/tag/${{ github.ref_name }})** • Refresh your plugin list to update
           color: 0x5865F2
