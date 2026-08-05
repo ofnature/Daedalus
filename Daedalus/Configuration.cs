@@ -16,8 +16,9 @@ public sealed class Configuration : IPluginConfiguration
     /// <summary>
     /// Transient combat override driven by external automation plugins: Questionable through the
     /// RSR-compat IPC (<c>RotationSolverReborn.ChangeOperatingMode</c>, on at kill-step start / off
-    /// at fight end), Henchman through the <c>Henchman.IsBusy</c> poll, and AutoDuty through
-    /// <c>AutoDuty.IsStopped</c>. Never persisted — a crash mid-task must not leave the rotation
+    /// at fight end), Henchman through the <c>Henchman.IsBusy</c> poll, AutoDuty through
+    /// <c>AutoDuty.IsStopped</c>, and Theseus through <c>Theseus.IsBusy</c>. Never persisted — a
+    /// crash mid-task must not leave the rotation
     /// permanently enabled, and the user's master switch stays untouched.
     /// Backed by process-wide state, NOT instance state: rotations run on a snapshot copy of this
     /// object (<see cref="Services.Content.DutyConfigurationService.RotationConfiguration"/>) that

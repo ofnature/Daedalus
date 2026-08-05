@@ -19,6 +19,10 @@ namespace Daedalus.Ipc;
 /// standalone AutoDuty farming and Henchman's duty hunt-log marks, which Henchman delegates to
 /// AutoDuty (solo-unsync or duty support) and merely waits on — inside the dungeon AutoDuty is
 /// the driver, and it too selects its rotation plugin by internal name.</item>
+/// <item>Theseus — <c>Theseus.IsBusy</c> == true while a dungeon run is driving the character.
+/// The fleet's AutoDuty replacement, and the one source that publishes its gate for this bridge on
+/// purpose: Theseus owns movement, pathing and the boss handoff, and hands every kill to Daedalus,
+/// so the override is the whole contract between the two plugins.</item>
 /// </list>
 /// </summary>
 /// <remarks>

@@ -65,6 +65,32 @@ public class ManualControlGraceTests : IDisposable
     }
 
     [Fact]
+    public void ExternallyRegisteredWrite_DoesNotArmGrace()
+    {
+        // What Daedalus.Targeting.RecordExternalWrite buys: call gates are per-process, so a
+        // companion plugin (Theseus) driving our character cannot reach RecordOwnWrite directly.
+        // Unregistered, its retarget reads as a user click and silently suppresses our movement
+        // pulses for the full grace — the failure is a stutter, not an error.
+        ManualControlGrace.NoteFrame(0);
+        ManualControlGrace.RecordOwnWrite(4321); // arrives over IPC from the driving plugin
+        ManualControlGrace.NoteFrame(4321);
+
+        Assert.False(ManualControlGrace.IsActive);
+    }
+
+    [Fact]
+    public void ExternalWriteClaimedTooEarly_StillReadsAsManual()
+    {
+        // Attribution is deliberately short-lived, so a caller that claims a write and then takes
+        // its time cannot launder a genuine click that lands afterwards.
+        ManualControlGrace.RecordOwnWrite(4321);
+        Advance(1.5);
+        ManualControlGrace.NoteFrame(4321);
+
+        Assert.True(ManualControlGrace.IsActive);
+    }
+
+    [Fact]
     public void StaleOwnWrite_NoLongerAttributes()
     {
         // Our write from long ago must not launder a much-later manual click to the same mob.

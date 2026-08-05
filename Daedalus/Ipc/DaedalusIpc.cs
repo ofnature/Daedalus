@@ -4,6 +4,7 @@ using Dalamud.Plugin;
 using Dalamud.Plugin.Ipc;
 using Dalamud.Plugin.Services;
 using Daedalus.Rotation;
+using Daedalus.Services.Targeting;
 
 namespace Daedalus.Ipc;
 
@@ -18,6 +19,7 @@ namespace Daedalus.Ipc;
 /// - Daedalus.GetVersion: Get plugin version (returns string)
 /// - Daedalus.GetActiveRotation: Get active rotation name (returns string or empty)
 /// - Daedalus.GetSupportedJobs: Get array of supported job IDs (returns uint[])
+/// - Daedalus.Targeting.RecordExternalWrite: Attribute a hard-target write to automation (takes ulong)
 /// - Daedalus.OnStateChanged: Event fired when enabled state changes
 /// </remarks>
 public sealed class DaedalusIpc : IDisposable
@@ -37,6 +39,7 @@ public sealed class DaedalusIpc : IDisposable
     private readonly ICallGateProvider<string> _getVersion;
     private readonly ICallGateProvider<string> _getActiveRotation;
     private readonly ICallGateProvider<uint[]> _getSupportedJobs;
+    private readonly ICallGateProvider<ulong, object> _recordExternalTargetWrite;
 
     // Events
     private readonly ICallGateProvider<bool, object> _onStateChanged;
@@ -74,6 +77,9 @@ public sealed class DaedalusIpc : IDisposable
 
         _getSupportedJobs = pluginInterface.GetIpcProvider<uint[]>("Daedalus.GetSupportedJobs");
         _getSupportedJobs.RegisterFunc(GetSupportedJobs);
+
+        _recordExternalTargetWrite = pluginInterface.GetIpcProvider<ulong, object>("Daedalus.Targeting.RecordExternalWrite");
+        _recordExternalTargetWrite.RegisterAction(RecordExternalTargetWrite);
 
         // Event providers
         _onStateChanged = pluginInterface.GetIpcProvider<bool, object>("Daedalus.OnStateChanged");
@@ -169,6 +175,33 @@ public sealed class DaedalusIpc : IDisposable
 
     #endregion
 
+    #region Targeting
+
+    /// <summary>
+    /// Lets a companion automation plugin claim a hard-target write it is about to make, so the
+    /// manual-control grace does not mistake it for the user clicking something.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="ManualControlGrace.RecordOwnWrite"/> is <c>public static</c> and therefore
+    /// in-process only: Dalamud call gates are per-process, so a plugin in another assembly — or
+    /// another game client on the same box — cannot reach it. Without this endpoint a target
+    /// written by Theseus (or anything else driving us) is classified as a user click and
+    /// suppresses our own movement pulses for the full four-second grace, which does not error and
+    /// does not log; it just makes automated movement mysteriously stutter.
+    ///
+    /// <para>
+    /// Callers must invoke this <b>immediately before</b> writing the target. Attribution only
+    /// holds for a second, deliberately, so a stale claim cannot launder a later genuine click.
+    /// </para>
+    /// </remarks>
+    /// <param name="targetId">GameObjectId the caller is about to write.</param>
+    private void RecordExternalTargetWrite(ulong targetId)
+    {
+        ManualControlGrace.RecordOwnWrite(targetId);
+    }
+
+    #endregion
+
     /// <summary>
     /// Notifies external plugins that the enabled state has changed.
     /// Call this when state changes from sources other than IPC (e.g., UI, command).
@@ -193,6 +226,7 @@ public sealed class DaedalusIpc : IDisposable
         _getVersion.UnregisterFunc();
         _getActiveRotation.UnregisterFunc();
         _getSupportedJobs.UnregisterFunc();
+        _recordExternalTargetWrite.UnregisterAction();
 
         // _onStateChanged is a SendMessage-only provider (no RegisterAction/RegisterFunc was called on it).
         // Dalamud cleans up all ICallGateProviders when the plugin interface is released on unload.
