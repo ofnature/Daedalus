@@ -205,6 +205,7 @@ public sealed class Plugin : IDalamudPlugin
     private readonly Daedalus.Services.Debug.DeathReleaseWatch deathReleaseWatch;
     private readonly Daedalus.Services.Consumables.ConsumableService consumableService;
     private readonly Daedalus.Services.Consumables.TinctureDispatcher tinctureDispatcher;
+    private readonly Daedalus.Services.Consumables.PhoenixDownService phoenixDownService;
 
     // Error metrics
     private readonly ErrorMetricsService errorMetricsService;
@@ -762,6 +763,22 @@ public sealed class Plugin : IDalamudPlugin
             actionService,
             objectTable);
 
+        // Phoenix Down safety net (lan-ipc-plan Phase 3): all healers dead -> a non-tank
+        // toon hardcasts item 4570 on the nearest dead healer. Ships dark (config default
+        // off); the bus wiring below only adds the one-caster-per-corpse claim.
+        this.phoenixDownService = new Daedalus.Services.Consumables.PhoenixDownService(
+            actionService,
+            inventoryProbe,
+            configuration,
+            log);
+        this.phoenixDownService.IsDesignatedOffTank = () =>
+            partyCoordinationService?.LocalTankSwapRole == Daedalus.Services.Party.TankSwapRole.DesignatedOffTank;
+        if (this.coordinationBus != null)
+        {
+            this.phoenixDownService.Bus = this.coordinationBus;
+            this.coordinationBus.OnPhoenixDown += this.phoenixDownService.OnForeignClaim;
+        }
+
         // Smart AoE service (must be created before service container)
         this.aoeTracker = new AoETracker();
         this.smartAoEService = new SmartAoEService(targetingService, dataManager, aoeTracker, log);
@@ -897,11 +914,14 @@ public sealed class Plugin : IDalamudPlugin
         // internal name, so the RSR-compat gates can't hook them — instead we run while their
         // state IPC reports a task active. Henchman covers overworld hunt farming (it targets
         // each mark itself); AutoDuty covers duty runs, including the dungeons Henchman delegates
-        // to it for duty hunt-log marks.
+        // to it for duty hunt-log marks. Theseus is the fleet's AutoDuty replacement and asks for
+        // the override deliberately rather than by convention — it owns movement and the route and
+        // leaves every kill to us.
         this.automationBridges =
         [
             new AutomationBusyBridge(pluginInterface, configuration, log, "Henchman", "Henchman.IsBusy", busyGateValue: true),
             new AutomationBusyBridge(pluginInterface, configuration, log, "AutoDuty", "AutoDuty.IsStopped", busyGateValue: false),
+            new AutomationBusyBridge(pluginInterface, configuration, log, "Theseus", "Theseus.IsBusy", busyGateValue: true),
         ];
         foreach (var bridge in this.automationBridges)
         {
@@ -1693,6 +1713,11 @@ public sealed class Plugin : IDalamudPlugin
             coordinationBus?.Update();
             if (coordinationBus != null)
                 UpdateLanHealerDownDetector();
+
+            // Phoenix Down safety net — works with or without LAN (the bus only adds the
+            // double-burn claim). Master-switch gated: a DISABLED toon must not use items.
+            if (configuration.EffectiveEnabled)
+                phoenixDownService.Update(objectTable.LocalPlayer, partyList);
 
             // Enforce the party target mode (Focus / Split / Kill Adds) after the bus pump so mode
             // state is current this frame. Role-gated; no-op unless a mode is active and eligible.

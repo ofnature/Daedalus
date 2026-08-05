@@ -64,12 +64,33 @@ Record results in the LAN memory; any failure here is a transport bug and preemp
   which is 90% of the sync value; scripted openers can land job-by-job later.
 - Tests: scheduler math (offsets, already-past T0, cancel on countdown abort), no double-pot.
 
-## Phase 3 — Phoenix Down execution (detection + signal already shipped)
-- `bus.OnPhoenixDown`/`OnHealerDown` events exist; missing piece is ITEM execution:
-  `UseItem` via `ActionManager` (ActionType.Item, itemId 4566 HQ/NQ handling) + inventory count
-  probe + 1s cast + weakness-aware target pick (the dead healer first, else party order).
-- Safety: only when ALL healers dead (the existing detector), rate-limited, config off by default
-  until validated. Test the inventory probe against zone-transition null patterns.
+## Phase 3 — Phoenix Down execution (framework built 2026-08-03; field validation open)
+- ITEM DATA CORRECTED 2026-08-03 (this section previously said 4566 — that is Echo Drops):
+  Phoenix Down = **item 4570** → Action row 43336. **8s HARD CAST** (the tooltip's
+  "instantly revive" is the effect on landing, not the cast), range 15y, recast 360s
+  (medicine cooldown group — field-check whether it overlaps tincture group 68), stack 999,
+  revives NON-party players too. Gil vendors sell it for 1,000 gil (NPC vendor, so
+  free-trial toons can stock it — the trial restriction is market board/trades only);
+  also drops in PotD/HoH/EO.
+- WHERE IT WORKS (patch 7.3 expanded this): usable IN COMBAT in public areas, standard
+  4-player dungeons, guildhests (not Solemn Trinity), 4-player trials, treasure dungeons,
+  deep dungeons, **field operations (Occult Crescent/Bozja/Eureka)**, and variant dungeons
+  (not criterion). BLOCKED: 8-player trials, all raids, res-restricted duties. Since 7.3
+  the Duty Finder description states the restriction per duty.
+- FRAMEWORK (built, ships dark): `PhoenixDownPolicy` (pure gates, tested) +
+  `PhoenixDownService` (framework tick next to the healer-down detector; works without
+  LAN). Trigger = ALL party healers dead; target = nearest dead healer without a raise
+  pending (status 148), within 15y. Execution reuses the tincture item path
+  (`ActionService.ExecuteItem`). Double-burn guard: successful submit broadcasts
+  `PhoenixDown` on the bus; receivers hold off ~12s. Config: Consumables ▸
+  "Auto Phoenix Down" (default OFF).
+- USER RULE (2026-08-03): a TANK never casts it while anyone else lives — an 8s planted
+  hardcast on the MT is a wipe; only the last toon standing may. Designated off-tank
+  (LAN tank-swap role) is exempt.
+- REMAINING: field validation — does the 8s cast survive BMR steering (movement gate holds
+  the attempt while moving, but BMR may never stop); blocked-duty refusal behavior; the
+  medicine-group overlap with tinctures. Then the default-on decision. Carrier election
+  via the heartbeat `cap` bitfield ("has PD in bag", hardening §8) stays future work.
 
 ## Phase 4 — enmity sharing / tank swap / add signals (CLAUDE.md message-type backlog)
 - Smallest useful cut: `TankSwapRequest` (main tank's toon broadcasts at N buster stacks; co-tank

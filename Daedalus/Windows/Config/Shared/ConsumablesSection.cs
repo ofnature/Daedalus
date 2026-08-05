@@ -46,6 +46,15 @@ public sealed class ConsumablesSection
         ImGui.Spacing();
 
         ConfigUIHelpers.Toggle(
+            "Auto Phoenix Down when all healers are down",
+            () => config.Consumables.EnablePhoenixDown,
+            v => config.Consumables.EnablePhoenixDown = v,
+            "When every healer in the party is dead, hardcasts a Phoenix Down (8s cast, 15y) on the nearest dead healer. Works in 4-player duties, deep dungeons, and field operations like the Occult Crescent — the game blocks it in 8-player trials and raids. Tanks hold it unless they are the last one alive. With LAN coordination only one toon casts per corpse. Phoenix Downs are 1,000 gil at gil vendors.",
+            save);
+
+        ImGui.Spacing();
+
+        ConfigUIHelpers.Toggle(
             Loc.T(LocalizedStrings.Consumables.WarnOnEmptyInventory, "Warn when inventory is empty"),
             () => config.Consumables.WarnOnEmptyInventory,
             v => config.Consumables.WarnOnEmptyInventory = v,

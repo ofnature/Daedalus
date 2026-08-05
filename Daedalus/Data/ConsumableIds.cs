@@ -25,6 +25,14 @@ public static class ConsumableIds
 
     public const uint HqOffset = 1_000_000;
 
+    /// <summary>
+    /// Phoenix Down (raise item, Action row 43336): 8s hard cast, 15y range, 360s recast.
+    /// NOT 4566 — that is Echo Drops (the old lan-ipc-plan note had it wrong). No HQ variant.
+    /// Usable in combat in 4-player duties, deep dungeons and field operations (patch 7.3);
+    /// blocked in 8-player trials and raids.
+    /// </summary>
+    public const uint PhoenixDown = 4570;
+
     /// <summary>Per-job main DPS stat → tincture NQ ID. 21 jobs covered.</summary>
     public static readonly IReadOnlyDictionary<uint, uint> TinctureByJob = new Dictionary<uint, uint>
     {

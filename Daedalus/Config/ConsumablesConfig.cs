@@ -24,4 +24,11 @@ public sealed class ConsumablesConfig
     /// "broken" in normal content.
     /// </summary>
     public bool UseOutsideHighEnd { get; set; } = false;
+
+    /// <summary>
+    /// Phoenix Down safety net: when EVERY healer in the party is dead, hardcast item 4570
+    /// (8s cast, 15y) on the nearest dead healer. Default OFF until field-validated —
+    /// see docs/lan-ipc-plan.md Phase 3. Tanks hold it unless they are the last one alive.
+    /// </summary>
+    public bool EnablePhoenixDown { get; set; } = false;
 }

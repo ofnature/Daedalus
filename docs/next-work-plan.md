@@ -106,7 +106,8 @@ no-tank fallback; solo unchanged.
 plugin relay with two clients on one machine (publish on one box, sibling receives — the
 loopback mirror is the transport). After Phase 0 passes, the ladder is: Phase 1 BurstReady
 per-job triggers (base-class predicate) → Phase 2 countdown/pre-pull alignment (pot-only cut
-first) → Phase 3 Phoenix Down execution (needs UseItem machinery) → Phase 4 tank-swap/add
+first) → Phase 3 Phoenix Down execution (FRAMEWORK BUILT 2026-08-03, ships dark — item 4570,
+awaiting field validation; see lan-ipc-plan Phase 3) → Phase 4 tank-swap/add
 signals (deferred until real 4+ parties) → Phase 5 = BLU v3.
 
 ## C. Bigger tracks (execution docs exist; start only when their blockers clear)
