@@ -844,11 +844,17 @@ public sealed class TargetingService : ITargetingService
     /// </summary>
     private void TryAutoRetargetOnCombatDeath(IPlayerCharacter player)
     {
-        if (!IsCombatRetargetScenario(player))
+        // Gate lives in CombatRetargetPolicy so the rules are unit-testable without Dalamud —
+        // including the two cases where an "invalid" target is actually the player driving:
+        // holding an ally/NPC, and having just cycled the target by hand or on a controller.
+        if (!CombatRetargetPolicy.ShouldSeizeHardTarget(
+                isCombatRetargetScenario: IsCombatRetargetScenario(player),
+                hasValidUserSelectedEnemy: HasValidUserSelectedEnemy(),
+                holdingNonEnemyTarget: IsHoldingNonEnemyTarget(),
+                manualControlGraceActive: ManualControlGrace.IsActive))
+        {
             return;
-
-        if (HasValidUserSelectedEnemy())
-            return;
+        }
 
         var pickStrategy = CombatRetargetPolicy.ResolveAutoRetargetStrategy(
             _configuration.Targeting.EnemyStrategy);
@@ -945,6 +951,15 @@ public sealed class TargetingService : ITargetingService
         return _targetManager.Target is IBattleNpc enemy
                && ResolveEnemyById(enemy.GameObjectId) != null;
     }
+
+    /// <summary>
+    /// True when the hard target exists but is not an enemy — a party member, a friendly NPC, an
+    /// event object. Those are always deliberate picks (you do not target your healer by accident),
+    /// so the combat auto-retarget must leave them alone. Distinguishing this from "no target" is
+    /// the whole point: an empty or dead-enemy target is what auto-retarget exists to replace.
+    /// </summary>
+    private bool IsHoldingNonEnemyTarget()
+        => _targetManager.Target is not null and not IBattleNpc;
 
     /// <summary>
     /// Captures the player's hard target into the user sticky slot when it resolves to a valid enemy.

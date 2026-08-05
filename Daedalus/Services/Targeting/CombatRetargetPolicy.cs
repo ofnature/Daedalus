@@ -46,6 +46,47 @@ internal static class CombatRetargetPolicy
         && IsAggregateStrategy(enemyStrategy);
 
     /// <summary>
+    /// Layer 1 gate: may the auto-retarget SEIZE the player's hard target and point it at an enemy?
+    ///
+    /// <para>
+    /// This exists to recover from "the thing I was hitting died" — nothing else. Two situations
+    /// look like an invalid target to the damage code but are in fact the player driving:
+    /// </para>
+    /// <list type="bullet">
+    /// <item>They are holding a non-enemy — a party member, a friendly NPC, an object. Field
+    /// 2026-08-04: a Sage on a controller could not keep anything but the boss selected in combat,
+    /// because every cycle onto an ally was classified "invalid" and snapped back to the boss on
+    /// the next frame. That is most of a healer's job made impossible.</item>
+    /// <item>They changed target within the manual-control grace. Movement pulses already yield to
+    /// that; targeting must too, or the plugin fights the player for the stick.</item>
+    /// </list>
+    /// </summary>
+    /// <param name="isCombatRetargetScenario">In combat, hard target invalid, live hostiles nearby.</param>
+    /// <param name="hasValidUserSelectedEnemy">The hard target already resolves to a live enemy.</param>
+    /// <param name="holdingNonEnemyTarget">A target is set and it is not an enemy (ally / NPC / object).</param>
+    /// <param name="manualControlGraceActive">The user changed target within the grace window.</param>
+    public static bool ShouldSeizeHardTarget(
+        bool isCombatRetargetScenario,
+        bool hasValidUserSelectedEnemy,
+        bool holdingNonEnemyTarget,
+        bool manualControlGraceActive)
+    {
+        if (!isCombatRetargetScenario)
+            return false;
+
+        if (hasValidUserSelectedEnemy)
+            return false;
+
+        if (holdingNonEnemyTarget)
+            return false;
+
+        if (manualControlGraceActive)
+            return false;
+
+        return true;
+    }
+
+    /// <summary>
     /// Strategy used to pick the game-target write on combat death retarget.
     /// Explicit strategies (CurrentTarget/FocusTarget) fall back to LowestHp for the pick.
     /// </summary>

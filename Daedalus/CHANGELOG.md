@@ -5,6 +5,21 @@ All notable changes to Daedalus will be documented in this file.
 <!-- LATEST-START -->
 ## v0.1.53 — unreleased
 
+### Fix — You can target your party again (controller players especially)
+- In combat, selecting **anything that isn't an enemy** — a party member to heal, an NPC, an object — was snapped straight back to the boss on the next frame. The combat auto-retarget (the "my target died, pick the next one" recovery) treats a non-enemy hard target as *invalid* and seized it back. On a **controller**, where cycling is how you select party members at all, this made it impossible to select anything but the boss during a fight, and it made manual healing effectively impossible
+- Auto-retarget now only fires when the target is genuinely **empty or a dead enemy**. Holding an ally is a deliberate choice and is left alone, and it also stands down for a few seconds after **you** change target by hand or on a controller — the same grace the movement code already respected
+- The rotation keeps attacking its previous enemy while you hold an ally, so healing manually no longer costs you damage
+
+### Fix — "Allow Hardcast Raise" was being switched off behind your back in trials and raids
+- With the toggle **ticked**, a Sage in a trial or raid still reported *"No Swiftcast (hardcast disabled)"* and refused to raise until Swiftcast came back. The setting really was off — just not where you could see it. The **Auto Duty Config** overlay (on by default) re-applies a zone-appropriate profile on every zone change and every settings save, and the raid/trial profile forced hardcast raise **off** while the settings window kept showing your saved "on"
+- Duty profiles no longer touch **Allow Hardcast Raise** or **Raise Priority** at all. Both have a settings toggle, an overlay button and a chat command — three deliberate controls — so zone detection doesn't get to overrule them. Everything else those profiles tune (healing thresholds, co-healer awareness, AoE counts) is unchanged
+- The dungeon profile was forcing the same setting **on**, which is why dungeons looked fine and hid the problem
+
+### New — Phoenix Down safety net (off by default)
+- When **every healer in the party is dead**, a toon can now hardcast a Phoenix Down on the nearest dead healer — the 8-second, 15-yalm raise item any job can use. Works in 4-player dungeons, deep dungeons, and field operations like the Occult Crescent; the game itself blocks it in 8-player trials and raids
+- **Tanks hold it unless they're the last one alive** — eight planted seconds on the main tank is how a wipe finishes. With LAN coordination only one toon casts per corpse, so the fleet never burns four items on one body
+- Enable it under Settings ▸ Consumables. Phoenix Downs cost 1,000 gil at gil vendors (free trial toons can buy them too — it's an NPC vendor, not the market board)
+
 ### Fix — Casts stop dying to facing while BossMod steers
 - The mid-fight stall fingerprint, caught live: *"submitted but not cast: Dosis III — facing/line-of-sight"*, then a 4-second gap. While BossMod runs you out of danger your character faces the movement direction, so every cast at the boss — **instants included** — dies on the facing check, and turning you back after the failure loses to the very next movement frame
 - When a cast drops for facing, the character now turns toward the target **in the instant before the retry** — the one moment movement can't overwrite it. Never during a look-away mechanic: turning into a gaze to land a cast is a death trade, so the gaze guard wins
