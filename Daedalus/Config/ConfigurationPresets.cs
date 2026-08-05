@@ -129,6 +129,17 @@ public static class ConfigurationPresets
 
     /// <summary>
     /// Applies duty-appropriate tuning for auto-detected content. Does not change spell toggles or targeting.
+    ///
+    /// <para>
+    /// It also does not change RESURRECTION settings, and must not start. This runs on every zone
+    /// change and every settings save, on top of the user's saved config, into the snapshot the
+    /// rotations actually read — so anything set here silently overrules the user with no way to
+    /// tell from the UI, which keeps showing the saved value. Field 2026-08-04: a Sage with "Allow
+    /// Hardcast Raise" ticked reported "No Swiftcast (hardcast disabled)", because the raid/trial
+    /// profile forced it false behind the toggle's back. <see cref="ResurrectionConfig.AllowHardcastRaise"/>
+    /// and <see cref="ResurrectionConfig.RaiseMode"/> have a settings toggle, an overlay button AND
+    /// a chat command — three deliberate operator controls. Zone detection does not outrank them.
+    /// </para>
     /// </summary>
     public static void ApplyDutyProfile(Configuration config, EffectiveDutyProfile profile, JobRole? currentRole = null)
     {
@@ -177,9 +188,9 @@ public static class ConfigurationPresets
         config.Defensive.UseDynamicDefensiveThresholds = true;
         config.Defensive.DefensiveCooldownThreshold = 0.75f;
 
-        // Resurrection - balanced
-        config.Resurrection.RaiseMode = RaiseExecutionMode.Balanced;
-        config.Resurrection.AllowHardcastRaise = false;
+        // Resurrection is DELIBERATELY not touched here — see the note on ApplyDutyProfile.
+        // This profile used to force AllowHardcastRaise = false, which silently disabled the
+        // user's own toggle in every trial and raid.
 
         // Damage - standard AoE threshold
         config.Damage.AoEDamageMinTargets = 3;
@@ -234,9 +245,9 @@ public static class ConfigurationPresets
         config.Defensive.UseDynamicDefensiveThresholds = false;
         config.Defensive.DefensiveCooldownThreshold = 0.85f;
 
-        // Resurrection - prioritize getting party back up
-        config.Resurrection.RaiseMode = RaiseExecutionMode.RaiseFirst;
-        config.Resurrection.AllowHardcastRaise = true;
+        // Resurrection is DELIBERATELY not touched here — see the note on ApplyDutyProfile.
+        // This profile used to force AllowHardcastRaise = true, which overrode the toggle in
+        // the opposite direction and hid the trial/raid bug by making dungeons look correct.
 
         // Damage - lower AoE threshold for smaller pulls. WHM stays at 2: Holy's stun is worth
         // the small potency loss on dungeon trash (300 vs 340 at exactly 2 targets).
