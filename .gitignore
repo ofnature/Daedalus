@@ -3,6 +3,9 @@ obj/
 .worktrees/
 TestResults/
 burn-reference/
+# Patch-day review output stays local: the impact files name internal source
+# paths and per-plugin weak points, and this repo is public.
+docs/patch-day/
 *.user
 *.suo
 .vs/
