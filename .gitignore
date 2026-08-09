@@ -6,6 +6,10 @@ burn-reference/
 # Patch-day review output stays local: the impact files name internal source
 # paths and per-plugin weak points, and this repo is public.
 docs/patch-day/
+# Heal parser working notes — local until the feature is settled (user call).
+# The other ui-mockups ARE tracked; only this one is excluded.
+docs/heal-parser-plan.md
+docs/ui-mockups/heal-parser.html
 *.user
 *.suo
 .vs/
