@@ -43,10 +43,10 @@ public sealed record PhantomStateSnapshot
     public required IReadOnlyDictionary<PhantomJob, byte> JobLevels { get; init; }
 
     /// <summary>
-    /// Names of the Critical Encounters that are not Inactive right now (registering, warming
-    /// up, or in progress). Empty outside the zone.
+    /// Critical Encounters that are not Inactive right now, each with the stage it is in —
+    /// registering (still joinable), warming up, or in progress. Empty outside the zone.
     /// </summary>
-    public required IReadOnlyList<string> ActiveCriticalEncounters { get; init; }
+    public required IReadOnlyList<CriticalEncounterState> ActiveCriticalEncounters { get; init; }
 }
 
 /// <summary>
@@ -255,13 +255,20 @@ public sealed class PhantomJobService
     }
 
     /// <summary>
-    /// Live Critical Encounters that are not Inactive. Read from the Occult director's dynamic
-    /// event container — the same source BOCCHI uses; CEs are dynamic events, not FATEs, so the
-    /// FATE table never sees them.
+    /// Live Critical Encounters with the stage each one is in. Read from the Occult director's
+    /// dynamic event container — the same source BOCCHI uses; CEs are dynamic events, not FATEs,
+    /// so the FATE table never sees them.
+    ///
+    /// <para>
+    /// The director already tracks the stage (<c>DynamicEventState</c>: Register while the
+    /// entry timer runs, Warmup once it seals, Battle while it is being fought) plus the
+    /// countdown and headcount. This used to keep only the name, which is why a CE you could
+    /// still run to and one that had already sealed looked identical.
+    /// </para>
     /// </summary>
-    private unsafe IReadOnlyList<string> ReadActiveCriticalEncounters()
+    private unsafe IReadOnlyList<CriticalEncounterState> ReadActiveCriticalEncounters()
     {
-        var result = new List<string>();
+        var result = new List<CriticalEncounterState>();
         try
         {
             var director = FFXIVClientStructs.FFXIV.Client.Game.InstanceContent.PublicContentOccultCrescent.GetInstance();
@@ -270,12 +277,27 @@ public sealed class PhantomJobService
 
             foreach (var dynamicEvent in director->DynamicEventContainer.Events)
             {
-                if (dynamicEvent.State == FFXIVClientStructs.FFXIV.Client.Game.InstanceContent.DynamicEventState.Inactive)
+                var state = dynamicEvent.State;
+                if (state == FFXIVClientStructs.FFXIV.Client.Game.InstanceContent.DynamicEventState.Inactive)
                     continue;
 
                 var name = dynamicEvent.Name.ToString();
-                if (!string.IsNullOrWhiteSpace(name))
-                    result.Add(name);
+                if (string.IsNullOrWhiteSpace(name))
+                    continue;
+
+                // MaxParticipants2 is the one the CE HUD uses; MaxParticipants comes off the
+                // sheet row and reads 0 for some encounters, so prefer the live value.
+                var cap = dynamicEvent.MaxParticipants2 != 0
+                    ? dynamicEvent.MaxParticipants2
+                    : dynamicEvent.MaxParticipants;
+
+                result.Add(new CriticalEncounterState(
+                    name,
+                    (CriticalEncounterStage)(byte)state,
+                    dynamicEvent.SecondsLeft,
+                    dynamicEvent.Participants,
+                    cap,
+                    dynamicEvent.Progress));
             }
         }
         catch (Exception ex)

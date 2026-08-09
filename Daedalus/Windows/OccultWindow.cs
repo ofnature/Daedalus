@@ -19,6 +19,9 @@ public sealed class OccultWindow : Window
     private static readonly Vector4 Green = new(0.49f, 0.79f, 0.49f, 1f);
     private static readonly Vector4 Dim = new(0.54f, 0.54f, 0.58f, 1f);
 
+    /// <summary>Sealing / about to start — no longer joinable, but not finished either.</summary>
+    private static readonly Vector4 Warn = new(0.85f, 0.75f, 0.10f, 1f);
+
     private readonly PhantomJobService _phantomJobs;
     private readonly Daedalus.Services.Occult.PotFateTracker? _potFates;
 
@@ -66,6 +69,8 @@ public sealed class OccultWindow : Window
 
         DrawShardEncounters(snapshot);
 
+        DrawCriticalEncounters(snapshot);
+
         DrawPotFates();
 
 
@@ -106,7 +111,7 @@ public sealed class OccultWindow : Window
     /// </summary>
     private void DrawShardEncounters(Daedalus.Services.Occult.PhantomStateSnapshot snapshot)
     {
-        var unclaimed = PhantomJobData.UnclaimedShardEncounters(
+        var unclaimed = PhantomJobData.UnclaimedShardEncountersWithStage(
             snapshot.ActiveCriticalEncounters, snapshot.JobLevels);
         if (unclaimed.Count == 0)
             return;
@@ -114,11 +119,64 @@ public sealed class OccultWindow : Window
         ImGui.Separator();
         foreach (var (encounter, job) in unclaimed)
         {
-            ImGui.TextColored(Gold,
-                $"★★ {encounter} UP — drops the {PhantomJobData.GetJobDisplayName(job)} shard");
+            var jobName = PhantomJobData.GetJobDisplayName(job);
+
+            // Joinable and sealed are completely different calls to action, so they must not
+            // look alike: one is "drop what you are doing", the other is "you missed it".
+            if (encounter.CanJoin)
+            {
+                var timer = encounter.TimeLeftLabel;
+                var head = encounter.ParticipantsLabel;
+                var suffix = string.IsNullOrEmpty(timer) ? string.Empty : $" — {timer} to enter";
+                if (!string.IsNullOrEmpty(head))
+                    suffix += $" ({head})";
+
+                ImGui.TextColored(Gold, $"★★ {encounter.Name} — JOIN NOW{suffix}");
+                ImGui.TextColored(Dim, $"drops the {jobName} shard");
+            }
+            else
+            {
+                ImGui.TextColored(Dim,
+                    $"☆ {encounter.Name} — {encounter.StageLabel}, can't join ({jobName} shard)");
+            }
         }
 
         ImGui.TextColored(Dim, "you don't have this job yet — CE drop is the only way to unlock it");
+    }
+
+    /// <summary>
+    /// Every live Critical Encounter with the stage it is in. "A CE is up" on its own is not
+    /// actionable — Register means the entry timer is running and you can still make it, Warmup
+    /// and Battle mean the arena has sealed.
+    /// </summary>
+    private void DrawCriticalEncounters(Daedalus.Services.Occult.PhantomStateSnapshot snapshot)
+    {
+        var encounters = snapshot.ActiveCriticalEncounters;
+        if (encounters.Count == 0)
+            return;
+
+        ImGui.Separator();
+        ImGui.TextColored(Dim, "Critical Encounters");
+
+        foreach (var ce in encounters)
+        {
+            var color = ce.Stage switch
+            {
+                Daedalus.Services.Occult.CriticalEncounterStage.Register => Gold,
+                Daedalus.Services.Occult.CriticalEncounterStage.Warmup => Warn,
+                _ => Dim,
+            };
+
+            var line = $"{ce.Name} — {ce.StageLabel}";
+            if (ce.TimeLeftLabel.Length > 0)
+                line += $" {ce.TimeLeftLabel}";
+            if (ce.ParticipantsLabel.Length > 0)
+                line += $" ({ce.ParticipantsLabel})";
+            if (ce.Stage == Daedalus.Services.Occult.CriticalEncounterStage.Battle && ce.Progress > 0)
+                line += $" {ce.Progress}%";
+
+            ImGui.TextColored(color, line);
+        }
     }
 
     private void DrawPotFates()

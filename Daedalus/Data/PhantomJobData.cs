@@ -175,22 +175,70 @@ public static class PhantomJobData
 
         foreach (var name in activeEncounterNames)
         {
-            if (string.IsNullOrWhiteSpace(name))
-                continue;
-
-            foreach (var (encounterName, job) in ShardCriticalEncounters)
-            {
-                if (!name.Contains(encounterName, StringComparison.OrdinalIgnoreCase))
-                    continue;
-                if (jobLevels is not null && jobLevels.TryGetValue(job, out var level) && level > 0)
-                    continue;
-
+            if (TryMatchUnclaimedShard(name, jobLevels, out var encounterName, out var job))
                 result.Add((encounterName, job));
-                break;
-            }
         }
 
         return result;
+    }
+
+    /// <summary>
+    /// Same as the name-only overload, but keeps each encounter's live stage so the caller can
+    /// say whether you can still get into it. A shard CE already in Battle is not an opportunity,
+    /// and a banner that cannot tell the difference sends you running at a sealed arena.
+    /// </summary>
+    /// <remarks>
+    /// Deliberately NOT an overload of the name-only version: the two differ only in the element
+    /// type of an <c>IEnumerable</c>, so an empty collection literal at a call site cannot choose
+    /// between them and the build breaks somewhere unrelated.
+    /// </remarks>
+    public static IReadOnlyList<(Daedalus.Services.Occult.CriticalEncounterState Encounter, PhantomJob Job)>
+        UnclaimedShardEncountersWithStage(
+            IEnumerable<Daedalus.Services.Occult.CriticalEncounterState> activeEncounters,
+            IReadOnlyDictionary<PhantomJob, byte> jobLevels)
+    {
+        var result = new List<(Daedalus.Services.Occult.CriticalEncounterState, PhantomJob)>();
+        if (activeEncounters is null)
+            return result;
+
+        foreach (var encounter in activeEncounters)
+        {
+            if (TryMatchUnclaimedShard(encounter.Name, jobLevels, out _, out var job))
+                result.Add((encounter, job));
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Does this encounter name drop a shard for a job the character has NOT unlocked?
+    /// Shared by both overloads so the matching rules can never drift apart.
+    /// </summary>
+    private static bool TryMatchUnclaimedShard(
+        string? name,
+        IReadOnlyDictionary<PhantomJob, byte> jobLevels,
+        out string encounterName,
+        out PhantomJob job)
+    {
+        encounterName = string.Empty;
+        job = PhantomJob.None;
+
+        if (string.IsNullOrWhiteSpace(name))
+            return false;
+
+        foreach (var (candidateName, candidateJob) in ShardCriticalEncounters)
+        {
+            if (!name.Contains(candidateName, StringComparison.OrdinalIgnoreCase))
+                continue;
+            if (jobLevels is not null && jobLevels.TryGetValue(candidateJob, out var level) && level > 0)
+                continue;
+
+            encounterName = candidateName;
+            job = candidateJob;
+            return true;
+        }
+
+        return false;
     }
 
     public static (PhantomJob Job, byte Level) ResolveActiveJob(
