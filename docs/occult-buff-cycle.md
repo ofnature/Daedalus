@@ -2,6 +2,8 @@
 
 Scope for automating phantom-job self-buff collection. Written 2026-07-31 from a read of
 BOCCHI (`.cursor/bocchi`, OhKannaDuh/BOCCHI) plus what Daedalus already owns.
+**Revised 2026-08-08** — two field corrections from the user changed the shape of the feature
+(see below); the original per-toon cycling design is superseded.
 
 ## What the feature is
 
@@ -9,8 +11,43 @@ Phantom job self-buffs last ~30 minutes and **persist after you switch away from
 So you cycle: switch job → cast its buff → switch to the next → … → switch back to the job you
 were playing. You end up carrying four or five permanent buffs on whatever job you actually run.
 
-This is not a rotation feature. It runs out of combat, at a Knowledge Crystal, and takes ~30-60
-seconds. It is the single highest-value bit of Occult automation that isn't already ours.
+This is not a rotation feature. It runs out of combat and takes ~30-60 seconds. It is the single
+highest-value bit of Occult automation that isn't already ours.
+
+## ⚑ Field corrections (user, 2026-08-08) — these change the design
+
+1. **The job change does NOT require a Knowledge Crystal.** `ChangeSupportJob` works anywhere in
+   the zone. Unknown #4 below is resolved, and BOCCHI's "path to the nearest crystal first"
+   behaviour is inherited from the *action's* requirement, not the job swap's.
+2. **Casting a buff while near a crystal broadcasts it to the whole PARTY, zone-wide.** The
+   crystal is not a gate on collecting the buff for yourself — it is a range amplifier. Refined
+   2026-08-08: the recipients are **party members**, and they must be **in the zone**. Not
+   everyone in the instance; not party members who are elsewhere.
+
+   So the reach is: *in your party* **AND** *in this zone* — but at any distance within it. No
+   need to gather at the crystal, no need to be near the buffer at all.
+
+**Consequence: this stops being a per-toon cycle and becomes a single-toon broadcast.**
+
+One character walks to a crystal, cycles the jobs, and every party member in the zone receives
+each buff. The other toons do nothing: no job switching, no travel, no interruption to whatever
+they are doing. For an 8-box fleet that is one ~60-second sequence instead of eight, and the
+seven non-buffers never leave their farm spots.
+
+The fleet already satisfies both conditions by construction — it plays as one party, and it has
+to share an instance to play together at all. **But both are now real preconditions the feature
+must check rather than assume**, and the failure is silent: a toon in a different instance, or
+one that never got invited, simply receives nothing and no error says so.
+
+That also demotes the Inquiring Mind A/B question below from "may collapse the design" to a
+convenience question: if the per-job actions already broadcast party-wide from a crystal, one
+cast per job is already the whole feature, and Inquiring Mind would only save job switches.
+
+**Still open about the broadcast:**
+- Does a party member who zones in **after** the cast miss that application entirely, and need
+  the cycle re-run for them? Likely yes given it is a cast-time grant — which makes "buff after
+  the fleet has assembled, not before" the correct ordering, and makes a late joiner a reason to
+  re-run rather than wait for the refresh threshold.
 
 ## The buffs
 
@@ -106,12 +143,71 @@ Capture the starting job before step 1 and restore it at the end.
 
 - In an Occult zone (`PhantomJobData.NorthHornTerritoryId` / `SouthHornTerritoryId`)
 - Out of combat
-- **Near a Knowledge Crystal** — `ObjectKind.EventObj`, BaseId `2007457`, field-confirmed
-  2026-07-31 via the Draw Helper object labeller. Same scan shape as the carrot filter in
-  `WorldLineSelector`. The Inquiring Mind tooltip states the crystal requirement outright, so it
-  is at minimum a requirement of *that action*. Whether the support-job change itself also needs
-  crystal proximity is separate and still unconfirmed — BOCCHI gates its button on it and paths
-  to the nearest crystal first, but that may just be inherited from the action's requirement.
+- **Near a Knowledge Crystal — for the BROADCAST, not for the buff.** `ObjectKind.EventObj`,
+  BaseId `2007457`, field-confirmed 2026-07-31 via the Draw Helper object labeller; same scan
+  shape as the carrot filter in `WorldLineSelector`. Corrected 2026-08-08: the job change works
+  anywhere, and a buff cast away from a crystal still lands **on the caster**. Crystal proximity
+  is what turns it zone-wide.
+
+  So proximity is a precondition of the *fleet-wide* mode, not of the feature. A solo run can
+  cycle buffs anywhere; the crystal trip is what makes one toon's cycle cover everyone.
+
+## Cast path (spiked 2026-08-08 — nothing new to build)
+
+`ActionService.ExecuteOgcdRaw(ActionDefinition action, uint rawDispatchId, ulong targetId)` goes
+straight to `ActionManager.UseAction(ActionType.Action, id, target)`. It has **no combat gate and
+no `GetActionStatus` pre-check** — "Raw" exists precisely to bypass the latter — which is exactly
+the fire-this-id-now path this feature needed. The scheduler is not involved.
+
+The three pieces:
+
+| Need | Existing API |
+| --- | --- |
+| Fire the action | `ActionService.ExecuteOgcdRaw(def, actionId, selfId)` |
+| The `ActionDefinition` | `PhantomJobService.GetOrBuildDefinition(actionId, name)` — built from Lumina |
+| Target for a self-buff | the player's own `GameObjectId` (what `PhantomActionLayer` passes for Occult Cure II) |
+
+Gates available without the scheduler:
+- `ActionService.CanExecuteActionId(id)` → `GetActionStatus(...) == 0`. **The game's own verdict**,
+  covering level, learned, cooldown and duty-bar slotting in one call. Use this as the pre-cast
+  gate rather than reimplementing the checks.
+- `ActionService.IsActionReady(id)` → charges > 0 (cooldown only).
+- `PhantomJobService.GetDutySlotIds()` → `DutyActionManager.GetDutyActionId(i)` for the slotted bar.
+
+**Three caveats the implementation must respect:**
+
+1. **`_blockedRepeatOgcdId` blocks re-firing the SAME oGCD within 1 second.** The cycle casts a
+   different action per job so the happy path is unaffected, but a retry after a failed cast must
+   wait more than a second or it will be silently swallowed.
+2. **`ExecuteOgcdRaw` mutates rotation state** — `_ogcdsUsedThisCycle++`, `_history.RecordOgcd`,
+   `RaiseActionExecuted`. Harmless out of combat, but it does pollute weave accounting and
+   history. Worth accepting for the refusal logging it brings; worth knowing before someone
+   debugs a phantom entry in the action history.
+3. **The duty bar is the real gate.** Phantom actions are *duty* actions: the buff must be
+   SLOTTED on that job's duty bar or the cast fails. `PhantomActionLayer.IsOnDutyBar` fails closed
+   for this reason. After each `ChangeSupportJob`, re-read `GetDutySlotIds()` — a job whose buff
+   is not slotted cannot be cycled, and the button should say so by name rather than reporting a
+   generic failure.
+
+## Partial buff sets — supported by design (user question, 2026-08-08)
+
+**Yes, and it has to be.** A character will routinely not have all four, for four independent
+reasons, and the cycle must skip and report rather than stall:
+
+1. **Job not unlocked** — `JobLevels[job] == 0`. Daedalus already reads the per-job level array
+   from `OccultCrescentState`.
+2. **Job under-levelled for the buff.** Each action carries its own unlock level in
+   `PhantomActions.cs`, and they line up exactly with the Inquiring Mind tooltip's requirements:
+   Knight Pray Lv2, Bard Romeo's Ballad Lv2, Monk Counterstance **Lv3**, Dancer Quickstep Lv2.
+3. **Action not slotted** on that job's duty bar (caveat 3 above).
+4. **Toggled off** in config — the per-buff toggles already planned.
+
+Treat 1–3 as "skip with a named reason", 4 as "skip silently, the user asked". The refresh policy
+already handles subsets correctly: the minimum remaining is taken across the **enabled** buffs, so
+a two-buff character refreshes on its own two and never waits on a buff it can never have.
+
+The button's completion line is where this surfaces:
+`Buffed 2 of 4 · Monk Lv1 (needs 3) · Dancer not unlocked`
 
 ## Refresh policy
 
@@ -138,29 +234,66 @@ Every state carries a deadline; any timeout aborts the cycle and restores the st
   transitions, timeouts, restore-on-abort, missing-buff-triggers-refresh, the
   Dancer/Freelancer mutual exclusion
 
-## Unknowns to resolve first
+## Unknowns
 
-These gate the estimate; all are cheap to check.
-
-1. **`ChangeSupportJob` in our pinned FFXIVClientStructs.** BOCCHI calls it, but we pin
-   `Dalamud.NET.Sdk/15.0.0` — confirm the method exists with that signature. If it doesn't, the
-   only fallback is UI automation, which changes the shape of this entirely. **This is the one
-   that can sink the feature.**
-2. **The casting path out of combat.** `PhantomActionLayer` pushes through the rotation
-   scheduler, which isn't running out of combat. `ActionService.ExecuteOgcd` /
-   `ExecuteOgcdRaw` exist but want an `ActionDefinition` and scheduler context — likely needs a
-   thin "fire this action id now" path that bypasses the GCD machinery.
-3. **Inquiring Mind's action ID** (and whether it's worth having at all, given it duplicates
-   Quickstep).
-4. **Whether crystal proximity is genuinely required** for the job change, or only for the
-   in-game UI. Now trivially testable — stand away from one and call it.
+1. ~~**`ChangeSupportJob` in our pinned FFXIVClientStructs.**~~ **RESOLVED 2026-08-08 — it
+   exists**, verified against the pinned commit `8121cbbc`:
+   ```csharp
+   [MemberFunction("E8 ?? ?? ?? ?? 48 8B 06 48 8B CE FF 50 ?? EB ?? 48 8B 06 48 8B CE C7 46")]
+   public static partial bool ChangeSupportJob(byte id);
+   ```
+   Static, takes the support-job byte, and **returns bool** — so it reports success rather than
+   failing silently, which is better than this plan originally assumed. The complementary read is
+   `OccultCrescentState` `0x91` `CurrentSupportJob` (MKDSupportJob RowId) — capture it before the
+   cycle, restore it after. It is absent from the ClientStructs XML docs only because it carries
+   no doc comment; do not conclude from a doc grep that it is missing.
+2. ~~**The casting path out of combat.**~~ **RESOLVED 2026-08-08 by spike — the path already
+   exists, no new ActionService machinery needed.** See "Cast path" below.
+3. **Inquiring Mind's action ID**, and whether it is worth having at all now that the per-job
+   actions are known to broadcast from a crystal. Demoted from blocking to optional.
+4. ~~**Whether crystal proximity is required for the job change.**~~ **RESOLVED 2026-08-08 —
+   it is not.** See the field corrections at the top.
+5. ~~**The broadcast's exact scope.**~~ **Largely RESOLVED 2026-08-08: party members, in the
+   zone, at any distance.** Only one sub-question remains — whether a party member who zones in
+   *after* the cast misses that application. Decides whether a late joiner triggers a re-run or
+   waits for the refresh threshold; does not affect whether the feature works.
 
 ## Phases
 
-1. Spike the four unknowns above
+1. Spike the remaining unknowns — chiefly the out-of-combat cast path (#2)
 2. State machine + refresh policy + tests (no UI)
-3. Config + OccultWindow button and readout — manual trigger only
-4. Automatic refresh when the threshold trips
-5. Optional: audit the remaining phantom jobs for buffs BOCCHI missed
+3. **The whole UI is one button on the Occult window** (user, 2026-08-08) — "Buff" / "Apply
+   buffs", which kicks the cycle and reports progress. No panel, no per-buff UI beyond the
+   config toggles. What it needs to carry:
+   - **Disabled with a reason when it cannot run** — not in an Occult zone, in combat, no
+     Knowledge Crystal nearby (fleet mode only), cycle already running. A greyed button that
+     does not say why is the thing users file bugs about.
+   - **Live state while running** — which job it is on, e.g. "Switching to Bard (2/4)". The
+     cycle takes 30-60s of the character doing visibly odd things; silence during it reads as a
+     hang.
+   - **Coverage on completion** — "Buffed 4 of 4 · party 7/8, Prometheus not in the zone".
+     This is where the silent-failure preconditions become visible.
+   - The lowest remaining buff timer, so "do I need to re-run?" is answerable at a glance.
+4. Automatic refresh when the threshold trips — **optional**, and deliberately after the button.
+   A manual button is the honest version of a feature that switches your job four times; make it
+   trustworthy before making it automatic.
+5. **Fleet mode: designate ONE buffer.** With the party-wide broadcast, the other toons need no
+   logic at all — they simply receive. The work is picking the buffer (config, or the toon
+   nearest a crystal), routing it there, and suppressing the cycle on everyone else so eight
+   boxes don't all run it. Cheaper than the original per-toon design and strictly better.
 
-Phases 2-4 are the bulk. Phase 1 should come back within a session.
+   **Verify the preconditions rather than assuming them**, because both fail silently:
+   - Every intended recipient is in the **same party** as the buffer. The LAN roster already
+     knows the fleet; the in-game party list is the one that actually counts here.
+   - Every recipient is in the **same zone instance**. Occult Crescent runs multiple instances,
+     and a toon in the wrong one is invisible to the broadcast while looking perfectly fine.
+   - Report who was covered after a cycle — "buffed 7 of 8, Prometheus not in the zone" is the
+     difference between a working fleet feature and one that quietly half-works.
+
+   Ordering follows from the grant being cast-time: **buff after the fleet has assembled**, and
+   treat a late arrival as a reason to re-run the cycle rather than wait for the refresh
+   threshold.
+6. Optional: audit the remaining phantom jobs for buffs BOCCHI missed
+
+Phases 2-4 are the bulk. The per-toon cycling machinery the original plan sized for is no longer
+needed — one toon's cycle covers the fleet.

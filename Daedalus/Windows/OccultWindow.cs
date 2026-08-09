@@ -24,13 +24,21 @@ public sealed class OccultWindow : Window
 
     private readonly PhantomJobService _phantomJobs;
     private readonly Daedalus.Services.Occult.PotFateTracker? _potFates;
+    private readonly Daedalus.Services.Occult.PhantomBuffCycleService? _buffCycle;
+    private readonly Daedalus.Config.PhantomConfig? _phantomConfig;
 
-    public OccultWindow(PhantomJobService phantomJobs, Daedalus.Services.Occult.PotFateTracker? potFates = null)
+    public OccultWindow(
+        PhantomJobService phantomJobs,
+        Daedalus.Services.Occult.PotFateTracker? potFates = null,
+        Daedalus.Services.Occult.PhantomBuffCycleService? buffCycle = null,
+        Daedalus.Config.PhantomConfig? phantomConfig = null)
         : base("Occult Crescent##DaedalusOccultHud",
             ImGuiWindowFlags.AlwaysAutoResize | ImGuiWindowFlags.NoFocusOnAppearing)
     {
         _potFates = potFates;
         _phantomJobs = phantomJobs;
+        _buffCycle = buffCycle;
+        _phantomConfig = phantomConfig;
     }
 
     public override void Draw()
@@ -70,6 +78,8 @@ public sealed class OccultWindow : Window
         DrawShardEncounters(snapshot);
 
         DrawCriticalEncounters(snapshot);
+
+        DrawBuffCycle(snapshot);
 
         DrawPotFates();
 
@@ -176,6 +186,129 @@ public sealed class OccultWindow : Window
                 line += $" {ce.Progress}%";
 
             ImGui.TextColored(color, line);
+        }
+    }
+
+    /// <summary>
+    /// The buff cycle: one button, plus enough state that a minute of the character switching
+    /// jobs never looks like a hang.
+    ///
+    /// <para>
+    /// Phantom self-buffs last ~30 minutes and survive a job switch, so one pass leaves you
+    /// carrying all of them on whatever you actually play — and beside a Knowledge Crystal they
+    /// reach the whole party in the zone, so one toon covers a fleet.
+    /// </para>
+    /// </summary>
+    private void DrawBuffCycle(Daedalus.Services.Occult.PhantomStateSnapshot snapshot)
+    {
+        if (_buffCycle is null || _phantomConfig is null)
+            return;
+
+        ImGui.Separator();
+
+        var running = _buffCycle.IsRunning;
+        var blocked = _buffCycle.BlockedReason();
+
+        var disabled = blocked.Length > 0;
+        if (disabled)
+            ImGui.BeginDisabled();
+
+        if (ImGui.Button("Apply phantom buffs"))
+        {
+            _buffCycle.Start(buff => buff.Job switch
+            {
+                PhantomJob.Knight => _phantomConfig.BuffCycleKnight,
+                PhantomJob.Bard => _phantomConfig.BuffCycleBard,
+                PhantomJob.Monk => _phantomConfig.BuffCycleMonk,
+                PhantomJob.Dancer => _phantomConfig.BuffCycleDancer,
+                _ => false,
+            });
+        }
+
+        if (disabled)
+            ImGui.EndDisabled();
+
+        // Capture hover on the BUTTON, right here. IsItemHovered() reports on the LAST item
+        // drawn, and the status text below is drawn next — asking later would test the wrong
+        // widget. AllowWhenDisabled keeps the explanation reachable while the button is greyed
+        // out, which is exactly when someone wants to know why.
+        var buttonHovered = ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenDisabled);
+
+        // A greyed button that will not say why is the thing people report as broken.
+        if (blocked.Length > 0)
+        {
+            ImGui.SameLine();
+            ImGui.TextColored(Dim, blocked);
+        }
+        else if (!running)
+        {
+            ImGui.SameLine();
+            ImGui.TextColored(Dim, "cycles jobs, then switches you back");
+        }
+
+        // Hover only. The previous condition ORed in "enabled and not running", which made
+        // SetTooltip fire every frame — ImGui then drew it at the cursor permanently, so the
+        // tooltip followed the mouse around the screen instead of appearing on the button.
+        if (buttonHovered)
+        {
+            // Crystal proximity is not required to buff YOURSELF — it is what makes the buffs
+            // reach the party across the zone. Saying so stops it reading as a hard requirement.
+            var crystalNote = snapshot.InOccultCrescent
+                ? "\n\nBeside a Knowledge Crystal these reach every party member in the zone;\n"
+                  + "away from one they still land on you alone."
+                : string.Empty;
+            ImGui.SetTooltip(
+                "Switches through the phantom jobs collecting their 30-minute self-buffs,\n"
+                + "then returns you to the job you are on now." + crystalNote);
+        }
+
+        if (running)
+        {
+            ImGui.TextColored(Gold, _buffCycle.Status);
+        }
+        else if (_buffCycle.LastOutcome.Length > 0)
+        {
+            ImGui.TextColored(Dim, _buffCycle.LastOutcome);
+        }
+
+        DrawBuffTimers();
+    }
+
+    /// <summary>
+    /// Remaining time per collectable buff, so "do I need to re-run this?" is answerable without
+    /// opening anything. Buffs the character cannot hold are listed with the reason rather than
+    /// shown at zero, which would read as "expired" for something never obtainable.
+    /// </summary>
+    private void DrawBuffTimers()
+    {
+        if (_buffCycle is null || _phantomConfig is null)
+            return;
+
+        foreach (var buff in Daedalus.Data.PhantomBuffs.All)
+        {
+            var enabled = buff.Job switch
+            {
+                PhantomJob.Knight => _phantomConfig.BuffCycleKnight,
+                PhantomJob.Bard => _phantomConfig.BuffCycleBard,
+                PhantomJob.Monk => _phantomConfig.BuffCycleMonk,
+                PhantomJob.Dancer => _phantomConfig.BuffCycleDancer,
+                _ => false,
+            };
+
+            if (!enabled)
+                continue;
+
+            var remaining = _buffCycle.RemainingFor(buff);
+            var label = remaining > 0f
+                ? $"{(int)remaining / 60}:{(int)remaining % 60:D2}"
+                : "—";
+            var color = remaining > 600f ? Green : remaining > 0f ? Warn : Dim;
+
+            ImGui.TextColored(color, "●");
+            ImGui.SameLine(0f, 4f);
+            ImGui.TextColored(Dim, $"{buff.ActionName}");
+            ImGui.SameLine();
+            ImGui.TextColored(color, label);
         }
     }
 

@@ -200,6 +200,7 @@ public sealed class Plugin : IDalamudPlugin
     private readonly Daedalus.Services.Occult.PhantomJobService phantomJobService;
     private readonly Daedalus.Services.Occult.ElementalWeaknessLog elementalWeaknessLog;
     private readonly Daedalus.Services.Occult.PotFateTracker potFateTracker;
+    private readonly Daedalus.Services.Occult.PhantomBuffCycleService phantomBuffCycle;
     private readonly Daedalus.Services.Occult.ChestLedger chestLedger;
     private readonly Daedalus.Services.Occult.PotTreasureHunt potTreasureHunt;
     private readonly Daedalus.Services.Debug.DeathReleaseWatch deathReleaseWatch;
@@ -977,8 +978,17 @@ public sealed class Plugin : IDalamudPlugin
         windowSystem.AddWindow(dpsMeterWindow);
         windowSystem.AddWindow(farmWindow);
 
+        // Phantom buff cycle: switches support jobs to collect their 30-minute self-buffs and
+        // always switches back. Beside a Knowledge Crystal the buffs reach the whole party in
+        // the zone, so one toon covers the fleet (docs/occult-buff-cycle.md).
+        this.phantomBuffCycle = new Daedalus.Services.Occult.PhantomBuffCycleService(
+            new Daedalus.Services.Occult.GamePhantomBuffWorld(
+                phantomJobService, actionService, objectTable, condition, message => log.Info(message)),
+            message => log.Info(message));
+
         // Occult zone HUD: auto-open on entering Occult Crescent, close on leaving.
-        this.occultWindow = new OccultWindow(phantomJobService, potFateTracker);
+        this.occultWindow = new OccultWindow(
+            phantomJobService, potFateTracker, phantomBuffCycle, configuration.Occult);
         windowSystem.AddWindow(occultWindow);
         this.clientState.TerritoryChanged += OnOccultTerritoryChanged;
         OnOccultTerritoryChanged(clientState.TerritoryType); // plugin may load mid-zone
@@ -1692,6 +1702,9 @@ public sealed class Plugin : IDalamudPlugin
             // and the reward is gated by the ~30 min cycle, so knowing when the next one is due
             // is worth more than any farming routine.
             potFateTracker.Update();
+            // Drives the job-switch state machine. No-op unless a cycle is running, and it
+            // restores the starting job on every exit path including faults.
+            phantomBuffCycle.Tick();
             chestLedger.Update();
             potTreasureHunt.Update();
             deathReleaseWatch.Update();

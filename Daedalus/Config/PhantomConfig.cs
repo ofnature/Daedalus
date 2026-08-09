@@ -204,6 +204,39 @@ public sealed class PhantomConfig
     public List<float> ActivationRadiusSamples { get; set; } = [];
     public bool UseTreasuresight { get; set; } = false;
 
+    // ── Phantom buff cycle (docs/occult-buff-cycle.md) ──────────────────────────────────
+    // Phantom self-buffs last ~30 minutes and survive a job switch, so cycling the jobs once
+    // leaves you carrying all of them. Cast beside a Knowledge Crystal they reach every party
+    // member in the zone, so one toon can cover a fleet.
+
+    /// <summary>Collect Knight's Pray — −10% damage taken.</summary>
+    public bool BuffCycleKnight { get; set; } = true;
+
+    /// <summary>
+    /// Collect Bard's Romeo's Ballad — +10% phantom EXP. This is an EXP buff, not a combat one:
+    /// worth keeping up while levelling phantom jobs and worth nothing once they are capped.
+    /// </summary>
+    public bool BuffCycleBard { get; set; } = true;
+
+    /// <summary>Collect Monk's Counterstance — movement speed. Needs Monk Lv3, not Lv2.</summary>
+    public bool BuffCycleMonk { get; set; } = true;
+
+    /// <summary>Collect Dancer's Quickstep — +2% damage dealt.</summary>
+    public bool BuffCycleDancer { get; set; } = true;
+
+    /// <summary>
+    /// Re-collect automatically once the weakest buff drops below this many seconds. Only the
+    /// buffs this character can actually hold are counted, so a locked job never keeps the
+    /// minimum pinned at zero and re-triggers forever.
+    /// </summary>
+    public float BuffCycleRefreshSeconds { get; set; } = 600f;
+
+    /// <summary>
+    /// Run the cycle automatically when the threshold trips. Default OFF — a feature that
+    /// switches your job four times should be trusted from the button first.
+    /// </summary>
+    public bool BuffCycleAutoRefresh { get; set; } = false;
+
 
     // ── Knight ──
     public bool KnightPrayAsHeal { get; set; } = false;
