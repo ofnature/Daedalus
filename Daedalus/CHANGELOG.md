@@ -3,7 +3,7 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
-## v0.1.54 — unreleased
+## v0.1.54 — 2026-08-08
 
 ### Fix — Bosses on stacked platforms no longer lock your target to the part you can't hit
 - On a boss split across two **stacked platforms**, dropping to the lower floor left your target welded to the upper section — the rotation kept swinging at something a solid floor made unhittable, and no targeting strategy or per-fight override changed it
