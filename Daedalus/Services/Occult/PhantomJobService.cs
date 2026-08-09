@@ -291,13 +291,20 @@ public sealed class PhantomJobService
                     ? dynamicEvent.MaxParticipants2
                     : dynamicEvent.MaxParticipants;
 
+                // SecondsLeft reads 0 during Register (field 2026-08-08), which is the stage
+                // where the countdown matters most — resolve against StartTimestamp instead.
+                var nowUnix = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+                var secondsLeft = CriticalEncounterState.ResolveSecondsLeft(
+                    dynamicEvent.SecondsLeft, dynamicEvent.StartTimestamp, nowUnix);
+
                 result.Add(new CriticalEncounterState(
                     name,
                     (CriticalEncounterStage)(byte)state,
-                    dynamicEvent.SecondsLeft,
+                    secondsLeft,
                     dynamicEvent.Participants,
                     cap,
-                    dynamicEvent.Progress));
+                    dynamicEvent.Progress,
+                    dynamicEvent.StartTimestamp));
             }
         }
         catch (Exception ex)

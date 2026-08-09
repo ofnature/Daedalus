@@ -117,6 +117,47 @@ public class CriticalEncounterStateTests
         Assert.Equal(byName[0].Job, byState[0].Job);
     }
 
+    // ── the join countdown ──────────────────────────────────────────────────────────────
+
+    [Fact]
+    public void A_populated_SecondsLeft_is_used_as_is()
+    {
+        Assert.Equal(240u, CriticalEncounterState.ResolveSecondsLeft(240, startTimestamp: 0, nowUnix: 1000));
+    }
+
+    [Fact]
+    public void Register_falls_back_to_the_start_timestamp()
+    {
+        // The case this exists for: JOIN NOW with SecondsLeft reading 0. If StartTimestamp marks
+        // when the battle begins, the gap to now IS the time left to get in.
+        Assert.Equal(45u, CriticalEncounterState.ResolveSecondsLeft(0, startTimestamp: 1045, nowUnix: 1000));
+    }
+
+    [Fact]
+    public void A_start_timestamp_in_the_past_shows_nothing_rather_than_a_wrong_number()
+    {
+        // If StartTimestamp turns out to mark when REGISTRATION opened rather than when the
+        // battle starts, the difference goes negative — and the honest answer is no timer, which
+        // is exactly the behaviour before this fallback existed. A wrong guess costs a missing
+        // countdown, never a misleading one.
+        Assert.Equal(0u, CriticalEncounterState.ResolveSecondsLeft(0, startTimestamp: 900, nowUnix: 1000));
+    }
+
+    [Fact]
+    public void Implausible_values_are_refused_from_both_sources()
+    {
+        // A CE window is minutes. Anything past an hour means the field is not a countdown.
+        Assert.Equal(0u, CriticalEncounterState.ResolveSecondsLeft(999_999, 0, 1000));
+        Assert.Equal(0u, CriticalEncounterState.ResolveSecondsLeft(0, startTimestamp: 500_000, nowUnix: 1000));
+    }
+
+    [Fact]
+    public void No_timing_information_at_all_reads_as_no_timer()
+    {
+        Assert.Equal(0u, CriticalEncounterState.ResolveSecondsLeft(0, startTimestamp: 0, nowUnix: 1000));
+        Assert.Equal(string.Empty, Ce(CriticalEncounterStage.Register).TimeLeftLabel);
+    }
+
     private static CriticalEncounterState Ce(CriticalEncounterStage stage)
         => new("Test Encounter", stage, 0, 0, 0, 0);
 }

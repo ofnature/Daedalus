@@ -49,8 +49,51 @@ public readonly record struct CriticalEncounterState(
     uint SecondsLeft,
     byte Participants,
     byte MaxParticipants,
-    byte Progress)
+    byte Progress,
+    int StartTimestamp = 0)
 {
+    /// <summary>
+    /// Longest countdown we will believe. A CE registration window is a minute or two and a
+    /// battle at most half an hour; anything past an hour means the value is not a countdown and
+    /// showing it would be worse than showing nothing.
+    /// </summary>
+    internal const uint MaxPlausibleSeconds = 3600;
+
+    /// <summary>
+    /// The countdown to display, from the two sources the packet offers.
+    ///
+    /// <para>
+    /// <c>SecondsLeft</c> is authoritative when populated — but it reads <b>0 during Register</b>
+    /// (field 2026-08-08), which is exactly the stage where the number matters most: "JOIN NOW"
+    /// with no time is missing the one fact that decides whether you can make it. The
+    /// registration and warmup durations that would give it directly are <c>private</c> in
+    /// ClientStructs and unreachable.
+    /// </para>
+    ///
+    /// <para>
+    /// <b><c>StartTimestamp</c> is the moment the BATTLE begins</b> — field-confirmed 2026-08-08
+    /// ("Company of Stone — JOIN NOW 0:54"), so during Register the gap to now is precisely the
+    /// time left to enter. That is what this returns when <c>SecondsLeft</c> is empty.
+    /// </para>
+    ///
+    /// <para>
+    /// The negative and implausible guards below are kept even though the semantics are now
+    /// known: they are what makes a future patch that repurposes the field degrade to "no timer"
+    /// instead of a confidently wrong countdown on the most time-critical line in the window.
+    /// </para>
+    /// </summary>
+    internal static uint ResolveSecondsLeft(uint secondsLeft, int startTimestamp, long nowUnix)
+    {
+        if (secondsLeft > 0)
+            return secondsLeft <= MaxPlausibleSeconds ? secondsLeft : 0;
+
+        if (startTimestamp <= 0)
+            return 0;
+
+        var untilStart = startTimestamp - nowUnix;
+        return untilStart > 0 && untilStart <= MaxPlausibleSeconds ? (uint)untilStart : 0;
+    }
+
     /// <summary>You can still enter this one. The whole point of tracking the stage.</summary>
     public bool CanJoin => Stage == CriticalEncounterStage.Register;
 
