@@ -45,6 +45,19 @@ public sealed class PhantomBuffCycleService
     /// <summary>Whole-cycle deadline, including the restore.</summary>
     internal const float CycleTimeoutSeconds = 90f;
 
+    /// <summary>
+    /// Gap between attempts to hand the starting job back.
+    ///
+    /// <para>
+    /// The game refuses a phantom job change while you are still locked from the buff you just
+    /// cast, and it answers <em>every</em> refusal with a red "unable to change phantom jobs at
+    /// this time" line. Retrying straight off the framework update, as this first did, meant one
+    /// call and one error line per frame — a wall of red at the end of every otherwise successful
+    /// cycle. Once a second clears the same lock in a handful of lines.
+    /// </para>
+    /// </summary>
+    internal const float RestoreRetrySeconds = 1f;
+
     private readonly IPhantomBuffWorld _world;
     private readonly Action<string>? _log;
 
@@ -54,6 +67,9 @@ public sealed class PhantomBuffCycleService
 
     private float _stepElapsed;
     private float _cycleElapsed;
+
+    /// <summary>Point on <see cref="_stepElapsed"/> at which the next restore attempt is due.</summary>
+    private float _nextRestoreAttempt;
 
     /// <summary>Injectable so tests can drive time directly.</summary>
     internal Func<float> DeltaSeconds = () => 1f / 60f;
@@ -288,6 +304,12 @@ public sealed class PhantomBuffCycleService
             return;
         }
 
+        // Throttled: see RestoreRetrySeconds. The first attempt still goes out immediately, since
+        // a cycle whose last buff was skipped has no lock to wait out.
+        if (_stepElapsed < _nextRestoreAttempt)
+            return;
+
+        _nextRestoreAttempt = _stepElapsed + RestoreRetrySeconds;
         _world.ChangeSupportJob(StartingJob);
     }
 
@@ -331,6 +353,7 @@ public sealed class PhantomBuffCycleService
             return;
         }
 
+        _nextRestoreAttempt = 0f;
         EnterState(BuffCycleState.RestoringJob, $"Switching back to {StartingJob}");
     }
 

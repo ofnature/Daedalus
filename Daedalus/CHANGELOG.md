@@ -3,6 +3,14 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.56 — unreleased
+
+### Fix — The phantom buff cycle no longer floods the screen with red text when it finishes
+- Collecting the buffs worked, but switching back to the job you started on produced a wall of *"you are unable to change phantom jobs at this time"*. The game refuses a job change while you're still locked from the buff you just cast, and it answers **every** refusal with an error line — and the cycle was retrying on every frame, so a lock lasting a second or two turned into hundreds of messages
+- It now retries about **once a second**, which clears the same lock in a handful of attempts instead of hundreds. The first attempt still goes out immediately, so a cycle with nothing to wait out hands your job back just as fast as before
+- If it genuinely can't switch you back within its time limit it stops and says so, rather than retrying forever
+
+<!-- LATEST-END -->
 ## v0.1.55 — 2026-08-09
 
 ### Fix — "JOIN NOW" now tells you how long you have
@@ -23,7 +31,6 @@ All notable changes to Daedalus will be documented in this file.
 - Healing bars are teal so the two meters never read as the same thing mid-fight
 - **Shields are not counted, and the tab says so.** Adloquium, Eukrasian Prognosis, Succor, Kerachole and Panhaima apply as status effects rather than heals, so the game never reports them here and Scholar and Sage will read low. A visible gap beats a number that's confidently wrong for the two jobs it matters most to
 
-<!-- LATEST-END -->
 ## v0.1.54 — 2026-08-08
 
 ### Fix — Bosses on stacked platforms no longer lock your target to the part you can't hit

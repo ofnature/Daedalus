@@ -31,6 +31,15 @@ public class PhantomBuffCycleTests
         public bool CastNeverLands { get; set; }
         public PhantomJob? FailSwitchTo { get; set; }
 
+        /// <summary>
+        /// Refuse the first N switches TO this job, then let them through — the game's behaviour
+        /// while you are still locked from the buff you just cast. Targeted at one job so a test
+        /// can refuse the hand-back without also refusing the buff switches.
+        /// </summary>
+        public PhantomJob? RefuseFirstSwitchesTo { get; set; }
+
+        public int RefuseFirstSwitchesCount { get; set; }
+
         public readonly List<PhantomJob> SwitchLog = new();
         public readonly List<uint> CastLog = new();
         public readonly Dictionary<uint, float> Statuses = new();
@@ -40,6 +49,12 @@ public class PhantomBuffCycleTests
             SwitchLog.Add(job);
             if (RefuseSwitch || FailSwitchTo == job)
                 return false;
+
+            if (RefuseFirstSwitchesTo == job && RefuseFirstSwitchesCount > 0)
+            {
+                RefuseFirstSwitchesCount--;
+                return false;
+            }
 
             ActiveJob = job;
             return true;
@@ -259,5 +274,62 @@ public class PhantomBuffCycleTests
 
         Assert.Equal(PhantomBuffs.All[2].ActionId, Assert.Single(world.CastLog));
         Assert.Equal(PhantomJob.Cannoneer, world.ActiveJob);
+    }
+
+    // ── restoring the starting job ──────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Field report: the cycle buffed correctly then "spammed job change" with a wall of red
+    /// "unable to change phantom jobs at this time". The game refuses the switch while you are
+    /// still locked from the last buff and complains once per refusal, and the restore was
+    /// retrying every framework update — roughly sixty error lines a second.
+    /// </summary>
+    [Fact]
+    public void A_refused_restore_is_retried_about_once_a_second_not_every_frame()
+    {
+        var world = new FakeWorld { FailSwitchTo = PhantomJob.Cannoneer };   // never lets it back
+        var cycle = Cycle(world);   // 0.5s per tick
+        Assert.True(cycle.Start(_ => true));
+        RunToCompletion(cycle, maxTicks: 400);
+
+        var restoreAttempts = world.SwitchLog.FindAll(j => j == PhantomJob.Cannoneer).Count;
+
+        // The 15s step timeout at one attempt a second, not one per tick. Ticking that long
+        // unthrottled would be 30 attempts here and ~900 in game; the magnitude is the point.
+        Assert.InRange(restoreAttempts, 1, 20);
+
+        // And when it truly cannot get back, it says so rather than retrying forever.
+        Assert.Equal(BuffCycleState.Faulted, cycle.State);
+    }
+
+    [Fact]
+    public void The_first_restore_attempt_is_not_delayed()
+    {
+        // Throttling must not cost a second on the common path, where nothing refuses.
+        var world = new FakeWorld();
+        var cycle = Cycle(world);
+        Assert.True(cycle.Start(_ => true));
+        RunToCompletion(cycle);
+
+        Assert.Equal(PhantomJob.Cannoneer, world.ActiveJob);
+        Assert.Equal(BuffCycleState.Idle, cycle.State);
+    }
+
+    [Fact]
+    public void A_restore_that_is_refused_briefly_still_succeeds()
+    {
+        // The real case: a couple of refusals while the cast lock expires, then it goes through.
+        var world = new FakeWorld
+        {
+            RefuseFirstSwitchesTo = PhantomJob.Cannoneer,
+            RefuseFirstSwitchesCount = 3,
+        };
+
+        var cycle = Cycle(world);
+        Assert.True(cycle.Start(_ => true));
+        RunToCompletion(cycle, maxTicks: 400);
+
+        Assert.Equal(PhantomJob.Cannoneer, world.ActiveJob);
+        Assert.Equal(BuffCycleState.Idle, cycle.State);
     }
 }
