@@ -244,8 +244,10 @@ public static class OccultTab
                        .ThenBy(e => e.Name, StringComparer.OrdinalIgnoreCase).ToList();
 
             var lastEncounter = string.Empty;
-            foreach (var e in ordered)
+            for (var i = 0; i < ordered.Count; i++)
             {
+                var e = ordered[i];
+
                 // Inside the CE group, break the list by encounter so it reads as a per-fight
                 // roster rather than one long list.
                 if (groupByEncounter && !string.Equals(EncounterOf(e), lastEncounter, StringComparison.Ordinal))
@@ -256,14 +258,52 @@ public static class OccultTab
                         : lastEncounter);
                 }
 
-                DrawEnemyLine(e, indented: groupByEncounter);
+                // Fold runs of rows that would print the same line — see RendersSameAs. The
+                // ordering above already puts them adjacent, and never merge across an encounter
+                // heading, which would move a mob out from under the fight it belongs to.
+                var copies = 1;
+                while (i + 1 < ordered.Count
+                       && RendersSameAs(ordered[i + 1], e)
+                       && (!groupByEncounter
+                           || string.Equals(EncounterOf(ordered[i + 1]), lastEncounter, StringComparison.Ordinal)))
+                {
+                    copies++;
+                    i++;
+                }
+
+                DrawEnemyLine(e, indented: groupByEncounter, copies);
             }
         }
 
         ImGui.Unindent();
     }
 
-    private static void DrawEnemyLine(Daedalus.Services.Occult.OccultWeaknessEntry e, bool indented)
+    /// <summary>
+    /// Whether two entries would draw the identical line.
+    ///
+    /// <para>
+    /// Two NameIds can share a name, kind, weakness AND max HP — spawn variants of one field mob
+    /// (Animated Doll 13893/13894, Crescent Void Viper 13896/13907). The table has to keep both
+    /// rows because <c>KnownWeakness</c> looks up by NameId, but printing the same line twice
+    /// reads as a bug in the table.
+    /// </para>
+    ///
+    /// <para>
+    /// Deliberately strict: it compares everything the line shows, so same-named enemies that are
+    /// genuinely different still get their own row — the 24.7M Crescent Garula weak to Fire and
+    /// the 634k one with nothing revealed are two different fights and must not be folded
+    /// together.
+    /// </para>
+    /// </summary>
+    private static bool RendersSameAs(
+        Daedalus.Services.Occult.OccultWeaknessEntry a, Daedalus.Services.Occult.OccultWeaknessEntry b)
+        => a.MaxHp == b.MaxHp
+           && a.Elements == b.Elements
+           && a.Kind == b.Kind
+           && string.Equals(a.Name, b.Name, StringComparison.Ordinal);
+
+    private static void DrawEnemyLine(
+        Daedalus.Services.Occult.OccultWeaknessEntry e, bool indented, int copies = 1)
     {
         var ice = (e.Elements & Daedalus.Services.Occult.OccultElement.Ice) != 0;
         var kind = e.Kind switch
@@ -276,9 +316,13 @@ public static class OccultTab
             ? "weakness not revealed"
             : $"weak to {e.Elements}";
 
+        // "×2" rather than silently dropping the row: the second one is a real, separately
+        // tracked enemy, and a reader counting the roster of a fight should still see it.
+        var multiple = copies > 1 ? $" ×{copies}" : string.Empty;
+
         if (indented)
             ImGui.Indent();
-        ImGui.TextColored(ice ? Green : Dim, $"{e.Name} [{kind}] — {weakness}  ({e.MaxHp:N0} HP)");
+        ImGui.TextColored(ice ? Green : Dim, $"{e.Name}{multiple} [{kind}] — {weakness}  ({e.MaxHp:N0} HP)");
         if (indented)
             ImGui.Unindent();
     }
