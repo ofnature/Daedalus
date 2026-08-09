@@ -3,6 +3,20 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.54 — unreleased
+
+### Fix — Bosses on stacked platforms no longer lock your target to the part you can't hit
+- On a boss split across two **stacked platforms**, dropping to the lower floor left your target welded to the upper section — the rotation kept swinging at something a solid floor made unhittable, and no targeting strategy or per-fight override changed it
+- Two separate faults. **"Switch off unreachable targets" only understood distance**: the upper section is barely a dozen yalms up, so it read as comfortably in range and the recovery never even started. Reachability now means in range **and** with line of sight, which is what the game itself requires
+- And the recovery only ran when the targeting strategy came up **empty** — but it found the reachable lower section every time, so the whole thing was skipped and your hard target was never rewritten. It now switches whenever the enemy you're holding can't be hit and one that can is available
+- Both changes sit behind the existing hold-time so a momentarily blocked line of sight can't bounce your target around, and it never re-writes the target you already have
+
+### New — Critical Encounters now tell you whether you can still join
+- "A CE is up" was never the useful part. The arena **seals** partway through, so an encounter you could still run to and one you'd already missed looked exactly the same in the window
+- Each live CE now shows the stage the game itself tracks: **JOIN NOW** with the entry countdown and headcount while registration is open, **starting** once it seals, and **in progress** with a completion percentage while it's being fought. Colour follows the meaning — gold when you can make it, yellow when it's closing, dim when it's gone
+- The **shard alerts** use the same signal, so an unclaimed-job CE that's already in progress no longer reads as an opportunity — it says you can't join instead of sending you sprinting at a sealed arena
+
+<!-- LATEST-END -->
 ## v0.1.53 — 2026-08-04
 
 ### Fix — You can target your party again (controller players especially)
@@ -28,7 +42,6 @@ All notable changes to Daedalus will be documented in this file.
 - "Uptime 100%" only ever meant *no unforced idling* — a fight could contain two 12-second GCD stalls binned as movement or mechanic time and the summary wouldn't breathe a word. The combat-end line now names them: *"144s, uptime 100% — excused: movement 18s, mechanic 6s"*. The excuses may be legitimate; they must be visible
 - "Stuck" reports no longer list the dup-guard's own *"already submitted"* echo — but game status 582 stays visible on purpose, since a sustained 582 streak turned out to be the only symptom those stalls had
 
-<!-- LATEST-END -->
 ## v0.1.52 — 2026-08-02
 
 ### New — Lines to marked mobs

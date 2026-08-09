@@ -159,17 +159,29 @@ public sealed class TargetingService : ITargetingService
             target = FindEnemyByStrategy(EnemyTargetingStrategy.LowestHp, maxRange, player);
         }
 
-        // Split-boss / unreachable-target recovery: any strategy can leave us with no target when
-        // the followed enemy is a valid living hostile that is merely OUT OF REACH (e.g. an elevated
-        // boss part melee can't hit) while a reachable attackable hostile exists. Don't idle —
-        // switch to the reachable one and write it as the hard target so auto-face turns to it.
-        if (target == null && IsHeldTargetUnreachableWithReachableAlternative(maxRange, player))
+        // Split-boss / unreachable-target recovery: the followed enemy is a valid living hostile we
+        // cannot hit — out of reach, or in range behind a wall or floor — while a reachable hostile
+        // exists. Switch to the reachable one and write it as the HARD target so auto-face turns to
+        // it and the player stops staring at a boss part they can never damage.
+        //
+        // Deliberately NOT gated on `target == null`. Field 2026-08-07, Shinryu's stacked platforms:
+        // the strategy happily returned the reachable lower boss section, so `target` was non-null
+        // and this whole branch was skipped — leaving the rotation quietly hitting the lower part
+        // while the hard target stayed locked on the unreachable upper one. Writing the hard target
+        // is the entire point of this recovery, and it is needed most in exactly the case where the
+        // strategy already found something.
+        if (IsHeldTargetUnreachableWithReachableAlternative(maxRange, player))
         {
-            var reachable = FindEnemyByStrategy(
+            var reachable = target ?? FindEnemyByStrategy(
                 CombatRetargetPolicy.ResolveAutoRetargetStrategy(strategy), maxRange, player);
-            if (reachable != null)
+
+            if (CombatRetargetPolicy.ShouldWriteReachableHardTarget(
+                    heldTargetUnreachable: true,
+                    haveReachableCandidate: reachable != null,
+                    candidateIsAlreadyHardTarget:
+                        reachable?.GameObjectId == _targetManager.Target?.GameObjectId))
             {
-                SetGameHardTarget(reachable);
+                SetGameHardTarget(reachable!);
                 return reachable;
             }
         }
@@ -778,11 +790,12 @@ public sealed class TargetingService : ITargetingService
     }
 
     /// <summary>
-    /// True when the followed target is a valid living enemy that is simply out of effective range
-    /// (e.g. an elevated boss part melee can't reach) and another attackable hostile IS in range,
-    /// sustained past the grace window. Drives the split-boss / unreachable-target retarget in
-    /// <see cref="FindEnemy"/>. Resets its grace timer whenever the held target is missing, invalid,
-    /// or actually reachable — so normal gap-closing to a single far target never trips it.
+    /// True when the followed target is a valid living enemy we cannot actually hit — either out of
+    /// effective range, or in range but with no line of sight — and another attackable hostile IS
+    /// reachable, sustained past the grace window. Drives the split-boss / unreachable-target
+    /// retarget in <see cref="FindEnemy"/>. Resets its grace timer whenever the held target is
+    /// missing, invalid, or actually reachable, so normal gap-closing to a single far target never
+    /// trips it.
     /// </summary>
     private bool IsHeldTargetUnreachableWithReachableAlternative(float maxRange, IPlayerCharacter player)
     {
@@ -795,9 +808,9 @@ public sealed class TargetingService : ITargetingService
         }
 
         // Must be a valid living, attackable enemy (the gone/dead/immune case is handled by the
-        // combat-death retarget path) that fails ONLY the range check in IsValidEnemy.
+        // combat-death retarget path) that we nonetheless cannot hit.
         var held = ResolveEnemyById(raw.GameObjectId);
-        if (held == null || IsValidEnemy(held, maxRange, player))
+        if (held == null || IsHeldTargetReachable(held, maxRange, player))
         {
             _unreachableTargetId = 0;
             return false;
@@ -820,6 +833,29 @@ public sealed class TargetingService : ITargetingService
             gracePassed: gracePassed,
             hasReachableAlternative: HasReachableAlternativeEnemy(held.GameObjectId, maxRange, player));
     }
+
+    /// <summary>
+    /// Can we actually hit this enemy right now — both close enough AND with something other than
+    /// a wall in the way?
+    ///
+    /// <para>
+    /// Range alone is not reachability. Field 2026-08-07, the Shinryu encounter: the boss sits on
+    /// two STACKED platforms, and from the lower floor the upper section is only a dozen or so
+    /// yalms away — comfortably "in range" — while a solid floor makes it unhittable. Range-only
+    /// reachability judged that target perfectly fine, so the unreachable retarget bailed on its
+    /// first condition and the hard target stayed locked on a boss part that could never be hit.
+    /// </para>
+    ///
+    /// <para>
+    /// The line-of-sight raycast is deliberately the SECOND test: it is the expensive one, it can
+    /// flicker at pack edges (the Scholar Art-of-War alternation, 2026), and the caller only acts
+    /// on a result that has held continuously past <see cref="UnreachableRetargetGraceMs"/> — so a
+    /// momentary blocked ray cannot bounce the target on its own.
+    /// </para>
+    /// </summary>
+    private static bool IsHeldTargetReachable(IBattleNpc held, float maxRange, IPlayerCharacter player)
+        => IsValidEnemy(held, maxRange, player)
+           && HasLineOfSight(player.Position, held.Position);
 
     /// <summary>
     /// True when at least one valid, attackable, in-range hostile other than <paramref name="excludeId"/>

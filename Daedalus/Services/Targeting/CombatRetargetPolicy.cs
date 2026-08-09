@@ -94,6 +94,29 @@ internal static class CombatRetargetPolicy
         IsAggregateStrategy(configured) ? configured : EnemyTargetingStrategy.LowestHp;
 
     /// <summary>
+    /// Having decided the held target is unreachable, should we actually WRITE a new hard target?
+    ///
+    /// <para>
+    /// The subtle part is that this must fire even when the targeting strategy already produced a
+    /// candidate. Field 2026-08-07, the Shinryu encounter's two stacked platforms: from the lower
+    /// floor the strategy happily returned the reachable lower boss section, so the recovery branch
+    /// — which was gated on "the strategy found nothing" — never ran. The rotation quietly attacked
+    /// the lower part while the player's hard target stayed locked on the unreachable upper one,
+    /// which is precisely the symptom the feature exists to prevent.
+    /// </para>
+    /// </summary>
+    /// <param name="heldTargetUnreachable">The followed target cannot be hit (range or line of sight).</param>
+    /// <param name="haveReachableCandidate">A reachable enemy is available to switch to.</param>
+    /// <param name="candidateIsAlreadyHardTarget">That candidate is already the hard target.</param>
+    public static bool ShouldWriteReachableHardTarget(
+        bool heldTargetUnreachable,
+        bool haveReachableCandidate,
+        bool candidateIsAlreadyHardTarget)
+        => heldTargetUnreachable
+           && haveReachableCandidate
+           && !candidateIsAlreadyHardTarget;
+
+    /// <summary>
     /// Unreachable-target retarget (split-boss recovery): switch off a followed target that is a
     /// valid living enemy but out of effective action range, when a reachable attackable hostile
     /// exists. Gated on a grace period so a brief out-of-range blip (knockback, repositioning) and
