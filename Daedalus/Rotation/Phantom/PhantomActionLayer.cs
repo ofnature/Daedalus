@@ -58,6 +58,19 @@ public sealed class PhantomActionLayer
     private readonly List<string> _pushRejects = [];
 
     /// <summary>
+    /// Deliberate, healthy reasons an action was not pushed — as opposed to <see cref="_pushRejects"/>,
+    /// which are things standing in the way. Kept apart so a party buff that is simply still up
+    /// never reads as "blocked", and reported only when nothing is actually blocked.
+    ///
+    /// <para>
+    /// Exists because "Bard is not casting Offensive Aria" was undiagnosable: holding a buff that
+    /// is already running returned silently, so the Duty tab said "idle — nothing eligible" and
+    /// gave no way to tell a held buff from an unslotted action or a broken id.
+    /// </para>
+    /// </summary>
+    private readonly List<string> _pushHolds = [];
+
+    /// <summary>
     /// When each corpse was first seen dead, so the phantom raise can stop deferring to a living
     /// healer that is not actually acting. Cleared as bodies get up or leave.
     /// </summary>
@@ -154,7 +167,9 @@ public sealed class PhantomActionLayer
                     ? DescribeQueueStall(gcdQueue.Count, ogcdQueue.Count)
                     : _pushRejects.Count > 0
                         ? $"blocked — {_pushRejects[0]}"
-                        : "idle — nothing eligible";
+                        : _pushHolds.Count > 0
+                            ? $"holding — {_pushHolds[0]}"
+                            : "idle — nothing eligible";
         }
         catch (Exception ex)
         {
@@ -191,8 +206,22 @@ public sealed class PhantomActionLayer
     private void PreModulesCore(IRotationContext ctx, bool isMoving, bool inCombat)
     {
         var cfg = _configuration.Occult;
-        if (!cfg.EnablePhantomActions || !_phantomJobs.IsInOccultCrescent)
+
+        // Say which. These two used to return silently, leaving _framePrepared false so the
+        // post pass never updated the status either — the Duty tab kept whatever it last said,
+        // or "—" if the layer had never run. An inert layer read exactly like a working one,
+        // which is the same trap the fault handler above was added for.
+        if (!cfg.EnablePhantomActions)
+        {
+            _phantomJobs.LayerLastEvent = "off — phantom actions disabled in settings";
             return;
+        }
+
+        if (!_phantomJobs.IsInOccultCrescent)
+        {
+            _phantomJobs.LayerLastEvent = "off — not in the Occult Crescent";
+            return;
+        }
 
         var (job, level) = _phantomJobs.GetActiveJob();
         if (job == PhantomJob.None || level == 0)
@@ -215,6 +244,7 @@ public sealed class PhantomActionLayer
         _raiseQueuedThisFrame = false;
         _isMovingThisFrame = isMoving;
         _pushRejects.Clear();
+        _pushHolds.Clear();
         _framePrepared = true;
 
         PushSurvival(ctx, cfg, job, level, selfHpPct, inCombat);
@@ -1153,7 +1183,13 @@ public sealed class PhantomActionLayer
         // Fail-open: an action with no mapped status falls back to recast pacing.
         if (PhantomActions.PartyBuffStatusByAction.TryGetValue(actionId, out var buffStatusId)
             && _actionService.PlayerHasStatus(buffStatusId))
+        {
+            // Note it. This is the intended steady state, but it is indistinguishable from a
+            // broken action unless it says so — including when the buff came from someone
+            // else's Bard, which is a perfectly good reason for yours to stay quiet.
+            _pushHolds.Add($"{NameOf(actionId)} held — buff already up");
             return;
+        }
 
         TryPush(ctx, actionId, job, level, priority);
     }
@@ -1233,6 +1269,18 @@ public sealed class PhantomActionLayer
             _scheduler.PushGcd(behavior, targetId, priority, onDispatched);
         else
             _scheduler.PushOgcd(behavior, targetId, priority, onDispatched);
+    }
+
+    /// <summary>Catalog name for an action id, falling back to the id so a note is never blank.</summary>
+    private static string NameOf(uint actionId)
+    {
+        foreach (var def in PhantomActions.All)
+        {
+            if (def.ActionId == actionId)
+                return def.Name;
+        }
+
+        return actionId.ToString();
     }
 
     /// <summary>
