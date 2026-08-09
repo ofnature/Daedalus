@@ -25,6 +25,8 @@ public sealed class DpsMeterService : IDpsMeterService, IDisposable
 
     private readonly ConcurrentQueue<DamageDealtEvent> pending = new();
     private readonly ConcurrentQueue<DotTickEvent> pendingTicks = new();
+    private readonly ConcurrentQueue<HealDealtEvent> pendingHeals = new();
+    private readonly ConcurrentQueue<HotTickEvent> pendingHotTicks = new();
     private readonly ConcurrentQueue<LanDpsReportPayload> remoteReports = new();
     private readonly List<DpsEncounter> history = new();
 
@@ -96,6 +98,8 @@ public sealed class DpsMeterService : IDpsMeterService, IDisposable
 
         combatEventService.OnDamageDealt += OnDamageDealt;
         combatEventService.OnDotTick += OnDotTick;
+        combatEventService.OnHealDealt += OnHealDealt;
+        combatEventService.OnHotTick += OnHotTick;
     }
 
     /// <summary>Test constructor — inject a resolver instead of the object table.</summary>
@@ -118,6 +122,8 @@ public sealed class DpsMeterService : IDpsMeterService, IDisposable
 
         combatEventService.OnDamageDealt += OnDamageDealt;
         combatEventService.OnDotTick += OnDotTick;
+        combatEventService.OnHealDealt += OnHealDealt;
+        combatEventService.OnHotTick += OnHotTick;
     }
 
     /// <summary>Is this character name in OUR party right now? Gate for merging remote reports.</summary>
@@ -181,6 +187,8 @@ public sealed class DpsMeterService : IDpsMeterService, IDisposable
             // flicker inside the linger window keeps the existing encounter instead.)
             while (pending.TryDequeue(out _)) { }
             while (pendingTicks.TryDequeue(out _)) { }
+            while (pendingHeals.TryDequeue(out _)) { }
+            while (pendingHotTicks.TryDequeue(out _)) { }
             casterCache.Clear();
             targetCache.Clear();
             current = new DpsEncounter { StartUtc = now };
@@ -200,6 +208,8 @@ public sealed class DpsMeterService : IDpsMeterService, IDisposable
 
             DrainQueue(current);
             DrainTicks(current);
+            DrainHeals(current);
+            DrainHotTicks(current);
 
             if (!inCombat && (now - lastInCombatUtc).TotalSeconds >= EncounterLingerSeconds)
             {
@@ -229,6 +239,8 @@ public sealed class DpsMeterService : IDpsMeterService, IDisposable
         history.Clear();
         while (pending.TryDequeue(out _)) { }
         while (pendingTicks.TryDequeue(out _)) { }
+        while (pendingHeals.TryDequeue(out _)) { }
+        while (pendingHotTicks.TryDequeue(out _)) { }
         casterCache.Clear();
         targetCache.Clear();
     }
@@ -237,6 +249,8 @@ public sealed class DpsMeterService : IDpsMeterService, IDisposable
     {
         combatEventService.OnDamageDealt -= OnDamageDealt;
         combatEventService.OnDotTick -= OnDotTick;
+        combatEventService.OnHealDealt -= OnHealDealt;
+        combatEventService.OnHotTick -= OnHotTick;
     }
 
     private void OnDamageDealt(DamageDealtEvent evt)
@@ -253,6 +267,22 @@ public sealed class DpsMeterService : IDpsMeterService, IDisposable
             return;
 
         pendingTicks.Enqueue(evt);
+    }
+
+    private void OnHealDealt(HealDealtEvent evt)
+    {
+        if (!config.Enabled)
+            return;
+
+        pendingHeals.Enqueue(evt);
+    }
+
+    private void OnHotTick(HotTickEvent evt)
+    {
+        if (!config.Enabled)
+            return;
+
+        pendingHotTicks.Enqueue(evt);
     }
 
     private void SendSelfReport(DpsEncounter encounter, bool isFinal)
@@ -357,6 +387,49 @@ public sealed class DpsMeterService : IDpsMeterService, IDisposable
                 continue;
 
             encounter.AddDamage(resolved.Value.Caster, resolved.Value.TargetName, evt.Amount, evt.IsCrit, evt.IsDirectHit);
+        }
+    }
+
+    /// <summary>
+    /// Direct heals. Identity resolution is the damage resolver — a combatant that both deals
+    /// damage and heals is deliberately ONE row keyed the same way, so pet merging and Trust
+    /// detection apply identically. The target name is discarded: the encounter is titled by
+    /// what was damaged, and healing your tank must never rename the fight.
+    /// </summary>
+    private void DrainHeals(DpsEncounter encounter)
+    {
+        while (pendingHeals.TryDequeue(out var evt))
+        {
+            var resolved = resolver(evt.CasterEntityId, evt.TargetEntityId);
+            if (resolved == null)
+                continue;
+
+            encounter.AddHeal(resolved.Value.Caster, evt.Amount, evt.Overheal, evt.IsCrit);
+        }
+    }
+
+    /// <summary>
+    /// HoT ticks. Category 1540 carries the source entity, so attribution is exact — there is
+    /// no aggregated-tick guessing and no unattributed bucket, unlike the DoT path.
+    /// </summary>
+    private void DrainHotTicks(DpsEncounter encounter)
+    {
+        while (pendingHotTicks.TryDequeue(out var tick))
+        {
+            encounter.HotTicksProcessed++;
+
+            if (tick.Amount <= 0 || tick.Amount > MaxPlausibleTickAmount)
+                continue;
+            if (tick.SourceEntityId == 0 || tick.SourceEntityId == Data.FFXIVConstants.InvalidTargetId)
+                continue;
+
+            var resolved = resolver(tick.SourceEntityId, tick.TargetEntityId);
+            if (resolved == null)
+                continue;
+
+            // Overheal is not in the tick packet — a HoT ticking into a full bar is invisible
+            // here, so HoT overheal is under-counted rather than guessed at.
+            encounter.AddHotTick(resolved.Value.Caster, tick.Amount);
         }
     }
 

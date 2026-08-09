@@ -36,4 +36,14 @@ public sealed class ParserConfig
 
     /// <summary>How many ended fights to keep in the history dropdown.</summary>
     public int FightHistoryCount { get; set; } = 10;
+
+    /// <summary>Which tab the parser reopens on. Persisted so the window comes back as you left it.</summary>
+    public bool ShowHealingTab { get; set; } = false;
+
+    /// <summary>
+    /// Headline raw healing instead of effective. Default OFF: raw counts healing poured into
+    /// full health bars, which ranks a tank spamming self-heals above a healer who wasted
+    /// nothing. Overheal % is shown either way, so the waste is never hidden.
+    /// </summary>
+    public bool ShowRawHealing { get; set; } = false;
 }

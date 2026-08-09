@@ -43,6 +43,39 @@ public sealed class CombatantStats
     /// <summary>DoT tick damage attributed to this combatant (included in <see cref="TotalDamage"/>).</summary>
     public long DotDamage { get; internal set; }
 
+    // ── Healing (H1) ─────────────────────────────────────────────────────────────────────
+    // Deliberately parallel to the damage fields rather than a separate object: one fight is
+    // one encounter with two views, and a combatant that both deals damage and heals (every
+    // tank, every self-healing DPS) is one row in each tab, not two identities.
+
+    /// <summary>Total healing done INCLUDING the part that landed on full health bars.</summary>
+    public long TotalHealing { get; internal set; }
+
+    /// <summary>The portion of <see cref="TotalHealing"/> that restored nothing.</summary>
+    public long Overheal { get; internal set; }
+
+    /// <summary>HoT tick healing attributed to this combatant (included in <see cref="TotalHealing"/>).</summary>
+    public long HotHealing { get; internal set; }
+
+    /// <summary>Direct heal casts — HoT ticks excluded, same reasoning as <see cref="HitCount"/>.</summary>
+    public int HealCount { get; internal set; }
+
+    /// <summary>Critical direct heals, for the heal-crit rate.</summary>
+    public int HealCritCount { get; internal set; }
+
+    /// <summary>
+    /// Healing that actually restored HP. This is the number the parser headlines: raw healing
+    /// rewards pouring casts into full health bars, which would rank a Warrior spamming
+    /// Bloodwhetting above a healer who wasted nothing.
+    /// </summary>
+    public long EffectiveHealing => TotalHealing - Overheal;
+
+    /// <summary>Share of this combatant's healing that was wasted (0..1).</summary>
+    public float OverhealPercent => TotalHealing > 0 ? (float)Overheal / TotalHealing : 0f;
+
+    /// <summary>Crit rate over direct heals only.</summary>
+    public float HealCritPercent => HealCount > 0 ? 100f * HealCritCount / HealCount : 0f;
+
     /// <summary>
     /// True once this combatant's own Daedalus instance has reported exact numbers over
     /// IPC/LAN — reported values override the locally-observed ones everywhere.
@@ -190,6 +223,90 @@ public sealed class DpsEncounter
         }
     }
 
+    /// <summary>Total healing done this encounter, overheal included.</summary>
+    public long TotalHealing { get; private set; }
+
+    /// <summary>Healing this encounter that landed on full health bars.</summary>
+    public long TotalOverheal { get; private set; }
+
+    /// <summary>Healing that actually restored HP.</summary>
+    public long EffectiveHealing => TotalHealing - TotalOverheal;
+
+    /// <summary>
+    /// HoT ticks processed this encounter. Zero across a fight with a Scholar or Astrologian
+    /// means ActorControl category 1540 is not arriving — the healing twin of
+    /// <see cref="DotTicksProcessed"/>, and the same pipeline check.
+    /// </summary>
+    public int HotTicksProcessed { get; internal set; }
+
+    /// <summary>
+    /// Adds a direct heal. <paramref name="overheal"/> is the portion that restored nothing;
+    /// it is tracked rather than discarded so the meter can headline effective healing and
+    /// still show the waste.
+    /// </summary>
+    public void AddHeal(in CombatantIdentity caster, int amount, int overheal, bool isCrit)
+    {
+        if (!IsActive || amount <= 0)
+            return;
+
+        var stats = GetOrCreate(caster);
+
+        // Clamp: a stale shadow-HP read could in principle report more overheal than heal,
+        // which would make EffectiveHealing negative and invert the ranking.
+        var wasted = Math.Clamp(overheal, 0, amount);
+
+        stats.TotalHealing += amount;
+        stats.Overheal += wasted;
+        stats.HealCount++;
+        if (isCrit) stats.HealCritCount++;
+
+        TotalHealing += amount;
+        TotalOverheal += wasted;
+    }
+
+    /// <summary>
+    /// Adds an attributed HoT tick. Counts toward healing totals but NOT toward
+    /// <see cref="CombatantStats.HealCount"/> — ticks carry no crit flag, so folding them in
+    /// would dilute the heal-crit rate exactly as DoT ticks would dilute crit/DH.
+    ///
+    /// <para>
+    /// HoT ticks arrive on ActorControl 1540 with the source entity in the packet, so unlike
+    /// merged DoT ticks there is no unattributed bucket here — attribution is exact or the
+    /// tick is not ours to count.
+    /// </para>
+    /// </summary>
+    public void AddHotTick(in CombatantIdentity caster, int amount, int overheal = 0)
+    {
+        if (!IsActive || amount <= 0)
+            return;
+
+        var stats = GetOrCreate(caster);
+        var wasted = Math.Clamp(overheal, 0, amount);
+
+        stats.TotalHealing += amount;
+        stats.HotHealing += amount;
+        stats.Overheal += wasted;
+
+        TotalHealing += amount;
+        TotalOverheal += wasted;
+    }
+
+    private CombatantStats GetOrCreate(in CombatantIdentity caster)
+    {
+        if (combatants.TryGetValue(caster.Key, out var stats))
+            return stats;
+
+        stats = new CombatantStats
+        {
+            EntityId = caster.Key,
+            Kind = caster.Kind,
+            Name = caster.Name,
+            JobAbbrev = caster.JobAbbrev,
+        };
+        combatants[caster.Key] = stats;
+        return stats;
+    }
+
     /// <summary>Combatants sorted by effective damage (self-reported preferred), highest first.</summary>
     public List<CombatantStats> GetRanked()
     {
@@ -197,6 +314,36 @@ public sealed class DpsEncounter
         list.Sort((a, b) => b.EffectiveDamage.CompareTo(a.EffectiveDamage));
         return list;
     }
+
+    /// <summary>Combatants that healed, sorted by effective healing, highest first.</summary>
+    public List<CombatantStats> GetRankedByHealing()
+    {
+        var list = new List<CombatantStats>();
+        foreach (var stats in combatants.Values)
+        {
+            if (stats.TotalHealing > 0)
+                list.Add(stats);
+        }
+
+        list.Sort((a, b) => b.EffectiveHealing.CompareTo(a.EffectiveHealing));
+        return list;
+    }
+
+    /// <summary>Effective HPS for one combatant, on this client's encounter clock.</summary>
+    public float GetHps(CombatantStats stats)
+        => DurationSeconds > 0f ? stats.EffectiveHealing / DurationSeconds : 0f;
+
+    /// <summary>Raw HPS including overheal — the toggle the parser offers beside effective.</summary>
+    public float GetRawHps(CombatantStats stats)
+        => DurationSeconds > 0f ? stats.TotalHealing / DurationSeconds : 0f;
+
+    /// <summary>Party effective HPS.</summary>
+    public float GetPartyHps()
+        => DurationSeconds > 0f ? EffectiveHealing / DurationSeconds : 0f;
+
+    /// <summary>This combatant's share of the encounter's effective healing (0..1).</summary>
+    public float GetHealingShare(CombatantStats stats)
+        => EffectiveHealing > 0 ? (float)stats.EffectiveHealing / EffectiveHealing : 0f;
 
     /// <summary>
     /// DPS for one combatant — ALWAYS this client's encounter clock (ACT semantics).

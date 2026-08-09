@@ -58,6 +58,12 @@ public static class LocalizedStrings
         public const string HumanTag = "ui.parser.human_tag";
         public const string LegendTooltip = "ui.parser.legend_tooltip";
         public const string RowTooltip = "ui.parser.row_tooltip";
+        public const string DamageTab = "ui.parser.tab_damage";
+        public const string HealingTab = "ui.parser.tab_healing";
+        public const string NoHealing = "ui.parser.no_healing";
+        public const string ShieldsNotCounted = "ui.parser.shields_not_counted";
+        public const string EffectiveHealing = "ui.parser.effective_healing";
+        public const string RawHealing = "ui.parser.raw_healing";
 
         public const string Section = "config.parser.section";
         public const string EnableParser = "config.parser.enable";

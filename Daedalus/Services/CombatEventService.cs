@@ -61,10 +61,17 @@ public sealed unsafe class CombatEventService : ICombatEventService, IDisposable
     // Current-patch DoT tick, field-verified 2026-07-04 (Worqor trash, SCH Biolysis): fires per
     // SOURCE per target every ~3s server tick with p1 = status id (0 = source's DoTs aggregated),
     // p2 = amount (matches Biolysis-only damage, crits included), p3 = source entity id,
-    // p4 = 0xFFFFFFFF. Sibling category 1540 is the HoT equivalent (p1 = status id, p2 = heal,
-    // p3 = source, p4 = 1) — deliberately NOT consumed: heals must never enter the damage meter,
-    // and hostile-target heal ticks would otherwise hit the attribution fallbacks.
+    // p4 = 0xFFFFFFFF.
     private const uint ActorControlDotTick = 1541;
+
+    // The HoT sibling of 1541, decoded in the same 2026-07-04 investigation (p1 = status id
+    // e.g. 1220 Excogitation, p2 = heal, p3 = source entity id, p4 = 1) and left unconsumed
+    // until the heal parser existed — a heal reaching OnDotTick would inflate every healer's
+    // damage row. It is routed to its own OnHotTick and never to OnDotTick.
+    //
+    // Because p3 carries the source, HoT attribution is EXACT: none of the proportional
+    // status-weight splitting that merged DoT ticks forced on the damage side applies here.
+    private const uint ActorControlHotTick = 1540;
 
     /// <summary>
     /// Event raised when a healing effect from the local player lands.
@@ -86,6 +93,12 @@ public sealed unsafe class CombatEventService : ICombatEventService, IDisposable
     /// Parameters: (healerEntityId, targetEntityId, healAmount)
     /// </summary>
     public event System.Action<uint, uint, int>? OnAnyHealReceived;
+
+    /// <inheritdoc />
+    public event System.Action<HealDealtEvent>? OnHealDealt;
+
+    /// <inheritdoc />
+    public event System.Action<HotTickEvent>? OnHotTick;
 
     /// <summary>
     /// Event raised when any ability is used (action effect resolves).
@@ -332,6 +345,7 @@ public sealed unsafe class CombatEventService : ICombatEventService, IDisposable
     // which category actually carries tick damage in the current patch.
     private long actorControlInvocations;
     private long actorControlHotDotCount;
+    private long actorControlHotTickCount;
     private readonly System.Collections.Concurrent.ConcurrentDictionary<uint, long> actorControlCategoryCounts = new();
     private const long RawDumpPerCategoryCap = 5;
 
@@ -361,7 +375,7 @@ public sealed unsafe class CombatEventService : ICombatEventService, IDisposable
             // Raw param dumps: first few packets of every category, plus all tick packets.
             if (DumpRawPackets
                 && (categoryCount <= RawDumpPerCategoryCap
-                    || category is ActorControlHotDot or ActorControlDotTick))
+                    || category is ActorControlHotDot or ActorControlDotTick or ActorControlHotTick))
             {
                 var line = $"[ActorControl] cat={category} actor={actorId:X8} p1={p1} p2={p2} p3={p3} p4={p4} "
                     + $"p5={p5} p6={p6} p7={p7} p8={p8} target={targetId:X} replay={replaying}";
@@ -379,6 +393,14 @@ public sealed unsafe class CombatEventService : ICombatEventService, IDisposable
                 System.Threading.Interlocked.Increment(ref actorControlHotDotCount);
                 OnDotTick?.Invoke(new DotTickEvent(
                     actorId, EffectId: p1, Kind: p4, Amount: unchecked((int)p2), PossibleSourceId: p3));
+            }
+            else if (category == ActorControlHotTick)
+            {
+                // Heals only — deliberately NOT OnDotTick. Routing a HoT into the damage meter
+                // is the exact mistake this category was left unconsumed to avoid.
+                System.Threading.Interlocked.Increment(ref actorControlHotTickCount);
+                OnHotTick?.Invoke(new HotTickEvent(
+                    actorId, StatusId: p1, Amount: unchecked((int)p2), SourceEntityId: p3));
             }
         }
         catch (Exception ex)
@@ -588,6 +610,7 @@ public sealed unsafe class CombatEventService : ICombatEventService, IDisposable
 
             var totalDelta = 0;
             var totalHeal = 0;
+            var healWasCrit = false;
             var sawMiss = false;
             var sawNoEffect = false;
             for (var j = 0; j < 8; j++)
@@ -611,6 +634,8 @@ public sealed unsafe class CombatEventService : ICombatEventService, IDisposable
                         var heal = DecodeEffectValue(effect.Value, effect.Param3, effect.Param4);
                         totalDelta += heal;
                         totalHeal += heal;
+                        // Heals crit on the same flag damage does; there is no direct-hit for heals.
+                        healWasCrit |= (effect.Param0 & DamageCritFlag) != 0;
                         break;
                     case EffectTypeMiss:
                         sawMiss = true;
@@ -657,6 +682,28 @@ public sealed unsafe class CombatEventService : ICombatEventService, IDisposable
             if (totalHeal > 0)
             {
                 OnAnyHealReceived?.Invoke(casterEntityId, targetId, totalHeal);
+
+                // Overheal for EVERY caster, not just the local player. The block further down
+                // computes it too, but only for our own heals and only to feed the per-spell
+                // overheal stats — the parser needs it for every row or a co-healer's waste is
+                // invisible. Shadow HP is used rather than CurrentHp for the same reason it is
+                // used below: the game's HP bar is stale at hook time.
+                var parserOverheal = 0;
+                if (objectTable.SearchById(targetId)
+                    is Dalamud.Game.ClientState.Objects.Types.ICharacter healTarget
+                    && healTarget.MaxHp > 0)
+                {
+                    var shadow = GetShadowHp(targetId, healTarget.CurrentHp);
+                    parserOverheal = Math.Max(0, totalHeal - (int)(healTarget.MaxHp - shadow));
+                }
+
+                OnHealDealt?.Invoke(new HealDealtEvent(
+                    casterEntityId,
+                    targetId,
+                    totalHeal,
+                    parserOverheal,
+                    header->ActionId,
+                    healWasCrit));
             }
 
             // Track heals from local player

@@ -3,6 +3,27 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.55 — unreleased
+
+### Fix — "JOIN NOW" now tells you how long you have
+- The Critical Encounter line showed the stage but no countdown, which is the one number that decides whether you can make it. The field the game normally puts the remaining time in reads **zero while registration is open** — precisely the stage where it matters
+- The entry countdown is now derived from the encounter's start timestamp instead. If that ever turns out to mean something else, the timer simply doesn't appear rather than showing a wrong one
+
+### New — One button collects every phantom buff
+- Phantom self-buffs last **30 minutes and survive a job switch**, so the Occult window now has an **Apply phantom buffs** button that cycles the jobs collecting them — Pray (−10% damage taken), Romeo's Ballad (+10% phantom EXP), Counterstance (movement speed) and Quickstep (+2% damage) — and then **puts you back on the job you started on**
+- **Standing beside a Knowledge Crystal, the buffs reach every party member in the zone**, at any distance. One character can buff the whole fleet in a single pass and nobody else has to stop what they're doing. Away from a crystal they still land on you alone, so the crystal is a bonus rather than a requirement
+- **Missing jobs are fine.** Anything you haven't unlocked, haven't levelled enough, or turned off is skipped by name — *"Buffed 2 of 4 · Monk Lv1 (needs 3) · Dancer not unlocked"* — so a partial set works instead of failing
+- It won't start in combat or outside the Occult Crescent, and says which. If combat breaks out mid-cycle it abandons the run and still switches you back — being stranded on the wrong phantom job in a fight is worse than a missing buff
+- Per-buff toggles and an optional automatic refresh live in the Occult settings; auto-refresh is off by default
+
+### New — The parser has a Healing tab
+- The Parser window now has **Damage** and **Healing** tabs. The healing side shows **effective HPS** — what actually restored HP — with **overheal %** beside it, because raw healing rewards pouring casts into full health bars and would rank a tank spamming self-heals above a healer who wasted nothing. A click swaps to raw if you want it
+- **HoT ticks are counted, and attributed exactly** — Regen, Aspected Benefic, Kerachole, Excogitation and the rest land per-caster with no guesswork, unlike DoTs where the game merges ticks and forces an estimate
+- Everyone who heals gets a row, not just healers: tank self-heals, Second Wind, Bloodbath. Trust NPCs parse the same as players, same as the damage tab. Hovering a row breaks out direct healing, HoT, overheal and heal-crit rate
+- Healing bars are teal so the two meters never read as the same thing mid-fight
+- **Shields are not counted, and the tab says so.** Adloquium, Eukrasian Prognosis, Succor, Kerachole and Panhaima apply as status effects rather than heals, so the game never reports them here and Scholar and Sage will read low. A visible gap beats a number that's confidently wrong for the two jobs it matters most to
+
+<!-- LATEST-END -->
 ## v0.1.54 — 2026-08-08
 
 ### Fix — Bosses on stacked platforms no longer lock your target to the part you can't hit
@@ -16,7 +37,6 @@ All notable changes to Daedalus will be documented in this file.
 - Each live CE now shows the stage the game itself tracks: **JOIN NOW** with the entry countdown and headcount while registration is open, **starting** once it seals, and **in progress** with a completion percentage while it's being fought. Colour follows the meaning — gold when you can make it, yellow when it's closing, dim when it's gone
 - The **shard alerts** use the same signal, so an unclaimed-job CE that's already in progress no longer reads as an opportunity — it says you can't join instead of sending you sprinting at a sealed arena
 
-<!-- LATEST-END -->
 ## v0.1.53 — 2026-08-04
 
 ### Fix — You can target your party again (controller players especially)

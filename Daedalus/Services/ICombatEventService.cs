@@ -27,6 +27,47 @@ public readonly record struct DotTickEvent(
     uint PossibleSourceId);
 
 /// <summary>
+/// One healing effect from any caster, decoded from the ActionEffect hook. The damage-side
+/// twin of <see cref="DamageDealtEvent"/>, and extended values are unpacked the same way.
+///
+/// <para>
+/// <see cref="Overheal"/> is the portion that landed on an already-full health bar. It is
+/// carried per-event because a heal meter that only reports the raw number flatters whoever
+/// spams into full HP bars — the parser headlines effective healing
+/// (<c>Amount - Overheal</c>) and shows the waste beside it.
+/// </para>
+/// </summary>
+public readonly record struct HealDealtEvent(
+    uint CasterEntityId,
+    uint TargetEntityId,
+    int Amount,
+    int Overheal,
+    uint ActionId,
+    bool IsCrit)
+{
+    /// <summary>Healing that actually restored HP.</summary>
+    public int Effective => System.Math.Max(0, Amount - Overheal);
+}
+
+/// <summary>
+/// One HoT tick from ActorControl category <b>1540</b> — the healing sibling of the DoT
+/// channel at 1541, decoded during the same 2026-07-04 investigation and deliberately left
+/// unconsumed until now so heals could never contaminate the damage meter.
+///
+/// <para>
+/// Layout: p1 = status id (e.g. 1220 Excogitation), p2 = heal amount, p3 = <b>source entity
+/// id</b>, p4 = 1. Because the source is in the packet, attribution is EXACT — this channel
+/// needs none of the proportional status-weight splitting that merged DoT ticks forced on the
+/// damage side.
+/// </para>
+/// </summary>
+public readonly record struct HotTickEvent(
+    uint TargetEntityId,
+    uint StatusId,
+    int Amount,
+    uint SourceEntityId);
+
+/// <summary>
 /// Interface for combat event tracking, primarily used for shadow HP management.
 /// </summary>
 public interface ICombatEventService
@@ -90,6 +131,21 @@ public interface ICombatEventService
     /// Parameters: (healerEntityId, targetEntityId, healAmount)
     /// </summary>
     event System.Action<uint, uint, int>? OnAnyHealReceived;
+
+    /// <summary>
+    /// Event raised per heal effect from ANY caster — the healing twin of
+    /// <see cref="OnDamageDealt"/>, carrying the overheal split the co-healer event throws
+    /// away. Used by the heal parser. Raised from the hook thread; subscribers must enqueue
+    /// and process on the framework thread.
+    /// </summary>
+    event System.Action<HealDealtEvent>? OnHealDealt;
+
+    /// <summary>
+    /// Event raised per HoT tick (ActorControl category <b>1540</b>). Kept separate from
+    /// <see cref="OnDotTick"/> on purpose: these are heals, and letting them reach the damage
+    /// meter would silently inflate every healer's DPS row.
+    /// </summary>
+    event System.Action<HotTickEvent>? OnHotTick;
 
     /// <summary>
     /// Event raised when any ability is used (action effect resolves).
