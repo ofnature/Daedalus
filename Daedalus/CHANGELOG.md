@@ -3,7 +3,7 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
-## v0.1.55 — unreleased
+## v0.1.55 — 2026-08-09
 
 ### Fix — "JOIN NOW" now tells you how long you have
 - The Critical Encounter line showed the stage but no countdown, which is the one number that decides whether you can make it. The field the game normally puts the remaining time in reads **zero while registration is open** — precisely the stage where it matters
