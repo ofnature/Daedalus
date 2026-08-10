@@ -69,6 +69,15 @@ public enum LanMessageType
     /// <summary>Operator picked the BLU freeze/shatter toon (empty SenderId = back to auto).
     /// Each box sets its own preference flag; the pick then rides that box's heartbeat.</summary>
     BluPreferShatter = 17,
+
+    /// <summary>Endangered toon, judged against its OWN BossMod hints: still inside a forbidden
+    /// zone with too little time to escape — a party healer should pull it (docs/rescue-plan.md).
+    /// Party-group scoped.</summary>
+    RescueNeeded = 18,
+
+    /// <summary>A healer is executing the Rescue pull — other healers stand down. Party-group
+    /// scoped.</summary>
+    RescueClaim = 19,
 }
 
 /// <summary>
@@ -432,6 +441,60 @@ public sealed class LanRolePayload
     public static LanRolePayload? FromJson(string json)
     {
         try { return JsonSerializer.Deserialize<LanRolePayload>(json); }
+        catch { return null; }
+    }
+}
+
+/// <summary>
+/// RescueNeeded payload — the endangered toon's own-hints danger snapshot (docs/rescue-plan.md).
+/// Re-broadcast every ~250ms while the condition holds; receivers must treat a request older
+/// than <c>RescuePolicy.RequestTtlSeconds</c> as expired (the toon escaped or died).
+/// </summary>
+public sealed class LanRescueNeededPayload
+{
+    /// <summary>The endangered toon's EntityId — healers resolve it via the object table.</summary>
+    [JsonPropertyName("e")]
+    public uint EntityId { get; set; }
+
+    /// <summary>Milliseconds until the forbidden zone activates, per the SENDER's BossMod.</summary>
+    [JsonPropertyName("a")]
+    public int ActivationInMs { get; set; }
+
+    [JsonPropertyName("x")]
+    public float X { get; set; }
+
+    [JsonPropertyName("y")]
+    public float Y { get; set; }
+
+    [JsonPropertyName("z")]
+    public float Z { get; set; }
+
+    /// <summary>Sender believes it is knockback-immune (Surecast/Arm's Length) — a hint only;
+    /// the healer's local status read is the gate.</summary>
+    [JsonPropertyName("k")]
+    public bool KnockbackImmune { get; set; }
+
+    public string ToJson() => JsonSerializer.Serialize(this);
+
+    public static LanRescueNeededPayload? FromJson(string json)
+    {
+        try { return JsonSerializer.Deserialize<LanRescueNeededPayload>(json); }
+        catch { return null; }
+    }
+}
+
+/// <summary>RescueClaim payload — the firing healer names the target it is pulling so the
+/// other healers stand down (<c>RescuePolicy.ClaimHoldOffSeconds</c>).</summary>
+public sealed class LanRescueClaimPayload
+{
+    [JsonPropertyName("e")]
+    public uint EntityId { get; set; }
+
+    public string ToJson() => JsonSerializer.Serialize(this);
+
+    public static LanRescueClaimPayload? FromJson(string json)
+    {
+        try { return JsonSerializer.Deserialize<LanRescueClaimPayload>(json); }
         catch { return null; }
     }
 }

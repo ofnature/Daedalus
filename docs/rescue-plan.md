@@ -1,7 +1,9 @@
 # Rescue plan — LAN-timed "pull the toon that won't make it"
 
-> Scoped 2026-08-10 (user request). Status: PLANNED, not started. Execution-ready for a
-> cold-start session — read this top to bottom, then start at Phase 0.
+> Scoped 2026-08-10 (user request). Status: **P0 DONE 2026-08-10** — pure policies
+> (`Services/Rescue/`: RescueBroadcastPolicy, RescuePolicy, RescueElection), wire types
+> RescueNeeded=18 / RescueClaim=19 + payloads, CoordinationBus events/broadcasts (party-group
+> scoped), 37 tests. Nothing calls the senders yet — next session starts at Phase 1.
 
 ## Goal
 
@@ -145,10 +147,15 @@ hard-won lesson: latch nothing before the push confirms.
 
 ## Phases
 
-**P0 — pure logic + tests.** `RescuePolicy` (sender) and `RescueElection`/healer-gate
-predicates as pure static classes; unit tests for every gate and threshold (min 4 per class
-per house rules). Bus receive-path tests via `CoordinationBus.InjectForTest`. No behavior
-change shipped.
+**P0 — pure logic + tests.** ✅ DONE 2026-08-10. `Services/Rescue/RescueBroadcastPolicy`
+(sender gates + panic/debounce constants), `RescuePolicy` (healer gates, ordered
+first-blocker reasons, PhoenixDownPolicy style), `RescueElection` (ordinal rank + 0.3s
+backoff steps). `LanMessageType.RescueNeeded=18` / `RescueClaim=19`,
+`LanRescueNeededPayload` (`e/a/x/y/z/k`) + `LanRescueClaimPayload` (`e`),
+`CoordinationBus.BroadcastRescueNeeded/BroadcastRescueClaim` + `OnRescueNeeded/OnRescueClaim`
+events, both `IsForLocalGroup`-scoped. Tests: policy gates, election determinism, payload
+round-trips, receive path via `InjectForTest` incl. cross-party drop + zero-group legacy
+reach. Nothing calls the senders — inert until Phase 1.
 
 **P1 — telemetry + dry run.** Sender detector wired into the frame loop (reads
 `BossModSafetyService` already polled for movement), broadcasts `RescueNeeded`; healers run

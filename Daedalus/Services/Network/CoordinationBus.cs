@@ -105,6 +105,13 @@ public sealed class CoordinationBus : IDisposable
 
     public event System.Action<string /*sender*/, LanMessage>? OnHealerDown;
     public event System.Action<string /*sender*/, string /*targetName*/>? OnPhoenixDown;
+
+    /// <summary>A party toon judged (against its own BossMod hints) that it won't clear a
+    /// forbidden zone in time — healers evaluate a pull (docs/rescue-plan.md).</summary>
+    public event System.Action<string /*sender*/, LanRescueNeededPayload>? OnRescueNeeded;
+
+    /// <summary>A healer claimed the Rescue pull for the payload's target — stand down.</summary>
+    public event System.Action<string /*sender*/, LanRescueClaimPayload>? OnRescueClaim;
     public event System.Action<string /*sender*/, LanMessage>? OnAddSpawn;
 
     /// <summary>Real tank-swap traffic (request/confirm/manual command) for the window's alert feed.
@@ -375,7 +382,8 @@ public sealed class CoordinationBus : IDisposable
     internal void InjectForTest(LanMessage msg) => _inbox.Enqueue(msg);
 
     /// <summary>
-    /// Group gate for party-scoped signals (BurstReady / BurstFire / TankSwapCommand): a message
+    /// Group gate for party-scoped signals (BurstReady / BurstFire / TankSwapCommand /
+    /// RescueNeeded / RescueClaim): a message
     /// stamped with a DIFFERENT non-zero party id is another party's business. 0 on either side
     /// matches — ungrouped senders keep the legacy all-LAN reach, and a local toon whose PartyId
     /// briefly reads 0 (zone-in) must not drop its own party's signal.
@@ -510,6 +518,20 @@ public sealed class CoordinationBus : IDisposable
                 if (prefer != null)
                     OnBluPreferShatter?.Invoke(prefer);
                 break;
+
+            case LanMessageType.RescueNeeded:
+                if (!IsForLocalGroup(msg)) break;
+                var rescueNeeded = LanRescueNeededPayload.FromJson(msg.Payload);
+                if (rescueNeeded is { EntityId: > 0 })
+                    OnRescueNeeded?.Invoke(msg.SenderId, rescueNeeded);
+                break;
+
+            case LanMessageType.RescueClaim:
+                if (!IsForLocalGroup(msg)) break;
+                var rescueClaim = LanRescueClaimPayload.FromJson(msg.Payload);
+                if (rescueClaim is { EntityId: > 0 })
+                    OnRescueClaim?.Invoke(msg.SenderId, rescueClaim);
+                break;
         }
     }
 
@@ -642,6 +664,25 @@ public sealed class CoordinationBus : IDisposable
 
     public void BroadcastPhoenixDown(string targetCharacterName)
         => _lan.Send(new LanMessage { Type = LanMessageType.PhoenixDown, Payload = targetCharacterName });
+
+    /// <summary>Endangered toon → its party's healers: "I won't clear this zone in time".
+    /// Party-scoped; senders re-broadcast while the danger holds (receivers key on freshness).</summary>
+    public void BroadcastRescueNeeded(LanRescueNeededPayload payload)
+        => _lan.Send(new LanMessage
+        {
+            Type = LanMessageType.RescueNeeded,
+            Payload = payload.ToJson(),
+            PartyGroupId = LocalPartyGroupId,
+        });
+
+    /// <summary>Firing healer → the other healers: pull claimed for this target, stand down.</summary>
+    public void BroadcastRescueClaim(uint targetEntityId)
+        => _lan.Send(new LanMessage
+        {
+            Type = LanMessageType.RescueClaim,
+            Payload = new LanRescueClaimPayload { EntityId = targetEntityId }.ToJson(),
+            PartyGroupId = LocalPartyGroupId,
+        });
 
     /// <summary>
     /// Manual "swap tanks now" from the coordination window. Arms the swap locally (our own broadcast
