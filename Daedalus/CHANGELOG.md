@@ -3,6 +3,13 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.57 — unreleased
+
+### Fix — Phantom Blue Mage now works with however much of the kit you've learned
+- Blue Mage learns its phantom actions **from enemies, not levels**, but the layer picked your Aero grade off your phantom level — a level-3 Blue Mage who had only learned Aero I would never cast any Aero, because the layer only ever tried the grade it assumed you had. It now tries every grade best-first and the one actually on your bar wins
+- **Occult White Wind** heals the party for **your current HP**, so a full-health caster with a dying party is exactly when it's strongest — but it was gated on *your own* HP sitting between 40% and 80%, so at full health it never fired. It now triggers off the party's average health instead, keeping only a self-HP floor so it isn't wasted while you're nearly dead
+
+<!-- LATEST-END -->
 ## v0.1.56 — 2026-08-09
 
 ### Fix — Your character no longer keeps turning toward a corpse after an Occult Raise
@@ -24,7 +31,6 @@ All notable changes to Daedalus will be documented in this file.
 - It now retries about **once a second**, which clears the same lock in a handful of attempts instead of hundreds. The first attempt still goes out immediately, so a cycle with nothing to wait out hands your job back just as fast as before
 - If it genuinely can't switch you back within its time limit it stops and says so, rather than retrying forever
 
-<!-- LATEST-END -->
 ## v0.1.55 — 2026-08-09
 
 ### Fix — "JOIN NOW" now tells you how long you have

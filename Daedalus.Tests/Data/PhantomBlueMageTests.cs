@@ -43,30 +43,57 @@ public sealed class PhantomBlueMageTests
     }
 
     /// <summary>
-    /// Aero I/II/III are one button in ascending grades, so firing a lower grade is strictly
-    /// wasted once a higher one is available.
+    /// Aero I/II/III are one button, but Blue Mage learns from ENEMIES, not levels — the layer
+    /// pushes every grade best-first and lets the duty-bar gate pick the one actually known.
+    /// Picking a single grade off the phantom level meant an unlearned Aero III silenced Aero
+    /// entirely for a level-3 Blue Mage who only knew Aero I.
     /// </summary>
-    [Theory]
-    [InlineData((byte)1, 49085u)]
-    [InlineData((byte)2, 49089u)]
-    [InlineData((byte)3, 49091u)]
-    [InlineData((byte)6, 49091u)]
-    public void BestAero_PicksTheHighestGradeReached(byte level, uint expected)
+    [Fact]
+    public void AeroGrades_ListEveryGradeBestFirst()
     {
-        Assert.Equal(expected, PhantomBandRules.BestAero(level));
+        Assert.Equal(
+            new[] { PhantomBandRules.OccultAeroIIIId, PhantomBandRules.OccultAeroIIId, PhantomBandRules.OccultAeroId },
+            PhantomBandRules.AeroGradesDescending);
     }
 
     /// <summary>
-    /// White Wind copies the caster's CURRENT HP, so its value RISES with health — saving it for
-    /// death's door heals almost nothing, which is the opposite of the usual instinct.
+    /// The descending push order must also descend in catalog tier, so the level gate trims the
+    /// unreachable grades and the priorities favor the best one still in reach.
     /// </summary>
     [Fact]
-    public void WhiteWindBand_SitsWhereTheCasterStillHasHpWorthCopying()
+    public void AeroGrades_CatalogTiersDescendWithTheOrder()
     {
-        Assert.True(PhantomBandRules.WhiteWindUpperHpPct > PhantomBandRules.WhiteWindLowerHpPct);
-        Assert.True(PhantomBandRules.WhiteWindLowerHpPct > 0f,
-            "firing at near-zero HP would heal for near-zero");
-        Assert.True(PhantomBandRules.WhiteWindUpperHpPct < 1f,
-            "no point firing at full health either");
+        var tiers = PhantomBandRules.AeroGradesDescending.Select(id => Action(id).RequiredLevel).ToList();
+
+        Assert.Equal(tiers.OrderByDescending(t => t), tiers);
+    }
+
+    /// <summary>
+    /// White Wind heals the PARTY for the caster's CURRENT HP, so a full-HP caster with a dying
+    /// party is the ideal case — the old self-HP band blocked exactly that.
+    /// </summary>
+    [Fact]
+    public void WhiteWind_FullHpCasterWithDyingParty_Fires()
+    {
+        Assert.True(PhantomBandRules.ShouldWhiteWind(partyAvgHpPct: 0.35f, selfHpPct: 1.0f, inCombat: true));
+    }
+
+    [Fact]
+    public void WhiteWind_HealthyParty_Holds()
+    {
+        Assert.False(PhantomBandRules.ShouldWhiteWind(partyAvgHpPct: 0.95f, selfHpPct: 1.0f, inCombat: true));
+    }
+
+    /// <summary>At near-zero self HP the copied heal is near-zero — not worth the 150s recast.</summary>
+    [Fact]
+    public void WhiteWind_CasterBelowFloor_Holds()
+    {
+        Assert.False(PhantomBandRules.ShouldWhiteWind(partyAvgHpPct: 0.35f, selfHpPct: 0.10f, inCombat: true));
+    }
+
+    [Fact]
+    public void WhiteWind_OutOfCombat_Holds()
+    {
+        Assert.False(PhantomBandRules.ShouldWhiteWind(partyAvgHpPct: 0.35f, selfHpPct: 1.0f, inCombat: false));
     }
 }

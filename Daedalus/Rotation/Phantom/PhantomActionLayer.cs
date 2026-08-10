@@ -377,12 +377,11 @@ public sealed class PhantomActionLayer
         }
 
         // Occult White Wind (Blue Mage): heals self and nearby party for the caster's CURRENT
-        // HP. So it is worth MORE the healthier you are — firing it at death's door heals
-        // almost nothing. Gate on being hurt enough to want it but healthy enough for it to
-        // land for something, and let the 150s recast do the rest of the pacing.
-        if (job == PhantomJob.PhantomBlueMage && inCombat
-            && selfHpPct < PhantomBandRules.WhiteWindUpperHpPct
-            && selfHpPct > PhantomBandRules.WhiteWindLowerHpPct)
+        // HP. So it is worth MORE the healthier the caster is — the trigger is the PARTY being
+        // hurt, with only a self floor so the copied amount is worth the 150s recast. Gating on
+        // the caster's own band left a full-HP Blue Mage watching a dying party.
+        if (job == PhantomJob.PhantomBlueMage
+            && PhantomBandRules.ShouldWhiteWind(ctx.PartyHealthMetrics.avgHpPercent, selfHpPct, inCombat))
         {
             TryPush(ctx, 49090, job, level, PrioEmergencySustain + 1);
         }
@@ -934,8 +933,12 @@ public sealed class PhantomActionLayer
                 // target and enormous on a fresh one, so it leads only while the pack is healthy.
                 if (targetHpPct > 0.5f)
                     TryPush(ctx, 49086, job, level, PrioDamage + 1, target.GameObjectId, target);
-                TryPush(ctx, PhantomBandRules.BestAero(level), job, level, PrioDamage + 2,
-                    target.GameObjectId, target);
+                // Aero grades are one button, but which grade is LEARNED depends on enemies,
+                // not phantom level — push best-first and let the duty-bar gate pick the one
+                // actually known, so an unlearned top grade cannot silence the lower ones.
+                for (var i = 0; i < PhantomBandRules.AeroGradesDescending.Length; i++)
+                    TryPush(ctx, PhantomBandRules.AeroGradesDescending[i], job, level, PrioDamage + 2 + i,
+                        target.GameObjectId, target);
                 break;
 
             case PhantomJob.PhantomRedMage:

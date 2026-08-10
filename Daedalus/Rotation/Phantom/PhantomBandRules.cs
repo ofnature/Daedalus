@@ -136,12 +136,16 @@ public static class PhantomBandRules
     }
 
     /// <summary>
-    /// Occult White Wind heals for the caster's CURRENT HP, so its value rises the healthier
-    /// you are — the instinct to save it for an emergency is backwards. Fire it in the band
-    /// where the party is hurt enough to need it but the caster still has HP worth copying.
+    /// Occult White Wind heals the PARTY for the caster's CURRENT HP, so its value rises the
+    /// healthier the caster is — a full-HP caster with a dying party is the ideal case, not a
+    /// blocked one. The trigger is party-average HP; the self floor only stops firing a copy
+    /// worth almost nothing.
     /// </summary>
-    public const float WhiteWindUpperHpPct = 0.80f;
-    public const float WhiteWindLowerHpPct = 0.40f;
+    public const float WhiteWindPartyAvgHpPct = 0.80f;
+    public const float WhiteWindSelfHpFloorPct = 0.40f;
+
+    public static bool ShouldWhiteWind(float partyAvgHpPct, float selfHpPct, bool inCombat)
+        => inCombat && partyAvgHpPct < WhiteWindPartyAvgHpPct && selfHpPct > WhiteWindSelfHpFloorPct;
 
     /// <summary>Phantom Blue Mage — Aero grades, all the same button.</summary>
     public const uint OccultAeroId = 49085;
@@ -149,13 +153,12 @@ public static class PhantomBandRules
     public const uint OccultAeroIIIId = 49091;
 
     /// <summary>
-    /// The best Aero grade the job has reached. They are one button in ascending grades, so
-    /// firing a lower one is strictly wasted — the duty-bar gate still has the final say on
-    /// whether it was actually learned, since Blue Mage learns from enemies rather than levels.
+    /// Aero grades best-first. They are one button in ascending grades, but Blue Mage LEARNS
+    /// from enemies rather than levels, so the phantom level proves nothing about which grade
+    /// is actually known — push all of them at descending priority and let the duty-bar gate
+    /// (fail-closed on unlearned actions) pick the one really on the bar.
     /// </summary>
-    public static uint BestAero(byte phantomLevel) => phantomLevel >= 3
-        ? OccultAeroIIIId
-        : phantomLevel >= 2 ? OccultAeroIIId : OccultAeroId;
+    public static readonly uint[] AeroGradesDescending = [OccultAeroIIIId, OccultAeroIIId, OccultAeroId];
 
     /// <summary>Occult Cure II (Red Mage): 40,000 potency self-heal, 1,500 MP, 2.5s recast.</summary>
     public static bool ShouldOccultCure(PhantomConfig cfg, float selfHpPct, bool inCombat)
