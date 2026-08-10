@@ -232,10 +232,9 @@ public static class PhantomActions
         new(49076, "Occult Flare", PhantomJob.PhantomBlackMage, 5),  // unaspected 500, 8y, 2.3s cast
 
         // North Horn ids seen in the sheet but NOT yet attributed (no sighting): 49060 Meteor,
-        // 49061 Comet, 49068 Occult Cure III, 49069 Occult Blink, 49070 Occult Raise, 49090
-        // Occult White Wind, 49091 Occult Aero III. Note Occult Cure II turned out to be RED
-        // MAGE's, not White Mage's as the id neighbourhood suggested — which is exactly why
-        // these stay uncataloged until seen on a bar.
+        // 49061 Comet. Note Occult Cure II turned out to be RED MAGE's, not White Mage's as
+        // the id neighbourhood suggested — which is exactly why these stay uncataloged until
+        // seen on a bar.
 
         // ── Necromancer (North Horn; block starts 49097 — only field-confirmed actions are
         // cataloged, one bar screenshot per level unlock extends this) ──
