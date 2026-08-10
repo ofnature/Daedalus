@@ -3,7 +3,21 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
-## v0.1.56 — unreleased
+## v0.1.56 — 2026-08-09
+
+### Fix — Your character no longer keeps turning toward a corpse after an Occult Raise
+- After a phantom raise went out, the layer went on believing one was still pending for the whole cooldown. On every frame with a free GCD it turned you to **face the body** — for a raise that no longer existed — so your character kept pulling away from the enemy mid-fight, costing positionals and casts
+- It also made the Duty tab contradict itself, reporting *"Occult Raise on cooldown"* and *"GCD busy at check (14 in a row)"* at the same time, which cannot both be true
+- The layer now tracks whether the raise **actually queued** rather than assuming it did, and when a raise is refused it says which reason — *"cannot raise Escha — Occult Raise on cooldown"*
+
+### New — Occult enemy weaknesses: the biggest data drop yet
+- **68 more enemies now have a revealed elemental weakness** and 21 new enemies were added, from a full South Horn sweep. Field mobs went from **92% unknown to 39%**, and the table overall from 76% to 52%
+- South Horn is now the well-mapped zone at **24% unknown**; North Horn is the remaining gap at 75%
+- Weaknesses only fill in when something reveals them, so this is collected data rather than anything that accumulates on its own
+
+### Fix — The weakness list no longer shows the same enemy twice
+- A handful of enemies appear in the game under two internal IDs with the same name, the same size and the same weakness, so they were printed as two identical rows. They now fold into one line marked **×2**
+- Same-named enemies that are genuinely *different* still get their own row — the 24.7-million-HP Crescent Garula and the 634-thousand-HP one are different fights and are kept apart
 
 ### Fix — The phantom buff cycle no longer floods the screen with red text when it finishes
 - Collecting the buffs worked, but switching back to the job you started on produced a wall of *"you are unable to change phantom jobs at this time"*. The game refuses a job change while you're still locked from the buff you just cast, and it answers **every** refusal with an error line — and the cycle was retrying on every frame, so a lock lasting a second or two turned into hundreds of messages

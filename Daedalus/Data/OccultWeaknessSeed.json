@@ -111,13 +111,13 @@
     "NameId": 13894,
     "Name": "Animated Doll",
     "TerritoryId": 1252,
-    "Elements": 0,
+    "Elements": 1,
     "MaxHp": 651518,
-    "SeenInCriticalEncounter": false,
-    "CriticalEncounter": "",
+    "SeenInCriticalEncounter": true,
+    "CriticalEncounter": "On the Hunt",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-09T20:39:05.4903735Z"
+    "LastSeenUtc": "2026-08-10T01:37:14.8691243Z"
   },
   {
     "NameId": 13893,
@@ -125,11 +125,11 @@
     "TerritoryId": 1252,
     "Elements": 0,
     "MaxHp": 651518,
-    "SeenInCriticalEncounter": false,
-    "CriticalEncounter": "",
+    "SeenInCriticalEncounter": true,
+    "CriticalEncounter": "On the Hunt",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-09T20:39:05.4903735Z"
+    "LastSeenUtc": "2026-08-10T01:37:14.8691243Z"
   },
   {
     "NameId": 14841,
@@ -183,13 +183,13 @@
     "NameId": 13906,
     "Name": "Arcapetrified Netzach",
     "TerritoryId": 1252,
-    "Elements": 0,
+    "Elements": 1,
     "MaxHp": 709891,
     "SeenInCriticalEncounter": false,
     "CriticalEncounter": "",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-09T20:22:23.1922207Z"
+    "LastSeenUtc": "2026-08-10T00:46:44.2231962Z"
   },
   {
     "NameId": 14728,
@@ -238,6 +238,18 @@
     "SeenInFate": false,
     "Fate": "",
     "LastSeenUtc": "2026-07-31T20:15:41.8163748Z"
+  },
+  {
+    "NameId": 13946,
+    "Name": "Ball of Fire",
+    "TerritoryId": 1252,
+    "Elements": 0,
+    "MaxHp": 376600,
+    "SeenInCriticalEncounter": false,
+    "CriticalEncounter": "",
+    "SeenInFate": true,
+    "Fate": "Fatal Allure",
+    "LastSeenUtc": "2026-08-10T01:03:14.4478535Z"
   },
   {
     "NameId": 14527,
@@ -303,25 +315,25 @@
     "NameId": 13637,
     "Name": "Black Chocobo",
     "TerritoryId": 1252,
-    "Elements": 0,
-    "MaxHp": 2221940,
-    "SeenInCriticalEncounter": false,
-    "CriticalEncounter": "",
+    "Elements": 4,
+    "MaxHp": 7983920,
+    "SeenInCriticalEncounter": true,
+    "CriticalEncounter": "The Black Regiment",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-01T02:12:53.6323943Z"
+    "LastSeenUtc": "2026-08-10T01:46:47.3497162Z"
   },
   {
     "NameId": 13636,
     "Name": "Black Star",
     "TerritoryId": 1252,
-    "Elements": 0,
-    "MaxHp": 31329354,
-    "SeenInCriticalEncounter": false,
-    "CriticalEncounter": "",
+    "Elements": 4,
+    "MaxHp": 112573272,
+    "SeenInCriticalEncounter": true,
+    "CriticalEncounter": "The Black Regiment",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-01T02:12:53.6323943Z"
+    "LastSeenUtc": "2026-08-10T01:46:53.4129719Z"
   },
   {
     "NameId": 1848,
@@ -351,13 +363,13 @@
     "NameId": 13814,
     "Name": "Command Urn",
     "TerritoryId": 1252,
-    "Elements": 0,
-    "MaxHp": 116659758,
-    "SeenInCriticalEncounter": false,
-    "CriticalEncounter": "",
+    "Elements": 4,
+    "MaxHp": 81426945,
+    "SeenInCriticalEncounter": true,
+    "CriticalEncounter": "With Extreme Prejudice",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-01T03:11:33.5309018Z"
+    "LastSeenUtc": "2026-08-10T01:23:02.4227980Z"
   },
   {
     "NameId": 13818,
@@ -423,13 +435,13 @@
     "NameId": 13886,
     "Name": "Crescent Aetherscab",
     "TerritoryId": 1252,
-    "Elements": 0,
+    "Elements": 1,
     "MaxHp": 679763,
     "SeenInCriticalEncounter": false,
     "CriticalEncounter": "",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-09T20:07:54.1908703Z"
+    "LastSeenUtc": "2026-08-10T01:01:15.9211371Z"
   },
   {
     "NameId": 14905,
@@ -459,13 +471,13 @@
     "NameId": 13937,
     "Name": "Crescent Apa",
     "TerritoryId": 1252,
-    "Elements": 0,
+    "Elements": 4,
     "MaxHp": 704242,
     "SeenInCriticalEncounter": false,
     "CriticalEncounter": "",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-01T03:13:05.2262607Z"
+    "LastSeenUtc": "2026-08-09T22:13:16.5236316Z"
   },
   {
     "NameId": 14840,
@@ -501,19 +513,19 @@
     "CriticalEncounter": "Flame of Dusk",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-09T20:20:14.5885834Z"
+    "LastSeenUtc": "2026-08-10T01:01:42.0283689Z"
   },
   {
     "NameId": 13904,
     "Name": "Crescent Bachelor",
     "TerritoryId": 1252,
-    "Elements": 0,
+    "Elements": 2,
     "MaxHp": 691061,
     "SeenInCriticalEncounter": false,
     "CriticalEncounter": "",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-09T20:25:41.4348374Z"
+    "LastSeenUtc": "2026-08-09T21:09:05.7240620Z"
   },
   {
     "NameId": 13877,
@@ -525,7 +537,7 @@
     "CriticalEncounter": "",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-09T20:34:13.8939018Z"
+    "LastSeenUtc": "2026-08-10T00:48:40.5831460Z"
   },
   {
     "NameId": 14895,
@@ -615,25 +627,25 @@
     "NameId": 13898,
     "Name": "Crescent Blackguard",
     "TerritoryId": 1252,
-    "Elements": 0,
+    "Elements": 8,
     "MaxHp": 689178,
     "SeenInCriticalEncounter": false,
     "CriticalEncounter": "",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-09T20:25:41.4348374Z"
+    "LastSeenUtc": "2026-08-10T01:36:26.6032074Z"
   },
   {
     "NameId": 13908,
     "Name": "Crescent Blood Demon",
     "TerritoryId": 1252,
-    "Elements": 0,
+    "Elements": 2,
     "MaxHp": 687295,
     "SeenInCriticalEncounter": false,
     "CriticalEncounter": "",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-09T20:24:29.3181511Z"
+    "LastSeenUtc": "2026-08-09T21:09:51.8087018Z"
   },
   {
     "NameId": 13939,
@@ -646,6 +658,18 @@
     "SeenInFate": false,
     "Fate": "",
     "LastSeenUtc": "2026-08-02T19:14:23.6731724Z"
+  },
+  {
+    "NameId": 13939,
+    "Name": "Crescent Bomb",
+    "TerritoryId": 1252,
+    "Elements": 2,
+    "MaxHp": 651518,
+    "SeenInCriticalEncounter": false,
+    "CriticalEncounter": "",
+    "SeenInFate": false,
+    "Fate": "",
+    "LastSeenUtc": "2026-08-10T00:37:40.4896850Z"
   },
   {
     "NameId": 14914,
@@ -663,25 +687,37 @@
     "NameId": 13916,
     "Name": "Crescent Brachiosaur",
     "TerritoryId": 1252,
-    "Elements": 0,
+    "Elements": 2,
     "MaxHp": 672231,
     "SeenInCriticalEncounter": false,
     "CriticalEncounter": "",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-09T20:20:14.5885834Z"
+    "LastSeenUtc": "2026-08-10T01:04:04.6413835Z"
   },
   {
     "NameId": 13895,
     "Name": "Crescent Byblos",
     "TerritoryId": 1252,
-    "Elements": 0,
+    "Elements": 1,
     "MaxHp": 681646,
     "SeenInCriticalEncounter": false,
     "CriticalEncounter": "",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-01T03:05:17.0962750Z"
+    "LastSeenUtc": "2026-08-10T00:59:29.3981967Z"
+  },
+  {
+    "NameId": 13921,
+    "Name": "Crescent Caoineag",
+    "TerritoryId": 1252,
+    "Elements": 8,
+    "MaxHp": 659050,
+    "SeenInCriticalEncounter": false,
+    "CriticalEncounter": "",
+    "SeenInFate": false,
+    "Fate": "",
+    "LastSeenUtc": "2026-08-10T00:54:17.6649388Z"
   },
   {
     "NameId": 14909,
@@ -705,43 +741,43 @@
     "CriticalEncounter": "",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-09T20:19:40.4627336Z"
+    "LastSeenUtc": "2026-08-10T01:01:54.0868537Z"
   },
   {
     "NameId": 13902,
     "Name": "Crescent Cetus",
     "TerritoryId": 1252,
-    "Elements": 0,
+    "Elements": 2,
     "MaxHp": 659050,
     "SeenInCriticalEncounter": false,
     "CriticalEncounter": "",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-01T03:10:44.5675092Z"
+    "LastSeenUtc": "2026-08-10T00:18:31.4699351Z"
   },
   {
     "NameId": 13931,
     "Name": "Crescent Chaochu",
     "TerritoryId": 1252,
-    "Elements": 0,
+    "Elements": 1,
     "MaxHp": 638337,
     "SeenInCriticalEncounter": true,
     "CriticalEncounter": "Company of Stone",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-09T20:35:16.1614093Z"
+    "LastSeenUtc": "2026-08-09T23:54:07.6756568Z"
   },
   {
     "NameId": 13910,
     "Name": "Crescent Chimera",
     "TerritoryId": 1252,
-    "Elements": 0,
+    "Elements": 8,
     "MaxHp": 709891,
     "SeenInCriticalEncounter": false,
     "CriticalEncounter": "",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-09T20:22:23.1922207Z"
+    "LastSeenUtc": "2026-08-10T00:46:40.2030325Z"
   },
   {
     "NameId": 14862,
@@ -759,13 +795,13 @@
     "NameId": 13903,
     "Name": "Crescent Claw",
     "TerritoryId": 1252,
-    "Elements": 0,
+    "Elements": 4,
     "MaxHp": 694827,
     "SeenInCriticalEncounter": false,
     "CriticalEncounter": "",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-09T20:22:37.2191405Z"
+    "LastSeenUtc": "2026-08-10T00:47:14.3134482Z"
   },
   {
     "NameId": 14857,
@@ -795,13 +831,13 @@
     "NameId": 13885,
     "Name": "Crescent Collagen",
     "TerritoryId": 1252,
-    "Elements": 0,
+    "Elements": 2,
     "MaxHp": 694827,
     "SeenInCriticalEncounter": false,
     "CriticalEncounter": "",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-09T20:22:17.1741138Z"
+    "LastSeenUtc": "2026-08-10T00:58:33.0697178Z"
   },
   {
     "NameId": 14900,
@@ -819,13 +855,13 @@
     "NameId": 13901,
     "Name": "Crescent Demon Pawn",
     "TerritoryId": 1252,
-    "Elements": 0,
+    "Elements": 8,
     "MaxHp": 691061,
     "SeenInCriticalEncounter": false,
     "CriticalEncounter": "",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-09T20:24:35.3194349Z"
+    "LastSeenUtc": "2026-08-09T21:11:54.3843597Z"
   },
   {
     "NameId": 14859,
@@ -852,52 +888,64 @@
     "LastSeenUtc": "2026-08-02T22:52:25.5064644Z"
   },
   {
+    "NameId": 13940,
+    "Name": "Crescent Dhruva",
+    "TerritoryId": 1252,
+    "Elements": 8,
+    "MaxHp": 713657,
+    "SeenInCriticalEncounter": true,
+    "CriticalEncounter": "The Black Regiment",
+    "SeenInFate": false,
+    "Fate": "",
+    "LastSeenUtc": "2026-08-10T01:47:17.6959229Z"
+  },
+  {
     "NameId": 13918,
     "Name": "Crescent Diplocaulus",
     "TerritoryId": 1252,
-    "Elements": 0,
+    "Elements": 2,
     "MaxHp": 692944,
     "SeenInCriticalEncounter": false,
     "CriticalEncounter": "",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-09T20:23:05.2481868Z"
+    "LastSeenUtc": "2026-08-10T00:25:20.9546758Z"
   },
   {
     "NameId": 13892,
     "Name": "Crescent Dirty Eye",
     "TerritoryId": 1252,
-    "Elements": 0,
+    "Elements": 8,
     "MaxHp": 698593,
-    "SeenInCriticalEncounter": false,
-    "CriticalEncounter": "",
+    "SeenInCriticalEncounter": true,
+    "CriticalEncounter": "The Black Regiment",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-09T20:25:41.4348374Z"
+    "LastSeenUtc": "2026-08-10T01:47:17.6959229Z"
   },
   {
     "NameId": 13927,
     "Name": "Crescent Dullahan",
     "TerritoryId": 1252,
-    "Elements": 0,
-    "MaxHp": 709891,
+    "Elements": 4,
+    "MaxHp": 711774,
     "SeenInCriticalEncounter": false,
     "CriticalEncounter": "",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-09T20:21:43.0080296Z"
+    "LastSeenUtc": "2026-08-10T00:46:36.1848800Z"
   },
   {
     "NameId": 13890,
     "Name": "Crescent Echos",
     "TerritoryId": 1252,
-    "Elements": 0,
+    "Elements": 1,
     "MaxHp": 685412,
     "SeenInCriticalEncounter": false,
     "CriticalEncounter": "",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-09T20:23:21.2630499Z"
+    "LastSeenUtc": "2026-08-09T22:33:15.9953451Z"
   },
   {
     "NameId": 14879,
@@ -930,22 +978,22 @@
     "Elements": 4,
     "MaxHp": 651518,
     "SeenInCriticalEncounter": true,
-    "CriticalEncounter": "Company of Stone",
+    "CriticalEncounter": "On the Hunt",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-09T20:39:05.4903735Z"
+    "LastSeenUtc": "2026-08-10T01:37:20.9114431Z"
   },
   {
     "NameId": 13930,
     "Name": "Crescent Flame",
     "TerritoryId": 1252,
-    "Elements": 0,
+    "Elements": 2,
     "MaxHp": 702359,
     "SeenInCriticalEncounter": false,
     "CriticalEncounter": "",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-01T03:13:05.2262607Z"
+    "LastSeenUtc": "2026-08-09T22:13:28.5731277Z"
   },
   {
     "NameId": 14923,
@@ -969,19 +1017,19 @@
     "CriticalEncounter": "",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-09T20:35:14.1559766Z"
+    "LastSeenUtc": "2026-08-10T00:48:40.5831460Z"
   },
   {
     "NameId": 13915,
     "Name": "Crescent Foobar",
     "TerritoryId": 1252,
-    "Elements": 0,
+    "Elements": 4,
     "MaxHp": 708008,
     "SeenInCriticalEncounter": false,
     "CriticalEncounter": "",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-01T03:05:43.4695892Z"
+    "LastSeenUtc": "2026-08-10T00:58:06.9092981Z"
   },
   {
     "NameId": 13943,
@@ -999,13 +1047,13 @@
     "NameId": 13871,
     "Name": "Crescent Foper",
     "TerritoryId": 1252,
-    "Elements": 0,
+    "Elements": 1,
     "MaxHp": 675997,
     "SeenInCriticalEncounter": false,
     "CriticalEncounter": "",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-09T20:20:06.5842224Z"
+    "LastSeenUtc": "2026-08-10T00:56:44.4187468Z"
   },
   {
     "NameId": 13872,
@@ -1017,7 +1065,7 @@
     "CriticalEncounter": "Company of Stone",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-09T20:36:24.5013871Z"
+    "LastSeenUtc": "2026-08-09T23:53:07.3441247Z"
   },
   {
     "NameId": 14899,
@@ -1036,12 +1084,12 @@
     "Name": "Crescent Garula",
     "TerritoryId": 1252,
     "Elements": 1,
-    "MaxHp": 24704960,
+    "MaxHp": 33104646,
     "SeenInCriticalEncounter": false,
     "CriticalEncounter": "",
     "SeenInFate": true,
     "Fate": "Persistent Pots",
-    "LastSeenUtc": "2026-08-01T03:22:31.9403408Z"
+    "LastSeenUtc": "2026-08-10T00:17:21.3272187Z"
   },
   {
     "NameId": 13884,
@@ -1053,7 +1101,7 @@
     "CriticalEncounter": "",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-01T03:09:55.7463862Z"
+    "LastSeenUtc": "2026-08-10T00:39:06.5831830Z"
   },
   {
     "NameId": 14883,
@@ -1071,13 +1119,13 @@
     "NameId": 13923,
     "Name": "Crescent Geshunpest",
     "TerritoryId": 1252,
-    "Elements": 0,
-    "MaxHp": 679763,
+    "Elements": 8,
+    "MaxHp": 708008,
     "SeenInCriticalEncounter": false,
     "CriticalEncounter": "",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-09T20:07:52.1743371Z"
+    "LastSeenUtc": "2026-08-10T00:59:53.4966156Z"
   },
   {
     "NameId": 14917,
@@ -1095,13 +1143,13 @@
     "NameId": 13922,
     "Name": "Crescent Ghost",
     "TerritoryId": 1252,
-    "Elements": 0,
+    "Elements": 8,
     "MaxHp": 696710,
     "SeenInCriticalEncounter": false,
     "CriticalEncounter": "",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-09T20:13:21.7178504Z"
+    "LastSeenUtc": "2026-08-10T00:53:21.5366510Z"
   },
   {
     "NameId": 14921,
@@ -1119,49 +1167,49 @@
     "NameId": 13928,
     "Name": "Crescent Golem",
     "TerritoryId": 1252,
-    "Elements": 0,
+    "Elements": 4,
     "MaxHp": 662816,
-    "SeenInCriticalEncounter": false,
-    "CriticalEncounter": "",
+    "SeenInCriticalEncounter": true,
+    "CriticalEncounter": "With Extreme Prejudice",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-01T03:12:08.1221070Z"
+    "LastSeenUtc": "2026-08-10T01:23:54.6261208Z"
   },
   {
     "NameId": 13743,
     "Name": "Crescent Goobbue",
     "TerritoryId": 1252,
     "Elements": 1,
-    "MaxHp": 2745414,
+    "MaxHp": 3678854,
     "SeenInCriticalEncounter": false,
     "CriticalEncounter": "",
     "SeenInFate": true,
     "Fate": "Persistent Pots",
-    "LastSeenUtc": "2026-08-01T03:20:43.6250180Z"
+    "LastSeenUtc": "2026-08-10T00:16:00.9133348Z"
   },
   {
     "NameId": 13878,
     "Name": "Crescent Goobbue",
     "TerritoryId": 1252,
-    "Elements": 0,
+    "Elements": 1,
     "MaxHp": 655284,
     "SeenInCriticalEncounter": false,
     "CriticalEncounter": "",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-09T20:09:48.5924321Z"
+    "LastSeenUtc": "2026-08-10T01:26:16.7902393Z"
   },
   {
     "NameId": 13926,
     "Name": "Crescent Gourmand",
     "TerritoryId": 1252,
-    "Elements": 0,
+    "Elements": 1,
     "MaxHp": 696710,
     "SeenInCriticalEncounter": false,
     "CriticalEncounter": "",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-09T20:21:43.0080296Z"
+    "LastSeenUtc": "2026-08-10T00:47:14.3134482Z"
   },
   {
     "NameId": 14892,
@@ -1203,13 +1251,13 @@
     "NameId": 13897,
     "Name": "Crescent Haagenti",
     "TerritoryId": 1252,
-    "Elements": 0,
+    "Elements": 2,
     "MaxHp": 706125,
     "SeenInCriticalEncounter": false,
     "CriticalEncounter": "",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-01T03:05:45.5094223Z"
+    "LastSeenUtc": "2026-08-10T00:58:14.9435895Z"
   },
   {
     "NameId": 14884,
@@ -1227,13 +1275,13 @@
     "NameId": 13935,
     "Name": "Crescent Harpuia",
     "TerritoryId": 1252,
-    "Elements": 0,
+    "Elements": 8,
     "MaxHp": 675997,
     "SeenInCriticalEncounter": true,
     "CriticalEncounter": "Flame of Dusk",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-09T20:09:48.5924321Z"
+    "LastSeenUtc": "2026-08-10T01:01:31.9798204Z"
   },
   {
     "NameId": 14901,
@@ -1252,24 +1300,24 @@
     "Name": "Crescent Headstone",
     "TerritoryId": 1252,
     "Elements": 4,
-    "MaxHp": 2745414,
+    "MaxHp": 3678854,
     "SeenInCriticalEncounter": false,
     "CriticalEncounter": "",
     "SeenInFate": true,
     "Fate": "Persistent Pots",
-    "LastSeenUtc": "2026-08-01T03:20:45.6857808Z"
+    "LastSeenUtc": "2026-08-10T00:16:04.9198716Z"
   },
   {
     "NameId": 13881,
     "Name": "Crescent Headstone",
     "TerritoryId": 1252,
-    "Elements": 0,
+    "Elements": 4,
     "MaxHp": 689178,
-    "SeenInCriticalEncounter": false,
-    "CriticalEncounter": "",
+    "SeenInCriticalEncounter": true,
+    "CriticalEncounter": "The Black Regiment",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-09T20:24:29.3181511Z"
+    "LastSeenUtc": "2026-08-10T01:47:17.6959229Z"
   },
   {
     "NameId": 14897,
@@ -1299,13 +1347,13 @@
     "NameId": 13875,
     "Name": "Crescent Inkstain",
     "TerritoryId": 1252,
-    "Elements": 0,
+    "Elements": 1,
     "MaxHp": 696710,
     "SeenInCriticalEncounter": false,
     "CriticalEncounter": "",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-09T20:22:43.2279871Z"
+    "LastSeenUtc": "2026-08-10T00:46:40.2030325Z"
   },
   {
     "NameId": 14911,
@@ -1347,37 +1395,37 @@
     "NameId": 13883,
     "Name": "Crescent Karlabos",
     "TerritoryId": 1252,
-    "Elements": 0,
+    "Elements": 4,
     "MaxHp": 655284,
     "SeenInCriticalEncounter": false,
     "CriticalEncounter": "",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-01T03:10:40.4701335Z"
+    "LastSeenUtc": "2026-08-10T00:54:09.6452371Z"
   },
   {
     "NameId": 13932,
     "Name": "Crescent Leshy",
     "TerritoryId": 1252,
-    "Elements": 0,
+    "Elements": 1,
     "MaxHp": 642103,
     "SeenInCriticalEncounter": false,
     "CriticalEncounter": "",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-09T20:16:38.0830987Z"
+    "LastSeenUtc": "2026-08-10T00:39:42.6704096Z"
   },
   {
     "NameId": 13891,
     "Name": "Crescent Lion Statant",
     "TerritoryId": 1252,
-    "Elements": 0,
+    "Elements": 4,
     "MaxHp": 696710,
-    "SeenInCriticalEncounter": false,
-    "CriticalEncounter": "",
+    "SeenInCriticalEncounter": true,
+    "CriticalEncounter": "On the Hunt",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-01T03:03:03.2834029Z"
+    "LastSeenUtc": "2026-08-10T01:37:04.7932945Z"
   },
   {
     "NameId": 14872,
@@ -1398,10 +1446,10 @@
     "Elements": 4,
     "MaxHp": 645869,
     "SeenInCriticalEncounter": true,
-    "CriticalEncounter": "Company of Stone",
+    "CriticalEncounter": "On the Hunt",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-09T20:39:05.4903735Z"
+    "LastSeenUtc": "2026-08-10T01:37:24.9244066Z"
   },
   {
     "NameId": 14878,
@@ -1437,7 +1485,7 @@
     "CriticalEncounter": "",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-09T20:19:40.4627336Z"
+    "LastSeenUtc": "2026-08-10T01:37:34.9737551Z"
   },
   {
     "NameId": 13942,
@@ -1456,24 +1504,24 @@
     "Name": "Crescent Mimic",
     "TerritoryId": 1252,
     "Elements": 0,
-    "MaxHp": 687295,
+    "MaxHp": 713657,
     "SeenInCriticalEncounter": false,
     "CriticalEncounter": "",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-01T03:13:33.8742368Z"
+    "LastSeenUtc": "2026-08-10T00:26:41.0899077Z"
   },
   {
     "NameId": 13879,
     "Name": "Crescent Monk",
     "TerritoryId": 1252,
-    "Elements": 0,
+    "Elements": 4,
     "MaxHp": 687295,
     "SeenInCriticalEncounter": false,
     "CriticalEncounter": "",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-09T20:23:45.2923417Z"
+    "LastSeenUtc": "2026-08-09T21:11:54.3843597Z"
   },
   {
     "NameId": 14894,
@@ -1503,13 +1551,13 @@
     "NameId": 13941,
     "Name": "Crescent Mousse",
     "TerritoryId": 1252,
-    "Elements": 0,
-    "MaxHp": 687295,
+    "Elements": 1,
+    "MaxHp": 696710,
     "SeenInCriticalEncounter": false,
     "CriticalEncounter": "",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-09T20:09:48.5924321Z"
+    "LastSeenUtc": "2026-08-09T21:14:42.7561132Z"
   },
   {
     "NameId": 14902,
@@ -1587,13 +1635,13 @@
     "NameId": 13911,
     "Name": "Crescent Panther",
     "TerritoryId": 1252,
-    "Elements": 0,
+    "Elements": 1,
     "MaxHp": 685412,
-    "SeenInCriticalEncounter": false,
-    "CriticalEncounter": "",
+    "SeenInCriticalEncounter": true,
+    "CriticalEncounter": "The Black Regiment",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-01T03:13:31.8314811Z"
+    "LastSeenUtc": "2026-08-10T01:47:17.6959229Z"
   },
   {
     "NameId": 14898,
@@ -1611,13 +1659,13 @@
     "NameId": 13913,
     "Name": "Crescent Petalodite",
     "TerritoryId": 1252,
-    "Elements": 0,
+    "Elements": 4,
     "MaxHp": 659050,
-    "SeenInCriticalEncounter": false,
-    "CriticalEncounter": "",
+    "SeenInCriticalEncounter": true,
+    "CriticalEncounter": "With Extreme Prejudice",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-01T03:11:08.9863389Z"
+    "LastSeenUtc": "2026-08-10T01:26:16.7902393Z"
   },
   {
     "NameId": 14888,
@@ -1659,13 +1707,13 @@
     "NameId": 13887,
     "Name": "Crescent Rosebear",
     "TerritoryId": 1252,
-    "Elements": 0,
+    "Elements": 1,
     "MaxHp": 675997,
     "SeenInCriticalEncounter": true,
     "CriticalEncounter": "Flame of Dusk",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-09T20:08:08.5141269Z"
+    "LastSeenUtc": "2026-08-10T01:01:52.0721311Z"
   },
   {
     "NameId": 14893,
@@ -1731,13 +1779,13 @@
     "NameId": 13899,
     "Name": "Crescent Satana",
     "TerritoryId": 1252,
-    "Elements": 0,
+    "Elements": 8,
     "MaxHp": 711774,
     "SeenInCriticalEncounter": false,
     "CriticalEncounter": "",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-09T20:22:19.1868308Z"
+    "LastSeenUtc": "2026-08-10T00:46:28.1161015Z"
   },
   {
     "NameId": 14916,
@@ -1755,13 +1803,13 @@
     "NameId": 13874,
     "Name": "Crescent Snapweed",
     "TerritoryId": 1252,
-    "Elements": 0,
+    "Elements": 1,
     "MaxHp": 642103,
     "SeenInCriticalEncounter": true,
     "CriticalEncounter": "Company of Stone",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-09T20:13:41.8074111Z"
+    "LastSeenUtc": "2026-08-10T00:38:40.5591726Z"
   },
   {
     "NameId": 14875,
@@ -1803,25 +1851,25 @@
     "NameId": 13880,
     "Name": "Crescent Taurus",
     "TerritoryId": 1252,
-    "Elements": 0,
+    "Elements": 2,
     "MaxHp": 679763,
     "SeenInCriticalEncounter": false,
     "CriticalEncounter": "",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-09T20:10:24.8432883Z"
+    "LastSeenUtc": "2026-08-10T00:59:45.4774490Z"
   },
   {
     "NameId": 13744,
     "Name": "Crescent Taurus",
     "TerritoryId": 1252,
     "Elements": 2,
-    "MaxHp": 2745414,
+    "MaxHp": 3678854,
     "SeenInCriticalEncounter": false,
     "CriticalEncounter": "",
     "SeenInFate": true,
     "Fate": "Persistent Pots",
-    "LastSeenUtc": "2026-08-01T03:20:55.9160190Z"
+    "LastSeenUtc": "2026-08-10T00:15:52.8835619Z"
   },
   {
     "NameId": 14865,
@@ -1857,43 +1905,43 @@
     "CriticalEncounter": "Company of Stone",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-09T20:38:03.0626653Z"
+    "LastSeenUtc": "2026-08-10T01:37:38.9987200Z"
   },
   {
     "NameId": 13888,
     "Name": "Crescent Triceratops",
     "TerritoryId": 1252,
-    "Elements": 0,
+    "Elements": 2,
     "MaxHp": 672231,
     "SeenInCriticalEncounter": false,
     "CriticalEncounter": "",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-01T03:14:04.5419733Z"
+    "LastSeenUtc": "2026-08-10T01:38:05.0905241Z"
   },
   {
     "NameId": 13925,
     "Name": "Crescent Troubadour",
     "TerritoryId": 1252,
-    "Elements": 0,
+    "Elements": 1,
     "MaxHp": 698593,
     "SeenInCriticalEncounter": false,
     "CriticalEncounter": "",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-01T02:13:59.1718325Z"
+    "LastSeenUtc": "2026-08-10T00:53:35.5527359Z"
   },
   {
     "NameId": 13934,
     "Name": "Crescent Uragnite",
     "TerritoryId": 1252,
-    "Elements": 0,
+    "Elements": 4,
     "MaxHp": 662816,
-    "SeenInCriticalEncounter": false,
-    "CriticalEncounter": "",
+    "SeenInCriticalEncounter": true,
+    "CriticalEncounter": "With Extreme Prejudice",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-01T03:11:45.6723686Z"
+    "LastSeenUtc": "2026-08-10T01:26:16.7902393Z"
   },
   {
     "NameId": 14858,
@@ -1923,13 +1971,13 @@
     "NameId": 13896,
     "Name": "Crescent Void Viper",
     "TerritoryId": 1252,
-    "Elements": 0,
+    "Elements": 2,
     "MaxHp": 692944,
     "SeenInCriticalEncounter": false,
     "CriticalEncounter": "",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-09T20:22:51.2359384Z"
+    "LastSeenUtc": "2026-08-10T00:46:42.2083133Z"
   },
   {
     "NameId": 13907,
@@ -1941,7 +1989,7 @@
     "CriticalEncounter": "",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-09T20:22:51.2359384Z"
+    "LastSeenUtc": "2026-08-10T00:46:46.2299326Z"
   },
   {
     "NameId": 14908,
@@ -2007,49 +2055,49 @@
     "NameId": 13919,
     "Name": "Crescent Zaghnal",
     "TerritoryId": 1252,
-    "Elements": 0,
+    "Elements": 1,
     "MaxHp": 702359,
     "SeenInCriticalEncounter": false,
     "CriticalEncounter": "",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-01T03:13:05.2262607Z"
+    "LastSeenUtc": "2026-08-10T00:18:59.4916230Z"
   },
   {
     "NameId": 13938,
     "Name": "Crescent Zangbeto",
     "TerritoryId": 1252,
-    "Elements": 0,
+    "Elements": 2,
     "MaxHp": 708008,
     "SeenInCriticalEncounter": false,
     "CriticalEncounter": "",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-01T03:05:37.3614026Z"
+    "LastSeenUtc": "2026-08-10T00:56:52.4597883Z"
   },
   {
     "NameId": 13936,
     "Name": "Crescent Zaratan",
     "TerritoryId": 1252,
-    "Elements": 0,
+    "Elements": 4,
     "MaxHp": 704242,
     "SeenInCriticalEncounter": false,
     "CriticalEncounter": "",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-01T03:12:32.6709520Z"
+    "LastSeenUtc": "2026-08-10T00:08:11.0949435Z"
   },
   {
     "NameId": 13914,
     "Name": "Crescent Zirnitra",
     "TerritoryId": 1252,
-    "Elements": 0,
+    "Elements": 2,
     "MaxHp": 713657,
     "SeenInCriticalEncounter": false,
     "CriticalEncounter": "",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-01T01:55:30.9578488Z"
+    "LastSeenUtc": "2026-08-10T00:32:17.6381294Z"
   },
   {
     "NameId": 14906,
@@ -2104,12 +2152,36 @@
     "Name": "Cry of Havoc",
     "TerritoryId": 1252,
     "Elements": 4,
-    "MaxHp": 3180763,
+    "MaxHp": 2980035,
     "SeenInCriticalEncounter": false,
     "CriticalEncounter": "",
     "SeenInFate": true,
     "Fate": "Pleading Pots",
-    "LastSeenUtc": "2026-08-09T20:21:18.8934930Z"
+    "LastSeenUtc": "2026-08-10T00:45:51.8581432Z"
+  },
+  {
+    "NameId": 13698,
+    "Name": "Crystal",
+    "TerritoryId": 1252,
+    "Elements": 0,
+    "MaxHp": 7983920,
+    "SeenInCriticalEncounter": false,
+    "CriticalEncounter": "",
+    "SeenInFate": false,
+    "Fate": "",
+    "LastSeenUtc": "2026-08-10T00:36:28.4209995Z"
+  },
+  {
+    "NameId": 13696,
+    "Name": "Crystal Dragon",
+    "TerritoryId": 1252,
+    "Elements": 8,
+    "MaxHp": 167981676,
+    "SeenInCriticalEncounter": false,
+    "CriticalEncounter": "",
+    "SeenInFate": false,
+    "Fate": "",
+    "LastSeenUtc": "2026-08-10T00:36:28.4209995Z"
   },
   {
     "NameId": 14737,
@@ -2128,12 +2200,12 @@
     "Name": "Dehumidifier",
     "TerritoryId": 1252,
     "Elements": 2,
-    "MaxHp": 16212630,
+    "MaxHp": 2161684,
     "SeenInCriticalEncounter": false,
     "CriticalEncounter": "",
     "SeenInFate": true,
     "Fate": "A Delicate Balance",
-    "LastSeenUtc": "2026-08-01T01:30:03.6721479Z"
+    "LastSeenUtc": "2026-08-10T00:24:50.9060724Z"
   },
   {
     "NameId": 14736,
@@ -2146,6 +2218,18 @@
     "SeenInFate": true,
     "Fate": "Scale Model",
     "LastSeenUtc": "2026-08-02T00:48:21.0889518Z"
+  },
+  {
+    "NameId": 13697,
+    "Name": "Draconic Double",
+    "TerritoryId": 1252,
+    "Elements": 0,
+    "MaxHp": 7983920,
+    "SeenInCriticalEncounter": false,
+    "CriticalEncounter": "",
+    "SeenInFate": false,
+    "Fate": "",
+    "LastSeenUtc": "2026-08-10T00:36:28.4209995Z"
   },
   {
     "NameId": 14508,
@@ -2187,13 +2271,13 @@
     "NameId": 13855,
     "Name": "Execrator",
     "TerritoryId": 1252,
-    "Elements": 0,
-    "MaxHp": 1650298,
+    "Elements": 8,
+    "MaxHp": 10187030,
     "SeenInCriticalEncounter": false,
     "CriticalEncounter": "",
     "SeenInFate": true,
     "Fate": "Fatal Allure",
-    "LastSeenUtc": "2026-08-01T03:14:14.7003009Z"
+    "LastSeenUtc": "2026-08-10T01:03:34.5473600Z"
   },
   {
     "NameId": 14797,
@@ -2218,6 +2302,42 @@
     "SeenInFate": true,
     "Fate": "Shoreline Showdown",
     "LastSeenUtc": "2026-08-02T19:06:40.8201150Z"
+  },
+  {
+    "NameId": 13869,
+    "Name": "Gale Sphere",
+    "TerritoryId": 1252,
+    "Elements": 0,
+    "MaxHp": 1751190,
+    "SeenInCriticalEncounter": false,
+    "CriticalEncounter": "",
+    "SeenInFate": true,
+    "Fate": "King of the Crescent",
+    "LastSeenUtc": "2026-08-09T21:55:03.7053537Z"
+  },
+  {
+    "NameId": 13739,
+    "Name": "Giant Bird",
+    "TerritoryId": 1252,
+    "Elements": 8,
+    "MaxHp": 4330900,
+    "SeenInCriticalEncounter": false,
+    "CriticalEncounter": "",
+    "SeenInFate": true,
+    "Fate": "The Winged Terror",
+    "LastSeenUtc": "2026-08-09T22:07:13.6691818Z"
+  },
+  {
+    "NameId": 13702,
+    "Name": "Gilded Headstone",
+    "TerritoryId": 1252,
+    "Elements": 4,
+    "MaxHp": 1351052,
+    "SeenInCriticalEncounter": false,
+    "CriticalEncounter": "",
+    "SeenInFate": true,
+    "Fate": "The Golden Guardian",
+    "LastSeenUtc": "2026-08-10T00:51:41.2957510Z"
   },
   {
     "NameId": 14769,
@@ -2268,16 +2388,28 @@
     "LastSeenUtc": "2026-08-02T22:24:03.7049849Z"
   },
   {
+    "NameId": 7248,
+    "Name": "Happy Bunny",
+    "TerritoryId": 1252,
+    "Elements": 0,
+    "MaxHp": 188300,
+    "SeenInCriticalEncounter": false,
+    "CriticalEncounter": "",
+    "SeenInFate": false,
+    "Fate": "",
+    "LastSeenUtc": "2026-08-10T00:31:09.5548154Z"
+  },
+  {
     "NameId": 13748,
     "Name": "Havoc",
     "TerritoryId": 1252,
     "Elements": 4,
-    "MaxHp": 22357988,
+    "MaxHp": 23840286,
     "SeenInCriticalEncounter": false,
     "CriticalEncounter": "",
     "SeenInFate": true,
     "Fate": "Pleading Pots",
-    "LastSeenUtc": "2026-08-09T20:22:01.1158679Z"
+    "LastSeenUtc": "2026-08-10T00:46:32.1580473Z"
   },
   {
     "NameId": 7958,
@@ -2344,12 +2476,12 @@
     "Name": "Hot Air",
     "TerritoryId": 1252,
     "Elements": 0,
-    "MaxHp": 1167460,
+    "MaxHp": 1280440,
     "SeenInCriticalEncounter": false,
     "CriticalEncounter": "",
     "SeenInFate": true,
     "Fate": "A Delicate Balance",
-    "LastSeenUtc": "2026-08-01T01:30:03.6721479Z"
+    "LastSeenUtc": "2026-08-10T00:24:42.8957368Z"
   },
   {
     "NameId": 14765,
@@ -2385,7 +2517,43 @@
     "CriticalEncounter": "",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-01T03:05:49.6012883Z"
+    "LastSeenUtc": "2026-08-10T00:58:25.0104351Z"
+  },
+  {
+    "NameId": 13741,
+    "Name": "Lifereaper",
+    "TerritoryId": 1252,
+    "Elements": 1,
+    "MaxHp": 1886766,
+    "SeenInCriticalEncounter": false,
+    "CriticalEncounter": "",
+    "SeenInFate": true,
+    "Fate": "Serving Darkness",
+    "LastSeenUtc": "2026-08-09T21:13:50.6628520Z"
+  },
+  {
+    "NameId": 13810,
+    "Name": "Light Sprite",
+    "TerritoryId": 1252,
+    "Elements": 0,
+    "MaxHp": 8661800,
+    "SeenInCriticalEncounter": true,
+    "CriticalEncounter": "On the Hunt",
+    "SeenInFate": false,
+    "Fate": "",
+    "LastSeenUtc": "2026-08-10T01:34:18.9403515Z"
+  },
+  {
+    "NameId": 13809,
+    "Name": "Lion Rampant",
+    "TerritoryId": 1252,
+    "Elements": 4,
+    "MaxHp": 180078822,
+    "SeenInCriticalEncounter": true,
+    "CriticalEncounter": "On the Hunt",
+    "SeenInFate": false,
+    "Fate": "",
+    "LastSeenUtc": "2026-08-10T01:35:02.1427650Z"
   },
   {
     "NameId": 14519,
@@ -2448,6 +2616,18 @@
     "LastSeenUtc": "2026-08-09T20:11:57.3999983Z"
   },
   {
+    "NameId": 13838,
+    "Name": "Marble Dragon",
+    "TerritoryId": 1252,
+    "Elements": 0,
+    "MaxHp": 188300,
+    "SeenInCriticalEncounter": false,
+    "CriticalEncounter": "",
+    "SeenInFate": false,
+    "Fate": "",
+    "LastSeenUtc": "2026-08-09T21:09:13.7423139Z"
+  },
+  {
     "NameId": 13729,
     "Name": "Megaloknight",
     "TerritoryId": 1252,
@@ -2463,13 +2643,13 @@
     "NameId": 13909,
     "Name": "Menacing Dahak",
     "TerritoryId": 1252,
-    "Elements": 0,
+    "Elements": 2,
     "MaxHp": 681646,
     "SeenInCriticalEncounter": true,
     "CriticalEncounter": "Flame of Dusk",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-09T20:10:38.8940039Z"
+    "LastSeenUtc": "2026-08-10T00:59:41.4574962Z"
   },
   {
     "NameId": 14801,
@@ -2512,12 +2692,12 @@
     "Name": "Observer",
     "TerritoryId": 1252,
     "Elements": 0,
-    "MaxHp": 7842695,
+    "MaxHp": 313707,
     "SeenInCriticalEncounter": false,
     "CriticalEncounter": "",
     "SeenInFate": true,
     "Fate": "A Prying Eye",
-    "LastSeenUtc": "2026-08-01T02:06:08.3687605Z"
+    "LastSeenUtc": "2026-08-09T22:33:42.0620105Z"
   },
   {
     "NameId": 13854,
@@ -2535,25 +2715,25 @@
     "NameId": 13929,
     "Name": "Occult Golem",
     "TerritoryId": 1252,
-    "Elements": 0,
+    "Elements": 4,
     "MaxHp": 711774,
     "SeenInCriticalEncounter": false,
     "CriticalEncounter": "",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-01T01:55:45.1452837Z"
+    "LastSeenUtc": "2026-08-10T00:32:29.6649540Z"
   },
   {
     "NameId": 13920,
     "Name": "Occult Isleblazer",
     "TerritoryId": 1252,
-    "Elements": 0,
+    "Elements": 2,
     "MaxHp": 713657,
     "SeenInCriticalEncounter": false,
     "CriticalEncounter": "",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-01T01:55:30.9578488Z"
+    "LastSeenUtc": "2026-08-10T00:32:21.6412840Z"
   },
   {
     "NameId": 13728,
@@ -2571,13 +2751,25 @@
     "NameId": 13917,
     "Name": "Occult Sculpture",
     "TerritoryId": 1252,
-    "Elements": 0,
+    "Elements": 4,
     "MaxHp": 698593,
     "SeenInCriticalEncounter": false,
     "CriticalEncounter": "",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-01T03:02:44.9937371Z"
+    "LastSeenUtc": "2026-08-10T01:36:58.7643881Z"
+  },
+  {
+    "NameId": 13811,
+    "Name": "Ochre Stone",
+    "TerritoryId": 1252,
+    "Elements": 0,
+    "MaxHp": 8661800,
+    "SeenInCriticalEncounter": true,
+    "CriticalEncounter": "On the Hunt",
+    "SeenInFate": false,
+    "Fate": "",
+    "LastSeenUtc": "2026-08-10T01:34:55.9836893Z"
   },
   {
     "NameId": 14521,
@@ -2706,10 +2898,22 @@
     "Elements": 0,
     "MaxHp": 188300,
     "SeenInCriticalEncounter": true,
-    "CriticalEncounter": "Company of Stone",
+    "CriticalEncounter": "With Extreme Prejudice",
     "SeenInFate": true,
     "Fate": "Pleading Pots",
-    "LastSeenUtc": "2026-08-09T20:25:13.3773456Z"
+    "LastSeenUtc": "2026-08-10T01:19:57.4091637Z"
+  },
+  {
+    "NameId": 13870,
+    "Name": "Petrifog",
+    "TerritoryId": 1252,
+    "Elements": 0,
+    "MaxHp": 527240,
+    "SeenInCriticalEncounter": false,
+    "CriticalEncounter": "",
+    "SeenInFate": true,
+    "Fate": "The Winged Terror",
+    "LastSeenUtc": "2026-08-09T22:07:13.6691818Z"
   },
   {
     "NameId": 14523,
@@ -2748,6 +2952,30 @@
     "LastSeenUtc": "2026-08-02T19:08:38.4854236Z"
   },
   {
+    "NameId": 13813,
+    "Name": "Radiant Beacon",
+    "TerritoryId": 1252,
+    "Elements": 0,
+    "MaxHp": 8661800,
+    "SeenInCriticalEncounter": true,
+    "CriticalEncounter": "On the Hunt",
+    "SeenInFate": false,
+    "Fate": "",
+    "LastSeenUtc": "2026-08-10T01:34:55.9836893Z"
+  },
+  {
+    "NameId": 13812,
+    "Name": "Radiant Roundel",
+    "TerritoryId": 1252,
+    "Elements": 0,
+    "MaxHp": 8661800,
+    "SeenInCriticalEncounter": true,
+    "CriticalEncounter": "On the Hunt",
+    "SeenInFate": false,
+    "Fate": "",
+    "LastSeenUtc": "2026-08-10T01:34:55.9836893Z"
+  },
+  {
     "NameId": 14767,
     "Name": "Regnant Chimera",
     "TerritoryId": 1346,
@@ -2758,6 +2986,18 @@
     "SeenInFate": true,
     "Fate": "Shoreline Showdown",
     "LastSeenUtc": "2026-08-02T19:06:50.9854475Z"
+  },
+  {
+    "NameId": 13740,
+    "Name": "Ropross",
+    "TerritoryId": 1252,
+    "Elements": 0,
+    "MaxHp": 1180641,
+    "SeenInCriticalEncounter": false,
+    "CriticalEncounter": "",
+    "SeenInFate": true,
+    "Fate": "King of the Crescent",
+    "LastSeenUtc": "2026-08-09T21:54:51.6721249Z"
   },
   {
     "NameId": 14762,
@@ -2788,12 +3028,12 @@
     "Name": "Sisyphus",
     "TerritoryId": 1252,
     "Elements": 1,
-    "MaxHp": 4323368,
+    "MaxHp": 352121,
     "SeenInCriticalEncounter": false,
     "CriticalEncounter": "",
     "SeenInFate": true,
     "Fate": "An Unending Duty",
-    "LastSeenUtc": "2026-08-09T20:07:08.5294757Z"
+    "LastSeenUtc": "2026-08-10T00:35:26.1576322Z"
   },
   {
     "NameId": 14776,
@@ -2829,7 +3069,7 @@
     "CriticalEncounter": "",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-09T20:33:53.8013444Z"
+    "LastSeenUtc": "2026-08-10T00:48:40.5831460Z"
   },
   {
     "NameId": 14526,
@@ -2889,19 +3129,31 @@
     "CriticalEncounter": "",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-01T03:23:19.0723872Z"
+    "LastSeenUtc": "2026-08-10T01:01:58.0933478Z"
   },
   {
     "NameId": 13815,
     "Name": "Vassal Vessel",
     "TerritoryId": 1252,
-    "Elements": 0,
+    "Elements": 4,
     "MaxHp": 841701,
-    "SeenInCriticalEncounter": false,
-    "CriticalEncounter": "",
+    "SeenInCriticalEncounter": true,
+    "CriticalEncounter": "With Extreme Prejudice",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-01T03:11:35.5625178Z"
+    "LastSeenUtc": "2026-08-10T01:22:56.3916403Z"
+  },
+  {
+    "NameId": 13856,
+    "Name": "Vodoriga Servant",
+    "TerritoryId": 1252,
+    "Elements": 8,
+    "MaxHp": 197715,
+    "SeenInCriticalEncounter": false,
+    "CriticalEncounter": "",
+    "SeenInFate": true,
+    "Fate": "Fatal Allure",
+    "LastSeenUtc": "2026-08-10T01:03:00.3638500Z"
   },
   {
     "NameId": 14766,
