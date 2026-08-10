@@ -507,14 +507,22 @@ public sealed class PhantomActionLayer
         // Occult Raise is instant, so it reserves for a moment rather than a full cast.
         var castMs = raiseId == OccultRaiseId ? 0 : RaiseCastMs;
 
-        _phantomJobs.RaiseState =
-            $"raising {target.Name?.TextValue ?? "ally"}{(instantRaise ? " (instant)" : string.Empty)}";
-        _raiseQueuedThisFrame = true;
         _raiseTargetIdThisFrame = targetId;
 
-        TryPush(ctx, raiseId, job, level, PrioRaise, target.GameObjectId, target,
+        // Take the flag from what the push actually DID. Setting it true beforehand and never
+        // correcting it meant a raise refused on cooldown still counted as pending, so the
+        // GCD-busy streak climbed for the whole cooldown and read as a stalled raise — while the
+        // cast had in fact just gone out. Field 2026-08-09: "Occult Raise on cooldown" and
+        // "GCD busy at check (14 in a row)" on screen at the same time, which cannot both be true.
+        _raiseQueuedThisFrame = TryPush(ctx, raiseId, job, level, PrioRaise, target.GameObjectId, target,
             onExtraDispatched: () =>
                 PartyCoordination?.ReserveRaiseTarget(targetId, raiseId, castMs, usingSwiftcast: false));
+
+        var who = target.Name?.TextValue ?? "ally";
+        _phantomJobs.RaiseState = _raiseQueuedThisFrame
+            ? $"raising {who}{(instantRaise ? " (instant)" : string.Empty)}"
+            // TryPush already recorded exactly why; repeat it here rather than inventing a reason.
+            : $"cannot raise {who} — {(_pushRejects.Count > 0 ? _pushRejects[^1] : "push refused")}";
     }
 
     /// <summary>
@@ -1204,7 +1212,13 @@ public sealed class PhantomActionLayer
     /// Common per-action gates (catalog membership, phantom level, duty-bar slot,
     /// cooldown, range, cast-while-moving) and the actual scheduler push. Target 0 = self.
     /// </summary>
-    private void TryPush(IRotationContext ctx, uint actionId, PhantomJob job, byte level, int priority,
+    /// <returns>
+    /// Whether the action actually reached the scheduler. Callers that track a pending action
+    /// across frames MUST use this: latching "queued" before calling and never correcting it
+    /// made a raise rejected on cooldown keep counting GCD-busy samples, which read as a stalled
+    /// raise when the cast had in fact just succeeded.
+    /// </returns>
+    private bool TryPush(IRotationContext ctx, uint actionId, PhantomJob job, byte level, int priority,
         ulong targetId = 0, IBattleChara? rangeTarget = null, Action? onExtraDispatched = null)
     {
         PhantomActionDef? found = null;
@@ -1218,20 +1232,20 @@ public sealed class PhantomActionLayer
         }
 
         if (found is not { } action || action.Job != job)
-            return;
+            return false;
         // Below the phantom-level unlock = the action simply isn't learned yet — not a
         // fixable blocker, so it doesn't pollute the "blocked" readout.
         if (level < action.RequiredLevel)
-            return;
+            return false;
         if (!IsOnDutyBar(actionId))
         {
             _pushRejects.Add($"{action.Name} not on duty bar");
-            return;
+            return false;
         }
         if (!_actionService.IsActionReady(actionId))
         {
             _pushRejects.Add($"{action.Name} on cooldown");
-            return;
+            return false;
         }
 
         if (!_behaviorCache.TryGetValue(actionId, out var behavior))
@@ -1243,7 +1257,7 @@ public sealed class PhantomActionLayer
         if (behavior.Action.CastTime > 0 && _isMovingThisFrame)
         {
             _pushRejects.Add($"{action.Name} needs a hard cast (moving)");
-            return;
+            return false;
         }
 
         if (rangeTarget is not null && behavior.Action.Range > 0)
@@ -1253,7 +1267,7 @@ public sealed class PhantomActionLayer
             if (dist > behavior.Action.Range + RangeBufferYalms)
             {
                 _pushRejects.Add($"{action.Name} out of range");
-                return;
+                return false;
             }
         }
 
@@ -1269,6 +1283,8 @@ public sealed class PhantomActionLayer
             _scheduler.PushGcd(behavior, targetId, priority, onDispatched);
         else
             _scheduler.PushOgcd(behavior, targetId, priority, onDispatched);
+
+        return true;
     }
 
     /// <summary>Catalog name for an action id, falling back to the id so a note is never blank.</summary>
