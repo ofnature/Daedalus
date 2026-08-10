@@ -56,6 +56,36 @@ public class PhantomBandRulesTests
         Assert.False(PhantomBandRules.ShouldUseChakraForMp(cfg, currentMp: 2000, maxMp: 0, inCombat: true));
     }
 
+    /// <summary>
+    /// Occult Cure III is a 15y AoE for 3,000 MP — it wants MULTIPLE hurt bodies, and since
+    /// "injured" starts at a 95% scratch, it also wants a real dent in the party average.
+    /// </summary>
+    [Fact]
+    public void CureIII_FiresOnTwoInjured_WithHurtPartyAverage()
+    {
+        Assert.True(PhantomBandRules.ShouldOccultCureIII(partyAvgHpPct: 0.60f, injuredCount: 2, inCombat: true));
+        Assert.True(PhantomBandRules.ShouldOccultCureIII(partyAvgHpPct: 0.60f, injuredCount: 4, inCombat: true));
+    }
+
+    [Fact]
+    public void CureIII_OneInjured_IsCureIIsJob()
+    {
+        Assert.False(PhantomBandRules.ShouldOccultCureIII(partyAvgHpPct: 0.60f, injuredCount: 1, inCombat: true));
+    }
+
+    [Fact]
+    public void CureIII_TwoScratchedMembers_DoNotBurnTheMp()
+    {
+        // Two members at 94% put injuredCount at 2 while the average stays high — no cast.
+        Assert.False(PhantomBandRules.ShouldOccultCureIII(partyAvgHpPct: 0.93f, injuredCount: 2, inCombat: true));
+    }
+
+    [Fact]
+    public void CureIII_OutOfCombat_Holds()
+    {
+        Assert.False(PhantomBandRules.ShouldOccultCureIII(partyAvgHpPct: 0.60f, injuredCount: 2, inCombat: false));
+    }
+
     [Fact]
     public void SelfMit_RequiresCombatAndLowHp()
     {

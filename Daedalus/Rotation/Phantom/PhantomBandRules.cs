@@ -164,6 +164,17 @@ public static class PhantomBandRules
     public static bool ShouldOccultCure(PhantomConfig cfg, float selfHpPct, bool inCombat)
         => inCombat && selfHpPct < cfg.RedMageCureHpPct;
 
+    /// <summary>
+    /// Occult Cure III (White Mage): 30,000 cure in a 15y AoE for 3,000 MP. An AoE heal wants
+    /// multiple hurt bodies — one injured member is Cure II's job — and "injured" starts at a
+    /// 95% scratch, so the party-average bar keeps 3,000 MP from going to chip damage.
+    /// </summary>
+    public const int CureIIIMinInjured = 2;
+    public const float CureIIIPartyAvgHpPct = 0.80f;
+
+    public static bool ShouldOccultCureIII(float partyAvgHpPct, int injuredCount, bool inCombat)
+        => inCombat && injuredCount >= CureIIIMinInjured && partyAvgHpPct < CureIIIPartyAvgHpPct;
+
     /// <summary>Phantom Red Mage elemental trio — one shared 30s recast, like the Necromancer's.</summary>
     public const uint OccultFireIIId = 49092;
     public const uint OccultBlizzardIIId = 49095;

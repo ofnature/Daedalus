@@ -9,6 +9,9 @@ All notable changes to Daedalus will be documented in this file.
 - Blue Mage learns its phantom actions **from enemies, not levels**, but the layer picked your Aero grade off your phantom level — a level-3 Blue Mage who had only learned Aero I would never cast any Aero, because the layer only ever tried the grade it assumed you had. It now tries every grade best-first and the one actually on your bar wins
 - **Occult White Wind** heals the party for **your current HP**, so a full-health caster with a dying party is exactly when it's strongest — but it was gated on *your own* HP sitting between 40% and 80%, so at full health it never fired. It now triggers off the party's average health instead, keeping only a self-HP floor so it isn't wasted while you're nearly dead
 
+### New — Phantom White Mage casts Occult Cure III when the party is hurting
+- The 15-yalm AoE heal was cataloged but never fired. It now goes out when **two or more party members are injured** and the party average has taken a real dent — one hurt person stays Occult Cure II's job, so the 3,000 MP always buys more than a single-target heal would have
+
 <!-- LATEST-END -->
 ## v0.1.56 — 2026-08-09
 

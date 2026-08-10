@@ -360,6 +360,16 @@ public sealed class PhantomActionLayer
                 TryPush(ctx, 49067, job, level, PrioEmergencySustain + 1, ctx.Player.GameObjectId);
         }
 
+        // Occult Cure III (White Mage): 30,000 cure in a 15y AoE around the caster. One hurt
+        // body is Cure II's job — this waits for two injured AND a real dent in the party
+        // average, so the 3,000 MP buys more than a single-target heal would have.
+        if (job == PhantomJob.PhantomWhiteMage
+            && PhantomBandRules.ShouldOccultCureIII(
+                ctx.PartyHealthMetrics.avgHpPercent, ctx.PartyHealthMetrics.injuredCount, inCombat))
+        {
+            TryPush(ctx, 49068, job, level, PrioEmergencySustain + 2, ctx.Player.GameObjectId);
+        }
+
         // Earthen Wall (Summoner): a 40,000-potency barrier over the whole party on a 120s
         // timer. Party-wide, so it uses the self-mit threshold rather than a heal threshold.
         if (job == PhantomJob.PhantomSummoner && PhantomBandRules.ShouldSelfMit(selfHpPct, inCombat))
