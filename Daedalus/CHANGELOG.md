@@ -5,6 +5,11 @@ All notable changes to Daedalus will be documented in this file.
 <!-- LATEST-START -->
 ## v0.1.59 — unreleased
 
+### Fix — Warrior's Inner Release no longer switches your phantom job off
+- Inner Release was being treated as a hard lockout, so for the **15 seconds of every minute** it's up, your entire phantom job stopped — every action, not just damage. On a Warrior running Phantom Red Mage the Duty tab just read *"held — lockout status 1177"* and nothing ever fired
+- Worst part: that included **Occult Libra**, which is an instant off-GCD ability costing you nothing at all. Libra is the only thing that reveals elemental weaknesses, so this was quietly starving the weakness table on the exact job that collects it — and it's why Occult Thunder wasn't going out on Lightning-weak targets
+- Buffs like Inner Release now only hold phantom **GCDs**, which is the point — your free Fell Cleaves are worth more than a phantom nuke. Off-GCD abilities fire straight through. Genuine hotbar takeovers (Reawakened, Overheated, Eukrasia, mudras, Ten Chi Jin) still stop everything, as they must
+
 ### Fix — Ninja no longer opens a fresh pull with the last pull's ninjutsu
 - Daedalus picks which ninjutsu to cast *before* pressing the first mudra. If the pack died in that instant, the decision was left standing — and re-pulling within seven seconds resumed it. On a chain pull that meant **Katon fired at a single mob** because the previous pack was three, or a Kassatsu ninjutsu aimed with Kassatsu already gone, which cost about three quarters of a second of dead GCD while it untangled itself
 - The plan is now dropped the moment combat ends. Where nothing had actually been pressed there's also no recovery delay, so the next pull opens immediately instead of waiting out a lockout that was never needed

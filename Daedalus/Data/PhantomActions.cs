@@ -258,16 +258,35 @@ public static class PhantomActions
     /// (RSR HasLockoutStatus parity) — a phantom weave/GCD must never stomp a burst or
     /// combo window. IDs verified against the RSR StatusID enum.
     /// </summary>
+    /// <summary>
+    /// TRUE locks: the job has taken over the hotbar or is mid-chain, so a phantom action is
+    /// either impossible or would break the sequence. These hold the whole layer.
+    /// </summary>
     public static readonly IReadOnlyList<uint> LockoutStatusIds =
     [
-        3670, // Reawakened (VPR)
-        2688, // Overheated (MCH)
-        1177, // Inner Release (WAR)
-        2606, // Eukrasia (SGE)
-        496,  // Mudra (NIN)
-        1186, // Ten Chi Jin (NIN)
-        3866, // Full Metal Field ready (MCH)
-        851,  // Reassembled (MCH)
+        3670, // Reawakened (VPR)  — hotbar replaced by the Reawaken combo
+        2688, // Overheated (MCH)  — hotbar replaced by Heat Blast/Auto Crossbow
+        2606, // Eukrasia (SGE)    — transforms the next spell
+        496,  // Mudra (NIN)       — mid mudra sequence
+        1186, // Ten Chi Jin (NIN) — hotbar replaced
+    ];
+
+    /// <summary>
+    /// NOT locks — buffs whose value would be wasted by spending a GCD elsewhere. These suppress
+    /// phantom GCDs only; oGCDs and utility still fire.
+    /// <para>
+    /// Field 2026-08-11: Inner Release was in the hard-lock list above, so a Warrior running
+    /// Phantom Red Mage had the ENTIRE layer held for 15 seconds of every minute — including
+    /// Occult Libra, which is an oGCD (ActionCategory 4, 5s recast) and costs no GCD at all.
+    /// Since Libra is the only thing that reveals elemental weaknesses, that quietly stopped the
+    /// weakness table improving on the very job that gathers it.
+    /// </para>
+    /// </summary>
+    public static readonly IReadOnlyList<uint> GcdHoldStatusIds =
+    [
+        1177, // Inner Release (WAR)          — free Fell Cleaves, don't spend the GCD elsewhere
+        3866, // Full Metal Field ready (MCH) — proc waiting to be spent
+        851,  // Reassembled (MCH)            — buffs the next weaponskill
     ];
 
     /// <summary>Phantom-related status IDs (verified against the RSR StatusID enum).</summary>

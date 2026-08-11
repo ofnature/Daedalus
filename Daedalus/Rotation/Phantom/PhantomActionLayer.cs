@@ -83,6 +83,9 @@ public sealed class PhantomActionLayer
     /// </summary>
     private bool _raiseQueuedThisFrame;
 
+    /// <summary>Set per frame: a buff is up whose GCD should not be spent on a phantom action.</summary>
+    private uint? _gcdHoldStatusThisFrame;
+
     /// <summary>Who the queued raise is aimed at, so the dispatch can pre-face them.</summary>
     private ulong _raiseTargetIdThisFrame;
 
@@ -235,6 +238,11 @@ public sealed class PhantomActionLayer
             _phantomJobs.LayerLastEvent = $"held — lockout status {lockoutId}";
             return;
         }
+
+        // Buff-preservation statuses are NOT locks: they only mean "don't spend a GCD elsewhere".
+        // oGCDs (Occult Libra above all) must still fire, or a Warrior's Inner Release silently
+        // stops the weakness table improving for 15s of every minute.
+        _gcdHoldStatusThisFrame = inCombat ? FindGcdHoldStatus() : null;
 
         var player = ctx.Player;
         var selfHpPct = player.MaxHp > 0 ? (float)player.CurrentHp / player.MaxHp : 1f;
@@ -1273,6 +1281,13 @@ public sealed class PhantomActionLayer
             return false;
         }
 
+        // GCD-only hold: the job is sitting on a buff worth a weaponskill. oGCDs cost it nothing.
+        if (_gcdHoldStatusThisFrame is { } gcdHoldId && behavior.Action.IsGCD)
+        {
+            _pushHolds.Add($"{action.Name} — GCD reserved (status {gcdHoldId})");
+            return false;
+        }
+
         if (rangeTarget is not null && behavior.Action.Range > 0)
         {
             var dist = System.Numerics.Vector3.Distance(ctx.Player.Position, rangeTarget.Position)
@@ -1333,6 +1348,18 @@ public sealed class PhantomActionLayer
     private uint? FindLockoutStatus()
     {
         foreach (var statusId in PhantomActions.LockoutStatusIds)
+        {
+            if (_actionService.PlayerHasStatus(statusId))
+                return statusId;
+        }
+
+        return null;
+    }
+
+    /// <summary>A buff whose GCD should not be spent on a phantom action. oGCDs are unaffected.</summary>
+    private uint? FindGcdHoldStatus()
+    {
+        foreach (var statusId in PhantomActions.GcdHoldStatusIds)
         {
             if (_actionService.PlayerHasStatus(statusId))
                 return statusId;

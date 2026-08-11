@@ -1,4 +1,6 @@
 using Daedalus.Config;
+using System.Linq;
+using Daedalus.Services.Occult;
 using Daedalus.Data;
 using Daedalus.Rotation.Phantom;
 using Xunit;
@@ -146,18 +148,26 @@ public class PhantomBandRulesTests
         Assert.False(PhantomBandRules.ShouldPhantomKick(distanceYalms: 9f, maxRangeYalms: 5f));
     }
 
+    /// <summary>
+    /// The RSR parity set is still covered in full — it has just been SPLIT by mechanism rather
+    /// than dropped. RSR gates its own GCD chain on these, so lumping them together was a fair
+    /// starting point; the difference is that our layer also fires oGCDs, and holding those for
+    /// a damage buff costs something and buys nothing.
+    /// </summary>
     [Fact]
     public void LockoutStatusList_CoversTheRsrParitySet()
     {
-        // RSR RotationLockoutStatus + Reassembled (its GeneralGCD gate).
-        Assert.Equal(8, PhantomActions.LockoutStatusIds.Count);
-        Assert.Contains(3670u, PhantomActions.LockoutStatusIds); // Reawakened
-        Assert.Contains(2688u, PhantomActions.LockoutStatusIds); // Overheated
-        Assert.Contains(1177u, PhantomActions.LockoutStatusIds); // Inner Release
-        Assert.Contains(2606u, PhantomActions.LockoutStatusIds); // Eukrasia
-        Assert.Contains(496u, PhantomActions.LockoutStatusIds);  // Mudra
-        Assert.Contains(1186u, PhantomActions.LockoutStatusIds); // Ten Chi Jin
-        Assert.Contains(851u, PhantomActions.LockoutStatusIds);  // Reassembled
+        var all = PhantomActions.LockoutStatusIds.Concat(PhantomActions.GcdHoldStatusIds).ToList();
+
+        Assert.Equal(8, all.Count);
+        Assert.Contains(3670u, all); // Reawakened
+        Assert.Contains(2688u, all); // Overheated
+        Assert.Contains(1177u, all); // Inner Release
+        Assert.Contains(2606u, all); // Eukrasia
+        Assert.Contains(496u, all);  // Mudra
+        Assert.Contains(1186u, all); // Ten Chi Jin
+        Assert.Contains(851u, all);  // Reassembled
+        Assert.Contains(3866u, all); // Full Metal Field ready
     }
 
     // ── Necromancer Deep Freeze (North Horn): a SUICIDE gate, not a DPS gate. Costs 10% max
@@ -311,5 +321,50 @@ public class PhantomBandRulesTests
         Assert.Equal(5326u, PhantomActions.StatusIds.DrainTouch);
         Assert.Equal(1769u, PhantomActions.StatusIds.DoomDispelledByFullHeal);
         Assert.Equal(5323u, PhantomActions.StatusIds.IceWeakness);
+    }
+
+    /// <summary>
+    /// Field 2026-08-11: a Warrior running Phantom Red Mage showed "held — lockout status 1177"
+    /// with nothing ever fired. 1177 is Inner Release, a WAR damage buff — it replaces no
+    /// hotbar and blocks no action, so treating it as a hard lock stopped the ENTIRE layer for
+    /// 15s of every minute. That included Occult Libra, an oGCD costing no GCD at all, which is
+    /// the only thing that reveals elemental weaknesses — so it quietly starved the weakness
+    /// table on the very job that gathers it.
+    /// </summary>
+    [Fact]
+    public void InnerRelease_IsAGcdHold_NotAHardLockout()
+    {
+        Assert.DoesNotContain(1177u, PhantomActions.LockoutStatusIds);
+        Assert.Contains(1177u, PhantomActions.GcdHoldStatusIds);
+    }
+
+    /// <summary>Hard locks are hotbar/chain takeovers; nothing may be in both lists.</summary>
+    [Fact]
+    public void LockoutAndGcdHoldLists_AreDisjoint()
+    {
+        Assert.Empty(PhantomActions.LockoutStatusIds.Intersect(PhantomActions.GcdHoldStatusIds));
+    }
+
+    [Theory]
+    [InlineData(3670u)] // Reawakened (VPR)
+    [InlineData(2688u)] // Overheated (MCH)
+    [InlineData(2606u)] // Eukrasia (SGE)
+    [InlineData(496u)]  // Mudra (NIN)
+    [InlineData(1186u)] // Ten Chi Jin (NIN)
+    public void RealHotbarTakeovers_StayHardLockouts(uint statusId)
+    {
+        Assert.Contains(statusId, PhantomActions.LockoutStatusIds);
+    }
+
+    /// <summary>Red Mage's trio share one recast, so the target's weakness picks which fires.</summary>
+    [Theory]
+    [InlineData(OccultElement.Lightning, PhantomBandRules.OccultThunderIIId)]
+    [InlineData(OccultElement.Ice, PhantomBandRules.OccultBlizzardIIId)]
+    [InlineData(OccultElement.Fire, PhantomBandRules.OccultFireIIId)]
+    [InlineData(OccultElement.Wind, PhantomBandRules.OccultFireIIId)]  // no wind nuke in the kit
+    [InlineData(null, PhantomBandRules.OccultFireIIId)]                // unknown -> fallback
+    public void RedMageNuke_FollowsTheRevealedWeakness(OccultElement? weakness, uint expected)
+    {
+        Assert.Equal(expected, PhantomBandRules.SelectRedMageNuke(weakness));
     }
 }
