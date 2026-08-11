@@ -3,6 +3,16 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.59 — unreleased
+
+### Fix — Ninja no longer opens a fresh pull with the last pull's ninjutsu
+- Daedalus picks which ninjutsu to cast *before* pressing the first mudra. If the pack died in that instant, the decision was left standing — and re-pulling within seven seconds resumed it. On a chain pull that meant **Katon fired at a single mob** because the previous pack was three, or a Kassatsu ninjutsu aimed with Kassatsu already gone, which cost about three quarters of a second of dead GCD while it untangled itself
+- The plan is now dropped the moment combat ends. Where nothing had actually been pressed there's also no recovery delay, so the next pull opens immediately instead of waiting out a lockout that was never needed
+
+### Fix — Slightly wider protection for mudra timing
+- The window that stops a combo attack from stealing the GCD a mudra needs was 25 milliseconds too narrow. In that sliver an attack could slip through and break the ninjutsu into Rabbit Medium
+
+<!-- LATEST-END -->
 ## v0.1.58 — 2026-08-10
 
 ### New — Critical encounters have bosses, FATEs have elites, and the table now says so

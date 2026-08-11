@@ -46,8 +46,21 @@ public sealed class NinjutsuModule : IHermesModule
 
         if (!context.InCombat)
         {
-            if (context.MudraHelper.IsSequenceActive && context.MudraHelper.MudraCount >= 1)
-                AbortMudraSequence(context, "Combat ended");
+            // Clear even when NO mudra has been pressed yet. A sequence goes active the moment an
+            // aim is picked, so MudraCount == 0 is the state holding a DECISION made against the
+            // last pull's enemy count and Kassatsu state. Left standing, a re-pull inside
+            // MudraHelper's 7s window resumes that stale aim — Katon at a single mob, or a Goka
+            // Mekkyaku aim with Kassatsu long expired, which only unsticks via the 45-frame stuck
+            // counter (~0.75s of dead GCD). Chain-pulling trash hits this window constantly.
+            // Cooldown only when something was actually committed to the game: with no mudra
+            // pressed there is no desync to back off from, and arming the abort cooldown here
+            // would just delay the NEXT pull's opening ninjutsu.
+            if (context.MudraHelper.IsSequenceActive)
+            {
+                AbortMudraSequence(context, "Combat ended",
+                    applyCooldown: context.MudraHelper.MudraCount >= 1);
+            }
+
             context.Debug.NinjutsuState = "Not in combat";
             return;
         }

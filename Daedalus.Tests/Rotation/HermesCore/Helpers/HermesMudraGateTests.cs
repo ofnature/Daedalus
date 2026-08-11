@@ -9,10 +9,19 @@ namespace Daedalus.Tests.Rotation.HermesCore.Helpers;
 
 public class HermesMudraGateTests
 {
+    /// <summary>
+    /// Tracks RSR's base-layer NIN gate. Upstream `cb2e8fbc` moved it from `&gt;= 0.625f` to
+    /// `&gt; 0.6f`, widening the protected band by ~25ms — the sliver where a combo weaponskill
+    /// used to slip through and could invalidate the chain into Rabbit Medium. The 0.61/0.624
+    /// rows are the ones that flipped.
+    /// </summary>
     [Theory]
     [InlineData(false, 0f, false)]
     [InlineData(false, 1f, false)]
-    [InlineData(true, 0.624f, false)]
+    [InlineData(true, 0.599f, false)]
+    [InlineData(true, 0.6f, false)]    // strictly greater, so the threshold itself does not block
+    [InlineData(true, 0.61f, true)]    // was false under the old >= 0.625 gate
+    [InlineData(true, 0.624f, true)]   // was false under the old >= 0.625 gate
     [InlineData(true, 0.625f, true)]
     [InlineData(true, 1.5f, true)]
     public void ShouldBlockComboGcds_MatchesRsr496Gate(bool hasGameMudraStatus, float gcdRemaining, bool expected)

@@ -4,12 +4,18 @@ using Daedalus.Rotation.HermesCore.Context;
 namespace Daedalus.Rotation.HermesCore.Helpers;
 
 /// <summary>
-/// RSR CustomRotation_GCD NIN mudra gate: status 496 + GcdRemaining >= 0.625s,
+/// RSR CustomRotation_GCD NIN mudra gate: status 496 + GcdRemaining > 0.6s,
 /// plus reserve open GCDs for mudra/ninjutsu steps (NinjutsuModule runs before DamageModule).
 /// </summary>
 internal static class HermesMudraGate
 {
-    public const float RsrGcdRemainingThresholdSeconds = 0.625f;
+    /// <summary>
+    /// Tracks RSR's base-layer NIN gate, which moved from <c>&gt;= 0.625f</c> to <c>&gt; 0.6f</c>
+    /// (upstream `cb2e8fbc`). Widens the protected band by ~25ms: in that sliver a combo
+    /// weaponskill previously slipped through and could invalidate the chain into Rabbit Medium.
+    /// Kept identical to upstream so the two stay diffable.
+    /// </summary>
+    public const float RsrGcdRemainingThresholdSeconds = 0.6f;
 
     public static bool ShouldBlockComboGcds(IHermesContext context)
     {
@@ -66,5 +72,5 @@ internal static class HermesMudraGate
     }
 
     public static bool ShouldBlockComboGcds(bool hasGameMudraStatus, float gcdRemainingSeconds)
-        => hasGameMudraStatus && gcdRemainingSeconds >= RsrGcdRemainingThresholdSeconds;
+        => hasGameMudraStatus && gcdRemainingSeconds > RsrGcdRemainingThresholdSeconds;
 }
