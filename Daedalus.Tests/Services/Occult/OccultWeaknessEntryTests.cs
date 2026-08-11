@@ -11,6 +11,110 @@ namespace Daedalus.Tests.Services.Occult;
 /// no magic threshold survives contact with real data; the absolute value is only a bootstrap
 /// for an unseen zone.
 /// </summary>
+/// <summary>
+/// Table hygiene (2026-08-10, cleaning up South Horn): the object table reports some things as
+/// hostile NPCs that are not enemies, and they were sitting in the trash bucket skewing it from
+/// both ends — the Striking Dummy at 4.7M against a ~700k zone median, the traps and treasure
+/// bunny at 188k. The filter runs on LOAD as well as on record, because the log rewrites the
+/// local file wholesale and would otherwise restore the junk after every scrub.
+/// </summary>
+public class OccultWeaknessHygieneTests
+{
+    private static OccultWeaknessEntry Entry(
+        uint nameId = 13884, string name = "Crescent Garula", uint maxHp = 634_571,
+        OccultElement elements = OccultElement.None) => new()
+    {
+        NameId = nameId,
+        Name = name,
+        TerritoryId = 1252,
+        MaxHp = maxHp,
+        Elements = elements,
+    };
+
+    [Fact]
+    public void RealTrashMob_IsKept()
+    {
+        Assert.True(ElementalWeaknessLog.IsWorthKeeping(Entry()));
+    }
+
+    [Theory]
+    [InlineData(541u, "Striking Dummy")]
+    [InlineData(7248u, "Happy Bunny")]
+    [InlineData(7958u, "Hidden Trap")]
+    [InlineData(13967u, "Trap")]
+    public void NonCombatObjects_AreDropped(uint nameId, string name)
+    {
+        Assert.True(ElementalWeaknessLog.NonCombatNameIds.Contains(nameId));
+        Assert.False(ElementalWeaknessLog.IsWorthKeeping(Entry(nameId, name, maxHp: 4_716_915)));
+    }
+
+    /// <summary>
+    /// The Striking Dummy is the one that actually distorted the maths: every boss/trash call
+    /// here is RELATIVE to the zone median, so a 4.7M non-enemy in the trash bucket drags the
+    /// line it is measured against.
+    /// </summary>
+    [Fact]
+    public void StrikingDummy_IsDroppedEvenThoughItsHpLooksLikeAnEncounter()
+    {
+        var dummy = Entry(541u, "Striking Dummy", maxHp: 4_716_915);
+
+        Assert.Equal(OccultEnemyKind.Trash,
+            ElementalWeaknessLog.Classify(dummy.MaxHp, seenInCriticalEncounter: false, zoneMedianHp: 704_242, zoneSamples: 40));
+        Assert.False(ElementalWeaknessLog.IsWorthKeeping(dummy));
+    }
+
+    [Fact]
+    public void NamelessOrUnmeasuredRows_AreDropped()
+    {
+        Assert.False(ElementalWeaknessLog.IsWorthKeeping(Entry(name: "", maxHp: 7_475_510)));
+        Assert.False(ElementalWeaknessLog.IsWorthKeeping(Entry(name: "Hinkypunk", maxHp: 0)));
+        Assert.False(ElementalWeaknessLog.IsWorthKeeping(Entry(maxHp: ElementalWeaknessLog.MinCredibleMaxHp - 1)));
+        Assert.False(ElementalWeaknessLog.IsWorthKeeping(Entry(nameId: 0)));
+    }
+
+    /// <summary>
+    /// Elements only appear when something reveals them (Occult Libra), so a learned element is
+    /// the expensive part of this table and outranks every data-quality complaint.
+    /// </summary>
+    [Fact]
+    public void ALearnedElement_SurvivesEveryQualityComplaint()
+    {
+        Assert.True(ElementalWeaknessLog.IsWorthKeeping(Entry(name: "", maxHp: 0, elements: OccultElement.Wind)));
+        Assert.True(ElementalWeaknessLog.IsWorthKeeping(Entry(maxHp: 5, elements: OccultElement.Fire)));
+
+        // ...but a non-enemy is still a non-enemy. A dummy cannot have a real weakness.
+        Assert.False(ElementalWeaknessLog.IsWorthKeeping(
+            Entry(541u, "Striking Dummy", maxHp: 4_716_915, elements: OccultElement.Ice)));
+    }
+
+    [Fact]
+    public void ShippedSeed_CarriesNoJunk()
+    {
+        // Guards the scrub: if a future rebake re-imports a dummy or a nameless row, this fails.
+        var seed = LoadShippedSeed();
+
+        Assert.NotEmpty(seed);
+        Assert.All(seed, e => Assert.True(
+            ElementalWeaknessLog.IsWorthKeeping(e),
+            $"shipped seed row '{e.Name}' (NameId {e.NameId}, {e.MaxHp:N0} HP) would be filtered on load"));
+    }
+
+    private static System.Collections.Generic.List<OccultWeaknessEntry> LoadShippedSeed()
+    {
+        var asm = typeof(ElementalWeaknessLog).Assembly;
+        var resource = System.Linq.Enumerable.FirstOrDefault(
+            asm.GetManifestResourceNames(),
+            n => n.EndsWith("OccultWeaknessSeed.json", System.StringComparison.Ordinal));
+        Assert.NotNull(resource);
+
+        using var stream = asm.GetManifestResourceStream(resource!);
+        Assert.NotNull(stream);
+        using var reader = new System.IO.StreamReader(stream!);
+        return System.Text.Json.JsonSerializer
+            .Deserialize<System.Collections.Generic.List<OccultWeaknessEntry>>(reader.ReadToEnd())!;
+    }
+}
+
 public class OccultWeaknessClassificationTests
 {
     private const uint Fallback = ElementalWeaknessLog.BossHpThresholdFallback;

@@ -5,6 +5,12 @@ All notable changes to Daedalus will be documented in this file.
 <!-- LATEST-START -->
 ## v0.1.58 — unreleased
 
+### Fix — The weakness table no longer lists things that aren't enemies
+- The **Striking Dummy** was sitting in the table at 4.7 million HP, in with South Horn's trash mobs that all run about 700 thousand. That's not just clutter: every "is this a boss?" call is measured against the zone's own median enemy, so a fake 4.7M entry skewed the line everything else is judged by
+- Also gone: the **treasure bunny**, **traps**, a nameless row, and one entry whose HP never read properly. **275 → 267 enemies**, and the eight that left were all things you can't get a weakness from anyway
+- These are filtered **when the table loads**, not just removed from the shipped copy, so your own recorded table cleans itself up on next launch and they can't come back
+- With those gone, **South Horn's trash is effectively complete — 36 of 37 now have a known element**. North Horn is where the gap moved: 21 of its 23 trash mobs still have none
+
 ### New — Sage spends spare Addersgall for MP instead of hoarding it
 - Druochole hands back **7% of your MP** (700 at level cap) on top of the heal, and nothing ever spent a stack to collect it — a Sage could sit at 30% MP with three stacks and a healthy party and still cast nothing. It now spends **surplus** stacks below 60% MP even when nobody needs the heal
 - **Your reserved stacks are never touched**, so the tank's emergency Druochole is still there. Lucid Dreaming still goes first — the threshold sits under it deliberately

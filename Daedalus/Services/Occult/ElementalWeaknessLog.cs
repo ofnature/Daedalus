@@ -170,6 +170,53 @@ public sealed class ElementalWeaknessLog
     public static bool IsCredibleMaxHp(uint observed) => observed >= MinCredibleMaxHp;
 
     /// <summary>
+    /// Things the object table reports as hostile NPCs that are not enemies and can never carry
+    /// an elemental weakness, so they only ever dilute the table. Field 2026-08-10, cleaning up
+    /// South Horn: the Striking Dummy sat in the trash bucket at 4.7M HP — far above the ~700k
+    /// the zone's real trash runs — while the traps and the treasure bunny sat below it at 188k.
+    /// Both ends are noise; the dummy is the one that also distorts the "is this a boss" maths,
+    /// since every classification here is RELATIVE to the zone median.
+    /// </summary>
+    public static readonly IReadOnlySet<uint> NonCombatNameIds = new HashSet<uint>
+    {
+        541,    // Striking Dummy — training dummy, both Horns
+        7248,   // Happy Bunny — treasure-hunt bunny, both Horns
+        7958,   // Hidden Trap — coffer trap, North Horn
+        13967,  // Trap — coffer trap, South Horn
+    };
+
+    /// <summary>
+    /// Whether a stored row earns its place in the table. Applied when loading BOTH the shipped
+    /// seed and the character's own file, so an existing file cleans itself up on the next
+    /// launch rather than needing a manual scrub — which matters because the log rewrites that
+    /// file wholesale and would other­wise put the junk straight back.
+    /// <para>
+    /// A row that carries a learned element is ALWAYS kept, whatever else is wrong with it:
+    /// elements only appear when something reveals them (Occult Libra on Red Mage), so they are
+    /// the expensive part of this table and must never be thrown away over a bad HP sample.
+    /// </para>
+    /// </summary>
+    public static bool IsWorthKeeping(OccultWeaknessEntry entry)
+    {
+        if (entry.NameId == 0)
+            return false;
+        if (NonCombatNameIds.Contains(entry.NameId))
+            return false;
+
+        // Everything below is a data-quality judgement, so a known element overrides it.
+        if (entry.Elements != OccultElement.None)
+            return true;
+
+        if (string.IsNullOrWhiteSpace(entry.Name))
+            return false;
+
+        // A STORED row with no credible max HP never got a real reading in the first place —
+        // 0 included. New in-memory entries are built in Record, not loaded, so this cannot
+        // discard an enemy that simply has not been measured yet.
+        return IsCredibleMaxHp(entry.MaxHp);
+    }
+
+    /// <summary>
     /// Does this reading look like a genuine downward rescale (rather than a low reading we
     /// should ignore)? Credible magnitude AND a collapse against what we already hold.
     /// </summary>
@@ -403,6 +450,8 @@ public sealed class ElementalWeaknessLog
         var nameId = npc.NameId;
         if (nameId == 0)
             return;
+        if (NonCombatNameIds.Contains(nameId))
+            return;
 
         var key = Key(territory, nameId);
         if (!_entries.TryGetValue(key, out var entry))
@@ -501,13 +550,16 @@ public sealed class ElementalWeaknessLog
             if (list is null)
                 return;
 
+            var kept = 0;
             foreach (var e in list)
             {
-                if (e.NameId != 0)
-                    _entries[Key(e.TerritoryId, e.NameId)] = e;
+                if (!IsWorthKeeping(e))
+                    continue;
+                _entries[Key(e.TerritoryId, e.NameId)] = e;
+                kept++;
             }
 
-            _log.Information("[OccultWeakness] seeded {0} enemies from the shipped table", list.Count);
+            _log.Information("[OccultWeakness] seeded {0} enemies from the shipped table", kept);
         }
         catch (Exception ex)
         {
@@ -525,11 +577,24 @@ public sealed class ElementalWeaknessLog
             var list = JsonSerializer.Deserialize<List<OccultWeaknessEntry>>(json);
             if (list is null)
                 return;
+
+            // Filtering on the way IN is what makes the cleanup stick: Save() rewrites this file
+            // wholesale from _entries, so anything dropped here is gone from disk after the next
+            // save rather than reappearing forever.
+            var dropped = 0;
             foreach (var e in list)
             {
-                if (e.NameId != 0)
-                    _entries[Key(e.TerritoryId, e.NameId)] = e;
+                if (!IsWorthKeeping(e))
+                {
+                    dropped++;
+                    continue;
+                }
+
+                _entries[Key(e.TerritoryId, e.NameId)] = e;
             }
+
+            if (dropped > 0)
+                _log.Information("[OccultWeakness] dropped {0} non-enemy/unusable row(s) from the local table", dropped);
         }
         catch (Exception ex)
         {
