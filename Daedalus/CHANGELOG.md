@@ -3,7 +3,7 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
-## v0.1.58 — unreleased
+## v0.1.58 — 2026-08-10
 
 ### New — Critical encounters have bosses, FATEs have elites, and the table now says so
 - The weakness table called every big enemy an "elite" regardless of where it came from. It now uses the zone's own two words: a critical encounter's named target is a **CE BOSS**, a FATE's is a **FATE ELITE**, and a big enemy with neither stamp is a **notorious** field spawn
