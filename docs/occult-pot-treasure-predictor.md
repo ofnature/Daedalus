@@ -41,7 +41,51 @@ Two caveats:
 - It filters to SGB 1596/1597 — **bronze and silver only**. Consistent with our own finding that
   the pot gold coffer is an `EventObj` and has no Treasure-sheet row at all.
 
+## 🔴 STOP — the BOCCHI read below was against a STALE checkout (corrected 2026-08-10 late)
+
+The `.cursor/bocchi` checkout was pinned at `ded40a7`, **31 May 2026 — 244 commits behind**.
+Upstream has since restructured into per-feature projects (`BOCCHI.Treasure`,
+`BOCCHI.Automator`, …) and, critically, **built a full pot-coffer solution that did not exist
+when this doc was written**. Now at `993fea1` (10 Aug 2026, "pandora and other treasure things").
+Anything below dated 2026-08-01 or the "three things the first pass missed" section describes
+code that no longer exists in that form.
+
+### What upstream now has for the pot coffer — and the facts worth taking
+
+`BOCCHI.Automator/StateMachine/Handlers/FarmingPotChestsHandler.cs` +
+`Services/PotTreasure/*`. Their approach is NOT triangulation; it is **pre-authored candidate
+groups per compass direction**, with a greedy refine and a blind sweep as fallback. Ours is
+geometrically better. **Their DATA is better than ours, and that is what to take:**
+
+- **Hints are LogMessage IDs, not text.** No string matching, so it is language-independent:
+  `10985` coffer reveal · `10986` hint immediate · `10987` hint close · `10988` hint far ·
+  `10989` hint beyond-far · `10990` elixir prompt · `10994` bonus offer.
+- **There are FOUR distance bands, not three.** We had immediate / far / far-far and called the
+  edges guesses. Upstream reads **Immediate, Close, Far, BeyondFar** and sizes its refine steps
+  at **8y / 20y / 40y / 100y**. Our `PotTreasureTriangulation` bands should be rechecked against
+  that — a missing middle band would make honest readings contradict.
+- **Direction arrives as an int 1–8** (N, NE, E, SE, S, SW, W, NW) in the log message, so the
+  compass bearing needs no parsing at all.
+- **Status 1531 confirmed** as Cache Me If You Can — and the sheet name is still Eureka's
+  "Down the Rabbit Hole", which is why searching by name finds nothing.
+- **Magical Elixir = item 2003296.** Reveal coffers are `BaseId 2014741 / 2014742 / 2014743`,
+  and upstream filters to exactly those because *layout bronze/silver chests can sit on the same
+  spot*.
+
+### ⚠ This contradicts our "the coffer does not exist until you are close" claim
+
+`FarmingPotChestsHandler.NormalizeY` exists because **reveal objects sometimes sit at Y ≈ -500**
+— i.e. the coffer IS in the object table, parked underground, and its X/Z is readable. Upstream
+only searches 28y around the player (`RevealSearchRadius`), so their code does not settle
+whether it is present zone-wide before you approach. **That is now the single highest-value
+experiment for Problem B:** if the object exists at Y≈-500 from the moment the hunt starts, then
+scanning for those three BaseIds and normalising Y gives the answer outright and the whole
+triangulation engine becomes a fallback rather than the primary. Test before building anything
+else here.
+
 ### Re-read of BOCCHI 2026-08-10 — three things the first pass missed
+### ⚠ (this section describes the PRE-RESTRUCTURE code at ded40a7; kept for the layout technique,
+### which still exists in `BOCCHI.Treasure/Services/TreasureHunterService.cs`)
 
 Source re-checked at `ded40a7` (`BOCCHI/Modules/Treasure/TreasureHunt.cs`). The layout technique
 above is verbatim correct. What was NOT captured:
