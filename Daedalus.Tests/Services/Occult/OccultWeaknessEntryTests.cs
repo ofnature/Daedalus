@@ -239,38 +239,42 @@ public class OccultWeaknessClassificationTests
     }
 
     /// <summary>
-    /// Field 2026-08-11: the Persistent Pot is the thing you ESCORT in the pot FATEs. It is
-    /// perfectly targetable, so a targetability check waves it through — only attackability
-    /// catches it. Both it and an untargetable mechanic are excluded for the same reason:
-    /// Occult Libra can never reveal anything on either.
+    /// EverAttackable must never gate classification. Measured against a live 266-row table on
+    /// 2026-08-11: 134 of the 139 rows carrying a revealed weakness — so provably attacked —
+    /// read EverAttackable = false, because the probe is range-limited while the log scans the
+    /// whole object table. Nammu is the worst case: 738 sightings, a recorded Lightning
+    /// weakness, and still "never attackable". This test exists so nobody wires it back in.
     /// </summary>
     [Fact]
-    public void TargetableFriendly_IsNotAnEnemy()
+    public void NeverAttackable_DoesNotMakeSomethingANonEnemy()
+    {
+        var nammu = new OccultWeaknessEntry
+        {
+            NameId = 1, Name = "Nammu", TerritoryId = 1252, MaxHp = 152_523,
+            Sightings = 738, EverTargetable = true, EverAttackable = false,
+        };
+
+        Assert.False(ElementalWeaknessLog.IsNotAnEnemy(nammu));
+        Assert.False(ElementalWeaknessLog.IsMechanicObject(nammu));
+    }
+
+    /// <summary>
+    /// Friendlies (the escort pot) are targetable, so the targetability rule cannot catch them.
+    /// They are handled by the hand-confirmed NonCombatNameIds list instead — documented here so
+    /// the gap is a known choice rather than something that looks automatic and is not.
+    /// </summary>
+    [Fact]
+    public void Friendlies_AreNotAutoDetected_TheyAreListed()
     {
         var pot = new OccultWeaknessEntry
         {
-            NameId = 14770, Name = "Persistent Pot", TerritoryId = 1346, MaxHp = 2_649_381,
-            Sightings = ElementalWeaknessLog.MinSightingsForTargetabilityVerdict,
-            EverTargetable = true,   // you can click it
-            EverAttackable = false,  // you cannot hit it
+            NameId = 13742, Name = "Persistent Pot", TerritoryId = 1252, MaxHp = 188_300,
+            Sightings = 500, EverTargetable = true, EverAttackable = false,
         };
 
-        Assert.True(ElementalWeaknessLog.IsFriendly(pot));
-        Assert.False(ElementalWeaknessLog.IsMechanicObject(pot), "targetable, so not a mechanic object");
-        Assert.True(ElementalWeaknessLog.IsNotAnEnemy(pot));
-    }
-
-    [Fact]
-    public void RealEnemy_SeenAttackableOnce_StaysAnEnemyForever()
-    {
-        var mob = new OccultWeaknessEntry
-        {
-            NameId = 13884, Name = "Crescent Garula", TerritoryId = 1252, MaxHp = 634_571,
-            Sightings = 500, EverTargetable = true, EverAttackable = true,
-        };
-
-        Assert.False(ElementalWeaknessLog.IsNotAnEnemy(mob));
-        Assert.False(ElementalWeaknessLog.IsFriendly(mob));
+        Assert.False(ElementalWeaknessLog.IsMechanicObject(pot), "targetable — the rule cannot see it");
+        Assert.True(ElementalWeaknessLog.NonCombatNameIds.Contains(13742u), "so it is listed by hand");
+        Assert.False(ElementalWeaknessLog.IsWorthKeeping(pot), "and the list is what drops it");
     }
 
     [Fact]

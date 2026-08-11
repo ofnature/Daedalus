@@ -104,11 +104,15 @@ public sealed class OccultWeaknessEntry
     public bool EverTargetable { get; set; }
 
     /// <summary>
-    /// Ever observed as something a damage action could actually be used on. STICKY once true.
+    /// Ever observed as something a damage action could be used on. STICKY once true.
     /// <para>
-    /// This is the real "is it an enemy" test and it catches a case targetability cannot: the
-    /// Persistent Pot you ESCORT in the pot FATEs is perfectly targetable, it just is not an
-    /// enemy — so it can never be Libra'd and only ever dilutes the table.
+    /// ⚠ DIAGNOSTIC ONLY — do NOT classify on this. Measured 2026-08-11 against a live 266-row
+    /// table: of the 139 rows carrying a revealed weakness (so provably attacked at some point),
+    /// <b>134 read EverAttackable = false</b>. The probe behind it asks whether a damage action
+    /// could be used on the target <i>right now</i>, which is range-limited, while this log scans
+    /// the whole object table — so nearly everything is out of range when sampled. A 96% false
+    /// negative rate makes it useless as evidence, and it briefly classified Nammu (738 sightings,
+    /// Lightning weakness recorded) as "not an enemy".
     /// </para>
     /// </summary>
     public bool EverAttackable { get; set; }
@@ -231,25 +235,22 @@ public sealed class ElementalWeaknessLog
     /// </para>
     /// </summary>
     public static bool IsMechanicObject(OccultWeaknessEntry entry) =>
-        !entry.EverAttackable
-        && !entry.EverTargetable
+        !entry.EverTargetable
         && entry.Elements == OccultElement.None
         && entry.Sightings >= MinSightingsForTargetabilityVerdict;
 
     /// <summary>
-    /// A friendly: targetable, seen plenty of times, but never attackable and never revealed a
-    /// weakness. Separated from <see cref="IsMechanicObject"/> only so the readout can say which
-    /// it is — both are excluded from coverage for the same reason.
+    /// Anything that can never yield a weakness. Today that means untargetable mechanics only.
+    /// <para>
+    /// FRIENDLIES ARE NOT DETECTED AUTOMATICALLY. The escort pot is targetable, so only an
+    /// attackability test could catch it, and that probe is range-limited to the point of
+    /// uselessness here (see <see cref="OccultWeaknessEntry.EverAttackable"/>). Until a
+    /// range-independent hostility signal is found, friendlies go in
+    /// <see cref="NonCombatNameIds"/> by hand — a short, confirmed list beats a signal that is
+    /// wrong 96% of the time.
+    /// </para>
     /// </summary>
-    public static bool IsFriendly(OccultWeaknessEntry entry) =>
-        !entry.EverAttackable
-        && entry.EverTargetable
-        && entry.Elements == OccultElement.None
-        && entry.Sightings >= MinSightingsForTargetabilityVerdict;
-
-    /// <summary>Anything that can never yield a weakness — mechanic or friendly.</summary>
-    public static bool IsNotAnEnemy(OccultWeaknessEntry entry)
-        => IsMechanicObject(entry) || IsFriendly(entry);
+    public static bool IsNotAnEnemy(OccultWeaknessEntry entry) => IsMechanicObject(entry);
 
     /// <summary>
     /// Things the object table reports as hostile NPCs that are not enemies and can never carry
