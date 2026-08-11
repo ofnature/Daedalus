@@ -177,6 +177,59 @@ public class OccultWeaknessClassificationTests
     /// Mechanic objects can carry encounter-sized HP — the Forbidden Folios Pages are 74M each —
     /// so the untargetable verdict has to be checked before the HP line, or they file as bosses.
     /// </summary>
+    /// <summary>
+    /// Field 2026-08-11: Nammu, the ELITE of Rough Waters, is 152,523 HP — a fifth of ordinary
+    /// South Horn trash — and the HP line filed it as trash. An encounter's named target earns
+    /// its title from being the target, not from the size of its pool.
+    /// </summary>
+    [Fact]
+    public void TinyFateElite_IsStillAnElite()
+    {
+        Assert.Equal(OccultEnemyKind.FateElite,
+            ElementalWeaknessLog.Classify(
+                152_523, seenInCriticalEncounter: false, zoneMedianHp: 704_242, zoneSamples: Enough,
+                seenInFate: true, isEncounterTopMember: true));
+    }
+
+    /// <summary>
+    /// The target rule is PROMOTE-ONLY. A fat encounter add still classifies on HP, so a 9M
+    /// add in a zone whose median is 844k still reads as a boss. Arguably wrong, deliberately
+    /// left alone: demoting non-target members would reclassify a great many rows on a rule
+    /// nobody has checked in the field. Documented here so the behaviour is a choice, not a gap.
+    /// </summary>
+    [Fact]
+    public void FatEncounterAdd_StillClassifiesOnHp_KnownLimitation()
+    {
+        Assert.Equal(OccultEnemyKind.CriticalEncounterBoss,
+            ElementalWeaknessLog.Classify(
+                9_170_210, seenInCriticalEncounter: true, zoneMedianHp: 843_584, zoneSamples: Enough,
+                isEncounterTopMember: false));
+    }
+
+    [Fact]
+    public void EncounterTarget_TakesItsWordFromTheEncounterType()
+    {
+        Assert.Equal(OccultEnemyKind.CriticalEncounterBoss,
+            ElementalWeaknessLog.Classify(
+                90_098_725, seenInCriticalEncounter: true, zoneMedianHp: 704_242, zoneSamples: Enough,
+                isEncounterTopMember: true));
+
+        Assert.Equal(OccultEnemyKind.FateElite,
+            ElementalWeaknessLog.Classify(
+                23_840_286, seenInCriticalEncounter: false, zoneMedianHp: 704_242, zoneSamples: Enough,
+                seenInFate: true, isEncounterTopMember: true));
+    }
+
+    /// <summary>Enemies with no encounter still fall back to the zone-relative HP line.</summary>
+    [Fact]
+    public void FieldEnemies_StillUseTheHpLine()
+    {
+        Assert.Equal(OccultEnemyKind.Trash,
+            ElementalWeaknessLog.Classify(700_000, seenInCriticalEncounter: false, zoneMedianHp: 704_242, zoneSamples: Enough));
+        Assert.Equal(OccultEnemyKind.FieldNotorious,
+            ElementalWeaknessLog.Classify(33_104_646, seenInCriticalEncounter: false, zoneMedianHp: 704_242, zoneSamples: Enough));
+    }
+
     [Fact]
     public void UntargetableMechanicObject_OutranksItsHpPool()
     {

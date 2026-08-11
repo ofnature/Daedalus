@@ -327,15 +327,33 @@ public sealed class ElementalWeaknessLog
     /// encounter it belongs to decides the WORD: critical encounters have bosses, FATEs have
     /// elites. Pure — the whole rule is here.
     /// </summary>
+    /// <param name="isEncounterTopMember">
+    /// This is the largest thing recorded in its named encounter — i.e. that encounter's target.
+    /// </param>
     public static OccultEnemyKind Classify(
         uint maxHp, bool seenInCriticalEncounter, uint zoneMedianHp, int zoneSamples,
-        bool seenInFate = false, bool isMechanicObject = false)
+        bool seenInFate = false, bool isMechanicObject = false, bool isEncounterTopMember = false)
     {
         // Checked before anything else: an untargetable mechanic object can carry an
         // encounter-sized HP pool (the Forbidden Folios Pages are 74M apiece) and would
         // otherwise be filed as a boss.
         if (isMechanicObject)
             return OccultEnemyKind.MechanicObject;
+
+        // An encounter's named target is a boss/elite BECAUSE it is the target, not because of
+        // its HP. Field 2026-08-11: Nammu, the ELITE of Rough Waters, is 152,523 HP — a fifth of
+        // ordinary South Horn trash — and the HP line filed it as trash.
+        // PROMOTE-ONLY on purpose: this can raise a small named target, never demote anything.
+        // Demoting non-target members would also stop fat encounter adds reading as bosses,
+        // which is arguably more correct, but it would reclassify a great many rows on a rule
+        // that has not been checked in the field — so the HP line below still has the last word
+        // for everything that is not its encounter's target.
+        if (isEncounterTopMember && (seenInCriticalEncounter || seenInFate))
+        {
+            return seenInCriticalEncounter
+                ? OccultEnemyKind.CriticalEncounterBoss
+                : OccultEnemyKind.FateElite;
+        }
 
         var line = zoneSamples >= MinZoneSamplesForRelative && zoneMedianHp > 0
             ? zoneMedianHp * BossHpMultipleOfZoneMedian
@@ -362,18 +380,51 @@ public sealed class ElementalWeaknessLog
         get
         {
             var all = _entries.Values.ToList();
+
+            // Biggest recorded member per named encounter — that is the boss/elite. Only
+            // targetable members count, or an untargetable 74M Page would claim the title from
+            // the boss it is a mechanic of.
+            var encounterTop = new Dictionary<string, uint>();
+            foreach (var e in all)
+            {
+                var key = EncounterKey(e);
+                if (key is null || IsMechanicObject(e))
+                    continue;
+                if (!encounterTop.TryGetValue(key, out var best) || e.MaxHp > best)
+                    encounterTop[key] = e.MaxHp;
+            }
+
             foreach (var e in all)
             {
                 var median = ZoneMedianHp(e.TerritoryId);
                 var samples = _entries.Values.Count(x => x.TerritoryId == e.TerritoryId && x.MaxHp > 0);
+                var key = EncounterKey(e);
+                var isTop = key is not null
+                    && encounterTop.TryGetValue(key, out var top)
+                    && e.MaxHp == top
+                    && !IsMechanicObject(e);
+
                 e.Kind = Classify(e.MaxHp, e.SeenInCriticalEncounter, median, samples,
-                    e.SeenInFate, IsMechanicObject(e));
+                    e.SeenInFate, IsMechanicObject(e), isTop);
                 e.BelongsToCriticalEncounter =
                     IsCriticalEncounterParticipant(e.SeenInCriticalEncounter, e.MaxHp, median, samples);
             }
 
             return all.OrderByDescending(e => e.Kind).ThenByDescending(e => e.MaxHp).ToList();
         }
+    }
+
+    /// <summary>
+    /// Groups an entry by the named encounter it belongs to, CE taking precedence over FATE.
+    /// Null for ordinary field enemies, which have no encounter to be the target of.
+    /// </summary>
+    private static string? EncounterKey(OccultWeaknessEntry e)
+    {
+        if (e.SeenInCriticalEncounter && !string.IsNullOrWhiteSpace(e.CriticalEncounter))
+            return $"c{e.TerritoryId}|{e.CriticalEncounter}";
+        if (e.SeenInFate && !string.IsNullOrWhiteSpace(e.Fate))
+            return $"f{e.TerritoryId}|{e.Fate}";
+        return null;
     }
 
     /// <summary>Path of the persisted table (shown in the Debug tab so it can be opened).</summary>
