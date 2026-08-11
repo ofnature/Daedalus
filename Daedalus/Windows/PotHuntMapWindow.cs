@@ -5,6 +5,7 @@ using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.Windowing;
 using Dalamud.Plugin.Services;
 using Daedalus.Services.Occult;
+using Lumina.Excel.Sheets;
 
 namespace Daedalus.Windows;
 
@@ -51,19 +52,38 @@ public sealed class PotHuntMapWindow : Window
 
     private readonly PotTreasureHunt _hunt;
     private readonly IObjectTable _objectTable;
+    private readonly IDataManager? _dataManager;
+    private readonly ITextureProvider? _textureProvider;
+    private readonly IClientState? _clientState;
 
     private float _viewRadius = DefaultViewRadiusYalms;
     private bool _showCones = true;
+    private bool _showMap = true;
+
+    // Resolved per territory: the zone map's texture path and the world->texture transform.
+    private ushort _mapTerritory = ushort.MaxValue;
+    private string? _mapTexturePath;
+    private float _mapScale;      // texture pixels per yalm (SizeFactor / 100)
+    private short _mapOffsetX;
+    private short _mapOffsetY;
 
     private readonly List<Vector3> _feasible = [];
     private DateTime _feasibleComputedAt = DateTime.MinValue;
     private int _feasibleForReadingCount = -1;
 
-    public PotHuntMapWindow(PotTreasureHunt hunt, IObjectTable objectTable)
+    public PotHuntMapWindow(
+        PotTreasureHunt hunt,
+        IObjectTable objectTable,
+        IDataManager? dataManager = null,
+        ITextureProvider? textureProvider = null,
+        IClientState? clientState = null)
         : base("Pot Hunt Map###DaedalusPotHuntMap")
     {
         _hunt = hunt;
         _objectTable = objectTable;
+        _dataManager = dataManager;
+        _textureProvider = textureProvider;
+        _clientState = clientState;
 
         // Roughly the footprint of the main Daedalus window, and square so the scale matches on
         // both axes — a stretched map would misrepresent the angles, which are the whole point.
@@ -98,6 +118,7 @@ public sealed class PotHuntMapWindow : Window
 
         var draw = ImGui.GetWindowDrawList();
         draw.AddRectFilled(topLeft, topLeft + new Vector2(side, side), ImGui.GetColorU32(new Vector4(0.06f, 0.06f, 0.08f, 1f)));
+        DrawZoneMap(draw, topLeft, side, origin);
         DrawGrid(draw, topLeft, side, centre, pixelsPerYalm);
 
         if (bearings.Count > 0)
@@ -129,6 +150,88 @@ public sealed class PotHuntMapWindow : Window
         ImGui.SliderFloat("range", ref _viewRadius, MinViewRadiusYalms, MaxViewRadiusYalms, "%.0fy");
         ImGui.SameLine();
         ImGui.Checkbox("cones", ref _showCones);
+        ImGui.SameLine();
+        ImGui.Checkbox("map", ref _showMap);
+    }
+
+    /// <summary>
+    /// The actual zone map behind the overlay — South Horn or North Horn, whichever you are in.
+    /// Only the visible world square is sampled out of the 2048px map texture, so panning and
+    /// zooming come free: the UV rectangle moves with the player instead of the image.
+    /// </summary>
+    private void DrawZoneMap(ImDrawListPtr draw, Vector2 topLeft, float side, Vector3 origin)
+    {
+        if (!_showMap || _textureProvider is null)
+            return;
+
+        ResolveMapForCurrentZone();
+        if (_mapTexturePath is null || _mapScale <= 0f)
+            return;
+
+        var texture = _textureProvider.GetFromGame(_mapTexturePath).GetWrapOrDefault();
+        if (texture is null)
+            return;
+
+        // World -> texture pixel is the inner half of the verified map transform in
+        // FarmLocationHelper: pixel = c * (world + offset) + 1024, c = SizeFactor / 100.
+        static float ToPixel(float world, float scale, short offset) => (scale * (world + offset)) + 1024f;
+
+        const float TextureSize = 2048f;
+        var minU = (ToPixel(origin.X - _viewRadius, _mapScale, _mapOffsetX)) / TextureSize;
+        var maxU = (ToPixel(origin.X + _viewRadius, _mapScale, _mapOffsetX)) / TextureSize;
+        var minV = (ToPixel(origin.Z - _viewRadius, _mapScale, _mapOffsetY)) / TextureSize;
+        var maxV = (ToPixel(origin.Z + _viewRadius, _mapScale, _mapOffsetY)) / TextureSize;
+
+        // Dimmed: the map is context, the cones and the surviving region are the content.
+        draw.AddImage(
+            texture.Handle,
+            topLeft,
+            topLeft + new Vector2(side, side),
+            new Vector2(minU, minV),
+            new Vector2(maxU, maxV),
+            ImGui.GetColorU32(new Vector4(1f, 1f, 1f, 0.55f)));
+    }
+
+    /// <summary>
+    /// Looks up the current territory's map once per zone. Map textures live at
+    /// <c>ui/map/{id}/{id-without-slash}_m.tex</c>, e.g. Map id "x6r1/00" →
+    /// "ui/map/x6r1/00/x6r100_m.tex".
+    /// </summary>
+    private void ResolveMapForCurrentZone()
+    {
+        var territory = (ushort)(_clientState?.TerritoryType ?? 0);
+        if (territory == _mapTerritory)
+            return;
+
+        _mapTerritory = territory;
+        _mapTexturePath = null;
+        _mapScale = 0f;
+
+        if (_dataManager is null || territory == 0)
+            return;
+
+        try
+        {
+            var row = _dataManager.GetExcelSheet<Lumina.Excel.Sheets.TerritoryType>()?.GetRowOrDefault(territory);
+            var map = row?.Map.ValueNullable;
+            if (map is null || map.Value.SizeFactor == 0)
+                return;
+
+            var id = map.Value.Id.ExtractText();
+            if (string.IsNullOrWhiteSpace(id))
+                return;
+
+            _mapTexturePath = $"ui/map/{id}/{id.Replace("/", string.Empty)}_m.tex";
+            _mapScale = map.Value.SizeFactor / 100f;
+            _mapOffsetX = map.Value.OffsetX;
+            _mapOffsetY = map.Value.OffsetY;
+        }
+        catch
+        {
+            // A missing or renamed map row must not take the window down — the overlay still
+            // works perfectly well against the plain grid.
+            _mapTexturePath = null;
+        }
     }
 
     /// <summary>Range rings and the cardinal cross, so distances on the map are readable.</summary>

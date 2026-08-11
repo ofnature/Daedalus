@@ -858,7 +858,8 @@ public sealed class Plugin : IDalamudPlugin
         this.overlayWindow = new OverlayWindow(configuration, SaveConfiguration, rotationManager, partyList, this.timelineService, dutyContentService, bossModForecastService);
         this.actionFeedWindow = new ActionFeedWindow(configuration, SaveConfiguration, actionService, textureProvider);
         this.dpsMeterWindow = new DpsMeterWindow(configuration, SaveConfiguration, dpsMeterService);
-        this.potHuntMapWindow = new PotHuntMapWindow(this.potTreasureHunt, objectTable);
+        this.potHuntMapWindow = new PotHuntMapWindow(
+            this.potTreasureHunt, objectTable, dataManager, textureProvider, clientState);
         Daedalus.Windows.Debug.Tabs.OccultTab.OpenPotHuntMap = () => this.potHuntMapWindow.Toggle();
         this.mainWindow.OpenParser = () => this.dpsMeterWindow.Toggle();
         this.mainWindow.ParserActive = () => this.dpsMeterService.Current != null;
