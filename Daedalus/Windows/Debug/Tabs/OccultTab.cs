@@ -19,6 +19,151 @@ public static class OccultTab
     private static readonly Vector4 Yellow = new(0.88f, 0.78f, 0.42f, 1f);
     private static readonly Vector4 Dim = new(0.54f, 0.54f, 0.58f, 1f);
 
+    /// <summary>Set by Plugin to toggle the pot-hunt map window; null hides the button.</summary>
+    public static Action? OpenPotHuntMap { get; set; }
+
+    /// <summary>
+    /// Pot-hunt triangulation readout ("Cache Me if You Can"). READ-ONLY — it shows what the
+    /// headless <see cref="PotTreasureHunt"/> already knows and never moves or casts anything.
+    /// <para>
+    /// The point is to prove the geometry before anything is allowed to act on it. The coffer has
+    /// no position until you are in interact range, so every elixir reading is a cone from where
+    /// you stood, and only the overlap of several says where it is. Two numbers below are the
+    /// ones that decide whether the model is right: the estimate's distance from you, and
+    /// whether the eventual find fell inside its own readings.
+    /// </para>
+    /// </summary>
+    private static void DrawPotHuntBlock(Daedalus.Services.Occult.PotTreasureHunt? hunt, Vector3 playerPosition)
+    {
+        if (hunt is null)
+            return;
+
+        ImGui.Text("Pot treasure hunt");
+        ImGui.Separator();
+
+        if (OpenPotHuntMap is not null)
+        {
+            if (ImGui.Button("Open map##pothunt"))
+                OpenPotHuntMap();
+            if (ImGui.IsItemHovered())
+                ImGui.SetTooltip("Top-down map centred on you: each reading's arc in its own colour, with the region satisfying every reading highlighted.");
+            ImGui.SameLine();
+        }
+
+        var bearings = hunt.Bearings;
+
+        if (!hunt.IsHunting)
+        {
+            ImGui.TextColored(Dim, "Not hunting (Cache Me if You Can not up)");
+            DrawLastFind(hunt);
+            ImGui.Spacing();
+            return;
+        }
+
+        ImGui.TextColored(Green, $"HUNTING — {bearings.Count} reading(s)");
+
+        if (bearings.Count == 0)
+        {
+            ImGui.TextColored(Yellow, "Drink a Magical Elixir to take the first reading.");
+            ImGui.Spacing();
+            return;
+        }
+
+        for (var i = 0; i < bearings.Count; i++)
+        {
+            var b = bearings[i];
+            var (min, max) = PotTreasureTriangulation.BandRange(b.Proximity);
+            ImGui.TextColored(Dim,
+                $"  #{i + 1} {Compass(b.HeadingRadians),-2} {b.Proximity} ({min:0}-{max:0}y) " +
+                $"from ({b.Origin.X:0}, {b.Origin.Z:0})");
+        }
+
+        // Search the area around the readings, not around the player — the player may already
+        // have walked out of the feasible region while chasing an earlier estimate.
+        var centre = Midpoint(bearings);
+        var estimate = PotTreasureTriangulation.EstimateCentre(bearings, centre, PotHuntSearchRadiusYalms);
+
+        if (estimate is null)
+        {
+            ImGui.TextColored(Yellow,
+                "No point satisfies every reading — a band edge or the arc width is wrong. " +
+                "Take another reading; if it stays empty the model needs recalibrating.");
+        }
+        else
+        {
+            var flat = new Vector3(playerPosition.X, estimate.Value.Y, playerPosition.Z);
+            var distance = Vector3.Distance(flat, estimate.Value);
+            var heading = PotTreasureTriangulation.HeadingTo(flat, estimate.Value);
+            ImGui.TextColored(Green,
+                $"Estimate: {distance:0}y {Compass(heading)} — ({estimate.Value.X:0}, {estimate.Value.Z:0})");
+        }
+
+        if (bearings.Count >= 2)
+        {
+            var quality = PotTreasureTriangulation.CrossingQuality(bearings[^2], bearings[^1]);
+            if (quality < PoorCrossingQuality)
+            {
+                ImGui.TextColored(Yellow,
+                    $"Weak crossing ({quality:P0}) — walk well to one side before reading again.");
+            }
+            else
+            {
+                ImGui.TextColored(Dim, $"Crossing quality {quality:P0}");
+            }
+        }
+        else
+        {
+            ImGui.TextColored(Dim, "One reading is a wedge. Move and read again to cross it.");
+        }
+
+        DrawLastFind(hunt);
+        ImGui.Spacing();
+    }
+
+    /// <summary>Radius of the grid search around the readings' midpoint.</summary>
+    private const float PotHuntSearchRadiusYalms = 120f;
+
+    /// <summary>Below this, another reading from here barely narrows anything.</summary>
+    private const float PoorCrossingQuality = 0.35f;
+
+    private static void DrawLastFind(Daedalus.Services.Occult.PotTreasureHunt hunt)
+    {
+        if (hunt.LastFoundAt is not { } found)
+            return;
+
+        // The verdict on the whole model: a find outside its own readings means an assumption is
+        // wrong, and that is worth shouting about rather than quietly tolerating.
+        if (hunt.LastFindContradictedReadings)
+        {
+            ImGui.TextColored(Yellow,
+                $"Last find ({found.X:0}, {found.Z:0}) fell OUTSIDE its readings — bands or arc width are off.");
+        }
+        else
+        {
+            ImGui.TextColored(Dim, $"Last find ({found.X:0}, {found.Z:0}) agreed with its readings.");
+        }
+    }
+
+    private static readonly string[] CompassPoints =
+        ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
+
+    /// <summary>Heading in radians to an 8-point compass label, for a readable readout.</summary>
+    private static string Compass(float headingRadians)
+    {
+        var normalized = headingRadians;
+        while (normalized < 0f) normalized += MathF.PI * 2f;
+        var index = (int)MathF.Round(normalized / (MathF.PI / 4f)) % CompassPoints.Length;
+        return CompassPoints[index];
+    }
+
+    private static Vector3 Midpoint(IReadOnlyList<Daedalus.Services.Occult.ElixirBearing> bearings)
+    {
+        var sum = Vector3.Zero;
+        foreach (var b in bearings)
+            sum += b.Origin;
+        return sum / bearings.Count;
+    }
+
     /// <summary>
     /// Chest ledger: what has been collected, and the button that writes it out for baking into
     /// a shipped seed. Debug-only, same as the collection itself.
@@ -54,7 +199,9 @@ public static class OccultTab
     public static void Draw(
         PhantomJobService service,
         Daedalus.Services.Occult.ElementalWeaknessLog? weaknessLog = null,
-        Daedalus.Services.Occult.ChestLedger? chestLedger = null)
+        Daedalus.Services.Occult.ChestLedger? chestLedger = null,
+        Daedalus.Services.Occult.PotTreasureHunt? potHunt = null,
+        Vector3 playerPosition = default)
     {
         var snapshot = service.GetSnapshot();
 
@@ -64,6 +211,7 @@ public static class OccultTab
             return;
         }
 
+        DrawPotHuntBlock(potHunt, playerPosition);
         DrawChestLedgerBlock(chestLedger);
 
         ImGui.Text("Detection");

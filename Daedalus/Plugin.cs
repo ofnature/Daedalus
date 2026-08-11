@@ -170,6 +170,7 @@ public sealed class Plugin : IDalamudPlugin
     private readonly OverlayWindow overlayWindow;
     private readonly ActionFeedWindow actionFeedWindow;
     private readonly DpsMeterWindow dpsMeterWindow;
+    private readonly PotHuntMapWindow potHuntMapWindow;
     private readonly TelemetryService telemetryService;
     private readonly DrawCanvas drawCanvas;
     private readonly DrawingService drawingService;
@@ -848,7 +849,7 @@ public sealed class Plugin : IDalamudPlugin
         if (lanPartyWindow != null)
             this.mainWindow.OpenLanParty = () => lanPartyWindow.Toggle();
         var smartAoETab = new SmartAoETab(aoeTracker, drawCanvas, objectTable);
-        this.debugWindow = new DebugWindow(debugService, configuration, timelineService, smartAoETab, debugLogService, phantomJobService, elementalWeaknessLog, chestLedger);
+        this.debugWindow = new DebugWindow(debugService, configuration, timelineService, smartAoETab, debugLogService, phantomJobService, elementalWeaknessLog, chestLedger, this.potTreasureHunt, objectTable);
         this.welcomeWindow = new WelcomeWindow(configuration, SaveConfiguration, OpenConfigUI);
         this.analyticsWindow = new AnalyticsWindow(performanceTracker, configuration, SaveConfiguration, fflogsService, fightSummaryService, meldOptimizerPanel);
         this.trainingWindow = new TrainingWindow(trainingService, configuration, decisionValidationService, spacedRepetitionService);
@@ -857,6 +858,8 @@ public sealed class Plugin : IDalamudPlugin
         this.overlayWindow = new OverlayWindow(configuration, SaveConfiguration, rotationManager, partyList, this.timelineService, dutyContentService, bossModForecastService);
         this.actionFeedWindow = new ActionFeedWindow(configuration, SaveConfiguration, actionService, textureProvider);
         this.dpsMeterWindow = new DpsMeterWindow(configuration, SaveConfiguration, dpsMeterService);
+        this.potHuntMapWindow = new PotHuntMapWindow(this.potTreasureHunt, objectTable);
+        Daedalus.Windows.Debug.Tabs.OccultTab.OpenPotHuntMap = () => this.potHuntMapWindow.Toggle();
         this.mainWindow.OpenParser = () => this.dpsMeterWindow.Toggle();
         this.mainWindow.ParserActive = () => this.dpsMeterService.Current != null;
 
@@ -987,6 +990,7 @@ public sealed class Plugin : IDalamudPlugin
         windowSystem.AddWindow(hintOverlay);
         windowSystem.AddWindow(overlayWindow);
         windowSystem.AddWindow(dpsMeterWindow);
+        windowSystem.AddWindow(potHuntMapWindow);
         windowSystem.AddWindow(farmWindow);
 
         // Phantom buff cycle: switches support jobs to collect their 30-minute self-buffs and

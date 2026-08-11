@@ -24,6 +24,8 @@ public sealed class DebugWindow : Window
     private readonly Daedalus.Services.Occult.PhantomJobService? _phantomJobService;
     private readonly Daedalus.Services.Occult.ElementalWeaknessLog? _weaknessLog;
     private readonly Daedalus.Services.Occult.ChestLedger? _chestLedger;
+    private readonly Daedalus.Services.Occult.PotTreasureHunt? _potTreasureHunt;
+    private readonly Dalamud.Plugin.Services.IObjectTable? _objectTable;
 
     private uint _selectedJobId; // 0 = unset; auto-selects active job on next Draw
 
@@ -85,7 +87,9 @@ public sealed class DebugWindow : Window
 
     public DebugWindow(DebugService debugService, Configuration configuration, ITimelineService? timelineService = null, SmartAoETab? smartAoETab = null, Daedalus.Services.Debug.DebugLogService? debugLogService = null, Daedalus.Services.Occult.PhantomJobService? phantomJobService = null,
         Daedalus.Services.Occult.ElementalWeaknessLog? weaknessLog = null,
-        Daedalus.Services.Occult.ChestLedger? chestLedger = null)
+        Daedalus.Services.Occult.ChestLedger? chestLedger = null,
+        Daedalus.Services.Occult.PotTreasureHunt? potTreasureHunt = null,
+        Dalamud.Plugin.Services.IObjectTable? objectTable = null)
         : base(Loc.T(LocalizedStrings.Debug.WindowTitle, "Daedalus Debug"), ImGuiWindowFlags.NoSavedSettings)
     {
         _debugService = debugService;
@@ -96,6 +100,8 @@ public sealed class DebugWindow : Window
         _phantomJobService = phantomJobService;
         _weaknessLog = weaknessLog;
         _chestLedger = chestLedger;
+        _potTreasureHunt = potTreasureHunt;
+        _objectTable = objectTable;
 
         Size = new Vector2(550, 450);
         SizeCondition = ImGuiCond.FirstUseEver;
@@ -212,7 +218,9 @@ public sealed class DebugWindow : Window
 
             if (_phantomJobService != null && ImGui.BeginTabItem("Duty"))
             {
-                OccultTab.Draw(_phantomJobService, _weaknessLog, _chestLedger);
+                OccultTab.Draw(
+                    _phantomJobService, _weaknessLog, _chestLedger, _potTreasureHunt,
+                    _objectTable?.LocalPlayer?.Position ?? default);
                 ImGui.EndTabItem();
             }
 
