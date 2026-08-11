@@ -79,6 +79,27 @@ public sealed class SageConfig
     }
 
     /// <summary>
+    /// Spend SURPLUS Addersgall on Druochole purely to harvest its 7% MP refund when MP runs
+    /// low, even if nobody needs the heal. The refund is the point of the resource, not a side
+    /// effect: raise-heavy content (Occult Crescent field ops) drains a Sage far faster than
+    /// Lucid Dreaming alone refills — roughly 2,400 MP per raise against 3,850 per 60s — while
+    /// stacks regenerate every 20s and are otherwise thrown away. Never touches the reserve.
+    /// </summary>
+    public bool HarvestAddersgallForMp { get; set; } = true;
+
+    /// <summary>
+    /// MP fraction below which surplus Addersgall is spent for its refund. Sits under the
+    /// Lucid Dreaming threshold (0.70) on purpose, so the free cooldown is always tried first
+    /// and gall is only cashed in when MP keeps sliding anyway.
+    /// </summary>
+    private float _addersgallMpThreshold = 0.60f;
+    public float AddersgallMpThreshold
+    {
+        get => _addersgallMpThreshold;
+        set => _addersgallMpThreshold = Math.Clamp(value, 0f, 1f);
+    }
+
+    /// <summary>
     /// Whether to use Rhizomata to generate Addersgall stacks.
     /// </summary>
     public bool EnableRhizomata { get; set; } = true;

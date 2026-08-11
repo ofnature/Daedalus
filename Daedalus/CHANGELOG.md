@@ -3,6 +3,21 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.58 — unreleased
+
+### New — Sage spends spare Addersgall for MP instead of hoarding it
+- Druochole hands back **7% of your MP** (700 at level cap) on top of the heal, and nothing ever spent a stack to collect it — a Sage could sit at 30% MP with three stacks and a healthy party and still cast nothing. It now spends **surplus** stacks below 60% MP even when nobody needs the heal
+- **Your reserved stacks are never touched**, so the tank's emergency Druochole is still there. Lucid Dreaming still goes first — the threshold sits under it deliberately
+- Aimed squarely at the Occult Crescent: a raise costs roughly **2,400 MP** and Lucid only returns 3,850 a minute, so raising through a critical encounter drains you to nothing while Addersgall ticks away unused. Toggle and threshold live in Sage settings
+
+### New — Auto-drink ethers, strongest first, with a low-stock warning
+- When MP drops below the threshold, Daedalus drinks the **best ether in your bag** and steps down the ladder as the good ones run out — Super → Max → X → Mega → Hi → Ether
+- Ranked by what each one **actually restores**, not by name, so a **Max-Ether HQ (1,500 MP) is taken before a Super-Ether NQ (1,400)**. At equal value it burns the normal-quality one and keeps your HQ stock
+- Warns in chat once your total ether count drops to five or fewer, so you restock between runs instead of finding out at 200 MP
+- **Off by default** — ethers cost real gil. If the game refuses one (some duties block items) it backs off instead of retrying every second
+- Worth knowing: the Occult Crescent's own *Occult Ether* is a **Chemist** action, so a Phantom White Mage carrying the instant Occult Raise has no phantom MP tool at all. Real ethers are the answer that works on any phantom job
+
+<!-- LATEST-END -->
 ## v0.1.57 — 2026-08-10
 
 ### New — Occult weakness table: South Horn critical encounters filled in
@@ -16,7 +31,6 @@ All notable changes to Daedalus will be documented in this file.
 ### New — Phantom White Mage casts Occult Cure III when the party is hurting
 - The 15-yalm AoE heal was cataloged but never fired. It now goes out when **two or more party members are injured** and the party average has taken a real dent — one hurt person stays Occult Cure II's job, so the 3,000 MP always buys more than a single-target heal would have
 
-<!-- LATEST-END -->
 ## v0.1.56 — 2026-08-09
 
 ### Fix — Your character no longer keeps turning toward a corpse after an Occult Raise

@@ -55,6 +55,36 @@ public sealed class ConsumablesSection
         ImGui.Spacing();
 
         ConfigUIHelpers.Toggle(
+            "Auto-drink ethers when MP runs out",
+            () => config.Consumables.EnableEthers,
+            v => config.Consumables.EnableEthers = v,
+            "Drinks the strongest ether in your bag when MP drops below the threshold below, then steps down the ladder (Super → Max → X → Mega → Hi → Ether) as the good ones run out. HQ and normal quality are ranked by what they actually restore, so a Max-Ether HQ (1,500 MP) is taken before a Super-Ether NQ (1,400). Built for raise-heavy field content like the Occult Crescent, where repeated raises cost ~2,400 MP each and outrun Lucid Dreaming. Default off because ethers cost real gil.",
+            save);
+
+        if (config.Consumables.EnableEthers)
+        {
+            ConfigUIHelpers.BeginIndent();
+
+            config.Consumables.EtherMpThreshold = ConfigUIHelpers.ThresholdSlider(
+                "Ether MP threshold",
+                config.Consumables.EtherMpThreshold,
+                5f, 60f,
+                "Drink when MP falls below this. Kept under the Lucid Dreaming threshold (70%) so the free cooldown is always tried first and an item is only spent when MP keeps sliding.",
+                save);
+
+            ConfigUIHelpers.Toggle(
+                "Warn when ethers run low",
+                () => config.Consumables.WarnOnLowEthers,
+                v => config.Consumables.WarnOnLowEthers = v,
+                "Prints a chat reminder once your total ether stock (all grades) drops to five or fewer, so you restock before the next run instead of discovering it at 200 MP.",
+                save);
+
+            ConfigUIHelpers.EndIndent();
+        }
+
+        ImGui.Spacing();
+
+        ConfigUIHelpers.Toggle(
             Loc.T(LocalizedStrings.Consumables.WarnOnEmptyInventory, "Warn when inventory is empty"),
             () => config.Consumables.WarnOnEmptyInventory,
             v => config.Consumables.WarnOnEmptyInventory = v,

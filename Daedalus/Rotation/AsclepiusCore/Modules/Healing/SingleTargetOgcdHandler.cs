@@ -78,6 +78,15 @@ public sealed class SingleTargetOgcdHandler : IHealingHandler
                       && addersgall.ShouldPreventCap(config.AddersgallCapPreventWindow)
                       && hpPercent <= dumpCeiling;
 
+        // MP harvest: the 7% refund is the POINT of Addersgall, not a side effect, and until now
+        // nothing ever spent a stack to get it. Raise-heavy content (Occult Crescent field ops)
+        // drains a Sage past what Lucid alone refills — ~2,400 MP a raise against 3,850 per 60s —
+        // and a stack that regenerates every 20s is the cheapest MP in the kit. Only bypasses the
+        // TARGET-HP gate: the reserve check below still stands, so the tank's emergency stack is
+        // never traded for mana.
+        var mpPercent = player.MaxMp > 0 ? (float)player.CurrentMp / player.MaxMp : 1f;
+        var mpDump = config.HarvestAddersgallForMp && mpPercent < config.AddersgallMpThreshold;
+
         if (!CanSpendAddersgall(context, target, hpPercent) && !capDump)
         {
             context.Debug.DruocholeState = $"Reserved ({config.AddersgallReserve})";
@@ -95,7 +104,7 @@ public sealed class SingleTargetOgcdHandler : IHealingHandler
         // on a topped-off ally (ceiling > 1.0); while merely about to cap we still have headroom, so
         // only dump onto a clearly injured ally. This self-limits to ~once per regen cycle: spending
         // leaves the cap, the timer restarts, and ShouldPreventCap only re-triggers near the next cap.
-        if (hpPercent > threshold && !capDump)
+        if (hpPercent > threshold && !capDump && !mpDump)
         {
             context.Debug.DruocholeState = $"{hpPercent:P0} > {threshold:P0}";
             return;
@@ -103,6 +112,8 @@ public sealed class SingleTargetOgcdHandler : IHealingHandler
 
         if (capDump && hpPercent > threshold)
             context.Debug.DruocholeState = $"Dump (cap) @ {hpPercent:P0}";
+        else if (mpDump && hpPercent > threshold)
+            context.Debug.DruocholeState = $"Dump (MP {mpPercent:P0}) @ {hpPercent:P0}";
 
         var capturedTarget = target;
         var capturedHpPercent = hpPercent;

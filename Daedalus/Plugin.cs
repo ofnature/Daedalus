@@ -207,6 +207,7 @@ public sealed class Plugin : IDalamudPlugin
     private readonly Daedalus.Services.Consumables.ConsumableService consumableService;
     private readonly Daedalus.Services.Consumables.TinctureDispatcher tinctureDispatcher;
     private readonly Daedalus.Services.Consumables.PhoenixDownService phoenixDownService;
+    private readonly Daedalus.Services.Consumables.EtherService etherService;
 
     // Error metrics
     private readonly ErrorMetricsService errorMetricsService;
@@ -779,6 +780,16 @@ public sealed class Plugin : IDalamudPlugin
             this.phoenixDownService.Bus = this.coordinationBus;
             this.coordinationBus.OnPhoenixDown += this.phoenixDownService.OnForeignClaim;
         }
+
+        // Cascading ether use — strongest grade in the bag first, stepping down as stock runs
+        // out. Built for raise-heavy field content where repeated raises outrun Lucid Dreaming.
+        // Ships dark (Consumables ▸ EnableEthers, default off) since it spends real items.
+        this.etherService = new Daedalus.Services.Consumables.EtherService(
+            actionService,
+            inventoryProbe,
+            configuration,
+            chatGui,
+            log);
 
         // Smart AoE service (must be created before service container)
         this.aoeTracker = new AoETracker();
@@ -1730,7 +1741,10 @@ public sealed class Plugin : IDalamudPlugin
             // Phoenix Down safety net — works with or without LAN (the bus only adds the
             // double-burn claim). Master-switch gated: a DISABLED toon must not use items.
             if (configuration.EffectiveEnabled)
+            {
                 phoenixDownService.Update(objectTable.LocalPlayer, partyList);
+                etherService.Update(objectTable.LocalPlayer);
+            }
 
             // Enforce the party target mode (Focus / Split / Kill Adds) after the bus pump so mode
             // state is current this frame. Role-gated; no-op unless a mode is active and eligible.

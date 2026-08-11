@@ -85,6 +85,19 @@ public sealed class SageSection
                     Loc.T(LocalizedStrings.Sage.CapPreventionWindowDesc, "Start spending when new stack would be granted within this time."), save, v => config.Sage.AddersgallCapPreventWindow = v);
             }
 
+            ConfigUIHelpers.Toggle("Spend surplus Addersgall for MP",
+                () => config.Sage.HarvestAddersgallForMp, v => config.Sage.HarvestAddersgallForMp = v,
+                "Druochole refunds 7% of your MP (700 at level cap) on top of the heal, and that refund is the point of the resource. When MP drops below the threshold below, spend stacks ABOVE your reserve on the lowest-HP ally even if nobody actually needs the heal. Matters most in raise-heavy field content like the Occult Crescent, where a raise costs ~2,400 MP and Lucid Dreaming only returns 3,850 a minute. Never touches the reserved stacks.",
+                save);
+
+            if (config.Sage.HarvestAddersgallForMp)
+            {
+                config.Sage.AddersgallMpThreshold = ConfigUIHelpers.ThresholdSliderSmall("MP Harvest Threshold",
+                    config.Sage.AddersgallMpThreshold, 10f, 90f,
+                    "Spend surplus stacks for their MP refund below this. Sits under the Lucid Dreaming threshold (70%) so the free cooldown goes first.",
+                    save, v => config.Sage.AddersgallMpThreshold = v);
+            }
+
             ConfigUIHelpers.Spacing();
 
             ConfigUIHelpers.Toggle(Loc.T(LocalizedStrings.Sage.EnableRhizomata, "Enable Rhizomata"), () => config.Sage.EnableRhizomata, v => config.Sage.EnableRhizomata = v,
