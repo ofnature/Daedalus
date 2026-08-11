@@ -116,6 +116,38 @@ Thunderregnum (Cresceregina) · Waved Away (Arch Kelpie).
 4. **North Horn trash** — 21 of 23 recorded field mobs still have no element; that is now the
    single largest gap in the table (South Horn trash is 36/37 done).
 
+## Third-source cross-check: RSR keeps its own weakness table (2026-08-10)
+
+`.cursor/rsr/RotationSolver.Basic/Helpers/StatusHelper.cs` has
+`SouthHornWeaknessByNameId` — **73 hand-maintained South Horn entries keyed by NameId**, and it
+grew in RSR commit `2d0c9761`. Compared against our observed table:
+
+| | |
+|---|---|
+| Overlapping entries that AGREE | **67** |
+| Disagreements | **0** |
+| RSR fills a blank of ours | 2 |
+| RSR NameIds we have no row for | 4 |
+| Our South Horn rows RSR lacks | 58 |
+
+Two independent sources (this and the community wiki) now agree with our observed data on every
+single overlapping entry. Our table is also substantially broader — 127 South Horn rows to their
+73.
+
+**The two blanks RSR can fill** — note these are *predictions to confirm*, NOT to be injected;
+the log is deliberately observational:
+- `13907` **Crescent Void Viper** → Ice. This is exactly the one remaining South Horn trash
+  unknown. Its twin `13896` already reads Ice in our table, which is consistent with the two
+  NameIds being the same enemy.
+- `13893` **Animated Doll** → Fire. Its twin `13894` already reads Fire in ours. Same story.
+
+**Four NameIds RSR knows and we have never seen at all:** `13646` (Fire), `13717`, `13718`,
+`13726` (all Lightning). These are very likely from the four CEs we have never triggered. Worth
+noting that `13726` sits immediately below `13727` **Mythic Mirror**, which we recorded for the
+first time on 2026-08-10 — and the wiki gives *From Times Bygone*'s boss **Mythic Idol** as
+Lightning. So `13726` is plausibly the Mythic Idol. Unconfirmed, but it lines up from three
+directions.
+
 ## Validation note
 
 Every boss weakness the table has recorded independently **matches** the community data —
