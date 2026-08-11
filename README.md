@@ -238,4 +238,10 @@ Issues and pull requests welcome at [GitHub](https://github.com/ofnature/Daedalu
 
 ## License
 
-This project is provided as-is for personal use with FFXIV.
+**GNU Lesser General Public License v3.0** — see [COPYING](COPYING) (GPL-3.0 text) and
+[COPYING.LESSER](COPYING.LESSER) (the additional LGPL permissions). LGPL-3.0 is expressed as the
+GPL plus those permissions, so both files are required.
+
+Daedalus is a fork of [RotationSolverReborn](https://github.com/FFXIV-CombatReborn/RotationSolverReborn),
+which is LGPL-3.0, and so inherits that licence. The licence files here are byte-identical to
+upstream's.
