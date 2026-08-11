@@ -3,7 +3,11 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
-## v0.1.57 — unreleased
+## v0.1.57 — 2026-08-10
+
+### New — Occult weakness table: South Horn critical encounters filled in
+- **11 new enemies** recorded and **11 rows now carry an elemental weakness** that didn't before, all from South Horn critical encounters — Calamity Bound, Crawling Death, Noise Complaint, Eternal Watch and The Unbridled, including their bosses (Cloister Demon, Death Claw, Neo Garula, Repaired Lion, Crescent Berserker)
+- The shipped table is now **275 enemies**. Weaknesses only appear when something reveals them, so this is collected data — half the table still has no element recorded, and critical-encounter rows remain the biggest gap
 
 ### Fix — Phantom Blue Mage now works with however much of the kit you've learned
 - Blue Mage learns its phantom actions **from enemies, not levels**, but the layer picked your Aero grade off your phantom level — a level-3 Blue Mage who had only learned Aero I would never cast any Aero, because the layer only ever tried the grade it assumed you had. It now tries every grade best-first and the one actually on your bar wins
