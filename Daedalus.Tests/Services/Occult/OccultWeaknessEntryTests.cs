@@ -238,6 +238,41 @@ public class OccultWeaknessClassificationTests
                 isMechanicObject: true));
     }
 
+    /// <summary>
+    /// Field 2026-08-11: the Persistent Pot is the thing you ESCORT in the pot FATEs. It is
+    /// perfectly targetable, so a targetability check waves it through — only attackability
+    /// catches it. Both it and an untargetable mechanic are excluded for the same reason:
+    /// Occult Libra can never reveal anything on either.
+    /// </summary>
+    [Fact]
+    public void TargetableFriendly_IsNotAnEnemy()
+    {
+        var pot = new OccultWeaknessEntry
+        {
+            NameId = 14770, Name = "Persistent Pot", TerritoryId = 1346, MaxHp = 2_649_381,
+            Sightings = ElementalWeaknessLog.MinSightingsForTargetabilityVerdict,
+            EverTargetable = true,   // you can click it
+            EverAttackable = false,  // you cannot hit it
+        };
+
+        Assert.True(ElementalWeaknessLog.IsFriendly(pot));
+        Assert.False(ElementalWeaknessLog.IsMechanicObject(pot), "targetable, so not a mechanic object");
+        Assert.True(ElementalWeaknessLog.IsNotAnEnemy(pot));
+    }
+
+    [Fact]
+    public void RealEnemy_SeenAttackableOnce_StaysAnEnemyForever()
+    {
+        var mob = new OccultWeaknessEntry
+        {
+            NameId = 13884, Name = "Crescent Garula", TerritoryId = 1252, MaxHp = 634_571,
+            Sightings = 500, EverTargetable = true, EverAttackable = true,
+        };
+
+        Assert.False(ElementalWeaknessLog.IsNotAnEnemy(mob));
+        Assert.False(ElementalWeaknessLog.IsFriendly(mob));
+    }
+
     [Fact]
     public void MechanicObjectVerdict_NeedsEvidence_AndYieldsToBothTargetabilityAndAWeakness()
     {

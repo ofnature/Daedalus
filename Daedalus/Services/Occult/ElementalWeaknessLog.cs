@@ -32,9 +32,10 @@ public enum OccultEnemyKind : byte
     Trash = 0,
 
     /// <summary>
-    /// Mechanic object inside an encounter — Pages, Spheres, Beacons, Plumes. Present in the
-    /// object table and recorded like anything else, but never targetable, so no weakness can
-    /// ever be revealed on it. Kept out of coverage counts.
+    /// Present in the object table and recorded like anything else, but not an enemy — either an
+    /// untargetable encounter mechanic (Pages, Spheres, Beacons, Plumes) or a targetable
+    /// FRIENDLY (the Persistent Pot you escort, the treasure bunny). Never attackable, so no
+    /// weakness can ever be revealed on it. Kept out of coverage counts.
     /// </summary>
     MechanicObject = 1,
 
@@ -101,6 +102,16 @@ public sealed class OccultWeaknessEntry
     /// mechanic object, and only that can never be Libra'd.
     /// </summary>
     public bool EverTargetable { get; set; }
+
+    /// <summary>
+    /// Ever observed as something a damage action could actually be used on. STICKY once true.
+    /// <para>
+    /// This is the real "is it an enemy" test and it catches a case targetability cannot: the
+    /// Persistent Pot you ESCORT in the pot FATEs is perfectly targetable, it just is not an
+    /// enemy — so it can never be Libra'd and only ever dilutes the table.
+    /// </para>
+    /// </summary>
+    public bool EverAttackable { get; set; }
 
     /// <summary>
     /// Boss-or-trash verdict, filled in by <see cref="ElementalWeaknessLog"/> — it depends on
@@ -206,20 +217,39 @@ public sealed class ElementalWeaknessLog
     public const int MinSightingsForTargetabilityVerdict = 20;
 
     /// <summary>
-    /// A mechanic object rather than an enemy: seen plenty of times, never once targetable, and
-    /// with no weakness ever revealed. These are the Pages, Spheres, Beacons and Plumes inside
-    /// critical encounters — they cannot be hit, so Occult Libra can never reveal anything on
-    /// them, and counting them makes the table's coverage look far worse than it is.
+    /// Not an enemy: seen plenty of times, never once attackable, and with no weakness ever
+    /// revealed. Two different things land here and both dilute the table the same way —
+    /// untargetable encounter mechanics (the Forbidden Folios Pages, Tiny Terror's Spheres,
+    /// Beacons, Plumes) and targetable FRIENDLIES (the Persistent Pot you escort in the pot
+    /// FATEs, the treasure bunny). Neither can ever be Libra'd.
     /// <para>
-    /// Evidence-based ON PURPOSE. Culling these by name would delete real adds that ARE killed
+    /// Evidence-based ON PURPOSE. Culling by name would delete real adds that ARE killed
     /// (Alabaster Golem, Long-dead Pirate, Tiny Apprentice all sit in the same HP band), so the
-    /// game's own targetable flag decides rather than a hand-written list.
+    /// game's own attackability probe decides rather than a hand-written list. Attackability
+    /// subsumes targetability — <c>IsPlayerAttackable</c> already requires a targetable, living
+    /// object — so it catches the friendlies that a targetable check would wave through.
     /// </para>
     /// </summary>
     public static bool IsMechanicObject(OccultWeaknessEntry entry) =>
-        !entry.EverTargetable
+        !entry.EverAttackable
+        && !entry.EverTargetable
         && entry.Elements == OccultElement.None
         && entry.Sightings >= MinSightingsForTargetabilityVerdict;
+
+    /// <summary>
+    /// A friendly: targetable, seen plenty of times, but never attackable and never revealed a
+    /// weakness. Separated from <see cref="IsMechanicObject"/> only so the readout can say which
+    /// it is — both are excluded from coverage for the same reason.
+    /// </summary>
+    public static bool IsFriendly(OccultWeaknessEntry entry) =>
+        !entry.EverAttackable
+        && entry.EverTargetable
+        && entry.Elements == OccultElement.None
+        && entry.Sightings >= MinSightingsForTargetabilityVerdict;
+
+    /// <summary>Anything that can never yield a weakness — mechanic or friendly.</summary>
+    public static bool IsNotAnEnemy(OccultWeaknessEntry entry)
+        => IsMechanicObject(entry) || IsFriendly(entry);
 
     /// <summary>
     /// Things the object table reports as hostile NPCs that are not enemies and can never carry
@@ -235,6 +265,13 @@ public sealed class ElementalWeaknessLog
         7248,   // Happy Bunny — treasure-hunt bunny, both Horns
         7958,   // Hidden Trap — coffer trap, North Horn
         13967,  // Trap — coffer trap, South Horn
+        13742,  // Persistent Pot — the pot you ESCORT in the pot FATEs (user-confirmed friendly).
+                // Its encounter stamps are junk for the same reason: a friendly wandering about
+                // picks up whichever CE/FATE happened to be running ("Flame of Dusk" in South,
+                // "Imbalanced Diet" in North). The two other Persistent Pot NameIds (14770 in
+                // Daylight Pottery, 14773 in In a Pot of Bother) are very likely the same escort
+                // object at different scaling, but are NOT hardcoded here — the attackability
+                // evidence will settle them on the next run of those FATEs rather than guessing.
     };
 
     /// <summary>
@@ -388,7 +425,7 @@ public sealed class ElementalWeaknessLog
             foreach (var e in all)
             {
                 var key = EncounterKey(e);
-                if (key is null || IsMechanicObject(e))
+                if (key is null || IsNotAnEnemy(e))
                     continue;
                 if (!encounterTop.TryGetValue(key, out var best) || e.MaxHp > best)
                     encounterTop[key] = e.MaxHp;
@@ -402,10 +439,10 @@ public sealed class ElementalWeaknessLog
                 var isTop = key is not null
                     && encounterTop.TryGetValue(key, out var top)
                     && e.MaxHp == top
-                    && !IsMechanicObject(e);
+                    && !IsNotAnEnemy(e);
 
                 e.Kind = Classify(e.MaxHp, e.SeenInCriticalEncounter, median, samples,
-                    e.SeenInFate, IsMechanicObject(e), isTop);
+                    e.SeenInFate, IsNotAnEnemy(e), isTop);
                 e.BelongsToCriticalEncounter =
                     IsCriticalEncounterParticipant(e.SeenInCriticalEncounter, e.MaxHp, median, samples);
             }
@@ -590,6 +627,8 @@ public sealed class ElementalWeaknessLog
         entry.Sightings++;
         if (npc.IsTargetable)
             entry.EverTargetable = true;
+        if (!entry.EverAttackable && Daedalus.Services.Targeting.EnemyAttackability.IsPlayerAttackable(npc))
+            entry.EverAttackable = true;
 
         // Max-HP upkeep. Normally keep the largest ever seen (we may meet an enemy mid-fight),
         // but a value that has COLLAPSED means the encounter was rescaled by a patch — take
