@@ -21,17 +21,31 @@ public enum OccultElement : byte
     Wind = 8,
 }
 
-/// <summary>How dangerous an Occult enemy is — the "boss or trash?" answer.</summary>
+/// <summary>
+/// What kind of enemy this is. The zone uses two different words for its two kinds of named
+/// target, and they are not interchangeable: a critical encounter has a <b>boss</b>, a FATE has
+/// an <b>elite</b>. Ordered by significance so the table can sort on it.
+/// </summary>
 public enum OccultEnemyKind : byte
 {
     /// <summary>Ordinary field mob.</summary>
     Trash = 0,
 
-    /// <summary>Big HP pool outside a critical encounter — forts / notorious spawns.</summary>
-    Elite = 1,
+    /// <summary>
+    /// Mechanic object inside an encounter — Pages, Spheres, Beacons, Plumes. Present in the
+    /// object table and recorded like anything else, but never targetable, so no weakness can
+    /// ever be revealed on it. Kept out of coverage counts.
+    /// </summary>
+    MechanicObject = 1,
 
-    /// <summary>Big HP pool seen while a critical encounter was running.</summary>
-    CriticalEncounterBoss = 2,
+    /// <summary>Big HP pool with no encounter attached — a field notorious spawn.</summary>
+    FieldNotorious = 2,
+
+    /// <summary>A FATE's named target. The zone calls these ELITES, not bosses.</summary>
+    FateElite = 3,
+
+    /// <summary>A critical encounter's named target. These are the BOSSES.</summary>
+    CriticalEncounterBoss = 4,
 }
 
 /// <summary>One learned enemy → weakness mapping.</summary>
@@ -72,6 +86,21 @@ public sealed class OccultWeaknessEntry
     public string Fate { get; set; } = "";
 
     public string LastSeenUtc { get; set; } = "";
+
+    /// <summary>
+    /// How many scan ticks this enemy has been seen on. Only meaningful next to
+    /// <see cref="EverTargetable"/> — it is what says whether we have had a fair chance to
+    /// observe targetability yet, so an enemy seen once is never judged.
+    /// </summary>
+    public int Sightings { get; set; }
+
+    /// <summary>
+    /// Ever observed as a targetable object. STICKY once true, because plenty of real bosses
+    /// spend part of a fight untargetable — Company of Stone's Megaloknight cannot be hit until
+    /// eight Occult Knights are dead. Only "seen many times, never once targetable" means a
+    /// mechanic object, and only that can never be Libra'd.
+    /// </summary>
+    public bool EverTargetable { get; set; }
 
     /// <summary>
     /// Boss-or-trash verdict, filled in by <see cref="ElementalWeaknessLog"/> — it depends on
@@ -168,6 +197,29 @@ public sealed class ElementalWeaknessLog
 
     /// <summary>Is this max-HP reading worth recording at all?</summary>
     public static bool IsCredibleMaxHp(uint observed) => observed >= MinCredibleMaxHp;
+
+    /// <summary>
+    /// Scan ticks an enemy must be seen on before "never targetable" counts as evidence rather
+    /// than luck. At a 2s scan interval this is under a minute of exposure, which any encounter
+    /// member clears easily, while a mob glimpsed once in passing is never judged.
+    /// </summary>
+    public const int MinSightingsForTargetabilityVerdict = 20;
+
+    /// <summary>
+    /// A mechanic object rather than an enemy: seen plenty of times, never once targetable, and
+    /// with no weakness ever revealed. These are the Pages, Spheres, Beacons and Plumes inside
+    /// critical encounters — they cannot be hit, so Occult Libra can never reveal anything on
+    /// them, and counting them makes the table's coverage look far worse than it is.
+    /// <para>
+    /// Evidence-based ON PURPOSE. Culling these by name would delete real adds that ARE killed
+    /// (Alabaster Golem, Long-dead Pirate, Tiny Apprentice all sit in the same HP band), so the
+    /// game's own targetable flag decides rather than a hand-written list.
+    /// </para>
+    /// </summary>
+    public static bool IsMechanicObject(OccultWeaknessEntry entry) =>
+        !entry.EverTargetable
+        && entry.Elements == OccultElement.None
+        && entry.Sightings >= MinSightingsForTargetabilityVerdict;
 
     /// <summary>
     /// Things the object table reports as hostile NPCs that are not enemies and can never carry
@@ -269,19 +321,31 @@ public sealed class ElementalWeaknessLog
     }
 
     /// <summary>
-    /// Boss-or-trash from observed facts. The line is the zone's own median enemy HP times
-    /// <see cref="BossHpMultipleOfZoneMedian"/> once the zone has enough samples; before that
-    /// it falls back to <see cref="BossHpThresholdFallback"/>. Pure — the whole rule is here.
+    /// What kind of enemy this is, from observed facts. The big-HP line is the zone's own median
+    /// enemy HP times <see cref="BossHpMultipleOfZoneMedian"/> once the zone has enough samples;
+    /// before that it falls back to <see cref="BossHpThresholdFallback"/>. Above that line the
+    /// encounter it belongs to decides the WORD: critical encounters have bosses, FATEs have
+    /// elites. Pure — the whole rule is here.
     /// </summary>
-    public static OccultEnemyKind Classify(uint maxHp, bool seenInCriticalEncounter, uint zoneMedianHp, int zoneSamples)
+    public static OccultEnemyKind Classify(
+        uint maxHp, bool seenInCriticalEncounter, uint zoneMedianHp, int zoneSamples,
+        bool seenInFate = false, bool isMechanicObject = false)
     {
+        // Checked before anything else: an untargetable mechanic object can carry an
+        // encounter-sized HP pool (the Forbidden Folios Pages are 74M apiece) and would
+        // otherwise be filed as a boss.
+        if (isMechanicObject)
+            return OccultEnemyKind.MechanicObject;
+
         var line = zoneSamples >= MinZoneSamplesForRelative && zoneMedianHp > 0
             ? zoneMedianHp * BossHpMultipleOfZoneMedian
             : BossHpThresholdFallback;
 
         if (maxHp < line)
             return OccultEnemyKind.Trash;
-        return seenInCriticalEncounter ? OccultEnemyKind.CriticalEncounterBoss : OccultEnemyKind.Elite;
+        if (seenInCriticalEncounter)
+            return OccultEnemyKind.CriticalEncounterBoss;
+        return seenInFate ? OccultEnemyKind.FateElite : OccultEnemyKind.FieldNotorious;
     }
 
     /// <summary>Median observed max-HP for a territory (0 when nothing recorded there yet).</summary>
@@ -302,7 +366,8 @@ public sealed class ElementalWeaknessLog
             {
                 var median = ZoneMedianHp(e.TerritoryId);
                 var samples = _entries.Values.Count(x => x.TerritoryId == e.TerritoryId && x.MaxHp > 0);
-                e.Kind = Classify(e.MaxHp, e.SeenInCriticalEncounter, median, samples);
+                e.Kind = Classify(e.MaxHp, e.SeenInCriticalEncounter, median, samples,
+                    e.SeenInFate, IsMechanicObject(e));
                 e.BelongsToCriticalEncounter =
                     IsCriticalEncounterParticipant(e.SeenInCriticalEncounter, e.MaxHp, median, samples);
             }
@@ -467,6 +532,13 @@ public sealed class ElementalWeaknessLog
 
         var isNew = (entry.Elements & element) != element;
         entry.Elements |= element;
+
+        // Targetability evidence. Sticky once true: real bosses spend phases untargetable
+        // (Company of Stone's Megaloknight until eight knights die), so only "seen many times,
+        // never once targetable" identifies a mechanic object.
+        entry.Sightings++;
+        if (npc.IsTargetable)
+            entry.EverTargetable = true;
 
         // Max-HP upkeep. Normally keep the largest ever seen (we may meet an enemy mid-fight),
         // but a value that has COLLAPSED means the encounter was rescaled by a patch — take

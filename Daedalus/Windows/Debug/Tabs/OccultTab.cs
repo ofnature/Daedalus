@@ -306,10 +306,14 @@ public static class OccultTab
         Daedalus.Services.Occult.OccultWeaknessEntry e, bool indented, int copies = 1)
     {
         var ice = (e.Elements & Daedalus.Services.Occult.OccultElement.Ice) != 0;
+        // The zone's own two words for a named target, and they are not interchangeable:
+        // critical encounters have BOSSES, FATEs have ELITES.
         var kind = e.Kind switch
         {
             Daedalus.Services.Occult.OccultEnemyKind.CriticalEncounterBoss => "CE BOSS",
-            Daedalus.Services.Occult.OccultEnemyKind.Elite => "elite",
+            Daedalus.Services.Occult.OccultEnemyKind.FateElite => "FATE ELITE",
+            Daedalus.Services.Occult.OccultEnemyKind.FieldNotorious => "notorious",
+            Daedalus.Services.Occult.OccultEnemyKind.MechanicObject => "untargetable",
             _ => "trash",
         };
         var weakness = e.Elements == Daedalus.Services.Occult.OccultElement.None

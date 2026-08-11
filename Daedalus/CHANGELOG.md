@@ -5,6 +5,14 @@ All notable changes to Daedalus will be documented in this file.
 <!-- LATEST-START -->
 ## v0.1.58 — unreleased
 
+### New — Critical encounters have bosses, FATEs have elites, and the table now says so
+- The weakness table called every big enemy an "elite" regardless of where it came from. It now uses the zone's own two words: a critical encounter's named target is a **CE BOSS**, a FATE's is a **FATE ELITE**, and a big enemy with neither stamp is a **notorious** field spawn
+
+### New — Untargetable encounter mechanics are identified and kept out of the count
+- Critical encounters are full of things that read as enemies but can't be clicked — the Pages in Forbidden Folios, the Spheres in Tiny Terror, Beacons, Plumes. They can never be hit, so **Occult Libra can never reveal a weakness on them**, yet they were counted as unscanned and made coverage look far worse than it was
+- Daedalus now records whether it has ever seen each enemy in a **targetable** state and marks the ones that never are. It's judged on evidence rather than a hand-written list, because several things that *look* like mechanics are real adds you kill — and because bosses genuinely go untargetable between phases (Company of Stone's Megaloknight can't be hit until eight knights fall), a single targetable sighting is enough to count as a real enemy forever
+- **Existing entries start as unknown and sort themselves out** as you run each encounter once more — nothing is deleted on a guess
+
 ### Fix — The weakness table no longer lists things that aren't enemies
 - The **Striking Dummy** was sitting in the table at 4.7 million HP, in with South Horn's trash mobs that all run about 700 thousand. That's not just clutter: every "is this a boss?" call is measured against the zone's own median enemy, so a fake 4.7M entry skewed the line everything else is judged by
 - Also gone: the **treasure bunny**, **traps**, a nameless row, and one entry whose HP never read properly. **275 → 267 enemies**, and the eight that left were all things you can't get a weakness from anyway

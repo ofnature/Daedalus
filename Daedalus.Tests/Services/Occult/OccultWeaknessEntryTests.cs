@@ -150,13 +150,61 @@ public class OccultWeaknessClassificationTests
             ElementalWeaknessLog.Classify(3_000_000, seenInCriticalEncounter: false, zoneMedianHp: 2_000_000, zoneSamples: Enough));
     }
 
+    /// <summary>
+    /// The zone uses two different words and they are not interchangeable: a critical encounter
+    /// has a BOSS, a FATE has an ELITE. A big-HP enemy with neither stamp is a field notorious.
+    /// </summary>
     [Fact]
-    public void CriticalEncounterFlag_SeparatesBossFromElite()
+    public void EncounterType_DecidesWhetherItIsABossOrAnElite()
     {
         Assert.Equal(OccultEnemyKind.CriticalEncounterBoss,
             ElementalWeaknessLog.Classify(5_000_000, seenInCriticalEncounter: true, zoneMedianHp: 40_000, zoneSamples: Enough));
-        Assert.Equal(OccultEnemyKind.Elite,
+
+        Assert.Equal(OccultEnemyKind.FateElite,
+            ElementalWeaknessLog.Classify(5_000_000, seenInCriticalEncounter: false, zoneMedianHp: 40_000, zoneSamples: Enough,
+                seenInFate: true));
+
+        Assert.Equal(OccultEnemyKind.FieldNotorious,
             ElementalWeaknessLog.Classify(5_000_000, seenInCriticalEncounter: false, zoneMedianHp: 40_000, zoneSamples: Enough));
+
+        // A CE stamp outranks a FATE stamp — an enemy caught in both is reported as the boss.
+        Assert.Equal(OccultEnemyKind.CriticalEncounterBoss,
+            ElementalWeaknessLog.Classify(5_000_000, seenInCriticalEncounter: true, zoneMedianHp: 40_000, zoneSamples: Enough,
+                seenInFate: true));
+    }
+
+    /// <summary>
+    /// Mechanic objects can carry encounter-sized HP — the Forbidden Folios Pages are 74M each —
+    /// so the untargetable verdict has to be checked before the HP line, or they file as bosses.
+    /// </summary>
+    [Fact]
+    public void UntargetableMechanicObject_OutranksItsHpPool()
+    {
+        Assert.Equal(OccultEnemyKind.MechanicObject,
+            ElementalWeaknessLog.Classify(74_755_100, seenInCriticalEncounter: true, zoneMedianHp: 840_000, zoneSamples: Enough,
+                isMechanicObject: true));
+    }
+
+    [Fact]
+    public void MechanicObjectVerdict_NeedsEvidence_AndYieldsToBothTargetabilityAndAWeakness()
+    {
+        OccultWeaknessEntry E(int sightings, bool targetable, OccultElement el = OccultElement.None) => new()
+        {
+            NameId = 1, Name = "Page 512", TerritoryId = 1346, MaxHp = 74_755_100,
+            Sightings = sightings, EverTargetable = targetable, Elements = el,
+        };
+        var enough = ElementalWeaknessLog.MinSightingsForTargetabilityVerdict;
+
+        Assert.True(ElementalWeaknessLog.IsMechanicObject(E(enough, targetable: false)));
+
+        // Seen only in passing — not enough exposure to conclude anything.
+        Assert.False(ElementalWeaknessLog.IsMechanicObject(E(enough - 1, targetable: false)));
+
+        // Targetable even once = a real enemy. Bosses go untargetable between phases.
+        Assert.False(ElementalWeaknessLog.IsMechanicObject(E(enough, targetable: true)));
+
+        // And a revealed weakness proves it was hit, whatever the flag said.
+        Assert.False(ElementalWeaknessLog.IsMechanicObject(E(enough, targetable: false, OccultElement.Ice)));
     }
 
     [Fact]
