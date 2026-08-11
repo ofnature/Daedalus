@@ -97,17 +97,36 @@ public class GarlandDropSourceTests
     [Fact]
     public void MapCoordToWorld_RoundTripsForwardTransform()
     {
-        // Forward: map = 41/c * (c*(world+offset)+1024)/2048 + 1
-        static float WorldToMap(float world, ushort sizeFactor, short offset)
-        {
-            var c = sizeFactor / 100f;
-            return 41f / c * ((c * (world + offset) + 1024f) / 2048f) + 1f;
-        }
-
         foreach (var (world, scale, offset) in new[] { (294.7f, (ushort)100, (short)0), (-512f, (ushort)200, (short)50), (801.3f, (ushort)95, (short)-20) })
         {
-            var map = WorldToMap(world, scale, offset);
+            var map = FarmLocationHelper.WorldToMapCoord(world, scale, offset);
             Assert.Equal(world, FarmLocationHelper.MapCoordToWorld(map, scale, offset), 1);
+        }
+    }
+
+    /// <summary>
+    /// The texture-pixel form is the inner term of the display transform, and the pot-hunt map
+    /// overlay depends on that being true — if the two ever drift, the overlay silently stops
+    /// lining up with the map image it is drawn on.
+    /// </summary>
+    [Theory]
+    [InlineData(0f, (ushort)100, (short)0, 1024f)]      // world origin sits at texture centre
+    [InlineData(100f, (ushort)100, (short)0, 1124f)]    // scale 1.0 -> 1 pixel per yalm
+    [InlineData(100f, (ushort)200, (short)0, 1224f)]    // scale 2.0 -> 2 pixels per yalm
+    [InlineData(0f, (ushort)100, (short)50, 1074f)]     // offset shifts before scaling
+    public void WorldToMapPixel_KnownAnchors(float world, ushort sizeFactor, short offset, float expected)
+    {
+        Assert.Equal(expected, FarmLocationHelper.WorldToMapPixel(world, sizeFactor, offset), 1);
+    }
+
+    [Fact]
+    public void WorldToMapPixel_IsTheInnerTermOfTheDisplayTransform()
+    {
+        foreach (var (world, scale, offset) in new[] { (294.7f, (ushort)100, (short)0), (-512f, (ushort)200, (short)50), (801.3f, (ushort)95, (short)-20) })
+        {
+            var pixel = FarmLocationHelper.WorldToMapPixel(world, scale, offset);
+            var viaPixel = (41f / (scale / 100f) * (pixel / 2048f)) + 1f;
+            Assert.Equal(FarmLocationHelper.WorldToMapCoord(world, scale, offset), viaPixel, 3);
         }
     }
 }

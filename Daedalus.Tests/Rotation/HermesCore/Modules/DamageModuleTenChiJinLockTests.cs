@@ -16,6 +16,7 @@ using Xunit;
 
 namespace Daedalus.Tests.Rotation.HermesCore.Modules;
 
+[Collection("HermesMudraStaticState")] // HermesNinjutsuMudraExecutor holds per-frame statics
 public sealed class DamageModuleTenChiJinLockTests
 {
     [Fact]

@@ -19,6 +19,7 @@ namespace Daedalus.Tests.Rotation.HermesCore.Modules;
 /// a single mob, or a Goka Mekkyaku aim with Kassatsu long gone. Chain-pulling trash hits that
 /// window constantly. Matches RSR `cb2e8fbc`, which made its equivalent clear unconditional.
 /// </summary>
+[Collection("HermesMudraStaticState")] // HermesNinjutsuMudraExecutor holds per-frame statics
 public class NinjutsuModuleCombatEndTests
 {
     private static Daedalus.Rotation.HermesCore.Context.IHermesContext OutOfCombat(MudraHelper helper)

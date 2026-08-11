@@ -21,6 +21,7 @@ namespace Daedalus.Tests.Rotation.HermesCore.Modules;
 /// Smoke test: Hermes (NIN) DamageModule pushes Bloodbath via RoleActionPushers
 /// at oGCD priority 6 when HP is below the configured threshold and the action is ready.
 /// </summary>
+[Collection("HermesMudraStaticState")] // HermesNinjutsuMudraExecutor holds per-frame statics
 public class DamageModuleBloodbathTests
 {
     private readonly DamageModule _module = new();

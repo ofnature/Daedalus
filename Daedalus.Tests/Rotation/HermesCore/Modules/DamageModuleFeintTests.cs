@@ -18,6 +18,7 @@ namespace Daedalus.Tests.Rotation.HermesCore.Modules;
 /// cooldown. Catches a regression where the push is wired to the wrong
 /// priority, the level gate is removed, or the IsActionReady gate is bypassed.
 /// </summary>
+[Collection("HermesMudraStaticState")] // HermesNinjutsuMudraExecutor holds per-frame statics
 public class DamageModuleFeintTests
 {
     private readonly DamageModule _module = new();

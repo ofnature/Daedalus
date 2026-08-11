@@ -17,6 +17,7 @@ namespace Daedalus.Tests.Rotation.HermesCore.Modules;
 /// feeds the step resolver and derails the remaining signs. Fixes: a minimum inter-press pacing
 /// gate driven by MudraHelper.SecondsSinceLastPress, and Kassatsu blocked while a sequence runs.
 /// </summary>
+[Collection("HermesMudraStaticState")] // HermesNinjutsuMudraExecutor holds per-frame statics
 public class HermesMudraPacingTests
 {
     [Fact]

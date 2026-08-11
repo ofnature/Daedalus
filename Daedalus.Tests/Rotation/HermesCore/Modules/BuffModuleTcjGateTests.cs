@@ -12,6 +12,7 @@ using Xunit;
 
 namespace Daedalus.Tests.Rotation.HermesCore.Modules;
 
+[Collection("HermesMudraStaticState")] // HermesNinjutsuMudraExecutor holds per-frame statics
 public class BuffModuleTcjGateTests
 {
     private readonly BuffModule _module = new();

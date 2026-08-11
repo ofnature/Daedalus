@@ -38,6 +38,7 @@ namespace Daedalus.Tests.Rotation.HermesCore.Modules;
 
 /// </summary>
 
+[Collection("HermesMudraStaticState")] // HermesNinjutsuMudraExecutor holds per-frame statics
 public class DamageModuleMudraLockTests
 
 {

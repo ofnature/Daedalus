@@ -63,6 +63,7 @@ public sealed class PotHuntMapWindow : Window
     // Resolved per territory: the zone map's texture path and the world->texture transform.
     private ushort _mapTerritory = ushort.MaxValue;
     private string? _mapTexturePath;
+    private ushort _mapSizeFactor;
     private float _mapScale;      // texture pixels per yalm (SizeFactor / 100)
     private short _mapOffsetX;
     private short _mapOffsetY;
@@ -110,6 +111,8 @@ public sealed class PotHuntMapWindow : Window
 
         DrawHeader(bearings.Count);
 
+        DrawCoordinateCheck(origin);
+
         var canvasSize = ImGui.GetContentRegionAvail();
         var side = MathF.Max(80f, MathF.Min(canvasSize.X, canvasSize.Y));
         var topLeft = ImGui.GetCursorScreenPos();
@@ -155,6 +158,25 @@ public sealed class PotHuntMapWindow : Window
     }
 
     /// <summary>
+    /// Our computed map coordinates, for comparison against the numbers the game prints under
+    /// its own map. If these two agree the world↔map transform is exactly right; if they differ
+    /// by a constant the overlay is offset, and by a factor the scale is wrong. Cheaper than
+    /// squinting at terrain.
+    /// </summary>
+    private void DrawCoordinateCheck(Vector3 origin)
+    {
+        if (_mapSizeFactor == 0)
+        {
+            ImGui.TextColored(Dim, "No map for this zone — overlay is on the plain grid.");
+            return;
+        }
+
+        var mapX = Daedalus.Services.Farm.FarmLocationHelper.WorldToMapCoord(origin.X, _mapSizeFactor, _mapOffsetX);
+        var mapY = Daedalus.Services.Farm.FarmLocationHelper.WorldToMapCoord(origin.Z, _mapSizeFactor, _mapOffsetY);
+        ImGui.TextColored(Dim, $"You: X {mapX:0.0}  Y {mapY:0.0}   (compare to the game's map)");
+    }
+
+    /// <summary>
     /// The actual zone map behind the overlay — South Horn or North Horn, whichever you are in.
     /// Only the visible world square is sampled out of the 2048px map texture, so panning and
     /// zooming come free: the UV rectangle moves with the player instead of the image.
@@ -172,15 +194,13 @@ public sealed class PotHuntMapWindow : Window
         if (texture is null)
             return;
 
-        // World -> texture pixel is the inner half of the verified map transform in
-        // FarmLocationHelper: pixel = c * (world + offset) + 1024, c = SizeFactor / 100.
-        static float ToPixel(float world, float scale, short offset) => (scale * (world + offset)) + 1024f;
-
+        // Shared with the farm helper so the overlay can never drift from the transform the rest
+        // of the plugin uses — tests pin it as the inner term of the display transform.
         const float TextureSize = 2048f;
-        var minU = (ToPixel(origin.X - _viewRadius, _mapScale, _mapOffsetX)) / TextureSize;
-        var maxU = (ToPixel(origin.X + _viewRadius, _mapScale, _mapOffsetX)) / TextureSize;
-        var minV = (ToPixel(origin.Z - _viewRadius, _mapScale, _mapOffsetY)) / TextureSize;
-        var maxV = (ToPixel(origin.Z + _viewRadius, _mapScale, _mapOffsetY)) / TextureSize;
+        var minU = Daedalus.Services.Farm.FarmLocationHelper.WorldToMapPixel(origin.X - _viewRadius, _mapSizeFactor, _mapOffsetX) / TextureSize;
+        var maxU = Daedalus.Services.Farm.FarmLocationHelper.WorldToMapPixel(origin.X + _viewRadius, _mapSizeFactor, _mapOffsetX) / TextureSize;
+        var minV = Daedalus.Services.Farm.FarmLocationHelper.WorldToMapPixel(origin.Z - _viewRadius, _mapSizeFactor, _mapOffsetY) / TextureSize;
+        var maxV = Daedalus.Services.Farm.FarmLocationHelper.WorldToMapPixel(origin.Z + _viewRadius, _mapSizeFactor, _mapOffsetY) / TextureSize;
 
         // Dimmed: the map is context, the cones and the surviving region are the content.
         draw.AddImage(
@@ -222,6 +242,7 @@ public sealed class PotHuntMapWindow : Window
                 return;
 
             _mapTexturePath = $"ui/map/{id}/{id.Replace("/", string.Empty)}_m.tex";
+            _mapSizeFactor = map.Value.SizeFactor;
             _mapScale = map.Value.SizeFactor / 100f;
             _mapOffsetX = map.Value.OffsetX;
             _mapOffsetY = map.Value.OffsetY;

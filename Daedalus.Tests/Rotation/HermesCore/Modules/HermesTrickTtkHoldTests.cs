@@ -18,6 +18,7 @@ namespace Daedalus.Tests.Rotation.HermesCore.Modules;
 /// cooldown for nothing, while Shadow Walker (20s) could ride the transit and open the NEXT pack
 /// at full value. The MCH Queen pack-TTK estimator now gates the Trick/Kunai's Bane push.
 /// </summary>
+[Collection("HermesMudraStaticState")] // HermesNinjutsuMudraExecutor holds per-frame statics
 public class HermesTrickTtkHoldTests
 {
     private static (BuffModule module, Daedalus.Rotation.HermesCore.Context.IHermesContext context,

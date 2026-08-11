@@ -20,6 +20,7 @@ namespace Daedalus.Tests.Rotation.HermesCore.Modules;
 /// <summary>
 /// Combo finisher at p6 with Spinning Edge fallback at p7 (Nike/Themis parity).
 /// </summary>
+[Collection("HermesMudraStaticState")] // HermesNinjutsuMudraExecutor holds per-frame statics
 public sealed class HermesComboFallbackTests
 {
     private readonly DamageModule _module = new();

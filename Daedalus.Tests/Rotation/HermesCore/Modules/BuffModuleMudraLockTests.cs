@@ -21,6 +21,7 @@ namespace Daedalus.Tests.Rotation.HermesCore.Modules;
 /// Burst oGCDs blocked only during active plugin mudra sequence with game Mudra status (496).
 /// Orphaned mudra status alone must not stall burst oGCDs (ABB).
 /// </summary>
+[Collection("HermesMudraStaticState")] // HermesNinjutsuMudraExecutor holds per-frame statics
 public class BuffModuleMudraLockTests
 {
     private readonly BuffModule _module = new();

@@ -25,6 +25,28 @@ public static class FarmLocationHelper
     }
 
     /// <summary>
+    /// The game's world→map display transform: the "X: 27.4" numbers players read off the map.
+    /// Exact inverse of <see cref="MapCoordToWorld"/>.
+    /// <para>
+    /// Useful as a CHECK on any world↔map work: print this next to the coordinates the game
+    /// itself shows, and a mismatch localises the error immediately instead of leaving an
+    /// overlay that merely looks about right.
+    /// </para>
+    /// </summary>
+    public static float WorldToMapCoord(float world, ushort sizeFactor, short offset)
+    {
+        var c = sizeFactor / 100f;
+        return (41f / c * ((c * (world + offset) + 1024f) / 2048f)) + 1f;
+    }
+
+    /// <summary>
+    /// World coordinate to a pixel in the 2048px map texture — the inner term of
+    /// <see cref="WorldToMapCoord"/>, which is what an overlay drawn on the map image needs.
+    /// </summary>
+    public static float WorldToMapPixel(float world, ushort sizeFactor, short offset)
+        => (sizeFactor / 100f * (world + offset)) + 1024f;
+
+    /// <summary>
     /// Finds the overworld territory whose place name matches a Garland zone name (English).
     /// Returns null when no territory matches (Garland names occasionally drift).
     /// </summary>
