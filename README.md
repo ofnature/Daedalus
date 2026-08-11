@@ -236,12 +236,21 @@ Each rotation is named after a Greek deity:
 
 Issues and pull requests welcome at [GitHub](https://github.com/ofnature/Daedalus).
 
+## Lineage
+
+Daedalus is a fork of [RoseOfficial/Olympus](https://github.com/RoseOfficial/Olympus), and the
+great majority of the current code has been written or rewritten since, with AI assistance —
+the rotation cores, scheduler, party-coordination and Occult layers are all new work rather than
+inherited code.
+
+It is **not** derived from [RotationSolverReborn](https://github.com/FFXIV-CombatReborn/RotationSolverReborn).
+RSR is consulted as a reference for rotation behaviour, and Daedalus exposes an RSR-*compatible*
+IPC surface so tools that drive RSR can drive it too, but no RSR code is used.
+
 ## License
 
 **GNU Lesser General Public License v3.0** — see [COPYING](COPYING) (GPL-3.0 text) and
-[COPYING.LESSER](COPYING.LESSER) (the additional LGPL permissions). LGPL-3.0 is expressed as the
-GPL plus those permissions, so both files are required.
+[COPYING.LESSER](COPYING.LESSER) (the additional LGPL permissions); LGPL-3.0 is the GPL plus
+those permissions, so both files are required.
 
-Daedalus is a fork of [RotationSolverReborn](https://github.com/FFXIV-CombatReborn/RotationSolverReborn),
-which is LGPL-3.0, and so inherits that licence. The licence files here are byte-identical to
-upstream's.
+Note that the upstream this was forked from declares no licence of its own.
