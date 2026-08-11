@@ -72,16 +72,59 @@ geometrically better. **Their DATA is better than ours, and that is what to take
   and upstream filters to exactly those because *layout bronze/silver chests can sit on the same
   spot*.
 
-### ⚠ This contradicts our "the coffer does not exist until you are close" claim
+### ~~This contradicts our "coffer does not exist until you are close" claim~~ — RETRACTED
 
-`FarmingPotChestsHandler.NormalizeY` exists because **reveal objects sometimes sit at Y ≈ -500**
-— i.e. the coffer IS in the object table, parked underground, and its X/Z is readable. Upstream
-only searches 28y around the player (`RevealSearchRadius`), so their code does not settle
-whether it is present zone-wide before you approach. **That is now the single highest-value
-experiment for Problem B:** if the object exists at Y≈-500 from the moment the hunt starts, then
-scanning for those three BaseIds and normalising Y gives the answer outright and the whole
-triangulation engine becomes a fallback rather than the primary. Test before building anything
-else here.
+**I read this wrong on 2026-08-10 and it is corrected here the same day. Do not chase it.**
+
+The claim was: BOCCHI's `FarmingPotChestsHandler.NormalizeY` exists because reveal coffers sit at
+Y ≈ -500, therefore the coffer is in the object table parked underground with a readable X/Z,
+therefore scanning three BaseIds would solve Problem B outright.
+
+**Y ≈ -500 is a SENTINEL meaning "no valid position", not a real underground placement.** A
+second, independent plugin settles it — AOCCH's `TreasureSearchController` (see below) has
+`NavmeshSentinelY = -500f` and explicitly *rejects* any position within 0.5 of it with the reason
+`"sentinel_elevation"`, alongside its other garbage-coordinate guards. BOCCHI's `NormalizeY`
+merely keeps its 2D distance maths working when an object reports that sentinel; it is not
+evidence the coffer is findable early.
+
+So our original field note stands unchanged: **the coffer has no real position until you are
+within interact range**, no client-side scan can point at it early, and triangulation-style
+narrowing remains the only approach. Nothing to test.
+
+### The better reference: Another_Occult_Crescent_Helper (read 2026-08-11)
+
+`https://github.com/baanderson40/Another_Occult_Crescent_Helper` — AGPL-3.0, cloned read-only to
+`.cursor/aoch`. **Read it for mechanics and IDs; do NOT copy code — AGPL is copyleft.** This is a
+much closer match to our intended design than BOCCHI, and it is a hybrid rather than either pure
+approach:
+
+1. **A candidate dataset, but observed rather than invented.** `knowledge-base/{south,north}-horn-
+   pot-reveal-positions.json` — **67 South Horn positions, 80 North Horn**, grouped per FATE
+   (`persistentPots` 1976 / `pleadingPots` / `secondChance`; `daylightPottery` 2072 /
+   `inAPotOfBother` / `secondChance`). Entries carry `positionConfidence`, a `region` name, and a
+   `mapCapture` block with the capturing player's position, the nearest threat (name, distance,
+   knowledge level) and a timestamp. `positionClusterTolerance: 1.5` yalms merges nearby sightings
+   into one spot.
+2. **Geometric narrowing over that set** — `GeometricTreasureCandidatePlanner`. Each hint is kept
+   as an observation of `(player position, compass direction)`. A candidate is REJECTED if, from
+   any observation point, the bearing to it differs from that hint's direction by more than
+   `GeometricMaximumHintAngleDegrees` (per-territory, default **95°**, with a 50° alternate).
+   Survivors rank by worst angle → summed angle → travel distance. That is cone intersection, the
+   same idea as our triangulation, applied to a discrete candidate set instead of a sampled grid.
+3. **Finds feed back.** `Telemetry/CofferObservationSubmissionService` posts confirmed
+   observations to a Cloudflare D1 worker (`cloudflare/coffer-api`), which accepts only DataIds
+   `2014741/2014742/2014743` — independently confirming BOCCHI's three reveal ids.
+4. **Useful mechanical fact, stated in their own data:** *"Reveal Data IDs are interchangeable and
+   are not candidate identity."* Identity is POSITION, not id — which is why all three ids are
+   treated as one set.
+
+**What this means for us.** It vindicates the hybrid the doc already sketched — grid/triangulation
+as the primary (works on hunt one, needs no data), with a known-spots accelerator that grows from
+finds. Two independent plugins now maintain such a spot list, which is strong evidence that finds
+DO repeat, the thing this doc previously listed as unproven. The difference worth keeping is that
+ours should *derive* the list from `ChestLedger` rather than ship a hand-curated one, so it can
+never be wrong-by-omission — and their 95° default is worth noting as a hint that the per-hint
+cone is far wider than our band model assumes.
 
 ### Re-read of BOCCHI 2026-08-10 — three things the first pass missed
 ### ⚠ (this section describes the PRE-RESTRUCTURE code at ded40a7; kept for the layout technique,
