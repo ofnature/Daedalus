@@ -41,6 +41,49 @@ Two caveats:
 - It filters to SGB 1596/1597 — **bronze and silver only**. Consistent with our own finding that
   the pot gold coffer is an `EventObj` and has no Treasure-sheet row at all.
 
+### Re-read of BOCCHI 2026-08-10 — three things the first pass missed
+
+Source re-checked at `ded40a7` (`BOCCHI/Modules/Treasure/TreasureHunt.cs`). The layout technique
+above is verbatim correct. What was NOT captured:
+
+- **Nodes are Knowledge-Level gated, from a hardcoded table.** `Data/TreasureData.cs` holds
+  `Levels` = `Dictionary<Treasure row id, required level>` (~76 entries, values 1–28), and
+  `Hunter` filters the route with `GetValidNodes(config.MaxLevel)` —
+  `PathfinderConfig.MaxLevel`, an `IntRange(1,28)` defaulting to **23**. So the routing is
+  "every chest spot at or below my Knowledge Level", and the level requirement is hand-maintained
+  data, not read from the game. If we port this we need that table (or a way to derive it).
+- **Spawn detection is separate from the layout.** The layout gives candidate SPOTS; whether a
+  chest is actually there comes from the object table (`ObjectKind.Treasure`, `IsTargetable`,
+  not dead). Opening is `TargetSystem.Instance()->InteractWithObject`, and completion is read off
+  `Treasure.TreasureFlags.Opened` rather than a timer.
+- **A null-deref to NOT copy.** `CreatePathfinder` logs `"No active layout"` and then dereferences
+  `layout->InstancesByType` anyway; same for the map pointer. Both paths crash rather than
+  degrade. Our port must fail closed, which the `+0x30` caveat already demanded.
+
+### The bunny chest is NOT the pot coffer — BOCCHI sidesteps location entirely
+
+Worth stating plainly because the names collide. BOCCHI's other chest system (`Modules/Carrots`)
+does not predict anything: it routes to a **Carrot** node from a hardcoded `CarrotData` list
+(also level-gated), unmounts, **uses a Fortune Carrot item**, and the chest spawns *there*. Then
+it grabs it from the object table by BaseId. You are not finding a chest, you are creating one.
+
+Occult `EventObj` BaseIds from `Enums/OccultObjectType.cs`, useful regardless:
+`BunnyChest 2012936`, `KnowledgeCrystal 2007457` (matches ours), `Carrot 2010139`,
+`Trap 2014584`, `BigTrap 2014585`.
+
+**BOCCHI has nothing for the pot FATE's hidden coffer** — no elixir-message parsing, no
+triangulation, no read of status 1531. Confirmed by search, not assumed. Our Problem B work below
+already goes further than upstream, so there is nothing to borrow there.
+
+### Dispatch-model difference (not a bug, but do not copy it)
+
+BOCCHI casts phantom actions as `ActionType.GeneralAction` rows 31/32/33. Those resolve to
+**"Phantom Action I / II / III"** — they are the duty-bar SLOTS, not specific actions, so its
+`Actions.Freelancer` mapping (31 Resuscitation, 32 Treasuresight, 33 Inquiring Mind) silently
+assumes a particular bar order. Daedalus presses real action ids through the scheduler, which is
+slot-order independent and strictly better. Note this also means **BOCCHI does not tell us
+Inquiring Mind's action id** — that question stays open.
+
 ## ⚠ Field finding 2026-08-01: world coffer tier is PER SPAWN
 
 A world coffer spot produced **silver on one visit and bronze on another** — observed directly,
