@@ -234,6 +234,21 @@ public static class OccultTab
         }
 
         ImGui.Text($"Phantom layer: {service.LayerLastEvent}");
+
+        // Every refusal, not just the first. A long silence is normally several stacked reasons,
+        // and the one-line summary above hid that — which is how "no occult damage for four
+        // minutes" stayed unexplained.
+        if (service.LayerIsMoving)
+        {
+            ImGui.TextColored(Yellow,
+                "  moving — every phantom HARD CAST is refused (forced true while BMR AI / vNav steers)");
+        }
+
+        foreach (var reason in service.LayerBlockedReasons)
+            ImGui.TextColored(Yellow, $"  blocked: {reason}");
+
+        foreach (var reason in service.LayerHoldReasons)
+            ImGui.TextColored(Dim, $"  holding: {reason}");
         ImGui.TextColored(
             service.RaiseState.StartsWith("raising", StringComparison.OrdinalIgnoreCase) ? Green : Dim,
             $"Phantom raise: {service.RaiseState}");

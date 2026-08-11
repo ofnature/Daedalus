@@ -119,6 +119,23 @@ public sealed class PhantomJobService
     public string LayerLastEvent { get; set; } = "—";
 
     /// <summary>
+    /// Every reason an action was refused this frame, not just the first. A four-minute silence
+    /// is normally several different refusals stacked up, and the single-line summary hid that.
+    /// </summary>
+    public IReadOnlyList<string> LayerBlockedReasons { get; set; } = [];
+
+    /// <summary>Deliberate, healthy holds this frame (burst window, GCD reserved for a buff).</summary>
+    public IReadOnlyList<string> LayerHoldReasons { get; set; } = [];
+
+    /// <summary>
+    /// Whether the layer considered the toon to be moving. Worth showing on its own: every
+    /// phantom hard-cast is refused while it is true, and it is forced true for the whole time
+    /// BMR AI or vNav is steering — which on a melee job in a critical encounter is most of the
+    /// fight, and is enough to silence a hard-cast kit like Phantom Red Mage's entirely.
+    /// </summary>
+    public bool LayerIsMoving { get; set; }
+
+    /// <summary>
     /// What the phantom raise is doing, or why it is not. A raise that silently never happens is
     /// the single thing this layer has been hardest to diagnose — level, duty-bar slot, range,
     /// the healer deferral and the GCD pre-empt each produced the same visible nothing.

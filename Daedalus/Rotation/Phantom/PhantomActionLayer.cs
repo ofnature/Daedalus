@@ -173,6 +173,13 @@ public sealed class PhantomActionLayer
                         : _pushHolds.Count > 0
                             ? $"holding — {_pushHolds[0]}"
                             : "idle — nothing eligible";
+
+            // The one-line summary only ever names the FIRST reason, which is useless when the
+            // question is "why has nothing fired for four minutes" — the answer is usually the
+            // combination, not the first entry. Publish the whole set for the Duty tab.
+            _phantomJobs.LayerBlockedReasons = [.. _pushRejects];
+            _phantomJobs.LayerHoldReasons = [.. _pushHolds];
+            _phantomJobs.LayerIsMoving = _isMovingThisFrame;
         }
         catch (Exception ex)
         {
