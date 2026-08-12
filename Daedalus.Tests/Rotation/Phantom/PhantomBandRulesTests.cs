@@ -367,4 +367,36 @@ public class PhantomBandRulesTests
     {
         Assert.Equal(expected, PhantomBandRules.SelectRedMageNuke(weakness));
     }
+
+    /// <summary>
+    /// The movement pause must default ON — it exists because an entirely hard-cast phantom kit
+    /// is otherwise silent on a moving job (field 2026-08-11: four minutes, zero phantom nukes).
+    /// </summary>
+    [Fact]
+    public void PhantomCastPause_DefaultsOn()
+    {
+        Assert.True(DefaultConfig().PauseMovementForPhantomCasts);
+    }
+
+    /// <summary>
+    /// The shared hold is expiry-driven so it can never stick, and requests only ever EXTEND it.
+    /// That is what lets the Plugin-side watcher release it on danger and have the release hold.
+    /// </summary>
+    [Fact]
+    public void CastHold_IsExpiryDriven_AndExtendsRatherThanShortens()
+    {
+        Daedalus.Services.Positional.RaiseCastHold.Clear();
+        Assert.False(Daedalus.Services.Positional.RaiseCastHold.Active);
+
+        Daedalus.Services.Positional.RaiseCastHold.Request(30f);
+        Assert.True(Daedalus.Services.Positional.RaiseCastHold.Active);
+
+        // A shorter request must not cut an existing longer hold short.
+        Daedalus.Services.Positional.RaiseCastHold.Request(0.001f);
+        Assert.True(Daedalus.Services.Positional.RaiseCastHold.Active);
+
+        // ...and an explicit release always wins, which is the danger bail.
+        Daedalus.Services.Positional.RaiseCastHold.Clear();
+        Assert.False(Daedalus.Services.Positional.RaiseCastHold.Active);
+    }
 }

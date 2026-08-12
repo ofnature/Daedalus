@@ -688,6 +688,13 @@ public sealed class Plugin : IDalamudPlugin
         phantomLayer.DebugLog = debugLogService;
         phantomLayer.PartyCoordination = partyCoordinationService;
         phantomLayer.TargetWeakness = nameId => elementalWeaknessLog.KnownWeakness(nameId);
+        // Safe to stand still here for the whole cast? Only Safe counts — Imminent means
+        // something lands inside the window, and Unsafe means we are already in it. BMR absent
+        // reports Safe (fail-open), which is right: with no module there are no telegraphs to
+        // dodge, and the Plugin-side watcher still releases the hold if that changes.
+        phantomLayer.CastSafety = (position, window) =>
+            bossModSafetyService.QueryPositionSafety(position, window)
+                == Daedalus.Services.Positional.Navigation.PositionSafety.Safe;
         // Necromancer Deep Freeze Dooms its caster (cleared only by a heal to FULL) — it may
         // only fire with a healer who can top us off: a live party healer, or a LAN fleet
         // healer that is alive and in combat with us.

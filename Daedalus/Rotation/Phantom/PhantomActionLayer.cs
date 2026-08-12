@@ -86,6 +86,9 @@ public sealed class PhantomActionLayer
     /// <summary>Set per frame: a buff is up whose GCD should not be spent on a phantom action.</summary>
     private uint? _gcdHoldStatusThisFrame;
 
+    /// <summary>Set per frame — TryPush needs config but is not handed it.</summary>
+    private Config.PhantomConfig? _configThisFrame;
+
     /// <summary>Who the queued raise is aimed at, so the dispatch can pre-face them.</summary>
     private ulong _raiseTargetIdThisFrame;
 
@@ -258,6 +261,7 @@ public sealed class PhantomActionLayer
         _dispatchedThisFrame = false;
         _raiseQueuedThisFrame = false;
         _isMovingThisFrame = isMoving;
+        _configThisFrame = cfg;
         _pushRejects.Clear();
         _pushHolds.Clear();
         _framePrepared = true;
@@ -1284,7 +1288,15 @@ public sealed class PhantomActionLayer
 
         if (behavior.Action.CastTime > 0 && _isMovingThisFrame)
         {
-            _pushRejects.Add($"{action.Name} needs a hard cast (moving)");
+            // Ask to stand still for it, the way a hardcast raise does — but only when BossMod
+            // says the spot is safe for the whole cast. The hold is expiry-driven and the
+            // Plugin-side watcher releases it the instant the ground turns dangerous, so a
+            // mechanic always beats a nuke. The cast lands on a later frame, once actually still.
+            if (RequestCastHoldIfSafe(ctx, behavior.Action.CastTime))
+                _pushHolds.Add($"{action.Name} — pausing movement to cast ({behavior.Action.CastTime:0.0}s)");
+            else
+                _pushRejects.Add($"{action.Name} needs a hard cast (moving)");
+
             return false;
         }
 
@@ -1362,6 +1374,45 @@ public sealed class PhantomActionLayer
 
         return null;
     }
+
+    /// <summary>
+    /// Requests the shared movement hold so a hard cast can land, if it is safe to stand still
+    /// for the whole cast. Returns whether the hold was taken.
+    /// <para>
+    /// Reuses <see cref="Daedalus.Services.Positional.RaiseCastHold"/> deliberately rather than
+    /// adding a second mechanism: the Plugin already pauses BMR steering while it is active AND
+    /// releases it the moment the caster's ground turns unsafe, so phantom casts inherit that
+    /// mid-cast bail for free.
+    /// </para>
+    /// </summary>
+    private bool RequestCastHoldIfSafe(IRotationContext ctx, float castSeconds)
+    {
+        if (_configThisFrame?.PauseMovementForPhantomCasts != true)
+            return false;
+        if (CastSafety is null)
+            return false;
+
+        // A slip margin on top of the cast: finishing the cast exactly as something lands is
+        // not "safe", and the animation lock outlasts the cast bar.
+        var window = castSeconds + PhantomCastSafetyMarginSeconds;
+        if (!CastSafety(ctx.Player.Position, window))
+            return false;
+
+        Daedalus.Services.Positional.RaiseCastHold.Request(castSeconds + PhantomCastHoldSlackSeconds);
+        return true;
+    }
+
+    /// <summary>Nothing may land within the cast plus this, or standing still is not safe.</summary>
+    private const float PhantomCastSafetyMarginSeconds = 1.0f;
+
+    /// <summary>Hold a little past the cast so the tail of the animation lock is covered.</summary>
+    private const float PhantomCastHoldSlackSeconds = 0.6f;
+
+    /// <summary>
+    /// Is it safe to stand at this position for the given window? Supplied by Plugin from
+    /// BossModSafetyService; null (or BMR absent) means no pause is attempted.
+    /// </summary>
+    public Func<System.Numerics.Vector3, float, bool>? CastSafety { get; set; }
 
     /// <summary>A buff whose GCD should not be spent on a phantom action. oGCDs are unaffected.</summary>
     private uint? FindGcdHoldStatus()

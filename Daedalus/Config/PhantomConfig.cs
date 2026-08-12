@@ -144,6 +144,25 @@ public sealed class PhantomConfig
     /// </summary>
     public bool SaveDamageForBurst { get; set; } = false;
 
+    /// <summary>
+    /// Briefly stop moving so a phantom HARD CAST can land, the way a hardcast raise already
+    /// does.
+    /// <para>
+    /// Why it is needed: the layer refuses any action with a cast time while the toon is moving,
+    /// and "moving" is forced true for the whole time BMR AI or vNav is steering. On a melee job
+    /// in a critical encounter that is nearly always, which silences an entirely hard-cast kit —
+    /// field 2026-08-11, a Warrior on Phantom Red Mage went four minutes without a single
+    /// phantom nuke, and all three of its nukes are 1.5s casts.
+    /// </para>
+    /// <para>
+    /// Worth the pause because phantom potency scales with item level: measured 75,000-120,000
+    /// per cast against 57,000 from the character's own skills. ONLY ever pauses when BossMod
+    /// says the spot is safe and nothing lands within the cast — and the existing hold releases
+    /// itself the moment the ground turns dangerous, so a mechanic always wins over a nuke.
+    /// </para>
+    /// </summary>
+    public bool PauseMovementForPhantomCasts { get; set; } = true;
+
     /// <summary>Auto-open the compact zone HUD (consumables, currency, shard banner)
     /// when entering Occult Crescent.</summary>
     public bool ShowOccultHud { get; set; } = true;

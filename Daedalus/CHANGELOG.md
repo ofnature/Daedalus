@@ -5,6 +5,11 @@ All notable changes to Daedalus will be documented in this file.
 <!-- LATEST-START -->
 ## v0.1.59 — unreleased
 
+### New — Phantom hard casts get a moment to land
+- Phantom actions with a cast time were skipped whenever you were moving, and you count as moving the **entire** time BossMod or vNavmesh is steering — so on a melee job in a critical encounter, an all-hard-cast kit like Phantom Red Mage could go **minutes without casting anything**
+- Movement now pauses briefly so the cast lands, exactly as it already did for a hardcast raise. Worth it because phantom damage scales with item level rather than job potency — measured at 75,000–120,000 a cast against 57,000 from your own skills
+- **It only pauses when BossMod says the spot is safe for the whole cast, and lets go the instant the ground turns dangerous.** A mechanic always beats a nuke. Toggle in Occult settings if you'd rather never stop moving
+
 ### Fix — Warrior's Inner Release no longer switches your phantom job off
 - Inner Release was being treated as a hard lockout, so for the **15 seconds of every minute** it's up, your entire phantom job stopped — every action, not just damage. On a Warrior running Phantom Red Mage the Duty tab just read *"held — lockout status 1177"* and nothing ever fired
 - Worst part: that included **Occult Libra**, which is an instant off-GCD ability costing you nothing at all. Libra is the only thing that reveals elemental weaknesses, so this was quietly starving the weakness table on the exact job that collects it — and it's why Occult Thunder wasn't going out on Lightning-weak targets

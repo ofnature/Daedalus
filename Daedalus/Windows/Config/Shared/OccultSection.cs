@@ -70,6 +70,19 @@ public sealed class OccultSection
             save);
 
         ConfigUIHelpers.Toggle(
+            "Stand still to land phantom hard casts",
+            () => config.Occult.PauseMovementForPhantomCasts,
+            v => config.Occult.PauseMovementForPhantomCasts = v,
+            "Phantom actions with a cast time are skipped while you are moving — and you count as " +
+            "moving the whole time BossMod or vNavmesh is steering you. On a melee job in a " +
+            "critical encounter that can silence an entirely hard-cast kit like Phantom Red Mage " +
+            "for minutes at a time. With this on, movement pauses briefly so the cast lands, the " +
+            "same way it already does for a hardcast raise. It ONLY pauses when BossMod says the " +
+            "spot is safe for the whole cast, and it lets go the instant the ground turns " +
+            "dangerous — a mechanic always wins over a cast.",
+            save);
+
+        ConfigUIHelpers.Toggle(
             "Show zone HUD window",
             () => config.Occult.ShowOccultHud,
             v => config.Occult.ShowOccultHud = v,
