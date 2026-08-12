@@ -128,6 +128,69 @@ public static class PhantomBandRules
         => distanceYalms <= maxRangeYalms;
 
     /// <summary>
+    /// Phantom Red Mage's Dualcast trait level.
+    /// <para>
+    /// SIX, not five. The kit is Fire II (1), Cure II (2), Libra (3), Blizzard II (4),
+    /// Thunder II (5) — the trait sits above the last action, and the old "Lv.5 trait" note was
+    /// the mirror image of the same transcription slip that had Thunder II at 6 and cost thirteen
+    /// silent minutes in the field.
+    /// </para>
+    /// </summary>
+    public const byte DualcastTraitLevel = 6;
+
+    /// <summary>Occult Cure II's MP cost.</summary>
+    public const int OccultCureIIMpCost = 1500;
+
+    /// <summary>
+    /// Don't prime below this. Cure II is 1,500 and getting somebody off the floor is about
+    /// 2,400 — spending down to nothing for a nuke trades damage for a body staying dead.
+    /// </summary>
+    public const int DualcastPrimeMpFloor = 5000;
+
+    /// <summary>What Phantom Red Mage should do with its GCD this window.</summary>
+    public enum RedMagePlan
+    {
+        /// <summary>Nothing special — hard-cast a nuke the ordinary way.</summary>
+        HardcastNuke,
+
+        /// <summary>Dualcast is up: the nuke is INSTANT, so fire it now before a weaponskill eats it.</summary>
+        SpendDualcast,
+
+        /// <summary>Cast Occult Cure II to earn Dualcast, so the matched nuke lands instantly next GCD.</summary>
+        PrimeWithCure,
+    }
+
+    /// <summary>
+    /// Picks the Red Mage line. Priming is deliberately narrow — it only pays when the follow-up
+    /// is the WEAKNESS-MATCHED nuke (390 potency rather than 300), because otherwise it is a whole
+    /// GCD and 1,500 MP spent to shave 1.5s off a cast. Against an unidentified target there is no
+    /// bonus to protect, so the nuke is simply hard-cast and Libra does the useful work instead.
+    /// <para>
+    /// What priming buys beyond the cast time: an instant nuke needs no movement pause and cannot
+    /// be interrupted, which on a melee main job is the difference between firing and not.
+    /// </para>
+    /// </summary>
+    public static RedMagePlan PlanRedMage(
+        bool hasDualcast, byte phantomLevel, bool weaknessKnown, bool nukeReady, bool cureReady,
+        int currentMp, bool primeEnabled)
+    {
+        if (hasDualcast)
+            return RedMagePlan.SpendDualcast;
+
+        if (primeEnabled
+            && phantomLevel >= DualcastTraitLevel
+            && weaknessKnown
+            && nukeReady
+            && cureReady
+            && currentMp >= DualcastPrimeMpFloor)
+        {
+            return RedMagePlan.PrimeWithCure;
+        }
+
+        return RedMagePlan.HardcastNuke;
+    }
+
+    /// <summary>
     /// How close the GCD must be before it is worth stopping to hard-cast a phantom GCD.
     /// </summary>
     public const float CastHoldLeadSeconds = 0.8f;

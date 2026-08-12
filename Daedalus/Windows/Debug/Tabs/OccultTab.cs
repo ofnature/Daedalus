@@ -244,6 +244,12 @@ public static class OccultTab
                 "  moving — every phantom HARD CAST is refused (forced true while BMR AI / vNav steers)");
         }
 
+        if (service.LayerDualcast)
+        {
+            ImGui.TextColored(Green,
+                "  Dualcast UP — next phantom spell is instant (movement gate bypassed)");
+        }
+
         foreach (var reason in service.LayerBlockedReasons)
             ImGui.TextColored(Yellow, $"  blocked: {reason}");
 

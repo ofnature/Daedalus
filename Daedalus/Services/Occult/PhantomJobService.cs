@@ -136,6 +136,13 @@ public sealed class PhantomJobService
     public bool LayerIsMoving { get; set; }
 
     /// <summary>
+    /// Phantom Red Mage's Dualcast is up, so the next phantom spell is instant. Surfaced because
+    /// the status row the trait grants is INFERRED (row 5438 by position — nothing links a trait
+    /// to a status in the sheets), and this line is the cheapest way to confirm it in the field.
+    /// </summary>
+    public bool LayerDualcast { get; set; }
+
+    /// <summary>
     /// What the phantom raise is doing, or why it is not. A raise that silently never happens is
     /// the single thing this layer has been hardest to diagnose — level, duty-bar slot, range,
     /// the healer deferral and the GCD pre-empt each produced the same visible nothing.

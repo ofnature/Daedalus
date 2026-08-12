@@ -299,6 +299,18 @@ public sealed class PhantomConfig
     /// </summary>
     public bool KnightPledgeSelf { get; set; } = true;
 
+    // ── Phantom Red Mage ──
+    /// <summary>
+    /// Lead the weakness-matched nuke with Occult Cure II so Dualcast makes it instant.
+    /// <para>
+    /// Needs the Lv.6 Dualcast trait, and only runs when the target's element is already KNOWN —
+    /// against an unidentified enemy there is no 390-over-300 bonus to protect, so the nuke is
+    /// just hard-cast and Libra does the useful work instead. Costs a GCD and 1,500 MP; buys a
+    /// nuke that needs no movement pause and cannot be interrupted, plus a 40,000-potency heal.
+    /// </para>
+    /// </summary>
+    public bool RedMagePrimeDualcastWithCure { get; set; } = true;
+
     // ── Time Mage ──
     /// <summary>
     /// Keep Slow on the pull with Occult Slowga.

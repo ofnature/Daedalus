@@ -284,6 +284,14 @@ public sealed class OccultSection
                     "40,000 cure potency for 1,500 MP. It is a 1.5s spell so it costs a GCD — set this at a real deficit rather than a top-off. " +
                     "Occult Libra fires automatically at enemies whose weakness isn't known yet; the Fire/Blizzard/Thunder II trio share one 30s recast and pick by weakness.",
                     save);
+                ConfigUIHelpers.Toggle("Lead the matched nuke with Occult Cure II",
+                    () => config.Occult.RedMagePrimeDualcastWithCure,
+                    v => config.Occult.RedMagePrimeDualcastWithCure = v,
+                    "Needs the level 6 Dualcast trait. Casting the heal earns Dualcast, so the " +
+                    "weakness-matched nuke goes out INSTANTLY next GCD — no pausing to cast and " +
+                    "nothing can interrupt it. Only runs when the target's element is already " +
+                    "known, and never below 5,000 MP so a raise is still affordable.",
+                    save);
                 break;
 
             case PhantomJob.Necromancer:

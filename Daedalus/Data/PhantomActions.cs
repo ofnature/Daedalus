@@ -163,9 +163,10 @@ public static class PhantomActions
         // ── Phantom Red Mage (North Horn; kit field-confirmed 2026-07-31 from the job panel
         //    + tooltips). Fire II / Blizzard II / Thunder II SHARE one 30s recast — the same
         //    one-nuke-three-elements shape as the Necromancer trio, so the target's weakness
-        //    picks which one fires (300, or 390 on a match). Lv.5 is the Dualcast TRAIT: any
+        //    picks which one fires (300, or 390 on a match). Lv.6 is the Dualcast TRAIT: any
         //    cast-time spell makes the NEXT spell instant, so the trio effectively casts free
-        //    behind Cure II. ──
+        //    behind Cure II. (Recorded as Lv.5 until 2026-08-11 — the mirror image of the slip
+        //    that had Thunder II at 6. The five actions are 1-5 and the trait sits above them.) ──
         // ── Phantom Blue Mage (North Horn; tooltips field-captured 2026-08-02). Sits in a
         //    contiguous 49085-49091 block immediately before Red Mage's. Unlike every other
         //    phantom job its actions are LEARNED FROM ENEMIES, so the levels below are the
@@ -322,6 +323,22 @@ public static class PhantomActions
         /// <summary>Phantom Ninja Smoke: "Evasion is enhanced" (+20%, 90s).</summary>
         public const uint Smoke = 5327;
     }
+
+    /// <summary>
+    /// Every status row the game names "Dualcast" — "the next spell will be cast immediately".
+    /// <para>
+    /// Phantom Red Mage's Lv.5 trait grants one of these after any cast-time spell. Row 5438 is
+    /// the only one in the current-patch block (it sits beside the Forked Tower statuses, and the
+    /// known Occult phantom rows are 5323-5327), so it is almost certainly the phantom one — but
+    /// "almost certainly" has cost this layer real time before, so the whole set is matched.
+    /// </para>
+    /// <para>
+    /// Safe to over-match because of the ONE case where consuming it would be wrong: an actual
+    /// Red Mage main job, whose own Dualcast belongs to its own rotation. Callers exclude that
+    /// job rather than trying to tell the statuses apart.
+    /// </para>
+    /// </summary>
+    public static readonly IReadOnlyList<uint> DualcastStatusIds = [5438, 1249, 1378, 1393, 1798];
 
     /// <summary>
     /// Every status row the game names "Slow", checked as a set because Occult Slowga does NOT

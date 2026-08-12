@@ -867,8 +867,18 @@ public class PositionalMovementServiceTests
         public PositionalAnticipation? GetAnticipatedPositional(in PositionalAnticipationContext context) => Next;
     }
 
+    /// <summary>
+    /// Frozen clock. The service's anchor-drift re-trigger compares <c>UtcNow()</c> against the
+    /// last arc queue time, so with the live clock every test that calls <c>Update</c> twice was
+    /// silently depending on both calls landing inside AnchorDriftMinIntervalSeconds — true in
+    /// isolation, not under a loaded parallel suite. A stretched gap let an extra drift path
+    /// queue and failed a DIFFERENT test each run, which is what made it look like a static-state
+    /// race rather than a clock dependency. Tests that need time to pass reassign UtcNow.
+    /// </summary>
     private PositionalMovementService CreateService()
-        => new(_vNav.Object, _bossMod.Object);
+        => new(_vNav.Object, _bossMod.Object) { UtcNow = () => FrozenNow };
+
+    private static readonly DateTime FrozenNow = new(2026, 7, 20, 12, 0, 0, DateTimeKind.Utc);
 
     // ── Shukuchi return (field request 2026-07-26): teleport back after a dodge parks the
     //    melee far outside the ring; short hops and unsafe landings still walk/skip. ──

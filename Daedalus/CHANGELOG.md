@@ -19,6 +19,13 @@ All notable changes to Daedalus will be documented in this file.
 - Scoped to your **party**, so a second group on the same network can't spend your bar
 - A role nobody in the roster can answer shows **disabled with the reason**, and the window reports what happened to the last call — a limit break that quietly doesn't go off looks exactly like one nobody called
 
+### New — Phantom Red Mage uses Dualcast instead of throwing it away
+- Casting any phantom spell with a cast time grants **Dualcast**, which makes your next spell instant. Nothing spent it, and the trait's own rule is that **any weaponskill cancels it** — so on a melee or tank main job the very next GCD of your normal rotation destroyed it about two seconds later. Every single time
+- Dualcast is now spent the moment it appears. It also **bypasses the movement pause entirely** — the spell is instant, so there is nothing to stand still for — and it ignores *"save damage for burst"*, because a 15-second buff your own rotation is about to cancel cannot wait for a burst window
+- **Optional: lead the nuke with Occult Cure II.** Casting the heal earns Dualcast, so the weakness-matched nuke lands instantly on the next GCD — no pausing to cast, nothing can interrupt it, and you get a 40,000-potency heal on the way. It only does this when the target's element is **already known** (no bonus to protect otherwise), needs the **level 6** Dualcast trait, and never runs below 5,000 MP so a raise stays affordable. Toggle in Occult settings
+- The Duty tab now shows **"Dualcast UP"** while it's active. The status the trait grants had to be identified by position — nothing in the game files links a trait to a status — so this line is how you confirm it's really being seen
+- Also corrected: the Dualcast trait is **level 6**, not 5. Same transcription slip as Occult Thunder II, in the opposite direction
+
 ### New — Phantom Time Mage keeps Slow on the pull
 - A level 1 Time Mage did **literally nothing**. Occult Comet needs level 2, and it was the only action wired, so the Duty tab just read *"holding — Occult Comet needs phantom Lv.2 (you are 1)"* and that was the whole job
 - **Occult Slowga is now used.** It deals no damage — it hangs **Slow +80% for 30 seconds** on your target and everything within 5 yalms of it, which takes a real bite out of a pack's attacks and casts

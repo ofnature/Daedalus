@@ -516,6 +516,76 @@ public class PhantomBandRulesTests
     }
 
     /// <summary>
+    /// Dualcast beats everything: it is on a 15s clock the main job's next weaponskill cuts
+    /// short, so a free instant nuke has to go out now or not at all.
+    /// </summary>
+    [Fact]
+    public void RedMagePlan_SpendsDualcastAheadOfEverythingElse()
+    {
+        // Even with no weakness, no MP and priming off, an active Dualcast is spent.
+        Assert.Equal(
+            PhantomBandRules.RedMagePlan.SpendDualcast,
+            PhantomBandRules.PlanRedMage(
+                hasDualcast: true, phantomLevel: 6, weaknessKnown: false, nukeReady: false,
+                cureReady: false, currentMp: 0, primeEnabled: false));
+    }
+
+    /// <summary>
+    /// The primer is narrow on purpose — a whole GCD and 1,500 MP only pays when the follow-up is
+    /// the weakness-matched nuke. Every one of these conditions dropping the plan back to a plain
+    /// hard cast is the point.
+    /// </summary>
+    [Theory]
+    // level, weaknessKnown, nukeReady, cureReady, mp, primeEnabled, expectPrime
+    [InlineData(6, true, true, true, 9000, true, true)]
+    [InlineData(5, true, true, true, 9000, true, false)]   // trait not learned yet
+    [InlineData(6, false, true, true, 9000, true, false)]  // unidentified target — no bonus to protect
+    [InlineData(6, true, false, true, 9000, true, false)]  // nuke on its 30s recast — Dualcast would lapse
+    [InlineData(6, true, true, false, 9000, true, false)]  // no Cure to prime with
+    [InlineData(6, true, true, true, 4999, true, false)]   // MP floor — a raise costs ~2,400
+    [InlineData(6, true, true, true, 9000, false, false)]  // switched off
+    public void RedMagePlan_PrimesOnlyWhenItPays(
+        byte level, bool weaknessKnown, bool nukeReady, bool cureReady, int mp, bool primeEnabled, bool expectPrime)
+    {
+        var plan = PhantomBandRules.PlanRedMage(
+            hasDualcast: false, phantomLevel: level, weaknessKnown: weaknessKnown,
+            nukeReady: nukeReady, cureReady: cureReady, currentMp: mp, primeEnabled: primeEnabled);
+
+        Assert.Equal(
+            expectPrime ? PhantomBandRules.RedMagePlan.PrimeWithCure : PhantomBandRules.RedMagePlan.HardcastNuke,
+            plan);
+    }
+
+    /// <summary>
+    /// SIX. The kit's five actions run Lv.1-5 with Thunder II last, so the trait sits above them —
+    /// the old Lv.5 note was the mirror of the slip that had Thunder II at 6 and cost thirteen
+    /// silent minutes. Gating the primer one level early would prime for a buff that never comes.
+    /// </summary>
+    [Fact]
+    public void DualcastTrait_IsAboveTheLastAction()
+    {
+        Assert.Equal(6, PhantomBandRules.DualcastTraitLevel);
+
+        var thunder = PhantomActions.All.First(a => a.ActionId == 49096);
+        Assert.Equal(5, thunder.RequiredLevel);
+        Assert.True(PhantomBandRules.DualcastTraitLevel > thunder.RequiredLevel);
+    }
+
+    /// <summary>
+    /// The status the trait grants is INFERRED by position (nothing in the sheets links a trait to
+    /// a status), so the whole Dualcast set is matched. Row 5438 is the current-patch one and must
+    /// stay in.
+    /// </summary>
+    [Fact]
+    public void DualcastStatusIds_IncludeTheCurrentPatchRow()
+    {
+        Assert.Contains(5438u, PhantomActions.DualcastStatusIds);
+        Assert.Equal(
+            PhantomActions.DualcastStatusIds.Count,
+            PhantomActions.DualcastStatusIds.Distinct().Count());
+    }
+
+    /// <summary>
     /// The hold has to outlast the wait, not just the cast. Sizing it to the cast alone is what
     /// let Slowga stop, lose the GCD to the job's filler, expire, and move off again — stationary
     /// and silent at the same time.

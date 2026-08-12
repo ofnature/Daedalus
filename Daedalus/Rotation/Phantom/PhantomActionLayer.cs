@@ -86,6 +86,9 @@ public sealed class PhantomActionLayer
     /// <summary>Set per frame: a buff is up whose GCD should not be spent on a phantom action.</summary>
     private uint? _gcdHoldStatusThisFrame;
 
+    /// <summary>Phantom Red Mage's Dualcast is up: the next phantom spell is instant.</summary>
+    private bool _dualcastThisFrame;
+
     /// <summary>Set per frame — TryPush needs config but is not handed it.</summary>
     private Config.PhantomConfig? _configThisFrame;
 
@@ -183,6 +186,7 @@ public sealed class PhantomActionLayer
             _phantomJobs.LayerBlockedReasons = [.. _pushRejects];
             _phantomJobs.LayerHoldReasons = [.. _pushHolds];
             _phantomJobs.LayerIsMoving = _isMovingThisFrame;
+            _phantomJobs.LayerDualcast = _dualcastThisFrame;
         }
         catch (Exception ex)
         {
@@ -253,6 +257,18 @@ public sealed class PhantomActionLayer
         // oGCDs (Occult Libra above all) must still fire, or a Warrior's Inner Release silently
         // stops the weakness table improving for 15s of every minute.
         _gcdHoldStatusThisFrame = inCombat ? FindGcdHoldStatus() : null;
+
+        // Phantom Red Mage Lv.5 trait: any cast-time spell makes the NEXT spell instant for 15s.
+        // The catch is the cancel clause — "canceled upon execution of any action other than an
+        // ability" — so on a main job whose GCDs are weaponskills, the very next auto-rotation
+        // GCD destroys it about 2.5s later. Unless something spends it deliberately it is simply
+        // lost, which is exactly what the field report was: cast a heal, get the buff, watch it go.
+        //
+        // NOT applied on an actual Red Mage main job: that job's Dualcast belongs to its own
+        // rotation, and telling the status rows apart is less reliable than just standing back.
+        _dualcastThisFrame = job == PhantomJob.PhantomRedMage
+            && ctx.Player.ClassJob.RowId != Daedalus.Data.JobRegistry.RedMage
+            && HasAnyStatus(ctx.Player, PhantomActions.DualcastStatusIds);
 
         var player = ctx.Player;
         var selfHpPct = player.MaxHp > 0 ? (float)player.CurrentHp / player.MaxHp : 1f;
@@ -875,7 +891,9 @@ public sealed class PhantomActionLayer
             PushNecromancerDoomNukes(ctx, cfg, job, level, target);
         }
 
-        var hold = PhantomBandRules.ShouldHoldDamage(
+        // Dualcast is on a 15s clock that the main job's very next weaponskill cuts short, so a
+        // burst hold can outlast it and the buff is simply thrown away. Spend it now.
+        var hold = !_dualcastThisFrame && PhantomBandRules.ShouldHoldDamage(
             cfg.SaveDamageForBurst,
             _burstWindows?.IsInBurstWindow ?? false,
             _burstWindows?.SecondsSinceLastBurstStart ?? -1f);
@@ -993,13 +1011,7 @@ public sealed class PhantomActionLayer
                 break;
 
             case PhantomJob.PhantomRedMage:
-                // All three at descending priority — they share a recast, so the first the gates
-                // accept fires and the rest cost nothing. Pushing only the best match meant a
-                // single refusal produced no damage at all.
-                var rdmOrder = PhantomBandRules.RedMageNukeOrder(
-                    target is IBattleNpc rdmTarget ? TargetWeakness?.Invoke(rdmTarget.NameId) : null);
-                for (var i = 0; i < rdmOrder.Length; i++)
-                    TryPush(ctx, rdmOrder[i], job, level, PrioDamage + i, target.GameObjectId, target);
+                PushRedMage(ctx, cfg, job, level, target);
                 break;
 
             case PhantomJob.PhantomNinja:
@@ -1124,6 +1136,42 @@ public sealed class PhantomActionLayer
         }
 
         return false;
+    }
+
+    /// <summary>Occult Cure II — the Dualcast primer as well as the heal.</summary>
+    private const uint OccultCureIIId = 49093;
+
+    /// <summary>
+    /// Phantom Red Mage's GCD line. The three nukes share one 30s recast, so they are all pushed
+    /// at descending priority — the first the gates accept fires and the rest cost nothing.
+    /// Pushing only the best match meant one refusal produced no damage at all.
+    /// </summary>
+    private void PushRedMage(IRotationContext ctx, Config.PhantomConfig cfg, PhantomJob job, byte level, IBattleChara target)
+    {
+        var weakness = target is IBattleNpc rdmTarget ? TargetWeakness?.Invoke(rdmTarget.NameId) : null;
+        var order = PhantomBandRules.RedMageNukeOrder(weakness);
+
+        var plan = PhantomBandRules.PlanRedMage(
+            hasDualcast: _dualcastThisFrame,
+            phantomLevel: level,
+            weaknessKnown: weakness is not null,
+            nukeReady: order.Length > 0 && _actionService.IsActionReady(order[0]),
+            cureReady: _actionService.IsActionReady(OccultCureIIId),
+            currentMp: (int)ctx.Player.CurrentMp,
+            primeEnabled: cfg.RedMagePrimeDualcastWithCure);
+
+        if (plan == PhantomBandRules.RedMagePlan.PrimeWithCure)
+        {
+            // Cure II leads: it earns Dualcast, and next window the matched nuke lands instantly.
+            // The nukes still queue behind it, so if the Cure is refused for any reason the
+            // ordinary hard-cast line is still there and we never end up doing nothing.
+            TryPush(ctx, OccultCureIIId, job, level, PrioDamage, ctx.Player.GameObjectId);
+            _pushHolds.Add("Occult Cure II — priming Dualcast for the matched nuke");
+        }
+
+        var basePriority = plan == PhantomBandRules.RedMagePlan.PrimeWithCure ? PrioDamage + 1 : PrioDamage;
+        for (var i = 0; i < order.Length; i++)
+            TryPush(ctx, order[i], job, level, basePriority + i, target.GameObjectId, target);
     }
 
     private static bool HasAnyStatus(IBattleChara chara, IReadOnlyList<uint> statusIds)
@@ -1336,7 +1384,12 @@ public sealed class PhantomActionLayer
             _behaviorCache[actionId] = behavior;
         }
 
-        if (behavior.Action.CastTime > 0 && _isMovingThisFrame)
+        // Under Dualcast the spell has no cast time at all, so none of the standing-still
+        // machinery below applies — the catalog's CastTime is the hardcast value and is simply
+        // wrong for this one cast. Without this the gate refuses a FREE INSTANT nuke for "moving".
+        var instantFromDualcast = _dualcastThisFrame && behavior.Action.IsGCD;
+
+        if (behavior.Action.CastTime > 0 && _isMovingThisFrame && !instantFromDualcast)
         {
             // Don't stop for a window we can't use yet — keep moving until the GCD is nearly up.
             var gcdRemaining = _actionService.GcdRemaining;
