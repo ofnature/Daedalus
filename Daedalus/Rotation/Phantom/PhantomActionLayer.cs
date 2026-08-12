@@ -851,6 +851,16 @@ public sealed class PhantomActionLayer
             TryPush(ctx, 49094, job, level, PrioPartyBuff, target.GameObjectId, target);
         }
 
+        // Occult Slowga (Time Mage): also pre-hold, for the same reason as Libra — it deals no
+        // damage at all, so "save damage for burst" has nothing to save. It is the only action a
+        // Lv.1 Time Mage owns (Comet needs Lv.2), and the 30s Slow it hangs is worth a GCD every
+        // half-minute. Ranked behind Comet, which wins the queue on the turns it is up.
+        if (job == PhantomJob.TimeMage
+            && PhantomBandRules.ShouldSlowga(cfg, inCombat, HasAnyStatus(target, PhantomActions.SlowStatusIds)))
+        {
+            TryPush(ctx, 41621, job, level, PrioDamage + 1, target.GameObjectId, target);
+        }
+
         // Executes / non-scaling utility fire regardless of the burst hold (RSR parity).
         if (job == PhantomJob.Thief && PhantomBandRules.ShouldSteal(targetHpPct))
             TryPush(ctx, 41645, job, level, PrioDamage, target.GameObjectId, target); // Steal
@@ -1111,6 +1121,26 @@ public sealed class PhantomActionLayer
         {
             if (status != null && status.StatusId == statusId)
                 return true;
+        }
+
+        return false;
+    }
+
+    private static bool HasAnyStatus(IBattleChara chara, IReadOnlyList<uint> statusIds)
+    {
+        if (chara.StatusList == null)
+            return false;
+
+        foreach (var status in chara.StatusList)
+        {
+            if (status == null)
+                continue;
+
+            for (var i = 0; i < statusIds.Count; i++)
+            {
+                if (status.StatusId == statusIds[i])
+                    return true;
+            }
         }
 
         return false;

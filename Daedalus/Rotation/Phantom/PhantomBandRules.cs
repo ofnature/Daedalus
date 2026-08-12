@@ -127,6 +127,14 @@ public static class PhantomBandRules
     public static bool ShouldPhantomKick(float distanceYalms, float maxRangeYalms)
         => distanceYalms <= maxRangeYalms;
 
+    /// <summary>
+    /// Occult Slowga (Time Mage): a pure debuff, no damage. Fires once and then waits out the
+    /// 30s Slow rather than re-spending a GCD every 2.5s, so the gate is "target is not already
+    /// slowed" — reapply follows for free when the status drops off.
+    /// </summary>
+    public static bool ShouldSlowga(PhantomConfig cfg, bool inCombat, bool targetAlreadySlowed)
+        => inCombat && cfg.TimeMageUseSlowga && !targetAlreadySlowed;
+
     /// <summary>Necromancer elemental nuke ids — one shared 40s recast, three elements.</summary>
     public const uint DeepFreezeId = 49098;   // ice
     public const uint HellWindId = 49099;     // wind

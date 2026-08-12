@@ -299,6 +299,19 @@ public sealed class PhantomConfig
     /// </summary>
     public bool KnightPledgeSelf { get; set; } = true;
 
+    // ── Time Mage ──
+    /// <summary>
+    /// Keep Slow on the pull with Occult Slowga.
+    /// <para>
+    /// Slowga deals NO damage — it is a 1.5s spell that hangs Slow +80% for 30s on the target and
+    /// everything within 5y of it. It costs a GCD, but only one per pack per half-minute, and an
+    /// 80% slow guts a pack's auto-attack and cast throughput. It is also the ONLY thing a Lv.1
+    /// Time Mage owns: Occult Comet needs Lv.2, so without this the job contributed nothing at all
+    /// on its first level.
+    /// </para>
+    /// </summary>
+    public bool TimeMageUseSlowga { get; set; } = true;
+
     // ── Monk ──
     public float MonkKickMaxRangeYalms { get; set; } = 5f;
     public int MonkChakraMpThreshold { get; set; } = 3000;

@@ -495,6 +495,40 @@ public class PhantomBandRulesTests
         Assert.False(PhantomBandRules.ShouldPledge(cfg, 0.20f, inCombat: true));
     }
 
+    /// <summary>
+    /// Slowga is the whole of a Lv.1 Time Mage — Comet needs Lv.2 — so it must fire by default,
+    /// and it must stop once the Slow is actually up or a 2.5s GCD spell that deals no damage
+    /// would be pressed every single GCD.
+    /// </summary>
+    [Fact]
+    public void TimeMageSlowga_FiresByDefault_AndYieldsToAnAlreadySlowedTarget()
+    {
+        var cfg = DefaultConfig();
+
+        Assert.True(cfg.TimeMageUseSlowga);
+
+        Assert.True(PhantomBandRules.ShouldSlowga(cfg, inCombat: true, targetAlreadySlowed: false));
+        Assert.False(PhantomBandRules.ShouldSlowga(cfg, inCombat: true, targetAlreadySlowed: true));
+        Assert.False(PhantomBandRules.ShouldSlowga(cfg, inCombat: false, targetAlreadySlowed: false));
+
+        cfg.TimeMageUseSlowga = false;
+        Assert.False(PhantomBandRules.ShouldSlowga(cfg, inCombat: true, targetAlreadySlowed: false));
+    }
+
+    /// <summary>
+    /// The Slow set is checked as a set precisely because Occult Slowga has no status of its own,
+    /// so it must stay non-empty and must include the newest generic row — pinning it to one
+    /// guessed id is the failure mode this guards against.
+    /// </summary>
+    [Fact]
+    public void SlowStatusIds_CoverTheGenericRows()
+    {
+        Assert.NotEmpty(PhantomActions.SlowStatusIds);
+        Assert.Contains(3493u, PhantomActions.SlowStatusIds);
+        Assert.Contains(9u, PhantomActions.SlowStatusIds);
+        Assert.Equal(PhantomActions.SlowStatusIds.Count, PhantomActions.SlowStatusIds.Distinct().Count());
+    }
+
     /// <summary>The invuln must sit well below the heal, or it fires first and is wasted.</summary>
     [Fact]
     public void KnightPledge_GatesFarBelowTheHeal()

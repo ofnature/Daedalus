@@ -197,6 +197,15 @@ public sealed class OccultSection
                 }
                 break;
 
+            case PhantomJob.TimeMage:
+                ConfigUIHelpers.Toggle("Keep Slow on the pull",
+                    () => config.Occult.TimeMageUseSlowga, v => config.Occult.TimeMageUseSlowga = v,
+                    "Occult Slowga does no damage — it hangs Slow +80% for 30 seconds on your " +
+                    "target and everything within 5 yalms of it. Costs one GCD per pack, and it " +
+                    "is the only action a level 1 Time Mage has.",
+                    save);
+                break;
+
             case PhantomJob.Monk:
                 config.Occult.MonkKickMaxRangeYalms = ConfigUIHelpers.FloatSlider(
                     "Phantom Kick max range (y)", config.Occult.MonkKickMaxRangeYalms,

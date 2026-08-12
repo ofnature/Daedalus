@@ -12,6 +12,12 @@ All notable changes to Daedalus will be documented in this file.
 - That toggle used to promise it would cover your most-attacked ally. It never could — the phantom layer can see the party's overall health but not who's in it — so it's now honestly labelled as the self switch, on by default
 - **Pray stays opt-in** and that's intentional — it's a weaponskill, so it costs a full GCD. Occult Heal is the cheap one and needs no toggle
 
+### New — Phantom Time Mage keeps Slow on the pull
+- A level 1 Time Mage did **literally nothing**. Occult Comet needs level 2, and it was the only action wired, so the Duty tab just read *"holding — Occult Comet needs phantom Lv.2 (you are 1)"* and that was the whole job
+- **Occult Slowga is now used.** It deals no damage — it hangs **Slow +80% for 30 seconds** on your target and everything within 5 yalms of it, which takes a real bite out of a pack's attacks and casts
+- It costs a GCD, but only **one per pack per half-minute**: it stops the moment the Slow is actually on the target and picks up again when it falls off. It also ignores *"save damage for burst"*, because there's no damage in it to save
+- Toggle in Occult settings under Time Mage
+
 ### New — The Duty tab tells you which critical encounters you've never seen
 - The weakness table only knows what it has met, so a zone you've half-run just shows a shorter list and looks finished. There's now a **"Never seen"** line per zone naming the exact critical encounters still missing, or a green all-clear when you've cleared the set
 - The roster comes from the **game's own data** rather than a wiki, so it can't drift: 15 per zone

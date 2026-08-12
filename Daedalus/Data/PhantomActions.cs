@@ -323,6 +323,17 @@ public static class PhantomActions
         public const uint Smoke = 5327;
     }
 
+    /// <summary>
+    /// Every status row the game names "Slow", checked as a set because Occult Slowga does NOT
+    /// introduce one of its own — a scan of the whole Status sheet finds no Slow anywhere in the
+    /// Occult range (the phantom-era rows are 4230-4290 and 4790s), so the action reuses one of
+    /// these generic rows and we cannot say which without watching it land. Matching any of them
+    /// is the safe direction: the worst a false positive can do is skip a reapply on something
+    /// already slowed, which is exactly what we wanted anyway.
+    /// </summary>
+    public static readonly IReadOnlyList<uint> SlowStatusIds =
+        [9, 10, 193, 442, 561, 1346, 1509, 2246, 3464, 3493];
+
     /// <summary>Actions belonging to one phantom job, in unlock order.</summary>
     public static IReadOnlyList<PhantomActionDef> ForJob(PhantomJob job)
     {
