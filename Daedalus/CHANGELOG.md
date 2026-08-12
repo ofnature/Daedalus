@@ -3,7 +3,12 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
-## v0.1.59 — unreleased
+## v0.1.59 — 2026-08-11
+
+### New — Bigger shipped weakness table: 273 enemies, South Horn nearly done
+- The table everyone ships with grew **266 → 273 enemies**, and South Horn is now **80.5% identified** overall — its **trash is 96.7%** done, up from almost nothing a fortnight ago. **Nammu**, the FATE boss that was the last South Horn gap, is in
+- North Horn is where the work is left: **26.4%**, and its critical encounters are only **22.2%**
+- Remember elements only appear when something reveals them, and **Occult Libra fires from the phantom layer on Red Mage**. Coverage doesn't improve by playing — it improves by Libra-ing things, trash included
 
 ### Fix — Phantom Knight now heals itself, and Pledge finally does something
 - **Occult Heal was never used.** It was in the action list and could be slotted, but nothing in the rotation ever pressed it, so a Phantom Knight simply never healed — the Duty tab just read *"idle — nothing eligible"*
