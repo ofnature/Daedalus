@@ -12,6 +12,13 @@ All notable changes to Daedalus will be documented in this file.
 - That toggle used to promise it would cover your most-attacked ally. It never could — the phantom layer can see the party's overall health but not who's in it — so it's now honestly labelled as the self switch, on by default
 - **Pray stays opt-in** and that's intentional — it's a weaponskill, so it costs a full GCD. Occult Heal is the cheap one and needs no toggle
 
+### New — Call a limit break for the whole fleet from the coordination window
+- Five buttons — **Tank, Healer, Melee, Ranged, Caster** — each broadcast a call to every box on the LAN. Only the toon whose job matches fires; everyone else ignores it
+- It presses the **Limit Break button itself**, not a specific spell, so the game picks the right action and the right tier. No list of Braver/Bladedance/Final Heaven to fall out of date, and it can't pick the wrong one
+- **Retried for a few seconds** rather than fired once, because the call arrives on whatever frame it arrives on — mid-cast, mid-animation, or with the bar a hair short. One press shouldn't be wasted on bad timing
+- Scoped to your **party**, so a second group on the same network can't spend your bar
+- A role nobody in the roster can answer shows **disabled with the reason**, and the window reports what happened to the last call — a limit break that quietly doesn't go off looks exactly like one nobody called
+
 ### New — Phantom Time Mage keeps Slow on the pull
 - A level 1 Time Mage did **literally nothing**. Occult Comet needs level 2, and it was the only action wired, so the Duty tab just read *"holding — Occult Comet needs phantom Lv.2 (you are 1)"* and that was the whole job
 - **Occult Slowga is now used.** It deals no damage — it hangs **Slow +80% for 30 seconds** on your target and everything within 5 yalms of it, which takes a real bite out of a pack's attacks and casts

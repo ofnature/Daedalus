@@ -78,6 +78,30 @@ public enum LanMessageType
     /// <summary>A healer is executing the Rescue pull — other healers stand down. Party-group
     /// scoped.</summary>
     RescueClaim = 19,
+
+    /// <summary>Operator called a limit break for one role from the coordination window. Only the
+    /// toon whose job matches the role acts on it. Party-group scoped — the LB bar is per party.</summary>
+    LimitBreak = 20,
+}
+
+/// <summary>
+/// Which limit break the operator is calling for. The LB bar is shared, so this names the ROLE
+/// that should spend it — the game then resolves the tier and the actual action for whoever fires
+/// (Shield Wall/Stronghold/Last Bastion, Braver/Bladedance/Final Heaven, and so on).
+/// </summary>
+public enum LimitBreakRole
+{
+    Tank = 0,
+    Healer = 1,
+
+    /// <summary>Melee DPS — the single-target LB (Braver line).</summary>
+    Melee = 2,
+
+    /// <summary>Physical ranged DPS — the line LB (Big Shot line).</summary>
+    RangedPhysical = 3,
+
+    /// <summary>Caster DPS — the circle LB (Skyshard line).</summary>
+    Caster = 4,
 }
 
 /// <summary>
@@ -479,6 +503,21 @@ public sealed class LanRescueNeededPayload
     public static LanRescueNeededPayload? FromJson(string json)
     {
         try { return JsonSerializer.Deserialize<LanRescueNeededPayload>(json); }
+        catch { return null; }
+    }
+}
+
+/// <summary>LimitBreak payload — which role the operator wants to spend the bar.</summary>
+public sealed class LanLimitBreakPayload
+{
+    [JsonPropertyName("r")]
+    public LimitBreakRole Role { get; set; }
+
+    public string ToJson() => JsonSerializer.Serialize(this);
+
+    public static LanLimitBreakPayload? FromJson(string json)
+    {
+        try { return JsonSerializer.Deserialize<LanLimitBreakPayload>(json); }
         catch { return null; }
     }
 }

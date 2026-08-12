@@ -49,6 +49,7 @@ public sealed class LanPartyWindow : Window, IDisposable
     private readonly Action _save;
     private readonly IObjectTable _objectTable;
     private readonly ITargetManager _targetManager;
+    private readonly Daedalus.Services.Party.LimitBreakService _limitBreak;
     private readonly Dictionary<string, string> _aliases = new();
     private readonly Dictionary<string, string> _machineAliases = new();
 
@@ -85,7 +86,8 @@ public sealed class LanPartyWindow : Window, IDisposable
     private ulong _majorityTargetId;
 
     public LanPartyWindow(CoordinationBus bus, LanCoordinator lan, Configuration config, Action save,
-        IObjectTable objectTable, ITargetManager targetManager)
+        IObjectTable objectTable, ITargetManager targetManager,
+        Daedalus.Services.Party.LimitBreakService limitBreak)
         : base("Daedalus — Party Coordination")
     {
         _bus = bus;
@@ -94,6 +96,7 @@ public sealed class LanPartyWindow : Window, IDisposable
         _save = save;
         _objectTable = objectTable;
         _targetManager = targetManager;
+        _limitBreak = limitBreak;
         Size = new Vector2(420, 380);
         SizeCondition = ImGuiCond.FirstUseEver;
 
@@ -180,6 +183,9 @@ public sealed class LanPartyWindow : Window, IDisposable
         ImGui.Separator();
 
         DrawTargetModeControls();
+        ImGui.Separator();
+
+        DrawLimitBreakControls();
         ImGui.Separator();
 
         var cfg = _config.PartyCoordination;
@@ -666,6 +672,63 @@ public sealed class LanPartyWindow : Window, IDisposable
 
         if (mode == PartyTargetMode.Focus)
             DrawFocusEnemyList();
+    }
+
+    private static readonly LimitBreakRole[] LimitBreakButtons =
+    [
+        LimitBreakRole.Tank,
+        LimitBreakRole.Healer,
+        LimitBreakRole.Melee,
+        LimitBreakRole.RangedPhysical,
+        LimitBreakRole.Caster,
+    ];
+
+    /// <summary>
+    /// Fleet limit-break call, one button per role. The bar is shared and only one toon can spend
+    /// it, so the button names the ROLE and the matching toon fires — the game picks the tier and
+    /// the actual action itself.
+    /// <para>
+    /// A role with nobody in the roster to answer it is shown disabled rather than hidden, so it
+    /// is obvious the button exists and why it cannot be pressed.
+    /// </para>
+    /// </summary>
+    private void DrawLimitBreakControls()
+    {
+        ImGui.AlignTextToFramePadding();
+        ImGui.TextColored(DaedalusTheme.AccentGold, "Limit break");
+        ImGui.SameLine();
+
+        var roster = _bus.Roster;
+        foreach (var role in LimitBreakButtons)
+        {
+            var holders = roster.Count(p => Daedalus.Services.Party.LimitBreakPolicy.Answers(role, p.JobId));
+            var enabled = holders > 0;
+
+            if (!enabled) ImGui.BeginDisabled();
+            if (ImGui.Button(Daedalus.Services.Party.LimitBreakPolicy.Label(role)) && enabled)
+                _bus.BroadcastLimitBreak(role);
+            if (!enabled) ImGui.EndDisabled();
+
+            if (ImGui.IsItemHovered())
+            {
+                ImGui.SetTooltip(enabled
+                    ? $"Call the {Daedalus.Services.Party.LimitBreakPolicy.Label(role).ToLowerInvariant()} "
+                      + $"limit break ({holders} in roster).\n"
+                      + "Every box hears it; only a matching job fires. Retried for a few seconds\n"
+                      + "in case the bar or the GCD isn't ready the instant it lands."
+                    : $"No {Daedalus.Services.Party.LimitBreakPolicy.Label(role).ToLowerInvariant()} in the roster.");
+            }
+
+            ImGui.SameLine();
+        }
+
+        // The outcome line matters: a limit break that quietly doesn't go off looks exactly like
+        // one nobody called for.
+        var outcome = _limitBreak.LastOutcome;
+        if (outcome.Length > 0)
+            ImGui.TextColored(_limitBreak.IsArmed ? Yellow : Dim, outcome);
+        else
+            ImGui.TextColored(Dim, "no call yet");
     }
 
     /// <summary>

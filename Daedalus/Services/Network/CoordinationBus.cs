@@ -152,6 +152,9 @@ public sealed class CoordinationBus : IDisposable
     /// <summary>The operator picked the freeze/shatter toon ("" = back to auto election).</summary>
     public event System.Action<LanBluPreferShatterPayload>? OnBluPreferShatter;
 
+    /// <summary>Operator called a limit break for a role — only matching toons act.</summary>
+    public event System.Action<LimitBreakRole>? OnLimitBreak;
+
     public CoordinationBus(
         IPluginLog log,
         LanCoordinator lan,
@@ -519,6 +522,15 @@ public sealed class CoordinationBus : IDisposable
                     OnBluPreferShatter?.Invoke(prefer);
                 break;
 
+            case LanMessageType.LimitBreak:
+                // Group-scoped: the LB bar belongs to one party, so a second party on the same
+                // LAN must not have its bar spent by someone else's call.
+                if (!IsForLocalGroup(msg)) break;
+                var lb = LanLimitBreakPayload.FromJson(msg.Payload);
+                if (lb != null)
+                    OnLimitBreak?.Invoke(lb.Role);
+                break;
+
             case LanMessageType.RescueNeeded:
                 if (!IsForLocalGroup(msg)) break;
                 var rescueNeeded = LanRescueNeededPayload.FromJson(msg.Payload);
@@ -744,6 +756,26 @@ public sealed class CoordinationBus : IDisposable
         var ts = DateTime.UtcNow.Ticks;
         for (var i = 0; i < 3; i++)
             _lan.Send(new LanMessage { Type = LanMessageType.BluPreferShatter, Payload = payload.ToJson(), Timestamp = ts });
+    }
+
+    /// <summary>
+    /// Call a limit break for one role (×3, dedup) and apply locally — the operator's own toon is
+    /// often the one that should fire, and its own frames are filtered on loopback.
+    /// </summary>
+    public void BroadcastLimitBreak(LimitBreakRole role)
+    {
+        OnLimitBreak?.Invoke(role);
+
+        var payload = new LanLimitBreakPayload { Role = role }.ToJson();
+        var ts = DateTime.UtcNow.Ticks;
+        var group = LocalPartyGroupId;
+        for (var i = 0; i < 3; i++)
+        {
+            _lan.Send(new LanMessage
+            {
+                Type = LanMessageType.LimitBreak, Payload = payload, Timestamp = ts, PartyGroupId = group,
+            });
+        }
     }
 
     /// <summary>Broadcast a fleet BLU mimicry command (×3, dedup) and apply locally.</summary>

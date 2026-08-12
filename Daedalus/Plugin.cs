@@ -181,6 +181,7 @@ public sealed class Plugin : IDalamudPlugin
     private readonly LanRosterIpc lanRosterIpc;
     private readonly PluginRelayIpc pluginRelayIpc;
     private readonly Daedalus.Services.Party.PartyInviteAcceptService partyInviteAcceptService;
+    private readonly Daedalus.Services.Party.LimitBreakService limitBreakService;
     private readonly RsrCompatIpc rsrCompatIpc;
     private readonly AutomationBusyBridge[] automationBridges;
     private readonly QuestionableIpc questionableIpc;
@@ -847,8 +848,14 @@ public sealed class Plugin : IDalamudPlugin
         this.bluMimicryWindow = new BluMimicryWindow(
             objectTable, partyList, TryRemoveMimicryByTargetlessCast, configuration, SaveConfiguration);
         Windows.Config.DPS.BlueMageSection.PartySizeSource = () => partyList.Length; // Solo-role lock
+
+        // Fleet limit-break call: every box hears it, only the toon whose role matches acts.
+        this.limitBreakService = new Daedalus.Services.Party.LimitBreakService(objectTable, log);
+        if (coordinationBus != null)
+            coordinationBus.OnLimitBreak += role => this.limitBreakService.Call(role);
+
         if (coordinationBus != null && lanCoordinator != null)
-            this.lanPartyWindow = new LanPartyWindow(coordinationBus, lanCoordinator, configuration, SaveConfiguration, objectTable, targetManager);
+            this.lanPartyWindow = new LanPartyWindow(coordinationBus, lanCoordinator, configuration, SaveConfiguration, objectTable, targetManager, limitBreakService);
             LanPartyWindow.TerritorySource = () => (ushort)clientState.TerritoryType;
         this.mainWindow = new MainWindow(configuration, SaveConfiguration, OpenConfigUI, OpenDebugUI, OpenAnalyticsUI, OpenTrainingUI, OpenChangelogUI, OpenOverlayUI, OpenControlUI, OpenNavControlUI, OpenRaidUI, OpenMissingUI, PluginVersion, rotationManager, textureProvider,
             actionTracker: actionTracker, dutyContent: dutyContentService);
@@ -1747,6 +1754,7 @@ public sealed class Plugin : IDalamudPlugin
             // LAN coordination pump: drains the socket-thread inbox, sends the 2s heartbeat,
             // ages the roster. Framework thread only — the receive thread never touches game state.
             coordinationBus?.Update();
+            limitBreakService.Update();
             if (coordinationBus != null)
                 UpdateLanHealerDownDetector();
 
