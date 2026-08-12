@@ -364,6 +364,13 @@ public sealed class PhantomActionLayer
         if (job == PhantomJob.Freelancer && PhantomBandRules.ShouldResuscitate(cfg, selfHpPct))
             TryPush(ctx, 41650, job, level, PrioEmergencySustain);
 
+        // Occult Heal (Knight): the job's actual heal, and it was wired to no band at all —
+        // field 2026-08-11, a Lv.4 Knight with it slotted never healed once. Instant oGCD, 5s
+        // recast, self-targeted here. Leads Pray because Pray is a WEAPONSKILL: this one costs a
+        // weave slot, Pray costs a GCD, which is why Pray stays opt-in behind its own toggle.
+        if (job == PhantomJob.Knight && PhantomBandRules.ShouldOccultHeal(cfg, selfHpPct, inCombat))
+            TryPush(ctx, 41590, job, level, PrioEmergencySustain + 2, ctx.Player.GameObjectId);
+
         if (job == PhantomJob.Knight && PhantomBandRules.ShouldPray(cfg, selfHpPct))
             TryPush(ctx, 41589, job, level, PrioEmergencySustain + 3);
 

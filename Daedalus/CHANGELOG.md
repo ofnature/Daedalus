@@ -5,6 +5,11 @@ All notable changes to Daedalus will be documented in this file.
 <!-- LATEST-START -->
 ## v0.1.59 — unreleased
 
+### Fix — Phantom Knight now heals itself
+- **Occult Heal was never used.** It was in the action list and could be slotted, but nothing in the rotation ever pressed it, so a Phantom Knight simply never healed — the Duty tab just read *"idle — nothing eligible"*
+- It now fires below **85% HP by default**, which is deliberately generous: it's an instant ability on a 5-second recast, so it costs you a weave slot rather than an attack. Threshold slider in Occult settings
+- **Pray stays opt-in** and that's intentional — it's a weaponskill, so it costs a full GCD. Occult Heal is the cheap one and needs no toggle
+
 ### Fix — Phantom Red Mage now actually casts Occult Thunder II
 - Daedalus had Thunder II listed as unlocking at phantom level **6**. It unlocks at **5** — which was provable from a level 5 Red Mage having it slotted on the duty bar. So on any Lightning-weak target the rotation correctly chose Thunder, then silently discarded it for being "not learned yet", and cast **nothing at all**. Thirteen minutes of it, with the Duty tab reporting only *"idle — nothing eligible"*
 - **All three nukes are now offered, best match first.** They share a cooldown, so this costs nothing and means one refusal can never again mean zero damage — if the ideal element can't be used, the next best fires

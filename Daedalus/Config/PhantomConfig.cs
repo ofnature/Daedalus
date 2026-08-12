@@ -163,6 +163,21 @@ public sealed class PhantomConfig
     /// </summary>
     public bool PauseMovementForPhantomCasts { get; set; } = true;
 
+    /// <summary>
+    /// Self-HP fraction below which Phantom Knight fires Occult Heal.
+    /// <para>
+    /// Set generously because the action is nearly free: an INSTANT oGCD on a 5s recast, so it
+    /// costs a weave slot rather than a GCD. Pray, by contrast, is a weaponskill and therefore
+    /// stays behind its own opt-in toggle.
+    /// </para>
+    /// </summary>
+    private float _knightHealHpPct = 0.85f;
+    public float KnightHealHpPct
+    {
+        get => _knightHealHpPct;
+        set => _knightHealHpPct = System.Math.Clamp(value, 0f, 1f);
+    }
+
     /// <summary>Auto-open the compact zone HUD (consumables, currency, shard banner)
     /// when entering Occult Crescent.</summary>
     public bool ShowOccultHud { get; set; } = true;

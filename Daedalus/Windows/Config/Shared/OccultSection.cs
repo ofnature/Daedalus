@@ -168,9 +168,18 @@ public sealed class OccultSection
                 break;
 
             case PhantomJob.Knight:
+                config.Occult.KnightHealHpPct = ConfigUIHelpers.ThresholdSliderSmall(
+                    "Occult Heal below",
+                    config.Occult.KnightHealHpPct, 30f, 100f,
+                    "Self-heal with Occult Heal below this. Set high by default because it is " +
+                    "nearly free — an instant ability on a 5 second recast, so it costs a weave " +
+                    "slot rather than a GCD.",
+                    save, v => config.Occult.KnightHealHpPct = v);
                 ConfigUIHelpers.Toggle("Use Pray as a heal",
                     () => config.Occult.KnightPrayAsHeal, v => config.Occult.KnightPrayAsHeal = v,
-                    null, save);
+                    "Pray is a weaponskill, so it costs a GCD — off by default. Occult Heal above " +
+                    "is the cheap heal and is always on.",
+                    save);
                 ConfigUIHelpers.Toggle("Pledge on self (off = most-attacked ally)",
                     () => config.Occult.KnightPledgeSelf, v => config.Occult.KnightPledgeSelf = v,
                     null, save);

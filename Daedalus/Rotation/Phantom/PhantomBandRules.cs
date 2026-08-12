@@ -91,6 +91,14 @@ public static class PhantomBandRules
     public static bool ShouldResuscitate(PhantomConfig cfg, float selfHpPct)
         => selfHpPct < cfg.FreelancerResuscitationHpPct;
 
+    /// <summary>
+    /// Occult Heal (Knight): instant oGCD, 5s recast, 30y, self or ally. It costs a weave slot
+    /// rather than a GCD, so the threshold is generous — sitting on a free heal while chipped is
+    /// the mistake, not spending it.
+    /// </summary>
+    public static bool ShouldOccultHeal(PhantomConfig cfg, float selfHpPct, bool inCombat)
+        => inCombat && selfHpPct < cfg.KnightHealHpPct;
+
     public static bool ShouldPray(PhantomConfig cfg, float selfHpPct)
         => cfg.KnightPrayAsHeal && selfHpPct < PrayHpPct;
 

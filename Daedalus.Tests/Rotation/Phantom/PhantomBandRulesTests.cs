@@ -443,4 +443,33 @@ public class PhantomBandRulesTests
         foreach (var w in new OccultElement?[] { OccultElement.Fire, OccultElement.Ice, OccultElement.Lightning, OccultElement.Wind, null })
             Assert.Equal(3, PhantomBandRules.RedMageNukeOrder(w).Distinct().Count());
     }
+
+    /// <summary>
+    /// Field 2026-08-11: a Lv.4 Phantom Knight with Occult Heal slotted never healed once,
+    /// because the action was wired to no band at all. It is an INSTANT oGCD on a 5s recast, so
+    /// the threshold is generous — the mistake is sitting on a free heal while chipped.
+    /// </summary>
+    [Fact]
+    public void KnightOccultHeal_FiresGenerously_ButOnlyInCombat()
+    {
+        var cfg = DefaultConfig();
+
+        Assert.Equal(0.85f, cfg.KnightHealHpPct);
+        Assert.True(PhantomBandRules.ShouldOccultHeal(cfg, 0.80f, inCombat: true));
+        Assert.False(PhantomBandRules.ShouldOccultHeal(cfg, 0.90f, inCombat: true));
+        Assert.False(PhantomBandRules.ShouldOccultHeal(cfg, 0.10f, inCombat: false));
+    }
+
+    /// <summary>
+    /// Occult Heal needs no toggle because it costs a weave slot; Pray does because it is a
+    /// weaponskill and costs a GCD. That asymmetry is the whole reason they are gated differently.
+    /// </summary>
+    [Fact]
+    public void KnightHeal_IsAlwaysOn_WhilePrayStaysOptIn()
+    {
+        var cfg = DefaultConfig();
+
+        Assert.True(PhantomBandRules.ShouldOccultHeal(cfg, 0.50f, inCombat: true));
+        Assert.False(PhantomBandRules.ShouldPray(cfg, 0.50f));
+    }
 }
