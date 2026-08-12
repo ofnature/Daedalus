@@ -2,6 +2,8 @@ using System;
 using Dalamud.Plugin.Services;
 using Daedalus.Services.Network;
 using FFXIVClientStructs.FFXIV.Client.Game;
+using FFXIVClientStructs.FFXIV.Client.Game.Character;
+using FFXIVClientStructs.FFXIV.Client.Game.UI;
 
 namespace Daedalus.Services.Party;
 
@@ -13,16 +15,15 @@ namespace Daedalus.Services.Party;
 /// else drops it on the floor.
 /// </para>
 /// <para>
-/// The cast is General Action 3 ("Limit Break") rather than a per-job action id. That is the same
-/// button the hotbar uses, so the game resolves the role AND the tier for us — no table of
-/// Braver/Bladedance/Final Heaven to keep current, and it cannot pick the wrong one.
+/// The concrete action is resolved from <c>LimitBreakController</c> — bar level, then
+/// <c>GetActionId</c> for this character at that tier — so there is still no hand-kept table of
+/// Braver/Bladedance/Final Heaven and the tier cannot be picked wrong. It is NOT fired as General
+/// Action 3: that is the hotbar button and looks like the tidy answer, but BossMod Reborn rewrites
+/// it into a real Spell before queueing anything, and BMR is the one that works in the field.
 /// </para>
 /// </summary>
 public sealed unsafe class LimitBreakService
 {
-    /// <summary>General Action 3 — "Limit Break". Resolves to the job's own LB at its current tier.</summary>
-    private const uint LimitBreakGeneralAction = 3;
-
     private readonly IObjectTable _objectTable;
     private readonly IPluginLog _log;
 
@@ -30,8 +31,8 @@ public sealed unsafe class LimitBreakService
     private DateTime _armedUntilUtc = DateTime.MinValue;
     private DateTime _nextAttemptUtc = DateTime.MinValue;
 
-    /// <summary>Last refusal code from GetActionStatus — reported so a silent "no" can be looked up.</summary>
-    private uint _lastRefusalStatus;
+    /// <summary>Why the last attempt did not go out — reported so a silent "no" can be diagnosed.</summary>
+    private string _lastRefusal = "";
 
     // A call this box is NOT the right job for. Tracked only so the line can eventually say
     // "nobody answered" instead of sitting on "waiting" forever, which is just a nicer-looking
@@ -84,7 +85,7 @@ public sealed unsafe class LimitBreakService
         _waitingRole = null;
         _armedUntilUtc = DateTime.UtcNow.AddSeconds(LimitBreakPolicy.ArmWindowSeconds);
         _nextAttemptUtc = DateTime.MinValue;
-        _lastRefusalStatus = 0;
+        _lastRefusal = "";
         LastOutcome = $"{label} LB called — trying";
     }
 
@@ -122,8 +123,8 @@ public sealed unsafe class LimitBreakService
             // Name the refusal. "Not available" covers a full bar we mis-detected, content that
             // forbids limit breaks at all, and a targeted LB with nothing targeted — three very
             // different problems that a bare "gave up" cannot tell apart.
-            LastOutcome = _lastRefusalStatus != 0
-                ? $"{LimitBreakPolicy.Label(role)} LB refused by the game (status {_lastRefusalStatus})"
+            LastOutcome = _lastRefusal.Length > 0
+                ? $"{LimitBreakPolicy.Label(role)} LB — {_lastRefusal}"
                 : $"{LimitBreakPolicy.Label(role)} LB not available — gave up";
             return;
         }
@@ -132,7 +133,7 @@ public sealed unsafe class LimitBreakService
             return;
         _nextAttemptUtc = now.AddSeconds(LimitBreakPolicy.RetryIntervalSeconds);
 
-        if (_objectTable.LocalPlayer is null)
+        if (_objectTable.LocalPlayer is not { } player)
             return;
 
         try
@@ -141,21 +142,54 @@ public sealed unsafe class LimitBreakService
             if (actionManager == null)
                 return;
 
-            // Status covers everything we would otherwise have to re-derive badly: bar not full,
-            // content that forbids LB, already casting, no valid target for a targeted LB.
-            var status = actionManager->GetActionStatus(ActionType.GeneralAction, LimitBreakGeneralAction);
-            if (status != 0)
+            // Resolve the CONCRETE limit break rather than pressing General Action 3.
+            //
+            // General Action 3 is the hotbar's Limit Break button and it looked like the tidy
+            // answer — the game picks the role and the tier for you. BossMod Reborn does not use
+            // it that way, and BMR works in the field: ActionManagerEx.NormalizeActionForQueue
+            // rewrites it into a real Spell before anything is queued, "for general actions, we
+            // want to convert things we care about to spells". Same reason Sprint and the duty
+            // actions are rewritten there. So we do the same conversion here.
+            var lb = LimitBreakController.Instance();
+            if (lb == null)
             {
-                _lastRefusalStatus = status;
+                _lastRefusal = "no limit break in this content";
                 return;
             }
 
-            if (!actionManager->UseAction(ActionType.GeneralAction, LimitBreakGeneralAction))
+            var level = lb->BarUnits != 0 ? lb->CurrentUnits / lb->BarUnits : 0;
+            if (level == 0)
+            {
+                _lastRefusal = "bar not charged";
                 return;
+            }
+
+            var actionId = lb->GetActionId((Character*)player.Address, (byte)(level - 1));
+            if (actionId == 0)
+            {
+                _lastRefusal = $"no limit break for this job at bar {level}";
+                return;
+            }
+
+            // Status covers what is left: already casting, out of range, and — for the melee,
+            // ranged and caster limit breaks, which are all targeted — nothing targeted.
+            var status = actionManager->GetActionStatus(ActionType.Action, actionId);
+            if (status != 0)
+            {
+                _lastRefusal = $"refused by the game (status {status}, action {actionId}, bar {level})";
+                return;
+            }
+
+            if (!actionManager->UseAction(ActionType.Action, actionId))
+            {
+                _lastRefusal = $"cast rejected (action {actionId}, bar {level})";
+                return;
+            }
 
             _armedRole = null;
-            LastOutcome = $"{LimitBreakPolicy.Label(role)} LB fired";
-            _log.Information("[LimitBreak] fired {Role} limit break", role);
+            LastOutcome = $"{LimitBreakPolicy.Label(role)} LB fired (bar {level})";
+            _log.Information("[LimitBreak] fired {Role} limit break — action {Action}, bar {Level}",
+                role, actionId, level);
             OnFired?.Invoke(role);
         }
         catch (Exception ex)

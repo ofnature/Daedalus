@@ -14,11 +14,11 @@ All notable changes to Daedalus will be documented in this file.
 
 ### New — Call a limit break for the whole fleet from the coordination window
 - Five buttons — **Tank, Healer, Melee, Ranged, Caster** — each broadcast a call to every box on the LAN. Only the toon whose job matches fires; everyone else ignores it
-- It presses the **Limit Break button itself**, not a specific spell, so the game picks the right action and the right tier. No list of Braver/Bladedance/Final Heaven to fall out of date, and it can't pick the wrong one
+- It reads your **limit break bar** and casts the exact action for your job at the tier you've actually charged, so there's no list of Braver/Bladedance/Final Heaven to fall out of date and the tier can't be wrong
 - **Retried for a few seconds** rather than fired once, because the call arrives on whatever frame it arrives on — mid-cast, mid-animation, or with the bar a hair short. One press shouldn't be wasted on bad timing
 - Scoped to your **party**, so a second group on the same network can't spend your bar
 - A role nobody in the roster can answer shows **disabled with the reason**, and the window reports what happened to the last call — a limit break that quietly doesn't go off looks exactly like one nobody called
-- **The toon that fires reports back**, so the window says *"Melee LB fired by Rosa Discord"* even when the toon you're sitting on was never the one meant to act. If nothing answers within a few seconds it says that too, and if the game refuses the cast it names the refusal instead of just going quiet
+- **The toon that fires reports back**, so the window says *"Melee LB fired by Rosa Discord"* even when the toon you're sitting on was never the one meant to act. If nothing answers within a few seconds it says that too, and a refusal is named — *"bar not charged"*, *"no limit break in this content"*, or the game's own status code — instead of going quiet
 
 ### New — Phantom Red Mage uses Dualcast instead of throwing it away
 - Casting any phantom spell with a cast time grants **Dualcast**, which makes your next spell instant. Nothing spent it, and the trait's own rule is that **any weaponskill cancels it** — so on a melee or tank main job the very next GCD of your normal rotation destroyed it about two seconds later. Every single time
