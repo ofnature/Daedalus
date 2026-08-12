@@ -99,6 +99,14 @@ public static class PhantomBandRules
     public static bool ShouldOccultHeal(PhantomConfig cfg, float selfHpPct, bool inCombat)
         => inCombat && selfHpPct < cfg.KnightHealHpPct;
 
+    /// <summary>
+    /// Pledge (Knight): a real INVULNERABILITY — "renders target impervious to most attacks" for
+    /// 10s on a 120s recast — so it is a death-saver, not a top-up. Gated far lower than the
+    /// heal, and behind its own switch.
+    /// </summary>
+    public static bool ShouldPledge(PhantomConfig cfg, float selfHpPct, bool inCombat)
+        => inCombat && cfg.KnightPledgeSelf && selfHpPct < cfg.KnightPledgeHpPct;
+
     public static bool ShouldPray(PhantomConfig cfg, float selfHpPct)
         => cfg.KnightPrayAsHeal && selfHpPct < PrayHpPct;
 

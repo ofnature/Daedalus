@@ -364,6 +364,11 @@ public sealed class PhantomActionLayer
         if (job == PhantomJob.Freelancer && PhantomBandRules.ShouldResuscitate(cfg, selfHpPct))
             TryPush(ctx, 41650, job, level, PrioEmergencySustain);
 
+        // Pledge (Knight): a genuine invulnerability, so it leads everything else in the band —
+        // an invuln that fires after the heal has already failed to save you is worthless.
+        if (job == PhantomJob.Knight && PhantomBandRules.ShouldPledge(cfg, selfHpPct, inCombat))
+            TryPush(ctx, 41591, job, level, PrioEmergencySustain - 1, ctx.Player.GameObjectId);
+
         // Occult Heal (Knight): the job's actual heal, and it was wired to no band at all —
         // field 2026-08-11, a Lv.4 Knight with it slotted never healed once. Instant oGCD, 5s
         // recast, self-targeted here. Leads Pray because Pray is a WEAPONSKILL: this one costs a

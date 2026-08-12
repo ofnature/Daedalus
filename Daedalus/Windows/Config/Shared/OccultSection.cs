@@ -180,9 +180,21 @@ public sealed class OccultSection
                     "Pray is a weaponskill, so it costs a GCD — off by default. Occult Heal above " +
                     "is the cheap heal and is always on.",
                     save);
-                ConfigUIHelpers.Toggle("Pledge on self (off = most-attacked ally)",
+                ConfigUIHelpers.Toggle("Use Pledge on yourself",
                     () => config.Occult.KnightPledgeSelf, v => config.Occult.KnightPledgeSelf = v,
-                    null, save);
+                    "Pledge makes you impervious to most attacks for 10 seconds on a 2 minute " +
+                    "recast — an emergency button, not a heal. Targeting an ally with it is not " +
+                    "supported yet.",
+                    save);
+                if (config.Occult.KnightPledgeSelf)
+                {
+                    config.Occult.KnightPledgeHpPct = ConfigUIHelpers.ThresholdSliderSmall(
+                        "Pledge below",
+                        config.Occult.KnightPledgeHpPct, 10f, 60f,
+                        "Fire the invulnerability below this. Kept low deliberately — it is a " +
+                        "death-saver on a 2 minute cooldown, so spending it on chip damage wastes it.",
+                        save, v => config.Occult.KnightPledgeHpPct = v);
+                }
                 break;
 
             case PhantomJob.Monk:

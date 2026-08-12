@@ -5,10 +5,17 @@ All notable changes to Daedalus will be documented in this file.
 <!-- LATEST-START -->
 ## v0.1.59 — unreleased
 
-### Fix — Phantom Knight now heals itself
+### Fix — Phantom Knight now heals itself, and Pledge finally does something
 - **Occult Heal was never used.** It was in the action list and could be slotted, but nothing in the rotation ever pressed it, so a Phantom Knight simply never healed — the Duty tab just read *"idle — nothing eligible"*
 - It now fires below **85% HP by default**, which is deliberately generous: it's an instant ability on a 5-second recast, so it costs you a weave slot rather than an attack. Threshold slider in Occult settings
+- **Pledge was the same story, but worse** — it had a settings toggle that did nothing whichever way you set it. It's a real invulnerability (impervious to most attacks for 10s, two-minute recast), so it now fires **below 30%** and goes *before* the heal, because an invuln that lands after the heal already failed to save you is worthless
+- That toggle used to promise it would cover your most-attacked ally. It never could — the phantom layer can see the party's overall health but not who's in it — so it's now honestly labelled as the self switch, on by default
 - **Pray stays opt-in** and that's intentional — it's a weaponskill, so it costs a full GCD. Occult Heal is the cheap one and needs no toggle
+
+### New — The Duty tab tells you which critical encounters you've never seen
+- The weakness table only knows what it has met, so a zone you've half-run just shows a shorter list and looks finished. There's now a **"Never seen"** line per zone naming the exact critical encounters still missing, or a green all-clear when you've cleared the set
+- The roster comes from the **game's own data** rather than a wiki, so it can't drift: 15 per zone
+- As of this build that's **South Horn 12 of 15** (missing From Times Bygone, Shark Attack, Cursed Concern) and **North Horn 14 of 15** (missing Many Mouths to Feed)
 
 ### Fix — Phantom Red Mage now actually casts Occult Thunder II
 - Daedalus had Thunder II listed as unlocking at phantom level **6**. It unlocks at **5** — which was provable from a level 5 Red Mage having it slotted on the duty bar. So on any Lightning-weak target the rotation correctly chose Thunder, then silently discarded it for being "not learned yet", and cast **nothing at all**. Thirteen minutes of it, with the Duty tab reporting only *"idle — nothing eligible"*

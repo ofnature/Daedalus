@@ -178,6 +178,18 @@ public sealed class PhantomConfig
         set => _knightHealHpPct = System.Math.Clamp(value, 0f, 1f);
     }
 
+    /// <summary>
+    /// Self-HP fraction below which Phantom Knight uses Pledge — a genuine INVULNERABILITY
+    /// ("renders target impervious to most attacks", 10s, 120s recast), so it is a last resort
+    /// rather than a heal. Low by default for that reason.
+    /// </summary>
+    private float _knightPledgeHpPct = 0.30f;
+    public float KnightPledgeHpPct
+    {
+        get => _knightPledgeHpPct;
+        set => _knightPledgeHpPct = System.Math.Clamp(value, 0f, 1f);
+    }
+
     /// <summary>Auto-open the compact zone HUD (consumables, currency, shard banner)
     /// when entering Occult Crescent.</summary>
     public bool ShowOccultHud { get; set; } = true;
@@ -274,7 +286,18 @@ public sealed class PhantomConfig
 
     // ── Knight ──
     public bool KnightPrayAsHeal { get; set; } = false;
-    public bool KnightPledgeSelf { get; set; } = false;
+
+    /// <summary>
+    /// Use Pledge on YOURSELF as an emergency invulnerability.
+    /// <para>
+    /// Was a dead toggle until 2026-08-11: it read "Pledge on self (off = most-attacked ally)"
+    /// while nothing pushed Pledge at all, so neither setting did anything. Ally targeting is
+    /// still not implemented — the phantom layer's context exposes aggregate party health but no
+    /// individual members to aim at — so this is now honestly just the self switch, and it
+    /// defaults ON because a dead invuln helps nobody.
+    /// </para>
+    /// </summary>
+    public bool KnightPledgeSelf { get; set; } = true;
 
     // ── Monk ──
     public float MonkKickMaxRangeYalms { get; set; } = 5f;

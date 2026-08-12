@@ -345,6 +345,7 @@ public static class OccultTab
                 // the object by the game, so it is exact.
                 DrawEnemyGroup($"Critical Encounters###occult_ce_{zone}",
                     inZone.Where(e => e.BelongsToCriticalEncounter).ToList(), groupByEncounter: true);
+                DrawMissingEncounters(zone, inZone);
                 DrawEnemyGroup($"FATEs###occult_fate_{zone}",
                     inZone.Where(e => !e.BelongsToCriticalEncounter && e.SeenInFate).ToList(),
                     groupByEncounter: true, fateNames: true);
@@ -464,6 +465,44 @@ public static class OccultTab
            && a.Elements == b.Elements
            && a.Kind == b.Kind
            && string.Equals(a.Name, b.Name, StringComparison.Ordinal);
+
+    /// <summary>
+    /// Critical encounters this zone HAS that we have never recorded a single enemy from.
+    /// <para>
+    /// The weakness log only knows what it has seen, so on its own it can never answer "what am
+    /// I still missing" — it just shows a shorter list and looks complete. The roster comes from
+    /// the game's own DynamicEvent sheet (see <see cref="Daedalus.Data.OccultEncounters"/>).
+    /// </para>
+    /// </summary>
+    private static void DrawMissingEncounters(
+        ushort zone, List<Daedalus.Services.Occult.OccultWeaknessEntry> inZone)
+    {
+        var roster = Daedalus.Data.OccultEncounters.CriticalEncountersFor(zone);
+        if (roster.Count == 0)
+            return;
+
+        var seen = inZone
+            .Where(e => !string.IsNullOrEmpty(e.CriticalEncounter))
+            .Select(e => e.CriticalEncounter)
+            .ToHashSet(StringComparer.Ordinal);
+
+        var missing = roster.Where(name => !seen.Contains(name)).ToList();
+
+        if (missing.Count == 0)
+        {
+            ImGui.TextColored(Green, $"All {roster.Count} critical encounters seen.");
+            return;
+        }
+
+        if (!ImGui.CollapsingHeader(
+                $"Never seen — {missing.Count} of {roster.Count}###occult_ce_missing_{zone}"))
+            return;
+
+        ImGui.Indent();
+        foreach (var name in missing)
+            ImGui.TextColored(Yellow, name);
+        ImGui.Unindent();
+    }
 
     private static void DrawEnemyLine(
         Daedalus.Services.Occult.OccultWeaknessEntry e, bool indented, int copies = 1)

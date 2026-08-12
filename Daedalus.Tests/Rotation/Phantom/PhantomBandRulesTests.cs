@@ -472,4 +472,61 @@ public class PhantomBandRulesTests
         Assert.True(PhantomBandRules.ShouldOccultHeal(cfg, 0.50f, inCombat: true));
         Assert.False(PhantomBandRules.ShouldPray(cfg, 0.50f));
     }
+
+    /// <summary>
+    /// Pledge is a real INVULNERABILITY ("impervious to most attacks", 10s, 120s recast), so it
+    /// must gate far lower than the heal — spending a two-minute death-saver on chip damage
+    /// wastes it. It was also a DEAD toggle until 2026-08-11: nothing pushed Pledge at all, so
+    /// neither setting did anything.
+    /// </summary>
+    [Fact]
+    public void KnightPledge_IsALastResort_AndOnByDefault()
+    {
+        var cfg = DefaultConfig();
+
+        Assert.True(cfg.KnightPledgeSelf, "a dead invuln helps nobody");
+        Assert.Equal(0.30f, cfg.KnightPledgeHpPct);
+
+        Assert.True(PhantomBandRules.ShouldPledge(cfg, 0.20f, inCombat: true));
+        Assert.False(PhantomBandRules.ShouldPledge(cfg, 0.50f, inCombat: true));
+        Assert.False(PhantomBandRules.ShouldPledge(cfg, 0.20f, inCombat: false));
+
+        cfg.KnightPledgeSelf = false;
+        Assert.False(PhantomBandRules.ShouldPledge(cfg, 0.20f, inCombat: true));
+    }
+
+    /// <summary>The invuln must sit well below the heal, or it fires first and is wasted.</summary>
+    [Fact]
+    public void KnightPledge_GatesFarBelowTheHeal()
+    {
+        var cfg = DefaultConfig();
+        Assert.True(cfg.KnightPledgeHpPct < cfg.KnightHealHpPct);
+    }
+
+    /// <summary>
+    /// The roster is what lets the Duty tab say what is MISSING — the weakness log only knows
+    /// what it has seen, so on its own it just shows a shorter list and looks complete.
+    /// Both zones have 15, from DynamicEvent rows 33-47 and 49-63.
+    /// </summary>
+    [Fact]
+    public void CriticalEncounterRoster_HasFifteenPerZone_AndNoDuplicates()
+    {
+        var south = PhantomActions.All is not null
+            ? Daedalus.Data.OccultEncounters.SouthHornCriticalEncounters : [];
+        var north = Daedalus.Data.OccultEncounters.NorthHornCriticalEncounters;
+
+        Assert.Equal(15, south.Count);
+        Assert.Equal(15, north.Count);
+        Assert.Equal(south.Count, south.Distinct().Count());
+        Assert.Equal(north.Count, north.Distinct().Count());
+        Assert.Empty(south.Intersect(north));
+    }
+
+    [Fact]
+    public void CriticalEncounterRoster_ResolvesByTerritory()
+    {
+        Assert.Equal(15, Daedalus.Data.OccultEncounters.CriticalEncountersFor(1252).Count);
+        Assert.Equal(15, Daedalus.Data.OccultEncounters.CriticalEncountersFor(1346).Count);
+        Assert.Empty(Daedalus.Data.OccultEncounters.CriticalEncountersFor(129)); // Limsa
+    }
 }
