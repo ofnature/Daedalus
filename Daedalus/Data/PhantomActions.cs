@@ -186,7 +186,11 @@ public static class PhantomActions
         new(49093, "Occult Cure II", PhantomJob.PhantomRedMage, 2),      // 40,000 cure potency, 1500 MP
         new(49094, "Occult Libra", PhantomJob.PhantomRedMage, 3),        // REVEALS elemental affinity, 120s
         new(49095, "Occult Blizzard II", PhantomJob.PhantomRedMage, 4),  // ice
-        new(49096, "Occult Thunder II", PhantomJob.PhantomRedMage, 6),   // lightning
+        // Level 5, NOT 6. Field 2026-08-11: a Lv.5 Phantom Red Mage had Thunder II slotted on
+        // the duty bar — you cannot slot what you have not unlocked — while the layer silently
+        // refused to push it for 13 minutes. Every other action in this kit is 1/2/3/4 and every
+        // other five-action phantom job runs 1-5, so the 6 was a transcription slip.
+        new(49096, "Occult Thunder II", PhantomJob.PhantomRedMage, 5),   // lightning
 
         // ── Phantom Dragoon (North Horn; kit field-confirmed 2026-07-31). The smallest kit
         //    on the roster: THREE actions (Lv.1-3) plus a Lv.4 trait, where every other job

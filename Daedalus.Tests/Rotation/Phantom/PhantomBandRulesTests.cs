@@ -399,4 +399,48 @@ public class PhantomBandRulesTests
         Daedalus.Services.Positional.RaiseCastHold.Clear();
         Assert.False(Daedalus.Services.Positional.RaiseCastHold.Active);
     }
+
+    /// <summary>
+    /// Field 2026-08-11: the catalog had Occult Thunder II at phantom Lv.6 while a Lv.5 Red Mage
+    /// had it SLOTTED on the duty bar — you cannot slot what you have not unlocked. The level
+    /// gate refuses silently, so on every Lightning-weak target the picker chose Thunder, the
+    /// push vanished, and the Duty tab read "idle — nothing eligible" for 13 minutes.
+    /// </summary>
+    [Fact]
+    public void RedMageKit_UnlocksOneThroughFive()
+    {
+        var rdm = PhantomActions.All
+            .Where(a => a.Job == PhantomJob.PhantomRedMage)
+            .Select(a => a.RequiredLevel)
+            .OrderBy(l => l)
+            .ToList();
+
+        Assert.Equal(new byte[] { 1, 2, 3, 4, 5 }, rdm);
+    }
+
+    /// <summary>
+    /// One refusal must not mean zero damage. The trio share a recast, so all three are pushed
+    /// best-match-first and whichever the gates accept is the one that fires.
+    /// </summary>
+    [Fact]
+    public void RedMageNukeOrder_LeadsWithTheMatchThenFallsBack()
+    {
+        var lightning = PhantomBandRules.RedMageNukeOrder(OccultElement.Lightning);
+        Assert.Equal(PhantomBandRules.OccultThunderIIId, lightning[0]);
+        Assert.Equal(3, lightning.Length);
+        Assert.Contains(PhantomBandRules.OccultFireIIId, lightning);
+        Assert.Contains(PhantomBandRules.OccultBlizzardIIId, lightning);
+
+        Assert.Equal(PhantomBandRules.OccultBlizzardIIId, PhantomBandRules.RedMageNukeOrder(OccultElement.Ice)[0]);
+        Assert.Equal(PhantomBandRules.OccultFireIIId, PhantomBandRules.RedMageNukeOrder(OccultElement.Fire)[0]);
+
+        // Wind has no nuke here, and unknown has nothing to match — Fire leads either way
+        // because it is the earliest unlock and so the likeliest to actually be usable.
+        Assert.Equal(PhantomBandRules.OccultFireIIId, PhantomBandRules.RedMageNukeOrder(OccultElement.Wind)[0]);
+        Assert.Equal(PhantomBandRules.OccultFireIIId, PhantomBandRules.RedMageNukeOrder(null)[0]);
+
+        // Every order must still offer all three, or the fallback is not a fallback.
+        foreach (var w in new OccultElement?[] { OccultElement.Fire, OccultElement.Ice, OccultElement.Lightning, OccultElement.Wind, null })
+            Assert.Equal(3, PhantomBandRules.RedMageNukeOrder(w).Distinct().Count());
+    }
 }

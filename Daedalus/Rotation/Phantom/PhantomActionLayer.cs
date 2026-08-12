@@ -971,10 +971,13 @@ public sealed class PhantomActionLayer
                 break;
 
             case PhantomJob.PhantomRedMage:
-                TryPush(ctx,
-                    PhantomBandRules.SelectRedMageNuke(
-                        target is IBattleNpc rdmTarget ? TargetWeakness?.Invoke(rdmTarget.NameId) : null),
-                    job, level, PrioDamage, target.GameObjectId, target);
+                // All three at descending priority — they share a recast, so the first the gates
+                // accept fires and the rest cost nothing. Pushing only the best match meant a
+                // single refusal produced no damage at all.
+                var rdmOrder = PhantomBandRules.RedMageNukeOrder(
+                    target is IBattleNpc rdmTarget ? TargetWeakness?.Invoke(rdmTarget.NameId) : null);
+                for (var i = 0; i < rdmOrder.Length; i++)
+                    TryPush(ctx, rdmOrder[i], job, level, PrioDamage + i, target.GameObjectId, target);
                 break;
 
             case PhantomJob.PhantomNinja:
@@ -1265,10 +1268,15 @@ public sealed class PhantomActionLayer
 
         if (found is not { } action || action.Job != job)
             return false;
-        // Below the phantom-level unlock = the action simply isn't learned yet — not a
-        // fixable blocker, so it doesn't pollute the "blocked" readout.
+        // Below the phantom-level unlock. Reported as a HOLD rather than staying silent: a
+        // wrong RequiredLevel in the catalog is indistinguishable from "nothing to do" otherwise,
+        // and that is exactly how Occult Thunder II sat unusable for 13 minutes behind an
+        // "idle — nothing eligible" readout (field 2026-08-11, catalog said 6, real answer 5).
         if (level < action.RequiredLevel)
+        {
+            _pushHolds.Add($"{action.Name} needs phantom Lv.{action.RequiredLevel} (you are {level})");
             return false;
+        }
         if (!IsOnDutyBar(actionId))
         {
             _pushRejects.Add($"{action.Name} not on duty bar");

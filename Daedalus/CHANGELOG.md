@@ -5,6 +5,11 @@ All notable changes to Daedalus will be documented in this file.
 <!-- LATEST-START -->
 ## v0.1.59 — unreleased
 
+### Fix — Phantom Red Mage now actually casts Occult Thunder II
+- Daedalus had Thunder II listed as unlocking at phantom level **6**. It unlocks at **5** — which was provable from a level 5 Red Mage having it slotted on the duty bar. So on any Lightning-weak target the rotation correctly chose Thunder, then silently discarded it for being "not learned yet", and cast **nothing at all**. Thirteen minutes of it, with the Duty tab reporting only *"idle — nothing eligible"*
+- **All three nukes are now offered, best match first.** They share a cooldown, so this costs nothing and means one refusal can never again mean zero damage — if the ideal element can't be used, the next best fires
+- **Being below an action's level is now stated out loud** — *"needs phantom Lv.6 (you are 5)"* — instead of the action just vanishing. That silence is the only reason this took so long to find, and a few other jobs list a level-6 fifth action that may be the same slip; they'll now say so rather than sit there quiet
+
 ### New — Phantom hard casts get a moment to land
 - Phantom actions with a cast time were skipped whenever you were moving, and you count as moving the **entire** time BossMod or vNavmesh is steering — so on a melee job in a critical encounter, an all-hard-cast kit like Phantom Red Mage could go **minutes without casting anything**
 - Movement now pauses briefly so the cast lands, exactly as it already did for a hardcast raise. Worth it because phantom damage scales with item level rather than job potency — measured at 75,000–120,000 a cast against 57,000 from your own skills

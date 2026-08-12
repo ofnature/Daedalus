@@ -185,15 +185,30 @@ public static class PhantomBandRules
     /// fallback for an unknown or unmatched weakness (wind has no nuke in this kit).
     /// </summary>
     public static uint SelectRedMageNuke(Daedalus.Services.Occult.OccultElement? knownWeakness)
+        => RedMageNukeOrder(knownWeakness)[0];
+
+    /// <summary>
+    /// The whole trio, best match first. Pushing only the single best pick meant one refusal —
+    /// unlearned, not slotted, out of range — produced NO damage at all rather than the
+    /// second-best nuke, and because a level gate refuses silently it read as "nothing
+    /// eligible". They share a recast, so the extra pushes cost nothing: the first one the
+    /// gates accept is the one that fires.
+    /// </summary>
+    public static uint[] RedMageNukeOrder(Daedalus.Services.Occult.OccultElement? knownWeakness)
     {
         if (knownWeakness is { } w)
         {
-            if ((w & Daedalus.Services.Occult.OccultElement.Fire) != 0) return OccultFireIIId;
-            if ((w & Daedalus.Services.Occult.OccultElement.Ice) != 0) return OccultBlizzardIIId;
-            if ((w & Daedalus.Services.Occult.OccultElement.Lightning) != 0) return OccultThunderIIId;
+            if ((w & Daedalus.Services.Occult.OccultElement.Fire) != 0)
+                return [OccultFireIIId, OccultBlizzardIIId, OccultThunderIIId];
+            if ((w & Daedalus.Services.Occult.OccultElement.Ice) != 0)
+                return [OccultBlizzardIIId, OccultFireIIId, OccultThunderIIId];
+            if ((w & Daedalus.Services.Occult.OccultElement.Lightning) != 0)
+                return [OccultThunderIIId, OccultFireIIId, OccultBlizzardIIId];
         }
 
-        return OccultFireIIId;
+        // Wind has no nuke in this kit, and an unknown weakness has nothing to match — either
+        // way Fire leads because it is the earliest unlock and so the likeliest to be usable.
+        return [OccultFireIIId, OccultBlizzardIIId, OccultThunderIIId];
     }
 
     /// <summary>Phantom Summoner nukes — one shared 60s recast (Thunderstorm is WIND).</summary>

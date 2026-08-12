@@ -478,11 +478,42 @@ public sealed class ElementalWeaknessLog
     /// be read as "unknown", never as "no weakness" — an unrevealed weakness is not evidence
     /// of its absence, and treating it as such would starve the nuke picker.
     /// </summary>
-    public OccultElement? KnownWeakness(uint nameId) =>
-        _entries.TryGetValue(Key((ushort)_clientState.TerritoryType, nameId), out var w)
-        && w.Elements != OccultElement.None
-            ? w.Elements
-            : null;
+    public OccultElement? KnownWeakness(uint nameId) => KnownWeakness(nameId, null);
+
+    /// <summary>
+    /// As above, but falls back to another row with the SAME NAME in this zone when the exact
+    /// NameId is unknown.
+    /// <para>
+    /// The game gives one enemy several NameIds — Crescent Void Viper is 13896 and 13907,
+    /// Animated Doll 13893 and 13894 — and the weakness is a property of the creature, not of
+    /// the id. Verified 2026-08-11: in every same-name pair where both ids are known they AGREE,
+    /// and RSR's independent table gives the same element for the unknown twin. Without this a
+    /// perfectly well-known enemy reads as unknown purely because this instance spawned under
+    /// the other id, and the nuke picker falls back to Fire.
+    /// </para>
+    /// </summary>
+    public OccultElement? KnownWeakness(uint nameId, string? name)
+    {
+        var territory = (ushort)_clientState.TerritoryType;
+
+        if (_entries.TryGetValue(Key(territory, nameId), out var exact) && exact.Elements != OccultElement.None)
+            return exact.Elements;
+
+        if (string.IsNullOrWhiteSpace(name))
+            return null;
+
+        foreach (var e in _entries.Values)
+        {
+            if (e.TerritoryId == territory
+                && e.Elements != OccultElement.None
+                && string.Equals(e.Name, name, StringComparison.Ordinal))
+            {
+                return e.Elements;
+            }
+        }
+
+        return null;
+    }
 
     /// <summary>Framework tick — throttled scan of nearby enemies for revealed weaknesses.</summary>
     public void Update()
