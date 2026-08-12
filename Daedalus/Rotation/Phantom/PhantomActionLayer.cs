@@ -1338,12 +1338,22 @@ public sealed class PhantomActionLayer
 
         if (behavior.Action.CastTime > 0 && _isMovingThisFrame)
         {
+            // Don't stop for a window we can't use yet — keep moving until the GCD is nearly up.
+            var gcdRemaining = _actionService.GcdRemaining;
+            if (PhantomBandRules.ShouldKeepMovingUntilGcd(gcdRemaining, behavior.Action.IsGCD))
+            {
+                _pushHolds.Add($"{action.Name} — moving until the GCD comes up ({gcdRemaining:0.0}s)");
+                return false;
+            }
+
             // Ask to stand still for it, the way a hardcast raise does — but only when BossMod
-            // says the spot is safe for the whole cast. The hold is expiry-driven and the
-            // Plugin-side watcher releases it the instant the ground turns dangerous, so a
-            // mechanic always beats a nuke. The cast lands on a later frame, once actually still.
-            if (RequestCastHoldIfSafe(ctx, behavior.Action.CastTime))
-                _pushHolds.Add($"{action.Name} — pausing movement to cast ({behavior.Action.CastTime:0.0}s)");
+            // says the spot is safe for the WHOLE stand, which is the wait for the GCD plus the
+            // cast, not the cast alone. The hold is expiry-driven and the Plugin-side watcher
+            // releases it the instant the ground turns dangerous, so a mechanic always beats a
+            // nuke. The cast lands on a later frame, once actually still.
+            var still = PhantomBandRules.StillSecondsForCast(gcdRemaining, behavior.Action.IsGCD, behavior.Action.CastTime);
+            if (RequestCastHoldIfSafe(ctx, still))
+                _pushHolds.Add($"{action.Name} — pausing movement to cast ({still:0.0}s)");
             else
                 _pushRejects.Add($"{action.Name} needs a hard cast (moving)");
 
@@ -1435,20 +1445,20 @@ public sealed class PhantomActionLayer
     /// mid-cast bail for free.
     /// </para>
     /// </summary>
-    private bool RequestCastHoldIfSafe(IRotationContext ctx, float castSeconds)
+    private bool RequestCastHoldIfSafe(IRotationContext ctx, float stillSeconds)
     {
         if (_configThisFrame?.PauseMovementForPhantomCasts != true)
             return false;
         if (CastSafety is null)
             return false;
 
-        // A slip margin on top of the cast: finishing the cast exactly as something lands is
+        // A slip margin on top of the stand: finishing the cast exactly as something lands is
         // not "safe", and the animation lock outlasts the cast bar.
-        var window = castSeconds + PhantomCastSafetyMarginSeconds;
+        var window = stillSeconds + PhantomCastSafetyMarginSeconds;
         if (!CastSafety(ctx.Player.Position, window))
             return false;
 
-        Daedalus.Services.Positional.RaiseCastHold.Request(castSeconds + PhantomCastHoldSlackSeconds);
+        Daedalus.Services.Positional.RaiseCastHold.Request(stillSeconds + PhantomCastHoldSlackSeconds);
         return true;
     }
 

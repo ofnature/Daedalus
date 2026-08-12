@@ -516,6 +516,31 @@ public class PhantomBandRulesTests
     }
 
     /// <summary>
+    /// The hold has to outlast the wait, not just the cast. Sizing it to the cast alone is what
+    /// let Slowga stop, lose the GCD to the job's filler, expire, and move off again — stationary
+    /// and silent at the same time.
+    /// </summary>
+    [Fact]
+    public void PhantomCastHold_WaitsForTheGcdBeforeStopping_AndCoversTheWholeStand()
+    {
+        // GCD still rolling: keep moving, do not throw away the distance.
+        Assert.True(PhantomBandRules.ShouldKeepMovingUntilGcd(2.4f, isGcd: true));
+        Assert.True(PhantomBandRules.ShouldKeepMovingUntilGcd(0.9f, isGcd: true));
+
+        // Nearly up: stop now, so we are still when the window opens.
+        Assert.False(PhantomBandRules.ShouldKeepMovingUntilGcd(0.7f, isGcd: true));
+        Assert.False(PhantomBandRules.ShouldKeepMovingUntilGcd(0f, isGcd: true));
+
+        // An oGCD hard cast never waits on the GCD.
+        Assert.False(PhantomBandRules.ShouldKeepMovingUntilGcd(2.4f, isGcd: false));
+
+        // The stand covers the wait AND the cast — 2.1s was never going to outlast a 2.5s GCD.
+        Assert.Equal(2.3f, PhantomBandRules.StillSecondsForCast(0.8f, isGcd: true, castSeconds: 1.5f), 3);
+        Assert.Equal(1.5f, PhantomBandRules.StillSecondsForCast(0f, isGcd: true, castSeconds: 1.5f), 3);
+        Assert.Equal(1.5f, PhantomBandRules.StillSecondsForCast(2.4f, isGcd: false, castSeconds: 1.5f), 3);
+    }
+
+    /// <summary>
     /// The Slow set is checked as a set precisely because Occult Slowga has no status of its own,
     /// so it must stay non-empty and must include the newest generic row — pinning it to one
     /// guessed id is the failure mode this guards against.

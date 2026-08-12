@@ -31,7 +31,9 @@ All notable changes to Daedalus will be documented in this file.
 ### New — Phantom hard casts get a moment to land
 - Phantom actions with a cast time were skipped whenever you were moving, and you count as moving the **entire** time BossMod or vNavmesh is steering — so on a melee job in a critical encounter, an all-hard-cast kit like Phantom Red Mage could go **minutes without casting anything**
 - Movement now pauses briefly so the cast lands, exactly as it already did for a hardcast raise. Worth it because phantom damage scales with item level rather than job potency — measured at 75,000–120,000 a cast against 57,000 from your own skills
-- **It only pauses when BossMod says the spot is safe for the whole cast, and lets go the instant the ground turns dangerous.** A mechanic always beats a nuke. Toggle in Occult settings if you'd rather never stop moving
+- **It only pauses when BossMod says the spot is safe for the whole stand, and lets go the instant the ground turns dangerous.** A mechanic always beats a nuke. Toggle in Occult settings if you'd rather never stop moving
+- **It now waits for the GCD before stopping, and stays stopped through it.** The pause was originally sized to the cast alone — 2.1 seconds — while the thing it had to outlast was a full 2.5 second GCD. So it would stand still, lose the window to your normal rotation, time out, walk off, and start over: never moving *and* never casting. In the field that showed up as Occult Slowga firing exactly once in a two-mob pull, on the frame the last mob died
+- One limitation worth knowing: the pause only stops **BossMod's** steering. If something else is moving you — your own keys, or a navigation path from another plugin — a hard cast still can't land while it's moving you
 
 ### Fix — Warrior's Inner Release no longer switches your phantom job off
 - Inner Release was being treated as a hard lockout, so for the **15 seconds of every minute** it's up, your entire phantom job stopped — every action, not just damage. On a Warrior running Phantom Red Mage the Duty tab just read *"held — lockout status 1177"* and nothing ever fired

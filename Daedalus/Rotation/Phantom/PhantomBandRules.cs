@@ -128,6 +128,34 @@ public static class PhantomBandRules
         => distanceYalms <= maxRangeYalms;
 
     /// <summary>
+    /// How close the GCD must be before it is worth stopping to hard-cast a phantom GCD.
+    /// </summary>
+    public const float CastHoldLeadSeconds = 0.8f;
+
+    /// <summary>
+    /// Should we keep moving because the GCD this cast needs is still a while off?
+    /// <para>
+    /// Stopping early is pure loss. The phantom pre-pass runs BEFORE the job's modules, so a
+    /// phantom GCD wins any window it is standing still for — but only if it is STILL standing
+    /// still when that window arrives. Field 2026-08-11: Occult Slowga fired exactly once in a
+    /// two-mob pull, on the frame the last mob died. The hold was sized to the cast (1.5 + 0.6 =
+    /// 2.1s) while the thing it had to outwait was a full ~2.5s GCD, so it stopped, lost the
+    /// window to the job's filler, expired, moved again, and looped — never stationary and never
+    /// casting, the worst of both.
+    /// </para>
+    /// </summary>
+    public static bool ShouldKeepMovingUntilGcd(float gcdRemaining, bool isGcd, float leadSeconds = CastHoldLeadSeconds)
+        => isGcd && gcdRemaining > leadSeconds;
+
+    /// <summary>
+    /// How long the toon actually has to stand still: the wait for the GCD plus the cast itself.
+    /// Both the safety check and the hold are sized off this, so we never promise to stand
+    /// somewhere for less time than we mean to.
+    /// </summary>
+    public static float StillSecondsForCast(float gcdRemaining, bool isGcd, float castSeconds)
+        => (isGcd && gcdRemaining > 0f ? gcdRemaining : 0f) + castSeconds;
+
+    /// <summary>
     /// Occult Slowga (Time Mage): a pure debuff, no damage. Fires once and then waits out the
     /// 30s Slow rather than re-spending a GCD every 2.5s, so the gate is "target is not already
     /// slowed" — reapply follows for free when the status drops off.
