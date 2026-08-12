@@ -289,9 +289,19 @@ public sealed class OccultSection
                     v => config.Occult.RedMagePrimeDualcastWithCure = v,
                     "Needs the level 6 Dualcast trait. Casting the heal earns Dualcast, so the " +
                     "weakness-matched nuke goes out INSTANTLY next GCD — no pausing to cast and " +
-                    "nothing can interrupt it. Only runs when the target's element is already " +
-                    "known, and never below 5,000 MP so a raise is still affordable.",
+                    "nothing can interrupt it. Only runs when the target's element is already known.",
                     save);
+                if (config.Occult.RedMagePrimeDualcastWithCure)
+                {
+                    config.Occult.RedMagePrimeMpFloor = ConfigUIHelpers.IntSlider(
+                        "Stop priming below MP", config.Occult.RedMagePrimeMpFloor,
+                        0, 10000,
+                        "Cure II is 1,500 MP a go, so this is why priming can work all fight and " +
+                        "then quietly stop — the bar drained under the floor. Lower it to keep " +
+                        "priming longer, raise it to keep more in reserve for raises (~2,400 each). " +
+                        "The Duty tab says when this is what stopped it.",
+                        save, v => config.Occult.RedMagePrimeMpFloor = v);
+                }
                 break;
 
             case PhantomJob.Necromancer:

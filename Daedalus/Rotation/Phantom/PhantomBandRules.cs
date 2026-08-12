@@ -142,8 +142,13 @@ public static class PhantomBandRules
     public const int OccultCureIIMpCost = 1500;
 
     /// <summary>
-    /// Don't prime below this. Cure II is 1,500 and getting somebody off the floor is about
+    /// Default MP floor for priming. Cure II is 1,500 and getting somebody off the floor is about
     /// 2,400 — spending down to nothing for a nuke trades damage for a body staying dead.
+    /// <para>
+    /// Configurable, because this number decides how a fight FEELS: it is the reason priming
+    /// works beautifully early and then quietly stops once the bar has drained, which reads as
+    /// the feature being flaky rather than as a budget being enforced (field 2026-08-11).
+    /// </para>
     /// </summary>
     public const int DualcastPrimeMpFloor = 5000;
 
@@ -172,7 +177,7 @@ public static class PhantomBandRules
     /// </summary>
     public static RedMagePlan PlanRedMage(
         bool hasDualcast, byte phantomLevel, bool weaknessKnown, bool nukeReady, bool cureReady,
-        int currentMp, bool primeEnabled)
+        int currentMp, bool primeEnabled, int mpFloor)
     {
         if (hasDualcast)
             return RedMagePlan.SpendDualcast;
@@ -182,12 +187,34 @@ public static class PhantomBandRules
             && weaknessKnown
             && nukeReady
             && cureReady
-            && currentMp >= DualcastPrimeMpFloor)
+            && currentMp >= mpFloor)
         {
             return RedMagePlan.PrimeWithCure;
         }
 
         return RedMagePlan.HardcastNuke;
+    }
+
+    /// <summary>
+    /// Why priming was skipped, or null when nothing STICKY is blocking it.
+    /// <para>
+    /// Only the reasons that persist. Cure and nuke readiness are false on nearly every frame
+    /// simply because the GCD is rolling, so reporting those would bury the line in noise that
+    /// says nothing. What the field actually needs explaining is the other kind: "it primed all
+    /// fight and then just stopped", which is MP draining past the floor or the target changing
+    /// to something that has never been Libra'd.
+    /// </para>
+    /// </summary>
+    public static string? DescribePrimeBlock(
+        byte phantomLevel, bool weaknessKnown, int currentMp, int mpFloor)
+    {
+        if (phantomLevel < DualcastTraitLevel)
+            return $"needs phantom Lv.{DualcastTraitLevel} for Dualcast (you are {phantomLevel})";
+        if (!weaknessKnown)
+            return "target's element is unknown — Libra it first";
+        if (currentMp < mpFloor)
+            return $"MP {currentMp} is under the {mpFloor} floor";
+        return null;
     }
 
     /// <summary>

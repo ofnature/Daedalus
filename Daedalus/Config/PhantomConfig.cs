@@ -311,6 +311,13 @@ public sealed class PhantomConfig
     /// </summary>
     public bool RedMagePrimeDualcastWithCure { get; set; } = true;
 
+    /// <summary>
+    /// Stop priming below this much MP. The reason a fight can start out priming every nuke and
+    /// then stop doing it — Cure II is 1,500 a go, so the bar drains and eventually sits under
+    /// the floor. Lower it to keep priming longer, raise it to protect raises harder.
+    /// </summary>
+    public int RedMagePrimeMpFloor { get; set; } = Rotation.Phantom.PhantomBandRules.DualcastPrimeMpFloor;
+
     // ── Time Mage ──
     /// <summary>
     /// Keep Slow on the pull with Occult Slowga.

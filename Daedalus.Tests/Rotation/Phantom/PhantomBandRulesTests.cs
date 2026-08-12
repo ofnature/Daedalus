@@ -527,7 +527,8 @@ public class PhantomBandRulesTests
             PhantomBandRules.RedMagePlan.SpendDualcast,
             PhantomBandRules.PlanRedMage(
                 hasDualcast: true, phantomLevel: 6, weaknessKnown: false, nukeReady: false,
-                cureReady: false, currentMp: 0, primeEnabled: false));
+                cureReady: false, currentMp: 0, primeEnabled: false,
+                mpFloor: PhantomBandRules.DualcastPrimeMpFloor));
     }
 
     /// <summary>
@@ -549,11 +550,36 @@ public class PhantomBandRulesTests
     {
         var plan = PhantomBandRules.PlanRedMage(
             hasDualcast: false, phantomLevel: level, weaknessKnown: weaknessKnown,
-            nukeReady: nukeReady, cureReady: cureReady, currentMp: mp, primeEnabled: primeEnabled);
+            nukeReady: nukeReady, cureReady: cureReady, currentMp: mp, primeEnabled: primeEnabled,
+            mpFloor: PhantomBandRules.DualcastPrimeMpFloor);
 
         Assert.Equal(
             expectPrime ? PhantomBandRules.RedMagePlan.PrimeWithCure : PhantomBandRules.RedMagePlan.HardcastNuke,
             plan);
+    }
+
+    /// <summary>
+    /// "Worked like a charm, then sometimes straight-cast instead" is what a silently-enforced
+    /// budget looks like from outside, so the STICKY blocks must be nameable. The transient ones
+    /// (cure/nuke off the GCD) deliberately are not — they are false on nearly every frame and
+    /// would bury the line in noise.
+    /// </summary>
+    [Fact]
+    public void DescribePrimeBlock_NamesOnlyTheReasonsThatPersist()
+    {
+        const int floor = PhantomBandRules.DualcastPrimeMpFloor;
+
+        Assert.Null(PhantomBandRules.DescribePrimeBlock(6, weaknessKnown: true, currentMp: floor, mpFloor: floor));
+
+        Assert.Contains("Lv.6", PhantomBandRules.DescribePrimeBlock(5, true, floor, floor));
+        Assert.Contains("Libra", PhantomBandRules.DescribePrimeBlock(6, false, floor, floor));
+        Assert.Contains("MP", PhantomBandRules.DescribePrimeBlock(6, true, floor - 1, floor));
+
+        // A configured floor of zero must never block, or the slider's bottom end lies.
+        Assert.Null(PhantomBandRules.DescribePrimeBlock(6, weaknessKnown: true, currentMp: 0, mpFloor: 0));
+        Assert.Equal(
+            PhantomBandRules.RedMagePlan.PrimeWithCure,
+            PhantomBandRules.PlanRedMage(false, 6, true, true, true, currentMp: 0, primeEnabled: true, mpFloor: 0));
     }
 
     /// <summary>

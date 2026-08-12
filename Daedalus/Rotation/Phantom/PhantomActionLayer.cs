@@ -1158,7 +1158,18 @@ public sealed class PhantomActionLayer
             nukeReady: order.Length > 0 && _actionService.IsActionReady(order[0]),
             cureReady: _actionService.IsActionReady(OccultCureIIId),
             currentMp: (int)ctx.Player.CurrentMp,
-            primeEnabled: cfg.RedMagePrimeDualcastWithCure);
+            primeEnabled: cfg.RedMagePrimeDualcastWithCure,
+            mpFloor: cfg.RedMagePrimeMpFloor);
+
+        // Say why it stopped priming. Field 2026-08-11: "worked like a charm, just sometimes
+        // during the same fight it would straight cast damage instead" — which is exactly what a
+        // silently-enforced budget looks like from the outside.
+        if (plan == PhantomBandRules.RedMagePlan.HardcastNuke && cfg.RedMagePrimeDualcastWithCure
+            && PhantomBandRules.DescribePrimeBlock(
+                level, weakness is not null, (int)ctx.Player.CurrentMp, cfg.RedMagePrimeMpFloor) is { } why)
+        {
+            _pushHolds.Add($"hard-casting — not priming Dualcast: {why}");
+        }
 
         if (plan == PhantomBandRules.RedMagePlan.PrimeWithCure)
         {
