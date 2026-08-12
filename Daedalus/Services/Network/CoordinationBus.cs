@@ -155,6 +155,9 @@ public sealed class CoordinationBus : IDisposable
     /// <summary>Operator called a limit break for a role — only matching toons act.</summary>
     public event System.Action<LimitBreakRole>? OnLimitBreak;
 
+    /// <summary>A toon reported it actually fired the limit break.</summary>
+    public event System.Action<LimitBreakRole, string /*character*/>? OnLimitBreakFired;
+
     public CoordinationBus(
         IPluginLog log,
         LanCoordinator lan,
@@ -527,7 +530,10 @@ public sealed class CoordinationBus : IDisposable
                 // LAN must not have its bar spent by someone else's call.
                 if (!IsForLocalGroup(msg)) break;
                 var lb = LanLimitBreakPayload.FromJson(msg.Payload);
-                if (lb != null)
+                if (lb is null) break;
+                if (lb.Fired)
+                    OnLimitBreakFired?.Invoke(lb.Role, lb.Name);
+                else
                     OnLimitBreak?.Invoke(lb.Role);
                 break;
 
@@ -767,6 +773,25 @@ public sealed class CoordinationBus : IDisposable
         OnLimitBreak?.Invoke(role);
 
         var payload = new LanLimitBreakPayload { Role = role }.ToJson();
+        var ts = DateTime.UtcNow.Ticks;
+        var group = LocalPartyGroupId;
+        for (var i = 0; i < 3; i++)
+        {
+            _lan.Send(new LanMessage
+            {
+                Type = LanMessageType.LimitBreak, Payload = payload, Timestamp = ts, PartyGroupId = group,
+            });
+        }
+    }
+
+    /// <summary>
+    /// Tell the fleet this toon actually fired the limit break (×3, dedup). NOT raised locally —
+    /// the box that fired it already knows, and re-entering its own confirmation would clobber
+    /// the more specific "fired" line it just set.
+    /// </summary>
+    public void BroadcastLimitBreakFired(LimitBreakRole role, string characterName)
+    {
+        var payload = new LanLimitBreakPayload { Role = role, Fired = true, Name = characterName }.ToJson();
         var ts = DateTime.UtcNow.Ticks;
         var group = LocalPartyGroupId;
         for (var i = 0; i < 3; i++)

@@ -507,11 +507,26 @@ public sealed class LanRescueNeededPayload
     }
 }
 
-/// <summary>LimitBreak payload — which role the operator wants to spend the bar.</summary>
+/// <summary>
+/// LimitBreak payload — which role the operator wants to spend the bar, or (with
+/// <see cref="Fired"/>) the acting toon reporting back that it went off.
+/// </summary>
 public sealed class LanLimitBreakPayload
 {
     [JsonPropertyName("r")]
     public LimitBreakRole Role { get; set; }
+
+    /// <summary>
+    /// This is a CONFIRMATION, not a call. Needed because the operator's own window can otherwise
+    /// only report its own toon's fate, which for a role it does not answer for is silence.
+    /// Additive/back-compat (absent = a call).
+    /// </summary>
+    [JsonPropertyName("f")]
+    public bool Fired { get; set; }
+
+    /// <summary>Who fired it, for the confirmation line.</summary>
+    [JsonPropertyName("n")]
+    public string Name { get; set; } = "";
 
     public string ToJson() => JsonSerializer.Serialize(this);
 

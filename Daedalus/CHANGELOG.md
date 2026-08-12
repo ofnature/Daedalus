@@ -18,6 +18,7 @@ All notable changes to Daedalus will be documented in this file.
 - **Retried for a few seconds** rather than fired once, because the call arrives on whatever frame it arrives on — mid-cast, mid-animation, or with the bar a hair short. One press shouldn't be wasted on bad timing
 - Scoped to your **party**, so a second group on the same network can't spend your bar
 - A role nobody in the roster can answer shows **disabled with the reason**, and the window reports what happened to the last call — a limit break that quietly doesn't go off looks exactly like one nobody called
+- **The toon that fires reports back**, so the window says *"Melee LB fired by Rosa Discord"* even when the toon you're sitting on was never the one meant to act. If nothing answers within a few seconds it says that too, and if the game refuses the cast it names the refusal instead of just going quiet
 
 ### New — Phantom Red Mage uses Dualcast instead of throwing it away
 - Casting any phantom spell with a cast time grants **Dualcast**, which makes your next spell instant. Nothing spent it, and the trait's own rule is that **any weaponskill cancels it** — so on a melee or tank main job the very next GCD of your normal rotation destroyed it about two seconds later. Every single time

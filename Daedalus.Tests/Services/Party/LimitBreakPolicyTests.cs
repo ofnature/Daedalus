@@ -79,6 +79,38 @@ public sealed class LimitBreakPolicyTests
         Assert.True(LimitBreakPolicy.RetryIntervalSeconds < LimitBreakPolicy.ArmWindowSeconds);
     }
 
+    /// <summary>
+    /// The "nobody answered" verdict must not beat the acting toon's own retries, or the operator
+    /// gets told the call missed while the melee is still trying — and the confirmation then
+    /// arrives to contradict it.
+    /// </summary>
+    [Fact]
+    public void AnswerWait_OutlastsTheActingBoxRetries()
+    {
+        Assert.True(LimitBreakPolicy.AnswerWaitSeconds > LimitBreakPolicy.ArmWindowSeconds);
+    }
+
+    /// <summary>
+    /// A confirmation is a distinct message from a call, and back-compat matters: an older client
+    /// omits the new fields, and an absent Fired must read as "this is a call".
+    /// </summary>
+    [Fact]
+    public void FiredConfirmation_RoundTrips_AndDefaultsToACall()
+    {
+        var fired = LanLimitBreakPayload.FromJson(
+            new LanLimitBreakPayload { Role = LimitBreakRole.Melee, Fired = true, Name = "Rosa Discord" }.ToJson());
+        Assert.NotNull(fired);
+        Assert.True(fired!.Fired);
+        Assert.Equal("Rosa Discord", fired.Name);
+        Assert.Equal(LimitBreakRole.Melee, fired.Role);
+
+        var call = LanLimitBreakPayload.FromJson(
+            new LanLimitBreakPayload { Role = LimitBreakRole.Melee }.ToJson());
+        Assert.NotNull(call);
+        Assert.False(call!.Fired);
+        Assert.Equal("", call.Name);
+    }
+
     [Fact]
     public void Label_IsSetForEveryRole()
     {

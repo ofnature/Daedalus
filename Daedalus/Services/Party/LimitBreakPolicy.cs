@@ -24,6 +24,13 @@ public static class LimitBreakPolicy
     public const float RetryIntervalSeconds = 0.25f;
 
     /// <summary>
+    /// How long a box that is NOT the right role waits for someone to confirm before reporting
+    /// that nobody answered. Longer than the arm window, so the acting toon has used up all its
+    /// retries and its confirmation has had time to cross the network before we call it a miss.
+    /// </summary>
+    public const float AnswerWaitSeconds = ArmWindowSeconds + 2f;
+
+    /// <summary>
     /// Which limit break this job would fire, or null for anything that has none (crafters,
     /// gatherers, an unset job). Note this is the job's OWN category — the operator picks a role
     /// and only matching toons act, so a party with no melee simply ignores a melee call.

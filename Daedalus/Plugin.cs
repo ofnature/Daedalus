@@ -852,7 +852,15 @@ public sealed class Plugin : IDalamudPlugin
         // Fleet limit-break call: every box hears it, only the toon whose role matches acts.
         this.limitBreakService = new Daedalus.Services.Party.LimitBreakService(objectTable, log);
         if (coordinationBus != null)
+        {
             coordinationBus.OnLimitBreak += role => this.limitBreakService.Call(role);
+            coordinationBus.OnLimitBreakFired += (role, who) => this.limitBreakService.NoteRemoteFire(role, who);
+
+            // The firing toon reports back, so the operator's window can say what happened even
+            // when its own toon was never the one meant to act.
+            this.limitBreakService.OnFired = role => coordinationBus.BroadcastLimitBreakFired(
+                role, objectTable.LocalPlayer?.Name.TextValue ?? "");
+        }
 
         if (coordinationBus != null && lanCoordinator != null)
             this.lanPartyWindow = new LanPartyWindow(coordinationBus, lanCoordinator, configuration, SaveConfiguration, objectTable, targetManager, limitBreakService);
