@@ -65,18 +65,24 @@ public abstract class BaseResurrectionModule<TContext> : IHealerRotationModule<T
     /// never happens is precisely when nobody is looking. Deduped, so this logs transitions
     /// rather than frames.
     /// <para>
-    /// Skips the resting states ("No target", "Disabled"), which are the normal condition when
-    /// nobody is dead and would otherwise drown the log.
+    /// Resting states — nobody needs a raise — are skipped, and skipped BEFORE the dedupe key is
+    /// touched. That ordering is the whole fix. Two different resting states are written every
+    /// frame from two different places (<see cref="TryExecute"/> sets "No target"/"Disabled",
+    /// then <see cref="UpdateDebugState"/> sets "None needed"), so a skip that still overwrote
+    /// the key left every frame looking like a transition and re-logged forever. Field
+    /// 2026-08-14: "Raise: None needed ×5314" in one session.
+    /// </para>
+    /// <para>
+    /// Resting states CLEAR the key rather than storing it, so a genuine raise need that returns
+    /// after a lull still logs instead of being swallowed as a duplicate.
     /// </para>
     /// </summary>
     protected void LogRaiseState(string state)
     {
-        if (string.Equals(state, _lastLoggedRaiseState, System.StringComparison.Ordinal))
-            return;
+        var (shouldLog, nextKey) = RaiseStateLogPolicy.Decide(state, _lastLoggedRaiseState);
+        _lastLoggedRaiseState = nextKey;
 
-        _lastLoggedRaiseState = state;
-
-        if (string.IsNullOrEmpty(state) || state is "No target" or "Disabled")
+        if (!shouldLog)
             return;
 
         Daedalus.Rotation.Base.RotationServices.DebugLog?.Log(

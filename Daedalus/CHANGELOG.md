@@ -1,8 +1,20 @@
-﻿# Changelog
+# Changelog
 
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.60 — unreleased
+
+### Fix — An action the game refuses is no longer retried sixty times a second
+- When the game refused an action outright, Daedalus tried again on the very next frame, and kept doing it. Every other failure path already waited a tenth of a second first; this one was missed
+- Caught in a log where **Tomahawk was refused five times in 68 milliseconds** while the Warrior stood outside its range. Retrying at 60 frames a second cannot fix being too far away — it just buries the one useful line in the log under identical copies
+- It also gives the automatic re-face a few frames to actually take effect before the next attempt, which is the case the retry was meant to help in the first place
+
+### Fix — "Raise: None needed" no longer floods the log
+- One session recorded that line **5,314 times**. Two different parts of the rotation write a resting raise state every frame — one says *"No target"*, the other says *"None needed"* — and the de-duplication stored each one before deciding to skip it, so every frame looked like a change and logged again
+- Resting states are now recognised before that happens. A real raise still logs the moment it's needed, including a second time later in the fight
+
+<!-- LATEST-END -->
 ## v0.1.59 — 2026-08-11
 
 ### New — Bigger shipped weakness table: 273 enemies, South Horn nearly done
@@ -68,7 +80,6 @@ All notable changes to Daedalus will be documented in this file.
 ### Fix — Slightly wider protection for mudra timing
 - The window that stops a combo attack from stealing the GCD a mudra needs was 25 milliseconds too narrow. In that sliver an attack could slip through and break the ninjutsu into Rabbit Medium
 
-<!-- LATEST-END -->
 ## v0.1.58 — 2026-08-10
 
 ### New — Critical encounters have bosses, FATEs have elites, and the table now says so
@@ -97,7 +108,6 @@ All notable changes to Daedalus will be documented in this file.
 - **Off by default** — ethers cost real gil. If the game refuses one (some duties block items) it backs off instead of retrying every second
 - Worth knowing: the Occult Crescent's own *Occult Ether* is a **Chemist** action, so a Phantom White Mage carrying the instant Occult Raise has no phantom MP tool at all. Real ethers are the answer that works on any phantom job
 
-<!-- LATEST-END -->
 ## v0.1.57 — 2026-08-10
 
 ### New — Occult weakness table: South Horn critical encounters filled in

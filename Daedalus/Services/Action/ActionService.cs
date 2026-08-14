@@ -557,6 +557,15 @@ public sealed unsafe class ActionService : IActionService
             // Facing recovery: the game refused outright; if it's because we aren't facing the target,
             // force a re-face (hard-target) so the next attempt lands instead of stalling (PLD case).
             TryFaceRecovery(dispatchId, targetId);
+
+            // Back off like the stale guards do. An outright refusal is the ONE path that was not
+            // arming this, so a standing refusal — out of range being the usual one — re-submitted
+            // every frame. Field 2026-08-14: Tomahawk refused five times in 68ms (~17ms apart, one
+            // per frame) while the toon sat outside its 25y range. Retrying at 60Hz cannot fix
+            // range, and it buries the one useful log line under identical repeats. It also gives
+            // the face recovery above a few frames to actually land before the next attempt.
+            _nextGcdAttemptAllowed = DateTime.UtcNow.AddSeconds(FailedSubmitBackoffSeconds);
+
             LogCastRefusal(action.Name, dispatchId, targetId, submittedNotCast: false);
         }
 
