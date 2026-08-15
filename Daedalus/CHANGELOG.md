@@ -5,6 +5,12 @@ All notable changes to Daedalus will be documented in this file.
 <!-- LATEST-START -->
 ## v0.1.60 — unreleased
 
+### New — Phantom Blue Mage settings now tell you where each spell is learned
+- Blue Mage is the one phantom job that doesn't level up by earning experience — **you learn each spell by watching an enemy cast it and then killing it** — and nothing in the game tells you which enemy teaches what
+- Occult settings under Blue Mage now lists all seven spells with the **enemy, the level needed, and the location or critical encounter** to find it. Spells already on your duty bar are marked, and ones above your level are dimmed
+- **All seven are learned in North Horn.** South Horn teaches this job nothing
+- Labelled as reference data, because that's what it is — the game files carry no link between these spells and their teachers, so this is transcribed from the community wiki rather than something Daedalus watched happen. Your elemental weakness table stays observation-only, untouched
+
 ### Fix — Pot hunt map: the scan cones pointed the wrong way
 - Every cone was drawn **mirrored north-to-south**. Readings of *"to the northeast"* drew a wedge pointing south-east, and *"to the north"* pointed straight south
 - The compass maths was right the whole time — so was the gold overlap region, which is worked out separately. Only the drawing was wrong, which meant the cones and the region they're supposed to bound **disagreed with each other**, and the cones were the half you look at

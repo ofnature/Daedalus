@@ -154,6 +154,65 @@ public sealed class OccultSection
         ImGui.Spacing();
     }
 
+    /// <summary>
+    /// Where each Phantom Blue Mage spell is learned. This job is the one that cannot be worked
+    /// out in game — it levels by learning from enemies rather than by earning experience, and
+    /// nothing in the UI says which enemy teaches what.
+    /// </summary>
+    private void DrawBlueMageSpellSources()
+    {
+        ImGui.TextColored(Dim,
+            "Learned from enemies, not levels: the enemy must USE the spell in front of you, then die.");
+        ImGui.TextColored(Dim, "Every source is in North Horn — South Horn teaches this job nothing.");
+        ImGui.Spacing();
+
+        var level = phantomJobService?.GetSnapshot()?.ActiveJob == PhantomJob.PhantomBlueMage
+            ? phantomJobService.GetSnapshot()?.Level ?? 0
+            : (byte)0;
+
+        if (!ImGui.BeginTable("BluSpellSources", 4,
+                ImGuiTableFlags.BordersInnerH | ImGuiTableFlags.SizingStretchProp))
+        {
+            return;
+        }
+
+        ImGui.TableSetupColumn("Spell");
+        ImGui.TableSetupColumn("Lv", ImGuiTableColumnFlags.WidthFixed, 26f);
+        ImGui.TableSetupColumn("Learned from");
+        ImGui.TableSetupColumn("Where");
+        ImGui.TableHeadersRow();
+
+        foreach (var s in PhantomBlueMageSources.All)
+        {
+            // Slotted on the duty bar is the closest thing to a "you have this" signal we can
+            // read — you cannot slot a spell you have not learned.
+            var have = phantomJobService?.IsSlotted(s.ActionId) == true;
+            var tooEarly = level > 0 && level < s.RequiredLevel;
+            var colour = have ? Green : tooEarly ? Dim : ImGui.GetStyle().Colors[(int)ImGuiCol.Text];
+
+            ImGui.TableNextRow();
+
+            ImGui.TableNextColumn();
+            ImGui.TextColored(colour, have ? $"{s.Spell}  (have)" : s.Spell);
+
+            ImGui.TableNextColumn();
+            ImGui.TextColored(colour, s.RequiredLevel.ToString());
+
+            ImGui.TableNextColumn();
+            ImGui.TextColored(colour, s.Enemy);
+
+            ImGui.TableNextColumn();
+            ImGui.TextColored(colour, s.Where.Length > 0 ? s.Where : "—");
+        }
+
+        ImGui.EndTable();
+
+        ImGui.Spacing();
+        ImGui.TextColored(Dim,
+            "Reference data, not something Daedalus observed — the game files carry no link between "
+            + "these spells and the enemies that teach them.");
+    }
+
     private void DrawJobOptions(PhantomJob job)
     {
         switch (job)
@@ -276,6 +335,10 @@ public sealed class OccultSection
                     () => config.Occult.GeomancerSuspendOutOfCombat, v => config.Occult.GeomancerSuspendOutOfCombat = v,
                     "Weather buffs (Sunbath, Cloudy Caress, Blessed Rain…) are automatic — the game only offers the one matching current weather.",
                     save);
+                break;
+
+            case PhantomJob.PhantomBlueMage:
+                DrawBlueMageSpellSources();
                 break;
 
             case PhantomJob.PhantomRedMage:
