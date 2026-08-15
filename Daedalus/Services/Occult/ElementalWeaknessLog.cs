@@ -237,7 +237,33 @@ public sealed class ElementalWeaknessLog
     public static bool IsMechanicObject(OccultWeaknessEntry entry) =>
         !entry.EverTargetable
         && entry.Elements == OccultElement.None
-        && entry.Sightings >= MinSightingsForTargetabilityVerdict;
+        && entry.Sightings >= MinSightingsForTargetabilityVerdict
+        && WasTargetabilityActuallyRecorded(entry);
+
+    /// <summary>
+    /// When <see cref="OccultWeaknessEntry.EverTargetable"/> began being recorded (v0.1.58).
+    /// </summary>
+    public static readonly DateTime TargetabilityTrackedSinceUtc = new(2026, 8, 10, 0, 0, 0, DateTimeKind.Utc);
+
+    /// <summary>
+    /// Has this row been seen since the targetability flag existed?
+    /// <para>
+    /// Without this the verdict is unsound in the one direction that matters. A row last seen
+    /// BEFORE v0.1.58 reads <c>EverTargetable == false</c> because nothing ever wrote the field,
+    /// not because the thing was unreachable — and plenty of those rows carry hundreds of
+    /// sightings, so the evidence gate waves them straight through. Measured 2026-08-14: 129 of
+    /// 273 rows had 20+ sightings while only 30 had been seen since the flag shipped, so the
+    /// unguarded rule would have deleted real enemies on the strength of a field that was never
+    /// populated. A row with no recorded targetability is UNKNOWN, and unknown is not a verdict.
+    /// </para>
+    /// </summary>
+    public static bool WasTargetabilityActuallyRecorded(OccultWeaknessEntry entry)
+        => DateTime.TryParse(
+               entry.LastSeenUtc,
+               System.Globalization.CultureInfo.InvariantCulture,
+               System.Globalization.DateTimeStyles.RoundtripKind,
+               out var seen)
+           && seen.ToUniversalTime() >= TargetabilityTrackedSinceUtc;
 
     /// <summary>
     /// Anything that can never yield a weakness. Today that means untargetable mechanics only.
@@ -296,6 +322,19 @@ public sealed class ElementalWeaknessLog
         // Everything below is a data-quality judgement, so a known element overrides it.
         if (entry.Elements != OccultElement.None)
             return true;
+
+        // Proven-unreachable mechanics: seen plenty of times SINCE targetability was recorded,
+        // never once targetable, and carrying no element. Libra cannot reach them, so they can
+        // never contribute anything — they only pad the table and drag the coverage figures
+        // down. Dropped here rather than merely hidden, so the character's own file cleans
+        // itself up on the next launch (the log rewrites that file wholesale and would
+        // otherwise put them straight back).
+        //
+        // Self-correcting on purpose: nothing learned is lost, because the rule requires no
+        // element. If one of these turns out to be a real add after all, the next sighting that
+        // finds it targetable re-adds it and it is never trimmed again.
+        if (IsNotAnEnemy(entry))
+            return false;
 
         if (string.IsNullOrWhiteSpace(entry.Name))
             return false;

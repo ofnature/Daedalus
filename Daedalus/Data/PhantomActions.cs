@@ -119,7 +119,7 @@ public static class PhantomActions
         new(41641, "Recuperation", PhantomJob.Oracle, 2),
         new(41642, "Phantom Doom", PhantomJob.Oracle, 3),
         new(41643, "Phantom Rejuvenation", PhantomJob.Oracle, 4),
-        new(41644, "Invulnerability", PhantomJob.Oracle, 6),
+        new(41644, "Invulnerability", PhantomJob.Oracle, 5),
 
         // ── Thief ──
         new(41646, "Occult Sprint", PhantomJob.Thief, 1),
@@ -251,11 +251,11 @@ public static class PhantomActions
         // in three elements (ice / wind / lightning), so the only question is WHICH element
         // the target is weak to — 300 base, 390 weak, or 400/520 under Drain Touch.
         new(49098, "Deep Freeze", PhantomJob.Necromancer, 2),   // ice
-        new(49099, "Hell Wind", PhantomJob.Necromancer, 2),     // wind  (+10% Petrify w/ Drain Touch)
-        new(49100, "Chaos Drive", PhantomJob.Necromancer, 2),   // lightning (+Paralysis w/ Drain Touch)
+        new(49099, "Hell Wind", PhantomJob.Necromancer, 3),     // wind  (+10% Petrify w/ Drain Touch)
+        new(49100, "Chaos Drive", PhantomJob.Necromancer, 4),   // lightning (+Paralysis w/ Drain Touch)
         // Doomsday: its own 120s recast, unaspected (350, 500 under Drain Touch) so no
         // weakness applies, and it strips one buff from the target under Drain Touch.
-        new(49101, "Doomsday", PhantomJob.Necromancer, 2),
+        new(49101, "Doomsday", PhantomJob.Necromancer, 5),
     ];
 
     /// <summary>

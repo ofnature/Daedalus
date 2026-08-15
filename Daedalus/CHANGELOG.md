@@ -5,6 +5,23 @@ All notable changes to Daedalus will be documented in this file.
 <!-- LATEST-START -->
 ## v0.1.60 — unreleased
 
+### Fix — Phantom unlock levels now come from the game's own table
+- Every phantom job's unlock levels had been transcribed by hand from tooltips. They're now checked against **the game's own data**, and four were wrong
+- **Necromancer had its whole nuke trio at level 2.** They're actually Deep Freeze 2, **Hell Wind 3, Chaos Drive 4, Doomsday 5** — so a low-level Necromancer that picked the wrong element fired *nothing at all*
+- **Oracle's Invulnerability is level 5, not 6** — a level 5 Oracle simply never got it
+- Ninja's Image and Cannoneer's Silver Cannon really are level 6 with a trait at 5. That shape looks exactly like the Red Mage mistake and was suspected of being one; the game says it's correct, so they're untouched
+
+### Fix — Necromancer and Summoner now offer all three nukes, not just one
+- Both picked a single nuke by elemental weakness, so one refusal meant **no damage at all** — the same fault Red Mage had. They now offer the whole trio, best match first
+- It bit hardest on **Summoner**: its only wind nuke, Thunderstorm, is level 4, so a level 3 Summoner facing a wind-weak enemy chose an action it didn't own and cast nothing. The trio shares one cooldown, so the extra offers cost nothing
+
+### New — Untargetable mechanics are trimmed from the weakness table
+- Encounters are full of things that read as enemies but can never be clicked — Beacons, Spheres, Pages, Plumes. **Occult Libra can never reach them**, so they can never carry an element and only made coverage look worse than it was
+- Anything seen many times and **never once targetable** is now dropped, and dropped when the table loads so your own file cleans itself up
+- **Only where the evidence is real.** Targetability has only been recorded since v0.1.58, so a row last seen before that reads "never targetable" simply because nothing wrote it down. Those are left alone — 129 rows would have qualified on sightings alone, and deleting them would have thrown away genuine enemies
+- Nothing learned is lost: a row with a known element is never trimmed, and if one of these turns out to be a real add, the first targetable sighting brings it back for good
+- South Horn now reads **89.9% identified** instead of 80.5% — the same data, minus the things that were never scannable
+
 ### Fix — An action the game refuses is no longer retried sixty times a second
 - When the game refused an action outright, Daedalus tried again on the very next frame, and kept doing it. Every other failure path already waited a tenth of a second first; this one was missed
 - Caught in a log where **Tomahawk was refused five times in 68 milliseconds** while the Warrior stood outside its range. Retrying at 60 frames a second cannot fix being too far away — it just buries the one useful line in the log under identical copies

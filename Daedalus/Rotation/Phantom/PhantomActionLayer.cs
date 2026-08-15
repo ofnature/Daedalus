@@ -974,10 +974,14 @@ public sealed class PhantomActionLayer
             case PhantomJob.PhantomSummoner:
                 // Megaflare leads: unaspected 1,000 on its own 90s timer, no weakness applies.
                 TryPush(ctx, 49084, job, level, PrioDamage, target.GameObjectId, target);
-                TryPush(ctx,
-                    PhantomBandRules.SelectSummonerNuke(
-                        target is IBattleNpc smnTarget ? TargetWeakness?.Invoke(smnTarget.NameId) : null),
-                    job, level, PrioDamage + 1, target.GameObjectId, target);
+
+                // All three of the shared-recast trio, best match first. Pushing only the best
+                // pick left a Lv.3 Summoner firing nothing at a wind-weak target, because its
+                // only wind nuke (Thunderstorm) is Lv.4.
+                var smnOrder = PhantomBandRules.SummonerNukeOrder(
+                    target is IBattleNpc smnTarget ? TargetWeakness?.Invoke(smnTarget.NameId) : null);
+                for (var i = 0; i < smnOrder.Length; i++)
+                    TryPush(ctx, smnOrder[i], job, level, PrioDamage + 1 + i, target.GameObjectId, target);
                 break;
 
             case PhantomJob.PhantomWhiteMage:
@@ -1069,7 +1073,7 @@ public sealed class PhantomActionLayer
         var weakness = cfg.NecromancerMatchElementalWeakness && target is IBattleNpc npcTarget
             ? TargetWeakness?.Invoke(npcTarget.NameId)
             : null;
-        var nukeId = PhantomBandRules.SelectElementalNuke(weakness);
+        var nukeOrder = PhantomBandRules.NecromancerNukeOrder(weakness);
         var selfName = ctx.Player.Name?.TextValue ?? string.Empty;
 
         // Doomsday when enabled: own 120s timer, biggest hit (500 under Drain Touch) and it
@@ -1080,8 +1084,14 @@ public sealed class PhantomActionLayer
                 onExtraDispatched: () => AnnounceDoom(selfName, "Doomsday"));
         }
 
-        TryPush(ctx, nukeId, job, level, PrioDamage + 2, target.GameObjectId, target,
-            onExtraDispatched: () => AnnounceDoom(selfName, NukeName(nukeId)));
+        // All three, best match first — they share one recast, so the extras cost nothing and one
+        // refusal can no longer mean zero damage. The Doom announcement names whichever fires.
+        for (var i = 0; i < nukeOrder.Length; i++)
+        {
+            var nukeId = nukeOrder[i];
+            TryPush(ctx, nukeId, job, level, PrioDamage + 2 + i, target.GameObjectId, target,
+                onExtraDispatched: () => AnnounceDoom(selfName, NukeName(nukeId)));
+        }
     }
 
     private static string NukeName(uint id) => id switch

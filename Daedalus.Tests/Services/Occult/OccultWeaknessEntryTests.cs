@@ -280,14 +280,25 @@ public class OccultWeaknessClassificationTests
     [Fact]
     public void MechanicObjectVerdict_NeedsEvidence_AndYieldsToBothTargetabilityAndAWeakness()
     {
-        OccultWeaknessEntry E(int sightings, bool targetable, OccultElement el = OccultElement.None) => new()
+        OccultWeaknessEntry E(int sightings, bool targetable, OccultElement el = OccultElement.None,
+            System.DateTime? lastSeen = null) => new()
         {
             NameId = 1, Name = "Page 512", TerritoryId = 1346, MaxHp = 74_755_100,
             Sightings = sightings, EverTargetable = targetable, Elements = el,
+            // The verdict now also requires the row to have been seen since targetability was
+            // recorded at all — an absent flag is unknown, not "unreachable".
+            LastSeenUtc = (lastSeen ?? new System.DateTime(2026, 8, 14, 0, 0, 0, System.DateTimeKind.Utc))
+                .ToString("O"),
         };
         var enough = ElementalWeaknessLog.MinSightingsForTargetabilityVerdict;
 
         Assert.True(ElementalWeaknessLog.IsMechanicObject(E(enough, targetable: false)));
+
+        // Last seen before the flag existed: EverTargetable is false because nothing ever wrote
+        // it, so no amount of sightings makes that a verdict.
+        Assert.False(ElementalWeaknessLog.IsMechanicObject(
+            E(enough * 100, targetable: false,
+              lastSeen: ElementalWeaknessLog.TargetabilityTrackedSinceUtc.AddDays(-1))));
 
         // Seen only in passing — not enough exposure to conclude anything.
         Assert.False(ElementalWeaknessLog.IsMechanicObject(E(enough - 1, targetable: false)));

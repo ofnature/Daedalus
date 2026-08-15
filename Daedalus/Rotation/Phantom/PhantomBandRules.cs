@@ -266,15 +266,32 @@ public static class PhantomBandRules
     /// Fire weakness has no matching nuke in this kit, so it also falls through.
     /// </summary>
     public static uint SelectElementalNuke(Daedalus.Services.Occult.OccultElement? knownWeakness)
+        => NecromancerNukeOrder(knownWeakness)[0];
+
+    /// <summary>
+    /// The whole Necromancer trio, best match first — the same fix Red Mage and Summoner needed.
+    /// <para>
+    /// The unlocks are spread the same way and the game's own table proves it: Deep Freeze Lv.2,
+    /// Hell Wind Lv.3, Chaos Drive Lv.4 (this catalog had all three at Lv.2 until 2026-08-14).
+    /// So a Lv.2 Necromancer facing a lightning-weak enemy picked Chaos Drive, which it does not
+    /// own, and fired nothing. They share one recast, so the extra pushes cost nothing.
+    /// </para>
+    /// </summary>
+    public static uint[] NecromancerNukeOrder(Daedalus.Services.Occult.OccultElement? knownWeakness)
     {
         if (knownWeakness is { } w)
         {
-            if ((w & Daedalus.Services.Occult.OccultElement.Ice) != 0) return DeepFreezeId;
-            if ((w & Daedalus.Services.Occult.OccultElement.Wind) != 0) return HellWindId;
-            if ((w & Daedalus.Services.Occult.OccultElement.Lightning) != 0) return ChaosDriveId;
+            if ((w & Daedalus.Services.Occult.OccultElement.Ice) != 0)
+                return [DeepFreezeId, HellWindId, ChaosDriveId];
+            if ((w & Daedalus.Services.Occult.OccultElement.Wind) != 0)
+                return [HellWindId, DeepFreezeId, ChaosDriveId];
+            if ((w & Daedalus.Services.Occult.OccultElement.Lightning) != 0)
+                return [ChaosDriveId, DeepFreezeId, HellWindId];
         }
 
-        return DeepFreezeId;
+        // Fire has no nuke in this kit, and an unknown weakness has nothing to match — either way
+        // Deep Freeze leads as the earliest unlock.
+        return [DeepFreezeId, HellWindId, ChaosDriveId];
     }
 
     /// <summary>
@@ -364,15 +381,34 @@ public static class PhantomBandRules
     /// falls back to Hellfire.
     /// </summary>
     public static uint SelectSummonerNuke(Daedalus.Services.Occult.OccultElement? knownWeakness)
+        => SummonerNukeOrder(knownWeakness)[0];
+
+    /// <summary>
+    /// The whole Summoner trio, best match first — the same fix Red Mage needed.
+    /// <para>
+    /// Pushing only the single best pick means one refusal produces NO damage at all instead of
+    /// the second-best nuke, and a level gate refuses in a way that reads as "nothing eligible".
+    /// It bites hardest here because the unlocks are spread: Hellfire is Lv.1 but Thunderstorm —
+    /// this kit's ONLY wind coverage — is Lv.4, so a Lv.3 Summoner facing a wind-weak enemy
+    /// picked an action it does not own and fired nothing. They share one 60s recast, so the
+    /// extra pushes cost nothing; the first the gates accept is the one that fires.
+    /// </para>
+    /// </summary>
+    public static uint[] SummonerNukeOrder(Daedalus.Services.Occult.OccultElement? knownWeakness)
     {
         if (knownWeakness is { } w)
         {
-            if ((w & Daedalus.Services.Occult.OccultElement.Fire) != 0) return HellfireId;
-            if ((w & Daedalus.Services.Occult.OccultElement.Lightning) != 0) return JudgmentBoltId;
-            if ((w & Daedalus.Services.Occult.OccultElement.Wind) != 0) return ThunderstormId;
+            if ((w & Daedalus.Services.Occult.OccultElement.Fire) != 0)
+                return [HellfireId, JudgmentBoltId, ThunderstormId];
+            if ((w & Daedalus.Services.Occult.OccultElement.Lightning) != 0)
+                return [JudgmentBoltId, HellfireId, ThunderstormId];
+            if ((w & Daedalus.Services.Occult.OccultElement.Wind) != 0)
+                return [ThunderstormId, HellfireId, JudgmentBoltId];
         }
 
-        return HellfireId;
+        // Unknown weakness: Hellfire leads as the earliest unlock, so it is the likeliest to be
+        // usable at all — the same tie-break Red Mage uses.
+        return [HellfireId, JudgmentBoltId, ThunderstormId];
     }
 
     /// <summary>Phantom Black Mage III-tier — INDEPENDENT 40s recasts, so all three are usable.</summary>
