@@ -5,6 +5,11 @@ All notable changes to Daedalus will be documented in this file.
 <!-- LATEST-START -->
 ## v0.1.60 — unreleased
 
+### Fix — Pot hunt map: the scan cones pointed the wrong way
+- Every cone was drawn **mirrored north-to-south**. Readings of *"to the northeast"* drew a wedge pointing south-east, and *"to the north"* pointed straight south
+- The compass maths was right the whole time — so was the gold overlap region, which is worked out separately. Only the drawing was wrong, which meant the cones and the region they're supposed to bound **disagreed with each other**, and the cones were the half you look at
+- The drawing now uses the same shared maths as everything else instead of its own copy, so the arrow and the answer can't drift apart again
+
 ### Fix — Phantom unlock levels now come from the game's own table
 - Every phantom job's unlock levels had been transcribed by hand from tooltips. They're now checked against **the game's own data**, and four were wrong
 - **Necromancer had its whole nuke trio at level 2.** They're actually Deep Freeze 2, **Hell Wind 3, Chaos Drive 4, Doomsday 5** — so a low-level Necromancer that picked the wrong element fired *nothing at all*

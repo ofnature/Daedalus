@@ -298,11 +298,13 @@ public sealed class PotHuntMapWindow : Window
 
         Vector2 Point(float angle, float radius)
         {
-            // Game headings: 0 = north = -Z, increasing clockwise. Screen Y grows downward, so
-            // north maps to -Y and the rotation direction is preserved without a flip.
-            var x = MathF.Sin(angle) * radius * pixelsPerYalm;
-            var y = -MathF.Cos(angle) * radius * pixelsPerYalm;
-            return readingCentre + new Vector2(x, y);
+            // Headings are the game's: 0 = SOUTH, ±π = north. Go through the triangulation
+            // service rather than re-deriving the trig here — this used to be its own
+            // (sin, -cos) under a comment claiming "0 = north", which mirrored every cone
+            // north-to-south and made them disagree with the feasible region drawn beside them.
+            // World Z maps straight to screen Y (south is down), the same as WorldToScreen.
+            var dir = PotTreasureTriangulation.HeadingToWorldOffset(angle);
+            return readingCentre + (dir * radius * pixelsPerYalm);
         }
 
         for (var i = 0; i < segments; i++)

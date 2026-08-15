@@ -263,6 +263,21 @@ public static class PotTreasureTriangulation
     public static bool AllReadingsAgreeWith(IReadOnlyList<ElixirBearing>? bearings, Vector3 discoveredAt)
         => SatisfiesAll(discoveredAt, bearings);
 
+    /// <summary>
+    /// A heading as a unit vector in WORLD axes — X is east, Y of the returned vector is world Z
+    /// (south positive). The inverse of the <c>Atan2(dx, dz)</c> the rest of this file uses.
+    /// <para>
+    /// Exists so drawing code cannot re-derive the trig and get it wrong, which is exactly what
+    /// happened: the map's cone renderer wrote its own <c>(sin, -cos)</c> under a comment that
+    /// claimed "0 = north", while this file's convention is 0 = SOUTH. Every cone was therefore
+    /// mirrored north-to-south and disagreed with the feasible region drawn beside it, which is
+    /// computed in world space and was right all along (field screenshot 2026-08-14: four
+    /// readings of "northeast"/"north" drawn pointing south).
+    /// </para>
+    /// </summary>
+    public static Vector2 HeadingToWorldOffset(float headingRadians)
+        => new(MathF.Sin(headingRadians), MathF.Cos(headingRadians));
+
     /// <summary>Signed difference between two headings, wrapped to [−π, π].</summary>
     public static float NormalizeAngle(float radians)
     {
