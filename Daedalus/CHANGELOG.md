@@ -14,6 +14,9 @@ All notable changes to Daedalus will be documented in this file.
 - One session recorded that line **5,314 times**. Two different parts of the rotation write a resting raise state every frame — one says *"No target"*, the other says *"None needed"* — and the de-duplication stored each one before deciding to skip it, so every frame looked like a change and logged again
 - Resting states are now recognised before that happens. A real raise still logs the moment it's needed, including a second time later in the fight
 
+### Integration — Odysseus can ask Daedalus to fight
+- Odysseus (the MSQ questing companion) publishes an `Odysseus.IsBusy` gate, and Daedalus now runs the rotation while it reads true — the same handshake Theseus uses for dungeons, applied to quest combat in the overworld
+
 <!-- LATEST-END -->
 ## v0.1.59 — 2026-08-11
 

@@ -954,12 +954,14 @@ public sealed class Plugin : IDalamudPlugin
         // each mark itself); AutoDuty covers duty runs, including the dungeons Henchman delegates
         // to it for duty hunt-log marks. Theseus is the fleet's AutoDuty replacement and asks for
         // the override deliberately rather than by convention — it owns movement and the route and
-        // leaves every kill to us.
+        // leaves every kill to us. Odysseus (MSQ questing) publishes the same gate for the same
+        // reason: it owns the quest and the walk, and hands quest combat to us.
         this.automationBridges =
         [
             new AutomationBusyBridge(pluginInterface, configuration, log, "Henchman", "Henchman.IsBusy", busyGateValue: true),
             new AutomationBusyBridge(pluginInterface, configuration, log, "AutoDuty", "AutoDuty.IsStopped", busyGateValue: false),
             new AutomationBusyBridge(pluginInterface, configuration, log, "Theseus", "Theseus.IsBusy", busyGateValue: true),
+            new AutomationBusyBridge(pluginInterface, configuration, log, "Odysseus", "Odysseus.IsBusy", busyGateValue: true),
         ];
         foreach (var bridge in this.automationBridges)
         {

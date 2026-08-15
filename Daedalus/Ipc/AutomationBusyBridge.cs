@@ -23,6 +23,9 @@ namespace Daedalus.Ipc;
 /// The fleet's AutoDuty replacement, and the one source that publishes its gate for this bridge on
 /// purpose: Theseus owns movement, pathing and the boss handoff, and hands every kill to Daedalus,
 /// so the override is the whole contract between the two plugins.</item>
+/// <item>Odysseus — <c>Odysseus.IsBusy</c> == true while an MSQ run is driving the character.
+/// Same contract as Theseus, for the overworld: Odysseus owns the quest, travel and dialogue, and
+/// hands quest combat to Daedalus.</item>
 /// </list>
 /// </summary>
 /// <remarks>
