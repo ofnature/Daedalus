@@ -3,7 +3,16 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
-## v0.1.61 — unreleased
+## v0.1.61 — 2026-08-16
+
+### Fix — The limit break actually fires now
+- It resolved the right action all along — Braver at bar 1, correctly picked for the job and tier — and then **didn't name a target when casting it**, so the game refused with *"cannot execute at this time"* every single press
+- It now names one explicitly, trying your current target first and yourself second. The five limit breaks disagree about what they aim at — melee, ranged and caster are aimed at an enemy, tank and healer at yourself — so rather than hard-code that, it asks the game which one it accepts
+- **The toon that acts now reports failures, not just successes.** Before, a box that heard the call and couldn't cast said nothing, so the window showed *"nobody answered"* — which reads exactly the same as the call never arriving. Those are opposite problems and it was showing the wrong one
+- Every refusal now carries the game's own numbers — status, action, bar level, how many targets were tried — instead of a bare *"not available"*
+
+### New — 14 more treasure coffer spawn points
+- The shipped map grew **133 → 147**, almost all in North Horn (now 90 spots there, up from 76). 106 have been opened at least once
 
 ### New — The pot hunt measures its own distance bands now
 - Every completed hunt already recorded how far the coffer turned out to be from each reading. **Only the angle was ever used** — the distances sat in the file unread, which is why the plain band stayed wrong at 30 yalms until it was spotted by eye
