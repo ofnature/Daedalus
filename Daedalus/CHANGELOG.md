@@ -3,6 +3,14 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.61 — unreleased
+
+### Fix — Pot hunt: "you sense something to the…" now reaches 60 yalms
+- The plain reading, the one with no *"far"* in it, was assumed to mean **within 30 yalms**. Coffers kept turning up past that, and when a reading excludes where the treasure actually is, the overlap of all your scans lands somewhere it can't be — which is why the surviving area sometimes sat outside every cone
+- Widened to **60 yalms**. A band that's too generous only costs you a bigger search area; one that's too tight makes two perfectly honest readings contradict each other and leaves you with nothing
+- Only the plain band moved. *Far* and *far, far* are untouched, because there's no evidence to move them and guessing a second band to tidy up the first is how the 30 got there
+
+<!-- LATEST-END -->
 ## v0.1.60 — 2026-08-15
 
 ### New — Treasure coffer spawn points now ship with the plugin
@@ -58,7 +66,6 @@ All notable changes to Daedalus will be documented in this file.
 ### Integration — Odysseus can ask Daedalus to fight
 - Odysseus (the MSQ questing companion) publishes an `Odysseus.IsBusy` gate, and Daedalus now runs the rotation while it reads true — the same handshake Theseus uses for dungeons, applied to quest combat in the overworld
 
-<!-- LATEST-END -->
 ## v0.1.59 — 2026-08-11
 
 ### New — Bigger shipped weakness table: 273 enemies, South Horn nearly done

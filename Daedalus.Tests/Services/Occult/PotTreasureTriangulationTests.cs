@@ -148,6 +148,38 @@ public sealed class PotTreasureTriangulationTests
             "and inside targeting range rather than out on the horizon");
     }
 
+    /// <summary>
+    /// Field 2026-08-15: coffers were turning up beyond the plain band's old 30y edge, so the
+    /// surviving region kept landing outside every cone. The band must reach 60y, and must still
+    /// overlap Far — bands that do not overlap make two honest readings contradict each other.
+    /// </summary>
+    [Fact]
+    public void PlainReadingBand_ReachesSixtyYalms_AndStillOverlapsFar()
+    {
+        var (min, max) = PotTreasureTriangulation.BandRange(ElixirProximity.Within);
+        Assert.Equal(0f, min);
+        Assert.Equal(60f, max);
+
+        var (farMin, farMax) = PotTreasureTriangulation.BandRange(ElixirProximity.Far);
+        Assert.True(farMin < max, "Far must start inside the plain band, not after it");
+        Assert.True(farMax > max);
+
+        // Immediate stays the one confirmed band and must remain the tightest.
+        var (_, immediateMax) = PotTreasureTriangulation.BandRange(ElixirProximity.Immediate);
+        Assert.True(immediateMax < max);
+    }
+
+    /// <summary>A 45y coffer is the case the old 30y edge wrongly excluded.</summary>
+    [Fact]
+    public void PlainReading_AcceptsACofferBeyondTheOldThirtyYalmEdge()
+    {
+        var bearing = new ElixirBearing(Vector3.Zero, 0f, Half, ElixirProximity.Within);
+
+        Assert.True(PotTreasureTriangulation.SatisfiesAll(new Vector3(0, 0, 45f), new[] { bearing }));
+        Assert.True(PotTreasureTriangulation.SatisfiesAll(new Vector3(0, 0, 59f), new[] { bearing }));
+        Assert.False(PotTreasureTriangulation.SatisfiesAll(new Vector3(0, 0, 75f), new[] { bearing }));
+    }
+
     // ── Cone containment ──
 
     [Fact]

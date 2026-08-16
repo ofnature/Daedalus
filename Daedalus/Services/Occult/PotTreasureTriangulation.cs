@@ -101,9 +101,22 @@ public static class PotTreasureTriangulation
     /// treasure coffer!", so the distance from each reading's origin to the coffer is ground
     /// truth for the band that reading used. Enough hunts and the real edges fall out of the data.
     /// </para>
+    /// <para>
+    /// FIELD CORRECTION 2026-08-15: the plain "to the &lt;direction&gt;" band ran to 30y, and
+    /// coffers were turning up beyond it — the surviving region kept landing outside every cone.
+    /// Widened to 60y. That is the safe direction to be wrong in, per the note above: a band that
+    /// is too tight makes honest readings contradict each other and collapses the answer to
+    /// nothing, which is exactly what was happening.
+    /// </para>
+    /// <para>
+    /// NOTE the knock-on: <see cref="VeryFarInnerYalms"/> is still 50, so 50-60y is now allowed by
+    /// both a plain reading and a "far, far" one. Left alone deliberately — there is no evidence
+    /// for moving it, and guessing a second band to tidy up the first is how the original 30
+    /// got here.
+    /// </para>
     /// </summary>
     public const float ImmediateRangeYalms = 10f;   // CONFIRMED
-    public const float TargetRangeYalms = 30f;      // guess — "within targeting range" plus slack
+    public const float TargetRangeYalms = 60f;      // FIELD-CORRECTED 2026-08-15 (was a 30y guess)
     public const float FarInnerYalms = 20f;         // guess — overlaps Within on purpose
     public const float FarOuterYalms = 80f;         // guess
     public const float VeryFarInnerYalms = 50f;     // guess — overlaps Far on purpose
