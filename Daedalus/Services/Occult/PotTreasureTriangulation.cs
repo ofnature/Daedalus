@@ -121,8 +121,35 @@ public static class PotTreasureTriangulation
     public const float FarOuterYalms = 80f;         // guess
     public const float VeryFarInnerYalms = 50f;     // guess — overlaps Far on purpose
 
+    /// <summary>
+    /// Measured band ceilings, installed by <c>PotTreasureHunt</c> from recorded finds. Null (or
+    /// a null result) means "no measurement, use the shipped guess".
+    /// <para>
+    /// A hook rather than a parameter because <see cref="BandRange"/> has two consumers — the map's
+    /// cone renderer and <c>IsInsideCone</c>, which drives the surviving region and the estimate —
+    /// and they must never disagree about how far a reading reaches. Threading a value through one
+    /// of them is how the cone and the region came apart before.
+    /// </para>
+    /// </summary>
+    public static Func<ElixirProximity, float?>? MeasuredBandMax { get; set; }
+
     /// <summary>Inclusive distance window a band allows, in yalms.</summary>
-    public static (float Min, float Max) BandRange(ElixirProximity proximity) => proximity switch
+    public static (float Min, float Max) BandRange(ElixirProximity proximity)
+    {
+        var (min, max) = ShippedBandRange(proximity);
+
+        // WIDEN ONLY. A recorded find beyond the shipped edge is a hard counterexample: the band
+        // provably reaches at least that far. A find INSIDE the edge proves nothing about where
+        // the edge is, so it must never pull the ceiling down — doing so would exclude the next
+        // honest case and send the hunt confidently to the wrong place.
+        if (MeasuredBandMax?.Invoke(proximity) is { } measured && measured > max)
+            max = measured;
+
+        return (min, max);
+    }
+
+    /// <summary>The band as shipped, ignoring any measurement.</summary>
+    public static (float Min, float Max) ShippedBandRange(ElixirProximity proximity) => proximity switch
     {
         ElixirProximity.Immediate => (0f, ImmediateRangeYalms),
         ElixirProximity.Within => (0f, TargetRangeYalms),

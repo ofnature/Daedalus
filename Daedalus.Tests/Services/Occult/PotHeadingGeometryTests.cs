@@ -12,6 +12,7 @@ namespace Daedalus.Tests.Services.Occult;
 /// 0 = SOUTH. The cones disagreed with the feasible region drawn beside them, which is computed
 /// in world space and was correct throughout.
 /// </summary>
+[Collection("PotBandStaticState")]
 public sealed class PotHeadingGeometryTests
 {
     private const float Tol = 1e-4f;

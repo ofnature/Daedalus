@@ -5,6 +5,12 @@ All notable changes to Daedalus will be documented in this file.
 <!-- LATEST-START -->
 ## v0.1.61 — unreleased
 
+### New — The pot hunt measures its own distance bands now
+- Every completed hunt already recorded how far the coffer turned out to be from each reading. **Only the angle was ever used** — the distances sat in the file unread, which is why the plain band stayed wrong at 30 yalms until it was spotted by eye
+- Those measurements now feed the hunt directly. If a coffer is ever found **past** a band's edge, that band widens to fit it, and the cones, the overlap region and the suggested spot all move together
+- **It widens and never narrows**, and it doesn't wait for a pile of samples. A find beyond the edge is proof the band reaches further — one is enough. A find close in proves nothing about where the edge is, so it's ignored
+- The Duty tab shows what's been measured per band: how many finds, the furthest one, and whether it has pushed past the shipped guess
+
 ### Fix — Pot hunt: "you sense something to the…" now reaches 60 yalms
 - The plain reading, the one with no *"far"* in it, was assumed to mean **within 30 yalms**. Coffers kept turning up past that, and when a reading excludes where the treasure actually is, the overlap of all your scans lands somewhere it can't be — which is why the surviving area sometimes sat outside every cone
 - Widened to **60 yalms**. A band that's too generous only costs you a bigger search area; one that's too tight makes two perfectly honest readings contradict each other and leaves you with nothing

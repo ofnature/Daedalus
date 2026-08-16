@@ -70,6 +70,11 @@ public sealed class PotTreasureHunt : IDisposable
         _save = save;
         _log = log;
 
+        // Measurements only help if the geometry actually reads them. Installed here rather than
+        // at each call site because the cone renderer and the region solver both go through
+        // BandRange and must never disagree about how far a reading reaches.
+        InstallMeasuredBands();
+
         if (_chatGui is null)
             return;
 
@@ -352,6 +357,90 @@ public sealed class PotTreasureHunt : IDisposable
     /// <summary>True once the suggestion is measured rather than the shipped default.</summary>
     public bool IsArcCalibrated
         => CalibrationSampleCount >= MinCalibrationSamples && MaxObservedAngularErrorRadians > 0f;
+
+    /// <summary>Headroom over the furthest find ever recorded for a band.</summary>
+    public const float BandMarginYalms = 5f;
+
+    /// <summary>
+    /// The furthest a coffer has actually been found from a reading that used this band, or null
+    /// when no find has been measured against it.
+    /// </summary>
+    public float? MaxObservedBandDistance(ElixirProximity band)
+    {
+        if (_config?.PotHuntCalibration is not { Count: > 0 } samples)
+            return null;
+
+        var name = band.ToString();
+        float? max = null;
+        foreach (var s in samples)
+        {
+            if (!string.Equals(s.Band, name, StringComparison.Ordinal))
+                continue;
+            if (max is null || s.ActualDistance > max)
+                max = s.ActualDistance;
+        }
+
+        return max;
+    }
+
+    /// <summary>How many measured finds back a band.</summary>
+    public int BandSampleCount(ElixirProximity band)
+    {
+        if (_config?.PotHuntCalibration is not { Count: > 0 } samples)
+            return 0;
+
+        var name = band.ToString();
+        var n = 0;
+        foreach (var s in samples)
+        {
+            if (string.Equals(s.Band, name, StringComparison.Ordinal))
+                n++;
+        }
+
+        return n;
+    }
+
+    /// <summary>
+    /// The band ceiling to actually use: the shipped guess, or the furthest recorded find plus
+    /// headroom when that is further.
+    /// <para>
+    /// UNLIKE the arc, this needs no sample threshold, and the difference is not an oversight.
+    /// The arc's worst-observed error is a statistical estimate — tighten on three hunts and the
+    /// next genuine case is silently excluded — so it waits for <see cref="MinCalibrationSamples"/>.
+    /// A find beyond a band's edge is not an estimate, it is a COUNTEREXAMPLE: the band demonstrably
+    /// reaches at least that far, and one is enough to prove it. Waiting for a hundred would mean
+    /// knowing the edge was wrong and continuing to use it.
+    /// </para>
+    /// <para>
+    /// It only ever widens, for the reason the band comments already give: too generous costs
+    /// search area, too tight makes honest readings contradict each other and collapses the
+    /// answer to nothing. That is exactly what the shipped 30y plain band was doing before it was
+    /// corrected to 60 by hand on 2026-08-15 — this is the machinery that would have caught it.
+    /// </para>
+    /// </summary>
+    public float SuggestedBandMax(ElixirProximity band)
+    {
+        var (_, shipped) = PotTreasureTriangulation.ShippedBandRange(band);
+        if (MaxObservedBandDistance(band) is not { } observed)
+            return shipped;
+
+        var measured = observed + BandMarginYalms;
+        return measured > shipped ? measured : shipped;
+    }
+
+    /// <summary>True when finds have pushed a band past its shipped ceiling.</summary>
+    public bool IsBandWidened(ElixirProximity band)
+    {
+        var (_, shipped) = PotTreasureTriangulation.ShippedBandRange(band);
+        return SuggestedBandMax(band) > shipped;
+    }
+
+    /// <summary>
+    /// Point <see cref="PotTreasureTriangulation.BandRange"/> at this hunt's measurements, so the
+    /// cones, the surviving region and the estimate all widen together.
+    /// </summary>
+    public void InstallMeasuredBands()
+        => PotTreasureTriangulation.MeasuredBandMax = band => SuggestedBandMax(band);
 
     /// <summary>Drop the current hunt's readings. A new hunt must never inherit old bearings.</summary>
     public void Reset()

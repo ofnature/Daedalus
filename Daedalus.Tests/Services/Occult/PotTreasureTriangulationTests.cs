@@ -11,6 +11,7 @@ namespace Daedalus.Tests.Services.Occult;
 /// wherever you stood; the answer is the overlap. Headings follow the game's convention —
 /// 0 = SOUTH, +π/2 east, ±π north, −π/2 west — matching Atan2(dx, dz) as used elsewhere.
 /// </summary>
+[Collection("PotBandStaticState")]
 public sealed class PotTreasureTriangulationTests
 {
     private const float Half = PotTreasureTriangulation.DefaultHalfAngleRadians; // 22.5°

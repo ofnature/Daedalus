@@ -33,6 +33,57 @@ public static class OccultTab
     /// whether the eventual find fell inside its own readings.
     /// </para>
     /// </summary>
+    /// <summary>
+    /// What the recorded finds say each distance band actually reaches. The band edges shipped as
+    /// guesses — only "immediately" was ever confirmed — and a band that is too tight makes two
+    /// honest readings contradict each other, which is what sent the surviving region outside
+    /// every cone before the plain band was widened by hand.
+    /// </summary>
+    private static void DrawBandCalibration(Daedalus.Services.Occult.PotTreasureHunt hunt)
+    {
+        var bands = new[]
+        {
+            ElixirProximity.Immediate, ElixirProximity.Within,
+            ElixirProximity.Far, ElixirProximity.VeryFar,
+        };
+
+        var any = false;
+        foreach (var b in bands)
+        {
+            if (hunt.BandSampleCount(b) > 0) { any = true; break; }
+        }
+
+        if (!any)
+        {
+            ImGui.TextColored(Dim,
+                "Band calibration: no finds measured yet — every band is still the shipped guess.");
+            return;
+        }
+
+        ImGui.TextColored(Dim, "Band calibration (measured against completed hunts):");
+        foreach (var b in bands)
+        {
+            var n = hunt.BandSampleCount(b);
+            if (n == 0)
+                continue;
+
+            var (_, shipped) = PotTreasureTriangulation.ShippedBandRange(b);
+            var furthest = hunt.MaxObservedBandDistance(b) ?? 0f;
+            var inUse = hunt.SuggestedBandMax(b);
+            var widened = hunt.IsBandWidened(b);
+
+            var shippedText = float.IsInfinity(shipped) || shipped >= float.MaxValue
+                ? "unbounded" : $"{shipped:0}y";
+            ImGui.TextColored(widened ? Yellow : Dim,
+                $"  {b,-10} n={n,-3} furthest find {furthest:0}y, shipped {shippedText}"
+                + (widened ? $"  → WIDENED to {inUse:0}y" : string.Empty));
+        }
+
+        ImGui.TextColored(Dim,
+            "  Widens only: a find past the edge proves the band reaches further, but a close one "
+            + "proves nothing about where the edge is.");
+    }
+
     private static void DrawPotHuntBlock(Daedalus.Services.Occult.PotTreasureHunt? hunt, Vector3 playerPosition)
     {
         if (hunt is null)
@@ -56,6 +107,7 @@ public static class OccultTab
         {
             ImGui.TextColored(Dim, "Not hunting (Cache Me if You Can not up)");
             DrawLastFind(hunt);
+            DrawBandCalibration(hunt);
             ImGui.Spacing();
             return;
         }
