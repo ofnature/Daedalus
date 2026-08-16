@@ -46,11 +46,35 @@ public sealed unsafe class LimitBreakService
         _log = log;
     }
 
+    private string _lastOutcome = "";
+
     /// <summary>
     /// What happened to the last call this box heard. Shown in the coordination window — a limit
     /// break that silently does not go off is indistinguishable from one nobody called.
+    /// <para>
+    /// Mirrored into the Debug Log on every change, because the window line is transient and the
+    /// operator is usually looking at the game rather than at it. Deduped, so the 250ms retry
+    /// loop cannot flood the log.
+    /// </para>
     /// </summary>
-    public string LastOutcome { get; private set; } = "";
+    public string LastOutcome
+    {
+        get => _lastOutcome;
+        private set
+        {
+            if (string.Equals(_lastOutcome, value, StringComparison.Ordinal))
+                return;
+
+            _lastOutcome = value;
+            if (value.Length == 0)
+                return;
+
+            Daedalus.Rotation.Base.RotationServices.DebugLog?.Log(
+                Daedalus.Services.Debug.DebugLogCategory.Action,
+                Daedalus.Services.Debug.DebugLogSeverity.Info,
+                $"Limit break: {value}");
+        }
+    }
 
     /// <summary>True while a call is still being retried on this box.</summary>
     public bool IsArmed => _armedRole is not null && DateTime.UtcNow < _armedUntilUtc;
@@ -157,17 +181,22 @@ public sealed unsafe class LimitBreakService
                 return;
             }
 
+            // Report the raw numbers on every failure. "Bar not charged" with nothing behind it
+            // cannot be told apart from a bad struct read, and this feature has already been
+            // diagnosed wrong twice from messages that stated a conclusion instead of evidence.
+            var bar = $"units {lb->CurrentUnits}/{lb->BarUnits}";
+
             var level = lb->BarUnits != 0 ? lb->CurrentUnits / lb->BarUnits : 0;
             if (level == 0)
             {
-                _lastRefusal = "bar not charged";
+                _lastRefusal = $"bar not charged ({bar})";
                 return;
             }
 
             var actionId = lb->GetActionId((Character*)player.Address, (byte)(level - 1));
             if (actionId == 0)
             {
-                _lastRefusal = $"no limit break for this job at bar {level}";
+                _lastRefusal = $"no limit break for this job at bar {level} ({bar})";
                 return;
             }
 
