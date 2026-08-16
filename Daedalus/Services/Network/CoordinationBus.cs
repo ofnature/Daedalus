@@ -158,6 +158,9 @@ public sealed class CoordinationBus : IDisposable
     /// <summary>A toon reported it actually fired the limit break.</summary>
     public event System.Action<LimitBreakRole, string /*character*/>? OnLimitBreakFired;
 
+    /// <summary>A toon that WAS the right role reported why it could not fire.</summary>
+    public event System.Action<LimitBreakRole, string /*character*/, string /*reason*/>? OnLimitBreakFailed;
+
     public CoordinationBus(
         IPluginLog log,
         LanCoordinator lan,
@@ -533,6 +536,8 @@ public sealed class CoordinationBus : IDisposable
                 if (lb is null) break;
                 if (lb.Fired)
                     OnLimitBreakFired?.Invoke(lb.Role, lb.Name);
+                else if (lb.Outcome.Length > 0)
+                    OnLimitBreakFailed?.Invoke(lb.Role, lb.Name, lb.Outcome);
                 else
                     OnLimitBreak?.Invoke(lb.Role);
                 break;
@@ -789,9 +794,26 @@ public sealed class CoordinationBus : IDisposable
     /// the box that fired it already knows, and re-entering its own confirmation would clobber
     /// the more specific "fired" line it just set.
     /// </summary>
+    /// <summary>
+    /// Tell the fleet this toon WAS the right role and still could not fire, and why. Without
+    /// this the operator cannot tell a call that never arrived from one that arrived and was
+    /// refused.
+    /// </summary>
+    public void BroadcastLimitBreakFailed(LimitBreakRole role, string characterName, string reason)
+        => SendLimitBreakReport(new LanLimitBreakPayload
+        {
+            Role = role, Fired = false, Name = characterName, Outcome = reason,
+        });
+
     public void BroadcastLimitBreakFired(LimitBreakRole role, string characterName)
+        => SendLimitBreakReport(new LanLimitBreakPayload
+        {
+            Role = role, Fired = true, Name = characterName,
+        });
+
+    private void SendLimitBreakReport(LanLimitBreakPayload report)
     {
-        var payload = new LanLimitBreakPayload { Role = role, Fired = true, Name = characterName }.ToJson();
+        var payload = report.ToJson();
         var ts = DateTime.UtcNow.Ticks;
         var group = LocalPartyGroupId;
         for (var i = 0; i < 3; i++)

@@ -528,6 +528,19 @@ public sealed class LanLimitBreakPayload
     [JsonPropertyName("n")]
     public string Name { get; set; } = "";
 
+    /// <summary>
+    /// Set on a REPORT to say what happened. Empty with <see cref="Fired"/> true is a plain
+    /// success; non-empty with <see cref="Fired"/> false is the acting toon explaining why it
+    /// could not cast.
+    /// <para>
+    /// Reporting failures matters as much as reporting successes. Without it the operator sees
+    /// "nobody answered", which reads identically whether the call never arrived or arrived and
+    /// the cast was refused — two completely different problems (field 2026-08-15).
+    /// </para>
+    /// </summary>
+    [JsonPropertyName("o")]
+    public string Outcome { get; set; } = "";
+
     public string ToJson() => JsonSerializer.Serialize(this);
 
     public static LanLimitBreakPayload? FromJson(string json)

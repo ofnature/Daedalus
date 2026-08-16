@@ -855,11 +855,17 @@ public sealed class Plugin : IDalamudPlugin
         {
             coordinationBus.OnLimitBreak += role => this.limitBreakService.Call(role);
             coordinationBus.OnLimitBreakFired += (role, who) => this.limitBreakService.NoteRemoteFire(role, who);
+            coordinationBus.OnLimitBreakFailed += (role, who, why) =>
+                this.limitBreakService.NoteRemoteFailure(role, who, why);
 
-            // The firing toon reports back, so the operator's window can say what happened even
-            // when its own toon was never the one meant to act.
+            // The acting toon reports back either way, so the operator's window can say what
+            // happened even when its own toon was never the one meant to act. Reporting the
+            // FAILURE matters as much as the success: without it "nobody answered" covers both
+            // "the call never arrived" and "it arrived and the cast was refused".
             this.limitBreakService.OnFired = role => coordinationBus.BroadcastLimitBreakFired(
                 role, objectTable.LocalPlayer?.Name.TextValue ?? "");
+            this.limitBreakService.OnFailed = (role, why) => coordinationBus.BroadcastLimitBreakFailed(
+                role, objectTable.LocalPlayer?.Name.TextValue ?? "", why);
         }
 
         if (coordinationBus != null && lanCoordinator != null)

@@ -87,6 +87,13 @@ public sealed unsafe class LimitBreakService
     public Action<LimitBreakRole>? OnFired { get; set; }
 
     /// <summary>
+    /// Raised on a box that WAS the right role and still could not fire, with the reason. The
+    /// operator otherwise sees "nobody answered", which reads the same whether the call never
+    /// arrived or arrived and was refused.
+    /// </summary>
+    public Action<LimitBreakRole, string>? OnFailed { get; set; }
+
+    /// <summary>
     /// A limit break was called for <paramref name="role"/>. Only a toon whose job answers for
     /// that role acts, but EVERY box records the call — a silent line on the box that pressed the
     /// button reads as a dead button (field 2026-08-11: pressed Melee, window kept saying
@@ -123,6 +130,15 @@ public sealed unsafe class LimitBreakService
             : $"{LimitBreakPolicy.Label(role)} LB fired";
     }
 
+    /// <summary>The right toon heard the call and could not cast. Its reason beats our timeout.</summary>
+    public void NoteRemoteFailure(LimitBreakRole role, string characterName, string reason)
+    {
+        _waitingRole = null;
+        LastOutcome = characterName.Length > 0
+            ? $"{LimitBreakPolicy.Label(role)} LB — {characterName}: {reason}"
+            : $"{LimitBreakPolicy.Label(role)} LB — {reason}";
+    }
+
     /// <summary>Framework-thread pump. Retries the cast until it lands or the window lapses.</summary>
     public void Update()
     {
@@ -147,9 +163,13 @@ public sealed unsafe class LimitBreakService
             // Name the refusal. "Not available" covers a full bar we mis-detected, content that
             // forbids limit breaks at all, and a targeted LB with nothing targeted — three very
             // different problems that a bare "gave up" cannot tell apart.
-            LastOutcome = _lastRefusal.Length > 0
-                ? $"{LimitBreakPolicy.Label(role)} LB — {_lastRefusal}"
-                : $"{LimitBreakPolicy.Label(role)} LB not available — gave up";
+            var reason = _lastRefusal.Length > 0 ? _lastRefusal : "not available — gave up";
+            LastOutcome = $"{LimitBreakPolicy.Label(role)} LB — {reason}";
+
+            // Tell the fleet. The operator's box is sitting on "waiting for a melee" and will
+            // otherwise time out into "nobody answered", which is the wrong diagnosis: somebody
+            // DID answer, and this is what stopped them.
+            OnFailed?.Invoke(role, reason);
             return;
         }
 
@@ -200,26 +220,51 @@ public sealed unsafe class LimitBreakService
                 return;
             }
 
-            // Status covers what is left: already casting, out of range, and — for the melee,
-            // ranged and caster limit breaks, which are all targeted — nothing targeted.
-            var status = actionManager->GetActionStatus(ActionType.Action, actionId);
-            if (status != 0)
+            // Name a target EXPLICITLY. Field 2026-08-15: this refused with status 579 ("cannot
+            // execute at this time") on a melee toon with Braver correctly resolved at bar 1 —
+            // the resolution was right and the call was wrong. Both GetActionStatus and UseAction
+            // default targetId to 0xE0000000 ("current target"), and that default is not a target
+            // the game will accept here. BMR passes the id through on both calls, and BMR works.
+            //
+            // Two candidates, in order, because the five limit breaks do not agree on what they
+            // aim at: melee, ranged and caster are hostile-targeted, while tank and healer are
+            // self-centred. Rather than encode per-role targeting rules the game already knows,
+            // ask it — the first candidate it accepts is the right one.
+            ulong hostile = player.TargetObject?.GameObjectId ?? 0;
+            var candidates = hostile != 0
+                ? new[] { hostile, player.GameObjectId }
+                : new[] { player.GameObjectId };
+
+            uint lastStatus = 0;
+            foreach (var targetId in candidates)
             {
-                _lastRefusal = $"refused by the game (status {status}, action {actionId}, bar {level})";
+                var status = actionManager->GetActionStatus(ActionType.Action, actionId, targetId);
+                if (status != 0)
+                {
+                    lastStatus = status;
+                    continue;
+                }
+
+                if (!actionManager->UseAction(ActionType.Action, actionId, targetId))
+                {
+                    _lastRefusal = $"cast rejected (action {actionId}, bar {level}, target {targetId:X})";
+                    continue;
+                }
+
+                _armedRole = null;
+                LastOutcome = $"{LimitBreakPolicy.Label(role)} LB fired (bar {level})";
+                _log.Information("[LimitBreak] fired {Role} — action {Action}, bar {Level}, target {Target:X}",
+                    role, actionId, level, targetId);
+                OnFired?.Invoke(role);
                 return;
             }
 
-            if (!actionManager->UseAction(ActionType.Action, actionId))
+            if (lastStatus != 0)
             {
-                _lastRefusal = $"cast rejected (action {actionId}, bar {level})";
-                return;
+                _lastRefusal =
+                    $"refused by the game (status {lastStatus}, action {actionId}, bar {level}, "
+                    + $"tried {candidates.Length} target(s), hostile {(hostile != 0 ? "yes" : "NONE")})";
             }
-
-            _armedRole = null;
-            LastOutcome = $"{LimitBreakPolicy.Label(role)} LB fired (bar {level})";
-            _log.Information("[LimitBreak] fired {Role} limit break — action {Action}, bar {Level}",
-                role, actionId, level);
-            OnFired?.Invoke(role);
         }
         catch (Exception ex)
         {
