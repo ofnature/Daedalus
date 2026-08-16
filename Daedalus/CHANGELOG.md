@@ -3,6 +3,14 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.62 — unreleased
+
+### Fix — The caster limit break said it fired without spending the bar
+- Skyshard, Starstorm and Meteor are **placed on the ground**, not aimed at an enemy. They were being cast the same way as the melee one, which the game accepts and then quietly ignores — so the plugin announced a successful limit break while nothing happened and the bar stayed full
+- Limit breaks are now cast with a **position as well as a target**, which suits both kinds. The melee one kept working throughout precisely because it *is* aimed at an enemy, which is what hid this
+- **It no longer claims success just because the game accepted the request.** It now waits for the limit break bar to actually drop before reporting anything, and if the bar never moves it says exactly that instead of congratulating itself
+
+<!-- LATEST-END -->
 ## v0.1.61 — 2026-08-16
 
 ### Fix — The limit break actually fires now
@@ -25,7 +33,6 @@ All notable changes to Daedalus will be documented in this file.
 - Widened to **60 yalms**. A band that's too generous only costs you a bigger search area; one that's too tight makes two perfectly honest readings contradict each other and leaves you with nothing
 - Only the plain band moved. *Far* and *far, far* are untouched, because there's no evidence to move them and guessing a second band to tidy up the first is how the 30 got there
 
-<!-- LATEST-END -->
 ## v0.1.60 — 2026-08-15
 
 ### New — Treasure coffer spawn points now ship with the plugin

@@ -24,6 +24,17 @@ public static class LimitBreakPolicy
     public const float RetryIntervalSeconds = 0.25f;
 
     /// <summary>
+    /// How long to wait for the limit break bar to actually drop after the game accepts the cast.
+    /// <para>
+    /// Acceptance is not execution. The caster limit break is ground-targeted, so an actor-aimed
+    /// call was accepted and silently dropped while the plugin reported success — the bar is the
+    /// only honest proof. Generous enough to cover the longest limit break cast plus a server
+    /// round trip.
+    /// </para>
+    /// </summary>
+    public const float CastConfirmSeconds = 6f;
+
+    /// <summary>
     /// How long a box that is NOT the right role waits for someone to confirm before reporting
     /// that nobody answered. Longer than the arm window, so the acting toon has used up all its
     /// retries and its confirmation has had time to cross the network before we call it a miss.

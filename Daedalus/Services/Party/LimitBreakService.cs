@@ -40,6 +40,14 @@ public sealed unsafe class LimitBreakService
     private LimitBreakRole? _waitingRole;
     private DateTime _waitingUntilUtc = DateTime.MinValue;
 
+    // Awaiting proof. The game accepting a cast request is NOT the cast happening: field
+    // 2026-08-16, the caster limit break reported "fired" while the bar was never spent, because
+    // Skyshard is ground-targeted and the actor-targeted call was accepted and dropped. So a
+    // success is only claimed once the bar has actually moved.
+    private uint _unitsAtCast;
+    private DateTime _confirmDeadlineUtc = DateTime.MinValue;
+    private bool _awaitingConfirmation;
+
     public LimitBreakService(IObjectTable objectTable, IPluginLog log)
     {
         _objectTable = objectTable;
@@ -114,6 +122,7 @@ public sealed unsafe class LimitBreakService
 
         _armedRole = role;
         _waitingRole = null;
+        _awaitingConfirmation = false;   // a fresh call must never inherit the last one's wait
         _armedUntilUtc = DateTime.UtcNow.AddSeconds(LimitBreakPolicy.ArmWindowSeconds);
         _nextAttemptUtc = DateTime.MinValue;
         _lastRefusal = "";
@@ -139,6 +148,20 @@ public sealed unsafe class LimitBreakService
             : $"{LimitBreakPolicy.Label(role)} LB — {reason}";
     }
 
+    /// <summary>Current limit-break units, or null when the controller is unavailable.</summary>
+    private static uint? CurrentLimitUnits()
+    {
+        try
+        {
+            var lb = LimitBreakController.Instance();
+            return lb == null ? null : lb->CurrentUnits;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
     /// <summary>Framework-thread pump. Retries the cast until it lands or the window lapses.</summary>
     public void Update()
     {
@@ -156,9 +179,34 @@ public sealed unsafe class LimitBreakService
             return;
 
         var now = nowUtc;
+
+        // Waiting for the bar to actually move. Accepting the request is not casting it.
+        if (_awaitingConfirmation)
+        {
+            if (CurrentLimitUnits() is { } unitsNow && unitsNow < _unitsAtCast)
+            {
+                _awaitingConfirmation = false;
+                _armedRole = null;
+                LastOutcome = $"{LimitBreakPolicy.Label(role)} LB fired";
+                _log.Information("[LimitBreak] {Role} confirmed — units {Before} -> {After}",
+                    role, _unitsAtCast, unitsNow);
+                OnFired?.Invoke(role);
+                return;
+            }
+
+            if (now < _confirmDeadlineUtc)
+                return;
+
+            // Accepted and nothing happened. Say exactly that rather than claiming success.
+            _awaitingConfirmation = false;
+            _lastRefusal = $"the game accepted the cast but the bar never moved (units still {_unitsAtCast})";
+            // fall through to the give-up check / another attempt
+        }
+
         if (now >= _armedUntilUtc)
         {
             _armedRole = null;
+            _awaitingConfirmation = false;
 
             // Name the refusal. "Not available" covers a full bar we mis-detected, content that
             // forbids limit breaks at all, and a targeted LB with nothing targeted — three very
@@ -235,6 +283,16 @@ public sealed unsafe class LimitBreakService
                 ? new[] { hostile, player.GameObjectId }
                 : new[] { player.GameObjectId };
 
+            // A POSITION as well as a target, via UseActionLocation. Field 2026-08-16: the caster
+            // limit break reported success and never spent the bar, because Skyshard is
+            // TargetArea — it is placed on the GROUND and takes no actor at all, so an
+            // actor-targeted UseAction is accepted and quietly dropped. Braver is castType 1 and
+            // worked, which is exactly why this looked fixed.
+            //
+            // UseActionLocation for everything, the way BMR does it for all spells: a ground
+            // action gets the position it needs, and an actor-targeted one ignores it.
+            var location = player.TargetObject?.Position ?? player.Position;
+
             uint lastStatus = 0;
             foreach (var targetId in candidates)
             {
@@ -245,17 +303,19 @@ public sealed unsafe class LimitBreakService
                     continue;
                 }
 
-                if (!actionManager->UseAction(ActionType.Action, actionId, targetId))
+                if (!actionManager->UseActionLocation(ActionType.Action, actionId, targetId, &location))
                 {
                     _lastRefusal = $"cast rejected (action {actionId}, bar {level}, target {targetId:X})";
                     continue;
                 }
 
-                _armedRole = null;
-                LastOutcome = $"{LimitBreakPolicy.Label(role)} LB fired (bar {level})";
-                _log.Information("[LimitBreak] fired {Role} — action {Action}, bar {Level}, target {Target:X}",
-                    role, actionId, level, targetId);
-                OnFired?.Invoke(role);
+                // Accepted — NOT fired. Wait for the bar to move before claiming anything.
+                _unitsAtCast = lb->CurrentUnits;
+                _confirmDeadlineUtc = now.AddSeconds(LimitBreakPolicy.CastConfirmSeconds);
+                _awaitingConfirmation = true;
+                _log.Information("[LimitBreak] {Role} submitted — action {Action}, bar {Level}, "
+                    + "target {Target:X}, awaiting bar drop from {Units}",
+                    role, actionId, level, targetId, _unitsAtCast);
                 return;
             }
 

@@ -111,6 +111,19 @@ public sealed class LimitBreakPolicyTests
         Assert.Equal("", call.Name);
     }
 
+    /// <summary>
+    /// The confirmation wait has to outlast the longest limit break cast plus a round trip, or a
+    /// cast that IS landing gets reported as "the bar never moved". It also has to be at least
+    /// the arm window, since the wait begins after the last possible submit.
+    /// </summary>
+    [Fact]
+    public void CastConfirmWindow_OutlastsALimitBreakCast()
+    {
+        Assert.True(LimitBreakPolicy.CastConfirmSeconds >= 4.5f,
+            "the longest limit break cast is 4.5s");
+        Assert.True(LimitBreakPolicy.CastConfirmSeconds >= LimitBreakPolicy.ArmWindowSeconds - 1f);
+    }
+
     [Fact]
     public void Label_IsSetForEveryRole()
     {
