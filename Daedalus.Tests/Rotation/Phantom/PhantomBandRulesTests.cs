@@ -507,12 +507,48 @@ public class PhantomBandRulesTests
 
         Assert.True(cfg.TimeMageUseSlowga);
 
-        Assert.True(PhantomBandRules.ShouldSlowga(cfg, inCombat: true, targetAlreadySlowed: false));
-        Assert.False(PhantomBandRules.ShouldSlowga(cfg, inCombat: true, targetAlreadySlowed: true));
-        Assert.False(PhantomBandRules.ShouldSlowga(cfg, inCombat: false, targetAlreadySlowed: false));
+        Assert.True(PhantomBandRules.ShouldSlowga(cfg, true, targetAlreadySlowed: false, targetIsCriticalEncounterMob: false));
+        Assert.False(PhantomBandRules.ShouldSlowga(cfg, true, targetAlreadySlowed: true, targetIsCriticalEncounterMob: false));
+        Assert.False(PhantomBandRules.ShouldSlowga(cfg, false, targetAlreadySlowed: false, targetIsCriticalEncounterMob: false));
 
         cfg.TimeMageUseSlowga = false;
-        Assert.False(PhantomBandRules.ShouldSlowga(cfg, inCombat: true, targetAlreadySlowed: false));
+        Assert.False(PhantomBandRules.ShouldSlowga(cfg, true, targetAlreadySlowed: false, targetIsCriticalEncounterMob: false));
+    }
+
+    /// <summary>
+    /// The bug this gate exists for. Slowga is paced on the target NOT already being slowed, so
+    /// against something that CANNOT be slowed the pacing never engages and a zero-damage 2.5s
+    /// GCD spell is re-cast for the entire encounter. Critical-encounter enemies are exactly
+    /// that, which is why RSR excludes them from Slowga's targets outright.
+    /// </summary>
+    [Fact]
+    public void TimeMageSlowga_NeverTargetsACriticalEncounterEnemy()
+    {
+        var cfg = DefaultConfig();
+
+        Assert.False(PhantomBandRules.ShouldSlowga(
+            cfg, inCombat: true, targetAlreadySlowed: false, targetIsCriticalEncounterMob: true));
+
+        // ...and it stays refused no matter how many frames go by, because the status that would
+        // normally stop the re-cast can never appear.
+        for (var frame = 0; frame < 50; frame++)
+        {
+            Assert.False(PhantomBandRules.ShouldSlowga(
+                cfg, inCombat: true, targetAlreadySlowed: false, targetIsCriticalEncounterMob: true));
+        }
+    }
+
+    /// <summary>
+    /// Occult Missile's tooltip says "with some exceptions" and names none. RSR's answer is that
+    /// critical-encounter and FATE enemies shrug it off, so the GCD is wasted there.
+    /// </summary>
+    [Fact]
+    public void OccultMissile_SkipsCriticalEncounterAndFateEnemies()
+    {
+        Assert.True(PhantomBandRules.ShouldMissile(false, false));
+        Assert.False(PhantomBandRules.ShouldMissile(targetIsCriticalEncounterMob: true, targetIsFateMob: false));
+        Assert.False(PhantomBandRules.ShouldMissile(targetIsCriticalEncounterMob: false, targetIsFateMob: true));
+        Assert.False(PhantomBandRules.ShouldMissile(true, true));
     }
 
     /// <summary>

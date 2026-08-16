@@ -250,8 +250,25 @@ public static class PhantomBandRules
     /// 30s Slow rather than re-spending a GCD every 2.5s, so the gate is "target is not already
     /// slowed" — reapply follows for free when the status drops off.
     /// </summary>
-    public static bool ShouldSlowga(PhantomConfig cfg, bool inCombat, bool targetAlreadySlowed)
-        => inCombat && cfg.TimeMageUseSlowga && !targetAlreadySlowed;
+    public static bool ShouldSlowga(
+        PhantomConfig cfg, bool inCombat, bool targetAlreadySlowed, bool targetIsCriticalEncounterMob)
+        => inCombat
+           && cfg.TimeMageUseSlowga
+           && !targetAlreadySlowed
+           && !targetIsCriticalEncounterMob;
+
+    /// <summary>
+    /// Occult Missile: a coin flip for 75% of the target's CURRENT HP, "with some exceptions".
+    /// The exceptions are critical-encounter and FATE enemies, which RSR excludes outright
+    /// (<c>CanTarget = tar =&gt; !tar.IsOccultCEMob() &amp;&amp; !tar.IsOccultFateMob()</c>).
+    /// <para>
+    /// Nothing in the game files says which enemies resist it — checked 2026-08-14: MKDBNpcData
+    /// is one unnamed number per row, and BNpcResist is an unnamed 11-bool array with no visible
+    /// link from BNpcBase. The encounter the enemy belongs to is the signal that IS readable.
+    /// </para>
+    /// </summary>
+    public static bool ShouldMissile(bool targetIsCriticalEncounterMob, bool targetIsFateMob)
+        => !targetIsCriticalEncounterMob && !targetIsFateMob;
 
     /// <summary>Necromancer elemental nuke ids — one shared 40s recast, three elements.</summary>
     public const uint DeepFreezeId = 49098;   // ice

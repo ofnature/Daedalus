@@ -5,6 +5,14 @@ All notable changes to Daedalus will be documented in this file.
 <!-- LATEST-START -->
 ## v0.1.60 — unreleased
 
+### Fix — Occult Slowga no longer spams itself at critical-encounter bosses
+- Slowga waits for the Slow to wear off before recasting. **Critical-encounter enemies can't be slowed at all**, so the wait never started and it re-cast a zero-damage 2.5 second spell *every GCD* for the whole fight
+- It now skips them, and the Duty tab says so rather than going quiet
+
+### Fix — Occult Missile is no longer wasted on encounter bosses
+- Missile's tooltip promises 75% of a target's current HP "with some exceptions" and never says what the exceptions are. They're **critical-encounter and FATE enemies**, which shrug it off entirely
+- Daedalus now reads which encounter an enemy belongs to **directly from the enemy** and skips Missile there, spending the GCD on Aqua Breath or Aero instead
+
 ### New — Phantom Blue Mage settings now tell you where each spell is learned
 - Blue Mage is the one phantom job that doesn't level up by earning experience — **you learn each spell by watching an enemy cast it and then killing it** — and nothing in the game tells you which enemy teaches what
 - Occult settings under Blue Mage now lists all seven spells with the **enemy, the level needed, and the location or critical encounter** to find it. Spells already on your duty bar are marked, and ones above your level are dimmed

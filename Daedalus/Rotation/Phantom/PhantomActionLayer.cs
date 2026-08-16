@@ -9,6 +9,7 @@ using Daedalus.Services;
 using Daedalus.Services.Action;
 using Daedalus.Services.Occult;
 using Daedalus.Timeline;
+using FFXIVClientStructs.FFXIV.Client.Game.Event;
 
 namespace Daedalus.Rotation.Phantom;
 
@@ -871,10 +872,22 @@ public sealed class PhantomActionLayer
         // damage at all, so "save damage for burst" has nothing to save. It is the only action a
         // Lv.1 Time Mage owns (Comet needs Lv.2), and the 30s Slow it hangs is worth a GCD every
         // half-minute. Ranked behind Comet, which wins the queue on the turns it is up.
-        if (job == PhantomJob.TimeMage
-            && PhantomBandRules.ShouldSlowga(cfg, inCombat, HasAnyStatus(target, PhantomActions.SlowStatusIds)))
+        if (job == PhantomJob.TimeMage)
         {
-            TryPush(ctx, 41621, job, level, PrioDamage + 1, target.GameObjectId, target);
+            // The CE exclusion is not a nicety. Slowga is paced on the target NOT already being
+            // slowed, and something that cannot be slowed never acquires the status — so without
+            // this the gate passes every frame and a zero-damage 2.5s GCD spell is re-cast for
+            // the whole encounter. RSR excludes critical-encounter mobs for the same reason.
+            var slowgaCe = IsCriticalEncounterMob(target);
+            if (PhantomBandRules.ShouldSlowga(
+                    cfg, inCombat, HasAnyStatus(target, PhantomActions.SlowStatusIds), slowgaCe))
+            {
+                TryPush(ctx, 41621, job, level, PrioDamage + 1, target.GameObjectId, target);
+            }
+            else if (slowgaCe)
+            {
+                _pushRejects.Add("Occult Slowga — critical-encounter enemies cannot be slowed");
+            }
         }
 
         // Executes / non-scaling utility fire regardless of the burst hold (RSR parity).
@@ -1004,8 +1017,15 @@ public sealed class PhantomActionLayer
                 TryPush(ctx, 49087, job, level, PrioDamage, target.GameObjectId, target);
                 // Missile is a coin flip for 75% of CURRENT hp — worthless on a nearly-dead
                 // target and enormous on a fresh one, so it leads only while the pack is healthy.
+                // The tooltip's "with some exceptions" means critical-encounter and FATE enemies:
+                // they shrug it off, so spending the GCD there is pure loss.
                 if (targetHpPct > 0.5f)
-                    TryPush(ctx, 49086, job, level, PrioDamage + 1, target.GameObjectId, target);
+                {
+                    if (PhantomBandRules.ShouldMissile(IsCriticalEncounterMob(target), IsFateMob(target)))
+                        TryPush(ctx, 49086, job, level, PrioDamage + 1, target.GameObjectId, target);
+                    else
+                        _pushRejects.Add("Occult Missile — no effect on critical-encounter or FATE enemies");
+                }
                 // Aero grades are one button, but which grade is LEARNED depends on enemies,
                 // not phantom level — push best-first and let the duty-bar gate pick the one
                 // actually known, so an unlearned top grade cannot silence the lower ones.
@@ -1194,6 +1214,40 @@ public sealed class PhantomActionLayer
         for (var i = 0; i < order.Length; i++)
             TryPush(ctx, order[i], job, level, basePriority + i, target.GameObjectId, target);
     }
+
+    /// <summary>
+    /// Which director owns this enemy, read live off the object rather than inferred.
+    /// <para>
+    /// <c>PublicContentDirector</c> means it belongs to a critical encounter, <c>FateDirector</c>
+    /// to a FATE. RSR reads exactly this for its Occult target gates, and it is strictly better
+    /// than the weakness table's encounter stamp, which records whatever happened to be running
+    /// when the enemy was last seen — that is how the escort pot picked up a CE it had nothing to
+    /// do with. This asks the enemy itself.
+    /// </para>
+    /// </summary>
+    private static unsafe bool HasEventType(IGameObject? obj, EventHandlerContent want)
+    {
+        if (obj is null || obj.Address == nint.Zero)
+            return false;
+
+        try
+        {
+            var native = (FFXIVClientStructs.FFXIV.Client.Game.Object.GameObject*)obj.Address;
+            return native != null && native->EventId.ContentId == want;
+        }
+        catch
+        {
+            // A bad read must not take the layer down, and it must fail OPEN: "no director known"
+            // means no exclusion, which is the behaviour we had before these gates existed.
+            return false;
+        }
+    }
+
+    private static bool IsCriticalEncounterMob(IGameObject? obj)
+        => HasEventType(obj, EventHandlerContent.PublicContentDirector);
+
+    private static bool IsFateMob(IGameObject? obj)
+        => HasEventType(obj, EventHandlerContent.FateDirector);
 
     private static bool HasAnyStatus(IBattleChara chara, IReadOnlyList<uint> statusIds)
     {
