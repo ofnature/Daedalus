@@ -133,6 +133,71 @@ public sealed class ChestLedger
         _clientState = clientState;
         _dataManager = dataManager;
         _save = save;
+
+        LoadSeed();
+    }
+
+    /// <summary>
+    /// The spawn points shipped with the plugin (embedded <c>Data/OccultChestSeed.json</c>), so a
+    /// fresh toon starts with the fleet's map rather than an empty one.
+    /// <para>
+    /// ADD-ONLY, deliberately, and NOT <see cref="Merge"/>. Merge accumulates — it sums TimesSeen,
+    /// TimesOpened and the tier distributions, which is right when folding one toon's export into
+    /// another's but catastrophic here: the seed would be re-applied on every launch and the
+    /// counts would climb forever. Skipping spots we already know also gives the right precedence
+    /// for free, since a spot in the player's ledger is their own observation and beats the seed.
+    /// The result is idempotent: the second launch finds everything present and adds nothing.
+    /// </para>
+    /// <para>
+    /// This is the half that was missing. <see cref="ExportSeed"/> has always promised "collect in
+    /// Debug, commit the file, Release loads it" — nothing loaded it, so every export went
+    /// nowhere (field 2026-08-15).
+    /// </para>
+    /// </summary>
+    private void LoadSeed()
+    {
+        if (_config is null)
+            return;
+
+        try
+        {
+            var asm = typeof(ChestLedger).Assembly;
+            var resource = System.Linq.Enumerable.FirstOrDefault(
+                asm.GetManifestResourceNames(),
+                n => n.EndsWith("OccultChestSeed.json", System.StringComparison.Ordinal));
+            if (resource is null)
+                return;
+
+            using var stream = asm.GetManifestResourceStream(resource);
+            if (stream is null)
+                return;
+
+            using var reader = new System.IO.StreamReader(stream);
+            var seed = System.Text.Json.JsonSerializer.Deserialize<List<ChestLedgerEntry>>(reader.ReadToEnd());
+            if (seed is null)
+                return;
+
+            var added = 0;
+            foreach (var entry in seed)
+            {
+                if (entry is null)
+                    continue;
+                if (FindSpot(_config.ChestLedger, entry.Zone, new Vector3(entry.X, entry.Y, entry.Z)) is not null)
+                    continue;
+
+                BackfillTierCounts(entry);
+                _config.ChestLedger.Add(entry);
+                added++;
+            }
+
+            if (added > 0)
+                _save?.Invoke();
+        }
+        catch
+        {
+            // A malformed or missing seed must never stop the ledger working — it just means
+            // starting from whatever this character has seen for itself.
+        }
     }
 
     /// <summary>Spawn points on record across every zone.</summary>

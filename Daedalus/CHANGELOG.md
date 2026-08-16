@@ -3,7 +3,12 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
-## v0.1.60 — unreleased
+## v0.1.60 — 2026-08-15
+
+### New — Treasure coffer spawn points now ship with the plugin
+- **133 known spawn points** — 57 in South Horn, 76 in North Horn — so a fresh character starts with the map already filled in instead of an empty one. 97 of them have actually been opened
+- The export button has always said *"collect in Debug, commit the file, Release loads it"*. **The loading half was never built**, so every seed exported until now went nowhere. It does now
+- Spots you've already found are left completely alone — your own sightings always win, and the shipped list only ever fills in gaps
 
 ### Fix — Occult Slowga no longer spams itself at critical-encounter bosses
 - Slowga waits for the Slow to wear off before recasting. **Critical-encounter enemies can't be slowed at all**, so the wait never started and it re-cast a zero-damage 2.5 second spell *every GCD* for the whole fight

@@ -79,15 +79,15 @@
     "Name": "Alabaster Blade",
     "TerritoryId": 1346,
     "Elements": 4,
-    "MaxHp": 216049771,
+    "MaxHp": 263347153,
     "SeenInCriticalEncounter": true,
     "CriticalEncounter": "Quarried Away",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-07-31T19:25:24.8349134Z",
-    "Sightings": 0,
-    "EverTargetable": false,
-    "EverAttackable": false
+    "LastSeenUtc": "2026-08-16T01:53:43.9062007Z",
+    "Sightings": 6478,
+    "EverTargetable": true,
+    "EverAttackable": true
   },
   {
     "NameId": 14510,
@@ -169,15 +169,15 @@
     "Name": "Arbatel",
     "TerritoryId": 1346,
     "Elements": 1,
-    "MaxHp": 262689421,
+    "MaxHp": 113810026,
     "SeenInCriticalEncounter": true,
     "CriticalEncounter": "Forbidden Folios",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-07-31T21:21:33.4761878Z",
-    "Sightings": 0,
-    "EverTargetable": false,
-    "EverAttackable": false
+    "LastSeenUtc": "2026-08-15T20:39:29.9962543Z",
+    "Sightings": 8285,
+    "EverTargetable": true,
+    "EverAttackable": true
   },
   {
     "NameId": 14799,
@@ -229,15 +229,15 @@
     "Name": "Arch Kelpie",
     "TerritoryId": 1346,
     "Elements": 4,
-    "MaxHp": 15269247,
+    "MaxHp": 493346,
     "SeenInCriticalEncounter": false,
     "CriticalEncounter": "",
     "SeenInFate": true,
     "Fate": "Waved Away",
-    "LastSeenUtc": "2026-08-01T23:43:37.1135078Z",
-    "Sightings": 0,
-    "EverTargetable": false,
-    "EverAttackable": false
+    "LastSeenUtc": "2026-08-16T01:39:08.7924418Z",
+    "Sightings": 1317,
+    "EverTargetable": true,
+    "EverAttackable": true
   },
   {
     "NameId": 14791,
@@ -339,10 +339,10 @@
     "CriticalEncounter": "",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T20:59:43.8209461Z",
-    "Sightings": 0,
-    "EverTargetable": false,
-    "EverAttackable": false
+    "LastSeenUtc": "2026-08-16T01:57:09.8776436Z",
+    "Sightings": 15,
+    "EverTargetable": true,
+    "EverAttackable": true
   },
   {
     "NameId": 14506,
@@ -519,10 +519,10 @@
     "CriticalEncounter": "Doubled Trouble",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-07-31T23:24:33.4474030Z",
-    "Sightings": 0,
-    "EverTargetable": false,
-    "EverAttackable": false
+    "LastSeenUtc": "2026-08-15T22:39:51.0506591Z",
+    "Sightings": 3284,
+    "EverTargetable": true,
+    "EverAttackable": true
   },
   {
     "NameId": 14903,
@@ -534,10 +534,10 @@
     "CriticalEncounter": "",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T16:59:14.8681866Z",
-    "Sightings": 0,
-    "EverTargetable": false,
-    "EverAttackable": false
+    "LastSeenUtc": "2026-08-15T21:58:04.2983105Z",
+    "Sightings": 350,
+    "EverTargetable": true,
+    "EverAttackable": true
   },
   {
     "NameId": 14889,
@@ -549,10 +549,10 @@
     "CriticalEncounter": "Cursed Resurgence",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T22:23:17.5919923Z",
-    "Sightings": 0,
-    "EverTargetable": false,
-    "EverAttackable": false
+    "LastSeenUtc": "2026-08-16T02:53:18.9137976Z",
+    "Sightings": 1566,
+    "EverTargetable": true,
+    "EverAttackable": true
   },
   {
     "NameId": 13886,
@@ -579,10 +579,10 @@
     "CriticalEncounter": "Familiar Tactics",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T22:15:50.0592301Z",
-    "Sightings": 0,
-    "EverTargetable": false,
-    "EverAttackable": false
+    "LastSeenUtc": "2026-08-16T02:59:39.0163707Z",
+    "Sightings": 832,
+    "EverTargetable": true,
+    "EverAttackable": true
   },
   {
     "NameId": 14920,
@@ -594,10 +594,10 @@
     "CriticalEncounter": "Imbalanced Diet",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T19:11:41.1650966Z",
-    "Sightings": 0,
-    "EverTargetable": false,
-    "EverAttackable": false
+    "LastSeenUtc": "2026-08-16T02:51:38.4390658Z",
+    "Sightings": 1323,
+    "EverTargetable": true,
+    "EverAttackable": true
   },
   {
     "NameId": 13937,
@@ -639,10 +639,10 @@
     "CriticalEncounter": "Quarried Away",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T18:58:17.3130305Z",
-    "Sightings": 0,
-    "EverTargetable": false,
-    "EverAttackable": false
+    "LastSeenUtc": "2026-08-16T02:13:00.4747899Z",
+    "Sightings": 444,
+    "EverTargetable": true,
+    "EverAttackable": true
   },
   {
     "NameId": 13924,
@@ -699,10 +699,10 @@
     "CriticalEncounter": "Quarried Away",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T21:28:59.5271919Z",
-    "Sightings": 0,
-    "EverTargetable": false,
-    "EverAttackable": false
+    "LastSeenUtc": "2026-08-16T02:48:16.9823520Z",
+    "Sightings": 2319,
+    "EverTargetable": true,
+    "EverAttackable": true
   },
   {
     "NameId": 14869,
@@ -711,13 +711,13 @@
     "Elements": 0,
     "MaxHp": 783328,
     "SeenInCriticalEncounter": true,
-    "CriticalEncounter": "Lost on the Wind",
+    "CriticalEncounter": "Dark Artistry",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T21:28:59.5271919Z",
-    "Sightings": 0,
-    "EverTargetable": false,
-    "EverAttackable": false
+    "LastSeenUtc": "2026-08-16T03:00:43.3672932Z",
+    "Sightings": 686,
+    "EverTargetable": true,
+    "EverAttackable": true
   },
   {
     "NameId": 13759,
@@ -744,10 +744,10 @@
     "CriticalEncounter": "Forbidden Folios",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T19:14:07.4167427Z",
-    "Sightings": 0,
-    "EverTargetable": false,
-    "EverAttackable": false
+    "LastSeenUtc": "2026-08-16T02:56:15.9767003Z",
+    "Sightings": 284,
+    "EverTargetable": true,
+    "EverAttackable": true
   },
   {
     "NameId": 14919,
@@ -759,10 +759,10 @@
     "CriticalEncounter": "Accept No Imitators",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T21:28:59.5271919Z",
-    "Sightings": 0,
-    "EverTargetable": false,
-    "EverAttackable": false
+    "LastSeenUtc": "2026-08-16T02:51:02.3249320Z",
+    "Sightings": 1159,
+    "EverTargetable": true,
+    "EverAttackable": true
   },
   {
     "NameId": 14887,
@@ -774,10 +774,10 @@
     "CriticalEncounter": "Cursed Resurgence",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T22:22:05.3615275Z",
-    "Sightings": 0,
-    "EverTargetable": false,
-    "EverAttackable": false
+    "LastSeenUtc": "2026-08-16T02:51:48.4712576Z",
+    "Sightings": 1026,
+    "EverTargetable": true,
+    "EverAttackable": true
   },
   {
     "NameId": 14877,
@@ -789,10 +789,10 @@
     "CriticalEncounter": "Appalling Behavior",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T20:32:28.0720429Z",
-    "Sightings": 0,
-    "EverTargetable": false,
-    "EverAttackable": false
+    "LastSeenUtc": "2026-08-15T22:13:51.3189371Z",
+    "Sightings": 345,
+    "EverTargetable": true,
+    "EverAttackable": true
   },
   {
     "NameId": 13898,
@@ -819,10 +819,10 @@
     "CriticalEncounter": "Doubled Trouble",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T22:24:37.8436104Z",
-    "Sightings": 0,
-    "EverTargetable": false,
-    "EverAttackable": false
+    "LastSeenUtc": "2026-08-16T01:44:16.7033711Z",
+    "Sightings": 1156,
+    "EverTargetable": true,
+    "EverAttackable": true
   },
   {
     "NameId": 13908,
@@ -879,10 +879,10 @@
     "CriticalEncounter": "Web of Terror",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T18:02:23.5573611Z",
-    "Sightings": 0,
-    "EverTargetable": false,
-    "EverAttackable": false
+    "LastSeenUtc": "2026-08-16T01:41:35.6804685Z",
+    "Sightings": 13,
+    "EverTargetable": true,
+    "EverAttackable": true
   },
   {
     "NameId": 13916,
@@ -939,10 +939,10 @@
     "CriticalEncounter": "",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T21:28:59.5271919Z",
-    "Sightings": 0,
-    "EverTargetable": false,
-    "EverAttackable": false
+    "LastSeenUtc": "2026-08-16T02:48:16.9823520Z",
+    "Sightings": 509,
+    "EverTargetable": true,
+    "EverAttackable": true
   },
   {
     "NameId": 13900,
@@ -1014,10 +1014,10 @@
     "CriticalEncounter": "",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T19:14:19.5735929Z",
-    "Sightings": 0,
-    "EverTargetable": false,
-    "EverAttackable": false
+    "LastSeenUtc": "2026-08-16T02:58:10.6066141Z",
+    "Sightings": 586,
+    "EverTargetable": true,
+    "EverAttackable": true
   },
   {
     "NameId": 13903,
@@ -1044,10 +1044,10 @@
     "CriticalEncounter": "",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T22:46:53.6483030Z",
-    "Sightings": 0,
-    "EverTargetable": false,
-    "EverAttackable": false
+    "LastSeenUtc": "2026-08-16T02:48:55.2059460Z",
+    "Sightings": 5035,
+    "EverTargetable": true,
+    "EverAttackable": true
   },
   {
     "NameId": 14882,
@@ -1059,10 +1059,10 @@
     "CriticalEncounter": "Familiar Tactics",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T22:15:50.0592301Z",
-    "Sightings": 0,
-    "EverTargetable": false,
-    "EverAttackable": false
+    "LastSeenUtc": "2026-08-16T02:59:39.0163707Z",
+    "Sightings": 554,
+    "EverTargetable": true,
+    "EverAttackable": true
   },
   {
     "NameId": 13885,
@@ -1089,10 +1089,10 @@
     "CriticalEncounter": "Doubled Trouble",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T22:23:47.6581433Z",
-    "Sightings": 0,
-    "EverTargetable": false,
-    "EverAttackable": false
+    "LastSeenUtc": "2026-08-16T02:55:09.7313414Z",
+    "Sightings": 608,
+    "EverTargetable": true,
+    "EverAttackable": true
   },
   {
     "NameId": 13901,
@@ -1119,10 +1119,10 @@
     "CriticalEncounter": "Forbidden Folios",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-01T23:06:16.6191832Z",
-    "Sightings": 0,
-    "EverTargetable": false,
-    "EverAttackable": false
+    "LastSeenUtc": "2026-08-15T20:39:38.0393924Z",
+    "Sightings": 263,
+    "EverTargetable": true,
+    "EverAttackable": true
   },
   {
     "NameId": 13940,
@@ -1149,10 +1149,10 @@
     "CriticalEncounter": "",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T22:52:25.5064644Z",
-    "Sightings": 0,
-    "EverTargetable": false,
-    "EverAttackable": false
+    "LastSeenUtc": "2026-08-16T03:03:18.2314887Z",
+    "Sightings": 478,
+    "EverTargetable": true,
+    "EverAttackable": true
   },
   {
     "NameId": 13918,
@@ -1224,10 +1224,10 @@
     "CriticalEncounter": "Tiny Terror",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T19:03:16.2963840Z",
-    "Sightings": 0,
-    "EverTargetable": false,
-    "EverAttackable": false
+    "LastSeenUtc": "2026-08-16T02:57:42.4122834Z",
+    "Sightings": 743,
+    "EverTargetable": true,
+    "EverAttackable": true
   },
   {
     "NameId": 13876,
@@ -1249,15 +1249,15 @@
     "Name": "Crescent Fan",
     "TerritoryId": 1346,
     "Elements": 4,
-    "MaxHp": 247049,
+    "MaxHp": 4431452,
     "SeenInCriticalEncounter": false,
     "CriticalEncounter": "",
     "SeenInFate": true,
     "Fate": "In a Pot of Bother",
-    "LastSeenUtc": "2026-08-02T22:21:35.2028446Z",
-    "Sightings": 0,
-    "EverTargetable": false,
-    "EverAttackable": false
+    "LastSeenUtc": "2026-08-16T02:35:56.6364590Z",
+    "Sightings": 352,
+    "EverTargetable": true,
+    "EverAttackable": true
   },
   {
     "NameId": 13930,
@@ -1374,10 +1374,10 @@
     "CriticalEncounter": "Doubled Trouble",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T22:24:11.7563690Z",
-    "Sightings": 0,
-    "EverTargetable": false,
-    "EverAttackable": false
+    "LastSeenUtc": "2026-08-16T01:44:16.7033711Z",
+    "Sightings": 1398,
+    "EverTargetable": true,
+    "EverAttackable": true
   },
   {
     "NameId": 13746,
@@ -1419,10 +1419,10 @@
     "CriticalEncounter": "",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T20:59:45.8217849Z",
-    "Sightings": 0,
-    "EverTargetable": false,
-    "EverAttackable": false
+    "LastSeenUtc": "2026-08-16T01:57:11.8862896Z",
+    "Sightings": 31,
+    "EverTargetable": true,
+    "EverAttackable": true
   },
   {
     "NameId": 13923,
@@ -1449,10 +1449,10 @@
     "CriticalEncounter": "Web of Terror",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T18:01:40.7528028Z",
-    "Sightings": 0,
-    "EverTargetable": false,
-    "EverAttackable": false
+    "LastSeenUtc": "2026-08-16T01:39:08.7924418Z",
+    "Sightings": 42,
+    "EverTargetable": true,
+    "EverAttackable": true
   },
   {
     "NameId": 13922,
@@ -1476,13 +1476,13 @@
     "Elements": 0,
     "MaxHp": 837935,
     "SeenInCriticalEncounter": true,
-    "CriticalEncounter": "Dark Artistry",
+    "CriticalEncounter": "Appalling Behavior",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T21:22:37.7088784Z",
-    "Sightings": 0,
-    "EverTargetable": false,
-    "EverAttackable": false
+    "LastSeenUtc": "2026-08-16T01:39:55.0240215Z",
+    "Sightings": 564,
+    "EverTargetable": true,
+    "EverAttackable": true
   },
   {
     "NameId": 13928,
@@ -1549,15 +1549,15 @@
     "Name": "Crescent Gremlin",
     "TerritoryId": 1346,
     "Elements": 1,
-    "MaxHp": 1552646,
+    "MaxHp": 3405236,
     "SeenInCriticalEncounter": false,
     "CriticalEncounter": "",
     "SeenInFate": true,
     "Fate": "Daylight Pottery",
-    "LastSeenUtc": "2026-08-02T22:51:47.2988291Z",
-    "Sightings": 0,
-    "EverTargetable": false,
-    "EverAttackable": false
+    "LastSeenUtc": "2026-08-16T03:05:29.9843286Z",
+    "Sightings": 437,
+    "EverTargetable": true,
+    "EverAttackable": true
   },
   {
     "NameId": 14892,
@@ -1569,10 +1569,10 @@
     "CriticalEncounter": "",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T22:23:29.6243795Z",
-    "Sightings": 0,
-    "EverTargetable": false,
-    "EverAttackable": false
+    "LastSeenUtc": "2026-08-16T02:47:20.6750412Z",
+    "Sightings": 1227,
+    "EverTargetable": true,
+    "EverAttackable": true
   },
   {
     "NameId": 14913,
@@ -1584,10 +1584,10 @@
     "CriticalEncounter": "A Beast Unleashed",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T22:24:37.8436104Z",
-    "Sightings": 0,
-    "EverTargetable": false,
-    "EverAttackable": false
+    "LastSeenUtc": "2026-08-15T22:30:49.2346999Z",
+    "Sightings": 1,
+    "EverTargetable": true,
+    "EverAttackable": true
   },
   {
     "NameId": 13897,
@@ -1608,16 +1608,16 @@
     "NameId": 14884,
     "Name": "Crescent Harpeia",
     "TerritoryId": 1346,
-    "Elements": 0,
+    "Elements": 8,
     "MaxHp": 796509,
     "SeenInCriticalEncounter": false,
     "CriticalEncounter": "",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T22:22:17.4069986Z",
-    "Sightings": 0,
-    "EverTargetable": false,
-    "EverAttackable": false
+    "LastSeenUtc": "2026-08-16T02:59:33.0063758Z",
+    "Sightings": 3262,
+    "EverTargetable": true,
+    "EverAttackable": true
   },
   {
     "NameId": 13935,
@@ -1640,14 +1640,14 @@
     "TerritoryId": 1346,
     "Elements": 0,
     "MaxHp": 832286,
-    "SeenInCriticalEncounter": false,
-    "CriticalEncounter": "",
+    "SeenInCriticalEncounter": true,
+    "CriticalEncounter": "Dark Artistry",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T16:59:57.3417002Z",
-    "Sightings": 0,
-    "EverTargetable": false,
-    "EverAttackable": false
+    "LastSeenUtc": "2026-08-15T23:30:55.7770585Z",
+    "Sightings": 18,
+    "EverTargetable": true,
+    "EverAttackable": true
   },
   {
     "NameId": 13745,
@@ -1689,10 +1689,10 @@
     "CriticalEncounter": "Web of Terror",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T22:24:37.8436104Z",
-    "Sightings": 0,
-    "EverTargetable": false,
-    "EverAttackable": false
+    "LastSeenUtc": "2026-08-16T01:44:16.7033711Z",
+    "Sightings": 116,
+    "EverTargetable": true,
+    "EverAttackable": true
   },
   {
     "NameId": 14876,
@@ -1704,10 +1704,10 @@
     "CriticalEncounter": "Appalling Behavior",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T22:50:52.8915758Z",
-    "Sightings": 0,
-    "EverTargetable": false,
-    "EverAttackable": false
+    "LastSeenUtc": "2026-08-16T03:07:10.7305703Z",
+    "Sightings": 1026,
+    "EverTargetable": true,
+    "EverAttackable": true
   },
   {
     "NameId": 13875,
@@ -1734,10 +1734,10 @@
     "CriticalEncounter": "Web of Terror",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T22:24:37.8436104Z",
-    "Sightings": 0,
-    "EverTargetable": false,
-    "EverAttackable": false
+    "LastSeenUtc": "2026-08-16T01:44:16.7033711Z",
+    "Sightings": 49,
+    "EverTargetable": true,
+    "EverAttackable": true
   },
   {
     "NameId": 14885,
@@ -1749,10 +1749,10 @@
     "CriticalEncounter": "Familiar Tactics",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T22:16:02.0856052Z",
-    "Sightings": 0,
-    "EverTargetable": false,
-    "EverAttackable": false
+    "LastSeenUtc": "2026-08-16T02:59:39.0163707Z",
+    "Sightings": 2109,
+    "EverTargetable": true,
+    "EverAttackable": true
   },
   {
     "NameId": 14880,
@@ -1764,10 +1764,10 @@
     "CriticalEncounter": "Familiar Tactics",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T22:16:02.0856052Z",
-    "Sightings": 0,
-    "EverTargetable": false,
-    "EverAttackable": false
+    "LastSeenUtc": "2026-08-16T02:59:39.0163707Z",
+    "Sightings": 1025,
+    "EverTargetable": true,
+    "EverAttackable": true
   },
   {
     "NameId": 13883,
@@ -1851,13 +1851,13 @@
     "Elements": 0,
     "MaxHp": 790860,
     "SeenInCriticalEncounter": true,
-    "CriticalEncounter": "A Beast Unleashed",
+    "CriticalEncounter": "Ahead of the Competition",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T19:06:54.9934060Z",
-    "Sightings": 0,
-    "EverTargetable": false,
-    "EverAttackable": false
+    "LastSeenUtc": "2026-08-16T02:57:42.4122834Z",
+    "Sightings": 2008,
+    "EverTargetable": true,
+    "EverAttackable": true
   },
   {
     "NameId": 14871,
@@ -1869,10 +1869,10 @@
     "CriticalEncounter": "Dark Artistry",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T22:52:25.5064644Z",
-    "Sightings": 0,
-    "EverTargetable": false,
-    "EverAttackable": false
+    "LastSeenUtc": "2026-08-16T03:06:40.6694804Z",
+    "Sightings": 2181,
+    "EverTargetable": true,
+    "EverAttackable": true
   },
   {
     "NameId": 13905,
@@ -1910,14 +1910,14 @@
     "TerritoryId": 1346,
     "Elements": 0,
     "MaxHp": 837935,
-    "SeenInCriticalEncounter": false,
-    "CriticalEncounter": "",
+    "SeenInCriticalEncounter": true,
+    "CriticalEncounter": "Accept No Imitators",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T21:28:01.2672916Z",
-    "Sightings": 0,
-    "EverTargetable": false,
-    "EverAttackable": false
+    "LastSeenUtc": "2026-08-16T01:44:42.8713698Z",
+    "Sightings": 214,
+    "EverTargetable": true,
+    "EverAttackable": true
   },
   {
     "NameId": 13879,
@@ -1944,10 +1944,10 @@
     "CriticalEncounter": "Quarried Away",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T22:23:57.6948875Z",
-    "Sightings": 0,
-    "EverTargetable": false,
-    "EverAttackable": false
+    "LastSeenUtc": "2026-08-16T02:56:09.9616161Z",
+    "Sightings": 1693,
+    "EverTargetable": true,
+    "EverAttackable": true
   },
   {
     "NameId": 13941,
@@ -1974,10 +1974,10 @@
     "CriticalEncounter": "",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T01:53:01.5652690Z",
-    "Sightings": 0,
-    "EverTargetable": false,
-    "EverAttackable": false
+    "LastSeenUtc": "2026-08-15T23:56:38.8617849Z",
+    "Sightings": 47,
+    "EverTargetable": true,
+    "EverAttackable": true
   },
   {
     "NameId": 14902,
@@ -1989,10 +1989,10 @@
     "CriticalEncounter": "Appalling Behavior",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T20:33:14.9520203Z",
-    "Sightings": 0,
-    "EverTargetable": false,
-    "EverAttackable": false
+    "LastSeenUtc": "2026-08-15T22:14:17.4307317Z",
+    "Sightings": 519,
+    "EverTargetable": true,
+    "EverAttackable": true
   },
   {
     "NameId": 14918,
@@ -2004,10 +2004,10 @@
     "CriticalEncounter": "Familiar Tactics",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T19:10:58.4687148Z",
-    "Sightings": 0,
-    "EverTargetable": false,
-    "EverAttackable": false
+    "LastSeenUtc": "2026-08-16T02:51:26.3908181Z",
+    "Sightings": 604,
+    "EverTargetable": true,
+    "EverAttackable": true
   },
   {
     "NameId": 14910,
@@ -2019,10 +2019,10 @@
     "CriticalEncounter": "",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T18:58:19.3274808Z",
-    "Sightings": 0,
-    "EverTargetable": false,
-    "EverAttackable": false
+    "LastSeenUtc": "2026-08-15T21:54:17.2554717Z",
+    "Sightings": 149,
+    "EverTargetable": true,
+    "EverAttackable": true
   },
   {
     "NameId": 14819,
@@ -2049,10 +2049,10 @@
     "CriticalEncounter": "Imbalanced Diet",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T18:21:31.9241916Z",
-    "Sightings": 0,
-    "EverTargetable": false,
-    "EverAttackable": false
+    "LastSeenUtc": "2026-08-15T22:23:34.1500546Z",
+    "Sightings": 40,
+    "EverTargetable": true,
+    "EverAttackable": true
   },
   {
     "NameId": 14868,
@@ -2064,10 +2064,10 @@
     "CriticalEncounter": "Accept No Imitators",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T22:52:25.5064644Z",
-    "Sightings": 0,
-    "EverTargetable": false,
-    "EverAttackable": false
+    "LastSeenUtc": "2026-08-16T03:06:30.3073388Z",
+    "Sightings": 3242,
+    "EverTargetable": true,
+    "EverAttackable": true
   },
   {
     "NameId": 13911,
@@ -2094,10 +2094,10 @@
     "CriticalEncounter": "Doubled Trouble",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T22:24:21.7948559Z",
-    "Sightings": 0,
-    "EverTargetable": false,
-    "EverAttackable": false
+    "LastSeenUtc": "2026-08-16T01:44:16.7033711Z",
+    "Sightings": 392,
+    "EverTargetable": true,
+    "EverAttackable": true
   },
   {
     "NameId": 13913,
@@ -2124,10 +2124,10 @@
     "CriticalEncounter": "Cursed Resurgence",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T22:22:57.5108820Z",
-    "Sightings": 0,
-    "EverTargetable": false,
-    "EverAttackable": false
+    "LastSeenUtc": "2026-08-16T02:51:52.4918467Z",
+    "Sightings": 161,
+    "EverTargetable": true,
+    "EverAttackable": true
   },
   {
     "NameId": 14890,
@@ -2139,10 +2139,10 @@
     "CriticalEncounter": "",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T22:23:57.6948875Z",
-    "Sightings": 0,
-    "EverTargetable": false,
-    "EverAttackable": false
+    "LastSeenUtc": "2026-08-16T02:56:09.9616161Z",
+    "Sightings": 2464,
+    "EverTargetable": true,
+    "EverAttackable": true
   },
   {
     "NameId": 14891,
@@ -2154,10 +2154,10 @@
     "CriticalEncounter": "",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T22:23:55.6790109Z",
-    "Sightings": 0,
-    "EverTargetable": false,
-    "EverAttackable": false
+    "LastSeenUtc": "2026-08-16T02:56:09.9616161Z",
+    "Sightings": 2154,
+    "EverTargetable": true,
+    "EverAttackable": true
   },
   {
     "NameId": 13887,
@@ -2184,10 +2184,10 @@
     "CriticalEncounter": "Quarried Away",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T19:11:55.2858412Z",
-    "Sightings": 0,
-    "EverTargetable": false,
-    "EverAttackable": false
+    "LastSeenUtc": "2026-08-16T02:56:09.9616161Z",
+    "Sightings": 981,
+    "EverTargetable": true,
+    "EverAttackable": true
   },
   {
     "NameId": 14915,
@@ -2199,10 +2199,10 @@
     "CriticalEncounter": "",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T21:22:09.5696491Z",
-    "Sightings": 0,
-    "EverTargetable": false,
-    "EverAttackable": false
+    "LastSeenUtc": "2026-08-16T02:48:55.2059460Z",
+    "Sightings": 170,
+    "EverTargetable": true,
+    "EverAttackable": true
   },
   {
     "NameId": 14874,
@@ -2214,10 +2214,10 @@
     "CriticalEncounter": "Accept No Imitators",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T20:32:32.1587126Z",
-    "Sightings": 0,
-    "EverTargetable": false,
-    "EverAttackable": false
+    "LastSeenUtc": "2026-08-16T01:40:17.1537458Z",
+    "Sightings": 818,
+    "EverTargetable": true,
+    "EverAttackable": true
   },
   {
     "NameId": 14881,
@@ -2229,10 +2229,10 @@
     "CriticalEncounter": "Ahead of the Competition",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T22:22:11.3875639Z",
-    "Sightings": 0,
-    "EverTargetable": false,
-    "EverAttackable": false
+    "LastSeenUtc": "2026-08-16T02:38:01.3343622Z",
+    "Sightings": 2714,
+    "EverTargetable": true,
+    "EverAttackable": true
   },
   {
     "NameId": 14870,
@@ -2244,10 +2244,10 @@
     "CriticalEncounter": "",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T22:52:25.5064644Z",
-    "Sightings": 0,
-    "EverTargetable": false,
-    "EverAttackable": false
+    "LastSeenUtc": "2026-08-16T03:06:38.3643007Z",
+    "Sightings": 7922,
+    "EverTargetable": true,
+    "EverAttackable": true
   },
   {
     "NameId": 13899,
@@ -2269,15 +2269,15 @@
     "Name": "Crescent Skatene",
     "TerritoryId": 1346,
     "Elements": 0,
-    "MaxHp": 843584,
+    "MaxHp": 851116,
     "SeenInCriticalEncounter": false,
     "CriticalEncounter": "",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T19:11:41.1650966Z",
-    "Sightings": 0,
-    "EverTargetable": false,
-    "EverAttackable": false
+    "LastSeenUtc": "2026-08-16T02:48:16.9823520Z",
+    "Sightings": 459,
+    "EverTargetable": true,
+    "EverAttackable": true
   },
   {
     "NameId": 13874,
@@ -2304,10 +2304,10 @@
     "CriticalEncounter": "Accept No Imitators",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T22:52:25.5064644Z",
-    "Sightings": 0,
-    "EverTargetable": false,
-    "EverAttackable": false
+    "LastSeenUtc": "2026-08-16T03:06:52.7009079Z",
+    "Sightings": 3022,
+    "EverTargetable": true,
+    "EverAttackable": true
   },
   {
     "NameId": 14922,
@@ -2319,10 +2319,10 @@
     "CriticalEncounter": "Dark Artistry",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T17:08:07.2579746Z",
-    "Sightings": 0,
-    "EverTargetable": false,
-    "EverAttackable": false
+    "LastSeenUtc": "2026-08-16T03:07:10.7305703Z",
+    "Sightings": 232,
+    "EverTargetable": true,
+    "EverAttackable": true
   },
   {
     "NameId": 14912,
@@ -2334,10 +2334,10 @@
     "CriticalEncounter": "",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-07-31T23:04:37.4542944Z",
-    "Sightings": 0,
-    "EverTargetable": false,
-    "EverAttackable": false
+    "LastSeenUtc": "2026-08-16T01:56:31.7033509Z",
+    "Sightings": 14,
+    "EverTargetable": true,
+    "EverAttackable": true
   },
   {
     "NameId": 13744,
@@ -2394,10 +2394,10 @@
     "CriticalEncounter": "Imbalanced Diet",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T19:15:28.7732363Z",
-    "Sightings": 0,
-    "EverTargetable": false,
-    "EverAttackable": false
+    "LastSeenUtc": "2026-08-16T02:46:12.3525012Z",
+    "Sightings": 159,
+    "EverTargetable": true,
+    "EverAttackable": true
   },
   {
     "NameId": 13873,
@@ -2469,10 +2469,10 @@
     "CriticalEncounter": "Forbidden Folios",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-01T23:06:20.6899363Z",
-    "Sightings": 0,
-    "EverTargetable": false,
-    "EverAttackable": false
+    "LastSeenUtc": "2026-08-15T20:39:38.0393924Z",
+    "Sightings": 1132,
+    "EverTargetable": true,
+    "EverAttackable": true
   },
   {
     "NameId": 14867,
@@ -2484,10 +2484,10 @@
     "CriticalEncounter": "Imbalanced Diet",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T19:15:28.7732363Z",
-    "Sightings": 0,
-    "EverTargetable": false,
-    "EverAttackable": false
+    "LastSeenUtc": "2026-08-16T02:46:14.3721116Z",
+    "Sightings": 1113,
+    "EverTargetable": true,
+    "EverAttackable": true
   },
   {
     "NameId": 13896,
@@ -2544,10 +2544,10 @@
     "CriticalEncounter": "Forbidden Folios",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-01T23:06:10.5607386Z",
-    "Sightings": 0,
-    "EverTargetable": false,
-    "EverAttackable": false
+    "LastSeenUtc": "2026-08-15T20:37:29.4588553Z",
+    "Sightings": 66,
+    "EverTargetable": true,
+    "EverAttackable": true
   },
   {
     "NameId": 14886,
@@ -2559,10 +2559,10 @@
     "CriticalEncounter": "Cursed Resurgence",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T22:22:19.4104310Z",
-    "Sightings": 0,
-    "EverTargetable": false,
-    "EverAttackable": false
+    "LastSeenUtc": "2026-08-16T02:53:00.8379268Z",
+    "Sightings": 782,
+    "EverTargetable": true,
+    "EverAttackable": true
   },
   {
     "NameId": 14863,
@@ -2574,10 +2574,10 @@
     "CriticalEncounter": "Tiny Terror",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T19:15:28.7732363Z",
-    "Sightings": 0,
-    "EverTargetable": false,
-    "EverAttackable": false
+    "LastSeenUtc": "2026-08-16T02:58:10.6066141Z",
+    "Sightings": 1054,
+    "EverTargetable": true,
+    "EverAttackable": true
   },
   {
     "NameId": 14873,
@@ -2586,13 +2586,13 @@
     "Elements": 0,
     "MaxHp": 783328,
     "SeenInCriticalEncounter": true,
-    "CriticalEncounter": "Lost on the Wind",
+    "CriticalEncounter": "Dark Artistry",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T21:28:59.5271919Z",
-    "Sightings": 0,
-    "EverTargetable": false,
-    "EverAttackable": false
+    "LastSeenUtc": "2026-08-16T03:07:00.7167345Z",
+    "Sightings": 1301,
+    "EverTargetable": true,
+    "EverAttackable": true
   },
   {
     "NameId": 13919,
@@ -2664,10 +2664,10 @@
     "CriticalEncounter": "",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T19:09:47.3379750Z",
-    "Sightings": 0,
-    "EverTargetable": false,
-    "EverAttackable": false
+    "LastSeenUtc": "2026-08-16T02:51:16.3717300Z",
+    "Sightings": 5,
+    "EverTargetable": true,
+    "EverAttackable": true
   },
   {
     "NameId": 14864,
@@ -2679,40 +2679,40 @@
     "CriticalEncounter": "A Beast Unleashed",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T19:14:21.6208556Z",
-    "Sightings": 0,
-    "EverTargetable": false,
-    "EverAttackable": false
+    "LastSeenUtc": "2026-08-16T02:58:10.6066141Z",
+    "Sightings": 1097,
+    "EverTargetable": true,
+    "EverAttackable": true
   },
   {
     "NameId": 14785,
     "Name": "Cresceregina",
     "TerritoryId": 1346,
     "Elements": 1,
-    "MaxHp": 10970358,
+    "MaxHp": 1638210,
     "SeenInCriticalEncounter": false,
     "CriticalEncounter": "",
     "SeenInFate": true,
     "Fate": "Thunderregnum",
-    "LastSeenUtc": "2026-08-02T19:51:30.6511477Z",
-    "Sightings": 0,
-    "EverTargetable": false,
-    "EverAttackable": false
+    "LastSeenUtc": "2026-08-16T03:00:35.3433381Z",
+    "Sightings": 653,
+    "EverTargetable": true,
+    "EverAttackable": true
   },
   {
     "NameId": 14772,
     "Name": "Crimson Gremlin",
     "TerritoryId": 1346,
     "Elements": 2,
-    "MaxHp": 10870182,
+    "MaxHp": 23840286,
     "SeenInCriticalEncounter": false,
     "CriticalEncounter": "",
     "SeenInFate": true,
     "Fate": "Daylight Pottery",
-    "LastSeenUtc": "2026-08-02T22:52:01.3883846Z",
-    "Sightings": 0,
-    "EverTargetable": false,
-    "EverAttackable": false
+    "LastSeenUtc": "2026-08-16T03:05:56.1244208Z",
+    "Sightings": 105,
+    "EverTargetable": true,
+    "EverAttackable": true
   },
   {
     "NameId": 13747,
@@ -2794,15 +2794,15 @@
     "Name": "Demi-Medusa",
     "TerritoryId": 1346,
     "Elements": 2,
-    "MaxHp": 11015550,
+    "MaxHp": 1751190,
     "SeenInCriticalEncounter": false,
     "CriticalEncounter": "",
     "SeenInFate": true,
     "Fate": "Scale Model",
-    "LastSeenUtc": "2026-08-02T00:48:21.0889518Z",
-    "Sightings": 0,
-    "EverTargetable": false,
-    "EverAttackable": false
+    "LastSeenUtc": "2026-08-16T02:52:44.7584308Z",
+    "Sightings": 895,
+    "EverTargetable": true,
+    "EverAttackable": true
   },
   {
     "NameId": 14508,
@@ -2829,25 +2829,25 @@
     "CriticalEncounter": "Doubled Trouble",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-07-31T23:24:27.2634661Z",
-    "Sightings": 0,
-    "EverTargetable": false,
-    "EverAttackable": false
+    "LastSeenUtc": "2026-08-15T22:39:45.0133273Z",
+    "Sightings": 755,
+    "EverTargetable": true,
+    "EverAttackable": true
   },
   {
     "NameId": 14726,
     "Name": "Evil-seer",
     "TerritoryId": 1346,
     "Elements": 1,
-    "MaxHp": 423675,
+    "MaxHp": 753200,
     "SeenInCriticalEncounter": false,
     "CriticalEncounter": "",
     "SeenInFate": true,
     "Fate": "Eye to Eye",
-    "LastSeenUtc": "2026-08-02T02:45:36.9134459Z",
-    "Sightings": 0,
-    "EverTargetable": false,
-    "EverAttackable": false
+    "LastSeenUtc": "2026-08-16T01:40:59.4681571Z",
+    "Sightings": 1677,
+    "EverTargetable": true,
+    "EverAttackable": true
   },
   {
     "NameId": 13855,
@@ -2944,15 +2944,15 @@
     "Name": "Greater Fan",
     "TerritoryId": 1346,
     "Elements": 4,
-    "MaxHp": 1976396,
+    "MaxHp": 35451617,
     "SeenInCriticalEncounter": false,
     "CriticalEncounter": "",
     "SeenInFate": true,
     "Fate": "In a Pot of Bother",
-    "LastSeenUtc": "2026-08-02T22:21:43.2489090Z",
-    "Sightings": 0,
-    "EverTargetable": false,
-    "EverAttackable": false
+    "LastSeenUtc": "2026-08-16T02:36:57.0747432Z",
+    "Sightings": 69,
+    "EverTargetable": true,
+    "EverAttackable": true
   },
   {
     "NameId": 13748,
@@ -3034,15 +3034,15 @@
     "Name": "Iambe",
     "TerritoryId": 1346,
     "Elements": 1,
-    "MaxHp": 12218787,
+    "MaxHp": 19200951,
     "SeenInCriticalEncounter": false,
     "CriticalEncounter": "",
     "SeenInFate": true,
     "Fate": "Inconstant Gardener",
-    "LastSeenUtc": "2026-08-02T19:04:57.5164975Z",
-    "Sightings": 0,
-    "EverTargetable": false,
-    "EverAttackable": false
+    "LastSeenUtc": "2026-08-16T02:43:35.3023684Z",
+    "Sightings": 712,
+    "EverTargetable": true,
+    "EverAttackable": true
   },
   {
     "NameId": 14763,
@@ -3088,6 +3088,21 @@
     "Sightings": 9,
     "EverTargetable": true,
     "EverAttackable": false
+  },
+  {
+    "NameId": 14511,
+    "Name": "Light Aether",
+    "TerritoryId": 1346,
+    "Elements": 0,
+    "MaxHp": 339693,
+    "SeenInCriticalEncounter": true,
+    "CriticalEncounter": "Quarried Away",
+    "SeenInFate": false,
+    "Fate": "",
+    "LastSeenUtc": "2026-08-16T01:49:19.5834190Z",
+    "Sightings": 90,
+    "EverTargetable": true,
+    "EverAttackable": true
   },
   {
     "NameId": 13810,
@@ -3169,15 +3184,15 @@
     "Name": "Machetaur",
     "TerritoryId": 1346,
     "Elements": 1,
-    "MaxHp": 29610175,
+    "MaxHp": 540421,
     "SeenInCriticalEncounter": false,
     "CriticalEncounter": "",
     "SeenInFate": true,
     "Fate": "Raging Thrall",
-    "LastSeenUtc": "2026-08-02T19:15:24.7478680Z",
-    "Sightings": 0,
-    "EverTargetable": false,
-    "EverAttackable": false
+    "LastSeenUtc": "2026-08-16T02:46:10.3451932Z",
+    "Sightings": 1402,
+    "EverTargetable": true,
+    "EverAttackable": true
   },
   {
     "NameId": 13816,
@@ -3229,15 +3244,15 @@
     "Name": "Metamorph",
     "TerritoryId": 1346,
     "Elements": 8,
-    "MaxHp": 169929452,
+    "MaxHp": 120771289,
     "SeenInCriticalEncounter": true,
     "CriticalEncounter": "Accept No Imitators",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-07-31T21:48:52.5143825Z",
-    "Sightings": 0,
-    "EverTargetable": false,
-    "EverAttackable": false
+    "LastSeenUtc": "2026-08-16T01:40:19.1690168Z",
+    "Sightings": 7429,
+    "EverTargetable": true,
+    "EverAttackable": true
   },
   {
     "NameId": 13646,
@@ -3424,60 +3439,60 @@
     "Name": "Page 16",
     "TerritoryId": 1346,
     "Elements": 0,
-    "MaxHp": 74755100,
+    "MaxHp": 32387600,
     "SeenInCriticalEncounter": true,
     "CriticalEncounter": "Forbidden Folios",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-07-31T21:21:27.1616669Z",
-    "Sightings": 0,
-    "EverTargetable": false,
-    "EverAttackable": false
+    "LastSeenUtc": "2026-08-15T20:37:17.4024409Z",
+    "Sightings": 50,
+    "EverTargetable": true,
+    "EverAttackable": true
   },
   {
     "NameId": 14528,
     "Name": "Page 512",
     "TerritoryId": 1346,
     "Elements": 0,
-    "MaxHp": 74755100,
+    "MaxHp": 32387600,
     "SeenInCriticalEncounter": true,
     "CriticalEncounter": "Forbidden Folios",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-07-31T21:21:27.1616669Z",
-    "Sightings": 0,
-    "EverTargetable": false,
-    "EverAttackable": false
+    "LastSeenUtc": "2026-08-15T20:38:57.8605680Z",
+    "Sightings": 64,
+    "EverTargetable": true,
+    "EverAttackable": true
   },
   {
     "NameId": 3915,
     "Name": "Page 64",
     "TerritoryId": 1346,
     "Elements": 0,
-    "MaxHp": 74755100,
+    "MaxHp": 32387600,
     "SeenInCriticalEncounter": true,
     "CriticalEncounter": "Forbidden Folios",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-07-31T21:18:18.8040708Z",
-    "Sightings": 0,
-    "EverTargetable": false,
-    "EverAttackable": false
+    "LastSeenUtc": "2026-08-15T20:38:57.8605680Z",
+    "Sightings": 39,
+    "EverTargetable": true,
+    "EverAttackable": true
   },
   {
     "NameId": 14522,
     "Name": "Page 8",
     "TerritoryId": 1346,
     "Elements": 0,
-    "MaxHp": 74755100,
+    "MaxHp": 32387600,
     "SeenInCriticalEncounter": true,
     "CriticalEncounter": "Forbidden Folios",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-07-31T21:21:27.1616669Z",
-    "Sightings": 0,
-    "EverTargetable": false,
-    "EverAttackable": false
+    "LastSeenUtc": "2026-08-15T20:38:57.8605680Z",
+    "Sightings": 25,
+    "EverTargetable": true,
+    "EverAttackable": true
   },
   {
     "NameId": 14715,
@@ -3504,25 +3519,25 @@
     "CriticalEncounter": "Appalling Behavior",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-02T17:16:34.7152304Z",
-    "Sightings": 0,
-    "EverTargetable": false,
-    "EverAttackable": false
+    "LastSeenUtc": "2026-08-15T22:13:32.0903077Z",
+    "Sightings": 8979,
+    "EverTargetable": true,
+    "EverAttackable": true
   },
   {
     "NameId": 14764,
     "Name": "Patient Kuribu",
     "TerritoryId": 1346,
     "Elements": 12,
-    "MaxHp": 25518416,
+    "MaxHp": 3189802,
     "SeenInCriticalEncounter": false,
     "CriticalEncounter": "",
     "SeenInFate": true,
     "Fate": "A Rotten Affair",
-    "LastSeenUtc": "2026-08-02T19:13:14.6950104Z",
-    "Sightings": 0,
-    "EverTargetable": false,
-    "EverAttackable": false
+    "LastSeenUtc": "2026-08-16T02:48:04.9246098Z",
+    "Sightings": 1270,
+    "EverTargetable": true,
+    "EverAttackable": true
   },
   {
     "NameId": 14770,
@@ -3534,9 +3549,9 @@
     "CriticalEncounter": "",
     "SeenInFate": true,
     "Fate": "Daylight Pottery",
-    "LastSeenUtc": "2026-08-02T22:51:55.3556465Z",
-    "Sightings": 0,
-    "EverTargetable": false,
+    "LastSeenUtc": "2026-08-16T03:05:52.1098763Z",
+    "Sightings": 179,
+    "EverTargetable": true,
     "EverAttackable": false
   },
   {
@@ -3549,9 +3564,9 @@
     "CriticalEncounter": "",
     "SeenInFate": true,
     "Fate": "In a Pot of Bother",
-    "LastSeenUtc": "2026-08-02T22:21:37.2175681Z",
-    "Sightings": 0,
-    "EverTargetable": false,
+    "LastSeenUtc": "2026-08-16T02:36:53.0496240Z",
+    "Sightings": 466,
+    "EverTargetable": true,
     "EverAttackable": false
   },
   {
@@ -3588,31 +3603,31 @@
     "NameId": 14523,
     "Name": "Phantom Hydra",
     "TerritoryId": 1346,
-    "Elements": 0,
-    "MaxHp": 181486364,
+    "Elements": 2,
+    "MaxHp": 164530891,
     "SeenInCriticalEncounter": true,
     "CriticalEncounter": "Ahead of the Competition",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-07-31T20:15:48.0492365Z",
-    "Sightings": 0,
-    "EverTargetable": false,
-    "EverAttackable": false
+    "LastSeenUtc": "2026-08-15T21:39:02.4814730Z",
+    "Sightings": 4442,
+    "EverTargetable": true,
+    "EverAttackable": true
   },
   {
     "NameId": 14512,
     "Name": "Phantom Necromancer",
     "TerritoryId": 1346,
     "Elements": 8,
-    "MaxHp": 272975497,
+    "MaxHp": 193541518,
     "SeenInCriticalEncounter": true,
     "CriticalEncounter": "Dark Artistry",
     "SeenInFate": false,
     "Fate": "",
-    "LastSeenUtc": "2026-08-01T22:12:37.4649495Z",
-    "Sightings": 0,
-    "EverTargetable": false,
-    "EverAttackable": false
+    "LastSeenUtc": "2026-08-15T23:38:16.2747131Z",
+    "Sightings": 1671,
+    "EverTargetable": true,
+    "EverAttackable": true
   },
   {
     "NameId": 14739,
@@ -3669,10 +3684,10 @@
     "CriticalEncounter": "",
     "SeenInFate": true,
     "Fate": "Shoreline Showdown",
-    "LastSeenUtc": "2026-08-02T19:06:50.9854475Z",
-    "Sightings": 0,
-    "EverTargetable": false,
-    "EverAttackable": false
+    "LastSeenUtc": "2026-08-16T02:57:28.3443110Z",
+    "Sightings": 67,
+    "EverTargetable": true,
+    "EverAttackable": true
   },
   {
     "NameId": 13649,
@@ -3709,30 +3724,30 @@
     "Name": "Ruin Hound",
     "TerritoryId": 1346,
     "Elements": 1,
-    "MaxHp": 19698063,
+    "MaxHp": 3581466,
     "SeenInCriticalEncounter": false,
     "CriticalEncounter": "",
     "SeenInFate": true,
     "Fate": "Territorial Dispute",
-    "LastSeenUtc": "2026-08-02T19:03:10.2457906Z",
-    "Sightings": 0,
-    "EverTargetable": false,
-    "EverAttackable": false
+    "LastSeenUtc": "2026-08-16T02:50:19.4922136Z",
+    "Sightings": 912,
+    "EverTargetable": true,
+    "EverAttackable": true
   },
   {
     "NameId": 14738,
     "Name": "Sensual Sandy",
     "TerritoryId": 1346,
     "Elements": 1,
-    "MaxHp": 27228180,
+    "MaxHp": 23597756,
     "SeenInCriticalEncounter": false,
     "CriticalEncounter": "",
     "SeenInFate": true,
     "Fate": "Allure of the Occult",
-    "LastSeenUtc": "2026-08-02T19:08:52.6630865Z",
-    "Sightings": 0,
-    "EverTargetable": false,
-    "EverAttackable": false
+    "LastSeenUtc": "2026-08-16T02:55:05.6944119Z",
+    "Sightings": 168,
+    "EverTargetable": true,
+    "EverAttackable": true
   },
   {
     "NameId": 13703,
@@ -3754,15 +3769,15 @@
     "Name": "Stormcaller",
     "TerritoryId": 1346,
     "Elements": 1,
-    "MaxHp": 20155632,
+    "MaxHp": 1679636,
     "SeenInCriticalEncounter": false,
     "CriticalEncounter": "",
     "SeenInFate": true,
     "Fate": "Gale-force Encounter",
-    "LastSeenUtc": "2026-08-02T19:10:50.4218856Z",
-    "Sightings": 0,
-    "EverTargetable": false,
-    "EverAttackable": false
+    "LastSeenUtc": "2026-08-16T02:59:06.8966416Z",
+    "Sightings": 396,
+    "EverTargetable": true,
+    "EverAttackable": true
   },
   {
     "NameId": 14526,

@@ -1,0 +1,2251 @@
+[
+  {
+    "Zone": 1252,
+    "X": -884.123,
+    "Y": 3.7994385,
+    "Z": -682.0325,
+    "Tier": "Bronze",
+    "TierCounts": {
+      "Bronze": 3
+    },
+    "TimesSeen": 4,
+    "TimesOpened": 1,
+    "FoundDuringTreasureHunt": false,
+    "Source": "Treasure",
+    "BaseId": 1842,
+    "FirstSeenUnixSeconds": 1786313339,
+    "LastSeenUnixSeconds": 1786421753
+  },
+  {
+    "Zone": 1252,
+    "X": -856.9619,
+    "Y": 68.833374,
+    "Z": -93.15637,
+    "Tier": "Bronze",
+    "TierCounts": {
+      "Bronze": 2
+    },
+    "TimesSeen": 2,
+    "TimesOpened": 1,
+    "FoundDuringTreasureHunt": false,
+    "Source": "Treasure",
+    "BaseId": 1844,
+    "FirstSeenUnixSeconds": 1786312053,
+    "LastSeenUnixSeconds": 1786313701
+  },
+  {
+    "Zone": 1252,
+    "X": -806.5123,
+    "Y": 107,
+    "Z": 887.6146,
+    "Tier": "Gold",
+    "TierCounts": {
+      "Gold": 2
+    },
+    "TimesSeen": 3,
+    "TimesOpened": 1,
+    "FoundDuringTreasureHunt": false,
+    "Source": "Carrot",
+    "BaseId": 2010139,
+    "FirstSeenUnixSeconds": 1786321751,
+    "LastSeenUnixSeconds": 1786419400
+  },
+  {
+    "Zone": 1252,
+    "X": -798.24524,
+    "Y": 105.57703,
+    "Z": -310.5669,
+    "Tier": "Silver",
+    "TierCounts": {
+      "Silver": 2
+    },
+    "TimesSeen": 2,
+    "TimesOpened": 1,
+    "FoundDuringTreasureHunt": false,
+    "Source": "Treasure",
+    "BaseId": 1795,
+    "FirstSeenUnixSeconds": 1786313552,
+    "LastSeenUnixSeconds": 1786313755
+  },
+  {
+    "Zone": 1252,
+    "X": -784.7562,
+    "Y": 138.99438,
+    "Z": 699.7634,
+    "Tier": "Bronze",
+    "TierCounts": {
+      "Bronze": 3
+    },
+    "TimesSeen": 5,
+    "TimesOpened": 1,
+    "FoundDuringTreasureHunt": false,
+    "Source": "Treasure",
+    "BaseId": 1849,
+    "FirstSeenUnixSeconds": 1786321727,
+    "LastSeenUnixSeconds": 1786419414
+  },
+  {
+    "Zone": 1252,
+    "X": -767.4525,
+    "Y": 115.61755,
+    "Z": -235.00421,
+    "Tier": "Bronze",
+    "TierCounts": {
+      "Bronze": 1
+    },
+    "TimesSeen": 1,
+    "TimesOpened": 1,
+    "FoundDuringTreasureHunt": false,
+    "Source": "Treasure",
+    "BaseId": 1845,
+    "FirstSeenUnixSeconds": 1786313710,
+    "LastSeenUnixSeconds": 1786313747
+  },
+  {
+    "Zone": 1252,
+    "X": -729.9153,
+    "Y": 116.53308,
+    "Z": -79.05707,
+    "Tier": "Bronze",
+    "TierCounts": {
+      "Bronze": 2
+    },
+    "TimesSeen": 4,
+    "TimesOpened": 1,
+    "FoundDuringTreasureHunt": true,
+    "Source": "Treasure",
+    "BaseId": 1843,
+    "FirstSeenUnixSeconds": 1786310782,
+    "LastSeenUnixSeconds": 1786313673
+  },
+  {
+    "Zone": 1252,
+    "X": -729.5491,
+    "Y": 106.98096,
+    "Z": 561.1504,
+    "Tier": "Bronze",
+    "TierCounts": {
+      "Bronze": 1
+    },
+    "TimesSeen": 4,
+    "TimesOpened": 1,
+    "FoundDuringTreasureHunt": false,
+    "Source": "Treasure",
+    "BaseId": 1848,
+    "FirstSeenUnixSeconds": 1786321570,
+    "LastSeenUnixSeconds": 1786321934
+  },
+  {
+    "Zone": 1252,
+    "X": -713.80176,
+    "Y": 62.05847,
+    "Z": 192.61462,
+    "Tier": "Bronze",
+    "TierCounts": {
+      "Bronze": 1
+    },
+    "TimesSeen": 1,
+    "TimesOpened": 1,
+    "FoundDuringTreasureHunt": false,
+    "Source": "Treasure",
+    "BaseId": 1821,
+    "FirstSeenUnixSeconds": 1786419481,
+    "LastSeenUnixSeconds": 1786419489
+  },
+  {
+    "Zone": 1252,
+    "X": -710.266,
+    "Y": 3,
+    "Z": -451.5128,
+    "Tier": "Unknown",
+    "TierCounts": {},
+    "TimesSeen": 2,
+    "TimesOpened": 0,
+    "FoundDuringTreasureHunt": false,
+    "Source": "Carrot",
+    "BaseId": 2010139,
+    "FirstSeenUnixSeconds": 1786320330,
+    "LastSeenUnixSeconds": 1786320463
+  },
+  {
+    "Zone": 1252,
+    "X": -680.5371,
+    "Y": 104.844604,
+    "Z": -354.78754,
+    "Tier": "Bronze",
+    "TierCounts": {
+      "Bronze": 3
+    },
+    "TimesSeen": 3,
+    "TimesOpened": 1,
+    "FoundDuringTreasureHunt": false,
+    "Source": "Treasure",
+    "BaseId": 1846,
+    "FirstSeenUnixSeconds": 1786313548,
+    "LastSeenUnixSeconds": 1786320330
+  },
+  {
+    "Zone": 1252,
+    "X": -676.6202,
+    "Y": 128.57442,
+    "Z": 1.531581,
+    "Tier": "Silver",
+    "TierCounts": {
+      "Silver": 2
+    },
+    "TimesSeen": 1,
+    "TimesOpened": 1,
+    "FoundDuringTreasureHunt": false,
+    "Source": "EventObj",
+    "BaseId": 2014742,
+    "FirstSeenUnixSeconds": 1786310831,
+    "LastSeenUnixSeconds": 1786310846
+  },
+  {
+    "Zone": 1252,
+    "X": -645.3027,
+    "Y": 135.69208,
+    "Z": -73.54771,
+    "Tier": "Bronze",
+    "TierCounts": {
+      "Bronze": 1
+    },
+    "TimesSeen": 1,
+    "TimesOpened": 0,
+    "FoundDuringTreasureHunt": false,
+    "Source": "EventObj",
+    "BaseId": 2014743,
+    "FirstSeenUnixSeconds": 1786413522,
+    "LastSeenUnixSeconds": 1786413522
+  },
+  {
+    "Zone": 1252,
+    "X": -585.2903,
+    "Y": 4.989685,
+    "Z": -864.8356,
+    "Tier": "Bronze",
+    "TierCounts": {
+      "Bronze": 1
+    },
+    "TimesSeen": 1,
+    "TimesOpened": 1,
+    "FoundDuringTreasureHunt": false,
+    "Source": "Treasure",
+    "BaseId": 1839,
+    "FirstSeenUnixSeconds": 1786420393,
+    "LastSeenUnixSeconds": 1786420401
+  },
+  {
+    "Zone": 1252,
+    "X": -575.6361,
+    "Y": 162.39511,
+    "Z": 668.7043,
+    "Tier": "Unknown",
+    "TierCounts": {},
+    "TimesSeen": 4,
+    "TimesOpened": 0,
+    "FoundDuringTreasureHunt": false,
+    "Source": "Carrot",
+    "BaseId": 2010139,
+    "FirstSeenUnixSeconds": 1786311282,
+    "LastSeenUnixSeconds": 1786311650
+  },
+  {
+    "Zone": 1252,
+    "X": -550.13354,
+    "Y": 106.98096,
+    "Z": 627.74084,
+    "Tier": "Bronze",
+    "TierCounts": {
+      "Bronze": 2
+    },
+    "TimesSeen": 4,
+    "TimesOpened": 1,
+    "FoundDuringTreasureHunt": false,
+    "Source": "Treasure",
+    "BaseId": 1847,
+    "FirstSeenUnixSeconds": 1786406981,
+    "LastSeenUnixSeconds": 1786419368
+  },
+  {
+    "Zone": 1252,
+    "X": -459.1735,
+    "Y": 93.57443,
+    "Z": 5.054043,
+    "Tier": "Bronze",
+    "TierCounts": {
+      "Bronze": 2
+    },
+    "TimesSeen": 1,
+    "TimesOpened": 1,
+    "FoundDuringTreasureHunt": false,
+    "Source": "EventObj",
+    "BaseId": 2014743,
+    "FirstSeenUnixSeconds": 1786422790,
+    "LastSeenUnixSeconds": 1786422837
+  },
+  {
+    "Zone": 1252,
+    "X": -451.6823,
+    "Y": 2.9754639,
+    "Z": -775.5703,
+    "Tier": "Bronze",
+    "TierCounts": {
+      "Bronze": 2
+    },
+    "TimesSeen": 2,
+    "TimesOpened": 1,
+    "FoundDuringTreasureHunt": true,
+    "Source": "Treasure",
+    "BaseId": 1812,
+    "FirstSeenUnixSeconds": 1786321132,
+    "LastSeenUnixSeconds": 1786407696
+  },
+  {
+    "Zone": 1252,
+    "X": -439.0463,
+    "Y": 115.82392,
+    "Z": 184.4665,
+    "Tier": "Unknown",
+    "TierCounts": {},
+    "TimesSeen": 2,
+    "TimesOpened": 0,
+    "FoundDuringTreasureHunt": false,
+    "Source": "Carrot",
+    "BaseId": 2010139,
+    "FirstSeenUnixSeconds": 1786306213,
+    "LastSeenUnixSeconds": 1786496576
+  },
+  {
+    "Zone": 1252,
+    "X": -400.528,
+    "Y": 2.999999,
+    "Z": -518.3032,
+    "Tier": "Unknown",
+    "TierCounts": {},
+    "TimesSeen": 2,
+    "TimesOpened": 0,
+    "FoundDuringTreasureHunt": false,
+    "Source": "Carrot",
+    "BaseId": 2010139,
+    "FirstSeenUnixSeconds": 1786484098,
+    "LastSeenUnixSeconds": 1786484240
+  },
+  {
+    "Zone": 1252,
+    "X": -386.437,
+    "Y": 98.60658,
+    "Z": -221.7847,
+    "Tier": "Silver",
+    "TierCounts": {
+      "Silver": 2
+    },
+    "TimesSeen": 1,
+    "TimesOpened": 1,
+    "FoundDuringTreasureHunt": false,
+    "Source": "EventObj",
+    "BaseId": 2014742,
+    "FirstSeenUnixSeconds": 1786322880,
+    "LastSeenUnixSeconds": 1786322894
+  },
+  {
+    "Zone": 1252,
+    "X": -343.16016,
+    "Y": 52.32312,
+    "Z": -382.1317,
+    "Tier": "Bronze",
+    "TierCounts": {
+      "Bronze": 3
+    },
+    "TimesSeen": 4,
+    "TimesOpened": 1,
+    "FoundDuringTreasureHunt": false,
+    "Source": "Treasure",
+    "BaseId": 1856,
+    "FirstSeenUnixSeconds": 1786407489,
+    "LastSeenUnixSeconds": 1786420351
+  },
+  {
+    "Zone": 1252,
+    "X": -333.3444,
+    "Y": 2.9999998,
+    "Z": -861.1722,
+    "Tier": "Bronze",
+    "TierCounts": {
+      "Bronze": 2
+    },
+    "TimesSeen": 1,
+    "TimesOpened": 1,
+    "FoundDuringTreasureHunt": false,
+    "Source": "EventObj",
+    "BaseId": 2014743,
+    "FirstSeenUnixSeconds": 1786321160,
+    "LastSeenUnixSeconds": 1786321176
+  },
+  {
+    "Zone": 1252,
+    "X": -324.2736,
+    "Y": 121,
+    "Z": 203.2017,
+    "Tier": "Silver",
+    "TierCounts": {
+      "Silver": 1
+    },
+    "TimesSeen": 1,
+    "TimesOpened": 0,
+    "FoundDuringTreasureHunt": false,
+    "Source": "EventObj",
+    "BaseId": 2014742,
+    "FirstSeenUnixSeconds": 1786308770,
+    "LastSeenUnixSeconds": 1786308770
+  },
+  {
+    "Zone": 1252,
+    "X": -313.2906,
+    "Y": 108.10962,
+    "Z": 70.76207,
+    "Tier": "Bronze",
+    "TierCounts": {
+      "Bronze": 2
+    },
+    "TimesSeen": 1,
+    "TimesOpened": 1,
+    "FoundDuringTreasureHunt": false,
+    "Source": "EventObj",
+    "BaseId": 2014743,
+    "FirstSeenUnixSeconds": 1786312569,
+    "LastSeenUnixSeconds": 1786312587
+  },
+  {
+    "Zone": 1252,
+    "X": -312.2778,
+    "Y": 103.19944,
+    "Z": -35.25348,
+    "Tier": "Bronze",
+    "TierCounts": {
+      "Bronze": 1
+    },
+    "TimesSeen": 1,
+    "TimesOpened": 0,
+    "FoundDuringTreasureHunt": true,
+    "Source": "EventObj",
+    "BaseId": 2014743,
+    "FirstSeenUnixSeconds": 1786312461,
+    "LastSeenUnixSeconds": 1786312461
+  },
+  {
+    "Zone": 1252,
+    "X": -158.64807,
+    "Y": 98.61902,
+    "Z": -132.73828,
+    "Tier": "Bronze",
+    "TierCounts": {
+      "Bronze": 1
+    },
+    "TimesSeen": 2,
+    "TimesOpened": 1,
+    "FoundDuringTreasureHunt": false,
+    "Source": "Treasure",
+    "BaseId": 1818,
+    "FirstSeenUnixSeconds": 1786411075,
+    "LastSeenUnixSeconds": 1786411567
+  },
+  {
+    "Zone": 1252,
+    "X": -140.45929,
+    "Y": 22.354431,
+    "Z": -414.2672,
+    "Tier": "Bronze",
+    "TierCounts": {
+      "Bronze": 2
+    },
+    "TimesSeen": 4,
+    "TimesOpened": 1,
+    "FoundDuringTreasureHunt": false,
+    "Source": "Treasure",
+    "BaseId": 1808,
+    "FirstSeenUnixSeconds": 1786409549,
+    "LastSeenUnixSeconds": 1786419926
+  },
+  {
+    "Zone": 1252,
+    "X": -118.97461,
+    "Y": 4.989685,
+    "Z": -708.4612,
+    "Tier": "Bronze",
+    "TierCounts": {
+      "Bronze": 3
+    },
+    "TimesSeen": 6,
+    "TimesOpened": 3,
+    "FoundDuringTreasureHunt": true,
+    "Source": "Treasure",
+    "BaseId": 1810,
+    "FirstSeenUnixSeconds": 1786312800,
+    "LastSeenUnixSeconds": 1786419905
+  },
+  {
+    "Zone": 1252,
+    "X": 8.987488,
+    "Y": 103.196655,
+    "Z": 426.96265,
+    "Tier": "Bronze",
+    "TierCounts": {
+      "Bronze": 2
+    },
+    "TimesSeen": 2,
+    "TimesOpened": 2,
+    "FoundDuringTreasureHunt": false,
+    "Source": "Treasure",
+    "BaseId": 1854,
+    "FirstSeenUnixSeconds": 1786310093,
+    "LastSeenUnixSeconds": 1786410233
+  },
+  {
+    "Zone": 1252,
+    "X": 35.721313,
+    "Y": 65.11023,
+    "Z": 648.9509,
+    "Tier": "Bronze",
+    "TierCounts": {
+      "Bronze": 2
+    },
+    "TimesSeen": 6,
+    "TimesOpened": 1,
+    "FoundDuringTreasureHunt": false,
+    "Source": "Treasure",
+    "BaseId": 1824,
+    "FirstSeenUnixSeconds": 1786408663,
+    "LastSeenUnixSeconds": 1786419315
+  },
+  {
+    "Zone": 1252,
+    "X": 55.283447,
+    "Y": 111.31445,
+    "Z": -289.0822,
+    "Tier": "Bronze",
+    "TierCounts": {
+      "Bronze": 1
+    },
+    "TimesSeen": 1,
+    "TimesOpened": 1,
+    "FoundDuringTreasureHunt": false,
+    "Source": "Treasure",
+    "BaseId": 1814,
+    "FirstSeenUnixSeconds": 1786419960,
+    "LastSeenUnixSeconds": 1786419967
+  },
+  {
+    "Zone": 1252,
+    "X": 67.45271,
+    "Y": 69.477974,
+    "Z": 745.8658,
+    "Tier": "Silver",
+    "TierCounts": {
+      "Silver": 2
+    },
+    "TimesSeen": 1,
+    "TimesOpened": 0,
+    "FoundDuringTreasureHunt": true,
+    "Source": "EventObj",
+    "BaseId": 2014742,
+    "FirstSeenUnixSeconds": 1786420731,
+    "LastSeenUnixSeconds": 1786420740
+  },
+  {
+    "Zone": 1252,
+    "X": 69.70596,
+    "Y": 111.56108,
+    "Z": -239.064,
+    "Tier": "Gold",
+    "TierCounts": {
+      "Gold": 1
+    },
+    "TimesSeen": 1,
+    "TimesOpened": 0,
+    "FoundDuringTreasureHunt": true,
+    "Source": "EventObj",
+    "BaseId": 2014741,
+    "FirstSeenUnixSeconds": 1786319275,
+    "LastSeenUnixSeconds": 1786319275
+  },
+  {
+    "Zone": 1252,
+    "X": 74.73397,
+    "Y": 110.494316,
+    "Z": -394.1289,
+    "Tier": "Gold",
+    "TierCounts": {
+      "Gold": 2
+    },
+    "TimesSeen": 1,
+    "TimesOpened": 1,
+    "FoundDuringTreasureHunt": false,
+    "Source": "EventObj",
+    "BaseId": 2014741,
+    "FirstSeenUnixSeconds": 1786319331,
+    "LastSeenUnixSeconds": 1786319346
+  },
+  {
+    "Zone": 1252,
+    "X": 107.0611,
+    "Y": 105.699875,
+    "Z": 146.7059,
+    "Tier": "Silver",
+    "TierCounts": {
+      "Silver": 3
+    },
+    "TimesSeen": 2,
+    "TimesOpened": 1,
+    "FoundDuringTreasureHunt": true,
+    "Source": "EventObj",
+    "BaseId": 2014742,
+    "FirstSeenUnixSeconds": 1786314602,
+    "LastSeenUnixSeconds": 1786319244
+  },
+  {
+    "Zone": 1252,
+    "X": 140.97803,
+    "Y": 55.98523,
+    "Z": 770.99243,
+    "Tier": "Bronze",
+    "TierCounts": {
+      "Bronze": 1
+    },
+    "TimesSeen": 1,
+    "TimesOpened": 1,
+    "FoundDuringTreasureHunt": false,
+    "Source": "Treasure",
+    "BaseId": 1826,
+    "FirstSeenUnixSeconds": 1786411709,
+    "LastSeenUnixSeconds": 1786411716
+  },
+  {
+    "Zone": 1252,
+    "X": 142.1073,
+    "Y": 16.403442,
+    "Z": -574.0597,
+    "Tier": "Bronze",
+    "TierCounts": {
+      "Bronze": 1
+    },
+    "TimesSeen": 1,
+    "TimesOpened": 1,
+    "FoundDuringTreasureHunt": false,
+    "Source": "Treasure",
+    "BaseId": 1809,
+    "FirstSeenUnixSeconds": 1786419877,
+    "LastSeenUnixSeconds": 1786419884
+  },
+  {
+    "Zone": 1252,
+    "X": 200.1241,
+    "Y": 56,
+    "Z": 624.2285,
+    "Tier": "Silver",
+    "TierCounts": {
+      "Silver": 1
+    },
+    "TimesSeen": 1,
+    "TimesOpened": 0,
+    "FoundDuringTreasureHunt": true,
+    "Source": "EventObj",
+    "BaseId": 2014742,
+    "FirstSeenUnixSeconds": 1786420741,
+    "LastSeenUnixSeconds": 1786420741
+  },
+  {
+    "Zone": 1252,
+    "X": 256.1532,
+    "Y": 73.16687,
+    "Z": 492.3628,
+    "Tier": "Bronze",
+    "TierCounts": {
+      "Bronze": 4
+    },
+    "TimesSeen": 10,
+    "TimesOpened": 2,
+    "FoundDuringTreasureHunt": false,
+    "Source": "Treasure",
+    "BaseId": 1823,
+    "FirstSeenUnixSeconds": 1786323089,
+    "LastSeenUnixSeconds": 1786493935
+  },
+  {
+    "Zone": 1252,
+    "X": 277.7904,
+    "Y": 103.77649,
+    "Z": 241.90125,
+    "Tier": "Bronze",
+    "TierCounts": {
+      "Bronze": 2
+    },
+    "TimesSeen": 3,
+    "TimesOpened": 1,
+    "FoundDuringTreasureHunt": false,
+    "Source": "Treasure",
+    "BaseId": 1816,
+    "FirstSeenUnixSeconds": 1786484272,
+    "LastSeenUnixSeconds": 1786484806
+  },
+  {
+    "Zone": 1252,
+    "X": 283.6546,
+    "Y": 55.999996,
+    "Z": 587.3107,
+    "Tier": "Gold",
+    "TierCounts": {
+      "Gold": 2
+    },
+    "TimesSeen": 4,
+    "TimesOpened": 1,
+    "FoundDuringTreasureHunt": false,
+    "Source": "EventObj",
+    "BaseId": 2012936,
+    "FirstSeenUnixSeconds": 1786408940,
+    "LastSeenUnixSeconds": 1786410895
+  },
+  {
+    "Zone": 1252,
+    "X": 381.73486,
+    "Y": 22.171326,
+    "Z": -743.64844,
+    "Tier": "Bronze",
+    "TierCounts": {
+      "Bronze": 1
+    },
+    "TimesSeen": 1,
+    "TimesOpened": 1,
+    "FoundDuringTreasureHunt": false,
+    "Source": "Treasure",
+    "BaseId": 1807,
+    "FirstSeenUnixSeconds": 1786407819,
+    "LastSeenUnixSeconds": 1786407830
+  },
+  {
+    "Zone": 1252,
+    "X": 386.92297,
+    "Y": 96.787964,
+    "Z": -451.37714,
+    "Tier": "Bronze",
+    "TierCounts": {
+      "Bronze": 3
+    },
+    "TimesSeen": 3,
+    "TimesOpened": 1,
+    "FoundDuringTreasureHunt": false,
+    "Source": "Treasure",
+    "BaseId": 1802,
+    "FirstSeenUnixSeconds": 1786308419,
+    "LastSeenUnixSeconds": 1786322301
+  },
+  {
+    "Zone": 1252,
+    "X": 471.18323,
+    "Y": 70.29822,
+    "Z": 530.022,
+    "Tier": "Bronze",
+    "TierCounts": {
+      "Bronze": 3
+    },
+    "TimesSeen": 6,
+    "TimesOpened": 1,
+    "FoundDuringTreasureHunt": false,
+    "Source": "Treasure",
+    "BaseId": 1828,
+    "FirstSeenUnixSeconds": 1786323094,
+    "LastSeenUnixSeconds": 1786493076
+  },
+  {
+    "Zone": 1252,
+    "X": 490.40967,
+    "Y": 62.45508,
+    "Z": -590.56995,
+    "Tier": "Bronze",
+    "TierCounts": {
+      "Bronze": 3
+    },
+    "TimesSeen": 3,
+    "TimesOpened": 2,
+    "FoundDuringTreasureHunt": false,
+    "Source": "Treasure",
+    "BaseId": 1798,
+    "FirstSeenUnixSeconds": 1786407849,
+    "LastSeenUnixSeconds": 1786484860
+  },
+  {
+    "Zone": 1252,
+    "X": 596.45984,
+    "Y": 70.29822,
+    "Z": 622.76636,
+    "Tier": "Bronze",
+    "TierCounts": {
+      "Bronze": 1
+    },
+    "TimesSeen": 1,
+    "TimesOpened": 1,
+    "FoundDuringTreasureHunt": false,
+    "Source": "Treasure",
+    "BaseId": 1830,
+    "FirstSeenUnixSeconds": 1786309670,
+    "LastSeenUnixSeconds": 1786309681
+  },
+  {
+    "Zone": 1252,
+    "X": 606.4641,
+    "Y": 108.07402,
+    "Z": 184.8517,
+    "Tier": "Bronze",
+    "TierCounts": {
+      "Bronze": 1
+    },
+    "TimesSeen": 1,
+    "TimesOpened": 0,
+    "FoundDuringTreasureHunt": false,
+    "Source": "EventObj",
+    "BaseId": 2014743,
+    "FirstSeenUnixSeconds": 1786418948,
+    "LastSeenUnixSeconds": 1786418948
+  },
+  {
+    "Zone": 1252,
+    "X": 642.96936,
+    "Y": 69.99304,
+    "Z": 407.79736,
+    "Tier": "Bronze",
+    "TierCounts": {
+      "Bronze": 2
+    },
+    "TimesSeen": 2,
+    "TimesOpened": 1,
+    "FoundDuringTreasureHunt": false,
+    "Source": "Treasure",
+    "BaseId": 1827,
+    "FirstSeenUnixSeconds": 1786323105,
+    "LastSeenUnixSeconds": 1786409114
+  },
+  {
+    "Zone": 1252,
+    "X": 726.28357,
+    "Y": 108.140625,
+    "Z": -67.91791,
+    "Tier": "Bronze",
+    "TierCounts": {
+      "Bronze": 1
+    },
+    "TimesSeen": 1,
+    "TimesOpened": 1,
+    "FoundDuringTreasureHunt": false,
+    "Source": "Treasure",
+    "BaseId": 1806,
+    "FirstSeenUnixSeconds": 1786483899,
+    "LastSeenUnixSeconds": 1786483906
+  },
+  {
+    "Zone": 1252,
+    "X": 770.7484,
+    "Y": 107.98804,
+    "Z": -143.5722,
+    "Tier": "Silver",
+    "TierCounts": {
+      "Silver": 1
+    },
+    "TimesSeen": 1,
+    "TimesOpened": 1,
+    "FoundDuringTreasureHunt": false,
+    "Source": "Treasure",
+    "BaseId": 1789,
+    "FirstSeenUnixSeconds": 1786414126,
+    "LastSeenUnixSeconds": 1786414172
+  },
+  {
+    "Zone": 1252,
+    "X": 772.3591,
+    "Y": 70.3,
+    "Z": 531.1259,
+    "Tier": "Unknown",
+    "TierCounts": {},
+    "TimesSeen": 3,
+    "TimesOpened": 0,
+    "FoundDuringTreasureHunt": false,
+    "Source": "Carrot",
+    "BaseId": 2010139,
+    "FirstSeenUnixSeconds": 1786308268,
+    "LastSeenUnixSeconds": 1786309696
+  },
+  {
+    "Zone": 1252,
+    "X": 781.2514,
+    "Y": 70,
+    "Z": 560.0701,
+    "Tier": "Gold",
+    "TierCounts": {
+      "Gold": 2
+    },
+    "TimesSeen": 1,
+    "TimesOpened": 1,
+    "FoundDuringTreasureHunt": false,
+    "Source": "EventObj",
+    "BaseId": 2014741,
+    "FirstSeenUnixSeconds": 1786307104,
+    "LastSeenUnixSeconds": 1786307119
+  },
+  {
+    "Zone": 1252,
+    "X": 788.8761,
+    "Y": 120.378296,
+    "Z": 109.391846,
+    "Tier": "Bronze",
+    "TierCounts": {
+      "Bronze": 5
+    },
+    "TimesSeen": 8,
+    "TimesOpened": 3,
+    "FoundDuringTreasureHunt": false,
+    "Source": "Treasure",
+    "BaseId": 1836,
+    "FirstSeenUnixSeconds": 1786409334,
+    "LastSeenUnixSeconds": 1786493840
+  },
+  {
+    "Zone": 1252,
+    "X": 835.08044,
+    "Y": 69.99304,
+    "Z": 699.09204,
+    "Tier": "Bronze",
+    "TierCounts": {
+      "Bronze": 2
+    },
+    "TimesSeen": 5,
+    "TimesOpened": 1,
+    "FoundDuringTreasureHunt": false,
+    "Source": "Treasure",
+    "BaseId": 1853,
+    "FirstSeenUnixSeconds": 1786409045,
+    "LastSeenUnixSeconds": 1786419036
+  },
+  {
+    "Zone": 1252,
+    "X": 869.29126,
+    "Y": 109.97168,
+    "Z": 581.2008,
+    "Tier": "Bronze",
+    "TierCounts": {
+      "Bronze": 3
+    },
+    "TimesSeen": 7,
+    "TimesOpened": 2,
+    "FoundDuringTreasureHunt": false,
+    "Source": "Treasure",
+    "BaseId": 1838,
+    "FirstSeenUnixSeconds": 1786409060,
+    "LastSeenUnixSeconds": 1786422167
+  },
+  {
+    "Zone": 1252,
+    "X": 870.6644,
+    "Y": 95.68933,
+    "Z": -388.35742,
+    "Tier": "Bronze",
+    "TierCounts": {
+      "Bronze": 1
+    },
+    "TimesSeen": 1,
+    "TimesOpened": 1,
+    "FoundDuringTreasureHunt": false,
+    "Source": "Treasure",
+    "BaseId": 1800,
+    "FirstSeenUnixSeconds": 1786419531,
+    "LastSeenUnixSeconds": 1786419538
+  },
+  {
+    "Zone": 1346,
+    "X": -960,
+    "Y": 48,
+    "Z": -425.8,
+    "Tier": "Bronze",
+    "TierCounts": {
+      "Bronze": 2
+    },
+    "TimesSeen": 1,
+    "TimesOpened": 1,
+    "FoundDuringTreasureHunt": true,
+    "Source": "EventObj",
+    "BaseId": 2014743,
+    "FirstSeenUnixSeconds": 1785689548,
+    "LastSeenUnixSeconds": 1785689562
+  },
+  {
+    "Zone": 1346,
+    "X": -878.996,
+    "Y": 13.107483,
+    "Z": -314.22906,
+    "Tier": "Bronze",
+    "TierCounts": {
+      "Bronze": 2
+    },
+    "TimesSeen": 3,
+    "TimesOpened": 0,
+    "FoundDuringTreasureHunt": true,
+    "Source": "Treasure",
+    "BaseId": 2043,
+    "FirstSeenUnixSeconds": 1785637905,
+    "LastSeenUnixSeconds": 1785689543
+  },
+  {
+    "Zone": 1346,
+    "X": -857.6028,
+    "Y": -12.253052,
+    "Z": -609.82684,
+    "Tier": "Bronze",
+    "TierCounts": {
+      "Bronze": 2
+    },
+    "TimesSeen": 2,
+    "TimesOpened": 0,
+    "FoundDuringTreasureHunt": false,
+    "Source": "Treasure",
+    "BaseId": 0,
+    "FirstSeenUnixSeconds": 1785637936,
+    "LastSeenUnixSeconds": 1785637996
+  },
+  {
+    "Zone": 1346,
+    "X": -847.9,
+    "Y": 114,
+    "Z": 196.6,
+    "Tier": "Unknown",
+    "TierCounts": {},
+    "TimesSeen": 1,
+    "TimesOpened": 0,
+    "FoundDuringTreasureHunt": false,
+    "Source": "Carrot",
+    "BaseId": 2010139,
+    "FirstSeenUnixSeconds": 1786848695,
+    "LastSeenUnixSeconds": 1786848695
+  },
+  {
+    "Zone": 1346,
+    "X": -815.8236,
+    "Y": -21.835754,
+    "Z": -699.3973,
+    "Tier": "Silver",
+    "TierCounts": {
+      "Silver": 2
+    },
+    "TimesSeen": 1,
+    "TimesOpened": 1,
+    "FoundDuringTreasureHunt": false,
+    "Source": "Treasure",
+    "BaseId": 0,
+    "FirstSeenUnixSeconds": 1785637949,
+    "LastSeenUnixSeconds": 1785637966
+  },
+  {
+    "Zone": 1346,
+    "X": -800.412,
+    "Y": 157.79346,
+    "Z": 633.3867,
+    "Tier": "Bronze",
+    "TierCounts": {
+      "Bronze": 1
+    },
+    "TimesSeen": 1,
+    "TimesOpened": 0,
+    "FoundDuringTreasureHunt": false,
+    "Source": "Treasure",
+    "BaseId": 2061,
+    "FirstSeenUnixSeconds": 1785692320,
+    "LastSeenUnixSeconds": 1785692320
+  },
+  {
+    "Zone": 1346,
+    "X": -775.906,
+    "Y": 70.69495,
+    "Z": 377.1267,
+    "Tier": "Bronze",
+    "TierCounts": {
+      "Bronze": 2
+    },
+    "TimesSeen": 5,
+    "TimesOpened": 1,
+    "FoundDuringTreasureHunt": false,
+    "Source": "Treasure",
+    "BaseId": 2039,
+    "FirstSeenUnixSeconds": 1785697794,
+    "LastSeenUnixSeconds": 1786835996
+  },
+  {
+    "Zone": 1346,
+    "X": -747.4032,
+    "Y": 28.970308,
+    "Z": -492.1095,
+    "Tier": "Bronze",
+    "TierCounts": {
+      "Bronze": 1
+    },
+    "TimesSeen": 1,
+    "TimesOpened": 0,
+    "FoundDuringTreasureHunt": true,
+    "Source": "EventObj",
+    "BaseId": 2014743,
+    "FirstSeenUnixSeconds": 1785689500,
+    "LastSeenUnixSeconds": 1785689500
+  },
+  {
+    "Zone": 1346,
+    "X": -707.393,
+    "Y": 41.58081,
+    "Z": -396.99402,
+    "Tier": "Bronze",
+    "TierCounts": {
+      "Bronze": 1
+    },
+    "TimesSeen": 1,
+    "TimesOpened": 1,
+    "FoundDuringTreasureHunt": true,
+    "Source": "Treasure",
+    "BaseId": 2046,
+    "FirstSeenUnixSeconds": 1786827168,
+    "LastSeenUnixSeconds": 1786827181
+  },
+  {
+    "Zone": 1346,
+    "X": -697.2915,
+    "Y": 34.89734,
+    "Z": -565.02637,
+    "Tier": "Bronze",
+    "TierCounts": {
+      "Bronze": 2
+    },
+    "TimesSeen": 2,
+    "TimesOpened": 1,
+    "FoundDuringTreasureHunt": true,
+    "Source": "Treasure",
+    "BaseId": 2047,
+    "FirstSeenUnixSeconds": 1785637977,
+    "LastSeenUnixSeconds": 1785697079
+  },
+  {
+    "Zone": 1346,
+    "X": -633.7225,
+    "Y": 82.6886,
+    "Z": -146.01361,
+    "Tier": "Silver",
+    "TierCounts": {
+      "Silver": 6
+    },
+    "TimesSeen": 7,
+    "TimesOpened": 6,
+    "FoundDuringTreasureHunt": true,
+    "Source": "Treasure",
+    "BaseId": 2009,
+    "FirstSeenUnixSeconds": 1785696994,
+    "LastSeenUnixSeconds": 1786846844
+  },
+  {
+    "Zone": 1346,
+    "X": -631.7998,
+    "Y": 78.23291,
+    "Z": 239.97852,
+    "Tier": "Bronze",
+    "TierCounts": {
+      "Bronze": 6
+    },
+    "TimesSeen": 8,
+    "TimesOpened": 2,
+    "FoundDuringTreasureHunt": true,
+    "Source": "Treasure",
+    "BaseId": 2040,
+    "FirstSeenUnixSeconds": 1785699223,
+    "LastSeenUnixSeconds": 1786842461
+  },
+  {
+    "Zone": 1346,
+    "X": -628.4385,
+    "Y": 49.07533,
+    "Z": -449.5009,
+    "Tier": "Silver",
+    "TierCounts": {
+      "Silver": 2,
+      "Gold": 2
+    },
+    "TimesSeen": 2,
+    "TimesOpened": 2,
+    "FoundDuringTreasureHunt": true,
+    "Source": "EventObj",
+    "BaseId": 2014741,
+    "FirstSeenUnixSeconds": 1785697114,
+    "LastSeenUnixSeconds": 1786830899
+  },
+  {
+    "Zone": 1346,
+    "X": -612.23773,
+    "Y": 66.9718,
+    "Z": 578.5458,
+    "Tier": "Bronze",
+    "TierCounts": {
+      "Bronze": 2
+    },
+    "TimesSeen": 1,
+    "TimesOpened": 1,
+    "FoundDuringTreasureHunt": false,
+    "Source": "Treasure",
+    "BaseId": 0,
+    "FirstSeenUnixSeconds": 1785633606,
+    "LastSeenUnixSeconds": 1785633627
+  },
+  {
+    "Zone": 1346,
+    "X": -592.0043,
+    "Y": 160.08228,
+    "Z": 767.666,
+    "Tier": "Bronze",
+    "TierCounts": {
+      "Bronze": 4
+    },
+    "TimesSeen": 4,
+    "TimesOpened": 0,
+    "FoundDuringTreasureHunt": true,
+    "Source": "Treasure",
+    "BaseId": 2058,
+    "FirstSeenUnixSeconds": 1785700668,
+    "LastSeenUnixSeconds": 1786845421
+  },
+  {
+    "Zone": 1346,
+    "X": -590.23425,
+    "Y": 87.96814,
+    "Z": -7.0039062,
+    "Tier": "Bronze",
+    "TierCounts": {
+      "Bronze": 5
+    },
+    "TimesSeen": 5,
+    "TimesOpened": 1,
+    "FoundDuringTreasureHunt": true,
+    "Source": "Treasure",
+    "BaseId": 2042,
+    "FirstSeenUnixSeconds": 1785689420,
+    "LastSeenUnixSeconds": 1786827707
+  },
+  {
+    "Zone": 1346,
+    "X": -586.3,
+    "Y": 47.81013,
+    "Z": -715.2,
+    "Tier": "Silver",
+    "TierCounts": {
+      "Silver": 4
+    },
+    "TimesSeen": 2,
+    "TimesOpened": 2,
+    "FoundDuringTreasureHunt": false,
+    "Source": "EventObj",
+    "BaseId": 2014742,
+    "FirstSeenUnixSeconds": 1785638073,
+    "LastSeenUnixSeconds": 1786827344
+  },
+  {
+    "Zone": 1346,
+    "X": -581.5061,
+    "Y": 40.9093,
+    "Z": -257.435,
+    "Tier": "Bronze",
+    "TierCounts": {
+      "Bronze": 3
+    },
+    "TimesSeen": 2,
+    "TimesOpened": 2,
+    "FoundDuringTreasureHunt": true,
+    "Source": "Treasure",
+    "BaseId": 2044,
+    "FirstSeenUnixSeconds": 1785637874,
+    "LastSeenUnixSeconds": 1785697038
+  },
+  {
+    "Zone": 1346,
+    "X": -525.81067,
+    "Y": 46.829956,
+    "Z": -783.4745,
+    "Tier": "Bronze",
+    "TierCounts": {
+      "Bronze": 2
+    },
+    "TimesSeen": 3,
+    "TimesOpened": 1,
+    "FoundDuringTreasureHunt": true,
+    "Source": "Treasure",
+    "BaseId": 2049,
+    "FirstSeenUnixSeconds": 1785697918,
+    "LastSeenUnixSeconds": 1786827305
+  },
+  {
+    "Zone": 1346,
+    "X": -512,
+    "Y": 41.999996,
+    "Z": -389,
+    "Tier": "Silver",
+    "TierCounts": {
+      "Silver": 2,
+      "Gold": 1
+    },
+    "TimesSeen": 2,
+    "TimesOpened": 1,
+    "FoundDuringTreasureHunt": true,
+    "Source": "EventObj",
+    "BaseId": 2014741,
+    "FirstSeenUnixSeconds": 1785630732,
+    "LastSeenUnixSeconds": 1785709403
+  },
+  {
+    "Zone": 1346,
+    "X": -504.1123,
+    "Y": 85.74036,
+    "Z": 758.297,
+    "Tier": "Bronze",
+    "TierCounts": {
+      "Bronze": 4
+    },
+    "TimesSeen": 4,
+    "TimesOpened": 1,
+    "FoundDuringTreasureHunt": true,
+    "Source": "Treasure",
+    "BaseId": 2037,
+    "FirstSeenUnixSeconds": 1785634320,
+    "LastSeenUnixSeconds": 1785700680
+  },
+  {
+    "Zone": 1346,
+    "X": -500,
+    "Y": 48.000004,
+    "Z": -867.6,
+    "Tier": "Unknown",
+    "TierCounts": {},
+    "TimesSeen": 2,
+    "TimesOpened": 0,
+    "FoundDuringTreasureHunt": false,
+    "Source": "Carrot",
+    "BaseId": 2010139,
+    "FirstSeenUnixSeconds": 1785697924,
+    "LastSeenUnixSeconds": 1785697984
+  },
+  {
+    "Zone": 1346,
+    "X": -498.7,
+    "Y": 11.051006,
+    "Z": 128.9,
+    "Tier": "Bronze",
+    "TierCounts": {
+      "Bronze": 2
+    },
+    "TimesSeen": 1,
+    "TimesOpened": 1,
+    "FoundDuringTreasureHunt": false,
+    "Source": "EventObj",
+    "BaseId": 2014743,
+    "FirstSeenUnixSeconds": 1786842513,
+    "LastSeenUnixSeconds": 1786842526
+  },
+  {
+    "Zone": 1346,
+    "X": -439.56665,
+    "Y": 43.015137,
+    "Z": -558.46497,
+    "Tier": "Bronze",
+    "TierCounts": {
+      "Bronze": 3
+    },
+    "TimesSeen": 3,
+    "TimesOpened": 1,
+    "FoundDuringTreasureHunt": false,
+    "Source": "Treasure",
+    "BaseId": 2048,
+    "FirstSeenUnixSeconds": 1785636732,
+    "LastSeenUnixSeconds": 1785697910
+  },
+  {
+    "Zone": 1346,
+    "X": -436.45386,
+    "Y": 0.19836426,
+    "Z": 166.21643,
+    "Tier": "Bronze",
+    "TierCounts": {
+      "Bronze": 2
+    },
+    "TimesSeen": 16,
+    "TimesOpened": 1,
+    "FoundDuringTreasureHunt": true,
+    "Source": "Treasure",
+    "BaseId": 2035,
+    "FirstSeenUnixSeconds": 1786826547,
+    "LastSeenUnixSeconds": 1786830697
+  },
+  {
+    "Zone": 1346,
+    "X": -339.8588,
+    "Y": 85.47024,
+    "Z": 861.5197,
+    "Tier": "Bronze",
+    "TierCounts": {
+      "Gold": 1,
+      "Bronze": 2
+    },
+    "TimesSeen": 2,
+    "TimesOpened": 1,
+    "FoundDuringTreasureHunt": true,
+    "Source": "EventObj",
+    "BaseId": 2014743,
+    "FirstSeenUnixSeconds": 1785700696,
+    "LastSeenUnixSeconds": 1785704411
+  },
+  {
+    "Zone": 1346,
+    "X": -269.6122,
+    "Y": 107.93719,
+    "Z": 875.6997,
+    "Tier": "Bronze",
+    "TierCounts": {
+      "Bronze": 2
+    },
+    "TimesSeen": 1,
+    "TimesOpened": 1,
+    "FoundDuringTreasureHunt": false,
+    "Source": "EventObj",
+    "BaseId": 2014743,
+    "FirstSeenUnixSeconds": 1785700721,
+    "LastSeenUnixSeconds": 1785700735
+  },
+  {
+    "Zone": 1346,
+    "X": -265.76642,
+    "Y": 30.166992,
+    "Z": -439.53613,
+    "Tier": "Bronze",
+    "TierCounts": {
+      "Bronze": 3
+    },
+    "TimesSeen": 3,
+    "TimesOpened": 1,
+    "FoundDuringTreasureHunt": false,
+    "Source": "Treasure",
+    "BaseId": 2025,
+    "FirstSeenUnixSeconds": 1785636772,
+    "LastSeenUnixSeconds": 1785697444
+  },
+  {
+    "Zone": 1346,
+    "X": -256.97723,
+    "Y": 100.6637,
+    "Z": 812.1919,
+    "Tier": "Bronze",
+    "TierCounts": {
+      "Bronze": 3
+    },
+    "TimesSeen": 2,
+    "TimesOpened": 2,
+    "FoundDuringTreasureHunt": false,
+    "Source": "Treasure",
+    "BaseId": 2036,
+    "FirstSeenUnixSeconds": 1785634325,
+    "LastSeenUnixSeconds": 1786847109
+  },
+  {
+    "Zone": 1346,
+    "X": -252.1626,
+    "Y": 66.55432,
+    "Z": -879.5855,
+    "Tier": "Bronze",
+    "TierCounts": {
+      "Bronze": 6,
+      "Gold": 2
+    },
+    "TimesSeen": 4,
+    "TimesOpened": 4,
+    "FoundDuringTreasureHunt": false,
+    "Source": "EventObj",
+    "BaseId": 2014741,
+    "FirstSeenUnixSeconds": 1785632474,
+    "LastSeenUnixSeconds": 1786846036
+  },
+  {
+    "Zone": 1346,
+    "X": -251.781,
+    "Y": 65.949005,
+    "Z": -864.3828,
+    "Tier": "Gold",
+    "TierCounts": {
+      "Gold": 1
+    },
+    "TimesSeen": 1,
+    "TimesOpened": 0,
+    "FoundDuringTreasureHunt": true,
+    "Source": "EventObj",
+    "BaseId": 2014741,
+    "FirstSeenUnixSeconds": 1785698849,
+    "LastSeenUnixSeconds": 1785698849
+  },
+  {
+    "Zone": 1346,
+    "X": -232.44073,
+    "Y": 53.20813,
+    "Z": -719.99695,
+    "Tier": "Bronze",
+    "TierCounts": {
+      "Bronze": 1
+    },
+    "TimesSeen": 2,
+    "TimesOpened": 0,
+    "FoundDuringTreasureHunt": true,
+    "Source": "Treasure",
+    "BaseId": 2026,
+    "FirstSeenUnixSeconds": 1786842862,
+    "LastSeenUnixSeconds": 1786846005
+  },
+  {
+    "Zone": 1346,
+    "X": -190,
+    "Y": 61.75258,
+    "Z": -763,
+    "Tier": "Gold",
+    "TierCounts": {
+      "Gold": 1,
+      "Bronze": 1,
+      "Silver": 1
+    },
+    "TimesSeen": 3,
+    "TimesOpened": 0,
+    "FoundDuringTreasureHunt": true,
+    "Source": "EventObj",
+    "BaseId": 2014742,
+    "FirstSeenUnixSeconds": 1785636207,
+    "LastSeenUnixSeconds": 1786828970
+  },
+  {
+    "Zone": 1346,
+    "X": -168.23071,
+    "Y": 3.3721924,
+    "Z": -153.46002,
+    "Tier": "Bronze",
+    "TierCounts": {
+      "Bronze": 1
+    },
+    "TimesSeen": 10,
+    "TimesOpened": 1,
+    "FoundDuringTreasureHunt": false,
+    "Source": "Treasure",
+    "BaseId": 2052,
+    "FirstSeenUnixSeconds": 1786833051,
+    "LastSeenUnixSeconds": 1786833601
+  },
+  {
+    "Zone": 1346,
+    "X": -86,
+    "Y": 60.596237,
+    "Z": -737,
+    "Tier": "Bronze",
+    "TierCounts": {
+      "Silver": 2,
+      "Bronze": 3
+    },
+    "TimesSeen": 3,
+    "TimesOpened": 2,
+    "FoundDuringTreasureHunt": true,
+    "Source": "EventObj",
+    "BaseId": 2014743,
+    "FirstSeenUnixSeconds": 1785636240,
+    "LastSeenUnixSeconds": 1786829020
+  },
+  {
+    "Zone": 1346,
+    "X": -22.690186,
+    "Y": 42.06909,
+    "Z": 628.99194,
+    "Tier": "Silver",
+    "TierCounts": {
+      "Silver": 3
+    },
+    "TimesSeen": 2,
+    "TimesOpened": 2,
+    "FoundDuringTreasureHunt": false,
+    "Source": "Treasure",
+    "BaseId": 2008,
+    "FirstSeenUnixSeconds": 1785634348,
+    "LastSeenUnixSeconds": 1786835597
+  },
+  {
+    "Zone": 1346,
+    "X": -12.100403,
+    "Y": 66.63611,
+    "Z": 773.8612,
+    "Tier": "Bronze",
+    "TierCounts": {
+      "Bronze": 1
+    },
+    "TimesSeen": 4,
+    "TimesOpened": 1,
+    "FoundDuringTreasureHunt": false,
+    "Source": "Treasure",
+    "BaseId": 2033,
+    "FirstSeenUnixSeconds": 1786835358,
+    "LastSeenUnixSeconds": 1786835561
+  },
+  {
+    "Zone": 1346,
+    "X": -2.3347168,
+    "Y": 66.666626,
+    "Z": -814.9081,
+    "Tier": "Silver",
+    "TierCounts": {
+      "Silver": 2
+    },
+    "TimesSeen": 2,
+    "TimesOpened": 2,
+    "FoundDuringTreasureHunt": true,
+    "Source": "Treasure",
+    "BaseId": 2007,
+    "FirstSeenUnixSeconds": 1785706085,
+    "LastSeenUnixSeconds": 1786828952
+  },
+  {
+    "Zone": 1346,
+    "X": 0.9425046,
+    "Y": 41.80327,
+    "Z": 623.2599,
+    "Tier": "Bronze",
+    "TierCounts": {
+      "Bronze": 2,
+      "Silver": 2
+    },
+    "TimesSeen": 2,
+    "TimesOpened": 2,
+    "FoundDuringTreasureHunt": false,
+    "Source": "EventObj",
+    "BaseId": 2014742,
+    "FirstSeenUnixSeconds": 1785634457,
+    "LastSeenUnixSeconds": 1786847929
+  },
+  {
+    "Zone": 1346,
+    "X": 1.768392,
+    "Y": 71.555756,
+    "Z": -872.2798,
+    "Tier": "Silver",
+    "TierCounts": {
+      "Silver": 1
+    },
+    "TimesSeen": 1,
+    "TimesOpened": 0,
+    "FoundDuringTreasureHunt": true,
+    "Source": "EventObj",
+    "BaseId": 2014742,
+    "FirstSeenUnixSeconds": 1786828982,
+    "LastSeenUnixSeconds": 1786828982
+  },
+  {
+    "Zone": 1346,
+    "X": 7.60699,
+    "Y": 4.3169565,
+    "Z": -35.67316,
+    "Tier": "Gold",
+    "TierCounts": {
+      "Gold": 1
+    },
+    "TimesSeen": 2,
+    "TimesOpened": 0,
+    "FoundDuringTreasureHunt": true,
+    "Source": "Carrot",
+    "BaseId": 2010139,
+    "FirstSeenUnixSeconds": 1785709437,
+    "LastSeenUnixSeconds": 1786833033
+  },
+  {
+    "Zone": 1346,
+    "X": 11.98766,
+    "Y": 68.15505,
+    "Z": 795.707,
+    "Tier": "Bronze",
+    "TierCounts": {
+      "Bronze": 1
+    },
+    "TimesSeen": 1,
+    "TimesOpened": 0,
+    "FoundDuringTreasureHunt": false,
+    "Source": "Treasure",
+    "BaseId": 0,
+    "FirstSeenUnixSeconds": 1785634401,
+    "LastSeenUnixSeconds": 1785634401
+  },
+  {
+    "Zone": 1346,
+    "X": 28.10088,
+    "Y": 3.9999995,
+    "Z": -16.69861,
+    "Tier": "Silver",
+    "TierCounts": {
+      "Silver": 2
+    },
+    "TimesSeen": 1,
+    "TimesOpened": 1,
+    "FoundDuringTreasureHunt": false,
+    "Source": "EventObj",
+    "BaseId": 2014742,
+    "FirstSeenUnixSeconds": 1785709464,
+    "LastSeenUnixSeconds": 1785709478
+  },
+  {
+    "Zone": 1346,
+    "X": 32.4,
+    "Y": 56.835186,
+    "Z": -777.3,
+    "Tier": "Bronze",
+    "TierCounts": {
+      "Bronze": 3
+    },
+    "TimesSeen": 3,
+    "TimesOpened": 0,
+    "FoundDuringTreasureHunt": true,
+    "Source": "EventObj",
+    "BaseId": 2014743,
+    "FirstSeenUnixSeconds": 1785636098,
+    "LastSeenUnixSeconds": 1786828962
+  },
+  {
+    "Zone": 1346,
+    "X": 43.778076,
+    "Y": 2.4261475,
+    "Z": -108.20172,
+    "Tier": "Bronze",
+    "TierCounts": {
+      "Bronze": 3
+    },
+    "TimesSeen": 5,
+    "TimesOpened": 1,
+    "FoundDuringTreasureHunt": true,
+    "Source": "Treasure",
+    "BaseId": 2051,
+    "FirstSeenUnixSeconds": 1785693207,
+    "LastSeenUnixSeconds": 1786844632
+  },
+  {
+    "Zone": 1346,
+    "X": 77.04285,
+    "Y": 21.194763,
+    "Z": 536.2478,
+    "Tier": "Bronze",
+    "TierCounts": {
+      "Bronze": 7
+    },
+    "TimesSeen": 9,
+    "TimesOpened": 2,
+    "FoundDuringTreasureHunt": false,
+    "Source": "Treasure",
+    "BaseId": 2032,
+    "FirstSeenUnixSeconds": 1785634360,
+    "LastSeenUnixSeconds": 1786835612
+  },
+  {
+    "Zone": 1346,
+    "X": 85.58777,
+    "Y": 3.2807007,
+    "Z": -281.14752,
+    "Tier": "Bronze",
+    "TierCounts": {
+      "Bronze": 2
+    },
+    "TimesSeen": 2,
+    "TimesOpened": 1,
+    "FoundDuringTreasureHunt": true,
+    "Source": "Treasure",
+    "BaseId": 2050,
+    "FirstSeenUnixSeconds": 1786825100,
+    "LastSeenUnixSeconds": 1786842361
+  },
+  {
+    "Zone": 1346,
+    "X": 147.8446,
+    "Y": 60.990234,
+    "Z": -868.7724,
+    "Tier": "Bronze",
+    "TierCounts": {
+      "Bronze": 1
+    },
+    "TimesSeen": 8,
+    "TimesOpened": 1,
+    "FoundDuringTreasureHunt": false,
+    "Source": "Treasure",
+    "BaseId": 2027,
+    "FirstSeenUnixSeconds": 1786836667,
+    "LastSeenUnixSeconds": 1786837095
+  },
+  {
+    "Zone": 1346,
+    "X": 246.20422,
+    "Y": 66.51404,
+    "Z": 676.66125,
+    "Tier": "Bronze",
+    "TierCounts": {
+      "Bronze": 1
+    },
+    "TimesSeen": 1,
+    "TimesOpened": 1,
+    "FoundDuringTreasureHunt": false,
+    "Source": "Treasure",
+    "BaseId": 2018,
+    "FirstSeenUnixSeconds": 1786836489,
+    "LastSeenUnixSeconds": 1786836497
+  },
+  {
+    "Zone": 1346,
+    "X": 254.71875,
+    "Y": 36.9115,
+    "Z": -605.005,
+    "Tier": "Bronze",
+    "TierCounts": {
+      "Bronze": 1
+    },
+    "TimesSeen": 1,
+    "TimesOpened": 1,
+    "FoundDuringTreasureHunt": false,
+    "Source": "Treasure",
+    "BaseId": 2023,
+    "FirstSeenUnixSeconds": 1786836600,
+    "LastSeenUnixSeconds": 1786836630
+  },
+  {
+    "Zone": 1346,
+    "X": 279.07214,
+    "Y": 142.99219,
+    "Z": -356.1609,
+    "Tier": "Bronze",
+    "TierCounts": {
+      "Bronze": 5
+    },
+    "TimesSeen": 5,
+    "TimesOpened": 2,
+    "FoundDuringTreasureHunt": false,
+    "Source": "Treasure",
+    "BaseId": 2071,
+    "FirstSeenUnixSeconds": 1785631910,
+    "LastSeenUnixSeconds": 1786838419
+  },
+  {
+    "Zone": 1346,
+    "X": 287.2872,
+    "Y": 142.99992,
+    "Z": -366.9024,
+    "Tier": "Unknown",
+    "TierCounts": {},
+    "TimesSeen": 5,
+    "TimesOpened": 0,
+    "FoundDuringTreasureHunt": false,
+    "Source": "Carrot",
+    "BaseId": 2010139,
+    "FirstSeenUnixSeconds": 1786842069,
+    "LastSeenUnixSeconds": 1786842330
+  },
+  {
+    "Zone": 1346,
+    "X": 383.29138,
+    "Y": 32.97461,
+    "Z": -175.67712,
+    "Tier": "Silver",
+    "TierCounts": {
+      "Silver": 3
+    },
+    "TimesSeen": 6,
+    "TimesOpened": 3,
+    "FoundDuringTreasureHunt": false,
+    "Source": "Treasure",
+    "BaseId": 2006,
+    "FirstSeenUnixSeconds": 1786824969,
+    "LastSeenUnixSeconds": 1786835211
+  },
+  {
+    "Zone": 1346,
+    "X": 447.86743,
+    "Y": 62.882446,
+    "Z": 463.3401,
+    "Tier": "Bronze",
+    "TierCounts": {
+      "Bronze": 5
+    },
+    "TimesSeen": 6,
+    "TimesOpened": 3,
+    "FoundDuringTreasureHunt": false,
+    "Source": "Treasure",
+    "BaseId": 2070,
+    "FirstSeenUnixSeconds": 1785633050,
+    "LastSeenUnixSeconds": 1786842998
+  },
+  {
+    "Zone": 1346,
+    "X": 478.44653,
+    "Y": 12.405518,
+    "Z": -202.99078,
+    "Tier": "Bronze",
+    "TierCounts": {
+      "Bronze": 2
+    },
+    "TimesSeen": 3,
+    "TimesOpened": 2,
+    "FoundDuringTreasureHunt": true,
+    "Source": "Treasure",
+    "BaseId": 2022,
+    "FirstSeenUnixSeconds": 1786832158,
+    "LastSeenUnixSeconds": 1786838233
+  },
+  {
+    "Zone": 1346,
+    "X": 593,
+    "Y": 39.622505,
+    "Z": 34,
+    "Tier": "Silver",
+    "TierCounts": {
+      "Silver": 2
+    },
+    "TimesSeen": 1,
+    "TimesOpened": 1,
+    "FoundDuringTreasureHunt": false,
+    "Source": "EventObj",
+    "BaseId": 2014742,
+    "FirstSeenUnixSeconds": 1786832616,
+    "LastSeenUnixSeconds": 1786832631
+  },
+  {
+    "Zone": 1346,
+    "X": 625.8,
+    "Y": 61.06923,
+    "Z": -846.3,
+    "Tier": "Unknown",
+    "TierCounts": {},
+    "TimesSeen": 2,
+    "TimesOpened": 0,
+    "FoundDuringTreasureHunt": false,
+    "Source": "Carrot",
+    "BaseId": 2010139,
+    "FirstSeenUnixSeconds": 1785689849,
+    "LastSeenUnixSeconds": 1785689952
+  },
+  {
+    "Zone": 1346,
+    "X": 633.11194,
+    "Y": 60.624023,
+    "Z": -910.24646,
+    "Tier": "Bronze",
+    "TierCounts": {
+      "Bronze": 1
+    },
+    "TimesSeen": 1,
+    "TimesOpened": 1,
+    "FoundDuringTreasureHunt": false,
+    "Source": "Treasure",
+    "BaseId": 2054,
+    "FirstSeenUnixSeconds": 1785689963,
+    "LastSeenUnixSeconds": 1785689988
+  },
+  {
+    "Zone": 1346,
+    "X": 634.7904,
+    "Y": 60.501953,
+    "Z": -831.81506,
+    "Tier": "Silver",
+    "TierCounts": {
+      "Silver": 2
+    },
+    "TimesSeen": 3,
+    "TimesOpened": 1,
+    "FoundDuringTreasureHunt": true,
+    "Source": "Treasure",
+    "BaseId": 2010,
+    "FirstSeenUnixSeconds": 1785689845,
+    "LastSeenUnixSeconds": 1786830992
+  },
+  {
+    "Zone": 1346,
+    "X": 639.0325,
+    "Y": 60.624023,
+    "Z": -698.7564,
+    "Tier": "Bronze",
+    "TierCounts": {
+      "Bronze": 1
+    },
+    "TimesSeen": 1,
+    "TimesOpened": 1,
+    "FoundDuringTreasureHunt": true,
+    "Source": "Treasure",
+    "BaseId": 2055,
+    "FirstSeenUnixSeconds": 1785689834,
+    "LastSeenUnixSeconds": 1785689842
+  },
+  {
+    "Zone": 1346,
+    "X": 658.7167,
+    "Y": 60.501953,
+    "Z": -552.3308,
+    "Tier": "Bronze",
+    "TierCounts": {
+      "Bronze": 1
+    },
+    "TimesSeen": 2,
+    "TimesOpened": 0,
+    "FoundDuringTreasureHunt": true,
+    "Source": "Treasure",
+    "BaseId": 2030,
+    "FirstSeenUnixSeconds": 1786830977,
+    "LastSeenUnixSeconds": 1786831495
+  },
+  {
+    "Zone": 1346,
+    "X": 673.73157,
+    "Y": 161.15039,
+    "Z": 729.6406,
+    "Tier": "Bronze",
+    "TierCounts": {
+      "Bronze": 3
+    },
+    "TimesSeen": 7,
+    "TimesOpened": 3,
+    "FoundDuringTreasureHunt": false,
+    "Source": "Treasure",
+    "BaseId": 2016,
+    "FirstSeenUnixSeconds": 1786825887,
+    "LastSeenUnixSeconds": 1786826358
+  },
+  {
+    "Zone": 1346,
+    "X": 714.698,
+    "Y": 69.24771,
+    "Z": 262.6901,
+    "Tier": "Silver",
+    "TierCounts": {
+      "Silver": 1
+    },
+    "TimesSeen": 1,
+    "TimesOpened": 0,
+    "FoundDuringTreasureHunt": true,
+    "Source": "EventObj",
+    "BaseId": 2014742,
+    "FirstSeenUnixSeconds": 1785694833,
+    "LastSeenUnixSeconds": 1785694833
+  },
+  {
+    "Zone": 1346,
+    "X": 719.32544,
+    "Y": 69.62683,
+    "Z": 268.29932,
+    "Tier": "Bronze",
+    "TierCounts": {
+      "Bronze": 5
+    },
+    "TimesSeen": 7,
+    "TimesOpened": 2,
+    "FoundDuringTreasureHunt": true,
+    "Source": "Treasure",
+    "BaseId": 2019,
+    "FirstSeenUnixSeconds": 1785692480,
+    "LastSeenUnixSeconds": 1786848335
+  },
+  {
+    "Zone": 1346,
+    "X": 811.9783,
+    "Y": 191.97375,
+    "Z": 668.9707,
+    "Tier": "Bronze",
+    "TierCounts": {
+      "Bronze": 1
+    },
+    "TimesSeen": 1,
+    "TimesOpened": 0,
+    "FoundDuringTreasureHunt": false,
+    "Source": "Treasure",
+    "BaseId": 2015,
+    "FirstSeenUnixSeconds": 1786825888,
+    "LastSeenUnixSeconds": 1786825888
+  },
+  {
+    "Zone": 1346,
+    "X": 865.4459,
+    "Y": 70.206665,
+    "Z": -874.1131,
+    "Tier": "Bronze",
+    "TierCounts": {
+      "Bronze": 2
+    },
+    "TimesSeen": 4,
+    "TimesOpened": 1,
+    "FoundDuringTreasureHunt": true,
+    "Source": "Treasure",
+    "BaseId": 2057,
+    "FirstSeenUnixSeconds": 1785689856,
+    "LastSeenUnixSeconds": 1786831059
+  },
+  {
+    "Zone": 1346,
+    "X": 882.1526,
+    "Y": 53.999996,
+    "Z": 115.9092,
+    "Tier": "Unknown",
+    "TierCounts": {},
+    "TimesSeen": 2,
+    "TimesOpened": 0,
+    "FoundDuringTreasureHunt": false,
+    "Source": "Carrot",
+    "BaseId": 2010139,
+    "FirstSeenUnixSeconds": 1785694848,
+    "LastSeenUnixSeconds": 1785694908
+  },
+  {
+    "Zone": 1346,
+    "X": 889.2178,
+    "Y": 53.999996,
+    "Z": 155.9825,
+    "Tier": "Bronze",
+    "TierCounts": {
+      "Bronze": 2
+    },
+    "TimesSeen": 1,
+    "TimesOpened": 1,
+    "FoundDuringTreasureHunt": false,
+    "Source": "EventObj",
+    "BaseId": 2014743,
+    "FirstSeenUnixSeconds": 1785694914,
+    "LastSeenUnixSeconds": 1785694929
+  },
+  {
+    "Zone": 1346,
+    "X": 912.2978,
+    "Y": 61.18964,
+    "Z": -461.5099,
+    "Tier": "Silver",
+    "TierCounts": {
+      "Silver": 1
+    },
+    "TimesSeen": 1,
+    "TimesOpened": 0,
+    "FoundDuringTreasureHunt": false,
+    "Source": "Treasure",
+    "BaseId": 0,
+    "FirstSeenUnixSeconds": 1785639730,
+    "LastSeenUnixSeconds": 1785639730
+  },
+  {
+    "Zone": 1346,
+    "X": 925.6533,
+    "Y": 70.21527,
+    "Z": -906.2195,
+    "Tier": "Gold",
+    "TierCounts": {
+      "Gold": 1
+    },
+    "TimesSeen": 1,
+    "TimesOpened": 0,
+    "FoundDuringTreasureHunt": false,
+    "Source": "EventObj",
+    "BaseId": 2014741,
+    "FirstSeenUnixSeconds": 1785689912,
+    "LastSeenUnixSeconds": 1785689912
+  },
+  {
+    "Zone": 1346,
+    "X": 928.8978,
+    "Y": 74.0003,
+    "Z": -332.8099,
+    "Tier": "Silver",
+    "TierCounts": {
+      "Silver": 1
+    },
+    "TimesSeen": 1,
+    "TimesOpened": 1,
+    "FoundDuringTreasureHunt": false,
+    "Source": "Treasure",
+    "BaseId": 0,
+    "FirstSeenUnixSeconds": 1785639775,
+    "LastSeenUnixSeconds": 1785639792
+  },
+  {
+    "Zone": 1346,
+    "X": 929.4178,
+    "Y": 54,
+    "Z": -1.817501,
+    "Tier": "Bronze",
+    "TierCounts": {
+      "Bronze": 1
+    },
+    "TimesSeen": 1,
+    "TimesOpened": 0,
+    "FoundDuringTreasureHunt": true,
+    "Source": "EventObj",
+    "BaseId": 2014743,
+    "FirstSeenUnixSeconds": 1785694857,
+    "LastSeenUnixSeconds": 1785694857
+  },
+  {
+    "Zone": 1346,
+    "X": 943.4631,
+    "Y": 70.21487,
+    "Z": -879.5159,
+    "Tier": "Gold",
+    "TierCounts": {
+      "Gold": 2
+    },
+    "TimesSeen": 1,
+    "TimesOpened": 1,
+    "FoundDuringTreasureHunt": false,
+    "Source": "EventObj",
+    "BaseId": 2014741,
+    "FirstSeenUnixSeconds": 1786831066,
+    "LastSeenUnixSeconds": 1786831078
+  },
+  {
+    "Zone": 1346,
+    "X": 948.5978,
+    "Y": 63.594563,
+    "Z": -567.0099,
+    "Tier": "Silver",
+    "TierCounts": {
+      "Silver": 2
+    },
+    "TimesSeen": 1,
+    "TimesOpened": 1,
+    "FoundDuringTreasureHunt": false,
+    "Source": "EventObj",
+    "BaseId": 2014742,
+    "FirstSeenUnixSeconds": 1785702777,
+    "LastSeenUnixSeconds": 1785702792
+  },
+  {
+    "Zone": 1346,
+    "X": 950.19446,
+    "Y": 73.99097,
+    "Z": -358.99902,
+    "Tier": "Bronze",
+    "TierCounts": {
+      "Bronze": 1
+    },
+    "TimesSeen": 1,
+    "TimesOpened": 1,
+    "FoundDuringTreasureHunt": false,
+    "Source": "Treasure",
+    "BaseId": 0,
+    "FirstSeenUnixSeconds": 1785639737,
+    "LastSeenUnixSeconds": 1785639755
+  },
+  {
+    "Zone": 1346,
+    "X": 960,
+    "Y": 97.05797,
+    "Z": -879,
+    "Tier": "Gold",
+    "TierCounts": {
+      "Gold": 1
+    },
+    "TimesSeen": 1,
+    "TimesOpened": 0,
+    "FoundDuringTreasureHunt": true,
+    "Source": "Carrot",
+    "BaseId": 2010139,
+    "FirstSeenUnixSeconds": 1786831007,
+    "LastSeenUnixSeconds": 1786831064
+  }
+]
