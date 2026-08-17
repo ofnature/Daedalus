@@ -68,4 +68,43 @@ public static class OccultEncounters
         NorthHornTerritoryId => NorthHornCriticalEncounters,
         _ => [],
     };
+
+    /// <summary>
+    /// The 48-player raids, which are NOT critical encounters (DynamicEvent rows 48, 64 and 65).
+    /// <para>
+    /// They run inside the Horn territories rather than in a map of their own — the content
+    /// finder row for "The Forked Tower: Magic (Extreme)" points at TerritoryType 1346, North
+    /// Horn, and no PlaceName for "Forked" exists at all. So the weakness log already records
+    /// their enemies with no change; what it needs is to file them correctly, because a raid boss
+    /// stamped as a critical encounter quietly inflates a coverage bucket that is already the
+    /// least meaningful one.
+    /// </para>
+    /// <para>
+    /// Told apart from critical encounters by participant cap, the same evidence that fixed the
+    /// roster boundary: every Occult CE caps at 72, every Forked Tower row at 48.
+    /// </para>
+    /// </summary>
+    public static readonly IReadOnlyList<string> ForkedTowerEvents =
+    [
+        "The Forked Tower: Blood",
+        "The Forked Tower: Magic",
+        "The Forked Tower: Magic (Extreme)",
+    ];
+
+    /// <summary>Is this encounter stamp one of the 48-player raids rather than a critical encounter?</summary>
+    public static bool IsForkedTower(string? encounterName)
+    {
+        if (string.IsNullOrWhiteSpace(encounterName))
+            return false;
+
+        foreach (var n in ForkedTowerEvents)
+        {
+            if (string.Equals(n, encounterName, System.StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+
+        // Defensive on the prefix too: the raid tiers are named as a family and a future one
+        // would otherwise silently land in the critical-encounter bucket.
+        return encounterName.StartsWith("The Forked Tower", System.StringComparison.OrdinalIgnoreCase);
+    }
 }

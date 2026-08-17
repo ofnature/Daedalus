@@ -401,9 +401,35 @@ public static class OccultTab
                 // Three kinds of content, in descending "is this a fight worth planning for"
                 // order. CE membership needs the HP heuristic; FATE membership is stamped on
                 // the object by the game, so it is exact.
-                DrawEnemyGroup($"Critical Encounters###occult_ce_{zone}",
-                    inZone.Where(e => e.BelongsToCriticalEncounter).ToList(), groupByEncounter: true);
+                // The 48-player raids come through stamped as encounters too, but they are not
+                // critical encounters and lumping them in inflates a bucket that is already the
+                // least meaningful of the three. Split them out.
+                var ceMembers = inZone
+                    .Where(e => e.BelongsToCriticalEncounter
+                                && !Daedalus.Data.OccultEncounters.IsForkedTower(e.CriticalEncounter))
+                    .ToList();
+                var towerMembers = inZone
+                    .Where(e => Daedalus.Data.OccultEncounters.IsForkedTower(e.CriticalEncounter))
+                    .ToList();
+
+                DrawEnemyGroup($"Critical Encounters###occult_ce_{zone}", ceMembers, groupByEncounter: true);
                 DrawMissingEncounters(zone, inZone);
+                if (towerMembers.Count > 0)
+                {
+                    DrawEnemyGroup($"Forked Tower (raid)###occult_tower_{zone}",
+                        towerMembers, groupByEncounter: true);
+                }
+                else
+                {
+                    // Say it out loud. The raid runs in this same territory, so the log already
+                    // covers it — an empty section means nobody has Libra'd in there, not that
+                    // the raid is untrackable. Worth stating, because Occult Libra is a Phantom
+                    // Red Mage action and a 48-player raid is exactly where a toon is least
+                    // likely to be running one.
+                    ImGui.TextColored(Dim,
+                        "Forked Tower: nothing recorded — it runs in this zone, so Libra in the "
+                        + "raid and it lands here like any other encounter.");
+                }
                 DrawEnemyGroup($"FATEs###occult_fate_{zone}",
                     inZone.Where(e => !e.BelongsToCriticalEncounter && e.SeenInFate).ToList(),
                     groupByEncounter: true, fateNames: true);

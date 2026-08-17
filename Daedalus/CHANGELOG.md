@@ -5,6 +5,11 @@ All notable changes to Daedalus will be documented in this file.
 <!-- LATEST-START -->
 ## v0.1.62 — unreleased
 
+### New — Forked Tower enemies are tracked, and filed as a raid
+- The Forked Tower runs **inside the Horn zones**, not on a map of its own, so the weakness table has always been able to record it — nothing was blocking it except nobody scanning in there
+- Its enemies were being filed as **critical encounters**, which they aren't. They now get their own section, so 48-player raid bosses stop padding the critical encounter counts
+- The Duty tab says so when a zone has nothing from the tower yet, rather than leaving an empty space that reads like it can't be tracked
+
 ### Fix — The caster limit break said it fired without spending the bar
 - Skyshard, Starstorm and Meteor are **placed on the ground**, not aimed at an enemy. They were being cast the same way as the melee one, which the game accepts and then quietly ignores — so the plugin announced a successful limit break while nothing happened and the bar stayed full
 - Limit breaks are now cast with a **position as well as a target**, which suits both kinds. The melee one kept working throughout precisely because it *is* aimed at an enemy, which is what hid this
