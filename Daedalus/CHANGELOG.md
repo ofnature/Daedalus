@@ -3,7 +3,13 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
-## v0.1.62 — unreleased
+## v0.1.62 — 2026-08-17
+
+### New — 19 more coffer spots, and the first Forked Tower enemies
+- The shipped coffer map grew **147 → 166**, all of it North Horn (**109** spots there now, up from 90). 121 have been opened at least once
+- The weakness table has its **first Forked Tower entries** — Blue Head, Green Head, Crescent Kargas and Crescent Sand Serpent, with Green Head's element already identified
+- **North Horn is moving**: 31.1% identified overall, up from 27.7%, and its FATE bosses are now **13 of 13** like South Horn's. The one critical encounter still never seen anywhere is *Many Mouths to Feed*
+- 13 more untargetable mechanics were dropped as their targetability got confirmed, so the table keeps shedding things Libra could never reach
 
 ### New — Forked Tower enemies are tracked, and filed as a raid
 - The Forked Tower runs **inside the Horn zones**, not on a map of its own, so the weakness table has always been able to record it — nothing was blocking it except nobody scanning in there
