@@ -40,7 +40,14 @@ public sealed class LanRosterIpc : IDisposable
         // Invite addressing (Charon's single/mass invite — the native InviteToParty call
         // wants content id + home world id; 0 on toons whose heartbeat predates the fields).
         [property: JsonPropertyName("contentId")] ulong ContentId,
-        [property: JsonPropertyName("worldId")] ushort WorldId);
+        [property: JsonPropertyName("worldId")] ushort WorldId,
+        // Party identity, for consumers that assign duties per player (Minerva's tower/tether
+        // logic keys on these). "role" is the STANDARD eight-slot code because that is what such
+        // consumers accept; "slot" and "roleKind" carry Daedalus's own two values unchanged so
+        // nothing is lost in the translation.
+        [property: JsonPropertyName("role")] string Role,
+        [property: JsonPropertyName("slot")] string AssignedSlot,
+        [property: JsonPropertyName("roleKind")] string RoleKind);
 
     public LanRosterIpc(IDalamudPluginInterface pluginInterface, Func<CoordinationBus?> getBus, IPluginLog log)
     {
@@ -92,11 +99,20 @@ public sealed class LanRosterIpc : IDisposable
             return new List<RosterEntryDto>();
 
         var now = DateTime.UtcNow;
-        return bus.Roster
+        var peers = bus.Roster.Where(p => p.CharacterName.Length > 0).ToList();
+
+        // Slot codes come from the roster in SENDER-ID order, matching how the coordination bus
+        // assigns "Tank 1"/"Healer 2" — not the display order below. Display order puts the local
+        // machine first, which differs per box, and a per-box ordering would hand two machines
+        // different answers for the same party.
+        var codes = PartySlotCode.Assign(
+            peers.OrderBy(p => p.SenderId, StringComparer.Ordinal)
+                 .Select(p => (p.SenderId, p.Role, p.JobId)));
+
+        return peers
             .OrderBy(p => p.MachineId == bus.LocalMachineId ? 0 : 1)
             .ThenBy(p => p.MachineId, StringComparer.Ordinal)
             .ThenBy(p => p.AssignedSlot.Length == 0 ? p.SenderId : p.AssignedSlot, StringComparer.Ordinal)
-            .Where(p => p.CharacterName.Length > 0)
             .Select(p => new RosterEntryDto(
                 p.CharacterName,
                 WorldOf(p.SenderId),
@@ -107,7 +123,10 @@ public sealed class LanRosterIpc : IDisposable
                 p.HpPercent,
                 p.PlayerEntityId,
                 p.ContentId,
-                p.HomeWorldId))
+                p.HomeWorldId,
+                codes.TryGetValue(p.SenderId, out var code) ? code : "",
+                p.AssignedSlot,
+                p.Role))
             .ToList();
     }
 

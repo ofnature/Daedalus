@@ -5,6 +5,12 @@ All notable changes to Daedalus will be documented in this file.
 <!-- LATEST-START -->
 ## v0.1.63 — unreleased
 
+### New — The LAN roster now publishes party roles
+- Companion plugins reading Daedalus's roster get three new fields: the **standard party slot** (MT, OT, H1, H2, M1, M2, R1, R2), Daedalus's own slot label, and the coarse role
+- This is what lets a mechanics plugin assign duties per player — who soaks which tower, who takes which tether — instead of treating everyone as unassigned
+- The standard slot is **worked out**, not copied: Daedalus's own labels number DPS 1 to 4 without separating melee from ranged, so the job decides that. An unrecognised job is left **unassigned rather than guessed** — nobody soaking a tower is recoverable, two people soaking the same one usually isn't
+- Every box derives the same answer from the same roster, so nothing has to be negotiated across the network
+
 ### New — Choose which plugin handles boss mechanics
 - **Settings → General → Boss handling** now has a dropdown: **BossMod Reborn** or **Minerva**. It defaults to BossMod, so nothing changes unless you pick otherwise
 - It switches the actual plumbing, not a label. With Minerva selected Daedalus stops calling BossMod **entirely** — including the movement preset it otherwise creates and manages inside BossMod
