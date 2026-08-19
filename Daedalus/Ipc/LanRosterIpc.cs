@@ -41,13 +41,22 @@ public sealed class LanRosterIpc : IDisposable
         // wants content id + home world id; 0 on toons whose heartbeat predates the fields).
         [property: JsonPropertyName("contentId")] ulong ContentId,
         [property: JsonPropertyName("worldId")] ushort WorldId,
-        // Party identity, for consumers that assign duties per player (Minerva's tower/tether
-        // logic keys on these). "role" is the STANDARD eight-slot code because that is what such
-        // consumers accept; "slot" and "roleKind" carry Daedalus's own two values unchanged so
-        // nothing is lost in the translation.
+        // Party identity, for consumers that assign duties per player. Both are Daedalus's own
+        // values, verbatim: "role" is "Tank"/"Healer"/"DPS", "slot" is "Tank 1"/"Healer 2".
+        //
+        // Deliberately NOT the eight-slot MT/OT/H1/H2/M1/M2/R1/R2 codes, even though that is what
+        // a BossMod-derived consumer stores. Those belong to BossMod's PartyRolesConfig, which
+        // already assigns them itself from local party state (AutoAssignRoles), keyed on the same
+        // contentId published above, with job-priority tables for MT versus OT that a naive
+        // "first tank wins" cannot reproduce — its default prefers WAR over PLD for main tank.
+        //
+        // Deriving them here would be a second, worse answer that can disagree with the first,
+        // and its failure mode is silent and total: AssignmentsPerSlot returns an EMPTY array if
+        // ANY member is unassigned, so one unrecognised job would void the whole party's roles
+        // rather than just its own. Publish what only Daedalus knows — cross-machine identity and
+        // its own role slotting — and let the consumer that owns the enum map it.
         [property: JsonPropertyName("role")] string Role,
-        [property: JsonPropertyName("slot")] string AssignedSlot,
-        [property: JsonPropertyName("roleKind")] string RoleKind);
+        [property: JsonPropertyName("slot")] string AssignedSlot);
 
     public LanRosterIpc(IDalamudPluginInterface pluginInterface, Func<CoordinationBus?> getBus, IPluginLog log)
     {
@@ -99,17 +108,9 @@ public sealed class LanRosterIpc : IDisposable
             return new List<RosterEntryDto>();
 
         var now = DateTime.UtcNow;
-        var peers = bus.Roster.Where(p => p.CharacterName.Length > 0).ToList();
 
-        // Slot codes come from the roster in SENDER-ID order, matching how the coordination bus
-        // assigns "Tank 1"/"Healer 2" — not the display order below. Display order puts the local
-        // machine first, which differs per box, and a per-box ordering would hand two machines
-        // different answers for the same party.
-        var codes = PartySlotCode.Assign(
-            peers.OrderBy(p => p.SenderId, StringComparer.Ordinal)
-                 .Select(p => (p.SenderId, p.Role, p.JobId)));
-
-        return peers
+        return bus.Roster
+            .Where(p => p.CharacterName.Length > 0)
             .OrderBy(p => p.MachineId == bus.LocalMachineId ? 0 : 1)
             .ThenBy(p => p.MachineId, StringComparer.Ordinal)
             .ThenBy(p => p.AssignedSlot.Length == 0 ? p.SenderId : p.AssignedSlot, StringComparer.Ordinal)
@@ -124,9 +125,8 @@ public sealed class LanRosterIpc : IDisposable
                 p.PlayerEntityId,
                 p.ContentId,
                 p.HomeWorldId,
-                codes.TryGetValue(p.SenderId, out var code) ? code : "",
-                p.AssignedSlot,
-                p.Role))
+                p.Role,
+                p.AssignedSlot))
             .ToList();
     }
 
