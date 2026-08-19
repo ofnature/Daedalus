@@ -154,6 +154,10 @@ public static class FFXIVConstants
     public static readonly HashSet<uint> StandStillPunisherStatusIds = new()
     {
         960,   // Pyretic (canonical)
+        5191,  // Motion Tracker — The Clyteum, Eye of the Scorpion (status id from BMR's D131 module; not yet
+               // confirmed in-game via /xldata). The boss's scanner beam also punishes players it sweeps over
+               // before the status lands; Minerva publishes that case on the "minerva.MustNotAct" shared-data
+               // flag / Minerva.MustNotAct IPC gate, which this list cannot see.
     };
 
     // Player-initiated channels/stances that are cancelled by any other action input.

@@ -69,6 +69,7 @@ public sealed class GeneralSection
 
     public void DrawGeneral()
     {
+        DrawBossHandlingSection();
         DrawPluginsSection();
         DrawAutoDutySection();
         DrawCombatBehaviorSection();
@@ -78,6 +79,54 @@ public sealed class GeneralSection
         DrawFarmSection();
         DrawLanguageSection();
         DrawPrivacySection();
+    }
+
+    /// <summary>
+    /// Which plugin handles boss mechanics. One engine drives — see the type's own note on why
+    /// this is a choice rather than two toggles.
+    /// </summary>
+    private void DrawBossHandlingSection()
+    {
+        if (!ConfigUIHelpers.SectionHeader("Boss handling", "BossHandling", false))
+            return;
+
+        ConfigUIHelpers.BeginIndent();
+
+        var handling = config.BossHandling;
+        if (ConfigUIHelpers.EnumCombo("Mechanics engine", ref handling,
+                "Which plugin Daedalus asks about telegraphs, safe spots and whether it can stand "
+                + "still long enough to cast.", save))
+        {
+            config.BossHandling = handling;
+        }
+
+        ConfigUIHelpers.Spacing();
+        switch (config.BossHandling)
+        {
+            case Daedalus.Config.BossHandling.BossMod:
+                ImGui.TextDisabled(
+                    "BossMod Reborn drives. Daedalus yields movement to its AI, manages its "
+                    + "movement preset, and asks it whether a position is safe.");
+                break;
+
+            case Daedalus.Config.BossHandling.Minerva:
+                ImGui.TextDisabled(
+                    "Minerva drives, and does its own dodging. Daedalus stops calling BossMod "
+                    + "entirely — including the AI preset it otherwise creates and manages — and "
+                    + "asks Minerva per action instead of holding the rotation for a whole fight.");
+                ConfigUIHelpers.Spacing();
+                ImGui.TextDisabled(
+                    "Minerva answers \"can I stand here and cast for N seconds\" directly, so hard "
+                    + "casts and raises are gated on that rather than on a pathfinder's leeway.");
+                break;
+        }
+
+        ConfigUIHelpers.Spacing();
+        ImGui.TextDisabled(
+            "Only one may drive. Two mechanics engines steering the same character undo each "
+            + "other frame by frame — one walks out of a zone, the other walks back in.");
+
+        ConfigUIHelpers.EndIndent();
     }
 
     /// <summary>

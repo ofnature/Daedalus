@@ -131,6 +131,17 @@ public sealed class Configuration : IPluginConfiguration
     public NavConfig Nav { get; set; } = new();
 
     /// <summary>
+    /// Which plugin handles boss mechanics. Defaults to <see cref="Config.BossHandling.BossMod"/>
+    /// so every existing install keeps the behaviour it already has.
+    /// <para>
+    /// This gates the IPC, not just a label: with Minerva selected Daedalus stops calling BossMod
+    /// entirely — including the AI-movement preset it otherwise manages — because two mechanics
+    /// engines steering one character undo each other.
+    /// </para>
+    /// </summary>
+    public Config.BossHandling BossHandling { get; set; } = Config.BossHandling.BossMod;
+
+    /// <summary>
     /// The currently active configuration preset.
     /// Set to Custom when user modifies individual settings after applying a preset.
     /// </summary>

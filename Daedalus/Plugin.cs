@@ -99,7 +99,7 @@ public sealed class Plugin : IDalamudPlugin
     private readonly PositionalService positionalService;
     private readonly VNavService vNavService;
     private readonly MovementArbiter movementArbiter;
-    private readonly BossModSafetyService bossModSafetyService;
+    private readonly BossHandlingRouter bossModSafetyService;
     private readonly CastMovementHoldService castMovementHoldService;
     private readonly Services.Gear.StatCapService statCapService;
     private readonly Services.Gear.GearSnapshotService gearSnapshotService;
@@ -402,7 +402,14 @@ public sealed class Plugin : IDalamudPlugin
         // Melee DPS services
         this.positionalService = new PositionalService();
         this.vNavService = new VNavService(pluginInterface, log);
-        this.bossModSafetyService = new BossModSafetyService(pluginInterface, log);
+        // Boss handling: one engine drives, chosen in Settings > General. The router is what
+        // every consumer sees, so adding Minerva did not mean editing eight call sites — and no
+        // call site can end up talking to the plugin that is not in charge.
+        var bossModEngine = new BossModSafetyService(pluginInterface, log);
+        var minervaEngine = new MinervaSafetyService(pluginInterface, log);
+        this.bossModSafetyService = new BossHandlingRouter(
+            bossModEngine, minervaEngine, () => configuration.BossHandling);
+
         this.movementArbiter = new MovementArbiter(
             vNavService, bossModSafetyService, () => configuration.Nav.YieldToBmrMovement,
             debugLog: debugLogService);
@@ -411,7 +418,17 @@ public sealed class Plugin : IDalamudPlugin
         Rotation.Base.RotationServices.BossModSafety = bossModSafetyService;
         this.bossModForecastService = new BossModForecastService(pluginInterface, log);
         this.positionalMovementService = new PositionalMovementService(movementArbiter, bossModSafetyService);
-        this.bmrAiConfigService = new BmrAiConfigService(pluginInterface, bossModSafetyService, log, debugLogService, dtrBar, commandManager);
+
+        // BMR's AI preset is BossMod-specific management, not a safety question, so it gets the
+        // RAW BossMod engine rather than the router — and nothing at all when Minerva is driving.
+        // Handing it the router would have it creating and applying a BossMod autorotation preset
+        // while Minerva does the dodging, which is the two-engines-fighting case exactly.
+        this.bmrAiConfigService = new BmrAiConfigService(
+            pluginInterface,
+            new BossHandlingRouter(bossModEngine, InactiveSafetyService.Instance,
+                () => configuration.BossHandling),
+            log, debugLogService, dtrBar, commandManager);
+
         this.castMovementHoldService = new CastMovementHoldService(
             pluginInterface, configuration, bossModSafetyService, objectTable, log);
         this.samuraiPositionalAnticipationProvider = new SamuraiPositionalAnticipationProvider();
@@ -1144,7 +1161,7 @@ public sealed class Plugin : IDalamudPlugin
         container.Register<IPositionalService, PositionalService>(positionalService);
         container.Register<IVNavService, MovementArbiter>(movementArbiter);
         container.Register<IMovementArbiter, MovementArbiter>(movementArbiter);
-        container.Register<IBossModSafetyService, BossModSafetyService>(bossModSafetyService);
+        container.Register<IBossModSafetyService, BossHandlingRouter>(bossModSafetyService);
         container.Register<IBossModForecastService, BossModForecastService>(bossModForecastService);
         container.Register<IDpsMeterService, DpsMeterService>(dpsMeterService);
         container.Register<IBluLoadoutService, BluLoadoutService>(bluLoadoutService);

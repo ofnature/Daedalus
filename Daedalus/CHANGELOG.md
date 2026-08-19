@@ -3,6 +3,16 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.63 — unreleased
+
+### New — Choose which plugin handles boss mechanics
+- **Settings → General → Boss handling** now has a dropdown: **BossMod Reborn** or **Minerva**. It defaults to BossMod, so nothing changes unless you pick otherwise
+- It switches the actual plumbing, not a label. With Minerva selected Daedalus stops calling BossMod **entirely** — including the movement preset it otherwise creates and manages inside BossMod
+- **Only one can drive.** Two mechanics engines steering the same character undo each other frame by frame: one walks out of a zone, the other walks back in, and you stand still in the middle of it
+- With Minerva, hard casts and raises are gated on its *"can I stand here and cast for N seconds"* answer rather than on a pathfinder's leeway — the question the rotation was really asking all along
+- Picking an engine you don't have installed **doesn't quietly fall back** to the other one. It reports unavailable and the rotation carries on unguarded, because a setting that lies about who's driving sends you debugging the wrong plugin
+
+<!-- LATEST-END -->
 ## v0.1.62 — 2026-08-17
 
 ### New — 19 more coffer spots, and the first Forked Tower enemies
@@ -21,7 +31,7 @@ All notable changes to Daedalus will be documented in this file.
 - Limit breaks are now cast with a **position as well as a target**, which suits both kinds. The melee one kept working throughout precisely because it *is* aimed at an enemy, which is what hid this
 - **It no longer claims success just because the game accepted the request.** It now waits for the limit break bar to actually drop before reporting anything, and if the bar never moves it says exactly that instead of congratulating itself
 
-<!-- LATEST-END -->
+
 ## v0.1.61 — 2026-08-16
 
 ### Fix — The limit break actually fires now
