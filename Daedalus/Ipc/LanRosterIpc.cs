@@ -41,22 +41,23 @@ public sealed class LanRosterIpc : IDisposable
         // wants content id + home world id; 0 on toons whose heartbeat predates the fields).
         [property: JsonPropertyName("contentId")] ulong ContentId,
         [property: JsonPropertyName("worldId")] ushort WorldId,
-        // Party identity, for consumers that assign duties per player. Both are Daedalus's own
-        // values, verbatim: "role" is "Tank"/"Healer"/"DPS", "slot" is "Tank 1"/"Healer 2".
+        // Party identity, for consumers that assign duties per player — tower soaks, tether
+        // pairs. "role" is the STANDARD eight-slot code (MT/OT/H1/H2/M1/M2/R1/R2, "" when it
+        // cannot be expressed); "slot" and "roleKind" carry Daedalus's own two values unchanged.
         //
-        // Deliberately NOT the eight-slot MT/OT/H1/H2/M1/M2/R1/R2 codes, even though that is what
-        // a BossMod-derived consumer stores. Those belong to BossMod's PartyRolesConfig, which
-        // already assigns them itself from local party state (AutoAssignRoles), keyed on the same
-        // contentId published above, with job-priority tables for MT versus OT that a naive
-        // "first tank wins" cannot reproduce — its default prefers WAR over PLD for main tank.
+        // Daedalus derives the code because Minerva cannot: it kept BossMod's CONSUMING half of
+        // party roles — every module's AddAIHints takes an Assignment — and dropped the producing
+        // half, so its PartyRolesConfig is an enum, a dictionary and an indexer with no
+        // auto-assign, no priority tables and no UI. Nothing writes that dictionary, so every
+        // member reads Unassigned and role mechanics never resolve. Daedalus is the only thing in
+        // a fleet that knows every toon's job AND knows it across machines, so it is the only
+        // thing that can fill this in without eight people ticking eight radio buttons.
         //
-        // Deriving them here would be a second, worse answer that can disagree with the first,
-        // and its failure mode is silent and total: AssignmentsPerSlot returns an EMPTY array if
-        // ANY member is unassigned, so one unrecognised job would void the whole party's roles
-        // rather than just its own. Publish what only Daedalus knows — cross-machine identity and
-        // its own role slotting — and let the consumer that owns the enum map it.
+        // The ordering mirrors BossMod's own AutoAssignRoles (see PartySlotCode) rather than
+        // inventing one, so a box later running a real BossMod agrees instead of competing.
         [property: JsonPropertyName("role")] string Role,
-        [property: JsonPropertyName("slot")] string AssignedSlot);
+        [property: JsonPropertyName("slot")] string AssignedSlot,
+        [property: JsonPropertyName("roleKind")] string RoleKind);
 
     public LanRosterIpc(IDalamudPluginInterface pluginInterface, Func<CoordinationBus?> getBus, IPluginLog log)
     {
@@ -108,9 +109,16 @@ public sealed class LanRosterIpc : IDisposable
             return new List<RosterEntryDto>();
 
         var now = DateTime.UtcNow;
+        var peers = bus.Roster.Where(p => p.CharacterName.Length > 0).ToList();
 
-        return bus.Roster
-            .Where(p => p.CharacterName.Length > 0)
+        // Slot codes are derived from the whole roster, ordered inside PartySlotCode by content
+        // id — NOT the display order below, which puts the local machine first and so differs per
+        // box. Two machines deriving different answers for the same party is the one failure that
+        // matters here: it puts two toons on the same tower.
+        var codes = PartySlotCode.Assign(
+            peers.Select(p => (p.SenderId, p.Role, p.JobId, p.ContentId)));
+
+        return peers
             .OrderBy(p => p.MachineId == bus.LocalMachineId ? 0 : 1)
             .ThenBy(p => p.MachineId, StringComparer.Ordinal)
             .ThenBy(p => p.AssignedSlot.Length == 0 ? p.SenderId : p.AssignedSlot, StringComparer.Ordinal)
@@ -125,8 +133,9 @@ public sealed class LanRosterIpc : IDisposable
                 p.PlayerEntityId,
                 p.ContentId,
                 p.HomeWorldId,
-                p.Role,
-                p.AssignedSlot))
+                codes.TryGetValue(p.SenderId, out var code) ? code : "",
+                p.AssignedSlot,
+                p.Role))
             .ToList();
     }
 

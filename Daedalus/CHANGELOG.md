@@ -5,10 +5,11 @@ All notable changes to Daedalus will be documented in this file.
 <!-- LATEST-START -->
 ## v0.1.63 — unreleased
 
-### New — The LAN roster now publishes party roles
-- Companion plugins reading Daedalus's roster get two new fields: **role** (Tank / Healer / DPS) and **slot** (Tank 1, Healer 2, and so on), alongside the content id that already identifies each character across machines
-- This is what lets a mechanics plugin assign duties per player — who soaks which tower, who takes which tether — instead of treating everyone as unassigned
-- Daedalus publishes what only it knows and leaves the rest alone: a BossMod-based plugin already works out its own eight-slot assignment from the same character id, using job priorities you can reorder in its settings
+### New — Party roles are worked out for you, not ticked by hand
+- Daedalus now publishes each toon's **standard party slot** — MT, OT, H1, H2, M1, M2, R1, R2 — on the LAN roster, alongside its own role and slot labels
+- This is what makes **role-based mechanics resolve**: tower soaks and tether pairs need to know who is H2 or M1, and with nothing assigned every member reads as unassigned and the mechanic is skipped. Daedalus already knows every toon's job because it runs their rotation, and knows it across machines, so it can fill this in without anyone ticking eight boxes on eight clients
+- The ordering matches **BossMod's own** rules rather than inventing new ones — Warrior takes main tank over Paladin, White Mage takes H1 over Sage, Machinist takes R1 over Black Mage, and a third ranged is moved into a melee slot exactly as BossMod would
+- Every box works out the same answer from the same roster, so nothing is negotiated over the network and two toons can't be sent to the same tower
 
 ### New — Choose which plugin handles boss mechanics
 - **Settings → General → Boss handling** now has a dropdown: **BossMod Reborn** or **Minerva**. It defaults to BossMod, so nothing changes unless you pick otherwise
