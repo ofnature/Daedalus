@@ -26,6 +26,10 @@ namespace Daedalus.Ipc;
 /// <item>Odysseus — <c>Odysseus.IsBusy</c> == true while an MSQ run is driving the character.
 /// Same contract as Theseus, for the overworld: Odysseus owns the quest, travel and dialogue, and
 /// hands quest combat to Daedalus.</item>
+/// <item>Mercury — <c>Mercury.IsBusy</c> == true while a FATE-farming run is driving the character.
+/// Mercury picks the FATE, teleports/paths to it and holds the FATE-tagged target; every kill is
+/// ours. (It also calls the RSR-compat <c>ChangeOperatingMode</c> per engage, which shows as
+/// "Quest" — this bridge is what names the source "Mercury" and keeps the override up between FATEs.)</item>
 /// </list>
 /// </summary>
 /// <remarks>

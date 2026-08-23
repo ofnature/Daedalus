@@ -18,6 +18,10 @@ All notable changes to Daedalus will be documented in this file.
 - With Minerva, hard casts and raises are gated on its *"can I stand here and cast for N seconds"* answer rather than on a pathfinder's leeway — the question the rotation was really asking all along
 - Picking an engine you don't have installed **doesn't quietly fall back** to the other one. It reports unavailable and the rotation carries on unguarded, because a setting that lies about who's driving sends you debugging the wrong plugin
 
+### New — Mercury FATE farming hands its kills to Daedalus
+- Daedalus now watches **Mercury**'s `Mercury.IsBusy` gate, the same way it does Theseus and Odysseus: while a Mercury FATE run is driving the character, the rotation stays on and the control window names the source **Mercury** instead of a generic "Quest"
+- Mercury owns picking the FATE, the teleport and the pathing, and holds the FATE-tagged target; Daedalus does the fighting, including anything that jumps you on the way between FATEs
+
 <!-- LATEST-END -->
 ## v0.1.62 — 2026-08-17
 
