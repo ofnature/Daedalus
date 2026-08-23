@@ -77,7 +77,7 @@
     "Author": "ofnature",
     "Name": "Theseus",
     "InternalName": "Theseus",
-    "Punchline": "Runs dungeons for your whole fleet — and picks up where it left off.",
+    "Punchline": "Runs dungeons for your whole fleet \u2014 and picks up where it left off.",
     "Description": "Automated dungeon running for multibox fleets. Paths through the dungeon, engages trash, hands bosses to BossMod Reborn and resumes pathing. Reads the duty objective list so an interrupted run resumes where it stopped instead of restarting. Every box paths itself and syncs on objectives, and repairs and extracts materia between runs. Companion to Daedalus.",
     "ApplicableVersion": "any",
     "CategoryTags": [
@@ -104,7 +104,7 @@
     "Author": "ofnature",
     "Name": "Odysseus",
     "InternalName": "Odysseus",
-    "Punchline": "Runs the Main Scenario unattended — and remembers where it stopped.",
+    "Punchline": "Runs the Main Scenario unattended \u2014 and remembers where it stopped.",
     "Description": "Automated Main Scenario questing. Walks each quest from accept to complete, travels between zones, resolves dialogue, and hands solo instances to BossMod Reborn and dungeons to Theseus. Progress is read back from the game's own quest state, so a crash, logout or reload resumes exactly where it stopped. Every character quests independently; a fleet dashboard shows where each one is. Companion to Daedalus and Theseus.",
     "ApplicableVersion": "any",
     "CategoryTags": [
@@ -117,15 +117,15 @@
       "multibox"
     ],
     "RepoUrl": "https://github.com/ofnature/Odysseus",
-    "AssemblyVersion": "0.1.1.0",
+    "AssemblyVersion": "0.2.0.0",
     "DalamudApiLevel": 15,
     "IconUrl": "https://raw.githubusercontent.com/ofnature/Odysseus/main/images/icon.png",
     "ImageUrls": [],
     "IsHide": false,
     "IsTestingExclusive": false,
-    "DownloadLinkInstall": "https://github.com/ofnature/Odysseus/releases/download/v0.1.1/Odysseus.zip",
-    "DownloadLinkTesting": "https://github.com/ofnature/Odysseus/releases/download/v0.1.1/Odysseus.zip",
-    "DownloadLinkUpdate": "https://github.com/ofnature/Odysseus/releases/download/v0.1.1/Odysseus.zip"
+    "DownloadLinkInstall": "https://github.com/ofnature/Odysseus/releases/download/v0.2.0/Odysseus.zip",
+    "DownloadLinkTesting": "https://github.com/ofnature/Odysseus/releases/download/v0.2.0/Odysseus.zip",
+    "DownloadLinkUpdate": "https://github.com/ofnature/Odysseus/releases/download/v0.2.0/Odysseus.zip"
   },
   {
     "Author": "ofnature",
