@@ -5,6 +5,10 @@ All notable changes to Daedalus will be documented in this file.
 <!-- LATEST-START -->
 ## v0.1.63 — unreleased
 
+### New — The pot hunt map shows which way you're facing
+- The white dot at the centre now has a **direction arrow**, so a reading of *"to the northeast"* can be walked straight off the map instead of translated in your head first
+- It uses the same heading maths as the scan cones, so the arrow and the wedges can never end up disagreeing about which way north is
+
 ### New — Party roles are worked out for you, not ticked by hand
 - Daedalus now publishes each toon's **standard party slot** — MT, OT, H1, H2, M1, M2, R1, R2 — on the LAN roster, alongside its own role and slot labels
 - This is what makes **role-based mechanics resolve**: tower soaks and tether pairs need to know who is H2 or M1, and with nothing assigned every member reads as unassigned and the mechanic is skipped. Daedalus already knows every toon's job because it runs their rotation, and knows it across machines, so it can fill this in without anyone ticking eight boxes on eight clients

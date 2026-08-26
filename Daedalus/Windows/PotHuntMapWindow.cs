@@ -135,7 +135,7 @@ public sealed class PotHuntMapWindow : Window
             DrawFeasibleRegion(draw, bearings, origin, centre, pixelsPerYalm);
         }
 
-        DrawPlayer(draw, centre);
+        DrawPlayer(draw, centre, player.Rotation);
         DrawEstimate(draw, bearings, origin, centre, pixelsPerYalm);
 
         ImGui.Dummy(new Vector2(side, side));
@@ -378,10 +378,42 @@ public sealed class PotHuntMapWindow : Window
         }
     }
 
-    private static void DrawPlayer(ImDrawListPtr draw, Vector2 centre)
+    /// <summary>
+    /// The player, with a facing arrow. Without it the map is orientation-free and a reading of
+    /// "to the northeast" has to be translated in your head before you can walk it.
+    /// <para>
+    /// The arrow goes through the SAME heading conversion the cones use, deliberately. Drawing it
+    /// with its own trig is how the cones ended up mirrored north-to-south while the region beside
+    /// them was right; one conversion means the arrow and the wedges cannot disagree about which
+    /// way north is.
+    /// </para>
+    /// </summary>
+    private static void DrawPlayer(ImDrawListPtr draw, Vector2 centre, float rotation)
     {
+        // Game rotation is a heading in the same convention as the readings (0 = south), and the
+        // returned vector is (worldX, worldZ) — which is (screenX, screenY), since the map is
+        // north-up and world Z grows southward down the screen.
+        var forward = PotTreasureTriangulation.HeadingToWorldOffset(rotation);
+        var dir = new Vector2(forward.X, forward.Y);
+        var right = new Vector2(-dir.Y, dir.X);
+
+        const float TipYalmsPx = 20f;
+        const float BaseOffsetPx = 5f;
+        const float HalfWidthPx = 6.5f;
+
+        var tip = centre + (dir * TipYalmsPx);
+        var left = centre + (dir * BaseOffsetPx) - (right * HalfWidthPx);
+        var rightPt = centre + (dir * BaseOffsetPx) + (right * HalfWidthPx);
+
+        var fill = ImGui.GetColorU32(new Vector4(1f, 1f, 1f, 0.9f));
+        draw.AddTriangleFilled(tip, left, rightPt, fill);
+
+        // Outline in the window background so the arrow reads over the pale zone map as well as
+        // over the dark grid — a white-on-white arrow is worse than no arrow.
+        draw.AddTriangle(tip, left, rightPt, ImGui.GetColorU32(new Vector4(0f, 0f, 0f, 0.65f)), 1.5f);
+
         draw.AddCircleFilled(centre, 4f, ImGui.GetColorU32(new Vector4(1f, 1f, 1f, 1f)));
-        draw.AddCircle(centre, 7f, ImGui.GetColorU32(new Vector4(1f, 1f, 1f, 0.5f)), 24);
+        draw.AddCircle(centre, 7f, ImGui.GetColorU32(new Vector4(0f, 0f, 0f, 0.55f)), 24);
     }
 
     private void DrawEstimate(
