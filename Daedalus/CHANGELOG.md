@@ -26,6 +26,17 @@ All notable changes to Daedalus will be documented in this file.
 - Daedalus now watches **Mercury**'s `Mercury.IsBusy` gate, the same way it does Theseus and Odysseus: while a Mercury FATE run is driving the character, the rotation stays on and the control window names the source **Mercury** instead of a generic "Quest"
 - Mercury owns picking the FATE, the teleport and the pathing, and holds the FATE-tagged target; Daedalus does the fighting, including anything that jumps you on the way between FATEs
 
+### Fix — Phantom Monk never pressed Occult Counter
+- Occult Counter was in the action list but wired to **no band at all**, so a Phantom Monk only ever had Phantom Kick. It now fires, and it goes **ahead of the Kick**: the counter window is one parry wide, while the Kick is a 30 second cooldown that loses nothing by waiting a moment
+- It's only offered when the game says the window is actually open — *"can only be executed immediately after parrying an attack"* is a real gate, and pushing the button outside it just wastes the slot on a refusal
+- Worth knowing: **Counterstance** is what makes this happen at all. It doubles your parry rate for 60 seconds, and without it parries are rare enough that the counter almost never comes up. The Duty tab now says *"waiting on a parry"* rather than sitting silent, so it's clear which of the two is missing
+
+### Fix — Phantom Kick no longer leaps into pits
+- Phantom Kick is a **leap**, and nothing was checking where it landed. Kicking a boss that stands over a hole took the toon in with it
+- Before it fires, the navmesh is asked whether there is floor under the target — no floor, or floor a long way below your feet, and the Kick is held. A step down is not a pit, so uneven arena ground still gets kicked over
+- The flight path is checked against **BossMod's own dash safety** as well, so it won't leap through a telegraph that hasn't gone off yet. That goes through whichever engine you picked under **Boss handling**
+- Without vnavmesh installed the floor question has no answer, and the Kick is allowed rather than blocked — losing the Monk's damage button to a missing plugin would be the worse outcome
+
 <!-- LATEST-END -->
 ## v0.1.62 — 2026-08-17
 

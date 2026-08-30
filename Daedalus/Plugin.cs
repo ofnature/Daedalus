@@ -713,6 +713,14 @@ public sealed class Plugin : IDalamudPlugin
         phantomLayer.CastSafety = (position, window) =>
             bossModSafetyService.QueryPositionSafety(position, window)
                 == Daedalus.Services.Positional.Navigation.PositionSafety.Safe;
+        // Phantom Kick is a leap. The navmesh answers "is there floor where it lands", BossMod
+        // answers "is the flight path clear" — routed through BossHandlingRouter, so the answer
+        // comes from whichever engine the user picked.
+        phantomLayer.DashSafety = (from, to) =>
+            Daedalus.Rotation.Common.Helpers.TargetedDashGuard.IsTargetedDashSafe(
+                from, to,
+                Daedalus.Rotation.Common.Helpers.TargetedDashGuard.PhantomKickDashYalms,
+                vNavService, bossModSafetyService);
         // Necromancer Deep Freeze Dooms its caster (cleared only by a heal to FULL) — it may
         // only fire with a healer who can top us off: a live party healer, or a LAN fleet
         // healer that is alive and in combat with us.

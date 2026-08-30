@@ -963,8 +963,25 @@ public sealed class PhantomActionLayer
                 break;
 
             case PhantomJob.Monk:
+                // Occult Counter leads: "can only be executed immediately after parrying an
+                // attack", so its window is a single parry, while the Kick is a 30s cooldown that
+                // loses nothing by waiting a weave. Both are oGCD Abilities, so neither costs the
+                // other a GCD. The game owns the parry gate — GetActionStatus reads 0 only inside
+                // that window, which is how RSR checks it too (checkActionManager: true).
+                if (_actionService.GetActionStatusCode(41596, target.GameObjectId) == 0)
+                    TryPush(ctx, 41596, job, level, PrioDamage, target.GameObjectId, target);     // Occult Counter
+                else
+                    _pushHolds.Add("Occult Counter — waiting on a parry (Counterstance raises the rate)");
+
                 if (PhantomBandRules.ShouldPhantomKick(distance, cfg.MonkKickMaxRangeYalms))
-                    TryPush(ctx, 41595, job, level, PrioDamage, target.GameObjectId, target); // Phantom Kick
+                {
+                    // It is a leap, not a step: no floor under the target means a pit, and the
+                    // flight path is not covered by the stand-still safety the casts use.
+                    if (IsDashSafe(ctx, target))
+                        TryPush(ctx, 41595, job, level, PrioDamage + 1, target.GameObjectId, target); // Phantom Kick
+                    else
+                        _pushRejects.Add("Phantom Kick — the leap lands in a pit or a telegraph");
+                }
                 break;
 
             case PhantomJob.TimeMage:
@@ -1601,6 +1618,16 @@ public sealed class PhantomActionLayer
     /// BossModSafetyService; null (or BMR absent) means no pause is attempted.
     /// </summary>
     public Func<System.Numerics.Vector3, float, bool>? CastSafety { get; set; }
+
+    /// <summary>
+    /// Is a leap from here to there safe — floor at the landing, no telegraph on the way?
+    /// Supplied by Plugin from <see cref="Rotation.Common.Helpers.TargetedDashGuard"/>; null means
+    /// nothing is known, and a leap with no information behind it is allowed rather than blocked.
+    /// </summary>
+    public Func<System.Numerics.Vector3, System.Numerics.Vector3, bool>? DashSafety { get; set; }
+
+    private bool IsDashSafe(IRotationContext ctx, IBattleChara target)
+        => DashSafety is null || DashSafety(ctx.Player.Position, target.Position);
 
     /// <summary>A buff whose GCD should not be spent on a phantom action. oGCDs are unaffected.</summary>
     private uint? FindGcdHoldStatus()
