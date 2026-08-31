@@ -3,7 +3,7 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
-## v0.1.63 — unreleased
+## v0.1.63 — 2026-08-30
 
 ### New — The pot hunt map shows which way you're facing
 - The white dot at the centre now has a **direction arrow**, so a reading of *"to the northeast"* can be walked straight off the map instead of translated in your head first
@@ -41,6 +41,13 @@ All notable changes to Daedalus will be documented in this file.
 - The shipped coffer map grew **166 → 235**, merged from two toons' ledgers. **North Horn** gained the most and now carries **148** spots; South Horn is up to **87**
 - **189** of the 235 have been opened at least once, up from 121, so the tier read on the map is standing on far more evidence than it was
 - Tiers across the map now sit at 148 bronze, 49 silver and 23 gold, with 15 spots still unopened and unknown
+
+### New — The weakness table grew by a third, merged from four toons
+- The shipped table went **254 → 287 enemies**, with **158** of them carrying an identified element (up from 148)
+- It's merged from every box rather than one: a row seen as untargetable on one toon and targetable on another now reads **targetable**, which is the truth — plenty of real bosses spend part of a fight untouchable, and eleven rows that a single ledger would have thrown out as scenery were saved by another toon having actually hit them
+- **South Horn is nearly done at 82.9% identified.** North Horn sits at **32.3%**, and that gap is the whole story: 45% of the table still has no element at all, worst among critical-encounter enemies at 50%
+- Nine newly identified, all North Horn, most of them Forked Tower: Blue Head and Crescent Moss Fungus (fire), Necrophobia, Summoned Bomb and Tower Mantis (ice), Sword Dancer and Tower Barmuu (lightning), Light Aether (wind), and Index (fire and wind both)
+- Nothing here is guessed. Elements only appear when the game reveals one, which in practice means somebody Libra'd it — so coverage moves when you scan, not when you play
 
 <!-- LATEST-END -->
 ## v0.1.62 — 2026-08-17
