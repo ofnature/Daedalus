@@ -37,10 +37,10 @@ All notable changes to Daedalus will be documented in this file.
 - The flight path is checked against **BossMod's own dash safety** as well, so it won't leap through a telegraph that hasn't gone off yet. That goes through whichever engine you picked under **Boss handling**
 - Without vnavmesh installed the floor question has no answer, and the Kick is allowed rather than blocked — losing the Monk's damage button to a missing plugin would be the worse outcome
 
-### New — 29 more coffer spots, all in North Horn
-- The shipped coffer map grew **166 → 195**, every one of the new spots in **North Horn**, which now carries **138** of them against South Horn's 57
-- **145** of the 195 have been opened at least once, up from 121, so the tier read on the map is standing on more evidence than it was
-- Tiers across the map now sit at 125 bronze, 38 silver and 17 gold, with 15 spots still unopened and unknown
+### New — 69 more coffer spots, both zones
+- The shipped coffer map grew **166 → 235**, merged from two toons' ledgers. **North Horn** gained the most and now carries **148** spots; South Horn is up to **87**
+- **189** of the 235 have been opened at least once, up from 121, so the tier read on the map is standing on far more evidence than it was
+- Tiers across the map now sit at 148 bronze, 49 silver and 23 gold, with 15 spots still unopened and unknown
 
 <!-- LATEST-END -->
 ## v0.1.62 — 2026-08-17
