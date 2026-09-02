@@ -191,6 +191,7 @@ public sealed class CoordinationBus : IDisposable
             _partyService.OnRaiseIntentReady += m => MirrorToLan("RaiseIntent", m);
             _partyService.OnCleanseIntentReady += m => MirrorToLan("CleanseIntent", m);
             _partyService.OnInterruptIntentReady += m => MirrorToLan("InterruptIntent", m);
+            _partyService.OnPhantomActionIntentReady += m => MirrorToLan("PhantomActionIntent", m);
             _partyService.OnTankSwapIntentReady += m =>
             {
                 MirrorToLan("TankSwapIntent", m);
@@ -638,6 +639,7 @@ public sealed class CoordinationBus : IDisposable
             case "RaiseIntent": if (parsed is RaiseIntentMessage ri) _partyService.HandleRemoteRaiseIntent(ri); break;
             case "CleanseIntent": if (parsed is CleanseIntentMessage ci) _partyService.HandleRemoteCleanseIntent(ci); break;
             case "InterruptIntent": if (parsed is InterruptIntentMessage ii) _partyService.HandleRemoteInterruptIntent(ii); break;
+            case "PhantomActionIntent": if (parsed is PhantomActionIntentMessage pai) _partyService.HandleRemotePhantomActionIntent(pai); break;
             case "TankSwapIntent":
                 if (parsed is TankSwapIntentMessage ts)
                 {

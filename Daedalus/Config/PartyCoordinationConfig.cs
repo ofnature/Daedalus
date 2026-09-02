@@ -329,6 +329,38 @@ public sealed class PartyCoordinationConfig
 
     #endregion
 
+    #region Phantom Action Coordination
+
+    /// <summary>
+    /// Enable phantom-action coordination with other Daedalus instances.
+    /// <para>
+    /// Occult Missile is the case this exists for: 35% for 75% of the target's CURRENT HP, on a
+    /// 30s recast. Four Phantom Blue Mages pick the same target on the same frame and fire four
+    /// at it, and three of those are spent on a mob the first one already dealt with.
+    /// </para>
+    /// </summary>
+    public bool EnablePhantomActionCoordination { get; set; } = true;
+
+    /// <summary>
+    /// How long a phantom-action reservation holds off the other toons (milliseconds).
+    /// <para>
+    /// SHORT on purpose. This breaks up a simultaneous volley; it does not hand one toon the
+    /// enemy. Missile misses about two thirds of the time, so a long hold would waste the
+    /// mechanic — the moment it lapses, the ordinary damage gates take over, and those already
+    /// know the difference between a target that dropped to a quarter health and one that
+    /// shrugged the missile off.
+    /// </para>
+    /// Valid range: 1000 to 5000.
+    /// </summary>
+    private int _phantomActionReservationExpiryMs = 3000;
+    public int PhantomActionReservationExpiryMs
+    {
+        get => _phantomActionReservationExpiryMs;
+        set => _phantomActionReservationExpiryMs = Math.Clamp(value, 1000, 5000);
+    }
+
+    #endregion
+
     #region Tank Swap Coordination
 
     /// <summary>

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
@@ -64,6 +64,8 @@ public sealed class PartyCoordinationService : IPartyCoordinationService
     // Interrupt reservation tracking
     private readonly Dictionary<uint, InterruptReservation> _localInterruptReservations = new();
     private readonly Dictionary<uint, InterruptReservation> _remoteInterruptReservations = new();
+    private readonly Dictionary<(uint EntityId, uint ActionId), PhantomActionReservation> _localPhantomActionReservations = new();
+    private readonly Dictionary<(uint EntityId, uint ActionId), PhantomActionReservation> _remotePhantomActionReservations = new();
 
     // Tank swap reservation tracking
     private readonly Dictionary<uint, TankSwapReservation> _localTankSwapReservations = new();
@@ -105,6 +107,9 @@ public sealed class PartyCoordinationService : IPartyCoordinationService
     public event Action<RaiseIntentMessage>? OnRaiseIntentReady;
     public event Action<CleanseIntentMessage>? OnCleanseIntentReady;
     public event Action<InterruptIntentMessage>? OnInterruptIntentReady;
+
+    /// <summary>Raised when a phantom action is spent on an enemy and the fleet should hear about it.</summary>
+    public event Action<PhantomActionIntentMessage>? OnPhantomActionIntentReady;
     public event Action<TankSwapIntentMessage>? OnTankSwapIntentReady;
 
     private readonly Func<DateTime> _clock;
@@ -1329,6 +1334,64 @@ public sealed class PartyCoordinationService : IPartyCoordinationService
 
     #endregion
 
+    #region Phantom Action Coordination
+
+    public bool IsPhantomActionReservedByOther(uint entityId, uint actionId)
+    {
+        if (!_config.EnablePartyCoordination || !_config.EnablePhantomActionCoordination)
+            return false;
+
+        var key = (entityId, actionId);
+        lock (_stateLock)
+        {
+            if (_remotePhantomActionReservations.TryGetValue(key, out var reservation))
+            {
+                if (!reservation.IsExpired)
+                    return true;
+
+                _remotePhantomActionReservations.Remove(key);
+            }
+
+            return false;
+        }
+    }
+
+    public bool ReservePhantomAction(uint entityId, uint actionId)
+    {
+        if (!_config.EnablePartyCoordination || !_config.EnablePhantomActionCoordination)
+            return true;
+
+        if (IsPhantomActionReservedByOther(entityId, actionId))
+            return false;
+
+        var now = DateTime.UtcNow;
+        var reservation = new PhantomActionReservation
+        {
+            InstanceId = _instanceId,
+            TargetEntityId = entityId,
+            ActionId = actionId,
+            ReservedAt = now,
+            ExpiresAt = now.AddMilliseconds(_config.PhantomActionReservationExpiryMs)
+        };
+
+        _localPhantomActionReservations[(entityId, actionId)] = reservation;
+
+        OnPhantomActionIntentReady?.Invoke(new PhantomActionIntentMessage(_instanceId, entityId, actionId));
+
+        if (_config.LogCoordinationEvents)
+            _log.Debug("[PartyCoord] Reserved phantom action {0} on target {1}", actionId, entityId);
+
+        return true;
+    }
+
+    public IReadOnlyDictionary<(uint EntityId, uint ActionId), PhantomActionReservation> GetRemotePhantomActionReservations()
+    {
+        lock (_stateLock)
+            return new Dictionary<(uint, uint), PhantomActionReservation>(_remotePhantomActionReservations);
+    }
+
+    #endregion
+
     #region Tank Swap Coordination
 
     public bool HasRemoteTank
@@ -1600,6 +1663,9 @@ public sealed class PartyCoordinationService : IPartyCoordinationService
         // Clean up expired interrupt reservations
         CleanupExpiredInterruptReservations();
 
+        // Clean up expired phantom action reservations
+        CleanupExpiredPhantomActionReservations();
+
         // Clean up expired tank swap reservations
         CleanupExpiredTankSwapReservations();
     }
@@ -1624,6 +1690,7 @@ public sealed class PartyCoordinationService : IPartyCoordinationService
             _remoteRaiseReservations.Clear();
             _remoteCleanseReservations.Clear();
             _remoteInterruptReservations.Clear();
+            _remotePhantomActionReservations.Clear();
             _remoteTankSwapReservations.Clear();
         }
 
@@ -1637,6 +1704,7 @@ public sealed class PartyCoordinationService : IPartyCoordinationService
             _localRaiseReservations.Clear();
             _localCleanseReservations.Clear();
             _localInterruptReservations.Clear();
+            _localPhantomActionReservations.Clear();
         }
         lock (_stateLock)
             _localTankSwapReservations.Clear();
@@ -2139,6 +2207,35 @@ public sealed class PartyCoordinationService : IPartyCoordinationService
     }
 
     /// <summary>
+    /// Handles incoming phantom-action intent from a remote instance.
+    /// </summary>
+    public void HandleRemotePhantomActionIntent(PhantomActionIntentMessage message)
+    {
+        if (message.InstanceId == _instanceId)
+            return;
+
+        if (!_config.EnablePhantomActionCoordination)
+            return;
+
+        var now = DateTime.UtcNow;
+        var reservation = new PhantomActionReservation
+        {
+            InstanceId = message.InstanceId,
+            TargetEntityId = message.TargetEntityId,
+            ActionId = message.ActionId,
+            ReservedAt = now,
+            ExpiresAt = now.AddMilliseconds(_config.PhantomActionReservationExpiryMs)
+        };
+
+        lock (_stateLock)
+            _remotePhantomActionReservations[(message.TargetEntityId, message.ActionId)] = reservation;
+
+        if (_config.LogCoordinationEvents)
+            _log.Debug("[PartyCoord] Remote phantom action reservation: action {0} on target {1} from instance {2}",
+                message.ActionId, message.TargetEntityId, message.InstanceId);
+    }
+
+    /// <summary>
     /// Handles incoming tank swap intent from a remote instance.
     /// </summary>
     public void HandleRemoteTankSwapIntent(TankSwapIntentMessage message)
@@ -2378,6 +2475,30 @@ public sealed class PartyCoordinationService : IPartyCoordinationService
 
             foreach (var key in expiredRemote)
                 _remoteReservations.Remove(key);
+        }
+    }
+
+    private void CleanupExpiredPhantomActionReservations()
+    {
+        // Local reservations (framework thread only — no lock needed)
+        var expiredLocal = _localPhantomActionReservations
+            .Where(r => r.Value.IsExpired)
+            .Select(r => r.Key)
+            .ToList();
+
+        foreach (var key in expiredLocal)
+            _localPhantomActionReservations.Remove(key);
+
+        // Remote reservations (shared with IPC callbacks — lock required)
+        lock (_stateLock)
+        {
+            var expiredRemote = _remotePhantomActionReservations
+                .Where(r => r.Value.IsExpired)
+                .Select(r => r.Key)
+                .ToList();
+
+            foreach (var key in expiredRemote)
+                _remotePhantomActionReservations.Remove(key);
         }
     }
 

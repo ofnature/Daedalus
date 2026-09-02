@@ -1038,10 +1038,27 @@ public sealed class PhantomActionLayer
                 // they shrug it off, so spending the GCD there is pure loss.
                 if (targetHpPct > 0.5f)
                 {
-                    if (PhantomBandRules.ShouldMissile(IsCriticalEncounterMob(target), IsFateMob(target)))
-                        TryPush(ctx, 49086, job, level, PrioDamage + 1, target.GameObjectId, target);
-                    else
+                    if (!PhantomBandRules.ShouldMissile(IsCriticalEncounterMob(target), IsFateMob(target)))
+                    {
                         _pushRejects.Add("Occult Missile — no effect on critical-encounter or FATE enemies");
+                    }
+                    else if (PartyCoordination?.IsPhantomActionReservedByOther(target.EntityId, 49086) == true)
+                    {
+                        // A fleet of Phantom Blue Mages shares one target and one frame, so
+                        // without this all four spend a 30s recast on the same mob at once. The
+                        // hold is brief by design: Missile misses about two thirds of the time,
+                        // and once it lapses the health gate above tells the two cases apart —
+                        // a hit leaves the target at a quarter health and out of scope, a miss
+                        // leaves it fair game for the next toon.
+                        _pushHolds.Add("Occult Missile — another toon just fired one at this enemy");
+                    }
+                    else
+                    {
+                        var missileTargetEntityId = target.EntityId;
+                        TryPush(ctx, 49086, job, level, PrioDamage + 1, target.GameObjectId, target,
+                            onExtraDispatched: () =>
+                                PartyCoordination?.ReservePhantomAction(missileTargetEntityId, 49086));
+                    }
                 }
                 // Aero grades are one button, but which grade is LEARNED depends on enemies,
                 // not phantom level — push best-first and let the duty-bar gate pick the one

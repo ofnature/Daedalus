@@ -3,6 +3,16 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.64 — unreleased
+
+### New — Four Phantom Blue Mages stop firing Missile at the same mob
+- Occult Missile is a **35% coin flip for 75% of the target's current HP** on a 30 second recast. A fleet shares one target and one frame, so all four toons were firing it at the same enemy at the same moment — and three of those recasts bought nothing
+- Each toon now says on the party link when it spends one, and the others hold off that **specific enemy and that specific action** for a moment. Someone else's Missile is no reason to stop casting Aqua Breath at the same mob, or a Missile at the one next to it
+- The hold is **short on purpose**. Missile misses about two thirds of the time, so handing one toon the enemy would waste the mechanic. It only breaks up the volley — once it lapses the ordinary health gate tells the two outcomes apart: a hit leaves the target at a quarter health and out of scope, a miss leaves it fair game for the next toon
+- Works across the LAN as well as between clients on one machine, like the rest of the coordination. On a solo toon, or with party coordination off, nothing changes
+- The Duty tab says **"another toon just fired one at this enemy"** while a hold is on, so a quiet Missile reads as coordination rather than as a broken button
+
+<!-- LATEST-END -->
 ## v0.1.63 — 2026-08-30
 
 ### New — The pot hunt map shows which way you're facing
@@ -49,7 +59,6 @@ All notable changes to Daedalus will be documented in this file.
 - Nine newly identified, all North Horn, most of them Forked Tower: Blue Head and Crescent Moss Fungus (fire), Necrophobia, Summoned Bomb and Tower Mantis (ice), Sword Dancer and Tower Barmuu (lightning), Light Aether (wind), and Index (fire and wind both)
 - Nothing here is guessed. Elements only appear when the game reveals one, which in practice means somebody Libra'd it — so coverage moves when you scan, not when you play
 
-<!-- LATEST-END -->
 ## v0.1.62 — 2026-08-17
 
 ### New — 19 more coffer spots, and the first Forked Tower enemies

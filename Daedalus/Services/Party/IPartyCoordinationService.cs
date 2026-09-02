@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Numerics;
 using Daedalus.Ipc;
@@ -459,6 +459,30 @@ public interface IPartyCoordinationService
     /// Key is target entity ID, value is the reservation info.
     /// </summary>
     IReadOnlyDictionary<uint, InterruptReservation> GetRemoteInterruptReservations();
+
+    #endregion
+
+    #region Phantom Action Coordination
+
+    /// <summary>
+    /// Whether another Daedalus instance has just spent this phantom action on this enemy.
+    /// </summary>
+    /// <param name="entityId">The enemy's entity ID.</param>
+    /// <param name="actionId">The phantom action ID (e.g. Occult Missile).</param>
+    bool IsPhantomActionReservedByOther(uint entityId, uint actionId);
+
+    /// <summary>
+    /// Records that this instance is spending a phantom action on an enemy and tells the others.
+    /// Call it when the action actually dispatches, not while deciding — otherwise every frame
+    /// of deliberation goes out on the wire.
+    /// </summary>
+    /// <returns>False when another instance already holds it.</returns>
+    bool ReservePhantomAction(uint entityId, uint actionId);
+
+    /// <summary>
+    /// All current remote phantom-action reservations, keyed by (entity, action).
+    /// </summary>
+    IReadOnlyDictionary<(uint EntityId, uint ActionId), PhantomActionReservation> GetRemotePhantomActionReservations();
 
     #endregion
 

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -50,6 +50,9 @@ public enum PartyMessageType
 
     /// <summary>Announce intent to perform a tank swap (Provoke or Shirk).</summary>
     TankSwapIntent = 13,
+
+    /// <summary>Announce intent to spend a one-shot phantom action on an enemy (Occult Missile).</summary>
+    PhantomActionIntent = 14,
 }
 
 /// <summary>
@@ -134,6 +137,7 @@ public abstract class PartyMessage
                 PartyMessageType.CleanseIntent => JsonSerializer.Deserialize<CleanseIntentMessage>(json, PartyMessageJsonContext.Options),
                 PartyMessageType.InterruptIntent => JsonSerializer.Deserialize<InterruptIntentMessage>(json, PartyMessageJsonContext.Options),
                 PartyMessageType.TankSwapIntent => JsonSerializer.Deserialize<TankSwapIntentMessage>(json, PartyMessageJsonContext.Options),
+                PartyMessageType.PhantomActionIntent => JsonSerializer.Deserialize<PhantomActionIntentMessage>(json, PartyMessageJsonContext.Options),
                 _ => null,
             };
         }
@@ -1002,6 +1006,63 @@ public sealed class InterruptReservation
     /// <summary>
     /// Whether this reservation has expired.
     /// </summary>
+    public bool IsExpired => DateTime.UtcNow > ExpiresAt;
+}
+
+
+/// <summary>
+/// Message announcing intent to spend a one-shot phantom action on a specific enemy.
+/// <para>
+/// Built for Occult Missile, where a fleet of Phantom Blue Mages otherwise fires four at the
+/// same mob in the same frame. Keyed by action as well as target on purpose: two different
+/// phantom actions aimed at one enemy have no reason to block each other.
+/// </para>
+/// </summary>
+public sealed class PhantomActionIntentMessage : PartyMessage
+{
+    /// <summary>Entity ID of the enemy the action is aimed at.</summary>
+    [JsonPropertyName("tid")]
+    public uint TargetEntityId { get; set; }
+
+    /// <summary>Phantom action ID being spent.</summary>
+    [JsonPropertyName("act")]
+    public uint ActionId { get; set; }
+
+    public PhantomActionIntentMessage() : base(PartyMessageType.PhantomActionIntent) { }
+
+    public PhantomActionIntentMessage(Guid instanceId, uint targetEntityId, uint actionId)
+        : base(PartyMessageType.PhantomActionIntent)
+    {
+        InstanceId = instanceId;
+        TargetEntityId = targetEntityId;
+        ActionId = actionId;
+    }
+}
+
+/// <summary>A phantom-action reservation held by a remote instance.</summary>
+public sealed class PhantomActionReservation
+{
+    /// <summary>Instance that made the reservation.</summary>
+    public Guid InstanceId { get; init; }
+
+    /// <summary>Entity ID of the enemy the action is aimed at.</summary>
+    public uint TargetEntityId { get; init; }
+
+    /// <summary>Phantom action ID being spent.</summary>
+    public uint ActionId { get; init; }
+
+    /// <summary>When the reservation was made.</summary>
+    public DateTime ReservedAt { get; init; }
+
+    /// <summary>
+    /// When the reservation lapses. Deliberately SHORT — it exists to break up a simultaneous
+    /// volley, not to hand one toon the enemy. Once it lapses the ordinary damage gates decide:
+    /// a Missile that landed has already dropped the target below the health floor, and one
+    /// that missed leaves it fair game for the next toon.
+    /// </summary>
+    public DateTime ExpiresAt { get; init; }
+
+    /// <summary>Whether this reservation has lapsed.</summary>
     public bool IsExpired => DateTime.UtcNow > ExpiresAt;
 }
 

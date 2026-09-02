@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Ipc;
 using Dalamud.Plugin.Services;
@@ -45,6 +45,7 @@ public sealed class PartyCoordinationIpc : IDisposable
     private readonly ICallGateProvider<string, object> _raiseIntentProvider;
     private readonly ICallGateProvider<string, object> _cleanseIntentProvider;
     private readonly ICallGateProvider<string, object> _interruptIntentProvider;
+    private readonly ICallGateProvider<string, object> _phantomActionIntentProvider;
     private readonly ICallGateProvider<string, object> _tankSwapIntentProvider;
 
     public PartyCoordinationIpc(
@@ -69,6 +70,7 @@ public sealed class PartyCoordinationIpc : IDisposable
         _raiseIntentProvider = pluginInterface.GetIpcProvider<string, object>("Daedalus.Party.RaiseIntent");
         _cleanseIntentProvider = pluginInterface.GetIpcProvider<string, object>("Daedalus.Party.CleanseIntent");
         _interruptIntentProvider = pluginInterface.GetIpcProvider<string, object>("Daedalus.Party.InterruptIntent");
+        _phantomActionIntentProvider = pluginInterface.GetIpcProvider<string, object>("Daedalus.Party.PhantomActionIntent");
         _tankSwapIntentProvider = pluginInterface.GetIpcProvider<string, object>("Daedalus.Party.TankSwapIntent");
 
         // Register action handlers (for broadcast)
@@ -85,6 +87,7 @@ public sealed class PartyCoordinationIpc : IDisposable
         _raiseIntentProvider.RegisterAction(OnRaiseIntentReceived);
         _cleanseIntentProvider.RegisterAction(OnCleanseIntentReceived);
         _interruptIntentProvider.RegisterAction(OnInterruptIntentReceived);
+        _phantomActionIntentProvider.RegisterAction(OnPhantomActionIntentReceived);
         _tankSwapIntentProvider.RegisterAction(OnTankSwapIntentReceived);
 
         // Wire up service events to IPC broadcasts
@@ -101,6 +104,7 @@ public sealed class PartyCoordinationIpc : IDisposable
         _service.OnRaiseIntentReady += SendRaiseIntent;
         _service.OnCleanseIntentReady += SendCleanseIntent;
         _service.OnInterruptIntentReady += SendInterruptIntent;
+        _service.OnPhantomActionIntentReady += SendPhantomActionIntent;
         _service.OnTankSwapIntentReady += SendTankSwapIntent;
 
         PartyMessage.OnVersionMismatch = (remote, local) =>
@@ -277,6 +281,19 @@ public sealed class PartyCoordinationIpc : IDisposable
         catch (Exception ex)
         {
             _log.Warning(ex, "Failed to send interrupt intent");
+        }
+    }
+
+    private void SendPhantomActionIntent(PhantomActionIntentMessage message)
+    {
+        try
+        {
+            var json = message.ToJson();
+            _phantomActionIntentProvider.SendMessage(json);
+        }
+        catch (Exception ex)
+        {
+            _log.Warning(ex, "Failed to send phantom action intent");
         }
     }
 
@@ -489,6 +506,21 @@ public sealed class PartyCoordinationIpc : IDisposable
         }
     }
 
+    private void OnPhantomActionIntentReceived(string json)
+    {
+        try
+        {
+            if (PartyMessage.FromJson(json) is PhantomActionIntentMessage message)
+            {
+                _service.HandleRemotePhantomActionIntent(message);
+            }
+        }
+        catch (Exception ex)
+        {
+            _log.Warning(ex, "Failed to process phantom action intent");
+        }
+    }
+
     private void OnInterruptIntentReceived(string json)
     {
         try
@@ -539,6 +571,7 @@ public sealed class PartyCoordinationIpc : IDisposable
         _service.OnRaiseIntentReady -= SendRaiseIntent;
         _service.OnCleanseIntentReady -= SendCleanseIntent;
         _service.OnInterruptIntentReady -= SendInterruptIntent;
+        _service.OnPhantomActionIntentReady -= SendPhantomActionIntent;
         _service.OnTankSwapIntentReady -= SendTankSwapIntent;
 
         PartyMessage.OnVersionMismatch = null;
@@ -557,6 +590,7 @@ public sealed class PartyCoordinationIpc : IDisposable
         _raiseIntentProvider.UnregisterAction();
         _cleanseIntentProvider.UnregisterAction();
         _interruptIntentProvider.UnregisterAction();
+        _phantomActionIntentProvider.UnregisterAction();
         _tankSwapIntentProvider.UnregisterAction();
 
         _log.Info("Party coordination IPC disposed");
