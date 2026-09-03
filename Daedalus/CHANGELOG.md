@@ -12,6 +12,13 @@ All notable changes to Daedalus will be documented in this file.
 - Works across the LAN as well as between clients on one machine, like the rest of the coordination. On a solo toon, or with party coordination off, nothing changes
 - The Duty tab says **"another toon just fired one at this enemy"** while a hold is on, so a quiet Missile reads as coordination rather than as a broken button
 
+### Fix — "Why isn't Hell Wind firing?" now has an answer
+- One toggle controls **all four** Necromancer Doom actions — Deep Freeze, Hell Wind, Chaos Drive and Doomsday — and it was called *"Use Deep Freeze"*, so nothing pointed a Necromancer at the setting that was holding Hell Wind. It's now **"Use the Doom nukes"**, and the tooltip names every action it covers
+- With it off, the whole family was held **silently**. The Duty tab now says so, and names all four, instead of reading as "idle — nothing eligible"
+- The tab also reports **which nuke is leading and why**: either *"this enemy is recorded weak to Wind"* or *"no elemental weakness recorded for this enemy yet"*. That second one is the case that looks like a bug and isn't — the three share one 40 second recast, so whichever fires first spends it, and with nothing recorded Deep Freeze leads by default however wind-weak the enemy actually is
+- The weakness table only knows what something has **revealed** — Occult Libra, from the phantom layer on Red Mage. Seeing "weak to wind" on your screen doesn't put it in the table; scanning the enemy does
+- The healer refusal said *"Deep Freeze held"* whichever of the three you were waiting on. It names the family now
+
 <!-- LATEST-END -->
 ## v0.1.63 — 2026-08-30
 

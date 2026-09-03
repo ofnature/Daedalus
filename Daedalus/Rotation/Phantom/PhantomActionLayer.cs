@@ -1097,7 +1097,16 @@ public sealed class PhantomActionLayer
         IRotationContext ctx, Config.PhantomConfig cfg, PhantomJob job, byte level, IBattleChara target)
     {
         if (!cfg.NecromancerUseDeepFreeze)
-            return; // opt-in; silent when off (not a blocker the user needs to see)
+        {
+            // Reported rather than silent, unlike the other opt-ins. This one toggle gates FOUR
+            // actions and is named after one of them, so a Necromancer wondering why Hell Wind
+            // never fires has nothing to find — the setting they need does not mention it
+            // (field 2026-09-03, reported exactly that way).
+            _pushHolds.Add(
+                "Doom nukes off — Deep Freeze, Hell Wind, Chaos Drive and Doomsday all sit behind "
+                + "the \"Use Deep Freeze\" toggle");
+            return;
+        }
 
         var maxHp = ctx.Player.MaxHp;
         var selfHpPct = maxHp > 0 ? (float)ctx.Player.CurrentHp / maxHp : 1f;
@@ -1109,7 +1118,7 @@ public sealed class PhantomActionLayer
         // gate is hard regardless of the other settings (user call, 2026-07-31).
         if (HealerAvailable?.Invoke() != true)
         {
-            _pushRejects.Add("Deep Freeze held — no healer in party (Doom would be lethal)");
+            _pushRejects.Add("Doom nukes held (Deep Freeze / Hell Wind / Chaos Drive) — no healer in party, the Doom would be lethal");
             return;
         }
 
@@ -1129,6 +1138,15 @@ public sealed class PhantomActionLayer
             : null;
         var nukeOrder = PhantomBandRules.NecromancerNukeOrder(weakness);
         var selfName = ctx.Player.Name?.TextValue ?? string.Empty;
+
+        // The three share ONE 40s recast, so whichever dispatches first spends it and the other
+        // two are refused "on cooldown". That makes the pick the whole story, and an unrecorded
+        // weakness is indistinguishable from a wrong one unless it says so: the table only knows
+        // what something has revealed (Occult Libra), not what the player can see in game.
+        if (cfg.NecromancerMatchElementalWeakness && weakness is null)
+            _pushHolds.Add($"{NukeName(nukeOrder[0])} leads — no elemental weakness recorded for this enemy yet");
+        else if (weakness is { } matched)
+            _pushHolds.Add($"{NukeName(nukeOrder[0])} leads — this enemy is recorded weak to {matched}");
 
         // Doomsday when enabled: own 120s timer, biggest hit (500 under Drain Touch) and it
         // strips a buff. Only one can land — the Doom gate stops whichever loses the race.

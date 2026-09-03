@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Numerics;
 using Dalamud.Bindings.ImGui;
 using Daedalus.Data;
@@ -370,9 +370,10 @@ public sealed class OccultSection
             case PhantomJob.Necromancer:
                 ImGui.TextColored(Common.DaedalusTheme.StatusRed,
                     "Deep Freeze DOOMS you for 10s — you die unless healed to FULL HP in time.");
-                ConfigUIHelpers.Toggle("Use Deep Freeze (dangerous — needs a healer)",
+                ConfigUIHelpers.Toggle("Use the Doom nukes (dangerous — needs a healer)",
                     () => config.Occult.NecromancerUseDeepFreeze, v => config.Occult.NecromancerUseDeepFreeze = v,
-                    "Costs 10% of max HP and applies Doom to yourself. The Doom is dispelled ONLY by a heal back to 100%. " +
+                    "Covers ALL FOUR: Deep Freeze, Hell Wind, Chaos Drive and Doomsday. Every one of them costs 10% of max HP " +
+                    "and applies Doom to yourself, and the Doom is dispelled ONLY by a heal back to 100%. " +
                     "Leave this off for solo or unattended play.",
                     save);
                 if (config.Occult.NecromancerUseDeepFreeze)

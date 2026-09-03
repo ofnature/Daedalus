@@ -2,7 +2,7 @@
 
 Written 2026-09-01 from the Minerva side, after reading which `BossMod.*` gates Daedalus already calls and
 how its targeting service picks. Minerva is the boss-module / auto-dodge plugin (`D:\Dev\Minerva`); this is
-its provider surface: **33 call gates, 3 shared-data tags**.
+its provider surface: **36 call gates, 3 shared-data tags**.
 
 Minerva owns *where is safe, when damage lands, and what the fight wants attacked*. It does not do
 rotation and is not going to — that is Daedalus's job.
@@ -99,6 +99,32 @@ leak rather than settle. The practical consequence: treat these as a short-lived
 **0 means "nothing inbound" and also "actor unknown"** — deliberately indistinguishable, because both mean
 "no reason to act". Party slots are the game's party-list order; the local player is not reliably slot 0.
 
+## 2c. Cleansing — who, and whether it is already handled
+
+| gate | signature | meaning |
+|---|---|---|
+| `Minerva.Party.CleanseTargets` | `() -> int[]` | party SLOTS the fight wants cleansed; empty = none |
+| `Minerva.Hints.CleansePending` | `(ulong actorId) -> bool` | a cleanse is already in flight on this actor |
+
+**These answer a different question from "who has a debuff".** A rotation can already read status ids; what
+it cannot tell is which of the dozens on the bar matters *in this fight*. `CleanseTargets` is the module
+saying so, and empty means nothing needs cleansing rather than nothing is known.
+
+The second gate exists because of boxing specifically. A status stays on the bar until the cleanse
+RESOLVES, so four toons reading "still debuffed" will each throw an Esuna at it:
+
+```csharp
+foreach (var slot in cleanseTargets.InvokeFunc())
+{
+    var actor = PartyActorId(slot);
+    if (!cleansePending.InvokeFunc(actor))   // someone else's Esuna is already inbound
+        Esuna(actor);
+}
+```
+
+Backed by the same announced-but-not-drawn window as §2b, so it expires by itself in three seconds — treat
+it as a short-lived interlock, not as state.
+
 ## 3. Tanking — busters and swaps
 
 | gate | signature | meaning |
@@ -146,6 +172,10 @@ session's worth of misattributed analysis before a stray vuln stack exposed it. 
 | `Minerva.Hints.ForbiddenTargets` | `() -> ulong[]` | invincible or forbidden — never attack |
 | `Minerva.Hints.TargetsToInterrupt` | `() -> ulong[]` | whose current cast to interrupt |
 | `Minerva.Hints.TargetsToStun` | `() -> ulong[]` | whom to stun |
+
+**Quest battles are the clearest case.** A solo duty routinely requires killing adds in an order, ignoring
+a boss until a phase ends, or focusing one specific mob — requirements that exist only in that fight's
+script. Minerva reads them from the module; nothing in a rotation's own view of hostiles and HP can.
 
 Daedalus already picks among candidates (`LowestHp`, `Nearest`, `FollowTank`) and filters invulnerables.
 Minerva does not replace that — it supplies what the *fight* knows and a rotation cannot derive:
@@ -237,10 +267,41 @@ time you still want it; a dropped call is harmless.
 **Not exposed yet** — short work, simply not published:
 
 - `Hints.ForbiddenZonesCount`, `Hints.ForbiddenZonesNextActivation`
-- `AI.PauseMovement`, `AI.NaviTargetPos`, `AI.IsNavigating` — Minerva's movement state is not published.
-  Minerva stands down entirely while Ariadne's `PathIsRunning` flag is set, so "is something moving me" is
-  partly answerable from Ariadne today. **`PauseMovement` has no equivalent** — if Daedalus needs to
-  actively hold Minerva's dodge for a channelled cast, ask and it will be added rather than worked around.
+- `AI.NaviTargetPos`, `AI.IsNavigating` — Minerva's movement state is not published. Minerva stands down
+  entirely while Ariadne's `PathIsRunning` flag is set, so "is something moving me" is partly answerable
+  from Ariadne today.
+- `AI.PauseMovement` — **now covered, by `Minerva.RequestHold` below.** Not a rename: read the contract.
+
+### `Minerva.RequestHold` `(double seconds) -> bool`
+
+**This is what makes a hardcast raise work under auto-dodge.** `MaxCastTime` answers *"may I stand here"*
+honestly, including reading **0** whenever Minerva is steering the character — and Regain steers whenever
+you are out of the uptime band with nothing dangerous anywhere. A healer walked to a corpse 30y from the
+boss is permanently out of that band, so without this gate `MaxCastTime` reads 0 forever, `RaiseCastHold`
+declines forever, and the raise never happens. The refusal is legible rather than silent, which is an
+improvement, but it is still a refusal.
+
+The reason is not that either side is wrong. Daedalus is out of position **on purpose** and Minerva has no
+way to tell that from drifting. Nothing but saying so settles it:
+
+```csharp
+// each frame the raise is wanted -- re-assert, do not fire once
+requestHold.InvokeFunc(3.0);
+if (maxCastTime.InvokeFunc() >= castSeconds) StartRaise();
+```
+
+**Only uptime movement yields. Danger still moves the character.** If the ground underfoot is going to kill
+them the hold is ignored and the dodge runs, because a raiser who dies mid-cast has raised nobody — a hold
+that could pin someone in an AOE would cost more than the stall it fixes. This is deliberately narrower
+than `BossMod.AI.PauseMovement`, which stops everything; `RaiseCastHold`'s own note already flags that as a
+risk it accepts. **So `MaxCastTime` can still drop to 0 while a hold is active** — that means an AOE is
+coming, not that the hold was ignored. Re-check it rather than assuming the hold bought the whole cast.
+
+**Expires by itself**, capped at 30s, exactly like `RequestPositional` and for the same reason: a caller
+that crashes or abandons the cast must not be able to park a character out of position indefinitely.
+Re-assert each frame. A later call *replaces* the deadline rather than extending it, so a caller can also
+shorten its own hold by asking for less. `RaiseCastHold`'s expiry-driven shape maps onto this directly —
+same lifetime model, so the swap is at the pump, not in the raise logic.
 
 **Out of scope, deliberately:** `BossMod.Autorotation.*`, `BossMod.Presets.*`, `BossMod.Configuration`.
 Minerva will not grow an autorotation surface. `Minerva.RequestPositional` is the intended seam: Daedalus
