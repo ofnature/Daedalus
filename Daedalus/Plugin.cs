@@ -933,6 +933,9 @@ public sealed class Plugin : IDalamudPlugin
             configuration, SaveConfiguration, farmMountHelper);
         this.mainWindow.OpenFarm = () => this.farmWindow.Toggle();
         this.mainWindow.FarmActive = () => this.farmModeService.IsRunning;
+        this.mainWindow.OpenOccult = () => this.occultWindow.Toggle();
+        this.mainWindow.InOccultZone = () =>
+            Daedalus.Data.PhantomJobData.OccultTerritoryIds.Contains((ushort)this.clientState.TerritoryType);
 
         // Telemetry service for anonymous usage tracking
         this.telemetryService = new TelemetryService(configuration, log);

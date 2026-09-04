@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Numerics;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.Textures;
@@ -47,6 +47,16 @@ public sealed class MainWindow : Window
 
     /// <summary>True while a farm run is active — draws the activity dot on the Farm button.</summary>
     public Func<bool>? FarmActive { get; set; }
+
+    /// <summary>Opens the Occult Crescent zone HUD.</summary>
+    public Action? OpenOccult { get; set; }
+
+    /// <summary>
+    /// True while standing in the Occult Crescent. The footer link only appears there: the HUD
+    /// says "Not in Occult Crescent" everywhere else, so a permanent link would mostly lead to a
+    /// window with nothing in it.
+    /// </summary>
+    public Func<bool>? InOccultZone { get; set; }
 
     /// <summary>True while a fight is being parsed — draws the activity dot on the Parser button.</summary>
     public Func<bool>? ParserActive { get; set; }
@@ -327,6 +337,21 @@ public sealed class MainWindow : Window
         {
             openMissing();
         }
+
+        // Occult joins the footer only in the Crescent. The HUD closes itself out of the zone and
+        // reopens on entering it, so this is the way back after closing it by hand — the same job
+        // /dae occult does, for people who would rather click than type.
+        if (OpenOccult != null && InOccultZone?.Invoke() == true)
+        {
+            ImGui.SameLine();
+            ImGui.TextDisabled("·");
+            ImGui.SameLine();
+            if (ImGui.SmallButton("Occult"))
+            {
+                OpenOccult();
+            }
+        }
+
         var versionLabel = $"v{version}";
         ImGui.SameLine();
         ImGui.SetCursorPosX(ImGui.GetCursorPosX() + ImGui.GetContentRegionAvail().X - ImGui.CalcTextSize(versionLabel).X);

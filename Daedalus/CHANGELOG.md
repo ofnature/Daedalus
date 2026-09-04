@@ -5,8 +5,10 @@ All notable changes to Daedalus will be documented in this file.
 <!-- LATEST-START -->
 ## v0.1.65 — unreleased
 
-### New — `/dae occult` brings the zone HUD back
-- Closing the Occult Crescent window used to be one-way: it only opens itself **when you enter the zone**, so once shut there was nothing to press until you zoned again. `/dae occult` toggles it whenever you like
+### New — Two ways to bring the zone HUD back
+- Closing the Occult Crescent window used to be one-way: it only opens itself **when you enter the zone**, so once shut there was nothing to press until you zoned again
+- **`/dae occult`** toggles it whenever you like, and an **Occult** link now sits in the main window's footer beside Changelog, Debug and Missing
+- That link only appears **while you're in the Crescent**. Everywhere else the HUD has nothing to show but "Not in Occult Crescent", so a permanent link would mostly lead to an empty window
 - It works outside the Crescent too — the window just says it isn't there yet, which beats a command that silently does nothing
 - The same caveat still applies to the **"Show the zone HUD"** setting: it's read on entering the zone, so ticking it while already standing in the Crescent takes effect on your next zone change. The command is the immediate way
 
