@@ -48,4 +48,12 @@ public interface IHasPositionals
     /// Gets the current per-frame positional snapshot.
     /// </summary>
     PositionalSnapshot Positionals { get; }
+
+    /// <summary>
+    /// The side the job's anticipation provider expects the NEXT positional GCD to want -- Sen gauge,
+    /// Meikyo Shisui, combo step -- gated to single-target. Unlike <see cref="PositionalSnapshot.RequiredPositional"/>,
+    /// which only knows the side once the combo is mid-way, this is what a mechanics engine has to be
+    /// told to have the character on the right side BEFORE the GCD, not after it.
+    /// </summary>
+    PositionalType? AnticipatedPositional => null;
 }

@@ -68,6 +68,9 @@ public abstract class BaseMeleeDpsRotation<TContext, TModule> : BaseRotation<TCo
     /// </summary>
     protected bool IsAtRear { get; set; }
 
+    /// <inheritdoc cref="IHasPositionals.AnticipatedPositional"/>
+    public PositionalType? AnticipatedPositional { get; private set; }
+
     /// <summary>
     /// Whether the player is at the target's flank.
     /// </summary>
@@ -393,6 +396,13 @@ public abstract class BaseMeleeDpsRotation<TContext, TModule> : BaseRotation<TCo
         var engagedEnemies = TargetingService.CountEngagedEnemies(
             PositionalRequirementHelper.EngagedScanYalms, player);
         var singleTargetOk = PositionalRequirementHelper.ShouldApply(engagedEnemies);
+        AnticipatedPositional = singleTargetOk && movementTarget != null ? anticipated?.Required : null;
+
+        // Minerva owns positioning when it is the engine: it is told the anticipated side per frame
+        // (Plugin.UpdateBmrAiConfig -> Minerva.RequestPositional) and does the moving itself, so the vNav
+        // arc hop stands down whatever the camping switch says -- two movers on one character was the
+        // half-step-and-stall this hop was benched for in the first place.
+        var minervaOwnsPositioning = Configuration.BossHandling == Daedalus.Config.BossHandling.Minerva;
 
         var request = new PositionalMovementUpdateRequest(
             AnticipationProvider: provider,
@@ -403,7 +413,7 @@ public abstract class BaseMeleeDpsRotation<TContext, TModule> : BaseRotation<TCo
             ActionService: ActionService,
             InCombat: inCombat,
             EnableMovement: IsBoundaryCampingEnabled
-                && IsAutoMovementAllowed() && singleTargetOk,
+                && IsAutoMovementAllowed() && singleTargetOk && !minervaOwnsPositioning,
             AllowMovementDuringActionLock: true,
             MaintainMaxMelee: IsMaxMeleeMaintenanceAllowed(),
             MaxMeleeTarget: ResolveMaxMeleeTarget(player, out var maxMeleeFollowsPlayer),

@@ -1,4 +1,5 @@
 using System;
+using Daedalus.Config;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Ipc;
 using Dalamud.Plugin.Services;
@@ -29,6 +30,12 @@ public sealed class CastMovementHoldService : IDisposable
     /// <summary>Force-release a hold older than this (longest legit cast ~5s teleport + slack).</summary>
     public const float MaxHoldSeconds = 8f;
 
+    /// <summary>Minerva's hold is asked for per frame; this much beyond the cast bar covers a dropped frame.</summary>
+    private const double MinervaHoldSlackSeconds = 0.5d;
+
+    private readonly Func<BossHandling> _engine;
+    private readonly Func<double, bool> _minervaHold;
+
     private readonly IDalamudPluginInterface _pluginInterface;
     private readonly Configuration _configuration;
     private readonly IBossModSafetyService _bossModSafety;
@@ -54,14 +61,20 @@ public sealed class CastMovementHoldService : IDisposable
         Configuration configuration,
         IBossModSafetyService bossModSafety,
         IObjectTable objectTable,
-        IPluginLog log)
+        IPluginLog log,
+        Func<BossHandling>? engine = null,
+        Func<double, bool>? minervaHold = null)
     {
         _pluginInterface = pluginInterface;
         _configuration = configuration;
         _bossModSafety = bossModSafety;
         _objectTable = objectTable;
         _log = log;
+        _engine = engine ?? (() => BossHandling.BossMod);
+        _minervaHold = minervaHold ?? (_ => false);
     }
+
+    private bool MinervaEngine => _engine() == BossHandling.Minerva;
 
     /// <summary>Framework-thread tick.</summary>
     public void Update()
@@ -73,7 +86,8 @@ public sealed class CastMovementHoldService : IDisposable
         // as BMR is reachable; our own holds re-assert within a frame when legitimate.
         // One attempt only: on BMR builds without the endpoint SetPaused fails forever, and
         // retrying every frame just spams the log (field: continuous 20ms failure lines).
-        if (!_startupStaleHoldCleared && _bossModSafety.IsAvailable)
+        // BMR only: Minerva's hold is timed, so there is nothing persisted to clear.
+        if (!_startupStaleHoldCleared && !MinervaEngine && _bossModSafety.IsAvailable)
         {
             SetPaused(false);
             _startupStaleHoldCleared = true;
@@ -107,7 +121,26 @@ public sealed class CastMovementHoldService : IDisposable
                 (UtcNow() - _holdStartUtc).TotalSeconds);
         }
 
-        if (hold && !_wePaused)
+        if (MinervaEngine)
+        {
+            // Minerva's hold is timed and re-asserted rather than latched: ask for it every frame the cast
+            // still needs it, and ask for nothing to release it. Only uptime steering yields -- danger
+            // still moves the character, which is the mid-cast bail BMR needs a separate release for.
+            // This used to call BMR's PauseMovement regardless of engine: 27,574 failed calls in one day
+            // on a Minerva box, and no hold at all.
+            if (hold)
+            {
+                if (!_wePaused)
+                    _holdStartUtc = UtcNow();
+                _wePaused = _minervaHold(castRemaining + MinervaHoldSlackSeconds);
+            }
+            else if (_wePaused)
+            {
+                _minervaHold(0d);
+                _wePaused = false;
+            }
+        }
+        else if (hold && !_wePaused)
         {
             if (SetPaused(true))
             {
@@ -122,12 +155,16 @@ public sealed class CastMovementHoldService : IDisposable
         }
 
         Status = _wePaused
-            ? $"holding BMR ({castRemaining:F1}s cast left)"
+            ? $"holding {(MinervaEngine ? "Minerva" : "BMR")} ({castRemaining:F1}s cast left)"
             : casting ? "casting (no hold needed)" : "idle";
     }
 
     private bool SetPaused(bool paused)
     {
+        // Dispose and the stale-hold path come through here too; on Minerva they mean "release".
+        if (MinervaEngine)
+            return _minervaHold(paused ? MinervaHoldSlackSeconds : 0d);
+
         try
         {
             if (PauseInvokerOverride is { } seam)

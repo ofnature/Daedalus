@@ -29,6 +29,9 @@ public sealed class MinervaSafetyService : IBossModSafetyService
     private ICallGateSubscriber<float>? _maxCastTime;
     private ICallGateSubscriber<float>? _secondsUntilMustNotAct;
     private ICallGateSubscriber<float>? _secondsUntilMustNotMove;
+    private ICallGateSubscriber<bool>? _isSteering;
+    private ICallGateSubscriber<int, double, bool>? _requestPositional;
+    private ICallGateSubscriber<double, bool>? _requestHold;
 
     private float _snapshotMustNotMoveIn = float.MaxValue;
 
@@ -39,6 +42,18 @@ public sealed class MinervaSafetyService : IBossModSafetyService
     }
 
     public bool IsAvailable => IsPluginLoaded(PluginInternalName);
+
+    /// <summary>
+    /// A per-frame reader of Minerva's <c>minerva.MustNotTurn</c> flag: true while a gaze constrains facing.
+    /// Shared data rather than an IPC call because this is read every frame from the auto-face latch; the
+    /// array is one instance shared with Minerva, whichever plugin created it first, so it needs no
+    /// availability check -- with Minerva absent it simply stays false.
+    /// </summary>
+    public Func<bool> MustNotTurnReader()
+    {
+        var flag = _pluginInterface.GetOrCreateData<bool[]>("minerva.MustNotTurn", () => new[] { false });
+        return () => flag.Length != 0 && flag[0];
+    }
 
     /// <summary>
     /// Minerva has no "next damage" gate. The nearest honest equivalent is the lead time before
@@ -56,10 +71,70 @@ public sealed class MinervaSafetyService : IBossModSafetyService
     public int ForbiddenZonesCount => ReadMustNotMove() ? 1 : 0;
 
     /// <summary>
-    /// Minerva exposes no navigation-state gate, and does not need one: it steers itself and
-    /// Daedalus never has to yield a path to it the way it yields to BMR's AI.
+    /// Minerva is steering the character this frame (<c>Minerva.IsSteering</c>). Read for the same
+    /// reason BMR's IsNavigating is: with <see cref="RequestPositional"/> wired, Minerva moves for
+    /// positionals too, and Daedalus's own hop has to stand down while it does or the two fight over
+    /// one character.
     /// </summary>
-    public bool IsBmrNavigating => false;
+    public bool IsBmrNavigating => ReadBool(ref _isSteering, "Minerva.IsSteering");
+
+    /// <summary>
+    /// Ask Minerva to prefer these sides for the next few seconds (<c>Minerva.RequestPositional</c>;
+    /// mask: Front 1, Flank 2, Rear 4). The Minerva-side twin of pushing DesiredPositional into BMR's AI.
+    /// Re-assert every frame the side is still wanted; it expires on its own, so a rotation that stops
+    /// asking stops steering. False when Minerva is not there to ask.
+    /// </summary>
+    public bool RequestPositional(int mask, double seconds)
+    {
+        if (!IsAvailable)
+            return false;
+
+        try
+        {
+            return (_requestPositional ??= _pluginInterface
+                .GetIpcSubscriber<int, double, bool>("Minerva.RequestPositional")).InvokeFunc(mask, seconds);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Ask Minerva to stop uptime steering for a hardcast (<c>Minerva.RequestHold</c>). Danger still
+    /// moves the character. Timed and re-asserted rather than latched; asking for 0 releases early.
+    /// False when Minerva is not there to ask.
+    /// </summary>
+    public bool RequestHold(double seconds)
+    {
+        if (!IsAvailable)
+            return false;
+
+        try
+        {
+            return (_requestHold ??= _pluginInterface
+                .GetIpcSubscriber<double, bool>("Minerva.RequestHold")).InvokeFunc(seconds);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private bool ReadBool(ref ICallGateSubscriber<bool>? slot, string name)
+    {
+        if (!IsAvailable)
+            return false;
+
+        try
+        {
+            return (slot ??= _pluginInterface.GetIpcSubscriber<bool>(name)).InvokeFunc();
+        }
+        catch
+        {
+            return false;
+        }
+    }
 
     /// <summary>Observability only, and Minerva publishes no equivalent.</summary>
     public Vector3? BmrNaviTarget => null;

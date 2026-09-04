@@ -100,6 +100,7 @@ public sealed class Plugin : IDalamudPlugin
     private readonly VNavService vNavService;
     private readonly MovementArbiter movementArbiter;
     private readonly BossHandlingRouter bossModSafetyService;
+    private readonly MinervaSafetyService minervaSafetyService;
     private readonly CastMovementHoldService castMovementHoldService;
     private readonly Services.Gear.StatCapService statCapService;
     private readonly Services.Gear.GearSnapshotService gearSnapshotService;
@@ -407,6 +408,10 @@ public sealed class Plugin : IDalamudPlugin
         // call site can end up talking to the plugin that is not in charge.
         var bossModEngine = new BossModSafetyService(pluginInterface, log);
         var minervaEngine = new MinervaSafetyService(pluginInterface, log);
+        this.minervaSafetyService = minervaEngine;
+        // Minerva knows which casts are gazes; the look-away latch (EnsureAutoFaceTarget) and the pre-face
+        // retry both ask PlayerSafetyHelper, so they learn it from here without either being changed.
+        Daedalus.Rotation.Common.Helpers.PlayerSafetyHelper.ExternalLookAway = minervaEngine.MustNotTurnReader();
         this.bossModSafetyService = new BossHandlingRouter(
             bossModEngine, minervaEngine, () => configuration.BossHandling);
 
@@ -430,7 +435,8 @@ public sealed class Plugin : IDalamudPlugin
             log, debugLogService, dtrBar, commandManager);
 
         this.castMovementHoldService = new CastMovementHoldService(
-            pluginInterface, configuration, bossModSafetyService, objectTable, log);
+            pluginInterface, configuration, bossModSafetyService, objectTable, log,
+            () => configuration.BossHandling, minervaEngine.RequestHold);
         this.samuraiPositionalAnticipationProvider = new SamuraiPositionalAnticipationProvider();
         this.ninjaPositionalAnticipationProvider = new NinjaPositionalAnticipationProvider();
 
@@ -1901,7 +1907,17 @@ public sealed class Plugin : IDalamudPlugin
                         "Raise hold released — ground danger under the caster; letting BMR dodge (cast interrupts)");
                 }
 
-                if (holdActive != _raiseHoldPaused)
+                if (configuration.BossHandling == Daedalus.Config.BossHandling.Minerva)
+                {
+                    // Minerva's hold is timed and re-asserted, not latched: ask every frame the raise wants
+                    // stillness; asking for 0 releases it the frame the hold lapses.
+                    if (holdActive)
+                        minervaSafetyService.RequestHold(1d);
+                    else if (_raiseHoldPaused)
+                        minervaSafetyService.RequestHold(0d);
+                    _raiseHoldPaused = holdActive;
+                }
+                else if (holdActive != _raiseHoldPaused)
                 {
                     bmrAiConfigService.SetAiMovementPaused(holdActive);
                     _raiseHoldPaused = holdActive;
@@ -2124,11 +2140,35 @@ public sealed class Plugin : IDalamudPlugin
     private void UpdateBmrAiConfig(uint jobId)
     {
         PositionalType? requiredPositional = null;
+        PositionalType? anticipatedPositional = null;
         var boundaryCamping = false;
         if (rotationManager.ActiveRotation is Daedalus.Rotation.Common.IHasPositionals hp)
         {
             requiredPositional = hp.Positionals.RequiredPositional;
+            anticipatedPositional = hp.AnticipatedPositional;
             boundaryCamping = hp.Positionals.BoundaryCampingActive;
+        }
+
+        // Minerva's side of the same handoff. BMR is told the side through its AI config below; Minerva
+        // is asked per frame and the request expires on its own, so a rotation that stops asking stops
+        // steering. Without this every Minerva dodge landed on whichever flank/rear side the toon already
+        // stood on -- 13 of 33 positionals missed in the one dodge-heavy fight of 2026-09-03, none under BMR.
+        // The anticipated side, not the mid-combo one: RequiredPositional only knows the side after Jinpu
+        // or Shifu, and says nothing during Meikyo Shisui or on Hakaze -- which is how BMR ended up parked
+        // at an arc centre and never alternating. The anticipation provider predicts from the Sen gauge,
+        // Meikyo and the combo step, the way Avarice does, so Minerva is on the right side before the GCD.
+        if (configuration.BossHandling == Daedalus.Config.BossHandling.Minerva
+            && (anticipatedPositional ?? requiredPositional) is { } side
+            && condition[Dalamud.Game.ClientState.Conditions.ConditionFlag.InCombat]
+            && !Daedalus.Services.Targeting.ManualControlGrace.IsActive)
+        {
+            // Minerva's mask: Flank 2, Rear 4 -- both when Daedalus camps the boundary and owns the angle
+            var mask = boundaryCamping ? 6
+                : side == PositionalType.Rear ? 4
+                : side == PositionalType.Flank ? 2
+                : 0;
+            if (mask != 0)
+                minervaSafetyService.RequestPositional(mask, 2.5d);
         }
 
         bmrAiConfigService.Update(new BmrAiConfigService.Request(

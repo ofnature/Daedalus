@@ -48,12 +48,34 @@ public static class PlayerSafetyHelper
     }
 
     /// <summary>
-    /// True when a nearby enemy is casting a look-away/gaze action (<see cref="FFXIVConstants.GazeCastActionIds"/>).
+    /// A second opinion on "a gaze is up", from a mechanics engine that knows the fight. Minerva sets its
+    /// <c>minerva.MustNotTurn</c> flag for every gaze its modules describe -- Eye to Eye's See No Evil and
+    /// Sinister Sight among them -- which the curated id list below never had, so a character Minerva had
+    /// turned away was spun straight back into the beam by the next action's auto-face. Null when no engine
+    /// is wired; a source that throws counts as "no gaze", the same fail-open as the rest of this class.
+    /// </summary>
+    public static System.Func<bool>? ExternalLookAway { get; set; }
+
+    /// <summary>
+    /// True when a nearby enemy is casting a look-away/gaze action (<see cref="FFXIVConstants.GazeCastActionIds"/>),
+    /// or when <see cref="ExternalLookAway"/> says one is up.
     /// Used to suppress auto-face during the gaze so the bot's casts don't turn the character into it.
-    /// No-op (returns false) until the gaze list is populated, so there's zero cost otherwise.
     /// </summary>
     public static bool IsLookAwayMechanicActive(Dalamud.Plugin.Services.IObjectTable? objectTable)
     {
+        if (ExternalLookAway is { } external)
+        {
+            try
+            {
+                if (external())
+                    return true;
+            }
+            catch
+            {
+                // an engine that cannot answer is not a gaze
+            }
+        }
+
         if (objectTable == null || FFXIVConstants.GazeCastActionIds.Count == 0)
             return false;
 

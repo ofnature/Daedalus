@@ -27,7 +27,7 @@ var stop = pi.TryGetData<bool[]>("minerva.MustNotAct", out var f) && f is { Leng
 |---|---|
 | `minerva.MustNotAct` | any action would punish (Pyretic, Motion-Tracker-style mechanics) |
 | `minerva.MustNotMove` | movement would punish |
-| `minerva.MustNotTurn` | a gaze constrains facing |
+| `minerva.MustNotTurn` | a gaze constrains facing. Consumed since 2026-09-03: `PlayerSafetyHelper.ExternalLookAway` reads it, so the auto-face latch drops for every gaze a Minerva module describes |
 
 `MustNotAct` is worth wiring first. Several fights punish *acting*, not moving, and a rotation driven by a
 hardcoded status-id list misses each new one. Reading this means Daedalus stops for whatever the active
@@ -208,7 +208,8 @@ only* or an add that is a decoy — neither of which reads as invulnerable from 
 | `Minerva.Hints.IsPositionSafe` | `(Vector3 to) -> bool` | is that spot clear **right now** |
 | `Minerva.Hints.IsDashSafe` | `(Vector3 from, Vector3 to) -> bool` | as above, and the line does not leave the arena |
 | `Minerva.SafeFacing` | `() -> float` | radians, game convention; `NaN` when facing is unconstrained |
-| `Minerva.RequestPositional` | `(int mask, double seconds) -> bool` | ask the dodge to prefer flank/rear |
+| `Minerva.RequestPositional` | `(int mask, double seconds) -> bool` | ask the dodge to prefer flank/rear. Consumed since 2026-09-04: `Plugin.UpdateBmrAiConfig` re-asserts the active melee rotation's *anticipated* side (Sen gauge / Meikyo / combo step, single-target only) each frame (Flank 2, Rear 4; both while boundary camping) when Minerva is the selected engine |
+| `Minerva.IsSteering` | `() -> bool` | Minerva is moving the character this frame. `MinervaSafetyService.IsBmrNavigating` reads it, so Daedalus yields its own positional hops to Minerva exactly as it yields to BMR's AI |
 
 ### The revival case
 
@@ -273,6 +274,8 @@ time you still want it; a dropped call is harmless.
 - `AI.PauseMovement` — **now covered, by `Minerva.RequestHold` below.** Not a rename: read the contract.
 
 ### `Minerva.RequestHold` `(double seconds) -> bool`
+
+**Consumed since 2026-09-04.** `CastMovementHoldService` (hardcasts) and the raise hold ask Minerva for it, re-asserted per frame, when Minerva is the selected engine; they call BMR's `AI.PauseMovement` only when BMR is.
 
 **This is what makes a hardcast raise work under auto-dodge.** `MaxCastTime` answers *"may I stand here"*
 honestly, including reading **0** whenever Minerva is steering the character — and Regain steers whenever
