@@ -3,7 +3,7 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
-## v0.1.65 — unreleased
+## v0.1.65 — 2026-09-04
 
 ### New — Two ways to bring the zone HUD back
 - Closing the Occult Crescent window used to be one-way: it only opens itself **when you enter the zone**, so once shut there was nothing to press until you zoned again
@@ -11,6 +11,16 @@ All notable changes to Daedalus will be documented in this file.
 - That link only appears **while you're in the Crescent**. Everywhere else the HUD has nothing to show but "Not in Occult Crescent", so a permanent link would mostly lead to an empty window
 - It works outside the Crescent too — the window just says it isn't there yet, which beats a command that silently does nothing
 - The same caveat still applies to the **"Show the zone HUD"** setting: it's read on entering the zone, so ticking it while already standing in the Crescent takes effect on your next zone change. The command is the immediate way
+
+### New — Minerva gets told where to stand, and when to stop moving you
+- With **Minerva** selected as the mechanics engine, it now knows **which side your next positional wants** before the GCD lands. Without that, every dodge finished on whichever flank or rear you already stood on — **13 of 33 positionals missed** in one dodge-heavy fight, none of them under BossMod
+- It's told the side the rotation *expects*, not the one it's already committed to. A Samurai's required side isn't known until after Jinpu or Shifu, and says nothing at all during Meikyo Shisui — which is how BossMod ended up parked at one arc and never alternating
+- **Daedalus stops moving you itself** when Minerva is driving. Two things steering one character is the half-step-and-stall that got the arc hop benched in the first place
+- **Gazes**: Minerva knows which casts are look-aways for the fight it's running — See No Evil and Sinister Sight among them, which the built-in list never had. Without it, a character Minerva had just turned away was spun back into the beam by the next action's auto-face
+- **Hard casts**: raises and phantom casts now ask Minerva to stop walking you, rather than being walked out of a cast that never starts. It's narrower than the BossMod equivalent on purpose — only uptime movement yields, and the dodge still runs if the ground is about to kill you. A raiser who dies mid-cast has raised nobody
+
+### New — Two more North Horn enemies identified
+- **Crescent Geshunpest** (wind) and **Crescent Rothound** (fire), both scanned in this session. North Horn is now at **72.6%** identified, South Horn steady at 82.9%
 
 <!-- LATEST-END -->
 ## v0.1.64 — 2026-09-03
