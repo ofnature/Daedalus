@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 
 namespace Daedalus.Data;
 
@@ -43,6 +43,11 @@ public static class PhantomActions
         // ── Freelancer (levels via mastery count, so unlocks run past 6) ──
         new(41650, "Occult Resuscitation", PhantomJob.Freelancer, 5),
         new(41651, "Occult Treasuresight", PhantomJob.Freelancer, 10),
+        // Inquiring Mind: at a Knowledge Crystal, ONE cast grants the whole buff set — Enduring
+        // Fortitude, Fleetfooted, Romeo's Ballad and Quicker Step — to self and nearby party,
+        // each gated on that job's own level (Knight 2, Monk 3, Bard 2, Dancer 2, exactly the
+        // levels PhantomBuffs already records). It replaces the four-job swap cycle outright.
+        new(46606, "Inquiring Mind", PhantomJob.Freelancer, 15),
 
         // ── Knight ──
         new(41588, "Phantom Guard", PhantomJob.Knight, 1),

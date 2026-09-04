@@ -30,6 +30,13 @@ All notable changes to Daedalus will be documented in this file.
 - Four enemies were sitting on exactly this — Animated Doll, Crescent Onion, Crescent Tomato and Crescent Void Viper each had a known element under one id and a blank twin — plus Crescent Bomb, known ice in South Horn and blank in North
 - **This is what makes the elemental nukes pick correctly.** The Necromancer trio and the Red Mage, Summoner, Black Mage and Ninja pickers all read this table; an enemy reading unknown falls back to a default element, which on the Necromancer means Deep Freeze spends the shared recast that Hell Wind wanted
 
+### New — One button for the whole buff set, at Freelancer Lv15
+- **Inquiring Mind** is now wired. At a Knowledge Crystal it grants **Enduring Fortitude, Fleetfooted, Romeo's Ballad and Quicker Step** — the entire set — to you and everyone nearby, from a single cast
+- "Apply phantom buffs" uses it automatically when you qualify: **one job switch, one cast**, instead of touring four jobs with a switch and a cast each. The button says which it's about to do
+- Each buff still needs its own job at its own level — Knight 2, Monk 3, Bard 2, Dancer 2 — and those are exactly the levels the cycle already tracked, so the readout is unchanged. A job that's too low is named as before, and doesn't turn the one cast back into a tour
+- **Away from a crystal it still tours the jobs.** Inquiring Mind does nothing at all without one, unlike the four individual buffs, which land on the caster anywhere — so the shortcut is only taken where it actually works
+- Freelancer is the odd job out: it levels by mastery count rather than phantom EXP, so its unlocks run 5 / 10 / 15 / 20 while every other job stops at 5. Inquiring Mind is the third
+
 <!-- LATEST-END -->
 ## v0.1.63 — 2026-08-30
 

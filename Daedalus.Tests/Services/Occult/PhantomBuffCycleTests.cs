@@ -1,4 +1,4 @@
-using Daedalus.Data;
+﻿using Daedalus.Data;
 using Daedalus.Services.Occult;
 using Xunit;
 
@@ -65,12 +65,25 @@ public class PhantomBuffCycleTests
         public bool Cast(uint actionId, string actionName)
         {
             CastLog.Add(actionId);
-            if (!CastNeverLands)
+            if (CastNeverLands)
+                return true;
+
+            // Inquiring Mind grants the whole set at once, which is the entire point of it —
+            // the fake has to do the same or the shortcut cannot be tested at all.
+            if (actionId == PhantomBuffPolicy.InquiringMindActionId)
             {
-                var buff = FindBuff(actionId);
-                if (buff is { } b)
-                    Statuses[b.StatusId] = 1800f;
+                foreach (var b in PhantomBuffs.All)
+                {
+                    if (Levels.TryGetValue(b.Job, out var lv) && lv >= b.RequiredLevel)
+                        Statuses[b.StatusId] = 1800f;
+                }
+
+                return true;
             }
+
+            var buff = FindBuff(actionId);
+            if (buff is { } single)
+                Statuses[single.StatusId] = 1800f;
 
             return true;
         }
@@ -331,5 +344,123 @@ public class PhantomBuffCycleTests
 
         Assert.Equal(PhantomJob.Cannoneer, world.ActiveJob);
         Assert.Equal(BuffCycleState.Idle, cycle.State);
+    }
+
+    // ── Inquiring Mind: the whole set in one cast ────────────────────────────────────────
+
+    /// <summary>
+    /// A Lv15 Freelancer at a Knowledge Crystal gets Enduring Fortitude, Fleetfooted, Romeo's
+    /// Ballad and Quicker Step from one button. Touring four jobs for that is four job switches,
+    /// four casts and a minute of standing about for the same result.
+    /// </summary>
+    [Fact]
+    public void Level15_freelancer_at_a_crystal_casts_once()
+    {
+        var world = new FakeWorld { ActiveJob = PhantomJob.Cannoneer };
+        world.Levels[PhantomJob.Freelancer] = 15;
+        var cycle = Cycle(world);
+
+        Assert.True(cycle.Start(_ => true));
+        RunToCompletion(cycle);
+
+        Assert.Equal(new[] { PhantomBuffPolicy.InquiringMindActionId }, world.CastLog);
+        Assert.Contains(PhantomJob.Freelancer, world.SwitchLog);
+        Assert.Equal(PhantomJob.Cannoneer, world.ActiveJob);
+        foreach (var buff in PhantomBuffs.All)
+            Assert.True(world.StatusRemaining(buff.StatusId) > 0f, $"{buff.ActionName} should be up");
+    }
+
+    /// <summary>It grants four buffs, so it must not report having collected one.</summary>
+    [Fact]
+    public void One_cast_is_reported_as_the_whole_set()
+    {
+        var world = new FakeWorld();
+        world.Levels[PhantomJob.Freelancer] = 15;
+        var cycle = Cycle(world);
+
+        cycle.Start(_ => true);
+        RunToCompletion(cycle);
+
+        Assert.StartsWith("Buffed 4 of 4", cycle.LastOutcome);
+    }
+
+    /// <summary>
+    /// A job too low to contribute is still reported, and still does not turn the one cast into
+    /// a tour — Inquiring Mind grants whatever qualifies and skips the rest by itself.
+    /// </summary>
+    [Fact]
+    public void An_underlevelled_job_neither_blocks_nor_multiplies_the_cast()
+    {
+        var world = new FakeWorld();
+        world.Levels[PhantomJob.Freelancer] = 15;
+        world.Levels[PhantomJob.Monk] = 2;               // Counterstance needs 3
+        var cycle = Cycle(world);
+
+        cycle.Start(_ => true);
+        RunToCompletion(cycle);
+
+        Assert.Single(world.CastLog);
+        Assert.StartsWith("Buffed 3 of 3", cycle.LastOutcome);
+        Assert.Contains("Monk Lv2 (needs 3)", cycle.LastOutcome);
+    }
+
+    [Fact]
+    public void Below_level_15_still_tours_the_jobs()
+    {
+        var world = new FakeWorld();
+        world.Levels[PhantomJob.Freelancer] = 14;
+        var cycle = Cycle(world);
+
+        cycle.Start(_ => true);
+        RunToCompletion(cycle);
+
+        Assert.Equal(4, world.CastLog.Count);
+        Assert.DoesNotContain(PhantomBuffPolicy.InquiringMindActionId, world.CastLog);
+    }
+
+    [Fact]
+    public void Without_freelancer_at_all_it_tours_the_jobs()
+    {
+        var world = new FakeWorld();
+        var cycle = Cycle(world);
+
+        cycle.Start(_ => true);
+        RunToCompletion(cycle);
+
+        Assert.Equal(4, world.CastLog.Count);
+    }
+
+    /// <summary>
+    /// Away from a crystal Inquiring Mind does nothing whatsoever, while the four individual
+    /// buffs still land on the caster. Taking the shortcut there would trade a working cycle for
+    /// a wasted cast.
+    /// </summary>
+    [Fact]
+    public void Away_from_a_crystal_it_tours_the_jobs()
+    {
+        var world = new FakeWorld { NearKnowledgeCrystal = false };
+        world.Levels[PhantomJob.Freelancer] = 15;
+        var cycle = Cycle(world);
+
+        cycle.Start(_ => true);
+        RunToCompletion(cycle);
+
+        Assert.Equal(4, world.CastLog.Count);
+        Assert.DoesNotContain(PhantomBuffPolicy.InquiringMindActionId, world.CastLog);
+    }
+
+    /// <summary>With nothing to collect, do not switch to Freelancer just to switch back.</summary>
+    [Fact]
+    public void Nothing_to_collect_moves_nothing()
+    {
+        var world = new FakeWorld { ActiveJob = PhantomJob.Oracle };
+        world.Levels[PhantomJob.Freelancer] = 15;
+        var cycle = Cycle(world);
+
+        Assert.False(cycle.Start(_ => false));
+
+        Assert.Empty(world.SwitchLog);
+        Assert.Empty(world.CastLog);
+        Assert.Equal(PhantomJob.Oracle, world.ActiveJob);
     }
 }

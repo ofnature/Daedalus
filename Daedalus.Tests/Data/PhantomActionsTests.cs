@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 using Daedalus.Data;
 using Xunit;
@@ -69,7 +69,10 @@ public class PhantomActionsTests
         foreach (var def in PhantomActions.All)
         {
             var inOriginalBlock = def.ActionId is >= 41588 and <= 41651;
-            var inNewJobBlock = def.ActionId is >= 46590 and <= 46605;
+            // Top of this block is Inquiring Mind (46606), the Freelancer's Lv15 buff broadcast —
+            // MKDSupportJob row 0 lists 41650 / 41651 / 46606 / 49102, so the Freelancer's own
+            // actions are scattered across all three blocks rather than sitting in one.
+            var inNewJobBlock = def.ActionId is >= 46590 and <= 46606;
             var inNorthHornBlock = def.ActionId is >= 49060 and <= 49150; // 7.55 jobs (Ninja 49062+, Necromancer 49097+)
             Assert.True(inOriginalBlock || inNewJobBlock || inNorthHornBlock,
                 $"{def.Name} ({def.ActionId}) outside the known phantom action ID blocks");
@@ -126,8 +129,10 @@ public class PhantomActionsTests
     {
         foreach (var def in PhantomActions.All)
         {
-            // Regular jobs cap at 6; Freelancer levels via mastery count (Treasuresight = 10).
-            var cap = def.Job == PhantomJob.Freelancer ? 10 : 6;
+            // Regular jobs cap at 6. Freelancer levels by mastery count instead, and the game's
+            // own table gives its four unlocks as 5 / 10 / 15 / 20 (MKDSupportJob row 0) —
+            // Occult Resuscitation, Occult Treasuresight, Inquiring Mind, Wisdom on the Winds.
+            var cap = def.Job == PhantomJob.Freelancer ? 20 : 6;
             Assert.InRange(def.RequiredLevel, 1, cap);
         }
     }

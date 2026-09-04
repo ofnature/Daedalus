@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Numerics;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.Windowing;
@@ -243,7 +243,9 @@ public sealed class OccultWindow : Window
         else if (!running)
         {
             ImGui.SameLine();
-            ImGui.TextColored(Dim, "cycles jobs, then switches you back");
+            ImGui.TextColored(Dim, _buffCycle.WouldUseInquiringMind
+                ? "one cast — Inquiring Mind covers the whole set"
+                : "cycles jobs, then switches you back");
         }
 
         // Hover only. The previous condition ORed in "enabled and not running", which made

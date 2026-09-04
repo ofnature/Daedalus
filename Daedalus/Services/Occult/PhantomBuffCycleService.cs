@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using Daedalus.Data;
 
@@ -64,6 +64,13 @@ public sealed class PhantomBuffCycleService
     private readonly List<BuffPlanEntry> _plan = new();
     private int _index;
     private int _castCount;
+
+    /// <summary>
+    /// Inquiring Mind standing in for the entire plan: one job switch, one cast, everything the
+    /// character qualifies for. Null when the four-job tour is still the only way — see
+    /// <see cref="PhantomBuffPolicy.CanUseInquiringMind"/>.
+    /// </summary>
+    private PhantomBuff? _oneShot;
 
     private float _stepElapsed;
     private float _cycleElapsed;
@@ -132,6 +139,13 @@ public sealed class PhantomBuffCycleService
         _cycleElapsed = 0f;
         LastOutcome = string.Empty;
 
+        // A Lv15 Freelancer at a crystal gets the lot from one button, so tour nothing. The plan
+        // is still built and still reported — it is what says WHICH buffs this cast will grant
+        // and which jobs are too low to contribute.
+        _oneShot = PhantomBuffPolicy.CanUseInquiringMind(_world.JobLevels, _world.NearKnowledgeCrystal)
+            ? PhantomBuffPolicy.InquiringMindStandIn(_plan)
+            : null;
+
         if (!AdvanceToNextCastable())
         {
             // Nothing to do — do not switch jobs just to switch back.
@@ -144,6 +158,19 @@ public sealed class PhantomBuffCycleService
         return true;
 
         float Remaining(PhantomBuff b) => _world.StatusRemaining(b.StatusId);
+    }
+
+    /// <summary>
+    /// Would a press collect the whole set with a single Inquiring Mind rather than touring the
+    /// jobs? For the button's subtitle, which otherwise promises a job cycle that will not happen.
+    /// </summary>
+    public bool WouldUseInquiringMind
+    {
+        get
+        {
+            try { return PhantomBuffPolicy.CanUseInquiringMind(_world.JobLevels, _world.NearKnowledgeCrystal); }
+            catch { return false; }
+        }
     }
 
     /// <summary>Seconds left on a buff's status (0 = absent). For the window's timer readout.</summary>
@@ -209,7 +236,7 @@ public sealed class PhantomBuffCycleService
         }
     }
 
-    private PhantomBuff Current => _plan[_index].Buff;
+    private PhantomBuff Current => _oneShot ?? _plan[_index].Buff;
 
     private void TickSwitchingJob()
     {
@@ -274,7 +301,9 @@ public sealed class PhantomBuffCycleService
         // from twenty minutes ago would otherwise make a failed cast look like a success.
         if (_world.StatusRemaining(Current.StatusId) >= PhantomBuffs.FreshApplicationSeconds)
         {
-            _castCount++;
+            // One Inquiring Mind grants every buff the character qualifies for, so the outcome
+            // line counts them all rather than reporting "Buffed 1 of 3" for a complete set.
+            _castCount += _oneShot is null ? 1 : CastableCount();
             AdvanceOrFinish();
             return;
         }
@@ -318,6 +347,19 @@ public sealed class PhantomBuffCycleService
         AdvanceOrFinish();
     }
 
+    /// <summary>How many buffs this cycle set out to collect.</summary>
+    private int CastableCount()
+    {
+        var count = 0;
+        foreach (var entry in _plan)
+        {
+            if (entry.WillCast)
+                count++;
+        }
+
+        return count;
+    }
+
     private void AdvanceOrFinish()
     {
         if (AdvanceToNextCastable())
@@ -330,6 +372,20 @@ public sealed class PhantomBuffCycleService
     /// <summary>Moves to the next buff worth casting; false when the plan is exhausted.</summary>
     private bool AdvanceToNextCastable()
     {
+        // The one-shot is the whole cycle: one step, then done however it went.
+        if (_oneShot is { } oneShot)
+        {
+            if (_index >= 0)
+            {
+                _index = _plan.Count;
+                return false;
+            }
+
+            _index = 0;
+            EnterState(BuffCycleState.SwitchingJob, $"Switching to {oneShot.Job}");
+            return true;
+        }
+
         for (var i = _index + 1; i < _plan.Count; i++)
         {
             if (!_plan[i].WillCast)
@@ -381,6 +437,10 @@ public sealed class PhantomBuffCycleService
     /// <summary>" (2/4)" — the cycle takes up to a minute, so silence reads as a hang.</summary>
     private string Progress()
     {
+        // One cast, one step. "(1/3)" would promise two more that are never coming.
+        if (_oneShot is not null)
+            return string.Empty;
+
         var total = 0;
         var done = 0;
         for (var i = 0; i < _plan.Count; i++)

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using Daedalus.Data;
 
@@ -100,6 +100,58 @@ public static class PhantomBuffPolicy
         }
 
         return plan;
+    }
+
+    /// <summary>Inquiring Mind — the Freelancer ability that grants the whole set in one cast.</summary>
+    public const uint InquiringMindActionId = 46606;
+
+    /// <summary>
+    /// Freelancer level it unlocks at. Freelancer levels by mastery count rather than by phantom
+    /// EXP, so its unlocks run 5 / 10 / 15 / 20 where every other job stops at 5 — Inquiring Mind
+    /// is the third of those (game's own MKDSupportJob table).
+    /// </summary>
+    public const byte InquiringMindFreelancerLevel = 15;
+
+    /// <summary>
+    /// Can this character collect the whole set with one cast instead of touring four jobs?
+    /// <para>
+    /// The crystal is not optional here, unlike the individual buffs. Pray, Counterstance,
+    /// Romeo's Ballad and Quickstep all buff the caster anywhere and merely BROADCAST at a
+    /// crystal; Inquiring Mind does nothing at all away from one — "when executed near a
+    /// knowledge crystal" is the whole tooltip. So away from a crystal the four-job cycle is
+    /// still the only way, and this returns false rather than trading a working cycle for a
+    /// wasted GCD.
+    /// </para>
+    /// </summary>
+    public static bool CanUseInquiringMind(
+        IReadOnlyDictionary<PhantomJob, byte>? jobLevels, bool nearKnowledgeCrystal)
+    {
+        if (!nearKnowledgeCrystal || jobLevels is null)
+            return false;
+
+        return jobLevels.TryGetValue(PhantomJob.Freelancer, out var level)
+               && level >= InquiringMindFreelancerLevel;
+    }
+
+    /// <summary>
+    /// The one-cast stand-in for the whole plan. Its status is that of the first buff the
+    /// character actually qualifies for: all four come from the same cast, so any one of them
+    /// landing proves the cast landed, and one is all the verifier can watch.
+    /// </summary>
+    public static PhantomBuff? InquiringMindStandIn(IReadOnlyList<BuffPlanEntry> plan)
+    {
+        foreach (var entry in plan)
+        {
+            if (entry.WillCast)
+            {
+                return new PhantomBuff(
+                    PhantomJob.Freelancer, InquiringMindActionId, "Inquiring Mind",
+                    entry.Buff.StatusId, InquiringMindFreelancerLevel,
+                    "the whole set in one cast");
+            }
+        }
+
+        return null;
     }
 
     /// <summary>
