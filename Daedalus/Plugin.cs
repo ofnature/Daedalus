@@ -1090,7 +1090,7 @@ public sealed class Plugin : IDalamudPlugin
 
         this.commandManager.AddHandler(CommandName, new CommandInfo(OnCommand)
         {
-            HelpMessage = "Open Daedalus window (short alias: /dae). Subcommands: toggle | debug | hardcast [on|off|toggle]"
+            HelpMessage = "Open Daedalus window (short alias: /dae). Subcommands: toggle | debug | occult | meld | hardcast [on|off|toggle]"
         });
         this.commandManager.AddHandler(CommandAlias, new CommandInfo(OnCommand)
         {
@@ -1669,6 +1669,14 @@ public sealed class Plugin : IDalamudPlugin
 
             case "meld":
                 meldOptimizerWindow.Toggle();
+                break;
+
+            // The zone HUD opens itself on entering the Occult Crescent and, until this existed,
+            // closing it left no way back in: the auto-open only runs on a territory change, so
+            // the setting that governs it does nothing at all while you are already standing in
+            // the zone. Toggling works anywhere — outside the Crescent the window says so.
+            case "occult":
+                occultWindow.Toggle();
                 break;
 
             case "dumpgear":

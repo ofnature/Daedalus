@@ -3,6 +3,14 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.65 — unreleased
+
+### New — `/dae occult` brings the zone HUD back
+- Closing the Occult Crescent window used to be one-way: it only opens itself **when you enter the zone**, so once shut there was nothing to press until you zoned again. `/dae occult` toggles it whenever you like
+- It works outside the Crescent too — the window just says it isn't there yet, which beats a command that silently does nothing
+- The same caveat still applies to the **"Show the zone HUD"** setting: it's read on entering the zone, so ticking it while already standing in the Crescent takes effect on your next zone change. The command is the immediate way
+
+<!-- LATEST-END -->
 ## v0.1.64 — 2026-09-03
 
 ### New — Four Phantom Blue Mages stop firing Missile at the same mob
@@ -41,7 +49,6 @@ All notable changes to Daedalus will be documented in this file.
 - **286 enemies, 219 identified (76.6%).** South Horn is at 82.9%, North Horn at **71.3%**
 - Two Shoreline Showdown orbs — Fulmipotent and Glacipotent — were dropped. Both have now been seen well over thirty times without ever once being targetable, which is the table's own evidence that Occult Libra can never reach them. Nothing is lost by that: a single sighting that finds one targetable puts it straight back
 
-<!-- LATEST-END -->
 ## v0.1.63 — 2026-08-30
 
 ### New — The pot hunt map shows which way you're facing
