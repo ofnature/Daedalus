@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -535,13 +535,37 @@ public sealed class ElementalWeaknessLog
     {
         var territory = (ushort)_clientState.TerritoryType;
 
+        // Fast path stays a dictionary hit; only the fallbacks walk the table.
         if (_entries.TryGetValue(Key(territory, nameId), out var exact) && exact.Elements != OccultElement.None)
             return exact.Elements;
+
+        return ResolveFallback(_entries.Values, territory, nameId, name);
+    }
+
+    /// <summary>
+    /// The two fallbacks, in order of how strong the identity claim is. Pure and static so the
+    /// chain can be tested — it silently never ran at all until 2026-09-03, because the only
+    /// caller passed an id and no name, and nothing failed loudly when it returned null.
+    /// </summary>
+    internal static OccultElement? ResolveFallback(
+        IEnumerable<OccultWeaknessEntry> entries, ushort territory, uint nameId, string? name)
+    {
+        // Same NameId, either Horn. Rows are keyed by (territory, NameId), so a creature living in
+        // both zones carries two rows and learning it in one taught the other nothing. Same id is
+        // the strongest identity there is, and the data agrees: of the four enemies recorded in
+        // both Horns, the three known on both sides match exactly (Crescent Dhruva wind, Crescent
+        // Mousse fire, Crescent Mimic lightning), while Crescent Bomb sat known-ice in South and
+        // blank in North purely for want of this (measured 2026-09-03 across four ledgers).
+        foreach (var e in entries)
+        {
+            if (e.NameId == nameId && e.Elements != OccultElement.None)
+                return e.Elements;
+        }
 
         if (string.IsNullOrWhiteSpace(name))
             return null;
 
-        foreach (var e in _entries.Values)
+        foreach (var e in entries)
         {
             if (e.TerritoryId == territory
                 && e.Elements != OccultElement.None

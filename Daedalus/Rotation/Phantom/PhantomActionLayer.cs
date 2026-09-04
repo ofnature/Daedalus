@@ -863,7 +863,7 @@ public sealed class PhantomActionLayer
         // elemental damage AND fills the weakness table. Only at enemies we can't name yet.
         if (job == PhantomJob.PhantomRedMage
             && target is IBattleNpc libraTarget
-            && TargetWeakness?.Invoke(libraTarget.NameId) is null)
+            && TargetWeakness?.Invoke(libraTarget.NameId, libraTarget.Name?.TextValue) is null)
         {
             TryPush(ctx, 49094, job, level, PrioPartyBuff, target.GameObjectId, target);
         }
@@ -1009,7 +1009,7 @@ public sealed class PhantomActionLayer
                 // pick left a Lv.3 Summoner firing nothing at a wind-weak target, because its
                 // only wind nuke (Thunderstorm) is Lv.4.
                 var smnOrder = PhantomBandRules.SummonerNukeOrder(
-                    target is IBattleNpc smnTarget ? TargetWeakness?.Invoke(smnTarget.NameId) : null);
+                    target is IBattleNpc smnTarget ? TargetWeakness?.Invoke(smnTarget.NameId, smnTarget.Name?.TextValue) : null);
                 for (var i = 0; i < smnOrder.Length; i++)
                     TryPush(ctx, smnOrder[i], job, level, PrioDamage + 1 + i, target.GameObjectId, target);
                 break;
@@ -1023,7 +1023,7 @@ public sealed class PhantomActionLayer
                 // Flare leads: unaspected 500 on its own 60s timer, so no weakness applies.
                 TryPush(ctx, 49076, job, level, PrioDamage, target.GameObjectId, target);
                 var blmOrder = PhantomBandRules.BlackMageNukeOrder(
-                    target is IBattleNpc blmTarget ? TargetWeakness?.Invoke(blmTarget.NameId) : null);
+                    target is IBattleNpc blmTarget ? TargetWeakness?.Invoke(blmTarget.NameId, blmTarget.Name?.TextValue) : null);
                 for (var i = 0; i < blmOrder.Length; i++)
                     TryPush(ctx, blmOrder[i], job, level, PrioDamage + 1 + i, target.GameObjectId, target);
                 break;
@@ -1077,7 +1077,7 @@ public sealed class PhantomActionLayer
                 // independent 60s recasts — lead with the target's weak element, fire both.
                 TryPush(ctx, 49062, job, level, PrioDamage, target.GameObjectId, target); // Fuma Shuriken
                 var scroll = PhantomBandRules.PreferredScroll(
-                    target is IBattleNpc scrollTarget ? TargetWeakness?.Invoke(scrollTarget.NameId) : null);
+                    target is IBattleNpc scrollTarget ? TargetWeakness?.Invoke(scrollTarget.NameId, scrollTarget.Name?.TextValue) : null);
                 var otherScroll = scroll == PhantomBandRules.FlameScrollId
                     ? PhantomBandRules.LightningScrollId
                     : PhantomBandRules.FlameScrollId;
@@ -1134,7 +1134,7 @@ public sealed class PhantomActionLayer
 
         // Element choice: the trio share one recast, so fire the one the target is weak to.
         var weakness = cfg.NecromancerMatchElementalWeakness && target is IBattleNpc npcTarget
-            ? TargetWeakness?.Invoke(npcTarget.NameId)
+            ? TargetWeakness?.Invoke(npcTarget.NameId, npcTarget.Name?.TextValue)
             : null;
         var nukeOrder = PhantomBandRules.NecromancerNukeOrder(weakness);
         var selfName = ctx.Player.Name?.TextValue ?? string.Empty;
@@ -1196,7 +1196,7 @@ public sealed class PhantomActionLayer
     /// log). Null = never revealed, which is not evidence of absence — the nuke picker just
     /// falls back to its default element.
     /// </summary>
-    public Func<uint, Daedalus.Services.Occult.OccultElement?>? TargetWeakness { get; set; }
+    public Func<uint, string?, Daedalus.Services.Occult.OccultElement?>? TargetWeakness { get; set; }
 
     private readonly OracleDeckTracker _oracleDeck = new();
 
@@ -1230,7 +1230,7 @@ public sealed class PhantomActionLayer
     /// </summary>
     private void PushRedMage(IRotationContext ctx, Config.PhantomConfig cfg, PhantomJob job, byte level, IBattleChara target)
     {
-        var weakness = target is IBattleNpc rdmTarget ? TargetWeakness?.Invoke(rdmTarget.NameId) : null;
+        var weakness = target is IBattleNpc rdmTarget ? TargetWeakness?.Invoke(rdmTarget.NameId, rdmTarget.Name?.TextValue) : null;
         var order = PhantomBandRules.RedMageNukeOrder(weakness);
 
         var plan = PhantomBandRules.PlanRedMage(

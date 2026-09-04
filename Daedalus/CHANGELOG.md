@@ -19,6 +19,17 @@ All notable changes to Daedalus will be documented in this file.
 - The weakness table only knows what something has **revealed** — Occult Libra, from the phantom layer on Red Mage. Seeing "weak to wind" on your screen doesn't put it in the table; scanning the enemy does
 - The healer refusal said *"Deep Freeze held"* whichever of the three you were waiting on. It names the family now
 
+### New — North Horn went from a third identified to seven in ten
+- The shipped weakness table now carries **288 enemies with 219 identified**, up from 158. **North Horn: 32.3% → 70.4%**; South Horn holds at 82.9%
+- Enemies with no element at all fell from **45% to 24%**, and the worst bucket flipped: trash and field mobs are now the *best* covered at 6% unknown, while critical-encounter enemies are the gap at 25%
+- 61 newly identified, every one of them North Horn — Crescent Medusa (fire and wind), Crescent Gazellehawk and Crescent Wamoura (ice and wind), Crescent Belladonna (fire and ice), and 57 more
+
+### Fix — A known enemy could still read as unknown
+- The game gives one creature **several NameIds** — Crescent Void Viper is 13896 *and* 13907, Animated Doll 13893 *and* 13894 — and a creature living in both Horns gets a row per zone. Learning it under one id taught the rotation nothing about the other
+- There was already a rule for this, and it had **never once run**: it needed the enemy's name and every caller passed only an id, so it returned "unknown" silently. It works now, and a second rule was added for the same NameId across both Horns
+- Four enemies were sitting on exactly this — Animated Doll, Crescent Onion, Crescent Tomato and Crescent Void Viper each had a known element under one id and a blank twin — plus Crescent Bomb, known ice in South Horn and blank in North
+- **This is what makes the elemental nukes pick correctly.** The Necromancer trio and the Red Mage, Summoner, Black Mage and Ninja pickers all read this table; an enemy reading unknown falls back to a default element, which on the Necromancer means Deep Freeze spends the shared recast that Hell Wind wanted
+
 <!-- LATEST-END -->
 ## v0.1.63 — 2026-08-30
 

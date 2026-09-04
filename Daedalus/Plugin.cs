@@ -705,7 +705,11 @@ public sealed class Plugin : IDalamudPlugin
             burstWindowService);
         phantomLayer.DebugLog = debugLogService;
         phantomLayer.PartyCoordination = partyCoordinationService;
-        phantomLayer.TargetWeakness = nameId => elementalWeaknessLog.KnownWeakness(nameId);
+        // The NAME matters as much as the id: the game gives one creature several NameIds
+        // (Crescent Void Viper 13896/13907, Animated Doll 13893/13894), and KnownWeakness can only
+        // reach its same-name fallback if it is handed one. Passing the id alone left that
+        // fallback unreachable from every consumer since the day it was written.
+        phantomLayer.TargetWeakness = (nameId, name) => elementalWeaknessLog.KnownWeakness(nameId, name);
         // Safe to stand still here for the whole cast? Only Safe counts — Imminent means
         // something lands inside the window, and Unsafe means we are already in it. BMR absent
         // reports Safe (fail-open), which is right: with no module there are no telegraphs to
