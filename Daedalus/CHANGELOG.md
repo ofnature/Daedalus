@@ -3,7 +3,7 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
-## v0.1.64 — unreleased
+## v0.1.64 — 2026-09-03
 
 ### New — Four Phantom Blue Mages stop firing Missile at the same mob
 - Occult Missile is a **35% coin flip for 75% of the target's current HP** on a 30 second recast. A fleet shares one target and one frame, so all four toons were firing it at the same enemy at the same moment — and three of those recasts bought nothing
@@ -36,6 +36,10 @@ All notable changes to Daedalus will be documented in this file.
 - Each buff still needs its own job at its own level — Knight 2, Monk 3, Bard 2, Dancer 2 — and those are exactly the levels the cycle already tracked, so the readout is unchanged. A job that's too low is named as before, and doesn't turn the one cast back into a tour
 - **Away from a crystal it still tours the jobs.** Inquiring Mind does nothing at all without one, unlike the four individual buffs, which land on the caster anywhere — so the shortcut is only taken where it actually works
 - Freelancer is the odd job out: it levels by mastery count rather than phantom EXP, so its unlocks run 5 / 10 / 15 / 20 while every other job stops at 5. Inquiring Mind is the third
+
+### New — The weakness table keeps filling in
+- **286 enemies, 219 identified (76.6%).** South Horn is at 82.9%, North Horn at **71.3%**
+- Two Shoreline Showdown orbs — Fulmipotent and Glacipotent — were dropped. Both have now been seen well over thirty times without ever once being targetable, which is the table's own evidence that Occult Libra can never reach them. Nothing is lost by that: a single sighting that finds one targetable puts it straight back
 
 <!-- LATEST-END -->
 ## v0.1.63 — 2026-08-30
