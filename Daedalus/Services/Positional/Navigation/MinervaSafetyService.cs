@@ -139,6 +139,30 @@ public sealed class MinervaSafetyService : IBossModSafetyService
     /// <summary>Observability only, and Minerva publishes no equivalent.</summary>
     public Vector3? BmrNaviTarget => null;
 
+    private ICallGateSubscriber<ulong[]>? _forbiddenTargets;
+    private ICallGateSubscriber<ulong[]>? _priorityTargets;
+
+    /// <summary>The module's "never attack" list: invincible or forbidden outright.</summary>
+    public ulong[] ForbiddenTargets => ReadIds(ref _forbiddenTargets, "Minerva.Hints.ForbiddenTargets");
+
+    /// <summary>The module's "attack first" list, best first; only enemies a module explicitly raised.</summary>
+    public ulong[] PriorityTargets => ReadIds(ref _priorityTargets, "Minerva.Hints.PriorityTargets");
+
+    private ulong[] ReadIds(ref ICallGateSubscriber<ulong[]>? slot, string name)
+    {
+        if (!IsAvailable)
+            return [];
+
+        try
+        {
+            return (slot ??= _pluginInterface.GetIpcSubscriber<ulong[]>(name)).InvokeFunc() ?? [];
+        }
+        catch
+        {
+            return [];
+        }
+    }
+
     public void BeginUpdateSnapshot()
         => _snapshotMustNotMoveIn = ForbiddenZoneActivationInSeconds;
 

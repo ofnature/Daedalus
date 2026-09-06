@@ -64,4 +64,8 @@ public sealed class BossHandlingRouter : IBossModSafetyService
     public bool IsBmrNavigating => Active.IsBmrNavigating;
 
     public Vector3? BmrNaviTarget => Active.BmrNaviTarget;
+
+    public ulong[] ForbiddenTargets => Active.ForbiddenTargets;
+
+    public ulong[] PriorityTargets => Active.PriorityTargets;
 }

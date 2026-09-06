@@ -43,4 +43,12 @@ public interface IBossModSafetyService
 
     /// <summary><c>BossMod.AI.NaviTargetPos</c> — where BMR AI is steering to; null when idle or unavailable. Observability only.</summary>
     Vector3? BmrNaviTarget { get; }
+
+    /// <summary>Enemies the fight says never to attack: a phase-invulnerable boss, a decoy, the wrong
+    /// half of a two-floor boss. Empty when the engine has no opinion (BossMod publishes none).</summary>
+    ulong[] ForbiddenTargets => [];
+
+    /// <summary>Enemies the fight says to attack ahead of everything else, best first: adds during an
+    /// invulnerability phase. Empty when the engine has no opinion.</summary>
+    ulong[] PriorityTargets => [];
 }

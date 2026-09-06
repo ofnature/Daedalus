@@ -3,6 +3,16 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.68 — unreleased
+
+### New — The fight gets a say in what you attack
+- When **Minerva** is your mechanics engine, Daedalus now reads the two target lists a boss module publishes: enemies the fight says **never to attack**, and enemies to attack **first**
+- **Never-attack** covers what no status flag can tell you: a boss that's invulnerable for *this phase only* (Alexander's Perfect Defense), a decoy, or the far half of a two-floor boss you can't actually reach — Shinryu Paradox seen from the lower floor. Those are now refused everywhere targeting resolves: current, focus, sticky and cached alike
+- **Attack-first** puts the module's own kill order ahead of every automatic strategy. Alexander's adds during Perfect Defense were being found eventually — after forty seconds of swinging at an invincible boss
+- **Your own pick still wins.** An explicit current-target or focus-target strategy is left alone; only the never-attack list applies there, because a target the fight has ruled out isn't a preference
+- Nothing changes under BossMod Reborn, which publishes neither list
+
+<!-- LATEST-END -->
 ## v0.1.67 — 2026-09-05
 
 ### Fix — Gap closers no longer dash you back into the AoE
@@ -14,7 +24,6 @@ All notable changes to Daedalus will be documented in this file.
 - Rooting actions now follow the same rule as hard casts: never while you're being walked somewhere, and never on ground the engine says won't stay safe for the whole lock
 - The Duty tab names it — *"would root you for 2.0s on unsafe ground"* — rather than the action just not firing
 
-<!-- LATEST-END -->
 ## v0.1.66 — 2026-09-05
 
 ### New — Casters check the ground before starting a hard cast

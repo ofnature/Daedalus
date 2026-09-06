@@ -416,6 +416,10 @@ public sealed class Plugin : IDalamudPlugin
             bossModEngine, minervaEngine, () => configuration.BossHandling);
         // Onslaught during a dodge dashes the character back into the AOE; the router says who is steering.
         this.gapCloserSafetyService.ExternalSteering = () => this.bossModSafetyService.IsBmrNavigating;
+        // The fight's targeting opinion: never an invincible boss or the wrong floor's half, adds first when
+        // the module raises them. Minerva publishes both lists; BossMod publishes neither, so under it these are empty.
+        this.targetingService.ForbiddenTargets = () => this.bossModSafetyService.ForbiddenTargets;
+        this.targetingService.PriorityTargets = () => this.bossModSafetyService.PriorityTargets;
 
         this.movementArbiter = new MovementArbiter(
             vNavService, bossModSafetyService, () => configuration.Nav.YieldToBmrMovement,

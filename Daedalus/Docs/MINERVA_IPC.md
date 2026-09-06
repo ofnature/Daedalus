@@ -370,3 +370,13 @@ fights stay silent until one does.
   2026-09-05 showed three vulnerability stacks that were exactly this: the dodge starting the instant the
   jump left the ground. Rooting actions follow the hardcast rule -- never while being walked, never on
   ground the engine says will not stay safe for the whole lock.
+
+## 2026-09-06: the targeting lists are consumed
+
+`Minerva.Hints.ForbiddenTargets` and `Minerva.Hints.PriorityTargets` now reach `TargetingService` through
+the `BossHandlingRouter` (`IBossModSafetyService.ForbiddenTargets` / `PriorityTargets`, empty under
+BossMod). Forbidden ids fail `IsStillValid`, the one gate every resolve path shares, so a
+phase-invulnerable boss (Alexander's Perfect Defense) or the other floor's half of Shinryu Paradox is
+never held as current, focus, sticky or cached target. The priority list is tried first, in Minerva's
+order, ahead of every automatic strategy; explicit CurrentTarget / FocusTarget strategies keep the
+user's pick. Both lists are re-read at most ten times a second.

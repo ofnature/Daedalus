@@ -58,6 +58,26 @@ public sealed class TargetingService : ITargetingService
 
     public IGapCloserSafetyService GapCloserSafety { get; }
 
+    /// <summary>The boss engine's "never attack" list; Plugin wires it to the engine router. Null = no engine.</summary>
+    public Func<ulong[]>? ForbiddenTargets { get; set; }
+
+    /// <summary>The boss engine's "attack first" list, best first; Plugin wires it to the engine router.</summary>
+    public Func<ulong[]>? PriorityTargets { get; set; }
+
+    private ulong[] _forbiddenByFight = [];
+    private ulong[] _preferredByFight = [];
+    private readonly Stopwatch _fightHintsTimer = Stopwatch.StartNew();
+
+    /// <summary>Both lists come over IPC and targeting asks many times a frame; ten reads a second is plenty.</summary>
+    private void RefreshFightHints()
+    {
+        if (_fightHintsTimer.ElapsedMilliseconds < 100)
+            return;
+        _fightHintsTimer.Restart();
+        _forbiddenByFight = ForbiddenTargets?.Invoke() ?? [];
+        _preferredByFight = PriorityTargets?.Invoke() ?? [];
+    }
+
     public TargetingService(
         IObjectTable objectTable,
         IPartyList partyList,
@@ -1297,6 +1317,21 @@ public sealed class TargetingService : ITargetingService
 
     private IBattleNpc? FindEnemyByStrategy(EnemyTargetingStrategy strategy, float maxRange, IPlayerCharacter player)
     {
+        // The fight's priority list beats every automatic strategy; an explicit current/focus target is the
+        // user's own call and is left alone (the forbidden list still applies to it, in IsStillValid).
+        if (strategy is not (EnemyTargetingStrategy.CurrentTarget or EnemyTargetingStrategy.FocusTarget))
+        {
+            RefreshFightHints();
+            if (_preferredByFight.Length > 0)
+            {
+                var currentTargetId = _targetManager.Target is IBattleNpc ? _targetManager.Target.GameObjectId : 0UL;
+                var preferred = FightTargetHints.FirstPreferred(_preferredByFight, id =>
+                    TryResolveValidEnemyInRange(id, maxRange, player) is { } e && ShouldIncludeEnemyForTargeting(e, currentTargetId, player) ? e : null);
+                if (preferred != null)
+                    return preferred;
+            }
+        }
+
         return strategy switch
         {
             EnemyTargetingStrategy.LowestHp => FindLowestHpEnemy(maxRange, player),
@@ -1582,9 +1617,15 @@ public sealed class TargetingService : ITargetingService
             IsPlayerEffectivelyInCombat(player),
             ShouldRelaxEnemyInCombatRequirement(player));
 
-    private static bool IsStillValid(IBattleNpc enemy)
+    private bool IsStillValid(IBattleNpc enemy)
     {
         if (!enemy.IsTargetable || enemy.IsDead)
+            return false;
+
+        // The fight says never: an invincible boss, a decoy, the other floor's half of Shinryu Paradox.
+        // Every resolve path (current, focus, sticky, cache) comes through here, so this is the one gate.
+        RefreshFightHints();
+        if (FightTargetHints.IsForbidden(enemy.GameObjectId, _forbiddenByFight))
             return false;
 
         // Safeguard: never resolve/keep a friendly NPC (Trust allies, escort/protect
