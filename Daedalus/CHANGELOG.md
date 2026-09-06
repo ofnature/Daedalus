@@ -3,7 +3,7 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
-## v0.1.67 — unreleased
+## v0.1.67 — 2026-09-05
 
 ### Fix — Gap closers no longer dash you back into the AoE
 - Onslaught, Intervene, Spinning Edge approaches and the rest are **held while the boss engine is steering a dodge**. A gap closer is a dash toward the target, which during a dodge is the one direction that was just ruled out
