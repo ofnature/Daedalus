@@ -3,6 +3,18 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.67 — unreleased
+
+### Fix — Gap closers no longer dash you back into the AoE
+- Onslaught, Intervene, Spinning Edge approaches and the rest are **held while the boss engine is steering a dodge**. A gap closer is a dash toward the target, which during a dodge is the one direction that was just ruled out
+- It asks whichever engine you have selected, so **BossMod and Minerva both answer it**
+
+### Fix — Occult Jump won't root you where you can't afford it
+- Occult Jump has no cast bar but puts you **two seconds in the air**, unable to move. It was being treated as an instant, so it fired mid-dodge — a Minerva replay showed **three vulnerability stacks in a row**, each one the dodge starting the moment the jump left the ground
+- Rooting actions now follow the same rule as hard casts: never while you're being walked somewhere, and never on ground the engine says won't stay safe for the whole lock
+- The Duty tab names it — *"would root you for 2.0s on unsafe ground"* — rather than the action just not firing
+
+<!-- LATEST-END -->
 ## v0.1.66 — 2026-09-05
 
 ### New — Casters check the ground before starting a hard cast
@@ -17,7 +29,6 @@ All notable changes to Daedalus will be documented in this file.
 - Running **Lost on the Wind** settled its two unknowns the other way: **Abductor's Plume** and **Biting Wind** were seen 62 and 446 times without ever once being targetable, which is the table's own evidence that Occult Libra can never reach them. Both are dropped rather than left sitting on the chase list forever — and a single sighting that finds either targetable puts it straight back
 - **284 enemies, 222 identified (78.2%).** North Horn is up to **74.2%**, South Horn steady at 82.9%
 
-<!-- LATEST-END -->
 ## v0.1.65 — 2026-09-04
 
 ### New — Two ways to bring the zone HUD back

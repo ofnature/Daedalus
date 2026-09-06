@@ -360,3 +360,13 @@ fights stay silent until one does.
 - Minerva re-solves every frame; all of these are current-frame answers with no caching.
 - None of this has been verified in game yet. The plumbing is tested headless (682 self-tests, 151
   recordings validated); the gates themselves have had no live consumer.
+
+## 2026-09-05: two more consumers of the movement flags
+
+- `Minerva.IsSteering` now also blocks gap closers (`GapCloserSafetyService.ExternalSteering`, via the
+  `BossHandlingRouter`): Onslaught during a dodge is a dash back into the AOE.
+- `MaxCastTime` (through `CastSafety` / `QueryPositionSafety`) now also gates **Occult Jump**, which roots
+  the character for two seconds without a cast bar (`PhantomBandRules.RootSeconds`). Minerva's replay of
+  2026-09-05 showed three vulnerability stacks that were exactly this: the dodge starting the instant the
+  jump left the ground. Rooting actions follow the hardcast rule -- never while being walked, never on
+  ground the engine says will not stay safe for the whole lock.

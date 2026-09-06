@@ -27,6 +27,13 @@ public sealed class GapCloserSafetyService : IGapCloserSafetyService
 
     public string? LastBlockReason { get; private set; }
 
+    /// <summary>
+    /// The boss engine is walking the character this frame. A gap closer is a dash toward the target,
+    /// which during a dodge is the one direction that was just ruled out; Plugin wires this to the
+    /// engine router so Minerva and BossMod both answer it.
+    /// </summary>
+    public System.Func<bool>? ExternalSteering { get; set; }
+
     public GapCloserSafetyService(Configuration configuration, ITargetManager targetManager)
     {
         _configuration = configuration;
@@ -68,6 +75,13 @@ public sealed class GapCloserSafetyService : IGapCloserSafetyService
         {
             LastBlockReason = null;
             return false;
+        }
+
+        // The dodge owns the character: do not dash it back toward the boss.
+        if (ExternalSteering?.Invoke() == true)
+        {
+            LastBlockReason = "boss engine is steering a dodge";
+            return true;
         }
 
         // Belt & suspenders: if damage is paused for "no target" reasons, block too.

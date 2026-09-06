@@ -1516,7 +1516,13 @@ public sealed class PhantomActionLayer
         // wrong for this one cast. Without this the gate refuses a FREE INSTANT nuke for "moving".
         var instantFromDualcast = _dualcastThisFrame && behavior.Action.IsGCD;
 
-        if (behavior.Action.CastTime > 0 && _isMovingThisFrame && !instantFromDualcast)
+        // A cast bar roots the character; so does Occult Jump, without one. Both go through the same
+        // rule: never while the character is being walked somewhere (that walk is a dodge more often
+        // than not), and never on ground the boss engine says will not stay safe for the whole stand.
+        var rootSeconds = behavior.Action.CastTime > 0 && !instantFromDualcast
+            ? behavior.Action.CastTime
+            : PhantomBandRules.RootSeconds(actionId);
+        if (rootSeconds > 0 && _isMovingThisFrame)
         {
             // Don't stop for a window we can't use yet — keep moving until the GCD is nearly up.
             var gcdRemaining = _actionService.GcdRemaining;
@@ -1531,12 +1537,20 @@ public sealed class PhantomActionLayer
             // cast, not the cast alone. The hold is expiry-driven and the Plugin-side watcher
             // releases it the instant the ground turns dangerous, so a mechanic always beats a
             // nuke. The cast lands on a later frame, once actually still.
-            var still = PhantomBandRules.StillSecondsForCast(gcdRemaining, behavior.Action.IsGCD, behavior.Action.CastTime);
+            var still = PhantomBandRules.StillSecondsForCast(gcdRemaining, behavior.Action.IsGCD, rootSeconds);
             if (RequestCastHoldIfSafe(ctx, still))
                 _pushHolds.Add($"{action.Name} — pausing movement to cast ({still:0.0}s)");
             else
-                _pushRejects.Add($"{action.Name} needs a hard cast (moving)");
+                _pushRejects.Add($"{action.Name} needs to stand still (moving)");
 
+            return false;
+        }
+
+        if (rootSeconds > 0 && CastSafety is not null
+            && !CastSafety(ctx.Player.Position, rootSeconds + PhantomCastSafetyMarginSeconds))
+        {
+            // Standing still, but not on ground that stays safe: a two-second root here is a hit taken.
+            _pushRejects.Add($"{action.Name} would root you for {rootSeconds:0.0}s on unsafe ground");
             return false;
         }
 

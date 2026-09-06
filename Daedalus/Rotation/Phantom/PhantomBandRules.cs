@@ -246,6 +246,18 @@ public static class PhantomBandRules
         => (isGcd && gcdRemaining > 0f ? gcdRemaining : 0f) + castSeconds;
 
     /// <summary>
+    /// Seconds an instant action roots the character, for the ones that do it without a cast bar.
+    /// Occult Jump is two seconds in the air: Minerva's replay of 2026-09-05 showed three vulnerability
+    /// stacks in a row where the dodge started the instant the jump left the ground and the character
+    /// could not move until it landed. Treated exactly like a hardcast by the stand-still gate.
+    /// </summary>
+    public static float RootSeconds(uint actionId) => actionId switch
+    {
+        49077 => 2.0f, // Occult Jump (Phantom Dragoon)
+        _ => 0f,
+    };
+
+    /// <summary>
     /// Occult Slowga (Time Mage): a pure debuff, no damage. Fires once and then waits out the
     /// 30s Slow rather than re-spending a GCD every 2.5s, so the gate is "target is not already
     /// slowed" — reapply follows for free when the status drops off.

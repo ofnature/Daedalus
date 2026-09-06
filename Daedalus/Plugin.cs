@@ -414,6 +414,8 @@ public sealed class Plugin : IDalamudPlugin
         Daedalus.Rotation.Common.Helpers.PlayerSafetyHelper.ExternalLookAway = minervaEngine.MustNotTurnReader();
         this.bossModSafetyService = new BossHandlingRouter(
             bossModEngine, minervaEngine, () => configuration.BossHandling);
+        // Onslaught during a dodge dashes the character back into the AOE; the router says who is steering.
+        this.gapCloserSafetyService.ExternalSteering = () => this.bossModSafetyService.IsBmrNavigating;
 
         this.movementArbiter = new MovementArbiter(
             vNavService, bossModSafetyService, () => configuration.Nav.YieldToBmrMovement,
