@@ -3,6 +3,16 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.66 — unreleased
+
+### New — Casters check the ground before starting a hard cast
+- Every cast-time GCD — Fire IV, Glare, Broil, Verthunder, Dosis, Malefic — now asks the mechanics engine **"is this spot safe for the next three seconds?"** before committing. Until now it only checked whether you were moving and what the fight timeline predicted, and nothing at all about the ground you were standing on
+- That's the same question the **raise** has always asked, now asked for ordinary casts too
+- It routes through your **Boss handling** setting: BossMod answers from its forbidden zones, **Minerva** from `MaxCastTime` — which is literally *"how long may I stand here casting"*, the exact question rather than an approximation of it
+- The Duty tab says **"this spot is not safe for the cast"** while it's holding, so a quiet caster reads as a decision rather than a stall
+- **Nothing changes without an engine.** No BossMod and no Minerva means no opinion, and the cast goes out — a rotation that stops casting because a plugin is missing is worse than one that eats an avoidable puddle
+
+<!-- LATEST-END -->
 ## v0.1.65 — 2026-09-04
 
 ### New — Two ways to bring the zone HUD back
@@ -22,7 +32,6 @@ All notable changes to Daedalus will be documented in this file.
 ### New — Two more North Horn enemies identified
 - **Crescent Geshunpest** (wind) and **Crescent Rothound** (fire), both scanned in this session. North Horn is now at **72.6%** identified, South Horn steady at 82.9%
 
-<!-- LATEST-END -->
 ## v0.1.64 — 2026-09-03
 
 ### New — Four Phantom Blue Mages stop firing Missile at the same mob

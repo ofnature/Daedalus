@@ -723,6 +723,14 @@ public sealed class Plugin : IDalamudPlugin
         phantomLayer.CastSafety = (position, window) =>
             bossModSafetyService.QueryPositionSafety(position, window)
                 == Daedalus.Services.Positional.Navigation.PositionSafety.Safe;
+
+        // The same question for every ordinary hard cast — Fire IV, Glare, Broil, Verthunder — which
+        // until now only ever checked the fight timeline and whether the toon was moving, never the
+        // ground it was standing on. Routed through BossHandlingRouter, so BossMod answers from its
+        // forbidden zones and Minerva from MaxCastTime, whichever the user picked.
+        Daedalus.Rotation.Common.Helpers.MechanicCastGate.CastSpotSafety = (position, window) =>
+            bossModSafetyService.QueryPositionSafety(position, window)
+                == Daedalus.Services.Positional.Navigation.PositionSafety.Safe;
         // Phantom Kick is a leap. The navmesh answers "is there floor where it lands", BossMod
         // answers "is the flight path clear" — routed through BossHandlingRouter, so the answer
         // comes from whichever engine the user picked.
@@ -2231,6 +2239,8 @@ public sealed class Plugin : IDalamudPlugin
         // Static-backed hooks — must not survive a plugin reload with dead captures.
         Daedalus.Rotation.Common.Helpers.TrustPartyRoleHelper.DesignatedOffTankNameSource = null;
         Daedalus.Rotation.Common.Helpers.TankSwapDebuffWatch.Shutdown();
+        Daedalus.Rotation.Common.Helpers.MechanicCastGate.CastSpotSafety = null;
+        Daedalus.Rotation.Common.Helpers.PlayerSafetyHelper.ExternalLookAway = null;
 
         // Restore the player's original Auto-face setting if we overrode it.
         if (_originalAutoFaceTarget.HasValue)
