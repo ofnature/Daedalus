@@ -3,7 +3,7 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
-## v0.1.66 — unreleased
+## v0.1.66 — 2026-09-05
 
 ### New — Casters check the ground before starting a hard cast
 - Every cast-time GCD — Fire IV, Glare, Broil, Verthunder, Dosis, Malefic — now asks the mechanics engine **"is this spot safe for the next three seconds?"** before committing. Until now it only checked whether you were moving and what the fight timeline predicted, and nothing at all about the ground you were standing on
@@ -11,6 +11,11 @@ All notable changes to Daedalus will be documented in this file.
 - It routes through your **Boss handling** setting: BossMod answers from its forbidden zones, **Minerva** from `MaxCastTime` — which is literally *"how long may I stand here casting"*, the exact question rather than an approximation of it
 - The Duty tab says **"this spot is not safe for the cast"** while it's holding, so a quiet caster reads as a decision rather than a stall
 - **Nothing changes without an engine.** No BossMod and no Minerva means no opinion, and the cast goes out — a rotation that stops casting because a plugin is missing is worse than one that eats an avoidable puddle
+
+### New — Lost on the Wind answered, and Crescent Bomb identified in the north
+- **Crescent Bomb** is now recorded **ice-weak in North Horn** as well as South, scanned during *Quarried Away*
+- Running **Lost on the Wind** settled its two unknowns the other way: **Abductor's Plume** and **Biting Wind** were seen 62 and 446 times without ever once being targetable, which is the table's own evidence that Occult Libra can never reach them. Both are dropped rather than left sitting on the chase list forever — and a single sighting that finds either targetable puts it straight back
+- **284 enemies, 222 identified (78.2%).** North Horn is up to **74.2%**, South Horn steady at 82.9%
 
 <!-- LATEST-END -->
 ## v0.1.65 — 2026-09-04
