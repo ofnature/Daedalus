@@ -102,6 +102,7 @@ public sealed class Plugin : IDalamudPlugin
     private readonly BossHandlingRouter bossModSafetyService;
     private readonly MinervaSafetyService minervaSafetyService;
     private readonly CastMovementHoldService castMovementHoldService;
+    private readonly Daedalus.Services.Debug.JobActionDumpService jobActionDumpService;
     private readonly Services.Gear.StatCapService statCapService;
     private readonly Services.Gear.GearSnapshotService gearSnapshotService;
     private readonly MeldOptimizerPanel meldOptimizerPanel;
@@ -440,6 +441,7 @@ public sealed class Plugin : IDalamudPlugin
                 () => configuration.BossHandling),
             log, debugLogService, dtrBar, commandManager);
 
+        this.jobActionDumpService = new Daedalus.Services.Debug.JobActionDumpService(dataManager);
         this.castMovementHoldService = new CastMovementHoldService(
             pluginInterface, configuration, bossModSafetyService, objectTable, log,
             () => configuration.BossHandling, minervaEngine.RequestHold);
@@ -1113,7 +1115,7 @@ public sealed class Plugin : IDalamudPlugin
 
         this.commandManager.AddHandler(CommandName, new CommandInfo(OnCommand)
         {
-            HelpMessage = "Open Daedalus window (short alias: /dae). Subcommands: toggle | debug | occult | meld | hardcast [on|off|toggle]"
+            HelpMessage = "Open Daedalus window (short alias: /dae). Subcommands: toggle | debug | occult | meld | dumpjob [id] | hardcast [on|off|toggle]"
         });
         this.commandManager.AddHandler(CommandAlias, new CommandInfo(OnCommand)
         {
@@ -1701,6 +1703,31 @@ public sealed class Plugin : IDalamudPlugin
             case "occult":
                 occultWindow.Toggle();
                 break;
+
+            // Harvest a job's real action data from THIS CLIENT's sheets. Built for a job whose
+            // data has not reached XIVAPI yet (Beastmaster, 7.56): the client has it the moment
+            // the patch installs. "/dae dumpjob" reads the job you are on; "/dae dumpjob 43"
+            // reads any ClassJob, so it works before the job is even unlocked.
+            case "dumpjob":
+            {
+                var dumpJobId = uint.TryParse(subArg, out var requested)
+                    ? requested
+                    : objectTable.LocalPlayer?.ClassJob.RowId ?? 0u;
+                if (dumpJobId == 0)
+                {
+                    chatGui.Print("Daedalus: no job to dump (loading screen? try again in-world, or pass a ClassJob id).");
+                    break;
+                }
+
+                var dumpName = dataManager.GetExcelSheet<Lumina.Excel.Sheets.ClassJob>()
+                    ?.GetRowOrDefault(dumpJobId)?.Name.ExtractText() ?? $"Job {dumpJobId}";
+                var dumpRows = jobActionDumpService.Collect(dumpJobId);
+                log.Info("[dumpjob]" + System.Environment.NewLine + Daedalus.Services.Debug.JobActionDumpService.Format(dumpJobId, dumpName, dumpRows));
+                chatGui.Print(dumpRows.Count == 0
+                    ? $"Daedalus: no actions found for ClassJob {dumpJobId} ({dumpName}) - see /xllog."
+                    : $"Daedalus: dumped {dumpRows.Count} {dumpName} action(s) to /xllog.");
+                break;
+            }
 
             case "dumpgear":
                 // Phase-1 field validation for the meld optimizer: full gear/meld/cap dump.
