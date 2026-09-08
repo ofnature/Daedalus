@@ -3,6 +3,20 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.69 — unreleased
+
+### Fix — The Forbidden Folios books will stop asking to be Libra'd
+- The four **Pages** in that critical encounter are entities that exist to **cast an action**, not enemies: targetable, flagged attackable, and immune to damage. Libra lands nothing on them
+- Both of the table's "is this a real enemy" tests said otherwise, so they sat on the *"still needs Libra"* list on 226–342 sightings each — through three runs of the encounter with Libra cast on them by hand every time
+- They're excluded now. A revealed element still overrides the exclusion, so if one ever does carry a weakness the data wins and the list is what's wrong
+
+### New — North Horn caught up with South Horn
+- **Crescent Fool** is wind — the weather-gated wanderer that only appears during *Illusory Disturbances*, and the last North Horn field mob with no element
+- Eight more unreachable mechanics dropped on tonight's evidence — Alabaster Golem, Long-dead Explorer and Pirate, Ice Pillar, Defective Lamia, Ball of Levin, and the blank halves of Crescent Onion and Crescent Tomato. Each was seen 64 to 2,422 times without ever once being targetable
+- The Onion and Tomato keep their identified halves, so both still resolve — only the duplicate blank rows went
+- **269 enemies, 223 identified.** North Horn now reads **82.9%**, exactly level with South Horn, and every remaining North Horn blank is a critical-encounter or FATE mechanic rather than something you can go and scan
+
+<!-- LATEST-END -->
 ## v0.1.68 — 2026-09-06
 
 ### New — The fight gets a say in what you attack
@@ -16,7 +30,6 @@ All notable changes to Daedalus will be documented in this file.
 - **Accursed Orb** (Eye to Eye), **Biting Wind** (Gale-force Encounter) and **Poison Cloud** (Allure of the Occult) were each seen 72 to 187 times last night without ever once being targetable. That's the table's own evidence that Occult Libra can never reach them, so they stop occupying the "still unknown" list
 - **281 enemies, 222 identified.** North Horn reads **75.7%** and South Horn 82.9% — the North figure rose because what was removed was never fillable, not because anything new was learned
 
-<!-- LATEST-END -->
 ## v0.1.67 — 2026-09-05
 
 ### Fix — Gap closers no longer dash you back into the AoE

@@ -223,9 +223,15 @@ public sealed class ElementalWeaknessLog
     /// <summary>
     /// Not an enemy: seen plenty of times, never once attackable, and with no weakness ever
     /// revealed. Two different things land here and both dilute the table the same way —
-    /// untargetable encounter mechanics (the Forbidden Folios Pages, Tiny Terror's Spheres,
-    /// Beacons, Plumes) and targetable FRIENDLIES (the Persistent Pot you escort in the pot
-    /// FATEs, the treasure bunny). Neither can ever be Libra'd.
+    /// untargetable encounter mechanics (Tiny Terror's Spheres, Beacons, Plumes) and targetable
+    /// FRIENDLIES (the Persistent Pot you escort in the pot FATEs, the treasure bunny). Neither
+    /// can ever be Libra'd.
+    /// <para>
+    /// This list USED to name the Forbidden Folios Pages first. It was wrong about them, and in
+    /// the one way that mattered: the Pages read <c>EverTargetable = true</c>, so this rule has
+    /// never once fired on the case it was written for. They are in
+    /// <see cref="InvulnerableNameIds"/> instead — see there for why no signal catches them.
+    /// </para>
     /// <para>
     /// Evidence-based ON PURPOSE. Culling by name would delete real adds that ARE killed
     /// (Alabaster Golem, Long-dead Pirate, Tiny Apprentice all sit in the same HP band), so the
@@ -312,6 +318,40 @@ public sealed class ElementalWeaknessLog
     /// the expensive part of this table and must never be thrown away over a bad HP sample.
     /// </para>
     /// </summary>
+    /// <summary>
+    /// Entities that exist to CAST an action rather than to be fought: targetable, flagged
+    /// attackable, and immune to damage, so Occult Libra lands nothing and they can never carry
+    /// an element.
+    /// <para>
+    /// A THIRD class, and neither existing signal sees it. <see cref="IsMechanicObject"/> needs
+    /// <c>EverTargetable == false</c> and these read <b>true</b>;
+    /// <see cref="OccultWeaknessEntry.EverAttackable"/> reads true as well. So both of the
+    /// table's "is this a real enemy" tests agree that it is, and both are wrong.
+    /// </para>
+    /// <para>
+    /// Field 2026-09-08: the user ran Forbidden Folios three times, casting Libra on the Pages by
+    /// hand each run, with no effect — while the table kept listing them as worth going back for
+    /// on 226-342 sightings apiece. Note <see cref="IsMechanicObject"/>'s own documentation named
+    /// these Pages as its first example: the INTENT was always to exclude them, and the signal
+    /// chosen could not reach them.
+    /// </para>
+    /// <para>
+    /// Hardcoded for the same reason <see cref="NonCombatNameIds"/> is: there is no readable
+    /// signal for "immune", and a short user-confirmed list beats inventing one. Checked AFTER
+    /// the element test below, so it stays self-correcting — if one ever does reveal an element,
+    /// that wins and the row is kept.
+    /// </para>
+    /// </summary>
+    public static readonly IReadOnlySet<uint> InvulnerableNameIds = new HashSet<uint>
+    {
+        // Forbidden Folios (North Horn) — the four books. All share one 74,755,100 HP pool,
+        // which is the tell: identical pools across four "enemies" is a prop, not a statline.
+        14521,  // Page 16
+        14522,  // Page 8
+        14528,  // Page 512
+        3915,   // Page 64 — a much older NameId than its siblings, but consistent on both boxes
+    };
+
     public static bool IsWorthKeeping(OccultWeaknessEntry entry)
     {
         if (entry.NameId == 0)
@@ -322,6 +362,11 @@ public sealed class ElementalWeaknessLog
         // Everything below is a data-quality judgement, so a known element overrides it.
         if (entry.Elements != OccultElement.None)
             return true;
+
+        // Damage-immune props: targetable and attackable-flagged, so the rule below never fires
+        // on them. See InvulnerableNameIds — Libra cannot land, so they can never contribute.
+        if (InvulnerableNameIds.Contains(entry.NameId))
+            return false;
 
         // Proven-unreachable mechanics: seen plenty of times SINCE targetability was recorded,
         // never once targetable, and carrying no element. Libra cannot reach them, so they can
