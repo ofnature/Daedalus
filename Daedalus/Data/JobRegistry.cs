@@ -49,6 +49,12 @@ public static class JobRegistry
     // Limited jobs
     public const uint BlueMage = 36;
 
+    /// <summary>
+    /// Beastmaster (7.56). ClassJob row 43, verified against the game's own sheet 2026-09-08 —
+    /// the row exists, the ACTIONS do not yet.
+    /// </summary>
+    public const uint Beastmaster = 43;
+
     // Disciples of the Hand (8–15) and Land (16–18)
     public const uint Carpenter = 8;
     public const uint Culinarian = 15;
@@ -59,6 +65,20 @@ public static class JobRegistry
     /// Returns true if the job is a crafter or gatherer (DoH CRP–CUL 8–15, DoL MIN/BTN/FSH 16–18).
     /// </summary>
     public static bool IsHandLand(uint jobId) => jobId is >= Carpenter and <= Fisher;
+
+    /// <summary>
+    /// Limited jobs: BLU and BST. They are level-capped, carry no role actions, and are barred
+    /// from most instanced content — see <see cref="Rotation.Common.Helpers.LimitedJobContentPolicy"/>
+    /// for what that suppresses.
+    /// <para>
+    /// Deliberately NOT folded into <see cref="IsMeleeDps"/> even though Beastmaster is a melee
+    /// job. That predicate gates positional handling, max-melee maintenance and the boundary-camp
+    /// mover — machinery built for eight-man encounters this job cannot enter, and whose
+    /// positional requirements are unknown because the action data is unpublished. Revisit when
+    /// the sheets land; do not assume.
+    /// </para>
+    /// </summary>
+    public static bool IsLimitedJob(uint jobId) => jobId is BlueMage or Beastmaster;
 
     /// <summary>
     /// Returns true if the job is a healer (WHM, SCH, AST, SGE).
