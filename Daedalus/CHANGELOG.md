@@ -3,7 +3,7 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
-## v0.1.69 — unreleased
+## v0.1.69 — 2026-09-08
 
 ### Fix — The Forbidden Folios books will stop asking to be Libra'd
 - The four **Pages** in that critical encounter are entities that exist to **cast an action**, not enemies: targetable, flagged attackable, and immune to damage. Libra lands nothing on them
