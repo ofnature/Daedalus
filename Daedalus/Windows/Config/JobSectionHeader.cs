@@ -30,6 +30,7 @@ public static class JobSectionHeader
         [ConfigSection.Samurai]     = ("Samurai", "Nike", JobValidation.Validated),
         [ConfigSection.Reaper]      = ("Reaper", "Thanatos", JobValidation.Validated),
         [ConfigSection.Viper]       = ("Viper", "Echidna", JobValidation.Validated),
+        [ConfigSection.Beastmaster] = ("Beastmaster", "Artemis", JobValidation.Untested),
         [ConfigSection.Bard]        = ("Bard", "Calliope", JobValidation.Pending),         // mid-level pass 2026-07-04; 52/56/72+ milestones remain
         [ConfigSection.Machinist]   = ("Machinist", "Prometheus", JobValidation.Validated),
         [ConfigSection.Dancer]      = ("Dancer", "Terpsichore", JobValidation.Validated),

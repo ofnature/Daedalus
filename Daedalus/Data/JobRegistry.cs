@@ -159,10 +159,14 @@ public static class JobRegistry
     public static bool IsSage(uint jobId) => jobId == Sage;
 
     /// <summary>
-    /// Gets the FFXIV UI icon ID for a job (icon range 62001–62042).
+    /// Gets the FFXIV UI icon ID for a job (icon range 62001–62043).
     /// Returns 0 if the job ID is not in the recognized range.
+    /// <para>
+    /// The upper bound tracks the highest released job and must be raised with each new one — it sat
+    /// at 42 after Pictomancer, which is why Beastmaster (43) drew no icon anywhere in the UI.
+    /// </para>
     /// </summary>
-    public static uint GetJobIconId(uint jobId) => jobId is >= 1 and <= 42 ? 62000u + jobId : 0u;
+    public static uint GetJobIconId(uint jobId) => jobId is >= 1 and <= Beastmaster ? 62000u + jobId : 0u;
 
     /// <summary>
     /// Gets the display name for a job ID.

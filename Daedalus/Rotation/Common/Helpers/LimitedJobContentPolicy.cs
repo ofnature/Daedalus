@@ -77,6 +77,21 @@ public static class LimitedJobContentPolicy
     public static bool AllowsPartyCoordination(uint jobId) => !IsContentRestricted(jobId);
 
     /// <summary>
+    /// Whether vNav-driven auto movement — positional repositioning, burst approach, and max-melee
+    /// range-keeping — may run for this job.
+    /// <para>
+    /// <b>No</b> for limited jobs. Two reasons, and the second is the load-bearing one. The movers
+    /// were built for eight-man content these jobs cannot enter. And their positional requirements
+    /// are unknown: Beastmaster's published kit states no flank or rear bonus on any action, so
+    /// walking the character around a target would be motion in service of a bonus that may not
+    /// exist. Max-melee maintenance is the case that actually needs this gate — unlike the
+    /// positional movers it is not opt-in per job, and runs solo, so a limited job would inherit it
+    /// by default rather than by decision.
+    /// </para>
+    /// </summary>
+    public static bool AllowsAutoMovement(uint jobId) => !IsContentRestricted(jobId);
+
+    /// <summary>
     /// One-line explanation for a UI or debug readout, or empty when nothing is suppressed.
     /// Named so the reason reaches the user rather than a feature silently doing nothing —
     /// the failure mode this codebase keeps re-learning.

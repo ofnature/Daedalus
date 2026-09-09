@@ -1,35 +1,39 @@
-﻿using System;
+using System;
 using Daedalus.Data;
 
 namespace Daedalus.Rotation.ArtemisCore.Helpers;
 
 /// <summary>
-/// Tracks the instinctual combo clock: which affinity was last spent, whether the 7s window is
-/// still open, and whether a given affinity would complete an intentional combo.
+/// Tracks the Inner Compass: which affinity was last spent, whether the 7s window is still open,
+/// how long the chain has run, and whether a given affinity would complete an intentional combo.
 ///
 /// <para>
-/// This is the one piece of Beastmaster that is fully knowable without the action data — the
-/// cycle order and the window are mechanics, not numbers off a sheet — so it is implemented for
-/// real and unit-tested rather than stubbed. When the action ids land, the rotation asks this
-/// which affinity it wants next and picks the matching action.
+/// Modelled directly on the in-game gauge description (read 2026-09-08): "When an instinctual skill
+/// with one such affinity is executed, its corresponding symbol will light up. If either the
+/// beastmaster <b>or familiar</b> executes another instinctual skill within seven seconds of the
+/// previous one, an instinctual combo will be completed, dealing extra damage. Furthermore, if the
+/// second instinctual skill performed runs <b>clockwise</b> on the Inner Compass, an intentional
+/// combo will be completed."
 /// </para>
 ///
 /// <para>
-/// The affinities are NAMED — Volant, Rampant, Durant, Eldritch — not colour-coded; the original
-/// scaffold's yellow/green/blue/red model was wrong and is corrected. The cycle is a four-cycle
-/// as expected, and the 7s window is now confirmed from the tooltips rather than assumed.
+/// Two consequences that are easy to get wrong. First, <b>the familiar advances the chain too</b> —
+/// Trick is an instinctual skill executed by the familiar, so it counts, even though which Heart it
+/// grants depends on the familiar and is not knowable from here; that is what
+/// <see cref="RecordUnknown"/> is for. Second, <b>the chain length is not cosmetic</b>: "a higher
+/// number increases the potency of extra damage dealt by combos", so keeping a chain alive is worth
+/// more than any single well-chosen affinity.
 /// </para>
 /// </summary>
 public sealed class ArtemisInstinctTracker
 {
     /// <summary>
-    /// Combo window in seconds. **CONFIRMED 2026-09-08** from the client's own sheets: every
-    /// Heart tooltip states "Duration: 7s". The scaffold guessed 7s and the guess happened to be
-    /// right, which is not the same as having been right — this now comes from the data.
+    /// Combo window in seconds. Confirmed twice: every Heart tooltip states "Duration: 7s", and the
+    /// gauge description says "within seven seconds of the previous one".
     /// </summary>
     public const float WindowSeconds = BSTActions.HeartDurationSeconds;
 
-    /// <summary>True: read off the tooltips, not assumed.</summary>
+    /// <summary>True: read off the tooltips and the gauge description, not assumed.</summary>
     public const bool WindowSecondsIsConfirmed = true;
 
     /// <summary>Test seam, matching the other trackers in this codebase.</summary>
@@ -37,13 +41,27 @@ public sealed class ArtemisInstinctTracker
 
     private InstinctAffinity _last = InstinctAffinity.None;
     private DateTime _lastUtc = DateTime.MinValue;
+    private int _chainLength;
 
-    /// <summary>The affinity last spent, or None when no chain is running.</summary>
+    /// <summary>
+    /// The affinity last spent, or None — which means either no chain is running, or the chain is
+    /// running but the last link came from the familiar and its affinity is unknown.
+    /// </summary>
     public InstinctAffinity LastAffinity => IsWindowOpen ? _last : InstinctAffinity.None;
 
-    /// <summary>Whether a chain is still live.</summary>
+    /// <summary>
+    /// Whether a chain is still live. Note this does NOT require a known affinity: a chain advanced
+    /// by the familiar is still a chain, and dropping it would forfeit the accumulated potency.
+    /// </summary>
     public bool IsWindowOpen =>
-        _last != InstinctAffinity.None && SecondsSinceLast < WindowSeconds;
+        _lastUtc != DateTime.MinValue && SecondsSinceLast < WindowSeconds;
+
+    /// <summary>
+    /// How many instinctual skills are in the current chain. "A higher number increases the potency
+    /// of extra damage dealt by combos" — this is the number rendered beneath the Inner Compass.
+    /// Zero when no chain is running.
+    /// </summary>
+    public int ChainLength => IsWindowOpen ? _chainLength : 0;
 
     /// <summary>Seconds since the last spend; <see cref="float.MaxValue"/> when none.</summary>
     public float SecondsSinceLast => _lastUtc == DateTime.MinValue
@@ -51,35 +69,56 @@ public sealed class ArtemisInstinctTracker
         : (float)(UtcNow() - _lastUtc).TotalSeconds;
 
     /// <summary>
-    /// The affinity that would score an intentional combo next, or None when no chain is running
-    /// (in which case any affinity opens one).
+    /// The affinity that would score an intentional combo next — the clockwise neighbour on the
+    /// Compass. None when no chain is running, or when the last link's affinity is unknown.
     /// </summary>
-    public InstinctAffinity PreferredNext => IsWindowOpen
+    public InstinctAffinity PreferredNext => IsWindowOpen && _last != InstinctAffinity.None
         ? BSTActions.NextInCycle(_last)
         : InstinctAffinity.None;
 
     /// <summary>
-    /// Would spending this affinity now score an intentional combo? True when it is the next in
-    /// the cycle. Opening a fresh chain is not an intentional combo — there is nothing to chain
-    /// from — so this is false with the window closed.
+    /// Would spending this affinity now score an <i>intentional</i> combo? True only when it is the
+    /// clockwise successor. Opening a fresh chain is not an intentional combo — there is nothing to
+    /// chain from.
     /// </summary>
     public bool WouldBeIntentional(InstinctAffinity affinity) =>
-        affinity != InstinctAffinity.None && IsWindowOpen && affinity == PreferredNext;
+        affinity != InstinctAffinity.None
+        && IsWindowOpen
+        && _last != InstinctAffinity.None
+        && affinity == PreferredNext;
 
     /// <summary>
     /// Would spending this affinity still combo, weakly? Any affinity continues a live chain
-    /// off-order; only the next in the cycle is intentional.
+    /// off-order; only the clockwise successor is intentional.
     /// </summary>
     public bool WouldCombo(InstinctAffinity affinity) =>
         affinity != InstinctAffinity.None && IsWindowOpen;
 
-    /// <summary>Record a spend. Call from the dispatch callback, not from the decision.</summary>
+    /// <summary>Record a spend whose affinity is known. Call from the dispatch callback.</summary>
     public void Record(InstinctAffinity affinity)
     {
         if (affinity == InstinctAffinity.None)
             return;
 
+        Advance();
         _last = affinity;
+    }
+
+    /// <summary>
+    /// Record a link in the chain whose affinity we cannot determine — the familiar's Trick, which
+    /// grants one of the four Hearts depending on the beast. The chain advances (it must: the game
+    /// counts it) but the picker stops claiming to know what comes next, so it will not chase a
+    /// combo off a guess.
+    /// </summary>
+    public void RecordUnknown()
+    {
+        Advance();
+        _last = InstinctAffinity.None;
+    }
+
+    private void Advance()
+    {
+        _chainLength = IsWindowOpen ? _chainLength + 1 : 1;
         _lastUtc = UtcNow();
     }
 
@@ -88,17 +127,26 @@ public sealed class ArtemisInstinctTracker
     {
         _last = InstinctAffinity.None;
         _lastUtc = DateTime.MinValue;
+        _chainLength = 0;
     }
 
     /// <summary>
-    /// Which intentional combo spending this affinity would complete, or None. The two combos
-    /// alternate around the cycle, so the picker can name what it is going for.
+    /// Which intentional combo spending this affinity would complete, or None. The two alternate
+    /// around the Compass, and at tier 2 either direction completes Universality.
     /// </summary>
     public IntentionalCombo ComboFrom(InstinctAffinity affinity) =>
-        IsWindowOpen ? BSTActions.ComboFor(_last, affinity) : IntentionalCombo.None;
+        IsWindowOpen && _last != InstinctAffinity.None
+            ? BSTActions.ComboFor(_last, affinity)
+            : IntentionalCombo.None;
 
     /// <summary>One-line readout for the debug panel.</summary>
-    public string Describe() => !IsWindowOpen
-        ? "no chain"
-        : $"{_last} → want {PreferredNext} ({WindowSeconds - SecondsSinceLast:0.0}s left)";
+    public string Describe()
+    {
+        if (!IsWindowOpen)
+            return "no chain";
+
+        var head = _last == InstinctAffinity.None ? "familiar (unknown)" : _last.ToString();
+        var want = PreferredNext == InstinctAffinity.None ? "any" : PreferredNext.ToString();
+        return $"{head} ×{_chainLength} → want {want} ({WindowSeconds - SecondsSinceLast:0.0}s left)";
+    }
 }

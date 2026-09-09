@@ -1115,7 +1115,7 @@ public sealed class Plugin : IDalamudPlugin
 
         this.commandManager.AddHandler(CommandName, new CommandInfo(OnCommand)
         {
-            HelpMessage = "Open Daedalus window (short alias: /dae). Subcommands: toggle | debug | occult | meld | dumpjob [id] | hardcast [on|off|toggle]"
+            HelpMessage = "Open Daedalus window (short alias: /dae). Subcommands: toggle | debug | occult | meld | dumpjob [id] | dumppet | hardcast [on|off|toggle]"
         });
         this.commandManager.AddHandler(CommandAlias, new CommandInfo(OnCommand)
         {
@@ -1726,6 +1726,23 @@ public sealed class Plugin : IDalamudPlugin
                 chatGui.Print(dumpRows.Count == 0
                     ? $"Daedalus: no actions found for ClassJob {dumpJobId} ({dumpName}) - see /xllog."
                     : $"Daedalus: dumped {dumpRows.Count} {dumpName} action(s) to /xllog.");
+                break;
+            }
+
+            // The familiar's own skills live on the pet hotbar, not on any ClassJob, so
+            // "/dae dumpjob 43" cannot see them. They are what Trick and Parting Blow order, and
+            // the familiar's instinctual skill carries one of the four affinities — the one thing
+            // the instinct tracker currently cannot know. Dump once per familiar to build the table.
+            case "dumppet":
+            {
+                var petRows = jobActionDumpService.CollectPetBar();
+                log.Info("[dumppet]" + System.Environment.NewLine
+                    + Daedalus.Services.Debug.JobActionDumpService.Format(
+                        Daedalus.Services.Debug.JobActionDumpService.PetBarPseudoJobId,
+                        "Pet hotbar", petRows));
+                chatGui.Print(petRows.Count == 0
+                    ? "Daedalus: pet hotbar is empty — summon a familiar first. See /xllog."
+                    : $"Daedalus: dumped {petRows.Count} pet action(s) to /xllog.");
                 break;
             }
 

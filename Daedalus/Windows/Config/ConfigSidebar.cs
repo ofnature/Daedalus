@@ -43,6 +43,7 @@ public enum ConfigSection
     Monk,
     Reaper,
     Viper,
+    Beastmaster,
 
     // Ranged Physical DPS
     RangedShared,
@@ -85,7 +86,7 @@ public sealed class ConfigSidebar
     private static readonly ConfigSection[] MultiplayerSections = [ConfigSection.PartyCoordination];
     private static readonly ConfigSection[] HealerSections   = [ConfigSection.HealerShared, ConfigSection.WhiteMage, ConfigSection.Scholar, ConfigSection.Astrologian, ConfigSection.Sage];
     private static readonly ConfigSection[] TankSections     = [ConfigSection.TankShared, ConfigSection.Paladin, ConfigSection.Warrior, ConfigSection.DarkKnight, ConfigSection.Gunbreaker];
-    private static readonly ConfigSection[] MeleeSections    = [ConfigSection.MeleeShared, ConfigSection.Dragoon, ConfigSection.Ninja, ConfigSection.Samurai, ConfigSection.Monk, ConfigSection.Reaper, ConfigSection.Viper];
+    private static readonly ConfigSection[] MeleeSections    = [ConfigSection.MeleeShared, ConfigSection.Dragoon, ConfigSection.Ninja, ConfigSection.Samurai, ConfigSection.Monk, ConfigSection.Reaper, ConfigSection.Viper, ConfigSection.Beastmaster];
     private static readonly ConfigSection[] RangedSections   = [ConfigSection.RangedShared, ConfigSection.Machinist, ConfigSection.Bard, ConfigSection.Dancer];
     private static readonly ConfigSection[] CasterSections   = [ConfigSection.CasterShared, ConfigSection.BlackMage, ConfigSection.Summoner, ConfigSection.RedMage, ConfigSection.Pictomancer, ConfigSection.BlueMage];
 
@@ -106,6 +107,7 @@ public sealed class ConfigSidebar
         { ConfigSection.Monk,        JobRegistry.Monk },
         { ConfigSection.Reaper,      JobRegistry.Reaper },
         { ConfigSection.Viper,       JobRegistry.Viper },
+        { ConfigSection.Beastmaster, JobRegistry.Beastmaster },
         { ConfigSection.Bard,        JobRegistry.Bard },
         { ConfigSection.Machinist,   JobRegistry.Machinist },
         { ConfigSection.Dancer,      JobRegistry.Dancer },
@@ -212,7 +214,7 @@ public sealed class ConfigSidebar
             sectionChanged |= DrawNavItemFiltered(Loc.T(LocalizedStrings.Sidebar.Monk, "Monk"), ConfigSection.Monk, ConfigUIHelpers.MonkColor, matchingSections, hasSearch);
             sectionChanged |= DrawNavItemFiltered(Loc.T(LocalizedStrings.Sidebar.Reaper, "Reaper"), ConfigSection.Reaper, ConfigUIHelpers.ReaperColor, matchingSections, hasSearch);
             sectionChanged |= DrawNavItemFiltered(Loc.T(LocalizedStrings.Sidebar.Viper, "Viper"), ConfigSection.Viper, ConfigUIHelpers.ViperColor, matchingSections, hasSearch);
-            DrawComingSoonItem("Beastmaster (7.56)", hasSearch);
+            sectionChanged |= DrawNavItemFiltered("Beastmaster", ConfigSection.Beastmaster, ConfigUIHelpers.BeastmasterColor, matchingSections, hasSearch);
             ImGui.Spacing();
         }
 

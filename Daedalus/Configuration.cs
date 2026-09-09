@@ -238,6 +238,9 @@ public sealed class Configuration : IPluginConfiguration
     public SamuraiConfig Samurai { get; set; } = new();
     public MonkConfig Monk { get; set; } = new();
     public ReaperConfig Reaper { get; set; } = new();
+
+    /// <summary>Beastmaster (Artemis) — limited job, Lv50 cap, no role actions.</summary>
+    public BeastmasterConfig Beastmaster { get; set; } = new();
     public ViperConfig Viper { get; set; } = new();
 
     // Job-specific configuration - Ranged Physical DPS

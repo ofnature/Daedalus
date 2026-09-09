@@ -114,6 +114,7 @@ public sealed class SettingRegistry
             ConfigSection.Monk => Loc.T(LocalizedStrings.Sidebar.Monk, "Monk"),
             ConfigSection.Reaper => Loc.T(LocalizedStrings.Sidebar.Reaper, "Reaper"),
             ConfigSection.Viper => Loc.T(LocalizedStrings.Sidebar.Viper, "Viper"),
+            ConfigSection.Beastmaster => "Beastmaster",
             ConfigSection.Machinist => Loc.T(LocalizedStrings.Sidebar.Machinist, "Machinist"),
             ConfigSection.Bard => Loc.T(LocalizedStrings.Sidebar.Bard, "Bard"),
             ConfigSection.Dancer => Loc.T(LocalizedStrings.Sidebar.Dancer, "Dancer"),
@@ -541,6 +542,22 @@ public sealed class SettingRegistry
             new("Arcane Crest", "Shield and HoT"),
             new("Whorl of Death", "AoE DoT"),
             new("Shadow of Death", "Single DoT")
+        };
+
+        // Beastmaster section — a limited job, so no Role Actions entries by design
+        this.sectionSettings[ConfigSection.Beastmaster] = new List<SettingInfo>
+        {
+            new("Smash Axe", "Combo starter"),
+            new("Axeblade Bite", "Combo, +13 TP"),
+            new("Shieldsplitter", "Combo finisher, +15 TP"),
+            new("Avalanche Axe", "Instinctual — Rampant"),
+            new("Mistral Axe", "Instinctual — Durant"),
+            new("Spinning Axe", "Instinctual — Eldritch"),
+            new("Gale Axe", "Instinctual — Volant"),
+            new("Trick", "Orders the familiar's instinctual skill"),
+            new("Parting Blow", "1,000 potency in 8y; the familiar retreats"),
+            new("Instinctual Skills", "Independent recast, woven off the GCD"),
+            new("Intentional Combos", "Sunstrider and Moonstalker on the Inner Compass"),
         };
 
         // Viper section

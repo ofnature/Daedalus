@@ -320,7 +320,19 @@ public abstract class BaseMeleeDpsRotation<TContext, TModule> : BaseRotation<TCo
     /// party list is EMPTY in trust/duty-support content (bug class 6a); trust allies only exist in
     /// the object table. Scan for them the same way the party helpers do.
     /// </summary>
-    protected bool IsAutoMovementAllowed() => Configuration.EnableAutoMovement && HasPartyOrTrustAllies();
+    /// <summary>
+    /// The job this rotation is currently running as, read live off the player. Falls back to the
+    /// rotation's own declared job when the player is unavailable (zoning), so a policy check never
+    /// silently reads 0 and treats a limited job as unrestricted.
+    /// </summary>
+    protected uint PlayerJobId =>
+        ObjectTable.LocalPlayer?.ClassJob.RowId
+        ?? (SupportedJobIds.Length > 0 ? SupportedJobIds[0] : 0u);
+
+    protected bool IsAutoMovementAllowed() =>
+        Configuration.EnableAutoMovement
+        && LimitedJobContentPolicy.AllowsAutoMovement(PlayerJobId)
+        && HasPartyOrTrustAllies();
 
     /// <summary>Real party members OR trust/duty-support NPC allies (object-table scan).</summary>
     protected bool HasPartyOrTrustAllies()
@@ -454,6 +466,11 @@ public abstract class BaseMeleeDpsRotation<TContext, TModule> : BaseRotation<TCo
     protected bool IsMaxMeleeMaintenanceAllowed()
     {
         if (!Configuration.EnableAutoMovement || !Configuration.MaintainMaxMelee)
+            return false;
+
+        // Limited jobs opt out. Unlike the positional movers this is not opt-in per job and it runs
+        // solo, so without this check a limited job would inherit range-keeping by default.
+        if (!LimitedJobContentPolicy.AllowsAutoMovement(PlayerJobId))
             return false;
 
         // Solo Position Lock disables max-melee positioning when solo (no party members).

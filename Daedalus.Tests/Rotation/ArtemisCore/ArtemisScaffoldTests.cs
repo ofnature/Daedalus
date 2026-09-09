@@ -35,15 +35,116 @@ public sealed class ArtemisScaffoldTests
     }
 
     /// <summary>
-    /// Two potencies are BLANK in the sheet itself — Smash Axe reads "a potency of ." and Shield
-    /// Charge "a potency of ". They are recorded as 0 rather than guessed, and this pins that so
-    /// nobody later mistakes the gap for a transcription slip and invents a number.
+    /// Both potencies that rendered blank in the sheet dump — Smash Axe ("a potency of .") and
+    /// Shield Charge ("a potency of ") — have since been read off the in-game tooltips. No potency
+    /// in the catalog is a guess any more, and this pins that so a future harvest that loses them
+    /// again cannot silently reintroduce a zero.
     /// </summary>
     [Fact]
-    public void ThePotenciesTheSheetDoesNotStateAreZeroNotGuessed()
+    public void NoPotencyInTheCatalogIsAGuess()
     {
-        Assert.Equal(0, BSTActions.ById(44879)!.Value.Potency);   // Smash Axe
-        Assert.Equal(0, BSTActions.ById(44893)!.Value.Potency);   // Shield Charge
+        Assert.Equal(100, BSTActions.ById(44879)!.Value.Potency);  // Smash Axe
+        Assert.Equal(220, BSTActions.ById(44893)!.Value.Potency);  // Shield Charge
+
+        // Shield Charge is a 20y forward rush with a 6y burst — a DASH, so it must be classified
+        // as one or it bypasses the leap safety every other gap closer goes through.
+        var charge = BSTActions.ById(44893)!.Value;
+        Assert.Equal(BstArchetype.GapCloser, charge.Archetype);
+        Assert.Equal(20f, charge.RangeYalms);
+        Assert.Equal(6f, charge.EffectRadiusYalms);
+    }
+
+    /// <summary>
+    /// Borrow maps each of the eight familiar classifications onto its Kinship one-to-one, and the
+    /// Kinship is what determines the action Beast Mode becomes. Every classification must resolve
+    /// to a real effect, or the rotation cannot say what pressing Beast Mode would do.
+    /// </summary>
+    [Fact]
+    public void EveryClassificationResolvesToAKinshipEffect()
+    {
+        foreach (var c in Enum.GetValues<BeastClassification>())
+        {
+            var effect = BSTActions.KinshipEffectFor(c);
+            if (c == BeastClassification.Unknown)
+                Assert.Equal("unknown", effect);
+            else
+                Assert.NotEqual("unknown", effect);
+        }
+    }
+
+    /// <summary>
+    /// The 1-2-3 chain is the job's TP generator, and TP is what gates every instinctual skill, so
+    /// the per-finisher gains are rotation-critical. Read off the in-game tooltips 2026-09-08:
+    /// Axeblade Bite grants 13 and Shieldsplitter 15 — they are NOT the same number, which an
+    /// earlier note in the catalog got wrong by attributing 15 to both.
+    /// </summary>
+    [Fact]
+    public void TheComboChainGrantsTheTpThatGatesInstinctualSkills()
+    {
+        Assert.Equal(0, BSTActions.ById(44879)!.Value.ComboTpGain);    // Smash Axe — the starter
+        Assert.Equal(13, BSTActions.ById(44883)!.Value.ComboTpGain);   // Axeblade Bite
+        Assert.Equal(15, BSTActions.ById(44885)!.Value.ComboTpGain);   // Shieldsplitter
+
+        // Nothing outside the combo chain generates TP this way.
+        Assert.All(
+            BSTActions.All.Where(a => a.Archetype != BstArchetype.ComboWeaponskill),
+            a => Assert.Equal(0, a.ComboTpGain));
+    }
+
+    /// <summary>
+    /// THE most consequential line in the whole kit, stated verbatim on every instinctual tooltip:
+    /// "Instinctual skills do not share a recast timer with any other actions." They are
+    /// Weaponskills with a 5s recast that runs in PARALLEL to the 2.5s combo chain, so the rotation
+    /// must dispatch them like oGCDs. Treating them as GCDs would halve the job's throughput, and
+    /// that mistake would be invisible in a log — it just looks slow. Pinned so it stays true.
+    /// </summary>
+    [Fact]
+    public void InstinctualSkillsDoNotConsumeTheGcd()
+    {
+        Assert.All(
+            BSTActions.All.Where(a => a.Archetype == BstArchetype.Instinctual),
+            a =>
+            {
+                Assert.True(a.IndependentRecast);
+                Assert.Equal(5f, a.RecastSeconds);
+            });
+
+        // The combo chain is the opposite: ordinary 2.5s GCDs that DO share the global.
+        Assert.All(
+            BSTActions.All.Where(a => a.Archetype == BstArchetype.ComboWeaponskill),
+            a =>
+            {
+                Assert.False(a.IndependentRecast);
+                Assert.Equal(2.5f, a.RecastSeconds);
+            });
+    }
+
+    /// <summary>
+    /// Two gauges, two gain numbers, and they must not be conflated: the combo chain feeds the
+    /// PLAYER's TP (13/15), Parting Blow feeds the FAMILIAR's (24). Trick spends the familiar's.
+    /// </summary>
+    [Fact]
+    public void ThePlayerAndFamiliarTpGainsAreDistinct()
+    {
+        Assert.Equal(24, BSTActions.PartingBlowFamiliarTpGain);
+        Assert.NotEqual(BSTActions.PartingBlowFamiliarTpGain, BSTActions.ById(44885)!.Value.ComboTpGain);
+    }
+
+    /// <summary>
+    /// The pet orders are not melee. Trick reaches 30y and Parting Blow 25y with an 8y burst, while
+    /// the axe chain is 3y — so a range check that assumed "melee job, therefore 3y" would refuse
+    /// the two highest-value buttons in the kit.
+    /// </summary>
+    [Fact]
+    public void ThePetOrdersAreRangedNotMelee()
+    {
+        Assert.Equal(30f, BSTActions.ById(47093)!.Value.RangeYalms);   // Trick
+        Assert.Equal(25f, BSTActions.ById(44891)!.Value.RangeYalms);   // Parting Blow
+        Assert.Equal(8f, BSTActions.ById(44891)!.Value.EffectRadiusYalms);
+
+        Assert.All(
+            BSTActions.All.Where(a => a.Archetype is BstArchetype.ComboWeaponskill or BstArchetype.Instinctual),
+            a => Assert.Equal(3f, a.RangeYalms));
     }
 
     /// <summary>All four instinctual skills exist, one per affinity.</summary>

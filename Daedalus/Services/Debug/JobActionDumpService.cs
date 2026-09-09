@@ -101,6 +101,76 @@ public sealed class JobActionDumpService
     }
 
     /// <summary>
+    /// Every action currently sitting on the <b>pet hotbar</b>, read live from
+    /// <c>RaptureHotbarModule.PetHotbar</c>.
+    ///
+    /// <para>
+    /// The familiar's own skills do not belong to the player's ClassJob, so <see cref="Collect"/>
+    /// never sees them — but they are what Trick and Parting Blow actually order, and the
+    /// familiar's instinctual skill carries one of the four affinities. Which one is currently the
+    /// single thing the instinct tracker cannot know, so it advances the chain without naming an
+    /// affinity; harvesting these rows is what would close that gap.
+    /// </para>
+    ///
+    /// <para>
+    /// This reads the bar for the familiar out RIGHT NOW. Different beasts carry different skills,
+    /// so building a complete table means dumping once per familiar.
+    /// </para>
+    /// </summary>
+    public unsafe IReadOnlyList<JobActionRow> CollectPetBar()
+    {
+        var module = FFXIVClientStructs.FFXIV.Client.UI.Misc.RaptureHotbarModule.Instance();
+        if (module is null)
+            return [];
+
+        var sheet = _dataManager.GetExcelSheet<Lumina.Excel.Sheets.Action>();
+        if (sheet is null)
+            return [];
+
+        var transient = _dataManager.GetExcelSheet<Lumina.Excel.Sheets.ActionTransient>();
+        var rows = new List<JobActionRow>();
+        var seen = new HashSet<uint>();
+
+        foreach (ref var slot in module->PetHotbar.Slots)
+        {
+            var actionId = slot.ApparentActionId != 0 ? slot.ApparentActionId : slot.CommandId;
+            if (actionId == 0 || !seen.Add(actionId))
+                continue;
+
+            // GetRowOrDefault, not GetRow: an empty or stale slot can name a row that is not there,
+            // and a throw here would take the whole dump with it.
+            var row = sheet.GetRowOrDefault(actionId);
+            if (row is null)
+                continue;
+
+            var name = SafeName(row.Value);
+            if (string.IsNullOrWhiteSpace(name))
+                continue;
+
+            rows.Add(new JobActionRow(
+                row.Value.RowId,
+                name,
+                row.Value.ClassJobLevel,
+                row.Value.Cast100ms / 10f,
+                row.Value.Recast100ms / 10f,
+                row.Value.Range,
+                row.Value.EffectRange,
+                SafeCategory(row.Value),
+                row.Value.IsRoleAction,
+                row.Value.TargetArea,
+                SafeDescription(transient, row.Value.RowId)));
+        }
+
+        return rows;
+    }
+
+    /// <summary>
+    /// Sentinel job id for a pet-bar dump — the pet hotbar belongs to no ClassJob, and 0 is a real
+    /// "job unknown" value, so it needs an id that cannot collide with one.
+    /// </summary>
+    public const uint PetBarPseudoJobId = uint.MaxValue;
+
+    /// <summary>
     /// Paste-ready dump. Pure over the collected rows so the formatting is testable without a
     /// game attached.
     /// </summary>
@@ -108,7 +178,10 @@ public sealed class JobActionDumpService
     {
         if (rows.Count == 0)
         {
-            return $"No actions found for ClassJob {jobId} ({jobName}).\n"
+            return jobId == PetBarPseudoJobId
+                ? "No actions on the pet hotbar. Summon a familiar first — the bar is empty without "
+                  + "one, which is not the same as the familiar having no skills."
+                : $"No actions found for ClassJob {jobId} ({jobName}).\n"
                  + "Either the job is not in this client's sheets yet, or its actions are keyed by "
                  + "ClassJobCategory rather than ClassJob — check a known action's row before "
                  + "concluding the data is absent.";

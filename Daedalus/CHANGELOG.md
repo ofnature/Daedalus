@@ -16,6 +16,21 @@ All notable changes to Daedalus will be documented in this file.
 - The Onion and Tomato keep their identified halves, so both still resolve — only the duplicate blank rows went
 - **269 enemies, 223 identified.** North Horn now reads **82.9%**, exactly level with South Horn, and every remaining North Horn blank is a critical-encounter or FATE mechanic rather than something you can go and scan
 
+
+### Jobs — Beastmaster (Artemis) is live
+- Beastmaster now has a rotation. It runs the Smash Axe / Axeblade Bite / Shieldsplitter chain and
+  weaves the four instinctual skills alongside it, preferring the affinity that completes an
+  intentional combo on the Inner Compass.
+- Instinctual skills are treated as off-global: their 5s recast is independent of the GCD, so they
+  fire between combo hits instead of replacing them.
+- Trick is ordered when a familiar is out. Parting Blow is available but **off by default** — it hits
+  hard, but the familiar retreats afterwards, which ends Trick until you summon again.
+- **Settings ▸ Beastmaster** is a real page now, with the job icon and colour, instead of a greyed-out
+  "Beastmaster (7.56)" placeholder. It has toggles for instinctual skills, combo preference, Trick and
+  Parting Blow — and no Role Actions group, because the job genuinely has none.
+- Fixed: the job icon lookup stopped at Pictomancer, so **Beastmaster showed no icon anywhere** in the
+  UI — sidebar, control window and main window all drew a bare label.
+- Beastmaster and Blue Mage no longer auto-move for positionals or max-melee range keeping.
 <!-- LATEST-END -->
 ## v0.1.68 — 2026-09-06
 

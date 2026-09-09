@@ -85,6 +85,9 @@ public static class ConfigUIHelpers
     public static readonly Vector4 ReaperColor = new(0.6f, 0.3f, 0.4f, 1.0f);
     public static readonly Vector4 ViperColor = new(0.4f, 0.7f, 0.4f, 1.0f);
 
+    /// <summary>Beastmaster — the job's tawny gold.</summary>
+    public static readonly Vector4 BeastmasterColor = new(0.78f, 0.60f, 0.30f, 1.0f);
+
     // Ranged Physical DPS
     public static readonly Vector4 BardColor = new(0.6f, 0.8f, 0.5f, 1.0f);
     public static readonly Vector4 MachinistColor = new(0.5f, 0.8f, 0.9f, 1.0f);

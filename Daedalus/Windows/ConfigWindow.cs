@@ -60,6 +60,7 @@ public sealed class ConfigWindow : Window
     private readonly MonkSection monkSection;
     private readonly ReaperSection reaperSection;
     private readonly ViperSection viperSection;
+    private readonly BeastmasterSection beastmasterSection;
     private readonly RangedSharedSection rangedSharedSection;
     private readonly MachinistSection machinistSection;
     private readonly BardSection bardSection;
@@ -109,6 +110,7 @@ public sealed class ConfigWindow : Window
         monkSection = new MonkSection(configuration, saveConfiguration);
         reaperSection = new ReaperSection(configuration, saveConfiguration);
         viperSection = new ViperSection(configuration, saveConfiguration);
+        beastmasterSection = new BeastmasterSection(configuration, saveConfiguration);
         rangedSharedSection = new RangedSharedSection(configuration, saveConfiguration);
         machinistSection = new MachinistSection(configuration, saveConfiguration);
         bardSection = new BardSection(configuration, saveConfiguration);
@@ -359,6 +361,10 @@ public sealed class ConfigWindow : Window
 
             case ConfigSection.Viper:
                 viperSection.Draw();
+                break;
+
+            case ConfigSection.Beastmaster:
+                beastmasterSection.Draw();
                 break;
 
             // Ranged Physical DPS
