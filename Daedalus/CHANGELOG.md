@@ -3,7 +3,7 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
-## v0.1.70 — unreleased
+## v0.1.70 — 2026-09-10
 
 ### Jobs — Beastmaster capture assist
 - **Auto-capture.** Once a beast is known to be capturable, Capture is applied automatically and
