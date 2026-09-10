@@ -449,6 +449,32 @@ public static class BSTActions
         RecastTime = 10f, Range = 25f, Radius = 8f, DamagePotency = 1000,
     };
 
+    /// <summary>Gauge — scans a beast's capture odds. Out of combat, 3s recast (Lv1).</summary>
+    public static readonly ActionDefinition Gauge = new()
+    {
+        ActionId = 44882, Name = "Gauge", MinLevel = 1,
+        Category = ActionCategory.oGCD, TargetType = ActionTargetType.SingleEnemy,
+        RecastTime = 3f, Range = 25f,
+    };
+
+    /// <summary>
+    /// Capture — applies Interest Captured for 120s; the capture succeeds if the beast is defeated
+    /// while it is live (Lv1).
+    /// </summary>
+    public static readonly ActionDefinition Capture = new()
+    {
+        ActionId = 44880, Name = "Capture", MinLevel = 1,
+        Category = ActionCategory.GCD, TargetType = ActionTargetType.SingleEnemy,
+        EffectTypes = ActionEffectType.Damage,
+        RecastTime = 2.5f, Range = 3f, DamagePotency = 100,
+    };
+
+    /// <summary>
+    /// How long Interest Captured lasts. The kill must land inside this window, which is what the
+    /// auto-capture timing is built around.
+    /// </summary>
+    public const float CaptureWindowSeconds = 120f;
+
     /// <summary>The instinctual skill carrying each affinity, or null for None.</summary>
     public static ActionDefinition? InstinctualFor(InstinctAffinity affinity) => affinity switch
     {

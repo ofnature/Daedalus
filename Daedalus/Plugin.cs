@@ -57,6 +57,10 @@ public sealed class Plugin : IDalamudPlugin
     private readonly IClientState clientState;
     private readonly ICommandManager commandManager;
     private readonly IChatGui chatGui;
+    private readonly Daedalus.Services.Beastmaster.BeastCaptureLedger beastCaptureLedger;
+#if DEBUG
+    private readonly Daedalus.Services.Beastmaster.GaugeScanWatcher? gaugeScanWatcher;
+#endif
     private readonly IDataManager dataManager;
     private readonly ICondition condition;
     private readonly IGameConfig gameConfig;
@@ -711,6 +715,16 @@ public sealed class Plugin : IDalamudPlugin
         this.elementalWeaknessLog = new Daedalus.Services.Occult.ElementalWeaknessLog(
             objectTable, clientState, log, pluginInterface.ConfigDirectory.FullName, debugLogService, fateTable);
 
+        // Beastmaster capture ledger. NOT debug-gated: the shipped auto-capture rule reads it.
+        // Only its collection tooling (GaugeScanWatcher, below) is compiled out of Release.
+        this.beastCaptureLedger = new Daedalus.Services.Beastmaster.BeastCaptureLedger(
+            pluginInterface.ConfigDirectory.FullName, log);
+#if DEBUG
+        this.gaugeScanWatcher = new Daedalus.Services.Beastmaster.GaugeScanWatcher(
+            chatGui, objectTable, clientState, dataManager, this.actionService, this.beastCaptureLedger,
+            () => configuration.Beastmaster.EnableScanLogging, log);
+#endif
+
         // Phantom duty-action executor (Phase 3 utility bands + Phase 4 damage band):
         // pre/post hooks around every job's modules via BaseRotation. Inert outside
         // Occult Crescent.
@@ -928,7 +942,13 @@ public sealed class Plugin : IDalamudPlugin
         if (lanPartyWindow != null)
             this.mainWindow.OpenLanParty = () => lanPartyWindow.Toggle();
         var smartAoETab = new SmartAoETab(aoeTracker, drawCanvas, objectTable);
-        this.debugWindow = new DebugWindow(debugService, configuration, timelineService, smartAoETab, debugLogService, phantomJobService, elementalWeaknessLog, chestLedger, this.potTreasureHunt, objectTable);
+        this.debugWindow = new DebugWindow(debugService, configuration, timelineService, smartAoETab, debugLogService, phantomJobService, elementalWeaknessLog, chestLedger, this.potTreasureHunt, objectTable,
+            this.beastCaptureLedger,
+#if DEBUG
+            this.gaugeScanWatcher);
+#else
+            null);
+#endif
         this.welcomeWindow = new WelcomeWindow(configuration, SaveConfiguration, OpenConfigUI);
         this.analyticsWindow = new AnalyticsWindow(performanceTracker, configuration, SaveConfiguration, fflogsService, fightSummaryService, meldOptimizerPanel);
         this.trainingWindow = new TrainingWindow(trainingService, configuration, decisionValidationService, spacedRepetitionService);
@@ -1169,6 +1189,7 @@ public sealed class Plugin : IDalamudPlugin
 
         // Dalamud services
         container.Register<IPluginLog>(log);
+        container.Register<Daedalus.Services.Beastmaster.BeastCaptureLedger>(this.beastCaptureLedger);
         container.Register<IObjectTable>(objectTable);
         container.Register<IPartyList>(partyList);
         container.Register<IJobGauges>(jobGauges);
@@ -1861,6 +1882,11 @@ public sealed class Plugin : IDalamudPlugin
             chestLedger.Update();
             potTreasureHunt.Update();
             deathReleaseWatch.Update();
+#if DEBUG
+            // Beastmaster Gauge-scan collection. Debug-only by construction; the toggle inside
+            // it also lets data collection be turned off without turning off auto-capture.
+            gaugeScanWatcher?.Tick();
+#endif
 
 #if DEBUG
             // Occult enemy census + weakness learning (throttled; Occult territories only).
@@ -2283,7 +2309,9 @@ public sealed class Plugin : IDalamudPlugin
         pluginInterface.SavePluginConfig(configuration);
 #if DEBUG
         elementalWeaknessLog.Save();
+        gaugeScanWatcher?.Dispose();
 #endif
+        beastCaptureLedger.Save();
         Daedalus.Services.Occult.DoomTopOffWatch.OnLocalRequest = null;
 
         // Static-backed hooks — must not survive a plugin reload with dead captures.

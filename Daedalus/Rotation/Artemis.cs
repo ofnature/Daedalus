@@ -66,6 +66,9 @@ public sealed class Artemis : BaseMeleeDpsRotation<IArtemisContext, IArtemisModu
     private readonly List<IArtemisModule> _modules;
     private readonly ITimelineService? _timelineService;
     private readonly RotationScheduler _scheduler;
+    private readonly ArtemisBattlehornState _battlehorns = new();
+    private readonly Daedalus.Services.Beastmaster.BattlehornReader _battlehornReader;
+    private readonly CaptureModule _capture;
 
     public Artemis(
         IPluginLog log,
@@ -87,7 +90,8 @@ public sealed class Artemis : BaseMeleeDpsRotation<IArtemisContext, IArtemisModu
         ITimelineService? timelineService = null,
         IErrorMetricsService? errorMetrics = null,
         Daedalus.Services.Consumables.ITinctureDispatcher? tinctureDispatcher = null,
-        Daedalus.Services.Pull.IPullIntentService? pullIntentService = null)
+        Daedalus.Services.Pull.IPullIntentService? pullIntentService = null,
+        Daedalus.Services.Beastmaster.BeastCaptureLedger? beastCaptureLedger = null)
         : base(
             log,
             actionTracker,
@@ -113,7 +117,12 @@ public sealed class Artemis : BaseMeleeDpsRotation<IArtemisContext, IArtemisModu
         _partyHelper = new MeleeDpsPartyHelper(objectTable, partyList);
         _scheduler = new RotationScheduler(actionService, jobGauges, configuration, timelineService, errorMetrics);
 
-        _modules = [new DamageModule()];
+        _battlehornReader = new Daedalus.Services.Beastmaster.BattlehornReader(log);
+        _capture = new CaptureModule(beastCaptureLedger);
+
+        // Capture first: a missed capture window cannot be retried this pull, while a dropped
+        // damage GCD costs only that GCD.
+        _modules = [_capture, new DamageModule()];
         _modules.Sort((a, b) => a.Priority.CompareTo(b.Priority));
     }
 
@@ -206,7 +215,15 @@ public sealed class Artemis : BaseMeleeDpsRotation<IArtemisContext, IArtemisModu
         // Drop the instinct chain the moment combat ends: the 7s window cannot survive a pull gap,
         // and a stale chain would send the picker after a combo that expired.
         if (!inCombat)
+        {
             _instinct.Reset();
+            _capture.Reset();
+        }
+
+        // The roster is player-assigned and changes out of combat, so re-read it each frame rather
+        // than caching: it is three bytes off a struct we already have a pointer to.
+        _battlehornReader.TryRead(_battlehorns);
+        _artemisDebugState.Battlehorns = _battlehorns.Describe();
 
         _scheduler.Reset();
         foreach (var module in _modules)

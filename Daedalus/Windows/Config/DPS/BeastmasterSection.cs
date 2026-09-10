@@ -29,6 +29,7 @@ public sealed class BeastmasterSection
 
         DrawInstinctSection();
         DrawFamiliarSection();
+        DrawCaptureSection();
         DrawLimitedJobNote();
     }
 
@@ -76,6 +77,55 @@ public sealed class BeastmasterSection
                 v => config.Beastmaster.EnablePartingBlow = v,
                 "1,000 potency to the target and everything within 8y — but your familiar RETREATS "
                 + "afterwards, so Trick stops until you summon again. Off by default.", save);
+
+            ConfigUIHelpers.EndIndent();
+        }
+    }
+
+    private void DrawCaptureSection()
+    {
+        if (ConfigUIHelpers.SectionHeader("Capture", "BST"))
+        {
+            ConfigUIHelpers.BeginIndent();
+
+            ConfigUIHelpers.Toggle(
+                "Auto-capture known beasts",
+                () => config.Beastmaster.EnableAutoCapture,
+                v => config.Beastmaster.EnableAutoCapture = v,
+                "Applies Capture automatically to beasts already recorded as capturable, timed so "
+                + "the kill lands inside the 120s window. Does nothing against a beast that has not "
+                + "been scanned — it never guesses.", save);
+
+            ImGui.BeginDisabled(!config.Beastmaster.EnableAutoCapture);
+
+            var lead = config.Beastmaster.CaptureLeadSeconds;
+            ImGui.SetNextItemWidth(160);
+            if (ImGui.SliderFloat("Apply this close to death (s)", ref lead, 5f, 60f, "%.0f"))
+            {
+                config.Beastmaster.CaptureLeadSeconds = lead;
+                save();
+            }
+            ImGui.TextDisabled(
+                "Lower wastes less of the 120s window; higher is safer if the kill takes longer "
+                + "than estimated.");
+
+            var margin = config.Beastmaster.CaptureSafetyMarginSeconds;
+            ImGui.SetNextItemWidth(160);
+            if (ImGui.SliderFloat("Safety margin (s)", ref margin, 0f, 30f, "%.0f"))
+            {
+                config.Beastmaster.CaptureSafetyMarginSeconds = margin;
+                save();
+            }
+            ImGui.TextDisabled(
+                "Slack kept against a time-to-kill estimate that runs low. Better slightly early "
+                + "than a missed window.");
+
+            ImGui.EndDisabled();
+
+            ImGui.Spacing();
+            ImGui.TextDisabled(
+                "If time-to-kill cannot be estimated confidently, auto-capture stands down and "
+                + "leaves the timing to you.");
 
             ConfigUIHelpers.EndIndent();
         }

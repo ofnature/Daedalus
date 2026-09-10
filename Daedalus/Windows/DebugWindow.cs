@@ -25,6 +25,10 @@ public sealed class DebugWindow : Window
     private readonly Daedalus.Services.Occult.ElementalWeaknessLog? _weaknessLog;
     private readonly Daedalus.Services.Occult.ChestLedger? _chestLedger;
     private readonly Daedalus.Services.Occult.PotTreasureHunt? _potTreasureHunt;
+#if DEBUG
+    private readonly Daedalus.Services.Beastmaster.BeastCaptureLedger? _beastLedger;
+    private readonly Daedalus.Services.Beastmaster.GaugeScanWatcher? _gaugeScanWatcher;
+#endif
     private readonly Dalamud.Plugin.Services.IObjectTable? _objectTable;
 
     private uint _selectedJobId; // 0 = unset; auto-selects active job on next Draw
@@ -89,7 +93,9 @@ public sealed class DebugWindow : Window
         Daedalus.Services.Occult.ElementalWeaknessLog? weaknessLog = null,
         Daedalus.Services.Occult.ChestLedger? chestLedger = null,
         Daedalus.Services.Occult.PotTreasureHunt? potTreasureHunt = null,
-        Dalamud.Plugin.Services.IObjectTable? objectTable = null)
+        Dalamud.Plugin.Services.IObjectTable? objectTable = null,
+        Daedalus.Services.Beastmaster.BeastCaptureLedger? beastLedger = null,
+        object? gaugeScanWatcher = null)
         : base(Loc.T(LocalizedStrings.Debug.WindowTitle, "Daedalus Debug"), ImGuiWindowFlags.NoSavedSettings)
     {
         _debugService = debugService;
@@ -101,6 +107,10 @@ public sealed class DebugWindow : Window
         _weaknessLog = weaknessLog;
         _chestLedger = chestLedger;
         _potTreasureHunt = potTreasureHunt;
+#if DEBUG
+        _beastLedger = beastLedger;
+        _gaugeScanWatcher = gaugeScanWatcher as Daedalus.Services.Beastmaster.GaugeScanWatcher;
+#endif
         _objectTable = objectTable;
 
         Size = new Vector2(550, 450);
@@ -224,9 +234,36 @@ public sealed class DebugWindow : Window
                 ImGui.EndTabItem();
             }
 
+#if DEBUG
+            // Beastmaster capture research. DEBUG-only, like the collection tooling it shows.
+            if (ImGui.BeginTabItem("Beasts"))
+            {
+                BeastmasterTab.Draw(_beastLedger, _gaugeScanWatcher, DescribeBattlehorns());
+                ImGui.EndTabItem();
+            }
+#endif
+
             ImGui.EndTabBar();
         }
     }
+
+#if DEBUG
+    private readonly Daedalus.Services.Beastmaster.BattlehornReader _battlehornReader = new();
+    private readonly Daedalus.Rotation.ArtemisCore.Helpers.ArtemisBattlehornState _battlehornState = new();
+
+    /// <summary>
+    /// Live Battlehorn roster, read straight from ActionManager.BeastmasterPets. Reads three
+    /// bytes, so it is cheap enough to do per draw rather than plumbing the rotation's copy in —
+    /// and this way the readout works even when no Beastmaster rotation is running.
+    /// </summary>
+    private string DescribeBattlehorns()
+    {
+        _battlehornReader.TryRead(_battlehornState);
+        var unlocked = _battlehornReader.UnlockedCount();
+        var bestiary = unlocked is null ? "Bestiary: not loaded" : $"Bestiary: {unlocked}/50 captured";
+        return _battlehornState.Describe() + "  |  " + bestiary;
+    }
+#endif
 
     private void DrawJobDetailsTab()
     {

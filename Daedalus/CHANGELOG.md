@@ -3,6 +3,20 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.70 — unreleased
+
+### Jobs — Beastmaster capture assist
+- **Auto-capture.** Once a beast is known to be capturable, Capture is applied automatically and
+  timed so the kill lands inside its two-minute window — as late as it can safely go, so little of
+  the window is wasted. Off by default; Settings ▸ Beastmaster.
+- It will not guess. If the time-to-kill estimate is not confident — early in a pull, or damage is
+  erratic — it stands down and leaves the timing to you rather than burning the attempt.
+- Two sliders: how close to death to apply, and a safety margin against an estimate that runs low.
+  The margin is a real guarantee: no slider value can make the debuff expire before the kill.
+- **Battlehorn readout.** The three assigned Battlehorns and your Bestiary count now show in the
+  debug window, read from the game rather than reported as unknown.
+
+<!-- LATEST-END -->
 ## v0.1.69 — 2026-09-08
 
 ### Fix — The Forbidden Folios books will stop asking to be Libra'd
@@ -31,7 +45,6 @@ All notable changes to Daedalus will be documented in this file.
 - Fixed: the job icon lookup stopped at Pictomancer, so **Beastmaster showed no icon anywhere** in the
   UI — sidebar, control window and main window all drew a bare label.
 - Beastmaster and Blue Mage no longer auto-move for positionals or max-melee range keeping.
-<!-- LATEST-END -->
 ## v0.1.68 — 2026-09-06
 
 ### New — The fight gets a say in what you attack

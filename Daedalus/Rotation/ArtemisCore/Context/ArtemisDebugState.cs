@@ -23,6 +23,12 @@ public sealed class ArtemisDebugState : IEnemyPackDebug
     /// <summary>The combo clock readout — last affinity, wanted affinity, seconds left.</summary>
     public string InstinctChain { get; set; } = "";
 
+    /// <summary>What the auto-capture rule decided, and why — including why it declined.</summary>
+    public string CaptureState { get; set; } = "";
+
+    /// <summary>The Battlehorn roster readout; distinguishes unreadable from empty.</summary>
+    public string Battlehorns { get; set; } = "";
+
     public int ComboStep { get; set; }
     public string CurrentTarget { get; set; } = "None";
 

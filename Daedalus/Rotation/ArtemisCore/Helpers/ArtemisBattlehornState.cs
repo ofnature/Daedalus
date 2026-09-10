@@ -6,7 +6,9 @@ namespace Daedalus.Rotation.ArtemisCore.Helpers;
 /// One assigned Battlehorn slot: which beast is on it and what classification it is.
 /// Classification is what decides the Borrow action, so it travels with the slot.
 /// </summary>
-/// <param name="PactNameId">The beast's NameId; 0 for an empty slot.</param>
+/// <param name="PactNameId">The beast's <b>XBMPet RowId</b>, as read from
+/// <c>ActionManager.BeastmasterPets</c>; 0 for an empty slot. It is the same id
+/// <c>XBMManager.IsPetUnlocked</c> takes, so the two line up without a name lookup.</param>
 /// <param name="Name">Display name, for logs and the debug panel.</param>
 /// <param name="Classification">Decides which Borrow the beast can lend.</param>
 public readonly record struct BattlehornSlot(
@@ -23,17 +25,18 @@ public readonly record struct BattlehornSlot(
 /// The three assigned Battlehorns, which one is active, and the once-per-summon budget.
 ///
 /// <para>
-/// STUB, and honestly so. The slot model, the once-per-summon rule for Tempered Release and
-/// Borrow, and the fact that a swap resets that budget are all knowable from the job's design —
-/// those are implemented. What is NOT knowable yet is how any of it is <b>read from the game</b>:
-/// the Beastmaster gauge struct is not in the published ClientStructs, so nothing populates this
-/// from live state. <see cref="IsPopulatedFromGame"/> says so out loud rather than letting a
-/// permanently-empty roster read as "no beasts assigned".
+/// The slot model, the once-per-summon rule for Tempered Release and Borrow, and the fact that a
+/// swap resets that budget are all knowable from the job's design. What was missing until
+/// ClientStructs 7.55.1.9047 was any way to <b>read</b> the roster — which is why
+/// <see cref="IsPopulatedFromGame"/> exists, so a permanently-empty roster could not be mistaken
+/// for "no beasts assigned".
 /// </para>
 ///
 /// <para>
-/// When the gauge lands, the only change needed here is a reader that fills the three slots and
-/// the active index each frame. Every rule below already works off that state.
+/// <c>BattlehornReader</c> now fills it from <c>ActionManager.BeastmasterPets</c>. Slots carry the
+/// XBMPet RowId; the display name and classification stay blank because the only sheet naming
+/// those columns is evaluation-only, so an occupied slot reports as occupied rather than as a
+/// named beast we cannot actually verify.
 /// </para>
 /// </summary>
 public sealed class ArtemisBattlehornState
@@ -119,7 +122,7 @@ public sealed class ArtemisBattlehornState
     public string Describe()
     {
         if (!IsPopulatedFromGame)
-            return "Battlehorns: unknown (no gauge reader — BST data unpublished)";
+            return "Battlehorns: unknown (roster not read yet)";
 
         var active = Active is { } a ? $"{a.Name} ({a.Classification})" : "none out";
         return $"Battlehorns: {active}"

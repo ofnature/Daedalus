@@ -33,6 +33,10 @@ public static class ArtemisAbilities
     public static readonly AbilityBehavior PartingBlow = new()
         { Action = BSTActions.PartingBlow, Toggle = cfg => cfg.Beastmaster.EnablePartingBlow };
 
+    // --- capture ---
+    public static readonly AbilityBehavior Capture = new()
+        { Action = BSTActions.Capture, Toggle = cfg => cfg.Beastmaster.EnableAutoCapture };
+
     /// <summary>The instinctual behavior carrying an affinity, or null.</summary>
     public static AbilityBehavior? InstinctualFor(InstinctAffinity affinity) => affinity switch
     {
