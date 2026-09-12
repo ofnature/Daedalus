@@ -177,7 +177,6 @@ public sealed class Plugin : IDalamudPlugin
     private readonly ActionFeedWindow actionFeedWindow;
     private readonly DpsMeterWindow dpsMeterWindow;
     private readonly PotHuntMapWindow potHuntMapWindow;
-    private readonly TelemetryService telemetryService;
     private readonly DrawCanvas drawCanvas;
     private readonly DrawingService drawingService;
     private readonly AoETracker aoeTracker;
@@ -979,9 +978,6 @@ public sealed class Plugin : IDalamudPlugin
         this.mainWindow.InOccultZone = () =>
             Daedalus.Data.PhantomJobData.OccultTerritoryIds.Contains((ushort)this.clientState.TerritoryType);
 
-        // Telemetry service for anonymous usage tracking
-        this.telemetryService = new TelemetryService(configuration, log);
-
         // IPC interface for external plugin integration
         this.DaedalusIpc = new DaedalusIpc(
             pluginInterface,
@@ -1152,9 +1148,6 @@ public sealed class Plugin : IDalamudPlugin
         {
             timelineService.LoadForZone(clientState.TerritoryType);
         }
-
-        // Send anonymous telemetry ping (fire-and-forget)
-        telemetryService.SendStartupPing(PluginVersion);
 
         // Check for updates in the background (delayed 15s)
         updateCheckerService.StartupCheck();
@@ -2363,7 +2356,6 @@ public sealed class Plugin : IDalamudPlugin
         garlandDropSource.Dispose();
         partyCoordinationIpc?.Dispose();
         fflogsService?.Dispose();
-        telemetryService.Dispose();
         updateCheckerService.Dispose();
 
         // Dispose rotation manager (handles all instantiated rotations)

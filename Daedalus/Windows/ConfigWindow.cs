@@ -548,7 +548,6 @@ public sealed class ConfigWindow : Window
             exportCopy.IsDebugWindowOpen = false;
             exportCopy.Calibration = new CalibrationConfig();
             exportCopy.Debug = new DebugConfig();
-            exportCopy.TelemetryEndpoint = string.Empty;
         }
 
         var json = System.Text.Json.JsonSerializer.Serialize(
@@ -570,7 +569,7 @@ public sealed class ConfigWindow : Window
 
             // Apply portable user settings only.
             // Excluded: Enabled (runtime state — recipient keeps their own enable/disable preference),
-            //           MainWindowVisible, IsDebugWindowOpen, HasSeenWelcome, TelemetryEndpoint,
+            //           MainWindowVisible, IsDebugWindowOpen, HasSeenWelcome,
             //           Calibration, Debug (runtime state / infrastructure)
             var previousEnablePartyCoordination = configuration.PartyCoordination.EnablePartyCoordination;
             configuration.ActivePreset        = imported.ActivePreset;
@@ -582,7 +581,6 @@ public sealed class ConfigWindow : Window
             configuration.EnableDoT           = imported.EnableDoT;
             configuration.PreventEscapeClose  = imported.PreventEscapeClose;
             configuration.ShowDuringCutscenes = imported.ShowDuringCutscenes;
-            configuration.TelemetryEnabled    = imported.TelemetryEnabled;
             configuration.LanguageOverride    = imported.LanguageOverride;
 
             // Nested behavioral configs — null-coalesce to defaults if the import was partial

@@ -3,6 +3,20 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.71 — unreleased
+
+### Jobs — Beastmaster capture assist
+- Auto-capture no longer spends a Capture on a beast that is already in your Bestiary.
+
+### Privacy — the startup telemetry ping is gone
+- Daedalus no longer contacts any telemetry server. The plugin used to send an anonymous ping
+  carrying its version to a third-party endpoint on every load, on by default.
+- The code, the endpoint, the setting and the Privacy section of Settings have all been removed —
+  there is nothing left to switch off, on any install.
+- The only outbound requests left are ones you ask for: the update check against this repo,
+  GarlandTools lookups for Farm mode, and FFLogs parse *reads*. None of them upload your data.
+
+<!-- LATEST-END -->
 ## v0.1.70 — 2026-09-10
 
 ### Jobs — Beastmaster capture assist
@@ -16,7 +30,6 @@ All notable changes to Daedalus will be documented in this file.
 - **Battlehorn readout.** The three assigned Battlehorns and your Bestiary count now show in the
   debug window, read from the game rather than reported as unknown.
 
-<!-- LATEST-END -->
 ## v0.1.69 — 2026-09-08
 
 ### Fix — The Forbidden Folios books will stop asking to be Libra'd

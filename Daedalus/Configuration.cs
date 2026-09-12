@@ -91,10 +91,8 @@ public sealed class Configuration : IPluginConfiguration
     /// </summary>
     public bool ShowDuringCutscenes { get; set; } = false;
 
-    // Community & telemetry
+    // Community
     public bool HasSeenWelcome { get; set; } = false;
-    public bool TelemetryEnabled { get; set; } = true;
-    public string TelemetryEndpoint { get; set; } = "https://daedalus-telemetry.christopherscottkeller.workers.dev/";
 
     /// <summary>
     /// Optional language override. When set, uses this language instead of the game client language.
@@ -328,10 +326,6 @@ public sealed class Configuration : IPluginConfiguration
         Summoner = new SummonerConfig();
         RedMage = new RedMageConfig();
         Pictomancer = new PictomancerConfig();
-
-        // Reset telemetry to defaults
-        TelemetryEnabled = true;
-        TelemetryEndpoint = "https://daedalus-telemetry.christopherscottkeller.workers.dev/";
 
         // Reset preset to Custom so the UI does not show a stale preset name
         ActivePreset = ConfigurationPreset.Custom;

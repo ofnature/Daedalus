@@ -137,7 +137,6 @@ public sealed class SettingRegistry
             new("Enable Damage", "When enabled, damage spells will be cast automatically"),
             new("Enable DoT", "When enabled, DoT spells will be cast automatically"),
             new("Movement Tolerance", "How long to wait after movement before casting"),
-            new("Privacy", "Telemetry"),
             new("Language", "Select language")
         };
 

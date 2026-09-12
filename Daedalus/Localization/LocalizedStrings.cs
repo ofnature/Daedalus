@@ -365,14 +365,6 @@ public static class LocalizedStrings
         public const string MinMpForRaiseDesc = "config.resurrection.min_mp_for_raise_desc";
     }
 
-    /// <summary>Keys for privacy settings.</summary>
-    public static class Privacy
-    {
-        public const string Section = "config.privacy.section";
-        public const string Telemetry = "config.privacy.telemetry";
-        public const string TelemetryDesc = "config.privacy.telemetry_desc";
-    }
-
     /// <summary>Keys for language settings.</summary>
     public static class Language
     {

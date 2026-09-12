@@ -78,7 +78,6 @@ public sealed class GeneralSection
         DrawParserSection();
         DrawFarmSection();
         DrawLanguageSection();
-        DrawPrivacySection();
     }
 
     /// <summary>
@@ -659,19 +658,6 @@ public sealed class GeneralSection
             ImGui.TextDisabled(Loc.T(
                 LocalizedStrings.Language.SelectDesc,
                 "Select your preferred language. Auto uses the game client language."));
-
-            ConfigUIHelpers.EndIndent();
-        }
-    }
-
-    private void DrawPrivacySection()
-    {
-        if (ConfigUIHelpers.SectionHeader(Loc.T(LocalizedStrings.Privacy.Section, "Privacy"), false))
-        {
-            ConfigUIHelpers.BeginIndent();
-
-            ConfigUIHelpers.Toggle(Loc.T(LocalizedStrings.Privacy.Telemetry, "Send anonymous usage statistics"), () => this.config.TelemetryEnabled, v => this.config.TelemetryEnabled = v,
-                Loc.T(LocalizedStrings.Privacy.TelemetryDesc, "Only sends plugin version. No personal data."), this.save);
 
             ConfigUIHelpers.EndIndent();
         }

@@ -191,9 +191,6 @@
   "config.resurrection.min_mp_for_raise": "Min MP for Raise",
   "config.resurrection.min_mp_for_raise_desc": "Minimum MP percentage before attempting to raise.",
 
-  "config.privacy.section": "Privacy",
-  "config.privacy.telemetry": "Send anonymous usage statistics",
-  "config.privacy.telemetry_desc": "Only sends plugin version. No personal data.",
 
   "config.healing.section": "Healing",
   "config.healing.single_target": "Single Target Healing",
