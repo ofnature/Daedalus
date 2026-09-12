@@ -43,6 +43,11 @@ public static class BeastmasterTab
         {
             ImGui.SameLine();
             ImGui.TextColored(Dim, $"   scans this session: {watcher.ScansThisSession}");
+            if (watcher.RowsReparsedOnLoad > 0)
+            {
+                ImGui.SameLine();
+                ImGui.TextColored(Green, $"   corrected on load: {watcher.RowsReparsedOnLoad}");
+            }
         }
 
         if (ImGui.Button("Copy export"))
@@ -100,8 +105,8 @@ public static class BeastmasterTab
 
             ImGui.TableNextColumn();
             ImGui.TextUnformatted(e.Name);
-            if (ImGui.IsItemHovered() && !string.IsNullOrWhiteSpace(e.RawText))
-                ImGui.SetTooltip(e.RawText);
+            if (ImGui.IsItemHovered() && e.RawSamples.Count > 0)
+                ImGui.SetTooltip(string.Join("\n", e.RawSamples));
 
             ImGui.TableNextColumn();
             ImGui.TextUnformatted(e.Level > 0 ? e.Level.ToString() : "?");
@@ -111,7 +116,8 @@ public static class BeastmasterTab
             {
                 BeastCaptureDifficulty.Unknown => Dim,
                 BeastCaptureDifficulty.Impossible => Red,
-                BeastCaptureDifficulty.Hard or BeastCaptureDifficulty.Extreme => Yellow,
+                BeastCaptureDifficulty.LevelGated or BeastCaptureDifficulty.Hard
+                    or BeastCaptureDifficulty.Extreme => Yellow,
                 _ => Green,
             };
             ImGui.TextColored(tierColour, e.Difficulty.ToString());
@@ -149,8 +155,11 @@ public static class BeastmasterTab
         if (onlyCapturable)
             q = q.Where(e => e.Capturable == true);
 
+        // "Unparsed" = no confirmed phrase has matched any of this beast's replies. Every confirmed
+        // phrase sets Capturable, so null is exact — whereas Difficulty == Unknown is not, because
+        // "already befriended" is fully understood and still carries no tier.
         if (onlyUnparsed)
-            q = q.Where(e => e.Difficulty == BeastCaptureDifficulty.Unknown);
+            q = q.Where(e => e.Capturable is null);
 
         return q.ToList();
     }

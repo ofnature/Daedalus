@@ -77,11 +77,9 @@ public sealed class CaptureModule : IArtemisModule
             return;
 
         var name = target.Name.TextValue;
-        if (!_ledger.IsKnownCapturable(name))
+        if (!_ledger.ShouldAutoCapture(name))
         {
-            context.Debug.CaptureState = string.IsNullOrWhiteSpace(name)
-                ? "no target"
-                : $"{name}: not a known-capturable beast";
+            context.Debug.CaptureState = DescribeSkip(name, _ledger.Find(name));
             return;
         }
 
@@ -154,6 +152,27 @@ public sealed class CaptureModule : IArtemisModule
             return new CaptureDecision(false, "holding for a later application");
 
         return new CaptureDecision(true, "firing Capture");
+    }
+
+    /// <summary>
+    /// Why auto-capture is leaving this target alone, in terms the player can act on. "Not known
+    /// capturable" alone would hide the difference between "scan it first" and "you already own it".
+    /// </summary>
+    internal static string DescribeSkip(string name, BeastCaptureEntry? entry)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+            return "no target";
+        if (entry is null)
+            return $"{name}: not scanned yet — use Gauge on it";
+        if (entry.AlreadyCaptured == true)
+            return $"{name}: already in your Bestiary";
+        return entry.Difficulty switch
+        {
+            BeastCaptureDifficulty.LevelGated => $"{name}: too strong for you yet",
+            BeastCaptureDifficulty.Impossible => $"{name}: no pact possible",
+            _ when entry.Capturable is null => $"{name}: scan reply not understood yet",
+            _ => $"{name}: not capturable",
+        };
     }
 
     /// <summary>Combat end / zone change.</summary>

@@ -7,7 +7,7 @@ using Daedalus.Data;
 namespace Daedalus.Services.Beastmaster;
 
 /// <summary>
-/// Watches for the Beastmaster <c>Gauge</c> action firing and records the scan text it produces.
+/// Watches for the Beastmaster <c>Gauge</c> action firing and records the reply it produces.
 ///
 /// <para>
 /// <b>DEBUG BUILD ONLY.</b> The entire class is inside <c>#if DEBUG</c>, so it does not exist in
@@ -16,19 +16,19 @@ namespace Daedalus.Services.Beastmaster;
 /// </para>
 ///
 /// <para>
-/// <b>How a scan is detected.</b> There is no "action used" event to subscribe to, and the player
-/// will be casting Gauge by hand while collecting samples, so hooking the rotation would miss most
-/// of them. Instead this polls Gauge's cooldown: the frame its remaining cooldown goes from zero to
-/// non-zero, Gauge just fired. That catches manual and automated casts identically.
+/// <b>How a scan is detected.</b> There is no "action used" event, and Gauge is mostly cast by hand
+/// while collecting samples, so hooking the rotation would miss most of them. Instead this polls
+/// Gauge's cooldown: the frame it goes from zero to non-zero, Gauge just fired. That catches manual
+/// and automated casts identically.
 /// </para>
 ///
 /// <para>
-/// <b>Why it captures a window rather than matching a phrase.</b> Nobody has confirmed the scan
-/// message's wording or which chat channel it arrives on. Matching on text would mean guessing
-/// twice — once to find the message and again to parse it — and a wrong guess loses the sample
-/// silently. So after a Gauge cast this arms a short window and records the next non-empty message,
-/// whatever it says, storing it verbatim. Getting the parse wrong is recoverable; not capturing the
-/// text at all is not.
+/// <b>Which message is the reply.</b> After a cast, a short window opens and the first line that
+/// <see cref="GaugeScanParser.IsScanReply"/> accepts is taken — a whole-word "befriend…" or "pact",
+/// the two vocabularies real replies use. The lines observed arriving in the same window — "You
+/// have left the sanctuary.", the FATE level-sync prompts, experience gains — carry neither. Taking
+/// the first line of any kind, as the first version did, worked on the first four scans only
+/// because of message order.
 /// </para>
 /// </summary>
 public sealed class GaugeScanWatcher : IDisposable
@@ -49,25 +49,17 @@ public sealed class GaugeScanWatcher : IDisposable
     private double _lastCooldown;
     private DateTime _windowOpenedUtc = DateTime.MinValue;
     private string _pendingTargetName = "";
+    private int _pendingTargetLevel;
     private System.Numerics.Vector3 _pendingPosition;
 
-    /// <summary>
-    /// Answers "is this beast already in the Master's Bestiary?" — null when it cannot be told.
-    /// <para>
-    /// Left unset by default and it matters that it is: <c>XBMManager.IsPetUnlocked(petId)</c>
-    /// would answer it, but mapping a beast NAME to an XBMPet RowId needs
-    /// <c>Lumina.Excel.Sheets.Experimental.XBMPet</c>, which Lumina marks evaluation-only and
-    /// subject to change. Rather than build collection on a schema that may vanish, the ledger
-    /// records null ("unknown") and this seam waits for the schema to stabilise.
-    /// </para>
-    /// </summary>
-    public Func<string, bool?>? CapturedResolver { get; set; }
-
-    /// <summary>Last raw text captured, for the debug tab to show even if it did not parse.</summary>
+    /// <summary>Last raw scan reply captured, for the debug tab.</summary>
     public string LastRawText { get; private set; } = "";
 
-    /// <summary>Scans seen this session, parsed or not.</summary>
+    /// <summary>Scans seen this session.</summary>
     public int ScansThisSession { get; private set; }
+
+    /// <summary>Rows the phrase table corrected on load. Shown in the debug tab.</summary>
+    public int RowsReparsedOnLoad { get; }
 
     public GaugeScanWatcher(
         IChatGui chatGui,
@@ -88,6 +80,12 @@ public sealed class GaugeScanWatcher : IDisposable
         _enabled = enabled;
         _log = log;
 
+        // Bring every stored row up to date with the current phrase table. This is the payoff of
+        // keeping raw text: rows logged while the table was wrong get corrected without a rescan.
+        RowsReparsedOnLoad = _ledger.Reparse(GaugeScanParser.Derive);
+        if (RowsReparsedOnLoad > 0)
+            _log?.Information("[GaugeScan] re-derived {Count} ledger row(s) from stored scan text", RowsReparsedOnLoad);
+
         _chatGui.ChatMessage += OnChatMessage;
         _subscribed = true;
     }
@@ -95,11 +93,12 @@ public sealed class GaugeScanWatcher : IDisposable
     /// <summary>Poll for a Gauge cast. Call once per frame.</summary>
     public void Tick()
     {
-        if (!_enabled())
-            return;
-
         try
         {
+            _ledger.Tick();
+
+            if (!_enabled())
+                return;
             if (_objectTable.LocalPlayer is not { } player)
                 return;
             if (player.ClassJob.RowId != JobRegistry.Beastmaster)
@@ -110,26 +109,21 @@ public sealed class GaugeScanWatcher : IDisposable
             // Zero → non-zero means the recast just started, i.e. Gauge fired this frame.
             if (_lastCooldown <= 0.01f && cooldown > 0.01f)
             {
+                // Snapshot the target NOW: by the time the reply arrives the player may have
+                // retargeted, and attributing a scan to the wrong beast would poison the table.
+                var target = player.TargetObject;
                 _windowOpenedUtc = DateTime.UtcNow;
-                _pendingTargetName = ResolveTargetName(player);
+                _pendingTargetName = target?.Name.TextValue ?? "";
+                _pendingTargetLevel = target is ICharacter c ? c.Level : 0;
                 _pendingPosition = player.Position;
             }
 
             _lastCooldown = cooldown;
-            _ledger.Tick();
         }
         catch (Exception ex)
         {
             _log?.Warning(ex, "[GaugeScan] tick failed");
         }
-    }
-
-    private string ResolveTargetName(IBattleChara player)
-    {
-        // The scan targets whatever the player has hard-targeted. Falls back to empty rather than
-        // to a nearby enemy — attributing a scan to the wrong beast would poison the table.
-        var target = player.TargetObject;
-        return target?.Name.TextValue ?? "";
     }
 
     private void OnChatMessage(Dalamud.Game.Chat.IHandleableChatMessage message)
@@ -145,8 +139,15 @@ public sealed class GaugeScanWatcher : IDisposable
                 return;
 
             var text = message.Message?.TextValue ?? "";
-            if (string.IsNullOrWhiteSpace(text))
+            if (!GaugeScanParser.IsScanReply(text))
+            {
+                // Chat noise inside the window. Logged rather than dropped silently, so a Gauge reply
+                // in a third vocabulary nobody has seen yet would still be visible in /xllog — the
+                // "pact" reply was exactly that, until it was.
+                if (!string.IsNullOrWhiteSpace(text))
+                    _log?.Debug("[GaugeScan] ignored non-reply in scan window: {Text}", text);
                 return;
+            }
 
             Handle(text);
         }
@@ -156,38 +157,37 @@ public sealed class GaugeScanWatcher : IDisposable
         }
     }
 
-    /// <summary>Internal seam so the attribution and record-building can be tested without a game.</summary>
+    /// <summary>Record one scan reply against the target snapshotted when Gauge fired.</summary>
     internal void Handle(string text)
     {
         var parsed = GaugeScanParser.Parse(text, _pendingTargetName);
+        LastRawText = text;
 
-        // The name comes from the actual target, not from prose. Without one there is nothing to
-        // key the row on, so the sample is logged and dropped rather than filed under a guess.
-        var name = parsed.Name;
-        if (string.IsNullOrWhiteSpace(name))
+        // The reply only ever says "this beast". With no target snapshot there is nothing to key the
+        // row on, so the sample is logged and dropped rather than filed under a guess.
+        if (string.IsNullOrWhiteSpace(parsed.Name))
         {
-            LastRawText = text;
-            _log?.Information("[GaugeScan] no target name for scan text: {Text}", text);
+            _log?.Information("[GaugeScan] no target name for scan reply: {Text}", text);
             return;
         }
 
-        LastRawText = text;
         ScansThisSession++;
-        _windowOpenedUtc = DateTime.MinValue;   // one message per cast
+        _windowOpenedUtc = DateTime.MinValue;   // one reply per cast
 
         _ledger.Record(
-            name: name!,
-            level: parsed.Level,
+            name: parsed.Name!,
+            level: _pendingTargetLevel,
             difficulty: parsed.Difficulty,
             capturable: parsed.Capturable,
             territoryId: (ushort)_clientState.TerritoryType,
             territoryName: ResolveTerritoryName(),
             playerPosition: _pendingPosition,
-            alreadyCaptured: CapturedResolver?.Invoke(name!),
+            alreadyCaptured: parsed.AlreadyCaptured,
             rawText: text);
 
         _log?.Information(
-            "[GaugeScan] {Name} lv{Level} {Tier} — {Text}", name, parsed.Level, parsed.Difficulty, text);
+            "[GaugeScan] {Name} lv{Level} {Tier} capturable={Cap} owned={Owned} — {Text}",
+            parsed.Name, _pendingTargetLevel, parsed.Difficulty, parsed.Capturable, parsed.AlreadyCaptured, text);
     }
 
     private string ResolveTerritoryName()
@@ -196,11 +196,7 @@ public sealed class GaugeScanWatcher : IDisposable
         {
             var row = _dataManager.GetExcelSheet<Lumina.Excel.Sheets.TerritoryType>()
                 ?.GetRowOrDefault(_clientState.TerritoryType);
-            if (row is null)
-                return "";
-
-            var place = row.Value.PlaceName.ValueNullable;
-            return place?.Name.ExtractText() ?? "";
+            return row?.PlaceName.ValueNullable?.Name.ExtractText() ?? "";
         }
         catch
         {
