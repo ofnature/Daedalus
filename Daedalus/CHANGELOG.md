@@ -3,7 +3,7 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
-## v0.1.71 — unreleased
+## v0.1.71 — 2026-09-12
 
 ### Jobs — Beastmaster capture assist
 - Auto-capture no longer spends a Capture on a beast that is already in your Bestiary.
