@@ -3,7 +3,7 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
-## v0.1.72 — unreleased
+## v0.1.72 — 2026-09-14
 
 ### Fix — Phantom Berserker's Deadly Blow now waits for Pent-up Rage
 - Rage grants **Pent-up Rage**, and Deadly Blow gains up to **2,000** potency from the damage you
