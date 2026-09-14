@@ -128,6 +128,63 @@ public static class PhantomBandRules
         => distanceYalms <= maxRangeYalms;
 
     /// <summary>
+    /// How close to expiry Pent-up Rage has to be before Deadly Blow spends it. One GCD, matching
+    /// RSR's <c>PlayerWillStatusEndGCD(1, ...)</c> — enough slack to land the action before the
+    /// buff drops, while still keeping nearly the whole soak window.
+    /// </summary>
+    public const float PentUpRageSpendWindowSeconds = 2.5f;
+
+    /// <summary>
+    /// Whether Phantom Berserker's Deadly Blow should fire now, and if not, why.
+    ///
+    /// <para>
+    /// Game data (2026-09-13): Rage grants <b>Pent-up Rage</b> for 10s, and Deadly Blow gains
+    /// <i>"up to 2,000 potency based on the amount of damage taken while under the effect of
+    /// Pent-up Rage"</i> on a 200 base. The bonus <b>accumulates while you are being hit</b>, so
+    /// Deadly Blow fired straight after Rage — which is what happened when both were pushed in the
+    /// same tick — cashes in a window that has soaked almost nothing, throwing away up to 2,000 of
+    /// a possible 2,200 potency once a minute.
+    /// </para>
+    ///
+    /// <para>
+    /// The rule follows RSR's (<c>PhantomDefault.cs</c>): spend Pent-up Rage as it is about to
+    /// expire, and use Deadly Blow freely off-cycle (its 30s recast is half of Rage's 60s, so every
+    /// other one has no Rage to wait for). Two deliberate differences:
+    /// </para>
+    /// <list type="bullet">
+    /// <item>It decides from the <b>live status</b>, not RSR's "Lv3+" level gate. Nothing in the
+    /// tooltips says Pent-up Rage is level-gated, so a level check is a guess; the status is not.
+    /// Where Rage grants no Pent-up Rage the rule degrades to "Rage is on cooldown, fire" after a
+    /// single tick.</item>
+    /// <item>"Rage is usable" means <b>Rage is on the duty bar</b>, the phantom layer's equivalent
+    /// of RSR's <c>RagePvE.IsEnabled</c>. Without it, an unslotted Rage never goes on cooldown and
+    /// Deadly Blow would be held forever waiting for it.</item>
+    /// </list>
+    /// </summary>
+    /// <param name="rageSlotted">Rage is on the duty bar, so waiting for it can actually pay off.</param>
+    /// <param name="rageCooldownRemaining">Seconds left on Rage's recast; 0 when ready.</param>
+    /// <param name="pentUpRageRemaining">Seconds left on Pent-up Rage; 0 when not active.</param>
+    /// <returns><c>null</c> to fire; otherwise the reason it is being held, for the Duty tab.</returns>
+    public static string? DeadlyBlowHoldReason(bool rageSlotted, float rageCooldownRemaining, float pentUpRageRemaining)
+    {
+        // Pent-up Rage is up: keep soaking until it is about to drop, then cash it in.
+        if (pentUpRageRemaining > 0f)
+        {
+            return pentUpRageRemaining > PentUpRageSpendWindowSeconds
+                ? $"Deadly Blow held — soaking damage under Pent-up Rage ({pentUpRageRemaining:0.0}s left)"
+                : null;
+        }
+
+        // No window open. If Rage is slotted and ready it is about to open one — a Deadly Blow
+        // spent now would be on cooldown for the whole of it.
+        if (rageSlotted && rageCooldownRemaining <= 0f)
+            return "Deadly Blow held — Rage is ready to open Pent-up Rage";
+
+        // Off-cycle (Rage on cooldown or not slotted): nothing to wait for.
+        return null;
+    }
+
+    /// <summary>
     /// Phantom Red Mage's Dualcast trait level.
     /// <para>
     /// SIX, not five. The kit is Fire II (1), Cure II (2), Libra (3), Blizzard II (4),

@@ -924,9 +924,21 @@ public sealed class PhantomActionLayer
         switch (job)
         {
             case PhantomJob.Berserker:
+            {
                 TryPush(ctx, 41592, job, level, PrioDamage, target.GameObjectId, target);     // Rage
-                TryPush(ctx, 41594, job, level, PrioDamage + 1, target.GameObjectId, target); // Deadly Blow
+
+                // Deadly Blow's bonus accumulates from damage taken under Pent-up Rage, so it waits
+                // for the window to nearly close instead of firing the tick after Rage opens it.
+                var deadlyBlowHold = PhantomBandRules.DeadlyBlowHoldReason(
+                    rageSlotted: IsOnDutyBar(41592),
+                    rageCooldownRemaining: _actionService.GetCooldownRemaining(41592),
+                    pentUpRageRemaining: StatusRemaining(ctx.Player, PhantomActions.StatusIds.PentupRage));
+                if (deadlyBlowHold is null)
+                    TryPush(ctx, 41594, job, level, PrioDamage + 1, target.GameObjectId, target); // Deadly Blow
+                else
+                    _pushHolds.Add(deadlyBlowHold);
                 break;
+            }
 
             case PhantomJob.Samurai:
                 if (_phantomJobs.GetItemCount(PhantomJobData.ZeninageCofferItemId) > 0)
@@ -1218,6 +1230,21 @@ public sealed class PhantomActionLayer
         }
 
         return false;
+    }
+
+    /// <summary>Seconds left on a status, or 0 when it is not active.</summary>
+    private static float StatusRemaining(IBattleChara chara, uint statusId)
+    {
+        if (chara.StatusList == null)
+            return 0f;
+
+        foreach (var status in chara.StatusList)
+        {
+            if (status != null && status.StatusId == statusId)
+                return status.RemainingTime;
+        }
+
+        return 0f;
     }
 
     /// <summary>Occult Cure II — the Dualcast primer as well as the heal.</summary>

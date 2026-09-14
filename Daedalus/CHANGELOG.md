@@ -3,6 +3,18 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.72 — unreleased
+
+### Fix — Phantom Berserker's Deadly Blow now waits for Pent-up Rage
+- Rage grants **Pent-up Rage**, and Deadly Blow gains up to **2,000** potency from the damage you
+  take while it is active. Deadly Blow used to fire the moment after Rage, before any damage had
+  landed — throwing almost all of that bonus away every minute.
+- It now soaks the window and fires as Pent-up Rage is about to expire. Off-cycle, when Rage is
+  on cooldown, Deadly Blow still fires freely rather than sitting idle.
+- If Rage isn't on your duty bar, Deadly Blow no longer waits for it.
+- The Duty tab shows why Deadly Blow is being held.
+
+<!-- LATEST-END -->
 ## v0.1.71 — 2026-09-12
 
 ### Jobs — Beastmaster capture assist
@@ -16,7 +28,6 @@ All notable changes to Daedalus will be documented in this file.
 - The only outbound requests left are ones you ask for: the update check against this repo,
   GarlandTools lookups for Farm mode, and FFLogs parse *reads*. None of them upload your data.
 
-<!-- LATEST-END -->
 ## v0.1.70 — 2026-09-10
 
 ### Jobs — Beastmaster capture assist
