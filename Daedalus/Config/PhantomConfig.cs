@@ -337,10 +337,25 @@ public sealed class PhantomConfig
     public float MonkChakraHpPct { get; set; } = 0.30f;
 
     // ── Chemist ──
+    /// <summary>
+    /// On: Occult Potion only ever targets the player. Off: it goes to whichever party member (the
+    /// player included) has the lowest HP fraction below <see cref="ChemistPotionHpPct"/>, within 30y.
+    /// </summary>
     public bool ChemistPotionSelfOnly { get; set; } = true;
     public float ChemistPotionHpPct { get; set; } = 0.50f;
+    /// <summary>
+    /// On: Occult Ether only ever targets the player. Off: it goes to whichever party member (the
+    /// player included) is lowest on MP below <see cref="ChemistEtherMpThreshold"/>, within 30y.
+    /// </summary>
     public bool ChemistEtherSelfOnly { get; set; } = true;
     public int ChemistEtherMpThreshold { get; set; } = 2000;
+
+    /// <summary>
+    /// Occult Potions Occult Ether will not dip into, kept back for HP. Both actions consume the same
+    /// item, so without this an MP top-up can spend the last potion an HP emergency needed. Only
+    /// Ether honours it; Occult Potion always may use the reserve.
+    /// </summary>
+    public int ChemistPotionReserve { get; set; } = 1;
     public float ChemistElixirPartyHpPct { get; set; } = 0.30f;
 
     // ── Oracle ──

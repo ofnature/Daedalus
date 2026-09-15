@@ -281,16 +281,24 @@ public sealed class OccultSection
             case PhantomJob.Chemist:
                 ConfigUIHelpers.Toggle("Occult Potion on self only",
                     () => config.Occult.ChemistPotionSelfOnly, v => config.Occult.ChemistPotionSelfOnly = v,
-                    null, save);
+                    "Off: the potion goes to whichever party member (you included) is lowest on HP below "
+                    + "the threshold, within 30y.", save);
                 config.Occult.ChemistPotionHpPct = ConfigUIHelpers.FloatSlider(
                     "Potion below HP%", config.Occult.ChemistPotionHpPct,
                     0.05f, 1.00f, "%.2f", null, save, v => config.Occult.ChemistPotionHpPct = v);
                 ConfigUIHelpers.Toggle("Occult Ether on self only",
                     () => config.Occult.ChemistEtherSelfOnly, v => config.Occult.ChemistEtherSelfOnly = v,
-                    null, save);
+                    "Off: Ether goes to whichever party member (you included) is lowest on MP below the "
+                    + "threshold, within 30y.", save);
                 config.Occult.ChemistEtherMpThreshold = ConfigUIHelpers.IntSlider(
                     "Ether below MP", config.Occult.ChemistEtherMpThreshold,
                     0, 10000, null, save, v => config.Occult.ChemistEtherMpThreshold = v);
+                config.Occult.ChemistPotionReserve = ConfigUIHelpers.IntSlider(
+                    "Occult Potions kept for HP", config.Occult.ChemistPotionReserve,
+                    0, 5,
+                    "Ether and Occult Potion use the same item. Ether won't spend potions below this "
+                    + "count, so one is always left for an HP emergency. Occult Potion itself ignores it.",
+                    save, v => config.Occult.ChemistPotionReserve = v);
                 config.Occult.ChemistElixirPartyHpPct = ConfigUIHelpers.FloatSlider(
                     "Elixir below party avg HP%", config.Occult.ChemistElixirPartyHpPct,
                     0.05f, 1.00f, "%.2f",

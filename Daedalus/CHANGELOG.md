@@ -3,6 +3,27 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.73 — unreleased
+
+### Fix — Phantom Chemist's Occult Potion and Occult Ether
+- **"Occult Potion on self only" and "Occult Ether on self only" now do something.** Both toggles
+  were shown in Settings but ignored — the potion and the ether always went to you. Turned off, the
+  potion goes to whichever party member (you included) is lowest on HP below the threshold, and the
+  ether to whoever is lowest on MP, both within 30y.
+- **New: Occult Potions kept for HP** (default 1). Ether and Occult Potion use the same item, so an MP
+  top-up could spend the last potion an HP emergency needed. Ether now leaves that many alone;
+  Occult Potion itself can still drink them. Set it to 0 for the old behaviour.
+- The Duty tab says when Ether is being held back for the reserve.
+
+### Fix — Phantom Berserker's Rage no longer locks you in an AoE
+- Rage takes control of your character for its full 10 seconds, auto-attacking the nearest enemy —
+  you can't steer. Daedalus didn't know that, so it could press Rage while you were dodging and
+  hold you in a mechanic for ten seconds.
+- Rage is now treated like a 10-second cast: it won't fire while you're moving, and only fires when
+  the boss module says the ground you're on stays safe for the whole lock.
+- The trade-off: in busy fights Rage comes up less often. The Duty tab says why when it's held.
+
+<!-- LATEST-END -->
 ## v0.1.72 — 2026-09-14
 
 ### Fix — Phantom Berserker's Deadly Blow now waits for Pent-up Rage
@@ -14,7 +35,6 @@ All notable changes to Daedalus will be documented in this file.
 - If Rage isn't on your duty bar, Deadly Blow no longer waits for it.
 - The Duty tab shows why Deadly Blow is being held.
 
-<!-- LATEST-END -->
 ## v0.1.71 — 2026-09-12
 
 ### Jobs — Beastmaster capture assist

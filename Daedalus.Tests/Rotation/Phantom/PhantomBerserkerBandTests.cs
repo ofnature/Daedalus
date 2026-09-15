@@ -82,6 +82,33 @@ public sealed class PhantomBerserkerBandTests
     public void AnActiveWindowIsSoakedEvenIfRageIsNoLongerSlotted()
         => Assert.NotNull(PhantomBandRules.DeadlyBlowHoldReason(rageSlotted: false, rageCooldownRemaining: 0f, pentUpRageRemaining: 8f));
 
+    // ── Rage roots you ────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Rage's status has LockControl in the game data: ten seconds of the game driving the character.
+    /// Registering it as a 10s root is what puts it behind the stand-still gate — never mid-dodge, never
+    /// on ground that won't stay safe for the whole lock.
+    /// </summary>
+    [Fact]
+    public void RageRootsForItsFullTenSeconds()
+        => Assert.Equal(10f, PhantomBandRules.RootSeconds(Rage));
+
+    /// <summary>Deadly Blow is an instant weaponskill with no lock; gating it would only cost damage.</summary>
+    [Fact]
+    public void DeadlyBlowDoesNotRoot()
+        => Assert.Equal(0f, PhantomBandRules.RootSeconds(DeadlyBlow));
+
+    /// <summary>
+    /// Rage is an ability, so no GCD wait is added: the stand covers exactly the ten-second lock.
+    /// Occult Jump's two seconds must be unaffected by adding Rage beside it.
+    /// </summary>
+    [Fact]
+    public void TheStandForRageIsTheLockAloneAndOccultJumpIsUnchanged()
+    {
+        Assert.Equal(10f, PhantomBandRules.StillSecondsForCast(gcdRemaining: 1.4f, isGcd: false, castSeconds: PhantomBandRules.RootSeconds(Rage)), 3);
+        Assert.Equal(2f, PhantomBandRules.RootSeconds(49077));
+    }
+
     // ── wiring, against the source ─────────────────────────────────────────────────────
 
     /// <summary>Game data: Rage 60s, Deadly Blow 30s, Pent-up Rage status 4236.</summary>

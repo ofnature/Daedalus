@@ -79,8 +79,113 @@ public static class PhantomBandRules
     public static bool ShouldUseChakraForMp(PhantomConfig cfg, uint currentMp, uint maxMp, bool inCombat)
         => inCombat && maxMp > 0 && currentMp < cfg.MonkChakraMpThreshold;
 
+    /// <summary>Occult Potion's range, from the Action sheet.</summary>
+    public const float OccultPotionRangeYalms = 30f;
+
+    /// <summary>One party member (or the player) as a possible Occult Potion target.</summary>
+    public readonly record struct PotionCandidate(
+        ulong GameObjectId, uint CurrentHp, uint MaxHp, float DistanceYalms, bool IsDead);
+
+    /// <summary>
+    /// Party-wide Occult Potion target, when "self only" is off: the living candidate in range with
+    /// the lowest HP fraction below the threshold, or null when nobody is that low.
+    /// <para>
+    /// Mirrors RSR's <c>!OccultPotionSelf</c> branch, with the target chosen explicitly by lowest HP
+    /// rather than by whatever RSR's generic friendly picker returned. Fractions, not raw HP: a tank
+    /// at 40% is in more trouble than a caster at 45%, even when the tank has more HP left. Ties go
+    /// to the earlier candidate, and the caller lists the player first.
+    /// </para>
+    /// <para>
+    /// Deliberately does NOT consult <see cref="HasPotionToSpareForEther"/>: the reserve exists so
+    /// this action has a potion to use.
+    /// </para>
+    /// </summary>
+    public static ulong? PickPotionTarget(
+        IEnumerable<PotionCandidate> candidates, float hpFraction, float rangeYalms = OccultPotionRangeYalms)
+    {
+        ulong? best = null;
+        var bestFraction = float.MaxValue;
+        foreach (var c in candidates)
+        {
+            if (c.IsDead || c.MaxHp == 0 || c.DistanceYalms > rangeYalms)
+                continue;
+
+            var fraction = (float)c.CurrentHp / c.MaxHp;
+            if (fraction >= hpFraction)
+                continue;
+
+            if (fraction < bestFraction)
+            {
+                best = c.GameObjectId;
+                bestFraction = fraction;
+            }
+        }
+
+        return best;
+    }
+
+    /// <summary>Occult Ether's range, from the Action sheet.</summary>
+    public const float OccultEtherRangeYalms = 30f;
+
+    /// <summary>
+    /// Whether an MP pool is low enough to be worth an Occult Ether. A pool with no maximum (a job
+    /// without MP) never qualifies — a zero reads as "empty" otherwise.
+    /// </summary>
+    public static bool NeedsEther(uint currentMp, uint maxMp, int mpThreshold)
+        => maxMp > 0 && currentMp < mpThreshold;
+
+    /// <summary>
+    /// Whether a potion can go on MP without dipping into the HP reserve.
+    /// <para>
+    /// Occult Ether and Occult Potion burn the <b>same</b> Occult Potion item ("Consume an Occult
+    /// Potion to completely restore MP"). Without a reserve, a Chemist whose MP ran low first would
+    /// happily spend the last potion on MP and have nothing left for an HP emergency. The reserve
+    /// only restrains Ether — <see cref="ShouldUsePotion"/> never looks at it, since keeping a potion
+    /// back for HP and then refusing to use it for HP would defeat the point.
+    /// </para>
+    /// </summary>
+    public static bool HasPotionToSpareForEther(PhantomConfig cfg, uint potionCount)
+        => potionCount > (uint)System.Math.Max(0, cfg.ChemistPotionReserve);
+
+    /// <summary>Self-only Occult Ether: in combat, own MP below threshold, a potion to spare.</summary>
     public static bool ShouldUseEther(PhantomConfig cfg, uint currentMp, uint maxMp, uint potionCount, bool inCombat)
-        => inCombat && maxMp > 0 && potionCount > 0 && currentMp < cfg.ChemistEtherMpThreshold;
+        => inCombat
+           && HasPotionToSpareForEther(cfg, potionCount)
+           && NeedsEther(currentMp, maxMp, cfg.ChemistEtherMpThreshold);
+
+    /// <summary>One party member (or the player) as a possible Occult Ether target.</summary>
+    public readonly record struct EtherCandidate(
+        ulong GameObjectId, uint CurrentMp, uint MaxMp, float DistanceYalms, bool IsDead);
+
+    /// <summary>
+    /// Party-wide Occult Ether target, when "self only" is off: the living candidate in range who is
+    /// lowest on MP and below the threshold, or null when nobody needs one.
+    /// <para>
+    /// RSR does this by checking the MP of whichever friendly target its generic picker chose. Picking
+    /// the lowest pool explicitly is the same intent, deterministic, and it means a caster at 400 MP
+    /// is never passed over for a tank at 1,900. Ties go to the earlier candidate — the caller lists
+    /// the player first, so an equal self wins and no one is skipped for a coin flip.
+    /// </para>
+    /// </summary>
+    public static ulong? PickEtherTarget(
+        IEnumerable<EtherCandidate> candidates, int mpThreshold, float rangeYalms = OccultEtherRangeYalms)
+    {
+        ulong? best = null;
+        var bestMp = uint.MaxValue;
+        foreach (var c in candidates)
+        {
+            if (c.IsDead || c.DistanceYalms > rangeYalms || !NeedsEther(c.CurrentMp, c.MaxMp, mpThreshold))
+                continue;
+
+            if (c.CurrentMp < bestMp)
+            {
+                best = c.GameObjectId;
+                bestMp = c.CurrentMp;
+            }
+        }
+
+        return best;
+    }
 
     public static bool ShouldSelfMit(float selfHpPct, bool inCombat)
         => inCombat && selfHpPct < SelfMitHpPct;
@@ -307,10 +412,19 @@ public static class PhantomBandRules
     /// Occult Jump is two seconds in the air: Minerva's replay of 2026-09-05 showed three vulnerability
     /// stacks in a row where the dodge started the instant the jump left the ground and the character
     /// could not move until it landed. Treated exactly like a hardcast by the stand-still gate.
+    /// <para>
+    /// Rage (Phantom Berserker) is the long one. Its status carries <c>LockControl = true</c> in the
+    /// Status sheet (verified 2026-09-14): for the full 10s the game drives the character, auto-attacking
+    /// the nearest target, and the player cannot steer. Until it was listed here the stand-still gate
+    /// never saw it, so Rage could fire mid-dodge and hold the character in an AoE for ten seconds.
+    /// Listing it means it only fires while standing still on ground that stays safe for the whole
+    /// lock — a deliberate trade: Rage comes up less often in busy fights, never in a puddle.
+    /// </para>
     /// </summary>
     public static float RootSeconds(uint actionId) => actionId switch
     {
-        49077 => 2.0f, // Occult Jump (Phantom Dragoon)
+        49077 => 2.0f,  // Occult Jump (Phantom Dragoon)
+        41592 => 10.0f, // Rage (Phantom Berserker) — LockControl for its full duration
         _ => 0f,
     };
 

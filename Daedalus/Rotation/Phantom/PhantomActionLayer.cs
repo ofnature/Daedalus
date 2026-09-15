@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using Dalamud.Game.ClientState.Objects.Types;
 using Dalamud.Plugin.Services;
 using Daedalus.Data;
@@ -367,8 +368,20 @@ public sealed class PhantomActionLayer
 
         if (job == PhantomJob.Chemist)
         {
-            if (PhantomBandRules.ShouldUsePotion(cfg, selfHpPct, potionCount, inCombat))
-                TryPush(ctx, 41631, job, level, PrioEmergencySustain);
+            // Self-only was a setting nothing read until 2026-09-14 — the potion always went to the
+            // player whatever the toggle said. The self path keeps the original rule and push exactly.
+            // No reserve check on either path: the reserve is kept back FOR this action.
+            var potionTarget = cfg.ChemistPotionSelfOnly
+                ? (PhantomBandRules.ShouldUsePotion(cfg, selfHpPct, potionCount, inCombat) ? ctx.Player : null)
+                : (inCombat && potionCount > 0 ? FindPotionTarget(ctx, cfg.ChemistPotionHpPct) : null);
+
+            if (potionTarget is not null)
+            {
+                if (potionTarget.GameObjectId == ctx.Player.GameObjectId)
+                    TryPush(ctx, 41631, job, level, PrioEmergencySustain);
+                else
+                    TryPush(ctx, 41631, job, level, PrioEmergencySustain, potionTarget.GameObjectId, potionTarget);
+            }
 
             var elixirCount = _phantomJobs.GetItemCount(PhantomJobData.OccultElixirItemId);
             if (PhantomBandRules.ShouldUseElixir(cfg, selfHpPct, elixirCount, inCombat))
@@ -489,12 +502,84 @@ public sealed class PhantomActionLayer
             && PhantomBandRules.ShouldUseChakraForMp(cfg, player.CurrentMp, player.MaxMp, inCombat))
             TryPush(ctx, 41598, job, level, PrioMpRestore);
 
-        if (job == PhantomJob.Chemist)
+        if (job == PhantomJob.Chemist && inCombat)
         {
             var potionCount = _phantomJobs.GetItemCount(PhantomJobData.OccultPotionItemId);
-            if (PhantomBandRules.ShouldUseEther(cfg, player.CurrentMp, player.MaxMp, potionCount, inCombat))
+            if (potionCount == 0)
+                return;
+
+            // Who needs it. Self-only was a setting nothing read until 2026-09-14 — Ether always went
+            // to the player whatever the toggle said.
+            var etherTarget = cfg.ChemistEtherSelfOnly
+                ? (PhantomBandRules.NeedsEther(player.CurrentMp, player.MaxMp, cfg.ChemistEtherMpThreshold) ? player : null)
+                : FindEtherTarget(ctx, cfg.ChemistEtherMpThreshold);
+            if (etherTarget is null)
+                return;
+
+            // Ether and Occult Potion burn the same item; leave the HP reserve alone.
+            if (!PhantomBandRules.HasPotionToSpareForEther(cfg, potionCount))
+            {
+                _pushHolds.Add($"Occult Ether held — {potionCount} Occult Potion(s) left, keeping {cfg.ChemistPotionReserve} for HP");
+                return;
+            }
+
+            // Self keeps the original targetless push, so the default path behaves exactly as before.
+            if (etherTarget.GameObjectId == player.GameObjectId)
                 TryPush(ctx, 41633, job, level, PrioMpRestore + 1);
+            else
+                TryPush(ctx, 41633, job, level, PrioMpRestore + 1, etherTarget.GameObjectId, etherTarget);
         }
+    }
+
+    /// <summary>
+    /// The party member — the player included, listed first so an equal self wins ties — lowest on
+    /// MP below the threshold and within Occult Ether's range. Solo, the party list is empty and this
+    /// collapses to the player alone, i.e. exactly the self-only behaviour.
+    /// </summary>
+    private static IBattleChara? FindEtherTarget(IRotationContext ctx, int mpThreshold)
+    {
+        var members = RestoreCandidates(ctx);
+        var id = PhantomBandRules.PickEtherTarget(
+            members.Select(m => new PhantomBandRules.EtherCandidate(
+                m.Chara.GameObjectId, m.Chara.CurrentMp, m.Chara.MaxMp, m.Distance, m.Chara.IsDead)),
+            mpThreshold);
+        return id is { } found ? members.First(m => m.Chara.GameObjectId == found).Chara : null;
+    }
+
+    /// <summary>
+    /// The party member lowest on HP (as a fraction) below the threshold, within Occult Potion's range.
+    /// Same candidate set and tie-break as <see cref="FindEtherTarget"/>.
+    /// </summary>
+    private static IBattleChara? FindPotionTarget(IRotationContext ctx, float hpFraction)
+    {
+        var members = RestoreCandidates(ctx);
+        var id = PhantomBandRules.PickPotionTarget(
+            members.Select(m => new PhantomBandRules.PotionCandidate(
+                m.Chara.GameObjectId, m.Chara.CurrentHp, m.Chara.MaxHp, m.Distance, m.Chara.IsDead)),
+            hpFraction);
+        return id is { } found ? members.First(m => m.Chara.GameObjectId == found).Chara : null;
+    }
+
+    /// <summary>
+    /// Everyone a Chemist restore could go to: the player first (so an equal self wins ties), then each
+    /// readable party member once. Solo, the party list is empty and this is just the player — which is
+    /// exactly why turning "self only" off changes nothing when playing alone.
+    /// </summary>
+    private static List<(IBattleChara Chara, float Distance)> RestoreCandidates(IRotationContext ctx)
+    {
+        var player = ctx.Player;
+        var result = new List<(IBattleChara, float)> { (player, 0f) };
+        var seen = new HashSet<ulong> { player.GameObjectId };
+
+        foreach (var member in ctx.PartyList)
+        {
+            if (member?.GameObject is not IBattleChara chara || !seen.Add(chara.GameObjectId))
+                continue;
+
+            result.Add((chara, System.Numerics.Vector3.Distance(player.Position, chara.Position)));
+        }
+
+        return result;
     }
 
     /// <summary>
@@ -1543,7 +1628,7 @@ public sealed class PhantomActionLayer
         // wrong for this one cast. Without this the gate refuses a FREE INSTANT nuke for "moving".
         var instantFromDualcast = _dualcastThisFrame && behavior.Action.IsGCD;
 
-        // A cast bar roots the character; so does Occult Jump, without one. Both go through the same
+        // A cast bar roots the character; so do Occult Jump and Rage, without one. All go through the same
         // rule: never while the character is being walked somewhere (that walk is a dodge more often
         // than not), and never on ground the boss engine says will not stay safe for the whole stand.
         var rootSeconds = behavior.Action.CastTime > 0 && !instantFromDualcast
