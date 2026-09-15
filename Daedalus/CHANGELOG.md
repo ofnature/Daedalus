@@ -3,7 +3,7 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
-## v0.1.73 — unreleased
+## v0.1.73 — 2026-09-14
 
 ### Fix — Phantom Chemist's Occult Potion and Occult Ether
 - **"Occult Potion on self only" and "Occult Ether on self only" now do something.** Both toggles
