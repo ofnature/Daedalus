@@ -16,6 +16,14 @@ All notable changes to Daedalus will be documented in this file.
 - If you *want* the old behaviour, Targeting still has "include hostiles without a combat flag";
   it's off by default and now the only thing that waives the check.
 
+### Fix — healers now follow the Focus target command
+- **"Focus this target" was silently ignored on healers.** A Sage kept casting Dosis at whatever
+  its own auto-target had picked while the rest of the party switched. Healers now follow Focus.
+- Healing is untouched: every heal picks its own target, so only the damage casts move.
+- Healers still sit out **Split** and **Kill Adds** on purpose — those modes spread the party
+  across different enemies, and a healer chasing its own add is out of range of the party.
+- The Focus readout in the party window counts healers now, so you can see them comply.
+
 <!-- LATEST-END -->
 ## v0.1.74 — 2026-09-17
 

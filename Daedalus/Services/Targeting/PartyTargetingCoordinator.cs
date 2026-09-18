@@ -126,8 +126,21 @@ public sealed class PartyTargetingCoordinator
     /// <summary>
     /// Role gate — the Main Tank invariant lives here (pure, so it can be unit-tested without a live
     /// player). A tank is eligible ONLY when it is the designated off-tank and the mode is Kill Adds;
-    /// every other tank (the MT) is always exempt. Healers are always exempt; DPS are eligible in
-    /// every active mode.
+    /// every other tank (the MT) is always exempt. DPS are eligible in every active mode.
+    ///
+    /// <para>
+    /// Healers follow <b>Focus</b> and nothing else. They used to be exempt from every mode, so
+    /// "focus this target" was silently ignored on the healers and a Sage kept Dosis on whatever its
+    /// own auto-target had picked (reported 2026-09-17). Forcing the hard target is safe for them
+    /// because no healing path reads it — every heal in the healer rotations resolves its own target
+    /// explicitly — so this moves the damage GCDs and leaves healing untouched.
+    /// </para>
+    ///
+    /// <para>
+    /// Split and Kill Adds stay exempt for healers on purpose: those modes exist to spread damage
+    /// across separate enemies, and a healer chasing its own add is out of range of the party it is
+    /// there to keep alive.
+    /// </para>
     /// </summary>
     public static bool IsEligible(uint jobId, PartyTargetMode mode, bool isDesignatedOffTank)
     {
@@ -138,7 +151,7 @@ public sealed class PartyTargetingCoordinator
             return mode == PartyTargetMode.KillAdds && isDesignatedOffTank;
 
         if (JobRegistry.IsHealer(jobId))
-            return false;
+            return mode == PartyTargetMode.Focus;
 
         // DPS — eligible in every active mode.
         return true;

@@ -16,6 +16,9 @@ public class PartyTargetingCoordinatorTests
     private const uint Warrior = 21;   // tank
     private const uint WhiteMage = 24; // healer
     private const uint Samurai = 34;   // melee DPS
+    private const uint Scholar = 28;
+    private const uint Astrologian = 33;
+    private const uint Sage = 40;
 
     [Theory]
     [InlineData(PartyTargetMode.Focus)]
@@ -35,13 +38,32 @@ public class PartyTargetingCoordinatorTests
         Assert.False(PartyTargetingCoordinator.IsEligible(Warrior, PartyTargetMode.Split, isDesignatedOffTank: true));
     }
 
+    /// <summary>
+    /// Healers were exempt from every mode, so "focus this target" was silently dropped on them and a
+    /// Sage kept Dosis wherever its own auto-target had wandered (reported 2026-09-17). Focus is the
+    /// one mode they follow: it is safe because no healing path reads the hard target, so only the
+    /// damage GCDs move.
+    /// </summary>
+    [Fact]
+    public void Healer_FollowsFocus()
+    {
+        Assert.True(PartyTargetingCoordinator.IsEligible(WhiteMage, PartyTargetMode.Focus, isDesignatedOffTank: false));
+        Assert.True(PartyTargetingCoordinator.IsEligible(Sage, PartyTargetMode.Focus, isDesignatedOffTank: false));
+        Assert.True(PartyTargetingCoordinator.IsEligible(Scholar, PartyTargetMode.Focus, isDesignatedOffTank: false));
+        Assert.True(PartyTargetingCoordinator.IsEligible(Astrologian, PartyTargetMode.Focus, isDesignatedOffTank: false));
+    }
+
+    /// <summary>
+    /// ...but not the modes that scatter the party across different enemies. A healer chasing its own
+    /// add is out of range of the people it is keeping alive.
+    /// </summary>
     [Theory]
-    [InlineData(PartyTargetMode.Focus)]
     [InlineData(PartyTargetMode.Split)]
     [InlineData(PartyTargetMode.KillAdds)]
-    public void Healer_IsNeverEligible(PartyTargetMode mode)
+    public void Healer_DoesNotSplitOrChaseAdds(PartyTargetMode mode)
     {
         Assert.False(PartyTargetingCoordinator.IsEligible(WhiteMage, mode, isDesignatedOffTank: false));
+        Assert.False(PartyTargetingCoordinator.IsEligible(Sage, mode, isDesignatedOffTank: false));
     }
 
     [Theory]

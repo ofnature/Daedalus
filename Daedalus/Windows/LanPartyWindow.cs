@@ -386,6 +386,14 @@ public sealed class LanPartyWindow : Window, IDisposable
         && !role.Contains("Heal", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
+    /// Who the coordinator actually moves under Focus: DPS and healers, never a tank. Mirrors
+    /// <see cref="PartyTargetingCoordinator.IsEligible"/> for Focus, so the readout counts the same
+    /// toons the mode commands — a healer that has obeyed used to be missing from the tally.
+    /// </summary>
+    private static bool FollowsFocus(string role) =>
+        role.Length > 0 && !role.Contains("Tank", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
     /// Majority enemy target among fresh, in-combat DPS toons, plus how many distinct enemies the DPS
     /// are spread across. Drives the focused/split summary and the per-row off-target marker.
     /// </summary>
@@ -431,10 +439,10 @@ public sealed class LanPartyWindow : Window, IDisposable
         if (mode == PartyTargetMode.Focus && _bus.FocusTargetId != 0)
         {
             var onFocus = roster.Count(p =>
-                !p.IsStale(now) && p.InCombat && IsDpsRole(p.Role) && p.TargetId == _bus.FocusTargetId);
-            var totalDps = roster.Count(p => !p.IsStale(now) && IsDpsRole(p.Role));
+                !p.IsStale(now) && p.InCombat && FollowsFocus(p.Role) && p.TargetId == _bus.FocusTargetId);
+            var expected = roster.Count(p => !p.IsStale(now) && FollowsFocus(p.Role));
             var focusName = _objectTable.SearchById(_bus.FocusTargetId)?.Name.TextValue ?? "target";
-            ImGui.TextColored(DaedalusTheme.AccentGold, $"Focus: {onFocus}/{Math.Max(totalDps, onFocus)} DPS on {focusName}");
+            ImGui.TextColored(DaedalusTheme.AccentGold, $"Focus: {onFocus}/{Math.Max(expected, onFocus)} on {focusName}");
         }
         else if (mode == PartyTargetMode.Split && eligibleDps > 0)
         {
