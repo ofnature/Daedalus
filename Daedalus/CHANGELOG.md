@@ -3,7 +3,7 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
-## v0.1.74 — unreleased
+## v0.1.74 — 2026-09-17
 
 ### Fix — Phantom Berserker's Rage waits for a quiet moment
 - Rage takes control of your character for 10 seconds. Daedalus already kept it off ground that was
