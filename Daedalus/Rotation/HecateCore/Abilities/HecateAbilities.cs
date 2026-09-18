@@ -51,6 +51,7 @@ public static class HecateAbilities
     public static readonly AbilityBehavior Manafont = new() { Action = BLMActions.Manafont, Toggle = cfg => cfg.BlackMage.EnableManafont };
     public static readonly AbilityBehavior Amplifier = new() { Action = BLMActions.Amplifier, Toggle = cfg => cfg.BlackMage.EnableAmplifier };
     public static readonly AbilityBehavior LeyLines = new() { Action = BLMActions.LeyLines, Toggle = cfg => cfg.BlackMage.EnableLeyLines };
+    public static readonly AbilityBehavior Retrace = new() { Action = BLMActions.Retrace, Toggle = cfg => cfg.BlackMage.EnableRetrace };
     public static readonly AbilityBehavior LucidDreaming = new() { Action = RoleActions.LucidDreaming, Toggle = cfg => cfg.CasterShared.EnableLucidDreaming };
 
     // --- Role ---

@@ -589,7 +589,15 @@ public static class BLMActions
     };
 
     /// <summary>
-    /// Ley Lines - Buff zone for faster casting (Lv.52)
+    /// Ley Lines - a circle of power PLACED ON THE GROUND (Lv.52).
+    /// <para>
+    /// <b>TargetArea in the game data</b>, so it must be dispatched with a position
+    /// (PushGroundTargetedOgcd), never as a self-targeted oGCD.
+    /// </para>
+    /// <para>
+    /// RecastTime is per charge; the action has <b>2 charges</b>. Nothing here models that and nothing
+    /// needs to: readiness comes from ActionService.IsActionReady, which is GetCurrentCharges > 0.
+    /// </para>
     /// </summary>
     public static readonly ActionDefinition LeyLines = new()
     {
@@ -597,13 +605,15 @@ public static class BLMActions
         Name = "Ley Lines",
         MinLevel = 52,
         Category = ActionCategory.oGCD,
-        TargetType = ActionTargetType.Self,
+        TargetType = ActionTargetType.GroundAoE,
         EffectTypes = ActionEffectType.Buff,
         CastTime = 0f,
         RecastTime = 120f,
+        Radius = 3f,
         MpCost = 0,
         AppliedStatusId = StatusIds.LeyLines,
-        AppliedStatusDuration = 30f
+        // 20s, read off the tooltip 2026-09-17. It was 30 here, a third longer than the buff lasts.
+        AppliedStatusDuration = 20f
     };
 
     /// <summary>
@@ -623,7 +633,11 @@ public static class BLMActions
     };
 
     /// <summary>
-    /// Retrace - Relocate Ley Lines to self (Lv.96)
+    /// Retrace - re-place the circle of power at your feet (Lv.96).
+    /// <para>
+    /// Usable only while under the effect of Ley Lines, and it does not reset the duration - so it is
+    /// the answer to being moved out of your own circle, not a second Ley Lines. Ground-placed.
+    /// </para>
     /// </summary>
     public static readonly ActionDefinition Retrace = new()
     {
@@ -631,10 +645,12 @@ public static class BLMActions
         Name = "Retrace",
         MinLevel = 96,
         Category = ActionCategory.oGCD,
-        TargetType = ActionTargetType.Self,
+        TargetType = ActionTargetType.GroundAoE,
         EffectTypes = ActionEffectType.None,
         CastTime = 0f,
-        RecastTime = 3f,
+        // 40s. The 3s recorded here before is Between the Lines' recast, not this one.
+        RecastTime = 40f,
+        Radius = 3f,
         MpCost = 0
     };
 
@@ -674,7 +690,11 @@ public static class BLMActions
         public const uint Thunderhead = 3870;  // Instant Thunder proc (Lv.92+)
 
         // Buffs
-        public const uint LeyLines = 737;      // Circle of Power (speed buff)
+        // 737 is "Ley Lines": a circle has been drawn. It says nothing about where the player stands.
+        public const uint LeyLines = 737;
+        // 738 is "Circle of Power": standing INSIDE the circle, actually receiving the 15% haste. The
+        // two were conflated here, so the rotation could not tell a working buff from a wasted one.
+        public const uint CircleOfPower = 738;
         public const uint Triplecast = 1211;   // Instant cast stacks
         public const uint Sharpcast = 867;     // Guaranteed proc (removed in DT)
         public const uint Manaward = 168;      // Shield

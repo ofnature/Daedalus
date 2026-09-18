@@ -98,6 +98,7 @@ public sealed class HecateContext : IHecateContext
     public float ThunderheadRemaining { get; }
     public bool HasLeyLines { get; }
     public float LeyLinesRemaining { get; }
+    public bool InCircleOfPower { get; }
 
     // Target state
     public bool HasThunderDoT { get; }
@@ -112,6 +113,7 @@ public sealed class HecateContext : IHecateContext
     public bool ManafontReady { get; }
     public bool AmplifierReady { get; }
     public bool LeyLinesReady { get; }
+    public bool RetraceReady { get; }
 
     // Helpers
     public HecateStatusHelper StatusHelper { get; }
@@ -224,6 +226,7 @@ public sealed class HecateContext : IHecateContext
         ThunderheadRemaining = statusHelper.GetThunderheadRemaining(player);
         HasLeyLines = statusHelper.HasLeyLines(player);
         LeyLinesRemaining = statusHelper.GetLeyLinesRemaining(player);
+        InCircleOfPower = statusHelper.InCircleOfPower(player);
 
         // Calculate party health metrics
         PartyHealthMetrics = CalculatePartyHealth(player);
@@ -255,6 +258,7 @@ public sealed class HecateContext : IHecateContext
         ManafontReady = actionService.IsActionReady(BLMActions.Manafont.ActionId);
         AmplifierReady = actionService.IsActionReady(BLMActions.Amplifier.ActionId);
         LeyLinesReady = actionService.IsActionReady(BLMActions.LeyLines.ActionId);
+        RetraceReady = actionService.IsActionReady(BLMActions.Retrace.ActionId);
 
         // Update debug state
         UpdateDebugState();
@@ -308,6 +312,7 @@ public sealed class HecateContext : IHecateContext
         Debug.ThunderheadRemaining = ThunderheadRemaining;
         Debug.HasLeyLines = HasLeyLines;
         Debug.LeyLinesRemaining = LeyLinesRemaining;
+        Debug.InCircleOfPower = InCircleOfPower;
         Debug.TriplecastStacks = TriplecastStacks;
         Debug.HasSwiftcast = HasSwiftcast;
 
@@ -320,6 +325,7 @@ public sealed class HecateContext : IHecateContext
         Debug.ManafontReady = ManafontReady;
         Debug.AmplifierReady = AmplifierReady;
         Debug.LeyLinesReady = LeyLinesReady;
+        Debug.RetraceReady = RetraceReady;
 
         // Target
         Debug.CurrentTarget = _currentTarget?.Name?.TextValue ?? "None";

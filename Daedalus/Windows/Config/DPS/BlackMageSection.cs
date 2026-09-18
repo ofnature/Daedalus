@@ -118,6 +118,14 @@ public sealed class BlackMageSection
                 v => config.BlackMage.EnableLeyLines = v,
                 null, save, actionId: BLMActions.LeyLines.ActionId);
 
+            ConfigUIHelpers.Toggle(
+                "Enable Retrace",
+                () => config.BlackMage.EnableRetrace,
+                v => config.BlackMage.EnableRetrace = v,
+                "Lv96+. Re-places your Ley Lines at your feet when a mechanic moved you out of them. "
+                + "It does not reset the duration, so it costs only Retrace's own 40s recast.",
+                save, actionId: BLMActions.Retrace.ActionId);
+
             ConfigUIHelpers.EndIndent();
         }
     }

@@ -113,6 +113,12 @@ public interface IHecateContext : ICasterDpsRotationContext
     /// </summary>
     float LeyLinesRemaining { get; }
 
+    /// <summary>
+    /// Whether the player is standing inside their own Ley Lines and actually getting the haste.
+    /// False while <see cref="HasLeyLines"/> is true means the circle exists and the player has left it.
+    /// </summary>
+    bool InCircleOfPower { get; }
+
 
     #endregion
 
@@ -166,6 +172,9 @@ public interface IHecateContext : ICasterDpsRotationContext
     /// Whether Ley Lines is available.
     /// </summary>
     bool LeyLinesReady { get; }
+
+    /// <summary>Whether Retrace is available.</summary>
+    bool RetraceReady { get; }
 
     #endregion
 

@@ -127,6 +127,9 @@ public sealed class HecateDebugState : IEnemyPackDebug
     /// </summary>
     public float LeyLinesRemaining { get; set; }
 
+    /// <summary>Whether the player is standing in their own circle (i.e. actually getting the haste).</summary>
+    public bool InCircleOfPower { get; set; }
+
     /// <summary>
     /// Triplecast stacks remaining.
     /// </summary>
@@ -174,6 +177,9 @@ public sealed class HecateDebugState : IEnemyPackDebug
     /// Whether Ley Lines is ready.
     /// </summary>
     public bool LeyLinesReady { get; set; }
+
+    /// <summary>Whether Retrace is ready.</summary>
+    public bool RetraceReady { get; set; }
 
     #endregion
 

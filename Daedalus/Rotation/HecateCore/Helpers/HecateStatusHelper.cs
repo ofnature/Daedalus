@@ -52,10 +52,17 @@ public sealed class HecateStatusHelper : BaseStatusHelper
         => GetStatusStacks(player, BLMActions.StatusIds.Triplecast);
 
     /// <summary>
-    /// Checks if Ley Lines buff is active.
+    /// Whether a Ley Lines circle exists (status 737) - NOT whether the player is standing in it.
     /// </summary>
     public bool HasLeyLines(IBattleChara player)
         => HasStatus(player, BLMActions.StatusIds.LeyLines);
+
+    /// <summary>
+    /// Whether the player is inside their own circle and actually receiving the haste (status 738).
+    /// Drawing the circle and benefiting from it are different states; a dodge separates them.
+    /// </summary>
+    public bool InCircleOfPower(IBattleChara player)
+        => HasStatus(player, BLMActions.StatusIds.CircleOfPower);
 
     /// <summary>
     /// Gets remaining duration of Ley Lines.

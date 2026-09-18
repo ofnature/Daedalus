@@ -5,6 +5,7 @@ using Daedalus.Rotation.Common.RoleActionHelpers;
 using Daedalus.Rotation.Common.Scheduling;
 using Daedalus.Rotation.HecateCore.Abilities;
 using Daedalus.Rotation.HecateCore.Context;
+using Daedalus.Rotation.HecateCore.Helpers;
 using Daedalus.Services;
 using Daedalus.Services.Training;
 using Daedalus.Timeline.Models;
@@ -44,6 +45,7 @@ public sealed class BuffModule : IHecateModule
 
         TryPushAmplifier(context, scheduler);
         TryPushLeyLines(context, scheduler, isMoving);
+        TryPushRetrace(context, scheduler, isMoving);
         TryPushTriplecast(context, scheduler, isMoving);
         TryPushManafont(context, scheduler);
         TryPushTranspose(context, scheduler);
@@ -118,7 +120,10 @@ public sealed class BuffModule : IHecateModule
             return;
         }
 
-        scheduler.PushOgcd(HecateAbilities.LeyLines, player.GameObjectId, priority: 2,
+        // Ground-placed (TargetArea in the game data), so it goes out through UseActionLocation at the
+        // player's feet. It used to be pushed as a self-targeted oGCD, which is not how any other ground
+        // action in the codebase is dispatched.
+        scheduler.PushGroundTargetedOgcd(HecateAbilities.LeyLines, player.Position, priority: 2,
             onDispatched: _ =>
             {
                 context.Debug.PlannedAction = BLMActions.LeyLines.Name;
@@ -137,6 +142,31 @@ public sealed class BuffModule : IHecateModule
                     .Concept(BlmConcepts.LeyLines)
                     .Record();
                 context.TrainingService?.RecordConceptApplication(BlmConcepts.LeyLines, true, "Burst buff placed");
+            });
+    }
+
+    /// <summary>
+    /// Bring the circle back when a mechanic moved the player out of it. Ley Lines keeps running where it
+    /// was drawn, so without this the rest of its 20s is spent outside the haste it exists to give.
+    /// </summary>
+    private void TryPushRetrace(IHecateContext context, RotationScheduler scheduler, bool isMoving)
+    {
+        if (!HecateLeyLineRules.ShouldRetrace(
+                enabled: context.Configuration.BlackMage.EnableRetrace,
+                level: context.Player.Level,
+                retraceReady: context.RetraceReady,
+                hasLeyLines: context.HasLeyLines,
+                inCircleOfPower: context.InCircleOfPower,
+                leyLinesRemaining: context.LeyLinesRemaining,
+                isMoving: isMoving,
+                movementImminent: IsMovementImminent(context)))
+            return;
+
+        scheduler.PushGroundTargetedOgcd(HecateAbilities.Retrace, context.Player.Position, priority: 2,
+            onDispatched: _ =>
+            {
+                context.Debug.PlannedAction = BLMActions.Retrace.Name;
+                context.Debug.BuffState = $"Retrace — circle moved to you ({context.LeyLinesRemaining:F0}s left)";
             });
     }
 

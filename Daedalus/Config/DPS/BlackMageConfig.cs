@@ -50,6 +50,12 @@ public sealed class BlackMageConfig
     public bool EnableLeyLines { get; set; } = true;
 
     /// <summary>
+    /// Whether to use Retrace (Lv96) to bring the circle back after a mechanic moved you out of it.
+    /// It does not reset the Ley Lines duration, so it costs only Retrace-s own 40s recast.
+    /// </summary>
+    public bool EnableRetrace { get; set; } = true;
+
+    /// <summary>
     /// Whether to use Triplecast.
     /// </summary>
     public bool EnableTriplecast { get; set; } = true;

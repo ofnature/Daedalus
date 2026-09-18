@@ -14,6 +14,18 @@ All notable changes to Daedalus will be documented in this file.
 - Deadly Blow no longer sits idle waiting for a Rage that's being held — it fires on its own instead.
 - The Duty tab says why Rage is being held.
 
+### Fix — Black Mage's Ley Lines is placed on the ground, and Retrace brings it back
+- **Ley Lines is placed at your feet now.** It's a circle drawn on the ground, but Daedalus was
+  pressing it the way it presses a self-buff, without telling the game where to put it.
+- **New: Retrace** (Lv96, on by default). Ley Lines keeps burning where it was drawn, so any dodge
+  leaves you outside your own circle with the haste still ticking away. Retrace re-places the circle
+  at your feet — it doesn't reset the duration, so it only costs its own 40s cooldown. It fires when
+  the circle is up, you're out of it, at least 5s are left, and you're not about to be moved again.
+- Ley Lines' duration was recorded as 30s; it's 20s. Retrace's cooldown was recorded as 3s; it's 40s.
+  Both were being planned around the wrong numbers.
+- The Debug tab now shows whether you're actually standing in the circle, separately from whether
+  one exists.
+
 <!-- LATEST-END -->
 ## v0.1.73 — 2026-09-14
 
