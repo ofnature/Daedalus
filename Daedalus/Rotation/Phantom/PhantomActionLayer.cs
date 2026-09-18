@@ -77,6 +77,9 @@ public sealed class PhantomActionLayer
     /// healer that is not actually acting. Cleared as bodies get up or leave.
     /// </summary>
     private readonly Dictionary<ulong, DateTime> _deadSince = [];
+
+    /// <summary>Last frame the dodge engine was steering the character; MinValue when never.</summary>
+    private DateTime _lastEngineSteerUtc = DateTime.MinValue;
     private bool _dispatchedThisFrame;
 
     /// <summary>
@@ -280,6 +283,11 @@ public sealed class PhantomActionLayer
         _raiseQueuedThisFrame = false;
         _isMovingThisFrame = isMoving;
         _configThisFrame = cfg;
+
+        // When the dodge engine (Minerva or BossMod) last had the character. Rage's calm gate reads it: a
+        // ten-second control lock is the worst thing to start in the middle of a dodge phase.
+        if (Daedalus.Rotation.Base.RotationServices.MovementArbiter?.IsExternalMovementActive == true)
+            _lastEngineSteerUtc = DateTime.UtcNow;
         _pushRejects.Clear();
         _pushHolds.Clear();
         _framePrepared = true;
@@ -1010,12 +1018,23 @@ public sealed class PhantomActionLayer
         {
             case PhantomJob.Berserker:
             {
-                TryPush(ctx, 41592, job, level, PrioDamage, target.GameObjectId, target);     // Rage
+                // Rage locks control for 10s. The root gate keeps it off ground that is already drawn to
+                // fire; this keeps it out of mechanics that are about to be drawn — an enemy mid-cast, or a
+                // dodge within the last few seconds. See PhantomBandRules.RageHoldReason.
+                var rageHold = PhantomBandRules.RageHoldReason(
+                    enemyCasting: AnyEnemyCastingNear(ctx, PhantomBandRules.RageCastWatchYalms),
+                    secondsSinceEngineSteered: (DateTime.UtcNow - _lastEngineSteerUtc).TotalSeconds);
+                if (rageHold is null)
+                    TryPush(ctx, 41592, job, level, PrioDamage, target.GameObjectId, target);     // Rage
+                else
+                    _pushHolds.Add(rageHold);
 
                 // Deadly Blow's bonus accumulates from damage taken under Pent-up Rage, so it waits
                 // for the window to nearly close instead of firing the tick after Rage opens it.
+                // It only waits for a Rage that is allowed to fire — a Rage held for calm through a busy
+                // phase would otherwise starve Deadly Blow for the entire phase.
                 var deadlyBlowHold = PhantomBandRules.DeadlyBlowHoldReason(
-                    rageSlotted: IsOnDutyBar(41592),
+                    rageSlotted: IsOnDutyBar(41592) && rageHold is null,
                     rageCooldownRemaining: _actionService.GetCooldownRemaining(41592),
                     pentUpRageRemaining: StatusRemaining(ctx.Player, PhantomActions.StatusIds.PentupRage));
                 if (deadlyBlowHold is null)
@@ -1312,6 +1331,30 @@ public sealed class PhantomActionLayer
         {
             if (status != null && status.StatusId == statusId)
                 return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Whether a hostile enemy within range has a cast bar up — the lead-in to most mechanics, and visible
+    /// before the telegraph it produces. Hostility is read the way TargetingService reads it.
+    /// </summary>
+    private static bool AnyEnemyCastingNear(IRotationContext ctx, float rangeYalms)
+    {
+        var playerPosition = ctx.Player.Position;
+        var rangeSq = rangeYalms * rangeYalms;
+
+        foreach (var obj in ctx.ObjectTable)
+        {
+            if (obj is not IBattleNpc npc || npc.IsDead || !npc.IsCasting)
+                continue;
+            if ((npc.StatusFlags & Dalamud.Game.ClientState.Objects.Enums.StatusFlags.Hostile) == 0)
+                continue;
+            if (System.Numerics.Vector3.DistanceSquared(playerPosition, npc.Position) > rangeSq)
+                continue;
+
+            return true;
         }
 
         return false;

@@ -266,7 +266,11 @@ public static class PhantomBandRules
     /// Deadly Blow would be held forever waiting for it.</item>
     /// </list>
     /// </summary>
-    /// <param name="rageSlotted">Rage is on the duty bar, so waiting for it can actually pay off.</param>
+    /// <param name="rageSlotted">
+    /// Rage is on the duty bar <b>and not being held</b> by <see cref="RageHoldReason"/>, so waiting for it
+    /// can actually pay off. A Rage held for calm through a busy phase must read as "not coming", or Deadly
+    /// Blow sits idle for the whole phase waiting on it.
+    /// </param>
     /// <param name="rageCooldownRemaining">Seconds left on Rage's recast; 0 when ready.</param>
     /// <param name="pentUpRageRemaining">Seconds left on Pent-up Rage; 0 when not active.</param>
     /// <returns><c>null</c> to fire; otherwise the reason it is being held, for the Duty tab.</returns>
@@ -286,6 +290,53 @@ public static class PhantomBandRules
             return "Deadly Blow held — Rage is ready to open Pent-up Rage";
 
         // Off-cycle (Rage on cooldown or not slotted): nothing to wait for.
+        return null;
+    }
+
+    /// <summary>How long the fight must have been free of dodging before Rage's 10s lock may start.</summary>
+    public const float RageCalmSeconds = 10f;
+
+    /// <summary>How far away an enemy's cast bar still counts as a mechanic that could reach the player.</summary>
+    public const float RageCastWatchYalms = 30f;
+
+    /// <summary>
+    /// Whether Phantom Berserker's Rage should be held back, and why. <c>null</c> means it may fire.
+    ///
+    /// <para>
+    /// Rage hands the character to the game for its full 10s (<c>LockControl</c> in the Status sheet). Its
+    /// <see cref="RootSeconds"/> entry already keeps it off ground that will fire within the lock — but that
+    /// check can only see AOEs <b>already drawn</b>, and most mechanics telegraph well inside ten seconds.
+    /// Field 2026-09-14: Rage still fired into mechanics, the character unable to step out of what appeared
+    /// after the lock began.
+    /// </para>
+    ///
+    /// <para>
+    /// So it also waits for the two signs that a mechanic is on its way that are visible before the AOE is:
+    /// </para>
+    /// <list type="bullet">
+    /// <item><b>An enemy nearby is casting.</b> Most mechanics open with a cast bar, often before their
+    /// telegraph is drawn.</item>
+    /// <item><b>The dodge engine moved the character recently.</b> If Minerva or BossMod dodged within
+    /// <see cref="RageCalmSeconds"/>, the fight is in a mechanic phase, and a ten-second lock is the worst
+    /// thing to start in one.</item>
+    /// </list>
+    ///
+    /// <para>
+    /// The trade is the one already made for the root: Rage comes up less often in busy fights, and never
+    /// into a mechanic it could have seen coming. Neither signal can promise a quiet ten seconds — nothing
+    /// short of the fight timeline can — but together they cover the case the field report showed.
+    /// </para>
+    /// </summary>
+    /// <param name="enemyCasting">A hostile enemy within <see cref="RageCastWatchYalms"/> has a cast bar up.</param>
+    /// <param name="secondsSinceEngineSteered">Seconds since the dodge engine last had the character; huge when never.</param>
+    public static string? RageHoldReason(bool enemyCasting, double secondsSinceEngineSteered)
+    {
+        if (enemyCasting)
+            return "Rage held — an enemy is casting, and a mechanic could land inside the 10s lock";
+
+        if (secondsSinceEngineSteered < RageCalmSeconds)
+            return $"Rage held — dodged {secondsSinceEngineSteered:0}s ago, waiting for {RageCalmSeconds:0}s of calm";
+
         return null;
     }
 

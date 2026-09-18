@@ -109,7 +109,66 @@ public sealed class PhantomBerserkerBandTests
         Assert.Equal(2f, PhantomBandRules.RootSeconds(49077));
     }
 
+    // ── Rage waits for calm (field 2026-09-14: still locked into mechanics) ─────────────
+
+    /// <summary>
+    /// An enemy mid-cast is the lead-in to most mechanics, usually visible before its telegraph is drawn —
+    /// which is exactly what the root gate's ground check cannot see.
+    /// </summary>
+    [Fact]
+    public void RageHoldsWhileAnEnemyIsCasting()
+    {
+        var hold = PhantomBandRules.RageHoldReason(enemyCasting: true, secondsSinceEngineSteered: double.MaxValue);
+
+        Assert.NotNull(hold);
+        Assert.Contains("casting", hold);
+    }
+
+    /// <summary>A dodge a few seconds ago means a mechanic phase; a ten-second lock is the worst thing to start in one.</summary>
+    [Theory]
+    [InlineData(0.0)]
+    [InlineData(3.0)]
+    [InlineData(PhantomBandRules.RageCalmSeconds - 0.1)]
+    public void RageHoldsUntilTheFightHasBeenCalm(double secondsSinceDodge)
+    {
+        var hold = PhantomBandRules.RageHoldReason(enemyCasting: false, secondsSinceDodge);
+
+        Assert.NotNull(hold);
+        Assert.Contains("calm", hold);
+    }
+
+    [Theory]
+    [InlineData(PhantomBandRules.RageCalmSeconds)]
+    [InlineData(45.0)]
+    [InlineData(double.MaxValue)]   // never steered at all this session
+    public void RageFiresOnceCalmAndNobodyIsCasting(double secondsSinceDodge)
+        => Assert.Null(PhantomBandRules.RageHoldReason(enemyCasting: false, secondsSinceDodge));
+
+    /// <summary>A cast bar outranks a long calm: the mechanic that ends the calm is the one being cast.</summary>
+    [Fact]
+    public void ACastBarOutranksALongCalm()
+        => Assert.NotNull(PhantomBandRules.RageHoldReason(enemyCasting: true, secondsSinceEngineSteered: 120));
+
     // ── wiring, against the source ─────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Rage is pushed once and only behind its calm rule, and Deadly Blow only waits for a Rage that is
+    /// allowed to fire. Without that second part, a Rage held through a busy phase would hold Deadly Blow
+    /// for the whole phase too.
+    /// </summary>
+    [Fact]
+    public void RageIsGatedForCalmAndDeadlyBlowIsNotStarvedByIt()
+    {
+        var source = File.ReadAllText(LayerSourcePath());
+        var berserker = Regex.Match(source, @"case PhantomJob\.Berserker:(.*?)case PhantomJob\.", RegexOptions.Singleline);
+        Assert.True(berserker.Success, "Berserker case not found in PhantomActionLayer");
+
+        var body = berserker.Groups[1].Value;
+        Assert.Contains("RageHoldReason", body);
+        Assert.Single(Regex.Matches(body, @"TryPush\([^;]*\b41592\b"));
+        Assert.Matches(@"if \(rageHold is null\)\s*TryPush\([^;]*\b41592\b", body);
+        Assert.Matches(@"rageSlotted:\s*IsOnDutyBar\(41592\)\s*&&\s*rageHold is null", body);
+    }
 
     /// <summary>Game data: Rage 60s, Deadly Blow 30s, Pent-up Rage status 4236.</summary>
     [Fact]

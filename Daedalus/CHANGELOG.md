@@ -3,6 +3,18 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.74 — unreleased
+
+### Fix — Phantom Berserker's Rage waits for a quiet moment
+- Rage takes control of your character for 10 seconds. Daedalus already kept it off ground that was
+  about to go off, but it couldn't see an AoE that hadn't been drawn yet — so Rage still locked you
+  into mechanics that appeared after it started.
+- Rage now also waits while any enemy nearby is casting, and until there's been 10 seconds without a
+  dodge. It comes up less often in busy fights, and stops walking you into mechanics you could see coming.
+- Deadly Blow no longer sits idle waiting for a Rage that's being held — it fires on its own instead.
+- The Duty tab says why Rage is being held.
+
+<!-- LATEST-END -->
 ## v0.1.73 — 2026-09-14
 
 ### Fix — Phantom Chemist's Occult Potion and Occult Ether
@@ -23,7 +35,6 @@ All notable changes to Daedalus will be documented in this file.
   the boss module says the ground you're on stays safe for the whole lock.
 - The trade-off: in busy fights Rage comes up less often. The Duty tab says why when it's held.
 
-<!-- LATEST-END -->
 ## v0.1.72 — 2026-09-14
 
 ### Fix — Phantom Berserker's Deadly Blow now waits for Pent-up Rage
