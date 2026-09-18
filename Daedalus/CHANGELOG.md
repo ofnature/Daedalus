@@ -3,7 +3,7 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
-## v0.1.75 — unreleased
+## v0.1.75 — 2026-09-17
 
 ### Fix — no more pulling the next pack while the tank is fighting
 - **Casters and everyone else now leave untouched mobs alone.** Once any party member was in
