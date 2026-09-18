@@ -49,6 +49,15 @@ public static class MechanicCastGate
     private const float NominalCastSeconds = 2.5f;
 
     public static bool ShouldBlock(IRotationContext context, float castTime)
+        => ShouldBlockWith(context, castTime, CastSpotSafety);
+
+    /// <summary>
+    /// The real logic, with the engine passed in rather than read off the static. Tests use this so
+    /// they do not have to write <see cref="CastSpotSafety"/>, which is process-wide: a test that set it
+    /// was visible to every other test running in parallel, and intermittently held their hard casts.
+    /// </summary>
+    /// <param name="safety">The engine to ask; null means none is wired, which reads as safe.</param>
+    internal static bool ShouldBlockWith(IRotationContext context, float castTime, Func<Vector3, float, bool>? safety)
     {
         if (castTime <= 0f) return false;
 
@@ -66,7 +75,7 @@ public static class MechanicCastGate
         // The engine's answer about THIS spot comes before the timeline's answer about the fight,
         // and is not gated on EnableTimelinePredictions — that switch governs our own timeline
         // data and its confidence score, neither of which this asks about.
-        if (IsSpotUnsafe(context, castTime + SafetyMarginSeconds)) return true;
+        if (IsSpotUnsafe(context, castTime + SafetyMarginSeconds, safety)) return true;
 
         if (!cfg.EnableTimelinePredictions) return false;
 
@@ -92,11 +101,15 @@ public static class MechanicCastGate
     /// for surfacing in a module's debug state field.
     /// </summary>
     public static string FormatBlockedState(IRotationContext context, float castTime = 0f)
+        => FormatBlockedStateWith(context, castTime, CastSpotSafety);
+
+    /// <inheritdoc cref="FormatBlockedState"/>
+    internal static string FormatBlockedStateWith(IRotationContext context, float castTime, Func<Vector3, float, bool>? safety)
     {
         if (context.IsMoving) return "Held cast (moving — instants only)";
 
         var window = (castTime > 0f ? castTime : NominalCastSeconds) + SafetyMarginSeconds;
-        if (context.Configuration.Timeline.EnableMechanicAwareCasting && IsSpotUnsafe(context, window))
+        if (context.Configuration.Timeline.EnableMechanicAwareCasting && IsSpotUnsafe(context, window, safety))
             return "Held cast (this spot is not safe for the cast)";
 
         var timeline = context.TimelineService;
@@ -117,9 +130,9 @@ public static class MechanicCastGate
     /// Fail-open in every direction: no engine wired, no player to ask about, or an engine that
     /// throws all mean "no reason not to cast".
     /// </summary>
-    private static bool IsSpotUnsafe(IRotationContext context, float window)
+    private static bool IsSpotUnsafe(IRotationContext context, float window, Func<Vector3, float, bool>? safety)
     {
-        if (CastSpotSafety is not { } safe)
+        if (safety is not { } safe)
             return false;
 
         try

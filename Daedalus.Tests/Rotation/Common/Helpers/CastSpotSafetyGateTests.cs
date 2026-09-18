@@ -21,13 +21,9 @@ namespace Daedalus.Tests.Rotation.Common.Helpers;
 /// Minerva path as well as BossMod's — the gate must not care which is driving.
 /// </para>
 /// </summary>
-public sealed class CastSpotSafetyGateTests : IDisposable
+public sealed class CastSpotSafetyGateTests
 {
     private static readonly Vector3 Here = new(10f, 0f, 20f);
-
-    public CastSpotSafetyGateTests() => MechanicCastGate.CastSpotSafety = null;
-
-    public void Dispose() => MechanicCastGate.CastSpotSafety = null;
 
     private static Mock<IRotationContext> Context(bool enableGate = true, bool enablePredictions = true)
     {
@@ -49,15 +45,15 @@ public sealed class CastSpotSafetyGateTests : IDisposable
     [Fact]
     public void UnsafeSpot_HoldsTheCast()
     {
-        MechanicCastGate.CastSpotSafety = (_, _) => false;
-        Assert.True(MechanicCastGate.ShouldBlock(Context().Object, castTime: 3f));
+        Func<Vector3, float, bool> engine = (_, _) => false;
+        Assert.True(MechanicCastGate.ShouldBlockWith(Context().Object, castTime: 3f, engine));
     }
 
     [Fact]
     public void SafeSpot_CastsOn()
     {
-        MechanicCastGate.CastSpotSafety = (_, _) => true;
-        Assert.False(MechanicCastGate.ShouldBlock(Context().Object, castTime: 3f));
+        Func<Vector3, float, bool> engine = (_, _) => true;
+        Assert.False(MechanicCastGate.ShouldBlockWith(Context().Object, castTime: 3f, engine));
     }
 
     /// <summary>An instant has no window to be unsafe over, and must never pay for the query.</summary>
@@ -65,9 +61,9 @@ public sealed class CastSpotSafetyGateTests : IDisposable
     public void InstantCast_NeverAsks()
     {
         var asked = false;
-        MechanicCastGate.CastSpotSafety = (_, _) => { asked = true; return false; };
+        Func<Vector3, float, bool> engine = (_, _) => { asked = true; return false; };
 
-        Assert.False(MechanicCastGate.ShouldBlock(Context().Object, castTime: 0f));
+        Assert.False(MechanicCastGate.ShouldBlockWith(Context().Object, castTime: 0f, engine));
         Assert.False(asked);
     }
 
@@ -76,9 +72,9 @@ public sealed class CastSpotSafetyGateTests : IDisposable
     public void TheWindowCoversTheWholeCast()
     {
         float? asked = null;
-        MechanicCastGate.CastSpotSafety = (_, window) => { asked = window; return true; };
+        Func<Vector3, float, bool> engine = (_, window) => { asked = window; return true; };
 
-        MechanicCastGate.ShouldBlock(Context().Object, castTime: 3f);
+        MechanicCastGate.ShouldBlockWith(Context().Object, castTime: 3f, engine);
 
         Assert.NotNull(asked);
         Assert.True(asked > 3f, $"asked about {asked}s for a 3s cast — the slack is missing");
@@ -88,9 +84,9 @@ public sealed class CastSpotSafetyGateTests : IDisposable
     public void TheSpotAskedAbout_IsWhereTheCasterStands()
     {
         Vector3? asked = null;
-        MechanicCastGate.CastSpotSafety = (pos, _) => { asked = pos; return true; };
+        Func<Vector3, float, bool> engine = (pos, _) => { asked = pos; return true; };
 
-        MechanicCastGate.ShouldBlock(Context().Object, castTime: 3f);
+        MechanicCastGate.ShouldBlockWith(Context().Object, castTime: 3f, engine);
 
         Assert.Equal(Here, asked);
     }
@@ -102,17 +98,17 @@ public sealed class CastSpotSafetyGateTests : IDisposable
     [Fact]
     public void TimelinePredictionsOff_StillRespectsTheEngine()
     {
-        MechanicCastGate.CastSpotSafety = (_, _) => false;
-        Assert.True(MechanicCastGate.ShouldBlock(Context(enablePredictions: false).Object, castTime: 3f));
+        Func<Vector3, float, bool> engine = (_, _) => false;
+        Assert.True(MechanicCastGate.ShouldBlockWith(Context(enablePredictions: false).Object, castTime: 3f, engine));
     }
 
     [Fact]
     public void MechanicAwareCastingOff_DoesNotAsk()
     {
         var asked = false;
-        MechanicCastGate.CastSpotSafety = (_, _) => { asked = true; return false; };
+        Func<Vector3, float, bool> engine = (_, _) => { asked = true; return false; };
 
-        Assert.False(MechanicCastGate.ShouldBlock(Context(enableGate: false).Object, castTime: 3f));
+        Assert.False(MechanicCastGate.ShouldBlockWith(Context(enableGate: false).Object, castTime: 3f, engine));
         Assert.False(asked);
     }
 
@@ -123,22 +119,22 @@ public sealed class CastSpotSafetyGateTests : IDisposable
     [Fact]
     public void NoEngine_CastsOn()
     {
-        Assert.False(MechanicCastGate.ShouldBlock(Context().Object, castTime: 3f));
+        Assert.False(MechanicCastGate.ShouldBlockWith(Context().Object, castTime: 3f, safety: null));
     }
 
     [Fact]
     public void EngineThatThrows_CastsOn()
     {
-        MechanicCastGate.CastSpotSafety = (_, _) => throw new InvalidOperationException("IPC gone");
-        Assert.False(MechanicCastGate.ShouldBlock(Context().Object, castTime: 3f));
+        Func<Vector3, float, bool> engine = (_, _) => throw new InvalidOperationException("IPC gone");
+        Assert.False(MechanicCastGate.ShouldBlockWith(Context().Object, castTime: 3f, engine));
     }
 
     /// <summary>A hold nobody can explain reads as a broken rotation.</summary>
     [Fact]
     public void TheHoldSaysWhy()
     {
-        MechanicCastGate.CastSpotSafety = (_, _) => false;
-        Assert.Contains("spot", MechanicCastGate.FormatBlockedState(Context().Object, castTime: 3f));
+        Func<Vector3, float, bool> engine = (_, _) => false;
+        Assert.Contains("spot", MechanicCastGate.FormatBlockedStateWith(Context().Object, castTime: 3f, engine));
     }
 
     // ── the selected engine, not a hardcoded one ─────────────────────────────────────────
@@ -163,10 +159,10 @@ public sealed class CastSpotSafetyGateTests : IDisposable
     {
         var router = new BossHandlingRouter(
             Engine(PositionSafety.Safe).Object, Engine(minervaSays).Object, () => BossHandling.Minerva);
-        MechanicCastGate.CastSpotSafety = (pos, window) =>
+        Func<Vector3, float, bool> engine = (pos, window) =>
             router.QueryPositionSafety(pos, window) == PositionSafety.Safe;
 
-        Assert.True(MechanicCastGate.ShouldBlock(Context().Object, castTime: 3f));
+        Assert.True(MechanicCastGate.ShouldBlockWith(Context().Object, castTime: 3f, engine));
     }
 
     /// <summary>And the mirror: BossMod selected, BossMod decides.</summary>
@@ -175,9 +171,49 @@ public sealed class CastSpotSafetyGateTests : IDisposable
     {
         var router = new BossHandlingRouter(
             Engine(PositionSafety.Unsafe).Object, Engine(PositionSafety.Safe).Object, () => BossHandling.BossMod);
-        MechanicCastGate.CastSpotSafety = (pos, window) =>
+        Func<Vector3, float, bool> engine = (pos, window) =>
             router.QueryPositionSafety(pos, window) == PositionSafety.Safe;
 
-        Assert.True(MechanicCastGate.ShouldBlock(Context().Object, castTime: 3f));
+        Assert.True(MechanicCastGate.ShouldBlockWith(Context().Object, castTime: 3f, engine));
+    }
+}
+
+/// <summary>
+/// The one test of the process-wide <see cref="MechanicCastGate.CastSpotSafety"/> hook itself — that
+/// the public entry point consults whatever Plugin wired into it.
+/// <para>
+/// Everything about the gate's <em>behaviour</em> is covered in <see cref="CastSpotSafetyGateTests"/>
+/// through the explicit-engine overload, because writing this static is visible to every test running
+/// in parallel: it used to hold hard casts in unrelated suites and made the run flaky (about one full
+/// run in four, traced 2026-09-17 from the BLM low-level Fire tests). So this only ever installs an
+/// engine that answers "safe", which is indistinguishable from no engine for anyone reading it mid-run.
+/// </para>
+/// </summary>
+public sealed class CastSpotSafetyStaticHookTests : IDisposable
+{
+    public void Dispose() => MechanicCastGate.CastSpotSafety = null;
+
+    [Fact]
+    public void ThePublicEntryPointAsksTheWiredEngine()
+    {
+        Vector3? asked = null;
+        MechanicCastGate.CastSpotSafety = (pos, _) => { asked = pos; return true; };
+
+        var config = new Configuration();
+        config.Timeline.EnableMechanicAwareCasting = true;
+        config.Timeline.EnableTimelinePredictions = false;
+
+        var where = new Vector3(1f, 2f, 3f);
+        var player = new Mock<IPlayerCharacter>();
+        player.SetupGet(p => p.Position).Returns(where);
+
+        var ctx = new Mock<IRotationContext>();
+        ctx.SetupGet(c => c.Configuration).Returns(config);
+        ctx.SetupGet(c => c.IsMoving).Returns(false);
+        ctx.SetupGet(c => c.Player).Returns(player.Object);
+        ctx.SetupGet(c => c.TimelineService).Returns((ITimelineService?)null);
+
+        Assert.False(MechanicCastGate.ShouldBlock(ctx.Object, castTime: 3f));
+        Assert.Equal(where, asked);
     }
 }
