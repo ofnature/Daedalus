@@ -549,23 +549,8 @@ public sealed class TargetingService : ITargetingService
         return nearest;
     }
 
-    private bool IsEngagedOrHostile(IBattleNpc enemy, IPlayerCharacter player)
-    {
-        if ((enemy.StatusFlags & StatusFlags.InCombat) != 0)
-            return true;
-        if (enemy.TargetObjectId == player.GameObjectId)
-            return true;
-        if ((enemy.StatusFlags & StatusFlags.Hostile) != 0 && enemy.TargetObjectId != 0)
-            return true;
-        if ((enemy.StatusFlags & StatusFlags.Hostile) != 0 && enemy.CurrentHp < enemy.MaxHp)
-            return true;
-        // Last resort: player is in combat and the mob is hostile — likely part of the pull
-        // even if the game hasn't set InCombat/target flags yet (common in trusts).
-        if ((player.StatusFlags & StatusFlags.InCombat) != 0
-            && (enemy.StatusFlags & StatusFlags.Hostile) != 0)
-            return true;
-        return false;
-    }
+    private static bool IsEngagedOrHostile(IBattleNpc enemy, IPlayerCharacter player)
+        => EnemyEngagementPolicy.IsEnemyInTheFight(enemy, player.GameObjectId);
 
     /// <param name="radius">Radius in yalms to check.</param>
     /// <param name="player">Current player character.</param>
@@ -1606,16 +1591,13 @@ public sealed class TargetingService : ITargetingService
     private bool IsPlayerEffectivelyInCombat(IPlayerCharacter player) =>
         EnemyEngagementPolicy.IsPlayerEffectivelyInCombat(player, _configuration, _partyList, _objectTable);
 
-    private bool ShouldRelaxEnemyInCombatRequirement(IPlayerCharacter player) =>
-        EnemyEngagementPolicy.ShouldRelaxEnemyInCombatRequirement(
-            _configuration, player, _partyList, _objectTable);
-
     private bool ShouldIncludeEnemyForTargeting(IBattleNpc enemy, ulong currentTargetId, IPlayerCharacter player) =>
         EnemyEngagementPolicy.ShouldIncludeEnemyForTargeting(
             enemy,
             currentTargetId,
             IsPlayerEffectivelyInCombat(player),
-            ShouldRelaxEnemyInCombatRequirement(player));
+            EnemyEngagementPolicy.AllowsUnclaimedHostiles(_configuration),
+            EnemyEngagementPolicy.IsAnyAllyInCombat(_configuration, player, _partyList, _objectTable));
 
     private bool IsStillValid(IBattleNpc enemy)
     {

@@ -3,6 +3,20 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.75 — unreleased
+
+### Fix — no more pulling the next pack while the tank is fighting
+- **Casters and everyone else now leave untouched mobs alone.** Once any party member was in
+  combat, every hostile nearby counted as a valid target — pulled or not. The nearest mob to a
+  backline caster is very often a pack nobody has touched, so it got hit, and then it came.
+- A mob only counts as part of the fight if it's actually in it: fighting someone, coming for you,
+  or already wounded. "My party is fighting" no longer means "everything here is fair game".
+- This also stops untouched mobs inflating AoE target counts. An AoE fired because the count
+  looked high enough would clip the next pack and pull it — so that route is closed too.
+- If you *want* the old behaviour, Targeting still has "include hostiles without a combat flag";
+  it's off by default and now the only thing that waives the check.
+
+<!-- LATEST-END -->
 ## v0.1.74 — 2026-09-17
 
 ### Fix — Phantom Berserker's Rage waits for a quiet moment
@@ -26,7 +40,6 @@ All notable changes to Daedalus will be documented in this file.
 - The Debug tab now shows whether you're actually standing in the circle, separately from whether
   one exists.
 
-<!-- LATEST-END -->
 ## v0.1.73 — 2026-09-14
 
 ### Fix — Phantom Chemist's Occult Potion and Occult Ether
