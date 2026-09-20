@@ -1292,6 +1292,15 @@ public sealed unsafe class ActionService : IActionService
             if (localPlayer.IsCasting)
                 return;
 
+            // Never turn the character toward a target while a look-away is up. The pre-face retry already
+            // refused to, but NotifyFacingRejection and TryFaceRecovery came straight here: Minerva turned a
+            // Warrior away from Eye to Eye's Sinister Sight, the next GCD was refused for facing, the recovery
+            // snapped the character back onto the boss's bearing -- which was the orb's -- and it was
+            // petrified 2.3s later (2026-09-13, 18:54:49). A GCD dropped for facing is lost damage; turning
+            // into a gaze is the pull. Guarded here, once, so every caller is covered.
+            if (Daedalus.Rotation.Common.Helpers.PlayerSafetyHelper.IsLookAwayMechanicActive(_objectTable))
+                return;
+
             var dx = target.Position.X - localPlayer.Position.X;
             var dz = target.Position.Z - localPlayer.Position.Z;
             if (dx * dx + dz * dz < 0.01f)

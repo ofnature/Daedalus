@@ -18,6 +18,13 @@ All notable changes to Daedalus will be documented in this file.
 - Daedalus now asks Minerva whether the destination is somewhere it forbids, and whether the line
   to it is clear, instead of assuming a spot it can't measure must be fine.
 
+### Fix — the facing recovery no longer turns you into a gaze
+- A look-away mechanic turned a Warrior away from the boss; the next GCD was refused because it
+  wasn't facing, and the facing recovery snapped it back onto the boss's bearing — which was the
+  orb's. It was petrified two seconds later.
+- Nothing will turn you toward a target while a look-away is active. A GCD dropped for facing is
+  lost damage; turning into a gaze is a wipe risk.
+
 <!-- LATEST-END -->
 ## v0.1.76 — 2026-09-19
 
