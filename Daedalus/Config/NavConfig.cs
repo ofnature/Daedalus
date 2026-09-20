@@ -44,19 +44,24 @@ public sealed class NavConfig
     }
 
     /// <summary>
-    /// Yield movement to BossMod: while BMR is dodging or danger zones are live/imminent, Daedalus stops
-    /// its own vNav pathing and stays hands-off until the danger clears plus a short cooldown. BMR steers
-    /// by input injection and defers to vNav whenever a path runs — without this, the two systems
-    /// tug-of-war and stutter. Fail-open when BMR isn't loaded. Default true (kill-switch only).
+    /// Yield movement to the boss engine: while it is dodging or danger zones are live/imminent, Daedalus
+    /// stops its own vNav pathing and stays hands-off until the danger clears plus a short cooldown. Both
+    /// engines steer by input injection and defer to vNav whenever a path runs — without this, the two
+    /// systems tug-of-war and stutter. Fail-open when the selected engine isn't loaded. Default true
+    /// (kill-switch only).
+    /// <para>The property name is historical: this is routed through <see cref="Config.BossHandling"/>, so
+    /// under Minerva it yields to Minerva's steering, not to BossMod Reborn's.</para>
     /// </summary>
     public bool YieldToBmrMovement { get; set; } = true;
 
     /// <summary>
-    /// Hold BMR AI movement while the player has a cast bar up (and no danger lands before the
-    /// cast finishes). Fixes the walk-in loop: a toon outside BMR's stand distance but inside
-    /// spell range would start a cast, BMR would step, the cast died — repeating all the way in.
-    /// With the hold, casts complete and BMR steps between them. Releases instantly when danger
-    /// approaches (dodging always wins). Default true (kill-switch only).
+    /// Hold the boss engine's movement while the player has a cast bar up (and no danger lands before the
+    /// cast finishes). Fixes the walk-in loop: a toon outside its stand distance but inside spell range
+    /// would start a cast, the engine would step, the cast died — repeating all the way in. With the hold,
+    /// casts complete and it steps between them. Releases instantly when danger approaches (dodging always
+    /// wins). Default true (kill-switch only).
+    /// <para>The property name is historical: under BossMod Reborn this pauses its AI movement, and under
+    /// Minerva it asks Minerva to hold instead (<c>Minerva.RequestHold</c>).</para>
     /// </summary>
     public bool HoldBmrMovementWhileCasting { get; set; } = true;
 

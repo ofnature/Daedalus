@@ -31,6 +31,13 @@ All notable changes to Daedalus will be documented in this file.
   boss. The preset now names the tank as the anchor.
 - **The distance is pushed to BMR as well**, so the slider moves the number BMR actually uses
   instead of only the one in the preset.
+- **Two Movement Cadence options were named after BossMod but never belonged to it.** "Yield
+  movement to BossMod" is now "Yield movement to the boss engine", and "Hold BMR movement while
+  casting" is now "Hold movement while casting" — both have always followed whichever engine Boss
+  Handling selects, so under Minerva they yield to Minerva and ask it to hold. Your settings are
+  unchanged; only the labels were wrong.
+- **Both now sit in Settings ▸ General ▸ Boss handling**, beside the engine they follow, instead of
+  in the Nav panel. The Nav panel keeps their live readouts and points at the new home.
 - **New: "Ranged Min Distance" (default 1y).** BMR's band used to start at the hitbox, so a caster
   pushed under the boss had no reason to leave and micro-adjusted there instead of casting. Melee
   and tanks keep no floor — their range is the hitbox.

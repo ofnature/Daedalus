@@ -120,6 +120,30 @@ public sealed class GeneralSection
                 break;
         }
 
+        // How Daedalus's own movement gets out of the way of whichever engine drives. Both follow the choice
+        // above rather than naming an engine, which is why they live here and not in the nav panel.
+        ConfigUIHelpers.Spacing();
+
+        var yieldMovement = config.Nav.YieldToBmrMovement;
+        if (ConfigUIHelpers.ToggleCheckbox("Yield movement to the boss engine", ref yieldMovement,
+                "Pause Daedalus pathing while the engine above is dodging or danger zones are up, and for a "
+                + "short cooldown after they clear. Both engines steer by input injection and defer to vNav "
+                + "whenever a path runs — without this the two fight and stutter the screen. Does nothing when "
+                + "the selected engine isn't loaded. Leave ON.", save))
+        {
+            config.Nav.YieldToBmrMovement = yieldMovement;
+        }
+
+        var holdWhileCasting = config.Nav.HoldBmrMovementWhileCasting;
+        if (ConfigUIHelpers.ToggleCheckbox("Hold movement while casting", ref holdWhileCasting,
+                "While a cast bar is up and no mechanic lands before it finishes, the engine's movement is held "
+                + "so its micro-steps don't cancel the cast — BossMod Reborn's AI is paused, or Minerva is asked "
+                + "to hold — then released the instant the cast ends or danger approaches (dodging always wins). "
+                + "All jobs with cast bars. Leave ON.", save))
+        {
+            config.Nav.HoldBmrMovementWhileCasting = holdWhileCasting;
+        }
+
         ConfigUIHelpers.Spacing();
         ImGui.TextDisabled(
             "Only one may drive. Two mechanics engines steering the same character undo each "

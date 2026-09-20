@@ -106,33 +106,10 @@ public sealed class NavControlWindow : Window
         ImGui.Spacing();
         Common.DaedalusTheme.GoldHeader("Movement Cadence");
 
-        var yield = nav.YieldToBmrMovement;
-        if (ConfigUIHelpers.ToggleCheckbox(
-                "Yield movement to BossMod",
-                ref yield,
-                "Pause Daedalus pathing while BossMod is dodging or danger zones are up, and for a short "
-                + "cooldown after they clear. BMR steers by input injection and defers to vNav whenever a "
-                + "path runs — without this the two systems fight and stutter the screen. With Auto-Manage "
-                + "BMR AI on, BMR owns positioning near-full-time and Daedalus movement stays quiet. Does "
-                + "nothing when BossMod isn't loaded. Leave ON.",
-                saveConfiguration))
-        {
-            nav.YieldToBmrMovement = yield;
-        }
-
-        var castHold = nav.HoldBmrMovementWhileCasting;
-        if (ConfigUIHelpers.ToggleCheckbox(
-                "Hold BMR movement while casting",
-                ref castHold,
-                "While a cast bar is up and no mechanic lands before it finishes, BossMod's AI "
-                + "movement is paused so its micro-steps don't cancel the cast — then released the "
-                + "instant the cast ends or danger approaches (dodging always wins). Fixes the "
-                + "walk-in loop where every cast died to a step until the toon reached its stand "
-                + "distance. All jobs with cast bars. Leave ON.",
-                saveConfiguration))
-        {
-            nav.HoldBmrMovementWhileCasting = castHold;
-        }
+        // The two toggles that used to sit here -- yield to the boss engine, hold movement while casting --
+        // moved to Settings > General > Boss handling: both follow whichever engine is selected there, so they
+        // belong beside the choice rather than in the nav panel. The live readouts stay here.
+        ImGui.TextColored(Dim, "Yield and cast-hold live in Settings ▸ General ▸ Boss handling.");
 
         if (castMovementHoldService is { } holdService)
         {
