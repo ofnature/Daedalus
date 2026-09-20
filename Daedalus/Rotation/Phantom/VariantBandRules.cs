@@ -21,8 +21,19 @@ public static class VariantBandRules
     /// <summary>Don't waste the 30s DoT on a target dying sooner than this.</summary>
     public const float DartMinTtkSeconds = 8f;
 
-    public static bool ShouldCure(VariantConfig cfg, float selfHpPct)
-        => selfHpPct < cfg.CureHpPct;
+    /// <summary>
+    /// Whether a given party member is worth a Variant Cure. Anyone below the threshold qualifies —
+    /// the caller picks the lowest of them. It used to read self HP only and cast on self, so a Cure
+    /// slotted on a DPS could never be spent on the tank dropping next to it.
+    /// </summary>
+    public static bool ShouldCure(VariantConfig cfg, float hpPct)
+        => hpPct < cfg.CureHpPct;
+
+    /// <summary>
+    /// Self-only mode, for when a toon should look after nobody but itself.
+    /// </summary>
+    public static bool CureTargetAllowed(VariantConfig cfg, bool isSelf)
+        => isSelf || !cfg.CureSelfOnly;
 
     /// <summary>
     /// DoT maintenance — never on-cooldown spam (2.5s recast, 30s DoT), and never on a
@@ -37,7 +48,6 @@ public static class VariantBandRules
         => cfg.UseRampart && inCombat && (cfg.RampartSpamOnCooldown || !buffActive);
 
     /// <summary>
-    /// <summary>
     /// How long a dead non-healer is left to a living healer before the variant raise steps in.
     /// <para>
     /// "Leave it to the living healer" assumes the healer acts, and field evidence from the phantom
@@ -48,6 +58,7 @@ public static class VariantBandRules
     /// </summary>
     public const float LivingHealerGraceSeconds = 10f;
 
+    /// <summary>
     /// The raise policy (user comp 2026-07-25: WAR/SAM/PCT + SGE): a dead healer is
     /// always raised (healers cannot slot Variant Raise — a DPS/tank is their lifeline);
     /// dead non-healers are LEFT to a living healer's own raise (don't burn 8s of DPS);

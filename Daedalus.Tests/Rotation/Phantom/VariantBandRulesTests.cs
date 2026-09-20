@@ -176,6 +176,82 @@ public class VariantBandRulesTests
         Assert.Contains("Variant Raise was not selected for this run", source);
     }
 
+
+    // ── Cure is targetable ─────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Variant Cure is a 30y heal on a target, not a self-heal. It used to read our own HP and cast on
+    /// ourselves, so a Cure slotted on a DPS could never be spent on the tank dying next to it
+    /// (reported 2026-09-20). The threshold question is now asked per member.
+    /// </summary>
+    [Theory]
+    [InlineData(0.59f, true)]
+    [InlineData(0.20f, true)]
+    [InlineData(0.60f, false)]
+    [InlineData(1.00f, false)]
+    public void Cure_AsksTheThresholdOfWhicheverMemberIsOffered(float hpPct, bool expected)
+        => Assert.Equal(expected, VariantBandRules.ShouldCure(Cfg(), hpPct));
+
+    /// <summary>Default is to cure anyone; self-only is the opt-in for a toon that should not.</summary>
+    [Fact]
+    public void Cure_TargetsAnyoneByDefaultAndSelfOnlyWhenAsked()
+    {
+        var cfg = Cfg();
+        Assert.False(cfg.CureSelfOnly);
+        Assert.True(VariantBandRules.CureTargetAllowed(cfg, isSelf: true));
+        Assert.True(VariantBandRules.CureTargetAllowed(cfg, isSelf: false));
+
+        cfg.CureSelfOnly = true;
+        Assert.True(VariantBandRules.CureTargetAllowed(cfg, isSelf: true));
+        Assert.False(VariantBandRules.CureTargetAllowed(cfg, isSelf: false));
+    }
+
+    /// <summary>
+    /// The wiring: Cure has to be pushed AT someone. Guarded at the source because the layer cannot be
+    /// instantiated in a test — a targetless push goes to self, which is the bug.
+    /// </summary>
+    [Fact]
+    public void TheLayerPushesCureAtATarget()
+    {
+        var source = File.ReadAllText(VariantLayerSourcePath());
+        Assert.Matches(@"TryPush\(ctx, VariantAction\.Cure, PrioCure, target\.GameObjectId, target\)", source);
+    }
+
+    // ── Spirit Dart stacks per source ──────────────────────────────────────────────────
+
+    /// <summary>
+    /// Sustained Damage stacks per source — every toon's dart sits on the target at once — so "is MY
+    /// dart still up" is the whole question. Status.SourceId carries the networked EntityId; the layer
+    /// compared it to GameObjectId, which Dalamud documents as the local targeting handle and
+    /// explicitly warns not to confuse with EntityId. Mismatched, our own dart always read as absent,
+    /// so it was re-applied on every 2.5s recast instead of every ~27s.
+    /// </summary>
+    [Fact]
+    public void SpiritDart_OwnershipIsCheckedAgainstTheEntityId()
+    {
+        var source = File.ReadAllText(VariantLayerSourcePath());
+
+        Assert.Matches(@"status\.SourceId == ctx\.Player\.EntityId", source);
+        Assert.DoesNotMatch(@"status\.SourceId == ctx\.Player\.GameObjectId", source);
+    }
+
+    /// <summary>A dart with time left is left alone; one about to fall off is refreshed.</summary>
+    [Theory]
+    [InlineData(0f, true)]
+    [InlineData(VariantBandRules.DartRefreshSeconds - 0.1f, true)]
+    [InlineData(VariantBandRules.DartRefreshSeconds, false)]
+    [InlineData(25f, false)]
+    public void SpiritDart_RefreshesOnlyNearTheEnd(float remaining, bool expected)
+        => Assert.Equal(expected, VariantBandRules.ShouldMaintainDart(Cfg(), remaining, targetTtkSeconds: 60f));
+
+    /// <summary>And never onto something about to die — the DoT is 30s and the mob is not.</summary>
+    [Theory]
+    [InlineData(VariantBandRules.DartMinTtkSeconds - 0.1f, false)]
+    [InlineData(VariantBandRules.DartMinTtkSeconds, true)]
+    [InlineData(float.MaxValue, true)]   // unknown TTK reads as "fire"
+    public void SpiritDart_RespectsTheTimeToKillGate(float ttk, bool expected)
+        => Assert.Equal(expected, VariantBandRules.ShouldMaintainDart(Cfg(), dotRemainingSeconds: 0f, targetTtkSeconds: ttk));
+
     private static string VariantLayerSourcePath()
     {
         var dir = new DirectoryInfo(AppContext.BaseDirectory);

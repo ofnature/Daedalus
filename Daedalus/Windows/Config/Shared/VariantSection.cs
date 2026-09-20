@@ -75,8 +75,16 @@ public sealed class VariantSection
             case VariantAction.Cure:
                 config.Variant.CureHpPct = ConfigUIHelpers.FloatSlider(
                     "Cure below HP%", config.Variant.CureHpPct, 0.10f, 1.00f, "%.2f",
-                    "Instant 14,000-potency heal + regen; the regen doubles the NEXT Cure. Fires ahead of the job's filler GCD.",
+                    "Instant 14,000-potency heal + regen; the regen doubles the NEXT Cure. Cast on whichever "
+                    + "party member is lowest below this, not just yourself. Fires ahead of the job's filler GCD.",
                     save, v => config.Variant.CureHpPct = v);
+
+                ConfigUIHelpers.Toggle("Cure yourself only",
+                    () => config.Variant.CureSelfOnly, v => config.Variant.CureSelfOnly = v,
+                    "Off by default. Variant Cure reaches 30y, so a toon that has it slotted can pick up "
+                    + "whoever is lowest — usually worth more than the GCD. Turn on for a toon that should "
+                    + "only ever look after itself.",
+                    save);
                 break;
 
             case VariantAction.SpiritDart:

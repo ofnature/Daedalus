@@ -3,6 +3,18 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.78 — unreleased
+
+### Fix — Variant Cure heals the party, and Spirit Dart stops re-applying itself
+- **Variant Cure was a self-heal.** It read your own HP and cast on you, so a Cure slotted on a DPS
+  could never be spent on the tank dying next to it. It now picks whoever is lowest below the
+  threshold, anywhere in its 30y range. New "Cure yourself only" toggle if you'd rather it didn't.
+- **Spirit Dart was re-applying its DoT every few seconds.** Sustained Damage stacks per source, so
+  the check is "is *my* dart still up" — but it was matching the status owner against the wrong id,
+  so your own DoT always looked missing and the dart went out on its 2.5s recast instead of every
+  ~27s, burning a weave slot each time. Other toons' darts still never suppress yours.
+
+<!-- LATEST-END -->
 ## v0.1.77 — 2026-09-20
 
 ### Fix — Variant Raise now actually gets used
@@ -48,7 +60,6 @@ All notable changes to Daedalus will be documented in this file.
 - Nothing will turn you toward a target while a look-away is active. A GCD dropped for facing is
   lost damage; turning into a gaze is a wipe risk.
 
-<!-- LATEST-END -->
 ## v0.1.76 — 2026-09-19
 
 ### New — stop throwing away your post-raise invulnerability

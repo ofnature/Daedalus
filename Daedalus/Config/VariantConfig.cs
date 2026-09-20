@@ -9,8 +9,14 @@ public sealed class VariantConfig
     /// <summary>Master toggle for the variant duty-action layer (in variant territories only).</summary>
     public bool EnableVariantActions { get; set; } = true;
 
-    /// <summary>Variant Cure fires when self HP falls below this fraction.</summary>
+    /// <summary>Variant Cure fires on the lowest party member below this fraction of max HP.</summary>
     public float CureHpPct { get; set; } = 0.60f;
+
+    /// <summary>
+    /// Only ever cure ourselves. Off by default: Variant Cure is targetable and a 30y heal on a
+    /// dying tank is worth more than the GCD, but a toon that should mind its own business can.
+    /// </summary>
+    public bool CureSelfOnly { get; set; } = false;
 
     /// <summary>Maintain the Spirit Dart DoT (Sustained Damage) on the current target.</summary>
     public bool UseSpiritDart { get; set; } = true;

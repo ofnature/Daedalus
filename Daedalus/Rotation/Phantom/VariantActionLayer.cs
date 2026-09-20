@@ -118,7 +118,6 @@ public sealed class VariantActionLayer
             return;
 
         var player = ctx.Player;
-        var selfHpPct = player.MaxHp > 0 ? (float)player.CurrentHp / player.MaxHp : 1f;
 
         _scheduler.Reset();
         _dispatchedThisFrame = false;
@@ -126,9 +125,7 @@ public sealed class VariantActionLayer
         _pushRejects.Clear();
         _framePrepared = true;
 
-        if (VariantBandRules.ShouldCure(cfg, selfHpPct))
-            TryPush(ctx, VariantAction.Cure, PrioCure);
-
+        PushCure(ctx, cfg);
         PushRaise(ctx, cfg);
         PushRampart(ctx, cfg, inCombat);
         PushDamage(ctx, cfg, inCombat);
@@ -145,6 +142,52 @@ public sealed class VariantActionLayer
         // post-pass from double-firing the same candidate.
         if (_actionService.CanExecuteOgcd)
             _scheduler.DispatchOgcd(ctx);
+    }
+
+    /// <summary>
+    /// Variant Cure is a targetable 30y heal, not a self-heal. It used to read our own HP and cast on
+    /// ourselves, so a Cure slotted on a DPS could never be spent on the tank dying beside it. Picks
+    /// the lowest member under the threshold; self included, and self only when configured that way.
+    /// </summary>
+    private void PushCure(IRotationContext ctx, Config.VariantConfig cfg)
+    {
+        var target = PickCureTarget(ctx, cfg);
+        if (target is null)
+            return;
+
+        TryPush(ctx, VariantAction.Cure, PrioCure, target.GameObjectId, target);
+    }
+
+    /// <summary>The lowest party member below the cure threshold, or null when nobody needs it.</summary>
+    private static IBattleChara? PickCureTarget(IRotationContext ctx, Config.VariantConfig cfg)
+    {
+        IBattleChara? worst = null;
+        var worstPct = float.MaxValue;
+
+        void Consider(IBattleChara chara, bool isSelf)
+        {
+            if (chara.IsDead || chara.MaxHp == 0)
+                return;
+            if (!VariantBandRules.CureTargetAllowed(cfg, isSelf))
+                return;
+
+            var pct = (float)chara.CurrentHp / chara.MaxHp;
+            if (!VariantBandRules.ShouldCure(cfg, pct) || pct >= worstPct)
+                return;
+
+            worst = chara;
+            worstPct = pct;
+        }
+
+        Consider(ctx.Player, isSelf: true);
+
+        foreach (var member in ctx.PartyList)
+        {
+            if (member?.GameObject is IBattleChara chara && chara.GameObjectId != ctx.Player.GameObjectId)
+                Consider(chara, isSelf: false);
+        }
+
+        return worst;
     }
 
     private void PushRaise(IRotationContext ctx, Config.VariantConfig cfg)
@@ -240,9 +283,16 @@ public sealed class VariantActionLayer
 
         foreach (var status in target.StatusList)
         {
+            // EntityId, not GameObjectId. Sustained Damage stacks per source -- every toon's dart
+            // sits on the target at once -- so "is MY dart still up" is the whole question, and
+            // Status.SourceId carries the networked EntityId. GameObjectId is the local targeting
+            // handle and Dalamud's own docs say not to confuse the two; compared against it the
+            // match never fired, so our dart read as absent and was re-applied on every 2.5s recast
+            // instead of every ~27s. Every other DoT-ownership check in the codebase (Higanbana,
+            // Demolish, Noxious Gnash, Dokumori) already uses EntityId.
             if (status != null
                 && status.StatusId == VariantActionData.SustainedDamageStatusId
-                && status.SourceId == ctx.Player.GameObjectId)
+                && status.SourceId == ctx.Player.EntityId)
                 return status.RemainingTime;
         }
 
