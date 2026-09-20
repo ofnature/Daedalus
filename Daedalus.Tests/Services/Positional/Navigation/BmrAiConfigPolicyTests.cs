@@ -35,6 +35,43 @@ public sealed class BmrAiConfigPolicyTests
         Assert.Equal(BmrAiConfigPolicy.MeleeStandDistance, BmrAiConfigPolicy.ResolveMaxDistance(JobRegistry.Paladin, 15f));
     }
 
+    [Fact]
+    public void ResolveMinDistance_Backline_KeepsAFloorOffTheHitbox()
+    {
+        Assert.Equal(1f, BmrAiConfigPolicy.ResolveMinDistance(JobRegistry.BlackMage, 1f));
+        Assert.Equal(BmrAiConfigPolicy.MaxRangedMinDistance, BmrAiConfigPolicy.ResolveMinDistance(JobRegistry.WhiteMage, 99f));
+        Assert.Equal(0f, BmrAiConfigPolicy.ResolveMinDistance(JobRegistry.Bard, 0f));
+    }
+
+    [Fact]
+    public void ResolveMinDistance_Melee_KeepsNone()
+    {
+        // melee range IS the hitbox: a floor would push them out of their own rotation
+        Assert.Equal(0f, BmrAiConfigPolicy.ResolveMinDistance(JobRegistry.Samurai, 3f));
+        Assert.Equal(0f, BmrAiConfigPolicy.ResolveMinDistance(JobRegistry.Paladin, 3f));
+    }
+
+    [Fact]
+    public void BuildPresetJson_Backline_NamesTheRoleItHoldsRangeOff()
+    {
+        // BMR's StayCloseToPartyRole does nothing when the role is None, which is its default: a preset that sets
+        // only the range says nothing at all, and BMR's own MaxDistanceToTarget (2.6) governed instead.
+        var json = BmrAiConfigPolicy.BuildPresetJson(backline: true, rangedDistance: 15f);
+        Assert.Contains("StayCloseToPartyRole", json);
+        Assert.Contains("\"Track\": \"Role\"", json);
+        Assert.Contains($"\"Option\": \"{BmrAiConfigPolicy.BacklineAnchorRole}\"", json);
+        Assert.Contains("\"Option\": \"15\"", json);
+    }
+
+    [Fact]
+    public void BuildPresetJson_Melee_HugsTheTargetAndTakesPositionals()
+    {
+        var json = BmrAiConfigPolicy.BuildPresetJson(backline: false, rangedDistance: 15f);
+        Assert.Contains("StayCloseToTarget", json);
+        Assert.Contains(BmrAiConfigPolicy.GoToPositionalModule, json);
+        Assert.DoesNotContain("StayCloseToPartyRole", json);
+    }
+
     [Theory]
     [InlineData(PositionalType.Rear, "Rear")]
     [InlineData(PositionalType.Flank, "Flank")]

@@ -31,6 +31,8 @@ public sealed class BmrAiConfigService
     private readonly Dalamud.Plugin.Services.ICommandManager? _commandManager;
 
     private ICallGateSubscriber<List<string>, bool, List<string>>? _configIpc;
+    private float? _appliedMaxDistance;
+    private float? _appliedMinDistance;
     private ICallGateSubscriber<bool, object>? _pauseMovementIpc;
     private ICallGateSubscriber<string, bool, bool>? _presetCreateIpc;
     private ICallGateSubscriber<string, bool>? _presetSetActiveIpc;
@@ -117,6 +119,7 @@ public sealed class BmrAiConfigService
         uint JobId,
         PositionalType? RequiredPositional,
         float RangedStandDistance,
+        float RangedMinDistance,
         bool BoundaryCampingActive = false,
         /// <summary>BMR reports live forbidden zones — a positional goal would drag its
         /// pathfinder toward boss-centered AoEs; feed "Any" until the danger clears.</summary>
@@ -201,6 +204,25 @@ public sealed class BmrAiConfigService
             return;
 
         var pushed = false;
+
+        // The stand distance itself. The preset says which role a backline job holds its range off; these say how
+        // far, and they are what BMR's own goal zones are built from. Pushed only when the value actually changes:
+        // the IPC writes BMR's config file.
+        var maxDistance = BmrAiConfigPolicy.ResolveMaxDistance(req.JobId, req.RangedStandDistance);
+        var minDistance = BmrAiConfigPolicy.ResolveMinDistance(req.JobId, req.RangedMinDistance);
+        if (_appliedMaxDistance != maxDistance)
+        {
+            PushConfig("MaxDistanceToTarget", maxDistance.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture));
+            _appliedMaxDistance = maxDistance;
+            pushed = true;
+        }
+
+        if (_appliedMinDistance != minDistance)
+        {
+            PushConfig("MinDistance", minDistance.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture));
+            _appliedMinDistance = minDistance;
+            pushed = true;
+        }
 
         // Create/refresh + activate the "Daedalus" preset whenever the role-shaped JSON changes
         // (job role swap, ranged-distance slider) or another manager replaced the active preset.
@@ -310,6 +332,10 @@ public sealed class BmrAiConfigService
             }
         }
         _appliedPresetJson = null;
+        // The distances stay as BMR has them -- turning auto-manage off is not a licence to rewrite the user's
+        // config -- but they are re-pushed on the next enable, so the cache must not survive.
+        _appliedMaxDistance = null;
+        _appliedMinDistance = null;
         _lastPositional = null;
         _lastPushUtc = System.DateTime.MinValue;
         _wasEnabled = false;

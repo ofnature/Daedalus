@@ -22,6 +22,27 @@ public static class BmrAiConfigPolicy
     public static float ResolveMaxDistance(uint jobId, float rangedDistance) =>
         IsBacklineJob(jobId) ? rangedDistance : MeleeStandDistance;
 
+    /// <summary>
+    /// Minimum distance from the target's hitbox, by role. Without one, BMR's band has no floor: every cell from the
+    /// hitbox outwards satisfies the goal equally, so a caster that ends up under the boss has no reason to leave and
+    /// micro-adjusts there instead of casting (field 2026-09-19, a Pictomancer at zero). Melee keep none -- their
+    /// range IS the hitbox. BMR turns a non-zero value into a donut goal around the target.
+    /// </summary>
+    public static float ResolveMinDistance(uint jobId, float rangedMinDistance) =>
+        IsBacklineJob(jobId) ? System.Math.Clamp(rangedMinDistance, 0f, MaxRangedMinDistance) : 0f;
+
+    /// <summary>The largest floor worth asking for: past this a backline job is giving up uptime to stand further out
+    /// than any mechanic requires.</summary>
+    public const float MaxRangedMinDistance = 3f;
+
+    /// <summary>
+    /// The party role a backline job holds its range off. BMR's <c>StayCloseToPartyRole</c> does nothing at all when
+    /// the role is None -- which is its default -- so a preset that sets only the range says nothing, and until
+    /// 2026-09-19 that was the whole of the backline preset: the 15 yalms never reached BMR and its own
+    /// <c>MaxDistanceToTarget</c> (2.6) governed instead. The tank is the anchor because the tank is on the boss.
+    /// </summary>
+    public const string BacklineAnchorRole = "Tank";
+
     /// <summary>Our BMR autorotation preset name — the fleet's preset-based tooling sees us as a peer.</summary>
     public const string PresetName = "Daedalus";
 
@@ -50,6 +71,7 @@ public static class BmrAiConfigPolicy
         var modules = backline
             ? $$"""
                     "BossMod.Autorotation.MiscAI.StayCloseToPartyRole": [
+                      { "Track": "Role", "Option": "{{BacklineAnchorRole}}" },
                       { "Track": "range", "Option": "{{range}}" }
                     ],
                     "BossMod.Autorotation.MiscAI.NormalMovement": [

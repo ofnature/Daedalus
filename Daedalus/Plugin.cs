@@ -2253,6 +2253,7 @@ public sealed class Plugin : IDalamudPlugin
             JobId: jobId,
             RequiredPositional: requiredPositional,
             RangedStandDistance: configuration.Nav.BmrRangedStandDistance,
+            RangedMinDistance: configuration.Nav.BmrRangedMinDistance,
             BoundaryCampingActive: boundaryCamping,
             ForbiddenZonesLive: bossModSafetyService.ForbiddenZonesCount > 0,
             InCombat: condition[Dalamud.Game.ClientState.Conditions.ConditionFlag.InCombat]));

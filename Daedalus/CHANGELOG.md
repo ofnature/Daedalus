@@ -24,6 +24,17 @@ All notable changes to Daedalus will be documented in this file.
   across different enemies, and a healer chasing its own add is out of range of the party.
 - The Focus readout in the party window counts healers now, so you can see them comply.
 
+### Fix — casters actually hold their range under Auto-Manage BMR AI
+- **"Ranged Stand Distance" never reached BossMod Reborn.** The preset told it how far a backline
+  job should stand but never which ally to stand off, and BMR ignores that module entirely without
+  one — so its own default (2.6y, the melee figure) governed, and casters walked in and hugged the
+  boss. The preset now names the tank as the anchor.
+- **The distance is pushed to BMR as well**, so the slider moves the number BMR actually uses
+  instead of only the one in the preset.
+- **New: "Ranged Min Distance" (default 1y).** BMR's band used to start at the hitbox, so a caster
+  pushed under the boss had no reason to leave and micro-adjusted there instead of casting. Melee
+  and tanks keep no floor — their range is the hitbox.
+
 <!-- LATEST-END -->
 ## v0.1.74 — 2026-09-17
 

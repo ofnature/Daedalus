@@ -172,6 +172,17 @@ public sealed class NavControlWindow : Window
                 + "most melee/AoE. Melee always hug (2.6y).",
                 saveConfiguration);
 
+            nav.BmrRangedMinDistance = ConfigUIHelpers.FloatSlider(
+                "Ranged Min Distance (yalms)",
+                nav.BmrRangedMinDistance,
+                0f,
+                BmrAiConfigPolicy.MaxRangedMinDistance,
+                "%.0f",
+                "How far healers/ranged/casters keep OFF the target's hitbox. Without a floor BMR's band starts at "
+                + "the hitbox, so a caster pushed under the boss stays there and micro-adjusts instead of casting. "
+                + "Melee always keep none. Default 1y.",
+                saveConfiguration);
+
             DrawBmrStatus();
         }
 

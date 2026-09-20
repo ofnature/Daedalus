@@ -103,4 +103,17 @@ public sealed class NavConfig
         get => _bmrRangedStandDistance;
         set => _bmrRangedStandDistance = Math.Clamp(value, 8f, 24f);
     }
+
+    private float _bmrRangedMinDistance = 1f;
+
+    /// <summary>
+    /// Distance (yalms) backline jobs keep OFF the target's hitbox when auto-managing BMR AI. Without a floor BMR's
+    /// band starts at the hitbox, so a caster pushed under the boss stays there and micro-adjusts instead of casting.
+    /// Range 0-3, default 1: beside the boss rather than inside it.
+    /// </summary>
+    public float BmrRangedMinDistance
+    {
+        get => _bmrRangedMinDistance;
+        set => _bmrRangedMinDistance = Math.Clamp(value, 0f, 3f);
+    }
 }
