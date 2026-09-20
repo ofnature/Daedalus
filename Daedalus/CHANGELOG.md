@@ -3,6 +3,16 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.77 — unreleased
+
+### Fix — gap closers no longer dash you into ground that's about to go off
+- A gap closer roots you for the length of its dash. Onslaught fired a tenth of a second into a
+  cast, the dodge wanted five yalms and couldn't move until the dash ended, and the hit landed with
+  a vulnerability stack.
+- Daedalus only checked whether the dodge was *already* steering, which it wasn't yet — but the
+  ground already knew. It now also checks the spot stays safe for as long as the dash roots you.
+
+<!-- LATEST-END -->
 ## v0.1.76 — 2026-09-19
 
 ### New — stop throwing away your post-raise invulnerability

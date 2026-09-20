@@ -34,6 +34,21 @@ public sealed class GapCloserSafetyService : IGapCloserSafetyService
     /// </summary>
     public System.Func<bool>? ExternalSteering { get; set; }
 
+    /// <summary>
+    /// How long the boss engine says the ground underfoot stays safe, in seconds. A gap closer roots the
+    /// character for the length of its dash, so a spot that is about to become dangerous is a spot it must
+    /// not be spent on. Plugin wires this to the engine router alongside <see cref="ExternalSteering"/>.
+    /// </summary>
+    public System.Func<float>? SecondsSafeHere { get; set; }
+
+    /// <summary>
+    /// What a gap closer costs in stillness: the dash plus its animation lock, measured on Onslaught.
+    /// Accept No Imitators, 2026-09-06: Onslaught fired 0.1s into a cast, the dodge wanted five yalms and
+    /// could not move until it ended, and the hit landed with a vulnerability stack. Steering had not begun
+    /// yet, so the "is the engine steering" gate could not see it coming -- the ground could.
+    /// </summary>
+    public const float GapCloserRootSeconds = 0.7f;
+
     public GapCloserSafetyService(Configuration configuration, ITargetManager targetManager)
     {
         _configuration = configuration;
@@ -81,6 +96,14 @@ public sealed class GapCloserSafetyService : IGapCloserSafetyService
         if (ExternalSteering?.Invoke() == true)
         {
             LastBlockReason = "boss engine is steering a dodge";
+            return true;
+        }
+
+        // Not steering yet is not the same as safe. A dash roots the character for its duration, so if the
+        // ground stops being safe inside that window the dodge will want to move and will not be able to.
+        if (SecondsSafeHere?.Invoke() is { } safeFor && safeFor < GapCloserRootSeconds + 0.3f)
+        {
+            LastBlockReason = $"ground is only safe for {safeFor:0.0}s and the dash roots for {GapCloserRootSeconds:0.0}s";
             return true;
         }
 

@@ -35,11 +35,38 @@ public sealed class DodgeSteeringGuardTests
         return new GapCloserSafetyService(config, targets.Object) { ExternalSteering = steering };
     }
 
+    private static GapCloserSafetyService ServiceOnGround(float secondsSafe, out Mock<IBattleNpc> target)
+    {
+        var service = Service(() => false, out target);
+        service.SecondsSafeHere = () => secondsSafe;
+        return service;
+    }
+
     [Fact]
     public void SteeringADodge_HoldsTheGapCloser()
     {
         var service = Service(() => true, out var target);
         Assert.True(service.ShouldBlockGapCloser(target.Object, new Mock<IPlayerCharacter>().Object));
+    }
+
+    /// <summary>
+    /// Not steering yet is not the same as safe. Accept No Imitators, 2026-09-06: Onslaught fired a tenth
+    /// of a second into a cast, rooted the character for its dash, and the dodge could not move the five
+    /// yalms it wanted. The engine was not steering when the button went out -- but the ground already knew.
+    /// </summary>
+    [Fact]
+    public void GroundThatExpiresBeforeTheDashEnds_HoldsTheGapCloser()
+    {
+        var service = ServiceOnGround(0.4f, out var target);
+        Assert.True(service.ShouldBlockGapCloser(target.Object, new Mock<IPlayerCharacter>().Object));
+        Assert.Contains("roots", service.LastBlockReason);
+    }
+
+    [Fact]
+    public void GroundThatOutlastsTheDash_LetsItThrough()
+    {
+        var service = ServiceOnGround(6f, out var target);
+        Assert.False(service.ShouldBlockGapCloser(target.Object, new Mock<IPlayerCharacter>().Object));
     }
 
     /// <summary>A hold nobody can explain reads as a broken button.</summary>
