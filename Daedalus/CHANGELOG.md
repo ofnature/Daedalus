@@ -5,6 +5,15 @@ All notable changes to Daedalus will be documented in this file.
 <!-- LATEST-START -->
 ## v0.1.77 — unreleased
 
+### Fix — Variant Raise now actually gets used
+- Variant Raise was set to leave a dead DPS to a living healer — but nothing ever gave up waiting,
+  so in any party with a healer still standing (which is almost always) it never fired at all.
+- It now steps in after 10 seconds if the healer hasn't raised them, matching what the Occult
+  phantom layer already did. A dead healer is still picked up immediately, as before.
+- When it does hold off, Debug ▸ Occult now says why — waiting on the healer, not selected for this
+  run, on cooldown, needs a hard cast while you're moving, out of range — instead of just showing
+  "nothing eligible" with a body on the floor.
+
 ### New — dodge first, then the rotation takes over
 - **Being raised inside an AoE used to kill you twice.** After a raise you're immune to damage for
   10 seconds — but only *until you act*. Daedalus attacked on the very first frame, which spent that

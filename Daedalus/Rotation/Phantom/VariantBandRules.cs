@@ -37,6 +37,17 @@ public static class VariantBandRules
         => cfg.UseRampart && inCombat && (cfg.RampartSpamOnCooldown || !buffActive);
 
     /// <summary>
+    /// <summary>
+    /// How long a dead non-healer is left to a living healer before the variant raise steps in.
+    /// <para>
+    /// "Leave it to the living healer" assumes the healer acts, and field evidence from the phantom
+    /// layer says it often does not — out of range, out of MP, or busy with a mechanic — at which point
+    /// the deferral means nobody raises at all. Long enough for a Swiftcast raise or an 8s hardcast to
+    /// land first when things do work; short enough that the corpse has not already released.
+    /// </para>
+    /// </summary>
+    public const float LivingHealerGraceSeconds = 10f;
+
     /// The raise policy (user comp 2026-07-25: WAR/SAM/PCT + SGE): a dead healer is
     /// always raised (healers cannot slot Variant Raise — a DPS/tank is their lifeline);
     /// dead non-healers are LEFT to a living healer's own raise (don't burn 8s of DPS);

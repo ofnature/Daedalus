@@ -43,6 +43,7 @@ public sealed class VariantActionLayer
     private readonly IPluginLog _log;
 
     private readonly Dictionary<uint, AbilityBehavior> _behaviorCache = [];
+    private readonly Dictionary<ulong, DateTime> _deadSince = [];
     private readonly List<string> _pushRejects = [];
     private bool _dispatchedThisFrame;
     private bool _framePrepared;
@@ -148,10 +149,40 @@ public sealed class VariantActionLayer
 
     private void PushRaise(IRotationContext ctx, Config.VariantConfig cfg)
     {
+        PruneDeadSince(ctx);
         var (deadHealer, deadOther, livingHealer) = ScanParty(ctx);
+
+        // Step in once the healer has had its chance. Without this the deferral is permanent in any
+        // comp with a surviving healer -- which is every normal run -- so the variant raise simply
+        // never fired. The phantom layer already does this; this layer was never given it.
+        if (livingHealer && deadOther is not null
+            && SecondsDown(deadOther.GameObjectId) > VariantBandRules.LivingHealerGraceSeconds)
+        {
+            livingHealer = false;
+            _pushRejects.Add("healer has not raised in time — stepping in");
+        }
+
         var decision = VariantBandRules.DecideRaise(cfg, deadHealer != null, deadOther != null, livingHealer);
         if (decision == VariantRaiseDecision.None)
+        {
+            // Say why. Deferring used to return silently, so the status line read "idle — nothing
+            // eligible" and there was no way to tell a deliberate wait from a broken gate.
+            if (deadOther is not null && livingHealer)
+                _pushRejects.Add($"waiting on the healer ({SecondsDown(deadOther.GameObjectId):F0}s)");
+
             return;
+        }
+
+        // Somebody needs raising and we are going to try, so a refusal from here has to be audible.
+        // The Set-status gate inside TryPush is deliberately silent (it fires for the four actions you
+        // did not pick, every frame), but silence with a body on the floor reads as "Daedalus ignored
+        // it" -- which is what sent us looking on 2026-09-20.
+        var raiseDef = VariantActionData.Get(VariantAction.Raise);
+        if (!_actionService.PlayerHasStatus(raiseDef.SetStatusId))
+        {
+            _pushRejects.Add("Variant Raise was not selected for this run on this character");
+            return;
+        }
 
         var target = decision == VariantRaiseDecision.RaiseHealer ? deadHealer! : deadOther!;
         var targetId = (uint)target.GameObjectId;
@@ -255,6 +286,42 @@ public sealed class VariantActionLayer
         }
 
         return (deadHealer, deadOther, livingHealer);
+    }
+
+    /// <summary>How long this corpse has been down, or 0 when it has only just been seen.</summary>
+    private double SecondsDown(ulong gameObjectId)
+        => _deadSince.TryGetValue(gameObjectId, out var since)
+            ? (DateTime.UtcNow - since).TotalSeconds
+            : 0d;
+
+    /// <summary>
+    /// Start a clock for anyone newly down and forget anyone who got up, so a later death starts fresh
+    /// rather than inheriting a grace that has already expired.
+    /// </summary>
+    private void PruneDeadSince(IRotationContext ctx)
+    {
+        var stillDown = new HashSet<ulong>();
+        foreach (var member in ctx.PartyList)
+        {
+            if (member?.GameObject is IBattleChara chara && chara.IsDead)
+            {
+                stillDown.Add(chara.GameObjectId);
+                _deadSince.TryAdd(chara.GameObjectId, DateTime.UtcNow);
+            }
+        }
+
+        if (_deadSince.Count == stillDown.Count)
+            return;
+
+        var gone = new List<ulong>();
+        foreach (var id in _deadSince.Keys)
+        {
+            if (!stillDown.Contains(id))
+                gone.Add(id);
+        }
+
+        foreach (var id in gone)
+            _deadSince.Remove(id);
     }
 
     private static bool HasStatus(IBattleChara chara, uint statusId)
