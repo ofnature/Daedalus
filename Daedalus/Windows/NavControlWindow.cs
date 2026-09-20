@@ -121,45 +121,14 @@ public sealed class NavControlWindow : Window
 
         DrawArbiterStatus();
 
-        ImGui.Spacing();
-        Common.DaedalusTheme.GoldHeader("Auto-Manage BossMod AI (groups — experimental)");
-
-        var autoBmr = nav.AutoManageBmrAi;
-        if (ConfigUIHelpers.ToggleCheckbox(
-                "Auto-Manage BMR AI by role",
-                ref autoBmr,
-                "Creates and activates a BMR autorotation preset named \"Daedalus\" (movement modules only — "
-                + "Daedalus keeps the rotation): melee/tanks hug the target with the live next-GCD positional, "
-                + "backline holds at range. Unticking releases the preset and touches NOTHING else. You still "
-                + "enable BMR AI yourself (/bmrai). Does nothing if BossMod Reborn isn't loaded. Off by default.",
-                saveConfiguration))
-        {
-            nav.AutoManageBmrAi = autoBmr;
-        }
-
+        // Auto-Manage BMR AI and its two distances moved to Settings > General > Boss handling, where they are
+        // shown only while BossMod Reborn is the selected engine -- under Minerva the service is inert. Its live
+        // status stays here, with the rest of the nav readouts.
         if (nav.AutoManageBmrAi)
         {
-            nav.BmrRangedStandDistance = ConfigUIHelpers.FloatSlider(
-                "Ranged Stand Distance (yalms)",
-                nav.BmrRangedStandDistance,
-                8f,
-                24f,
-                "%.0f",
-                "How far healers/ranged/casters stand from the target. 15y is inside cast range but out of "
-                + "most melee/AoE. Melee always hug (2.6y).",
-                saveConfiguration);
-
-            nav.BmrRangedMinDistance = ConfigUIHelpers.FloatSlider(
-                "Ranged Min Distance (yalms)",
-                nav.BmrRangedMinDistance,
-                0f,
-                BmrAiConfigPolicy.MaxRangedMinDistance,
-                "%.0f",
-                "How far healers/ranged/casters keep OFF the target's hitbox. Without a floor BMR's band starts at "
-                + "the hitbox, so a caster pushed under the boss stays there and micro-adjusts instead of casting. "
-                + "Melee always keep none. Default 1y.",
-                saveConfiguration);
-
+            ImGui.Spacing();
+            Common.DaedalusTheme.GoldHeader("Auto-Manage BossMod AI");
+            ImGui.TextColored(Dim, "Settings live in Settings ▸ General ▸ Boss handling.");
             DrawBmrStatus();
         }
 

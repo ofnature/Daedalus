@@ -38,6 +38,9 @@ All notable changes to Daedalus will be documented in this file.
   unchanged; only the labels were wrong.
 - **Both now sit in Settings ▸ General ▸ Boss handling**, beside the engine they follow, instead of
   in the Nav panel. The Nav panel keeps their live readouts and points at the new home.
+- **Auto-Manage BMR AI moved there too, and is hidden unless BossMod Reborn is the engine.** It only
+  ever managed BossMod's preset, and under Minerva it already did nothing — so the switch is no
+  longer offered there. Its stand-distance sliders travelled with it.
 - **New: "Ranged Min Distance" (default 1y).** BMR's band used to start at the hitbox, so a caster
   pushed under the boss had no reason to leave and micro-adjusted there instead of casting. Melee
   and tanks keep no floor — their range is the hitbox.

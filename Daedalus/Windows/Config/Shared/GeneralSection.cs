@@ -120,6 +120,38 @@ public sealed class GeneralSection
                 break;
         }
 
+        // BossMod Reborn's AI preset is managed only while it is the engine: under Minerva the service is handed
+        // an inactive engine and does nothing, so showing the toggle there would offer a switch wired to nothing.
+        if (config.BossHandling == Daedalus.Config.BossHandling.BossMod)
+        {
+            ConfigUIHelpers.Spacing();
+
+            var autoBmr = config.Nav.AutoManageBmrAi;
+            if (ConfigUIHelpers.ToggleCheckbox("Auto-Manage BMR AI by role (groups — experimental)", ref autoBmr,
+                    "Creates and activates a BossMod Reborn autorotation preset named \"Daedalus\" (movement modules "
+                    + "only — Daedalus keeps the rotation): melee and tanks hug the target with the live next-GCD "
+                    + "positional, backline holds its range off the tank. Unticking releases the preset and touches "
+                    + "NOTHING else. You still enable BMR AI yourself (/bmrai). Off by default.", save))
+            {
+                config.Nav.AutoManageBmrAi = autoBmr;
+            }
+
+            if (config.Nav.AutoManageBmrAi)
+            {
+                config.Nav.BmrRangedStandDistance = ConfigUIHelpers.FloatSlider(
+                    "Ranged Stand Distance (yalms)", config.Nav.BmrRangedStandDistance, 8f, 24f, "%.0f",
+                    "How far healers, ranged and casters stand from the target. 15y is inside cast range but out "
+                    + "of most melee and AoE. Melee always hug (2.6y).", save);
+
+                config.Nav.BmrRangedMinDistance = ConfigUIHelpers.FloatSlider(
+                    "Ranged Min Distance (yalms)", config.Nav.BmrRangedMinDistance, 0f,
+                    Daedalus.Services.Positional.Navigation.BmrAiConfigPolicy.MaxRangedMinDistance, "%.0f",
+                    "How far healers, ranged and casters keep OFF the target's hitbox. Without a floor BMR's band "
+                    + "starts at the hitbox, so a caster pushed under the boss stays there and micro-adjusts "
+                    + "instead of casting. Melee always keep none. Default 1y.", save);
+            }
+        }
+
         // How Daedalus's own movement gets out of the way of whichever engine drives. Both follow the choice
         // above rather than naming an engine, which is why they live here and not in the nav panel.
         ConfigUIHelpers.Spacing();
