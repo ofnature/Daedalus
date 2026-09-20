@@ -3,7 +3,7 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
-## v0.1.78 — unreleased
+## v0.1.78 — 2026-09-20
 
 ### Fix — Variant Cure heals the party, and Spirit Dart stops re-applying itself
 - **Variant Cure was a self-heal.** It read your own HP and cast on you, so a Cure slotted on a DPS
