@@ -3,7 +3,7 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
-## v0.1.77 — unreleased
+## v0.1.77 — 2026-09-20
 
 ### Fix — Variant Raise now actually gets used
 - Variant Raise was set to leave a dead DPS to a living healer — but nothing ever gave up waiting,
