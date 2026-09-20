@@ -183,12 +183,14 @@ public sealed class MinervaSafetyService : IBossModSafetyService
     /// "Can I stand here for <paramref name="imminentWindowSeconds"/>?" — which is exactly what
     /// <c>Minerva.MaxCastTime</c> answers, in the same units, for the spot the player occupies.
     /// <para>
-    /// IMPORTANT and deliberate: Minerva measures the CURRENT position, not an arbitrary one, so
-    /// this can only be exact when the destination is where the player already stands — which is
-    /// the case that matters, since every caller that gates a hard cast asks about standing
-    /// still. For a genuine travel destination it reports Safe rather than guessing, because
-    /// Minerva is the one doing the dodging: second-guessing its pathing from here would produce
-    /// exactly the two-engines-fighting behaviour the setting exists to prevent.
+    /// Two questions, two answers. First, is the destination inside anything Minerva forbids right
+    /// now (<c>Minerva.Hints.IsPositionSafe</c>)? A forbidden destination is Unsafe whatever the
+    /// time budget says: Minerva's own walk-back refuses such cells, and without this check the
+    /// max-melee approach walked straight back into a Body Slam the dodge had just stepped out of
+    /// (Eureka Orthos, 2026-09-06). Second, how long can the CURRENT spot be stood on
+    /// (<c>Minerva.MaxCastTime</c>) — exact only where the player already stands, which is the
+    /// hard-cast case every other caller asks about. Minerva still does the dodging; this only
+    /// keeps Daedalus from undoing one.
     /// </para>
     /// </summary>
     public PositionSafety QueryPositionSafety(
@@ -198,6 +200,9 @@ public sealed class MinervaSafetyService : IBossModSafetyService
         if (!IsAvailable)
             return PositionSafety.Safe;
 
+        if (!ReadPositionSafe(destination))
+            return PositionSafety.Unsafe;
+
         var castable = ReadSeconds(EnsureMaxCastTime());
         if (castable >= imminentWindowSeconds)
             return PositionSafety.Safe;
@@ -206,11 +211,36 @@ public sealed class MinervaSafetyService : IBossModSafetyService
         return ReadMustNotMove() ? PositionSafety.Unsafe : PositionSafety.Imminent;
     }
 
-    /// <summary>
-    /// Minerva publishes no segment test. Reported safe rather than refused: Minerva owns
-    /// movement when it is selected, so a dash it did not veto is not Daedalus's to veto either.
-    /// </summary>
-    public bool IsSegmentSafe(Vector3 from, Vector3 to) => true;
+    /// <summary>Minerva's dash test: the destination is clear and the straight line there stays on the arena.</summary>
+    public bool IsSegmentSafe(Vector3 from, Vector3 to)
+    {
+        if (!IsAvailable)
+            return true;
+
+        try
+        {
+            return (_isDashSafe ??= _pluginInterface.GetIpcSubscriber<Vector3, Vector3, bool>("Minerva.Hints.IsDashSafe")).InvokeFunc(from, to);
+        }
+        catch
+        {
+            return true;
+        }
+    }
+
+    private ICallGateSubscriber<Vector3, bool>? _isPositionSafe;
+    private ICallGateSubscriber<Vector3, Vector3, bool>? _isDashSafe;
+
+    private bool ReadPositionSafe(Vector3 destination)
+    {
+        try
+        {
+            return (_isPositionSafe ??= _pluginInterface.GetIpcSubscriber<Vector3, bool>("Minerva.Hints.IsPositionSafe")).InvokeFunc(destination);
+        }
+        catch
+        {
+            return true;
+        }
+    }
 
     private bool ReadMustNotMove()
     {

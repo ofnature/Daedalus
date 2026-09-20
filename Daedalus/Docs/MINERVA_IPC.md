@@ -380,3 +380,12 @@ phase-invulnerable boss (Alexander's Perfect Defense) or the other floor's half 
 never held as current, focus, sticky or cached target. The priority list is tried first, in Minerva's
 order, ahead of every automatic strategy; explicit CurrentTarget / FocusTarget strategies keep the
 user's pick. Both lists are re-read at most ten times a second.
+
+## 2026-09-06, later: destinations are checked
+
+`MinervaSafetyService.QueryPositionSafety` now asks `Minerva.Hints.IsPositionSafe(destination)` first and
+answers Unsafe for anything Minerva forbids, then falls through to the `MaxCastTime` budget as before;
+`IsSegmentSafe` asks `Minerva.Hints.IsDashSafe`. Before this every travel destination read Safe under
+Minerva, so the max-melee approach walked back into a guessed Body Slam the dodge had just left (Eureka
+Orthos, 2026-09-06). Minerva's answer ignores activation time (a telegraph ten seconds out still counts),
+which is the conservative side for an approach.

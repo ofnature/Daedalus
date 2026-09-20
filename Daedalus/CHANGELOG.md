@@ -12,6 +12,12 @@ All notable changes to Daedalus will be documented in this file.
 - Daedalus only checked whether the dodge was *already* steering, which it wasn't yet — but the
   ground already knew. It now also checks the spot stays safe for as long as the dash roots you.
 
+### Fix — under Minerva, where you're walking to is checked before you go
+- Every travel destination read as safe under Minerva, so the max-melee approach walked straight
+  back into an AoE the dodge had just stepped out of.
+- Daedalus now asks Minerva whether the destination is somewhere it forbids, and whether the line
+  to it is clear, instead of assuming a spot it can't measure must be fine.
+
 <!-- LATEST-END -->
 ## v0.1.76 — 2026-09-19
 
