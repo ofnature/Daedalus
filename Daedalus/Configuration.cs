@@ -181,8 +181,9 @@ public sealed class Configuration : IPluginConfiguration
     /// character clear — movement does not break it, and only Daedalus waits.
     /// </para>
     /// <para>
-    /// The buff ending always releases the hold, so this is only an upper bound: lower it to get back
-    /// to damage sooner at the cost of less time to be walked clear. 0 disables the hold entirely.
+    /// Only an upper bound. The hold ends as soon as the character reads clear — still, unsteered, on
+    /// safe ground — and the buff ending releases it too, so this caps the case where neither happens.
+    /// 0 disables the hold entirely.
     /// </para>
     /// </summary>
     public float ReviveHoldSeconds { get; set; } = 10f;

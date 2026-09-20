@@ -5,6 +5,20 @@ All notable changes to Daedalus will be documented in this file.
 <!-- LATEST-START -->
 ## v0.1.77 — unreleased
 
+### New — dodge first, then the rotation takes over
+- **Being raised inside an AoE used to kill you twice.** After a raise you're immune to damage for
+  10 seconds — but only *until you act*. Daedalus attacked on the very first frame, which spent that
+  immunity instantly and let the same AoE finish you where you stood, with no dodge awareness at all.
+- Now it holds off attacking, and stops walking you back to the boss on melee and tanks, so your
+  dodge plugin moves you out first. Movement doesn't break the immunity, so you stay untouchable
+  while it happens.
+- **The rotation takes back over the moment you're clear** — standing still, nothing steering you,
+  and on ground that reads safe. It doesn't sit out the rest of the invulnerability once the dodge
+  has done its job, so a raise costs a moment rather than ten seconds.
+- Pressing something yourself also hands control straight back, since that consumes the buff.
+- Settings ▸ General caps the wait for the case where you never read clear (default 10s, the length
+  of the buff). 0 disables it.
+
 ### Fix — gap closers no longer dash you into ground that's about to go off
 - A gap closer roots you for the length of its dash. Onslaught fired a tenth of a second into a
   cast, the dodge wanted five yalms and couldn't move until the dash ended, and the hit landed with

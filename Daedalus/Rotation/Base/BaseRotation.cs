@@ -235,7 +235,10 @@ public abstract class BaseRotation<TContext, TModule> : IRotation, IDisposable
         // Minerva/BossMod steer from their own plugin and keep working, so the character is walked
         // clear while immune. RSR does the same thing (RSCommands_Actions, a flat refusal while the
         // buff is up). Placed after the bookkeeping above so GCD and movement state stay fresh.
-        ReviveGrace.NoteFrame(HasPostReviveInvulnerability(player), Configuration.ReviveHoldSeconds);
+        ReviveGrace.NoteFrame(
+            HasPostReviveInvulnerability(player),
+            IsClearOfDangerAfterRaise(player, isMoving),
+            Configuration.ReviveHoldSeconds);
         if (ReviveGrace.IsActive)
             return;
 
@@ -352,6 +355,23 @@ public abstract class BaseRotation<TContext, TModule> : IRotation, IDisposable
         else
             ActionTracker.EndCombat();
     }
+
+    /// <summary>
+    /// Gathers the three readings behind <see cref="ReviveGraceTracker.IsClearOfDanger"/>, which owns the
+    /// decision. Nothing but reads here, so the judgement stays where it can be tested.
+    /// </summary>
+    private static bool IsClearOfDangerAfterRaise(IPlayerCharacter player, bool isMoving)
+        => ReviveGraceTracker.IsClearOfDanger(
+            isMoving,
+            RotationServices.MovementArbiter?.IsExternalMovementActive == true,
+            MechanicCastGate.IsSpotSafeFor(player.Position, ClearOfDangerLookaheadSeconds));
+
+    /// <summary>
+    /// How far ahead the spot has to stay safe before the rotation takes over again. Long enough that a
+    /// telegraph already on the ground still counts, short enough that an ordinary fight does not read
+    /// as permanently unsafe and hold the character for the whole window.
+    /// </summary>
+    private const float ClearOfDangerLookaheadSeconds = 1.5f;
 
     /// <summary>
     /// Has the character just been raised and not yet spent its damage immunity? Transcendent on a

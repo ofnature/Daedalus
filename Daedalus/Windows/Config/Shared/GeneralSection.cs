@@ -546,9 +546,10 @@ public sealed class GeneralSection
             ImGui.TextDisabled(
                 "After a raise you are immune to damage for 10s — until you act. Daedalus used to attack "
                 + "on the first frame, spending that immunity instantly and dying to the same AoE. It now "
-                + "holds off (and stops walking back to the boss) so your dodge plugin can move you clear "
-                + "while you are still immune; movement does not break it. The hold ends as soon as the "
-                + "buff does, so this is only a maximum — lower it for damage sooner, 0 to disable.");
+                + "holds off (and stops walking back to the boss) so your dodge plugin moves you clear "
+                + "first; movement does not break the immunity. The rotation takes over again as soon as "
+                + "you are clear — standing still, nothing steering you, safe ground — so this is only the "
+                + "cap for when that never happens. 0 disables the hold.");
 
             ConfigUIHelpers.EndIndent();
         }

@@ -40,6 +40,32 @@ public static class MechanicCastGate
     public static Func<Vector3, float, bool>? CastSpotSafety { get; set; }
 
     /// <summary>
+    /// Does the ground at this position read safe for the next <paramref name="seconds"/>? Just the
+    /// engine's opinion about the spot, without the movement gate or the timeline that
+    /// <see cref="ShouldBlock"/> layers on top — for callers that need to know "am I clear?" rather than
+    /// "may I cast?", and that run before a rotation context exists. Fails open in every direction, as
+    /// the gate does: no engine wired, or an engine that throws, reads as safe.
+    /// </summary>
+    public static bool IsSpotSafeFor(Vector3 position, float seconds)
+        => IsSpotSafeForWith(position, seconds, CastSpotSafety);
+
+    /// <inheritdoc cref="IsSpotSafeFor"/>
+    internal static bool IsSpotSafeForWith(Vector3 position, float seconds, Func<Vector3, float, bool>? safety)
+    {
+        if (safety is not { } safe)
+            return true;
+
+        try
+        {
+            return safe(position, seconds);
+        }
+        catch
+        {
+            return true;
+        }
+    }
+
+    /// <summary>
     /// Slack on top of the cast, matching the timeline half below: finishing a cast exactly as
     /// something lands is not "safe", and the animation lock outlasts the cast bar.
     /// </summary>

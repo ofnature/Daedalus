@@ -35,21 +35,21 @@ public sealed class ReviveGraceTests
     [Fact]
     public void HoldsOnTheVeryFirstFrameBack()
     {
-        _grace.NoteFrame(postReviveInvulnerable: true, Cap);
+        _grace.NoteFrame(postReviveInvulnerable: true, clearOfDanger: false, Cap);
         Assert.True(_grace.IsActive);
     }
 
-    /// <summary>Held right across the immunity, so the whole window is available to be walked clear in.</summary>
+    /// <summary>While still in danger, held right across the immunity — the whole window is available.</summary>
     [Theory]
     [InlineData(0.1)]
     [InlineData(2)]
     [InlineData(5)]
     [InlineData(9.5)]
-    public void HeldForAsLongAsTheImmunityLasts(double elapsed)
+    public void HeldForAsLongAsTheDangerLasts(double elapsed)
     {
-        _grace.NoteFrame(postReviveInvulnerable: true, Cap);
+        _grace.NoteFrame(postReviveInvulnerable: true, clearOfDanger: false, Cap);
         Advance(elapsed);
-        _grace.NoteFrame(postReviveInvulnerable: true, Cap);
+        _grace.NoteFrame(postReviveInvulnerable: true, clearOfDanger: false, Cap);
 
         Assert.True(_grace.IsActive);
     }
@@ -63,9 +63,9 @@ public sealed class ReviveGraceTests
     [Fact]
     public void TheBuffEndingReleasesTheHoldWithNoTrailingDelay()
     {
-        _grace.NoteFrame(postReviveInvulnerable: true, Cap);
+        _grace.NoteFrame(postReviveInvulnerable: true, clearOfDanger: false, Cap);
         Advance(3);
-        _grace.NoteFrame(postReviveInvulnerable: false, Cap);
+        _grace.NoteFrame(postReviveInvulnerable: false, clearOfDanger: true, Cap);
 
         Assert.False(_grace.IsActive);
         Assert.Equal(0d, _grace.RemainingSeconds);
@@ -78,12 +78,104 @@ public sealed class ReviveGraceTests
     [Fact]
     public void AManualActionHandsControlStraightBack()
     {
-        _grace.NoteFrame(postReviveInvulnerable: true, Cap);
+        _grace.NoteFrame(postReviveInvulnerable: true, clearOfDanger: false, Cap);
         Advance(0.5);
-        _grace.NoteFrame(postReviveInvulnerable: false, Cap);   // buff consumed by the player's action
+        _grace.NoteFrame(postReviveInvulnerable: false, clearOfDanger: true, Cap);   // buff consumed by the player's action
 
         Assert.False(_grace.IsActive);
     }
+
+
+    // ── handing the fight back ─────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// The point of the whole thing: the dodge goes first, then the rotation takes over. Holding for
+    /// the full immunity was safe and cost up to ten seconds of uptime per death for nothing once the
+    /// character was already clear.
+    /// </summary>
+    [Fact]
+    public void ReleasesAsSoonAsTheCharacterIsClear()
+    {
+        _grace.NoteFrame(postReviveInvulnerable: true, clearOfDanger: false, Cap);
+        Advance(ReviveGraceTracker.MinHoldSeconds);
+        _grace.NoteFrame(postReviveInvulnerable: true, clearOfDanger: true, Cap);
+
+        Assert.False(_grace.IsActive);
+        Assert.Equal(0d, _grace.RemainingSeconds);
+    }
+
+    /// <summary>
+    /// Not on the FIRST frame though. The engine has not seen the mechanic yet, so "nothing is steering
+    /// and the ground looks fine" is indistinguishable from being clear — acting on it is precisely the
+    /// bug this exists to stop.
+    /// </summary>
+    [Fact]
+    public void DoesNotReleaseOnTheFirstFrameEvenIfNothingLooksWrong()
+    {
+        _grace.NoteFrame(postReviveInvulnerable: true, clearOfDanger: true, Cap);
+        Assert.True(_grace.IsActive);
+    }
+
+    [Theory]
+    [InlineData(0d, true)]
+    [InlineData(ReviveGraceTracker.MinHoldSeconds - 0.05, true)]
+    [InlineData(ReviveGraceTracker.MinHoldSeconds, false)]
+    [InlineData(2d, false)]
+    public void TheFloorHasToPassBeforeClearCounts(double elapsed, bool stillHeld)
+    {
+        _grace.NoteFrame(postReviveInvulnerable: true, clearOfDanger: true, Cap);
+        Advance(elapsed);
+        _grace.NoteFrame(postReviveInvulnerable: true, clearOfDanger: true, Cap);
+
+        Assert.Equal(stillHeld, _grace.IsActive);
+    }
+
+    /// <summary>
+    /// Clear then not clear again — a second telegraph lands on the spot — must hold again rather than
+    /// stay released, for as long as the immunity is there to protect it.
+    /// </summary>
+    [Fact]
+    public void HoldsAgainIfDangerReturnsWhileStillImmune()
+    {
+        _grace.NoteFrame(postReviveInvulnerable: true, clearOfDanger: false, Cap);
+        Advance(1);
+        _grace.NoteFrame(postReviveInvulnerable: true, clearOfDanger: true, Cap);
+        Assert.False(_grace.IsActive);
+
+        _grace.NoteFrame(postReviveInvulnerable: true, clearOfDanger: false, Cap);
+        Assert.True(_grace.IsActive);
+    }
+
+    /// <summary>
+    /// A missing movement plugin costs a moment, not the whole window: with nothing to ask, the caller
+    /// reports clear and the hold falls back to its floor.
+    /// </summary>
+    [Fact]
+    public void WithNoEngineToAskTheHoldIsJustTheFloor()
+    {
+        _grace.NoteFrame(postReviveInvulnerable: true, clearOfDanger: true, Cap);
+        Advance(ReviveGraceTracker.MinHoldSeconds + 0.01);
+        _grace.NoteFrame(postReviveInvulnerable: true, clearOfDanger: true, Cap);
+
+        Assert.False(_grace.IsActive);
+    }
+
+
+    // ── what counts as clear ───────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Mid-dodge is never clear, whatever the ground says — the character is still being moved, and the
+    /// immunity is what is carrying it through. Standing still inside a telegraph is not clear either.
+    /// </summary>
+    [Theory]
+    [InlineData(false, false, true, true)]    // still, nothing steering, ground safe -> clear
+    [InlineData(true, false, true, false)]    // moving
+    [InlineData(false, true, true, false)]    // engine steering
+    [InlineData(false, false, false, false)]  // standing in a telegraph
+    [InlineData(true, true, false, false)]
+    public void ClearMeansStillAndUnsteeredAndOnSafeGround(
+        bool isMoving, bool externalSteering, bool spotSafe, bool expected)
+        => Assert.Equal(expected, ReviveGraceTracker.IsClearOfDanger(isMoving, externalSteering, spotSafe));
 
     // ── the cap ────────────────────────────────────────────────────────────────────────
 
@@ -94,13 +186,13 @@ public sealed class ReviveGraceTests
     [Fact]
     public void TheCapBoundsTheHoldEvenIfTheBuffPersists()
     {
-        _grace.NoteFrame(postReviveInvulnerable: true, maxHoldSeconds: 3);
+        _grace.NoteFrame(postReviveInvulnerable: true, clearOfDanger: false, maxHoldSeconds: 3);
         Advance(2.9);
-        _grace.NoteFrame(postReviveInvulnerable: true, maxHoldSeconds: 3);
+        _grace.NoteFrame(postReviveInvulnerable: true, clearOfDanger: false, maxHoldSeconds: 3);
         Assert.True(_grace.IsActive);
 
         Advance(0.2);
-        _grace.NoteFrame(postReviveInvulnerable: true, maxHoldSeconds: 3);
+        _grace.NoteFrame(postReviveInvulnerable: true, clearOfDanger: false, maxHoldSeconds: 3);
         Assert.False(_grace.IsActive);
     }
 
@@ -113,7 +205,7 @@ public sealed class ReviveGraceTests
     {
         for (var i = 0; i < 40; i++)
         {
-            _grace.NoteFrame(postReviveInvulnerable: true, maxHoldSeconds: 2);
+            _grace.NoteFrame(postReviveInvulnerable: true, clearOfDanger: false, maxHoldSeconds: 2);
             Advance(0.1);
         }
 
@@ -123,11 +215,11 @@ public sealed class ReviveGraceTests
     [Fact]
     public void RemainingSecondsCountsTheHoldDown()
     {
-        _grace.NoteFrame(postReviveInvulnerable: true, Cap);
+        _grace.NoteFrame(postReviveInvulnerable: true, clearOfDanger: false, Cap);
         Assert.Equal(Cap, _grace.RemainingSeconds, precision: 3);
 
         Advance(4);
-        _grace.NoteFrame(postReviveInvulnerable: true, Cap);
+        _grace.NoteFrame(postReviveInvulnerable: true, clearOfDanger: false, Cap);
         Assert.Equal(Cap - 4, _grace.RemainingSeconds, precision: 3);
     }
 
@@ -139,7 +231,7 @@ public sealed class ReviveGraceTests
     {
         for (var i = 0; i < 100; i++)
         {
-            _grace.NoteFrame(postReviveInvulnerable: false, Cap);
+            _grace.NoteFrame(postReviveInvulnerable: false, clearOfDanger: true, Cap);
             Advance(0.1);
             Assert.False(_grace.IsActive);
         }
@@ -149,12 +241,12 @@ public sealed class ReviveGraceTests
     [Fact]
     public void ASecondRaiseGetsItsOwnWindow()
     {
-        _grace.NoteFrame(postReviveInvulnerable: true, maxHoldSeconds: 2);
+        _grace.NoteFrame(postReviveInvulnerable: true, clearOfDanger: false, maxHoldSeconds: 2);
         Advance(5);
-        _grace.NoteFrame(postReviveInvulnerable: false, maxHoldSeconds: 2);
+        _grace.NoteFrame(postReviveInvulnerable: false, clearOfDanger: false, maxHoldSeconds: 2);
         Assert.False(_grace.IsActive);
 
-        _grace.NoteFrame(postReviveInvulnerable: true, maxHoldSeconds: 2);
+        _grace.NoteFrame(postReviveInvulnerable: true, clearOfDanger: false, maxHoldSeconds: 2);
         Assert.True(_grace.IsActive);
     }
 
@@ -165,7 +257,7 @@ public sealed class ReviveGraceTests
     [InlineData(-1d)]
     public void ZeroOrLessDisablesTheHold(double maxHoldSeconds)
     {
-        _grace.NoteFrame(postReviveInvulnerable: true, maxHoldSeconds);
+        _grace.NoteFrame(postReviveInvulnerable: true, clearOfDanger: false, maxHoldSeconds);
         Assert.False(_grace.IsActive);
     }
 
@@ -173,10 +265,10 @@ public sealed class ReviveGraceTests
     [Fact]
     public void TurningItOffReleasesAHoldInProgress()
     {
-        _grace.NoteFrame(postReviveInvulnerable: true, Cap);
+        _grace.NoteFrame(postReviveInvulnerable: true, clearOfDanger: false, Cap);
         Assert.True(_grace.IsActive);
 
-        _grace.NoteFrame(postReviveInvulnerable: true, maxHoldSeconds: 0d);
+        _grace.NoteFrame(postReviveInvulnerable: true, clearOfDanger: false, maxHoldSeconds: 0d);
         Assert.False(_grace.IsActive);
     }
 
@@ -192,7 +284,7 @@ public sealed class ReviveGraceTests
         var source = File.ReadAllText(BaseRotationSourcePath());
 
         Assert.Matches(
-            @"ReviveGrace\.NoteFrame\(\s*HasPostReviveInvulnerability\(player\),\s*Configuration\.ReviveHoldSeconds\s*\)",
+            @"ReviveGrace\.NoteFrame\(\s*HasPostReviveInvulnerability\(player\),\s*IsClearOfDangerAfterRaise\(player, isMoving\),\s*Configuration\.ReviveHoldSeconds\s*\)",
             source);
         Assert.Matches(@"if \(ReviveGrace\.IsActive\)\s*\r?\n\s*return;", source);
     }
@@ -238,7 +330,7 @@ public sealed class ReviveGraceStaticTests
     [Fact]
     public void TheStaticEntryPointDelegatesAndHoldsNothingWhenDisabled()
     {
-        ReviveGrace.NoteFrame(postReviveInvulnerable: true, maxHoldSeconds: 0d);
+        ReviveGrace.NoteFrame(postReviveInvulnerable: true, clearOfDanger: false, maxHoldSeconds: 0d);
 
         Assert.False(ReviveGrace.IsActive);
         Assert.Equal(0d, ReviveGrace.RemainingSeconds);
