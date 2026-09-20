@@ -3,7 +3,7 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
-## v0.1.76 — unreleased
+## v0.1.76 — 2026-09-19
 
 ### New — stop throwing away your post-raise invulnerability
 - **Being raised inside an AoE used to kill you twice.** After a raise you're immune to damage for
