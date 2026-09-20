@@ -12,6 +12,7 @@ using Daedalus.Rotation.Common.Helpers;
 using Daedalus.Services;
 using Daedalus.Services.Action;
 using Daedalus.Services.Cache;
+using Daedalus.Services.Combat;
 using Daedalus.Services.Debuff;
 using Daedalus.Services.Prediction;
 using Daedalus.Services.Resource;
@@ -227,6 +228,17 @@ public abstract class BaseRotation<TContext, TModule> : IRotation, IDisposable
         // Movement detection
         var (isMoving, _) = UpdateMovement(player);
 
+        // Just raised and still invulnerable? Don't spend that on an attack. Transcendent lasts until
+        // the character acts, so submitting anything here drops the immunity and hands the AoE the kill
+        // -- which is exactly what used to happen on the first frame after a raise. Holding also stops
+        // the max-melee approach walking back toward the boss, since that is driven from in here.
+        // Minerva/BossMod steer from their own plugin and keep working, so the character is walked
+        // clear while immune. RSR does the same thing (RSCommands_Actions, a flat refusal while the
+        // buff is up). Placed after the bookkeeping above so GCD and movement state stay fresh.
+        ReviveGrace.NoteFrame(HasPostReviveInvulnerability(player), Configuration.ReviveHoldSeconds);
+        if (ReviveGrace.IsActive)
+            return;
+
         // Combat tracking — RSR parity: use game condition flag as primary (most reliable),
         // then player StatusFlags, then party member check for trust/squadron scenarios.
         var inCombat = IsGameConditionInCombat();
@@ -339,6 +351,22 @@ public abstract class BaseRotation<TContext, TModule> : IRotation, IDisposable
             ActionTracker.StartCombat();
         else
             ActionTracker.EndCombat();
+    }
+
+    /// <summary>
+    /// Has the character just been raised and not yet spent its damage immunity? Transcendent on a
+    /// normal raise, Willful on duty support's auto-revive. Note this is NOT an action lock — the
+    /// character can act perfectly well, and acting is precisely what ends the immunity.
+    /// </summary>
+    protected static bool HasPostReviveInvulnerability(IPlayerCharacter player)
+    {
+        foreach (var status in player.StatusList)
+        {
+            if (FFXIVConstants.PostReviveInvulnerabilityStatusIds.Contains(status.StatusId))
+                return true;
+        }
+
+        return false;
     }
 
     /// <summary>

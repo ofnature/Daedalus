@@ -3,6 +3,21 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.76 — unreleased
+
+### New — stop throwing away your post-raise invulnerability
+- **Being raised inside an AoE used to kill you twice.** After a raise you're immune to damage for
+  10 seconds — but only *until you act*. Daedalus attacked on the very first frame, which spent
+  that immunity instantly and let the same AoE finish you where you stood.
+- Daedalus now holds off attacking while the buff is up, and stops walking you back to the boss on
+  melee and tanks. Movement doesn't break the immunity, so your dodge plugin walks you clear while
+  you're still untouchable — dodge first, attack once you're safe.
+- The hold ends the instant the buff does, including when you press something yourself, so taking
+  manual control hands the rotation straight back.
+- Settings ▸ General has a cap (default 10s, the length of the buff). Lower it to get back to
+  damage sooner at the cost of less time to be moved clear; 0 disables the hold.
+
+<!-- LATEST-END -->
 ## v0.1.75 — 2026-09-17
 
 ### Fix — no more pulling the next pack while the tank is fighting
@@ -44,8 +59,6 @@ All notable changes to Daedalus will be documented in this file.
 - **New: "Ranged Min Distance" (default 1y).** BMR's band used to start at the hitbox, so a caster
   pushed under the boss had no reason to leave and micro-adjusted there instead of casting. Melee
   and tanks keep no floor — their range is the hitbox.
-
-<!-- LATEST-END -->
 ## v0.1.74 — 2026-09-17
 
 ### Fix — Phantom Berserker's Rage waits for a quiet moment

@@ -535,6 +535,21 @@ public sealed class GeneralSection
             ImGui.TextDisabled(Loc.T(LocalizedStrings.General.StartOnPartyInCombatDesc,
                 "When enabled, Daedalus runs the rotation while any party member or Trust ally is fighting, even before you personally enter combat. Use Tank Assist targeting to automatically attack what your tank is hitting."));
 
+            ConfigUIHelpers.Spacing();
+
+            var reviveHold = this.config.ReviveHoldSeconds;
+            if (ImGui.SliderFloat("Hold attacks after being raised", ref reviveHold, 0f, 10f, "%.1fs"))
+            {
+                this.config.ReviveHoldSeconds = reviveHold;
+                this.save();
+            }
+            ImGui.TextDisabled(
+                "After a raise you are immune to damage for 10s — until you act. Daedalus used to attack "
+                + "on the first frame, spending that immunity instantly and dying to the same AoE. It now "
+                + "holds off (and stops walking back to the boss) so your dodge plugin can move you clear "
+                + "while you are still immune; movement does not break it. The hold ends as soon as the "
+                + "buff does, so this is only a maximum — lower it for damage sooner, 0 to disable.");
+
             ConfigUIHelpers.EndIndent();
         }
     }

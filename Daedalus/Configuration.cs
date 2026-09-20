@@ -172,6 +172,22 @@ public sealed class Configuration : IPluginConfiguration
     public bool EnableOnPartyInCombat { get; set; } = true;
 
     /// <summary>
+    /// How long, at most, to hold actions after being raised while the post-raise invulnerability is
+    /// still up, in seconds.
+    /// <para>
+    /// Transcendent makes the character immune for 10s <b>until it acts</b>. A character raised into a
+    /// mechanic used to attack on the very next frame, which spent that immunity instantly and let the
+    /// AoE kill it where it stood. Holding actions keeps the immunity while Minerva/BossMod walk the
+    /// character clear — movement does not break it, and only Daedalus waits.
+    /// </para>
+    /// <para>
+    /// The buff ending always releases the hold, so this is only an upper bound: lower it to get back
+    /// to damage sooner at the cost of less time to be walked clear. 0 disables the hold entirely.
+    /// </para>
+    /// </summary>
+    public float ReviveHoldSeconds { get; set; } = 10f;
+
+    /// <summary>
     /// Suppress the forced auto-face setting while a nearby enemy is casting a look-away/gaze action
     /// (<see cref="Daedalus.Data.FFXIVConstants.GazeCastActionIds"/>), so the bot's casts don't turn the
     /// character into the gaze. Default true. (Gaze action list is curated/seeded as encountered.)
@@ -276,6 +292,7 @@ public sealed class Configuration : IPluginConfiguration
         // Reset general behavior
         EnableOnAutoAttack = false;
         EnableOnPartyInCombat = true;
+        ReviveHoldSeconds = 10f;
         MovementTolerance = 0.1f;
 
         // Reset master toggles
