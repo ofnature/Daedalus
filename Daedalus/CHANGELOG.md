@@ -3,7 +3,7 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
-## v0.1.79 — unreleased
+## v0.1.79 — 2026-09-20
 
 ### New — a Revive tab in the Debug window
 - **Every way Daedalus can rez now reports to one screen**: your job's raise, Phoenix Down,
