@@ -252,6 +252,64 @@ public class VariantBandRulesTests
     public void SpiritDart_RespectsTheTimeToKillGate(float ttk, bool expected)
         => Assert.Equal(expected, VariantBandRules.ShouldMaintainDart(Cfg(), dotRemainingSeconds: 0f, targetTtkSeconds: ttk));
 
+
+    // ── the layer must not eat the healer's raise ──────────────────────────────────────
+
+    /// <summary>
+    /// Reported 2026-09-20: inside a variant dungeon nothing rezzed at all — not the healer, not the
+    /// variant raise. The layer pre-empts the GCD ahead of the job's modules, so holding that window
+    /// with a body on the floor means a Sage's Egeiro never gets cast, and only in the duties where
+    /// this layer runs. The phantom layer hit precisely this ("Sage raises worked everywhere EXCEPT
+    /// the Horns") and carries the same guard; this one never got it.
+    /// </summary>
+    [Theory]
+    [InlineData(true, true, true)]     // healer with a body in range -> stand down
+    [InlineData(true, false, false)]   // healer, nothing to raise -> take the GCD
+    [InlineData(false, true, false)]   // a DPS cannot raise; the body is not its problem
+    [InlineData(false, false, false)]
+    public void YieldsTheGcdOnlyWhenTheJobItselfCanRaiseSomebody(
+        bool jobCanRaise, bool corpseInRange, bool expected)
+        => Assert.Equal(expected, VariantBandRules.ShouldYieldGcdForRaise(jobCanRaise, corpseInRange));
+
+    /// <summary>
+    /// The wiring, guarded at the source: both dispatch sites must honour the yield, and neither may
+    /// block the layer's OWN raise once it has queued one.
+    /// </summary>
+    [Fact]
+    public void BothGcdDispatchSitesHonourTheYield()
+    {
+        var source = File.ReadAllText(VariantLayerSourcePath());
+
+        var guarded = System.Text.RegularExpressions.Regex.Matches(
+            source,
+            @"CanExecuteGcd && \(_raiseQueuedThisFrame \|\| !RaisePendingForJob\(ctx\)\)").Count;
+        Assert.Equal(2, guarded);
+
+        // And no unguarded GCD dispatch is left behind.
+        Assert.DoesNotMatch(@"if \(_actionService\.CanExecuteGcd\)\s*?
+\s*_scheduler\.DispatchGcd", source);
+    }
+
+
+    /// <summary>
+    /// Raise must outrank Cure in the layer's own queue (the scheduler sorts ascending, so the lower
+    /// number wins). Cure became party-wide on 2026-09-20; before that it only read our own HP and
+    /// rarely collided, but afterwards any ally under the threshold would take the GCD ahead of a body
+    /// on the floor — starving the raise the rest of this work exists to deliver.
+    /// </summary>
+    [Fact]
+    public void RaiseOutranksCureInTheLayersQueue()
+    {
+        var source = File.ReadAllText(VariantLayerSourcePath());
+
+        var raise = int.Parse(System.Text.RegularExpressions.Regex
+            .Match(source, @"PrioRaise = (\d+);").Groups[1].Value);
+        var cure = int.Parse(System.Text.RegularExpressions.Regex
+            .Match(source, @"PrioCure = (\d+);").Groups[1].Value);
+
+        Assert.True(raise < cure, $"Raise ({raise}) must sort ahead of Cure ({cure})");
+    }
+
     private static string VariantLayerSourcePath()
     {
         var dir = new DirectoryInfo(AppContext.BaseDirectory);

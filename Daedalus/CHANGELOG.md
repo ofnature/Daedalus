@@ -3,6 +3,18 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.79 — unreleased
+
+### Fix — healers can rez again inside variant dungeons
+- **Nothing was getting rezzed in a variant dungeon — not by the healer, not by anything.** The
+  variant action layer claims the GCD before your job's own rotation runs, so with a body on the
+  floor it kept taking the window your Sage needed for Egeiro. Only inside variant duties, which
+  is why raising worked fine everywhere else.
+- The layer now stands down from the GCD whenever your own job has somebody it could raise, and
+  still takes it for its own Variant Raise. Same guard the Occult phantom layer already had — it
+  hit this exact problem and this layer was never given the fix.
+
+<!-- LATEST-END -->
 ## v0.1.78 — 2026-09-20
 
 ### Fix — Variant Cure heals the party, and Spirit Dart stops re-applying itself
@@ -14,7 +26,6 @@ All notable changes to Daedalus will be documented in this file.
   so your own DoT always looked missing and the dart went out on its 2.5s recast instead of every
   ~27s, burning a weave slot each time. Other toons' darts still never suppress yours.
 
-<!-- LATEST-END -->
 ## v0.1.77 — 2026-09-20
 
 ### Fix — Variant Raise now actually gets used

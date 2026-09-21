@@ -44,6 +44,14 @@ public static class VariantBandRules
            && dotRemainingSeconds < DartRefreshSeconds
            && targetTtkSeconds >= DartMinTtkSeconds;
 
+    /// <summary>
+    /// Stand down from the GCD when the job itself has a raise to cast. The layer pre-empts the GCD
+    /// ahead of the job's modules, so holding the window with a body on the floor means the healer's
+    /// own raise never gets cast — no rezzing at all, and only inside the duties where this layer runs.
+    /// </summary>
+    public static bool ShouldYieldGcdForRaise(bool jobCanRaise, bool raisableCorpseInRange)
+        => jobCanRaise && raisableCorpseInRange;
+
     public static bool ShouldRampart(VariantConfig cfg, bool inCombat, bool buffActive)
         => cfg.UseRampart && inCombat && (cfg.RampartSpamOnCooldown || !buffActive);
 

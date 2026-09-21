@@ -23,8 +23,12 @@ namespace Daedalus.Rotation.Phantom;
 /// </summary>
 public sealed class VariantActionLayer
 {
+    // Lower wins (the scheduler sorts ascending). Raise outranks Cure: a body on the floor is worth
+    // more than topping somebody up, and Cure became party-wide on 2026-09-20 -- before that it only
+    // fired on our own HP, so the old ordering rarely collided. With Cure ahead of Raise, any ally
+    // under the threshold would starve the raise on every GCD.
+    private const int PrioRaise = 5;
     private const int PrioCure = 10;
-    private const int PrioRaise = 20;
     private const int PrioRampart = 30;
     private const int PrioDartAndShot = 40;
     private const int PrioUltimatum = 50;
@@ -46,6 +50,7 @@ public sealed class VariantActionLayer
     private readonly Dictionary<ulong, DateTime> _deadSince = [];
     private readonly List<string> _pushRejects = [];
     private bool _dispatchedThisFrame;
+    private bool _raiseQueuedThisFrame;
     private bool _framePrepared;
     private bool _isMovingThisFrame;
 
@@ -93,7 +98,7 @@ public sealed class VariantActionLayer
 
             if (_actionService.CanExecuteOgcd)
                 _scheduler.DispatchOgcd(ctx);
-            if (_actionService.CanExecuteGcd)
+            if (_actionService.CanExecuteGcd && (_raiseQueuedThisFrame || !RaisePendingForJob(ctx)))
                 _scheduler.DispatchGcd(ctx);
 
             var queued = _scheduler.InspectGcdQueue().Count + _scheduler.InspectOgcdQueue().Count;
@@ -121,6 +126,7 @@ public sealed class VariantActionLayer
 
         _scheduler.Reset();
         _dispatchedThisFrame = false;
+        _raiseQueuedThisFrame = false;
         _isMovingThisFrame = isMoving;
         _pushRejects.Clear();
         _framePrepared = true;
@@ -131,8 +137,12 @@ public sealed class VariantActionLayer
         PushDamage(ctx, cfg, inCombat);
         PushUltimatum(ctx, cfg, inCombat);
 
-        // GCD pre-empt: Cure/Raise claim the window ahead of the job's filler.
-        if (_actionService.CanExecuteGcd)
+        // GCD pre-empt: Cure/Raise claim the window ahead of the job's filler -- but NOT ahead of the
+        // job's own raise. This layer runs before the job's modules, so taking the GCD with a body on
+        // the floor stops a healer ever casting Egeiro/Ascend/Resurrection, and no rezzing happens at
+        // all inside a variant dungeon (reported 2026-09-20). The phantom layer hit exactly this and
+        // carries the same guard; this one was never given it.
+        if (_actionService.CanExecuteGcd && (_raiseQueuedThisFrame || !RaisePendingForJob(ctx)))
             _scheduler.DispatchGcd(ctx);
 
         // oGCD pre-empt (field report: Spirit Dart starved behind the job's opener weaves
@@ -190,6 +200,38 @@ public sealed class VariantActionLayer
         return worst;
     }
 
+    /// <summary>
+    /// A raisable body is waiting and this job can do something about it, so the variant layer must not
+    /// take the GCD. Deliberately broad, matching the phantom layer: any dead ally in raise range
+    /// without a raise already pending, on a job that can raise at all.
+    /// </summary>
+    private bool RaisePendingForJob(IRotationContext ctx)
+    {
+        var jobCanRaise = JobRegistry.IsHealer(ctx.Player.ClassJob.RowId);
+        if (!jobCanRaise)
+            return false;
+
+        foreach (var member in ctx.PartyList)
+        {
+            if (member?.GameObject is not IBattleChara chara || chara.GameObjectId == ctx.Player.GameObjectId)
+                continue;
+            if (!chara.IsDead)
+                continue;
+            if (HasStatus(chara, RaisePendingStatusId))
+                continue;
+            if (System.Numerics.Vector3.DistanceSquared(ctx.Player.Position, chara.Position) > RaiseRangeSquared)
+                continue;
+
+            return VariantBandRules.ShouldYieldGcdForRaise(jobCanRaise, raisableCorpseInRange: true);
+        }
+
+        return false;
+    }
+
+    private static void ReportRaise(string state)
+        => Daedalus.Services.Diagnostics.ReviveDiagnostics.Report(
+            Daedalus.Services.Diagnostics.ReviveSource.VariantRaise, state);
+
     private void PushRaise(IRotationContext ctx, Config.VariantConfig cfg)
     {
         PruneDeadSince(ctx);
@@ -211,7 +253,15 @@ public sealed class VariantActionLayer
             // Say why. Deferring used to return silently, so the status line read "idle — nothing
             // eligible" and there was no way to tell a deliberate wait from a broken gate.
             if (deadOther is not null && livingHealer)
-                _pushRejects.Add($"waiting on the healer ({SecondsDown(deadOther.GameObjectId):F0}s)");
+            {
+                var waiting = $"waiting on the healer ({SecondsDown(deadOther.GameObjectId):F0}s)";
+                _pushRejects.Add(waiting);
+                ReportRaise(waiting);
+            }
+            else
+            {
+                ReportRaise("nobody to raise");
+            }
 
             return;
         }
@@ -224,6 +274,7 @@ public sealed class VariantActionLayer
         if (!_actionService.PlayerHasStatus(raiseDef.SetStatusId))
         {
             _pushRejects.Add("Variant Raise was not selected for this run on this character");
+            ReportRaise("not selected for this run on this character");
             return;
         }
 
@@ -235,12 +286,17 @@ public sealed class VariantActionLayer
         if (_partyCoordination?.IsRaiseTargetReservedByOther(targetId) == true)
         {
             _pushRejects.Add("raise target reserved by another toon");
+            ReportRaise("reserved by another toon");
             return;
         }
 
-        TryPush(ctx, VariantAction.Raise, PrioRaise, target.GameObjectId, target,
+        _raiseQueuedThisFrame = TryPush(ctx, VariantAction.Raise, PrioRaise, target.GameObjectId, target,
             onExtraDispatched: actionId =>
                 _partyCoordination?.ReserveRaiseTarget(targetId, actionId, RaiseCastMs, usingSwiftcast: false));
+
+        ReportRaise(_raiseQueuedThisFrame
+            ? $"queued on {target.Name?.TextValue ?? "target"}"
+            : _pushRejects.Count > 0 ? _pushRejects[^1] : "blocked");
     }
 
     private void PushRampart(IRotationContext ctx, Config.VariantConfig cfg, bool inCombat)
@@ -392,7 +448,7 @@ public sealed class VariantActionLayer
     /// Gates: Set status granted → tier action ID resolved through the duty-bar slot →
     /// cooldown → cast-while-moving → range. Target 0 = self.
     /// </summary>
-    private void TryPush(IRotationContext ctx, VariantAction kind, int priority,
+    private bool TryPush(IRotationContext ctx, VariantAction kind, int priority,
         ulong targetId = 0, IBattleChara? rangeTarget = null, Action<uint>? onExtraDispatched = null)
     {
         var def = VariantActionData.Get(kind);
@@ -400,20 +456,20 @@ public sealed class VariantActionLayer
         if (!_actionService.PlayerHasStatus(def.SetStatusId))
         {
             // Not one of this run's two picks — silent (not a fixable blocker).
-            return;
+            return false;
         }
 
         var actionId = ResolveSlottedId(def);
         if (actionId == 0)
         {
             _pushRejects.Add($"{def.Name} not on duty bar");
-            return;
+            return false;
         }
 
         if (!_actionService.IsActionReady(actionId))
         {
             _pushRejects.Add($"{def.Name} on cooldown");
-            return;
+            return false;
         }
 
         if (!_behaviorCache.TryGetValue(actionId, out var behavior))
@@ -425,7 +481,7 @@ public sealed class VariantActionLayer
         if (behavior.Action.CastTime > 0 && _isMovingThisFrame)
         {
             _pushRejects.Add($"{def.Name} needs a hard cast (moving)");
-            return;
+            return false;
         }
 
         if (rangeTarget is not null && behavior.Action.Range > 0)
@@ -435,7 +491,7 @@ public sealed class VariantActionLayer
             if (dist > behavior.Action.Range + RangeBufferYalms)
             {
                 _pushRejects.Add($"{def.Name} out of range");
-                return;
+                return false;
             }
         }
 
@@ -451,6 +507,8 @@ public sealed class VariantActionLayer
             _scheduler.PushGcd(behavior, targetId, priority, onDispatched);
         else
             _scheduler.PushOgcd(behavior, targetId, priority, onDispatched);
+
+        return true;
     }
 
     /// <summary>Which of the per-tier action IDs is on the duty bar (morph-aware), or 0.</summary>
