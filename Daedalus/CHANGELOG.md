@@ -5,6 +5,15 @@ All notable changes to Daedalus will be documented in this file.
 <!-- LATEST-START -->
 ## v0.1.79 — unreleased
 
+### New — a Revive tab in the Debug window
+- **Every way Daedalus can rez now reports to one screen**: your job's raise, Phoenix Down,
+  Variant Raise and the Occult phantom raise, each with the reason it is or isn't firing and how
+  long it's been saying so.
+- It also lists who's actually down, how far away they are (raises reach 30y, Phoenix Down only
+  15y), whether a raise is already pending on them, and any reservation held by another toon.
+- Each path already worked this out every frame and then dropped it somewhere different — a job
+  tab, a line nobody reads, or nowhere at all — so "why did nobody rez" meant guessing.
+
 ### Fix — healers can rez again inside variant dungeons
 - **Nothing was getting rezzed in a variant dungeon — not by the healer, not by anything.** The
   variant action layer claims the GCD before your job's own rotation runs, so with a body on the

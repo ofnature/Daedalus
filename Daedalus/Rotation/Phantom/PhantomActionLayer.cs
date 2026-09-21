@@ -605,13 +605,13 @@ public sealed class PhantomActionLayer
         };
         if (raiseId == 0u)
         {
-            _phantomJobs.RaiseState = "job has no raise";
+            PhantomRaiseState = "job has no raise";
             return;
         }
 
         if (!cfg.UsePhantomRaise)
         {
-            _phantomJobs.RaiseState = "disabled in settings";
+            PhantomRaiseState = "disabled in settings";
             return;
         }
 
@@ -637,7 +637,7 @@ public sealed class PhantomActionLayer
         var decision = PhantomBandRules.DecideRaise(cfg, deadHealer != null, deadOther != null, livingHealer);
         if (decision == PhantomRaiseDecision.None)
         {
-            _phantomJobs.RaiseState = deadHealer is null && deadOther is null
+            PhantomRaiseState = deadHealer is null && deadOther is null
                 ? DescribeNoRaiseTarget(ctx)
                 : $"holding — waiting on the healer ({SecondsDown(deadOther!.GameObjectId):F0}s)";
             return;
@@ -650,7 +650,7 @@ public sealed class PhantomActionLayer
         if (PartyCoordination?.IsRaiseTargetReservedByOther(targetId) == true)
         {
             _pushRejects.Add("raise target reserved by another toon");
-            _phantomJobs.RaiseState = $"reserved by another toon — {target.Name?.TextValue}";
+            PhantomRaiseState = $"reserved by another toon — {target.Name?.TextValue}";
             return;
         }
 
@@ -669,7 +669,7 @@ public sealed class PhantomActionLayer
                 PartyCoordination?.ReserveRaiseTarget(targetId, raiseId, castMs, usingSwiftcast: false));
 
         var who = target.Name?.TextValue ?? "ally";
-        _phantomJobs.RaiseState = _raiseQueuedThisFrame
+        PhantomRaiseState = _raiseQueuedThisFrame
             ? $"raising {who}{(instantRaise ? " (instant)" : string.Empty)}"
             // TryPush already recorded exactly why; repeat it here rather than inventing a reason.
             : $"cannot raise {who} — {(_pushRejects.Count > 0 ? _pushRejects[^1] : "push refused")}";
@@ -759,6 +759,17 @@ public sealed class PhantomActionLayer
     /// must not take the GCD. Deliberately broad: any dead ally in raise range without a raise
     /// already pending, on a job that can raise at all.
     /// </summary>
+    /// <summary>Mirrors the phantom raise verdict into the Revive tab as well as the Occult tab.</summary>
+    private string PhantomRaiseState
+    {
+        set
+        {
+            _phantomJobs.RaiseState = value;
+            Daedalus.Services.Diagnostics.ReviveDiagnostics.Report(
+                Daedalus.Services.Diagnostics.ReviveSource.PhantomRaise, value);
+        }
+    }
+
     private bool RaisePendingForJob(IRotationContext ctx)
     {
         var jobCanRaise = JobRegistry.IsHealer(ctx.Player.ClassJob.RowId);

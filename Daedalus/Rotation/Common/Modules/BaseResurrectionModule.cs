@@ -60,6 +60,18 @@ public abstract class BaseResurrectionModule<TContext> : IHealerRotationModule<T
     private string? _lastLoggedRaiseState;
 
     /// <summary>
+    /// Sets the job's raise state AND reports it to the Revive tab. Everything in this class goes
+    /// through here rather than calling <see cref="SetRaiseState"/> directly, so the healer's verdict
+    /// is never only visible in a job-specific tab nobody had open.
+    /// </summary>
+    private void ReportRaiseState(TContext context, string state)
+    {
+        SetRaiseState(context, state);
+        Daedalus.Services.Diagnostics.ReviveDiagnostics.Report(
+            Daedalus.Services.Diagnostics.ReviveSource.HealerRaise, state);
+    }
+
+    /// <summary>
     /// Mirror a raise-state change into the Debug Log. The healer's debug tab already shows it,
     /// but that requires having the tab open and knowing to look — and a raise that silently
     /// never happens is precisely when nobody is looking. Deduped, so this logs transitions
@@ -168,17 +180,17 @@ public abstract class BaseResurrectionModule<TContext> : IHealerRotationModule<T
             var partyCoord = GetPartyCoordinationService(context);
             if (partyCoord?.IsRaiseTargetReservedByOther((uint)deadMember.GameObjectId) == true)
             {
-                SetRaiseState(context, "Reserved by other");
+                ReportRaiseState(context, "Reserved by other");
             }
             else
             {
-                SetRaiseState(context, "Dead member found");
+                ReportRaiseState(context, "Dead member found");
             }
             SetRaiseTarget(context, deadMember.Name?.TextValue ?? "Unknown");
         }
         else
         {
-            SetRaiseState(context, "None needed");
+            ReportRaiseState(context, "None needed");
             SetRaiseTarget(context, "");
         }
     }
@@ -192,33 +204,33 @@ public abstract class BaseResurrectionModule<TContext> : IHealerRotationModule<T
 
         if (!config.Resurrection.EnableRaise)
         {
-            SetRaiseState(context, "Disabled");
+            ReportRaiseState(context, "Disabled");
             return false;
         }
 
         if (player.Level < RaiseAction.MinLevel)
         {
-            SetRaiseState(context, $"Level {player.Level} < {RaiseAction.MinLevel}");
+            ReportRaiseState(context, $"Level {player.Level} < {RaiseAction.MinLevel}");
             return false;
         }
 
         var mpPercent = (float)player.CurrentMp / player.MaxMp;
         if (mpPercent < config.Resurrection.RaiseMpThreshold)
         {
-            SetRaiseState(context, $"MP {mpPercent:P0} < {config.Resurrection.RaiseMpThreshold:P0}");
+            ReportRaiseState(context, $"MP {mpPercent:P0} < {config.Resurrection.RaiseMpThreshold:P0}");
             return false;
         }
 
         if (player.CurrentMp < RaiseMpCost)
         {
-            SetRaiseState(context, $"MP {player.CurrentMp} < {RaiseMpCost}");
+            ReportRaiseState(context, $"MP {player.CurrentMp} < {RaiseMpCost}");
             return false;
         }
 
         var target = FindDeadPartyMemberNeedingRaise(context);
         if (target is null)
         {
-            SetRaiseState(context, "No target");
+            ReportRaiseState(context, "No target");
             SetRaiseTarget(context, "None");
             return false;
         }
@@ -230,7 +242,7 @@ public abstract class BaseResurrectionModule<TContext> : IHealerRotationModule<T
         var partyCoord = GetPartyCoordinationService(context);
         if (partyCoord?.IsRaiseTargetReservedByOther((uint)target.GameObjectId) == true)
         {
-            SetRaiseState(context, "Reserved by other");
+            ReportRaiseState(context, "Reserved by other");
             return false;
         }
 
@@ -240,18 +252,18 @@ public abstract class BaseResurrectionModule<TContext> : IHealerRotationModule<T
         {
             if (ShouldWaitForPreRaiseBuff(context))
             {
-                SetRaiseState(context, "Waiting for buff");
+                ReportRaiseState(context, "Waiting for buff");
                 return false;
             }
 
             // Try to reserve the target before raising (Swiftcast = instant)
             if (partyCoord?.ReserveRaiseTarget((uint)target.GameObjectId, RaiseAction.ActionId, 0, usingSwiftcast: true) == false)
             {
-                SetRaiseState(context, "Failed to reserve");
+                ReportRaiseState(context, "Failed to reserve");
                 return false;
             }
 
-            SetRaiseState(context, "Swiftcast Raise");
+            ReportRaiseState(context, "Swiftcast Raise");
             var success = context.ActionService.ExecuteGcd(RaiseAction, target.GameObjectId);
             if (success)
             {
@@ -288,7 +300,7 @@ public abstract class BaseResurrectionModule<TContext> : IHealerRotationModule<T
                 var casterHpPct = player.MaxHp > 0 ? (float)player.CurrentHp / player.MaxHp : 1f;
                 if (casterHpPct < 0.40f)
                 {
-                    SetRaiseState(context, $"Too hurt to hardcast ({casterHpPct:P0})");
+                    ReportRaiseState(context, $"Too hurt to hardcast ({casterHpPct:P0})");
                     return false;
                 }
 
@@ -297,7 +309,7 @@ public abstract class BaseResurrectionModule<TContext> : IHealerRotationModule<T
                         is Daedalus.Services.Positional.Navigation.PositionSafety.Unsafe
                         or Daedalus.Services.Positional.Navigation.PositionSafety.Imminent)
                 {
-                    SetRaiseState(context, "Hardcast unsafe here — ground danger inside the cast window");
+                    ReportRaiseState(context, "Hardcast unsafe here — ground danger inside the cast window");
                     return false;
                 }
             }
@@ -305,7 +317,7 @@ public abstract class BaseResurrectionModule<TContext> : IHealerRotationModule<T
             if (!canWaitForSwiftcast && isMoving)
             {
                 Daedalus.Services.Positional.RaiseCastHold.Request(10f);
-                SetRaiseState(context, "Stopping to hardcast raise");
+                ReportRaiseState(context, "Stopping to hardcast raise");
                 return false;
             }
 
@@ -313,7 +325,7 @@ public abstract class BaseResurrectionModule<TContext> : IHealerRotationModule<T
             {
                 if (ShouldWaitForPreRaiseBuff(context))
                 {
-                    SetRaiseState(context, "Waiting for buff");
+                    ReportRaiseState(context, "Waiting for buff");
                     return false;
                 }
 
@@ -321,11 +333,11 @@ public abstract class BaseResurrectionModule<TContext> : IHealerRotationModule<T
                 const int hardcastMs = 8000;
                 if (partyCoord?.ReserveRaiseTarget((uint)target.GameObjectId, RaiseAction.ActionId, hardcastMs, usingSwiftcast: false) == false)
                 {
-                    SetRaiseState(context, "Failed to reserve");
+                    ReportRaiseState(context, "Failed to reserve");
                     return false;
                 }
 
-                SetRaiseState(context, "Hardcast Raise");
+                ReportRaiseState(context, "Hardcast Raise");
                 var success = context.ActionService.ExecuteGcd(RaiseAction, target.GameObjectId);
                 if (success)
                 {
@@ -343,18 +355,18 @@ public abstract class BaseResurrectionModule<TContext> : IHealerRotationModule<T
             }
             else
             {
-                SetRaiseState(context, config.Resurrection.RaiseMode == Daedalus.Config.RaiseExecutionMode.HealFirst
+                ReportRaiseState(context, config.Resurrection.RaiseMode == Daedalus.Config.RaiseExecutionMode.HealFirst
                     ? $"Heal-first — Swiftcast raises only ({swiftcastCooldown:F1}s)"
                     : $"Waiting for Swiftcast ({swiftcastCooldown:F1}s)");
             }
         }
         else if (!hasSwiftcast && !config.Resurrection.AllowHardcastRaise)
         {
-            SetRaiseState(context, "No Swiftcast (hardcast disabled)");
+            ReportRaiseState(context, "No Swiftcast (hardcast disabled)");
         }
         else if (isMoving)
         {
-            SetRaiseState(context, "Moving (can't hardcast)");
+            ReportRaiseState(context, "Moving (can't hardcast)");
         }
 
         return false;

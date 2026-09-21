@@ -38,7 +38,23 @@ public sealed class PhoenixDownService
     private Vector3 _lastPosition;
 
     /// <summary>Why the last decision did (not) fire — surfaced for debug UI.</summary>
-    public string LastState { get; private set; } = "idle";
+    private string _lastState = "idle";
+
+    /// <summary>
+    /// Why the safety net did or did not fire. Mirrored to the Revive tab on every assignment — this
+    /// was computed once a second and displayed nowhere, so a toon quietly not using Phoenix Downs
+    /// looked identical to one that had decided against it.
+    /// </summary>
+    public string LastState
+    {
+        get => _lastState;
+        private set
+        {
+            _lastState = value;
+            Daedalus.Services.Diagnostics.ReviveDiagnostics.Report(
+                Daedalus.Services.Diagnostics.ReviveSource.PhoenixDown, value);
+        }
+    }
 
     /// <summary>Optional LAN bus — claim broadcast + foreign-claim hold-off. Null solo.</summary>
     public Daedalus.Services.Network.CoordinationBus? Bus { get; set; }

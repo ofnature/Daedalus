@@ -946,10 +946,13 @@ public sealed class Plugin : IDalamudPlugin
         this.debugWindow = new DebugWindow(debugService, configuration, timelineService, smartAoETab, debugLogService, phantomJobService, elementalWeaknessLog, chestLedger, this.potTreasureHunt, objectTable,
             this.beastCaptureLedger,
 #if DEBUG
-            this.gaugeScanWatcher);
+            this.gaugeScanWatcher,
 #else
-            null);
+            null,
 #endif
+            this.phoenixDownService,
+            partyList,
+            this.partyCoordinationService);
         this.welcomeWindow = new WelcomeWindow(configuration, SaveConfiguration, OpenConfigUI);
         this.analyticsWindow = new AnalyticsWindow(performanceTracker, configuration, SaveConfiguration, fflogsService, fightSummaryService, meldOptimizerPanel);
         this.trainingWindow = new TrainingWindow(trainingService, configuration, decisionValidationService, spacedRepetitionService);

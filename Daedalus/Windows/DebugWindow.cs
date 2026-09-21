@@ -89,13 +89,21 @@ public sealed class DebugWindow : Window
         (JobRegistry.BlueMage, JobRegistry.GetJobName(JobRegistry.BlueMage)),
     ];
 
+    /// <summary>Phoenix Down's own reason string — computed every second, previously shown nowhere.</summary>
+    private readonly Daedalus.Services.Consumables.PhoenixDownService? _phoenixDown;
+    private readonly Dalamud.Plugin.Services.IPartyList? _partyList;
+    private readonly Daedalus.Services.Party.IPartyCoordinationService? _partyCoordination;
+
     public DebugWindow(DebugService debugService, Configuration configuration, ITimelineService? timelineService = null, SmartAoETab? smartAoETab = null, Daedalus.Services.Debug.DebugLogService? debugLogService = null, Daedalus.Services.Occult.PhantomJobService? phantomJobService = null,
         Daedalus.Services.Occult.ElementalWeaknessLog? weaknessLog = null,
         Daedalus.Services.Occult.ChestLedger? chestLedger = null,
         Daedalus.Services.Occult.PotTreasureHunt? potTreasureHunt = null,
         Dalamud.Plugin.Services.IObjectTable? objectTable = null,
         Daedalus.Services.Beastmaster.BeastCaptureLedger? beastLedger = null,
-        object? gaugeScanWatcher = null)
+        object? gaugeScanWatcher = null,
+        Daedalus.Services.Consumables.PhoenixDownService? phoenixDown = null,
+        Dalamud.Plugin.Services.IPartyList? partyList = null,
+        Daedalus.Services.Party.IPartyCoordinationService? partyCoordination = null)
         : base(Loc.T(LocalizedStrings.Debug.WindowTitle, "Daedalus Debug"), ImGuiWindowFlags.NoSavedSettings)
     {
         _debugService = debugService;
@@ -112,6 +120,9 @@ public sealed class DebugWindow : Window
         _gaugeScanWatcher = gaugeScanWatcher as Daedalus.Services.Beastmaster.GaugeScanWatcher;
 #endif
         _objectTable = objectTable;
+        _phoenixDown = phoenixDown;
+        _partyList = partyList;
+        _partyCoordination = partyCoordination;
 
         Size = new Vector2(550, 450);
         SizeCondition = ImGuiCond.FirstUseEver;
@@ -149,6 +160,12 @@ public sealed class DebugWindow : Window
             if (ImGui.BeginTabItem(Loc.T(LocalizedStrings.Debug.TabWhyStuck, "Why Stuck?")))
             {
                 WhyStuckTab.Draw(snapshot, _configuration, _debugService.GetIrisDebugState());
+                ImGui.EndTabItem();
+            }
+
+            if (ImGui.BeginTabItem("Revive"))
+            {
+                ReviveTab.Draw(_objectTable, _partyList, _partyCoordination);
                 ImGui.EndTabItem();
             }
 
