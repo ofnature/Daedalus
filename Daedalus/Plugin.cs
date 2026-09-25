@@ -422,6 +422,12 @@ public sealed class Plugin : IDalamudPlugin
         this.gapCloserSafetyService.ExternalSteering = () => this.bossModSafetyService.IsBmrNavigating;
         // ... and a dash must not be started on ground that stops being safe before the dash ends.
         this.gapCloserSafetyService.SecondsSafeHere = () => this.bossModSafetyService.NextDamageInSeconds;
+        // ... and it must not land on ground about to go off. A gap closer ends on its target, so this is Phantom
+        // Kick's leap check with the dash run the whole way there.
+        this.gapCloserSafetyService.LandingSafe = (from, to) =>
+            Daedalus.Rotation.Common.Helpers.TargetedDashGuard.IsTargetedDashSafe(
+                from, to, new System.Numerics.Vector2(to.X - from.X, to.Z - from.Z).Length(),
+                this.vNavService, this.bossModSafetyService);
         // The fight's targeting opinion: never an invincible boss or the wrong floor's half, adds first when
         // the module raises them. Minerva publishes both lists; BossMod publishes neither, so under it these are empty.
         this.targetingService.ForbiddenTargets = () => this.bossModSafetyService.ForbiddenTargets;

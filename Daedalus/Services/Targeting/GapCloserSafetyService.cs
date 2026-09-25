@@ -42,6 +42,14 @@ public sealed class GapCloserSafetyService : IGapCloserSafetyService
     public System.Func<float>? SecondsSafeHere { get; set; }
 
     /// <summary>
+    /// Whether a dash from the first point to the second ends somewhere survivable: floor under the landing, and a
+    /// path and landing the boss engine calls clear. A gap closer lands on its target, so this asks about the target's
+    /// spot, not the player's. Plugin wires it to TargetedDashGuard, the check Phantom Kick already uses, through the
+    /// same engine router as <see cref="ExternalSteering"/>.
+    /// </summary>
+    public System.Func<Vector3, Vector3, bool>? LandingSafe { get; set; }
+
+    /// <summary>
     /// What a gap closer costs in stillness: the dash plus its animation lock, measured on Onslaught.
     /// Accept No Imitators, 2026-09-06: Onslaught fired 0.1s into a cast, the dodge wanted five yalms and
     /// could not move until it ended, and the hit landed with a vulnerability stack. Steering had not begun
@@ -104,6 +112,17 @@ public sealed class GapCloserSafetyService : IGapCloserSafetyService
         if (SecondsSafeHere?.Invoke() is { } safeFor && safeFor < GapCloserRootSeconds + 0.3f)
         {
             LastBlockReason = $"ground is only safe for {safeFor:0.0}s and the dash roots for {GapCloserRootSeconds:0.0}s";
+            return true;
+        }
+
+        // Safe to stand on is not safe to land on. A gap closer ends on the target, and the target is what most
+        // mechanics are centred on. Vigil for the Lost, 2026-09-25: the dodge walked a Samurai out of a Shockwave and
+        // stopped steering the moment it arrived, and on that frame -- not steering, ground here safe, out of melee --
+        // Gyoten dashed it straight back onto the boss and into the Shockwave. Twice in one pull. Both checks above
+        // passed, because both ask about where the character is standing, and neither about where it is going.
+        if (LandingSafe is { } landingSafe && !landingSafe(player.Position, target.Position))
+        {
+            LastBlockReason = "the dash would land in, or cross, ground that is about to go off";
             return true;
         }
 

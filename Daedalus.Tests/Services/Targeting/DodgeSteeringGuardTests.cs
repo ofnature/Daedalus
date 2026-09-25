@@ -69,6 +69,52 @@ public sealed class DodgeSteeringGuardTests
         Assert.False(service.ShouldBlockGapCloser(target.Object, new Mock<IPlayerCharacter>().Object));
     }
 
+    /// <summary>
+    /// Safe to stand on is not safe to land on. Vigil for the Lost, 2026-09-25: the dodge walked a Samurai out of a
+    /// Shockwave and stopped steering as it arrived; on that frame the character was not steering and its own ground
+    /// was safe for seconds, and Gyoten dashed it back onto the boss and into the Shockwave.
+    /// </summary>
+    [Fact]
+    public void JustArrivedSomewhereSafe_StillWillNotDashIntoTheBoss()
+    {
+        var service = ServiceOnGround(6f, out var target);
+        service.LandingSafe = (_, _) => false;
+        Assert.True(service.ShouldBlockGapCloser(target.Object, new Mock<IPlayerCharacter>().Object));
+        Assert.Contains("land", service.LastBlockReason ?? string.Empty);
+    }
+
+    [Fact]
+    public void AClearLanding_LetsItThrough()
+    {
+        var service = ServiceOnGround(6f, out var target);
+        service.LandingSafe = (_, _) => true;
+        Assert.False(service.ShouldBlockGapCloser(target.Object, new Mock<IPlayerCharacter>().Object));
+    }
+
+    /// <summary>The landing asked about is the target's, measured from the player: the dash goes to it.</summary>
+    [Fact]
+    public void TheLandingAskedAboutIsTheTargets()
+    {
+        var service = ServiceOnGround(6f, out var target);
+        var player = new Mock<IPlayerCharacter>();
+        player.SetupGet(p => p.Position).Returns(new System.Numerics.Vector3(1f, 0f, 2f));
+        target.SetupGet(t => t.Position).Returns(new System.Numerics.Vector3(10f, 0f, 20f));
+        (System.Numerics.Vector3 From, System.Numerics.Vector3 To)? asked = null;
+        service.LandingSafe = (from, to) => { asked = (from, to); return true; };
+
+        service.ShouldBlockGapCloser(target.Object, player.Object);
+
+        Assert.Equal((new System.Numerics.Vector3(1f, 0f, 2f), new System.Numerics.Vector3(10f, 0f, 20f)), asked);
+    }
+
+    /// <summary>With no engine wired there is nothing to ask, and the gate behaves exactly as it did before.</summary>
+    [Fact]
+    public void NoLandingCheckWired_ChangesNothing()
+    {
+        var service = ServiceOnGround(6f, out var target);
+        Assert.False(service.ShouldBlockGapCloser(target.Object, new Mock<IPlayerCharacter>().Object));
+    }
+
     /// <summary>A hold nobody can explain reads as a broken button.</summary>
     [Fact]
     public void TheHoldSaysWhy()
