@@ -3,7 +3,7 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
-## v0.1.80 — unreleased
+## v0.1.80 — 2026-09-25
 
 ### Fix — toons stop picking fights with strangers' mobs in Bozja
 - **In open-world zones like the Southern Front, toons attacked mobs other players were fighting**,
