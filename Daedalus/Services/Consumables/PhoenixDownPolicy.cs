@@ -46,6 +46,13 @@ public static class PhoenixDownPolicy
     public const float ClaimHoldOffSeconds = 12f;
 
     /// <summary>
+    /// After a cast is CANCELLED (a dodge, the target briefly invalid) nothing was spent, so retry after
+    /// this short pause rather than the full refusal backoff — a dead healer waiting ten more seconds for a
+    /// retry is its own small wipe.
+    /// </summary>
+    public const double CancelledRetrySeconds = 2.0;
+
+    /// <summary>
     /// The cast is 8 seconds and planted — starting it during BMR micro-pauses just gets it
     /// interrupted, so require a slightly longer still window than the rotation's cast grace.
     /// </summary>

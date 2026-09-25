@@ -18,6 +18,15 @@ All notable changes to Daedalus will be documented in this file.
 - To have a DPS follow your tank's target rather than choose its own, set its targeting to **Tank
   Assist**.
 
+### Fix — Phoenix Down: one toon at a time, and cancelled casts retry
+- **Two toons would cast Phoenix Down on the same body.** The game reports an item use as failed even
+  when the cast starts, so each toon thought it had been refused and never told the others. Daedalus
+  now watches the cast bar instead, and announces the cast the moment it actually begins.
+- When several toons notice at the same moment, they now take turns in a fixed order, a second and a
+  half apart, so the first one's announcement reaches the rest before they start.
+- **A cast cancelled partway — by a dodge, say — no longer counts as used.** Nothing was spent, so it
+  retries after two seconds instead of locking the item out for the rest of the fight.
+
 ### Fix — Samurai closes to melee instead of spamming Enpi
 - **Samurai threw Enpi the instant a target was out of reach**, even when it was already walking
   back in or had Gyoten available — so an add across the arena got a stream of weak ranged hits

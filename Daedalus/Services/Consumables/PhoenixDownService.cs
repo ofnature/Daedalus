@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Numerics;
 using Dalamud.Game.ClientState.Objects.SubKinds;
 using Dalamud.Game.ClientState.Objects.Types;
@@ -24,6 +25,15 @@ public sealed class PhoenixDownService
     private const float MovementThresholdSquared = 0.0025f;
 
     private const double CheckIntervalSeconds = 1.0;
+
+    /// <summary>ClientStructs <c>ActionType.Item</c> — what the cast bar reports while using an item.</summary>
+    private const int ItemActionType = 2;
+
+    /// <summary>Phoenix Down's Action row, which some cast bars report instead of the item id.</summary>
+    private const uint PhoenixDownActionRow = 43336;
+
+    private readonly PhoenixDownCastTracker _cast = new();
+    private DateTime? _allHealersDownSince;
 
     private readonly IActionService _actionService;
     private readonly IInventoryProbe _inventory;
@@ -93,11 +103,19 @@ public sealed class PhoenixDownService
             _lastMoved = now;
         _lastPosition = player.Position;
 
+        // Resolve an attempt in flight every frame, before anything else, so turning the feature off
+        // mid-cast still reports how it ended and a finished cast is recorded the frame it finishes.
+        TrackAttempt(player, now);
+
         if (!_configuration.Consumables.EnablePhoenixDown)
             return;
         if ((now - _lastCheck).TotalSeconds < CheckIntervalSeconds)
             return;
         _lastCheck = now;
+
+        // One attempt at a time; the tracker owns the status line until it resolves.
+        if (_cast.InFlight)
+            return;
 
         if (partyList.Length == 0)
         {
@@ -110,6 +128,7 @@ public sealed class PhoenixDownService
         var healers = 0;
         var deadHealers = 0;
         var livingOthers = 0;
+        var livingNonTanks = new List<uint>();
         IBattleChara? target = null;
         var targetDistance = float.MaxValue;
 
@@ -123,6 +142,9 @@ public sealed class PhoenixDownService
 
             if (!isSelf && !isDead)
                 livingOthers++;
+
+            if (!isDead && !JobRegistry.IsTank(jobId))
+                livingNonTanks.Add(member.EntityId);
 
             if (!JobRegistry.IsHealer(jobId))
                 continue;
@@ -165,28 +187,73 @@ public sealed class PhoenixDownService
             SecondsSinceForeignClaim: (now - _foreignClaim).TotalSeconds,
             IsMoving: isMoving);
 
+        // The clock every toon starts from: when the last healer went down.
+        if (situation.AllHealersDead)
+            _allHealersDownSince ??= now;
+        else
+            _allHealersDownSince = null;
+
         var (fire, reason) = PhoenixDownPolicy.Decide(in situation);
         LastState = reason;
         if (!fire)
             return;
 
+        // Wait our turn, so two toons deciding in the same second don't both cast (see PhoenixDownStagger).
+        var rank = PhoenixDownStagger.RankOf(player.EntityId, situation.SelfIsTank, livingNonTanks);
+        var sinceDown = _allHealersDownSince is { } down ? (now - down).TotalSeconds : 0d;
+        if (!PhoenixDownStagger.MayFire(rank, sinceDown))
+        {
+            LastState = $"waiting my turn (#{rank + 1} in line)";
+            return;
+        }
+
         var targetName = target!.Name?.TextValue ?? "healer";
         _lastAttempt = now;
-        if (_actionService.ExecuteItem(ConsumableIds.PhoenixDown, preferHq: false, target.GameObjectId))
+        _cast.BeginAttempt(targetName);
+
+        // The return value is deliberately ignored: for an item it reads false even when the cast goes
+        // through (field 2026-09-25). The tracker decides what happened from the cast bar instead.
+        _actionService.ExecuteItem(ConsumableIds.PhoenixDown, preferHq: false, target.GameObjectId);
+        LastState = $"starting on {targetName}";
+    }
+
+    /// <summary>Turns the cast bar into an outcome, and acts on it.</summary>
+    private void TrackAttempt(IPlayerCharacter player, DateTime now)
+    {
+        var name = _cast.TargetName ?? "healer";
+        switch (_cast.Observe(IsCastingPhoenixDown(player), player.CurrentCastTime, player.TotalCastTime))
         {
-            _lastUse = now;
-            LastState = $"casting on {targetName} (8s)";
-            Bus?.BroadcastPhoenixDown(targetName);
-            _log.Warning($"Phoenix Down: all healers down — casting on {targetName}");
-        }
-        else
-        {
-            // The game said no: blocked duty type, a recast we can't see, or a target the
-            // item refuses. Back off (RetryBackoffSeconds) instead of hammering it.
-            LastState = "game refused the item (blocked duty?)";
-            _log.Warning($"Phoenix Down: use on {targetName} refused by the game");
+            case PhoenixDownAttemptOutcome.Started:
+                // Claim the moment the cast is real — not on the call's return, which lies for items.
+                LastState = $"casting on {name} (8s)";
+                Bus?.BroadcastPhoenixDown(name);
+                _log.Warning($"Phoenix Down: all healers down — casting on {name}");
+                break;
+
+            case PhoenixDownAttemptOutcome.Completed:
+                _lastUse = now;
+                LastState = $"used on {name}";
+                break;
+
+            case PhoenixDownAttemptOutcome.Cancelled:
+                // Nothing was spent. A short pause, not the refusal backoff and never the item recast.
+                _lastAttempt = now.AddSeconds(
+                    PhoenixDownPolicy.CancelledRetrySeconds - PhoenixDownPolicy.RetryBackoffSeconds);
+                LastState = $"cast on {name} was cancelled — retrying";
+                _log.Information($"Phoenix Down: cast on {name} was cancelled before it finished");
+                break;
+
+            case PhoenixDownAttemptOutcome.Refused:
+                LastState = "game refused the item (blocked duty?)";
+                _log.Warning($"Phoenix Down: use on {name} refused by the game");
+                break;
         }
     }
+
+    private static bool IsCastingPhoenixDown(IPlayerCharacter player)
+        => player.IsCasting
+           && (Convert.ToInt32(player.CastActionType) == ItemActionType
+               || player.CastActionId is ConsumableIds.PhoenixDown or PhoenixDownActionRow);
 
     private static bool HasStatus(IBattleChara chara, uint statusId)
     {
