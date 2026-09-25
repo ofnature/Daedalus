@@ -52,6 +52,12 @@ public sealed class ActionDefinition
     /// <summary>MP cost.</summary>
     public int MpCost { get; init; }
 
+    /// <summary>
+    /// Job-gauge cost (Kenki, Beast, Ninki, ...) — Lumina's Action.PrimaryCostValue for a gauge cost
+    /// type. Set only where a rotation decision needs it; 0 otherwise.
+    /// </summary>
+    public int GaugeCost { get; init; }
+
     /// <summary>Healing potency for prediction calculations.</summary>
     public int HealPotency { get; init; }
 

@@ -7,6 +7,9 @@ using Daedalus.Rotation.Common.RoleActionHelpers;
 using Daedalus.Rotation.Common.Scheduling;
 using Daedalus.Rotation.NikeCore.Abilities;
 using Daedalus.Rotation.NikeCore.Context;
+using Daedalus.Rotation.NikeCore.Helpers;
+using Daedalus.Services.Action;
+using Daedalus.Services.Positional.Navigation;
 using Daedalus.Services;
 using Daedalus.Services.Targeting;
 using Daedalus.Services.Training;
@@ -24,6 +27,7 @@ public sealed class DamageModule : INikeModule
 
     private readonly IBurstWindowService? _burstWindowService;
     private readonly ISmartAoEService? _smartAoEService;
+    private readonly NikeApproachTracker _approach = new();
 
     public DamageModule(IBurstWindowService? burstWindowService = null, ISmartAoEService? smartAoEService = null)
     {
@@ -650,20 +654,28 @@ public sealed class DamageModule : INikeModule
 
     private void TryPushComboRotation(INikeContext context, RotationScheduler scheduler, IBattleChara target, int enemyCount, bool useAoE)
     {
-        var player = context.Player;
-        var level = player.Level;
-
-        // Out of melee range: throw Enpi to keep uptime instead of idling until we walk back in
-        // (NIN Throwing Dagger parity). Position-based (rather than the native range check) so the
-        // gate fails open in range — it must never divert a valid melee combo to a weak ranged toss
-        // when we are actually in melee. Higher-priority GCDs (Iaijutsu/Ogi/Kaeshi/Tsubame) are pushed
-        // earlier in CollectCandidates, so they still take precedence when their own gates open.
-        var meleeReach = SAMActions.Hakaze.Range + target.HitboxRadius + player.HitboxRadius;
-        if (level >= SAMActions.Enpi.MinLevel
-            && !DistanceHelper.IsInRange(player.Position, target.Position, meleeReach))
+        // Out of melee: Gyoten in, or let an arriving melee hit land, and only throw Enpi when neither
+        // applies (NikeOutOfMeleePolicy). Enpi used to fire the instant the target was out of reach,
+        // which took the GCD a melee hit a moment later would have used far better (field 2026-09-24,
+        // Shinryu Paradox at the Hollow King spawn: SAM targeted the add and spammed Enpi at it).
+        // Higher-priority GCDs (Iaijutsu/Ogi/Kaeshi/Tsubame/Meikyo) are pushed earlier in
+        // CollectCandidates and are re-decided from game state every frame, so they resume on their
+        // own once back in range.
+        switch (DecideOutOfMelee(context, target))
         {
-            TryPushEnpi(context, scheduler, target);
-            return;
+            case NikeOutOfMeleeAction.Enpi:
+                TryPushEnpi(context, scheduler, target);
+                return;
+
+            case NikeOutOfMeleeAction.Gyoten:
+                TryPushGyoten(context, scheduler, target);
+                break; // fall through: the combo is queued and lands straight after the dash
+
+            case NikeOutOfMeleeAction.HoldForApproach:
+                // Fall through: the combo is queued anyway. The scheduler's range gate holds it
+                // quietly and the server-side queue fires it the instant we arrive.
+                context.Debug.DamageState = "Closing to melee — melee hit next, not Enpi";
+                break;
         }
 
         // Continue an in-progress AoE combo even if the enemy count dropped below threshold mid-chain.
@@ -672,6 +684,92 @@ public sealed class DamageModule : INikeModule
 
         if (useAoE) TryPushAoeCombo(context, scheduler, target);
         else TryPushSingleTargetCombo(context, scheduler, target);
+    }
+
+    /// <summary>
+    /// Gathers the live readings behind <see cref="NikeOutOfMeleePolicy"/>, which owns the decision.
+    /// </summary>
+    private NikeOutOfMeleeAction DecideOutOfMelee(INikeContext context, IBattleChara target)
+    {
+        var player = context.Player;
+        var hitboxes = target.HitboxRadius + player.HitboxRadius;
+        var meleeReach = SAMActions.Hakaze.Range + hitboxes;
+        var distance = System.Numerics.Vector3.Distance(player.Position, target.Position);
+        var inMelee = distance <= meleeReach;
+
+        _approach.Sample(target.GameObjectId, distance);
+
+        // Measured closing is the ground truth for "moving toward the target". Minerva's uptime walk
+        // heads for our target, so it is trusted from the moment it starts, before the tracker has a
+        // sample window — unless the gap is visibly growing, in which case it is a dodge, not an
+        // approach.
+        var measuredClosing = _approach.ClosingSpeed >= NikeApproachTracker.MinClosingSpeed;
+        var steering = Daedalus.Rotation.Base.RotationServices.MovementArbiter?.IsExternalMovementActive == true;
+        var closing = measuredClosing || (steering && !_approach.DistanceIncreasing);
+        var speed = measuredClosing
+            ? _approach.ClosingSpeed
+            : PositionalMovementConstants.MoveSpeedYalmsPerSecond;
+        var secondsToMelee = System.MathF.Max(0f, distance - meleeReach) / speed;
+
+        var decision = NikeOutOfMeleePolicy.Decide(new NikeOutOfMeleeSituation(
+            InMelee: inMelee,
+            GyotenUsable: !inMelee && IsGyotenUsable(context, target, distance - hitboxes),
+            Closing: closing,
+            SecondsToMelee: secondsToMelee,
+            GcdSeconds: context.ActionService.GcdDuration,
+            SecondsAlreadyHeld: _approach.SecondsHeld,
+            EnpiUsable: ActionAvailability.MeetsLevelAndLearned(player.Level, context.ActionService, SAMActions.Enpi)
+                        && context.ActionService.IsActionReady(SAMActions.Enpi.ActionId)));
+
+        _approach.NoteHolding(decision == NikeOutOfMeleeAction.HoldForApproach);
+        return decision;
+    }
+
+    /// <summary>
+    /// Gyoten is possible right now: enabled, learned, off cooldown, affordable, in reach — and safe.
+    /// The safety check comes last because it is the expensive one, as with every other melee gap
+    /// closer; it refuses a dash onto ground that is about to go off, which is exactly the situation
+    /// in a fight with an invulnerable boss phase and an add across the arena.
+    /// </summary>
+    private static bool IsGyotenUsable(INikeContext context, IBattleChara target, float edgeDistance)
+    {
+        var gyoten = SAMActions.Gyoten;
+        if (!context.Configuration.Samurai.EnableGyoten) return false;
+        if (!ActionAvailability.MeetsLevelAndLearned(context.Player.Level, context.ActionService, gyoten)) return false;
+        if (!context.ActionService.IsActionReady(gyoten.ActionId)) return false;
+        if (context.Kenki < gyoten.GaugeCost) return false;
+        if (edgeDistance > gyoten.Range) return false;
+
+        if (context.TargetingService.GapCloserSafety.ShouldBlockGapCloser(target, context.Player))
+        {
+            context.Debug.DamageState = $"Gyoten blocked: {context.TargetingService.GapCloserSafety.LastBlockReason}";
+            return false;
+        }
+
+        return true;
+    }
+
+    private void TryPushGyoten(INikeContext context, RotationScheduler scheduler, IBattleChara target)
+    {
+        scheduler.PushOgcd(NikeAbilities.Gyoten, target.GameObjectId, priority: 2,
+            onDispatched: _ =>
+            {
+                context.Debug.PlannedAction = SAMActions.Gyoten.Name;
+                context.Debug.DamageState = "Gyoten (gap close)";
+
+                TrainingHelper.Decision(context.TrainingService)
+                    .Action(SAMActions.Gyoten.ActionId, SAMActions.Gyoten.Name)
+                    .AsMeleeDamage()
+                    .Target(target.Name?.TextValue ?? "Target")
+                    .Reason("Gyoten to close the gap instead of throwing Enpi",
+                        "Gyoten dashes to the target as an oGCD, so the next GCD is a full melee hit " +
+                        "rather than a weak ranged Enpi.")
+                    .Factors(new[] { "Out of melee range", "Target within Gyoten range", "10 Kenki available" })
+                    .Alternatives(new[] { "Enpi (weak, keeps GCD rolling)", "Walk in (slower)" })
+                    .Tip("Gyoten keeps you in melee. Enpi is only for when you cannot get back in.")
+                    .Concept("sam_combo_rotation")
+                    .Record();
+            });
     }
 
     private void TryPushEnpi(INikeContext context, RotationScheduler scheduler, IBattleChara target)

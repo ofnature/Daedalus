@@ -26,6 +26,13 @@ public sealed class SamuraiConfig
     public bool EnableTsubamegaeshi { get; set; } = true;
 
     /// <summary>
+    /// Dash back into melee with Hissatsu: Gyoten when out of range, instead of throwing Enpi. Every
+    /// dash still goes through the shared gap-closer safety check, so it never lands on ground that
+    /// is about to go off. Same convention as Monk's Thunderclap toggle.
+    /// </summary>
+    public bool EnableGyoten { get; set; } = true;
+
+    /// <summary>
     /// Whether to use Ogi Namikiri.
     /// </summary>
     public bool EnableOgiNamikiri { get; set; } = true;

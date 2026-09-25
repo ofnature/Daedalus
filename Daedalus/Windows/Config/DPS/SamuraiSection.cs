@@ -52,6 +52,15 @@ public sealed class SamuraiSection
                 actionId: SAMActions.TsubameGaeshi.ActionId);
 
             ConfigUIHelpers.Toggle(
+                "Gap close with Hissatsu: Gyoten",
+                () => config.Samurai.EnableGyoten,
+                v => config.Samurai.EnableGyoten = v,
+                "When the target is out of melee range, dash back in with Gyoten (10 Kenki) instead of "
+                + "throwing Enpi. Never dashes onto ground that is about to go off.",
+                save,
+                actionId: SAMActions.Gyoten.ActionId);
+
+            ConfigUIHelpers.Toggle(
                 Loc.T(LocalizedStrings.Samurai.EnableOgiNamikiri, "Enable Ogi Namikiri"),
                 () => config.Samurai.EnableOgiNamikiri,
                 v => config.Samurai.EnableOgiNamikiri = v,

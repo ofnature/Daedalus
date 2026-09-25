@@ -707,8 +707,9 @@ public static class SAMActions
     #region Utility Actions (oGCD)
 
     /// <summary>
-    /// Hissatsu: Gyoten - Gap closer (Lv.54)
-    /// Requires 10 Kenki.
+    /// Hissatsu: Gyoten - Gap closer (Lv.54).
+    /// Verified against live game data 2026-09-24: 20y range, 5s recast (this said 10s), 10 Kenki
+    /// (PrimaryCostType 39 / PrimaryCostValue 10).
     /// </summary>
     public static readonly ActionDefinition Gyoten = new()
     {
@@ -719,9 +720,10 @@ public static class SAMActions
         TargetType = ActionTargetType.SingleEnemy,
         EffectTypes = ActionEffectType.Damage | ActionEffectType.Movement,
         CastTime = 0f,
-        RecastTime = 10f,
+        RecastTime = 5f,
         Range = 20f,
         MpCost = 0,
+        GaugeCost = 10,
         DamagePotency = 100
     };
 
@@ -760,7 +762,8 @@ public static class SAMActions
         EffectTypes = ActionEffectType.Damage,
         CastTime = 0f,
         RecastTime = 2.5f,
-        Range = 15f,
+        // 20y, verified against live game data 2026-09-24 (this said 15y).
+        Range = 20f,
         MpCost = 0,
         DamagePotency = 100 // Enhanced: 280
     };

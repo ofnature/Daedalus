@@ -3,6 +3,19 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.80 — unreleased
+
+### Fix — Samurai closes to melee instead of spamming Enpi
+- **Samurai threw Enpi the instant a target was out of reach**, even when it was already walking
+  back in or had Gyoten available — so an add across the arena got a stream of weak ranged hits
+  instead of melee.
+- Now, out of melee: **Hissatsu: Gyoten** dashes you in if you have 10 Kenki and the landing spot
+  is safe; if you're already closing and will arrive within about a GCD, it waits for the melee hit;
+  and **Enpi** is only thrown when you genuinely can't get back in.
+- New "Gap close with Hissatsu: Gyoten" toggle under Samurai settings. Gyoten goes through the same
+  safety check as every other gap closer, so it won't dash you onto ground that's about to go off.
+
+<!-- LATEST-END -->
 ## v0.1.79 — 2026-09-20
 
 ### New — a Revive tab in the Debug window
@@ -22,8 +35,6 @@ All notable changes to Daedalus will be documented in this file.
 - The layer now stands down from the GCD whenever your own job has somebody it could raise, and
   still takes it for its own Variant Raise. Same guard the Occult phantom layer already had — it
   hit this exact problem and this layer was never given the fix.
-
-<!-- LATEST-END -->
 ## v0.1.78 — 2026-09-20
 
 ### Fix — Variant Cure heals the party, and Spirit Dart stops re-applying itself

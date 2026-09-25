@@ -15,6 +15,13 @@ public static class NikeAbilities
     // never something to switch off; the module gates it purely on range + level + readiness.
     public static readonly AbilityBehavior Enpi = new() { Action = SAMActions.Enpi };
 
+    // --- Gap closer ---
+    public static readonly AbilityBehavior Gyoten = new()
+    {
+        Action = SAMActions.Gyoten,
+        Toggle = cfg => cfg.Samurai.EnableGyoten,
+    };
+
     // --- Combo starters ---
     public static readonly AbilityBehavior Hakaze = new() { Action = SAMActions.Hakaze };
     public static readonly AbilityBehavior Gyofu = new() { Action = SAMActions.Gyofu };
