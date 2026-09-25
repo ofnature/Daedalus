@@ -5,6 +5,19 @@ All notable changes to Daedalus will be documented in this file.
 <!-- LATEST-START -->
 ## v0.1.80 — unreleased
 
+### Fix — toons stop picking fights with strangers' mobs in Bozja
+- **In open-world zones like the Southern Front, toons attacked mobs other players were fighting**,
+  and pulled untouched ones, instead of helping their own party. "This mob is in a fight" was being
+  treated as "this mob is in *our* fight" — true in a dungeon, not in a zone full of strangers.
+- A mob now counts only if it's fighting your side: you, your party, a Trust ally, or a pet one of
+  them owns. A mob that's merely wounded no longer counts, since strangers wound mobs constantly.
+- **"Include hostiles without your in-combat flag" is now "Include mobs fighting your alliance".** It
+  was a blanket "every hostile counts"; now it adds only mobs fighting your alliance, which is what
+  alliance raids need, and never a stranger's fight. It also only applies while your group is in
+  combat again, as its description always said.
+- To have a DPS follow your tank's target rather than choose its own, set its targeting to **Tank
+  Assist**.
+
 ### Fix — Samurai closes to melee instead of spamming Enpi
 - **Samurai threw Enpi the instant a target was out of reach**, even when it was already walking
   back in or had Gyoten available — so an add across the arena got a stream of weak ranged hits

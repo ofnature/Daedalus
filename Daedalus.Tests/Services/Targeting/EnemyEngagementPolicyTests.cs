@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using Dalamud.Game.ClientState.Objects.Enums;
 using Dalamud.Game.ClientState.Objects.SubKinds;
 using Dalamud.Game.ClientState.Objects.Types;
@@ -11,223 +13,241 @@ using Xunit;
 namespace Daedalus.Tests.Services.Targeting;
 
 /// <summary>
-/// Which enemies a character may pick up, when its own InCombat flag is not the whole story.
+/// Which hostiles are part of OUR fight, as opposed to merely being in one.
 /// <para>
-/// Field 2026-09-17: casters pulled random mobs while the tank was fighting. An ally in combat
-/// waived the enemy-side requirement entirely, so every hostile in scan range became a candidate
-/// — and the nearest hostile to a backline caster is very often a pack nobody has touched.
-/// "My party is fighting" and "this mob is fair game" are separate questions now.
+/// Field 2026-09-25, Bozja's Southern Front: a PCT pulled random mobs and ignored its party's target —
+/// only there. In a dungeon every nearby mob is fighting your party or nobody, so "has a target" or "is
+/// wounded" was a fine test. In an open zone full of strangers both are true of everyone else's fights,
+/// so the PCT (on Lowest HP) went for strangers' half-dead mobs and pulled untouched ones. The test is
+/// now "is it fighting our side" — us, our party, our alliance when opted in, a Trust ally, or a pet.
 /// </para>
 /// </summary>
 public sealed class EnemyEngagementPolicyTests
 {
-    private static bool Include(
-        Mock<IBattleNpc> enemy, ulong currentTargetId = 0, bool playerInCombat = true,
-        bool allowsUnclaimed = false, bool allyInCombat = false)
-        => EnemyEngagementPolicy.ShouldIncludeEnemyForTargeting(
-            enemy.Object, currentTargetId, playerInCombat, allowsUnclaimed, allyInCombat);
+    private const ulong Me = 7UL;
+    private const ulong PartyMate = 100UL;
+    private const ulong AllianceMate = 200UL;
+    private const ulong Stranger = 300UL;
+    private const ulong TrustAlly = 400UL;
+    private const ulong PartyPet = 500UL;
+    private const ulong StrangerPet = 600UL;
+    private const uint PartyMateEntity = 1100;
+    private const uint StrangerEntity = 1300;
 
-    // ── the field bug ──────────────────────────────────────────────────────────────────
+    private readonly Dictionary<ulong, IGameObject> _byId = new();
+    private readonly Dictionary<uint, IGameObject> _byEntity = new();
 
-    /// <summary>
-    /// THE regression. Tank is fighting, so the caster is "effectively in combat"; the mob next to
-    /// it is untouched — full HP, nothing held. It must not be a candidate, or the caster hits it
-    /// and the pack comes.
-    /// </summary>
-    [Fact]
-    public void AnAllyFighting_DoesNotMakeAnUntouchedMobFairGame()
-        => Assert.False(Include(Untouched(), playerInCombat: true, allyInCombat: true));
-
-    /// <summary>
-    /// The other half: while an ally fights, a mob that IS in the fight but whose own combat flag
-    /// has not arrived yet still counts — that is the case the relaxation exists for.
-    /// </summary>
-    [Theory]
-    [InlineData(true, false)]   // holding someone's attention
-    [InlineData(false, true)]   // already wounded
-    [InlineData(true, true)]
-    public void AnAllyFighting_StillAcceptsAMobAlreadyInTheFight(bool hasTarget, bool wounded)
+    public EnemyEngagementPolicyTests()
     {
-        var enemy = CreateEnemy(inCombat: false, targetObjectId: hasTarget ? 900UL : 0UL,
-                                currentHp: wounded ? 500u : 1000u, maxHp: 1000u);
-        Assert.True(Include(enemy, playerInCombat: true, allyInCombat: true));
+        Add(Player(PartyMate, PartyMateEntity, StatusFlags.PartyMember));
+        Add(Player(AllianceMate, 1200, StatusFlags.AllianceMember));
+        Add(Player(Stranger, StrangerEntity, StatusFlags.None));
+        Add(TrustNpc(TrustAlly));
+        Add(Pet(PartyPet, ownerEntity: PartyMateEntity));
+        Add(Pet(StrangerPet, ownerEntity: StrangerEntity));
     }
 
-    [Theory]
-    [InlineData(0UL, 1000u, false)]   // full health, nothing held -> the next pack
-    [InlineData(900UL, 1000u, true)]  // fighting something
-    [InlineData(0UL, 999u, true)]     // someone has hit it
-    public void EngagementEvidenceIsATargetOrAWound(ulong targetId, uint hp, bool expected)
-        => Assert.Equal(expected, EnemyEngagementPolicy.HasEngagementEvidence(
-            CreateEnemy(inCombat: false, targetObjectId: targetId, currentHp: hp, maxHp: 1000u).Object));
+    // The same resolver production uses — deliberately without the local player in the table, which is
+    // what caught our own id depending on a lookup it should never need.
+    private Func<ulong, bool> OurSide(bool includeAlliance = false)
+        => EnemyEngagementPolicy.OurSideResolver(
+            Me, includeAlliance, id => _byId.GetValueOrDefault(id), e => _byEntity.GetValueOrDefault(e));
 
-    // ── the things that must keep working ──────────────────────────────────────────────
-
-    /// <summary>An enemy carrying its own combat flag never needs any of the reasoning below it.</summary>
-    [Fact]
-    public void AnEnemyWithItsOwnCombatFlagAlwaysCounts()
-        => Assert.True(Include(CreateEnemy(inCombat: true), playerInCombat: false));
+    // ── the Bozja case ─────────────────────────────────────────────────────────────────
 
     /// <summary>
-    /// A hard target is a deliberate instruction. Pulled or not, in combat or not, if the user
-    /// pointed at it we attack it — this is what makes a manual pull work at all.
+    /// THE regression. A mob a stranger is fighting — it has a target and it is wounded, which is
+    /// everything the old test asked for — must not be a candidate for our toons.
     /// </summary>
+    [Fact]
+    public void AStrangersFight_IsNotOurFight()
+    {
+        var enemy = Enemy(target: Stranger, wounded: true);
+        Assert.False(Include(enemy));
+        Assert.False(EnemyEngagementPolicy.IsEnemyInTheFight(enemy.Object, OurSide()));
+    }
+
+    /// <summary>A wound on its own proves nothing in a shared zone; strangers wound mobs constantly.</summary>
+    [Fact]
+    public void WoundedButFightingNobody_IsNotOurFight()
+        => Assert.False(Include(Enemy(target: 0, wounded: true)));
+
+    [Fact]
+    public void AStrangersPet_DoesNotMakeItOurs()
+        => Assert.False(Include(Enemy(target: StrangerPet)));
+
+    // ── what still counts ──────────────────────────────────────────────────────────────
+
+    [Theory]
+    [InlineData(Me)]
+    [InlineData(PartyMate)]
+    [InlineData(TrustAlly)]      // Trust content: allies are NPCs and the party list is empty
+    [InlineData(PartyPet)]       // a carbuncle, fairy or chocobo is fighting for its owner
+    public void AMobFightingOurSide_IsOurs(ulong target)
+    {
+        var enemy = Enemy(target: target);
+        Assert.True(Include(enemy));
+        Assert.True(EnemyEngagementPolicy.IsEnemyInTheFight(enemy.Object, OurSide()));
+    }
+
+    [Fact]
+    public void ItsOwnCombatFlag_AlwaysCounts()
+        => Assert.True(Include(Enemy(target: 0, inCombat: true), playerInCombat: false));
+
+    /// <summary>A hard target is a deliberate instruction — a manual pull must still work.</summary>
     [Fact]
     public void TheHardTargetIsAlwaysHonoured()
-    {
-        const ulong id = 42;
-        var enemy = CreateEnemy(inCombat: false, gameObjectId: id, currentHp: 1000u, maxHp: 1000u);
-        Assert.True(Include(enemy, currentTargetId: id, playerInCombat: false));
-    }
+        => Assert.True(Include(Enemy(target: 0, id: 42), currentTargetId: 42, playerInCombat: false));
 
-    /// <summary>The explicit opt-in is blanket by design: turning it on asks for the unpulled ones.</summary>
-    [Fact]
-    public void TheExplicitOptInStillTakesUnclaimedHostiles()
-        => Assert.True(Include(Untouched(), playerInCombat: false, allowsUnclaimed: true));
-
-    /// <summary>Out of combat with no ally fighting and no opt-in, nothing unclaimed is touched.</summary>
-    [Fact]
-    public void NothingUnclaimedOutOfCombat()
-        => Assert.False(Include(Untouched(), playerInCombat: false));
+    // ── the alliance setting ───────────────────────────────────────────────────────────
 
     /// <summary>
-    /// In combat personally but with no ally fighting and no opt-in: still nothing unclaimed. This
-    /// was already the behaviour with the relax flag off, and it stays.
+    /// What the setting was added for: in an alliance raid another party tags a mob first. Scoped to
+    /// the alliance it covers that — and only that.
     /// </summary>
     [Fact]
-    public void NothingUnclaimedOnOurOwnCombatFlagAlone()
-        => Assert.False(Include(Untouched(), playerInCombat: true));
+    public void AMobFightingTheAlliance_CountsOnlyWhenTheSettingIsOn()
+    {
+        var enemy = Enemy(target: AllianceMate);
+        Assert.False(Include(enemy, includeAlliance: false));
+        Assert.True(Include(enemy, includeAlliance: true));
+    }
 
-    // ── the two relaxation reasons are separate ────────────────────────────────────────
+    /// <summary>
+    /// And it is no longer a blanket. A stranger is not in your alliance, so the setting being on —
+    /// as it was on all four boxes — must not bring their fights back in.
+    /// </summary>
+    [Fact]
+    public void TheSettingNeverAdmitsAStrangersFight()
+        => Assert.False(Include(Enemy(target: Stranger, wounded: true), includeAlliance: true));
 
     [Fact]
-    public void TheOptInIsReadFromConfigAndDefaultsOff()
+    public void TheSettingIsReadFromConfigAndDefaultsOff()
     {
         var config = MockBuilders.CreateDefaultConfiguration();
-        Assert.False(EnemyEngagementPolicy.AllowsUnclaimedHostiles(config));
+        Assert.False(EnemyEngagementPolicy.IncludesAlliance(config));
 
         config.Targeting.IncludeHostilesWithoutPersonalCombatFlag = true;
-        Assert.True(EnemyEngagementPolicy.AllowsUnclaimedHostiles(config));
+        Assert.True(EnemyEngagementPolicy.IncludesAlliance(config));
     }
 
     /// <summary>
-    /// A fighting tank still reports an ally in combat — the signal is intact, it just no longer
-    /// doubles as permission to hit anything nearby.
+    /// Restored contract: only while we are effectively fighting. A 2026-09-17 rewrite made the setting
+    /// apply out of combat too, against its own documentation.
     /// </summary>
     [Fact]
-    public void AFightingTankIsReportedAsAnAllyInCombat()
+    public void NothingIsAdmittedOnSideAloneWhileWeAreNotFighting()
+        => Assert.False(Include(Enemy(target: AllianceMate), playerInCombat: false, includeAlliance: true));
+
+    // ── who is on our side ─────────────────────────────────────────────────────────────
+
+    [Theory]
+    [InlineData(Me, false, true)]
+    [InlineData(PartyMate, false, true)]
+    [InlineData(AllianceMate, false, false)]
+    [InlineData(AllianceMate, true, true)]
+    [InlineData(Stranger, true, false)]
+    [InlineData(TrustAlly, false, true)]
+    [InlineData(PartyPet, false, true)]
+    [InlineData(StrangerPet, true, false)]
+    [InlineData(999UL, true, false)]         // not in the object table at all
+    public void OurSideIs(ulong id, bool includeAlliance, bool expected)
+        => Assert.Equal(expected, OurSide(includeAlliance)(id));
+
+    /// <summary>"No target" in either encoding is nobody, never a match for a missing id.</summary>
+    [Theory]
+    [InlineData(0UL)]
+    [InlineData(0xE0000000UL)]
+    public void NoTarget_IsNeverFightingOurSide(ulong target)
+        => Assert.False(EnemyEngagementPolicy.IsFightingOurSide(Enemy(target: target).Object, _ => true));
+
+    /// <summary>
+    /// The rotation still enters combat off a fighting tank — that signal is untouched; it just no
+    /// longer decides which enemies are fair game.
+    /// </summary>
+    [Fact]
+    public void AFightingTankStillPutsUsInCombat()
     {
-        const uint playerEntityId = 100;
-        const uint tankEntityId = 200;
+        var player = new Mock<IPlayerCharacter>();
+        player.Setup(x => x.EntityId).Returns(100u);
+        player.Setup(x => x.StatusFlags).Returns(StatusFlags.None);
 
-        var player = CreatePlayer(inCombat: false, entityId: playerEntityId);
-        var tank = CreateBattleChara(inCombat: true, entityId: tankEntityId);
+        var tank = new Mock<IBattleChara>();
+        tank.Setup(x => x.EntityId).Returns(200u);
+        tank.Setup(x => x.IsDead).Returns(false);
+        tank.Setup(x => x.StatusFlags).Returns(StatusFlags.InCombat);
 
-        var partyMember = new Mock<IPartyMember>();
-        partyMember.Setup(x => x.EntityId).Returns(tankEntityId);
-
+        var member = new Mock<IPartyMember>();
+        member.Setup(x => x.EntityId).Returns(200u);
         var partyList = new Mock<IPartyList>();
         partyList.Setup(x => x.Length).Returns(2);
-        // A fresh enumerator per call: Returns(<instance>) hands the SAME one back every time, so a
-        // second read of the party list sees it already exhausted and reports nobody in combat.
-        partyList.Setup(x => x.GetEnumerator())
-            .Returns(() => new List<IPartyMember> { partyMember.Object }.GetEnumerator());
-
+        partyList.Setup(x => x.GetEnumerator()).Returns(() => new List<IPartyMember> { member.Object }.GetEnumerator());
         var objectTable = new Mock<IObjectTable>();
-        objectTable.Setup(x => x.SearchByEntityId(tankEntityId)).Returns(tank.Object);
+        objectTable.Setup(x => x.SearchByEntityId(200u)).Returns(tank.Object);
 
         var config = MockBuilders.CreateDefaultConfiguration();
         config.EnableOnPartyInCombat = true;
 
-        Assert.True(EnemyEngagementPolicy.IsAnyAllyInCombat(
-            config, player.Object, partyList.Object, objectTable.Object));
-
-        // ... and the rotation still runs off that signal.
         Assert.True(EnemyEngagementPolicy.IsPlayerEffectivelyInCombat(
             player.Object, config, partyList.Object, objectTable.Object));
     }
 
-    // ── is this mob part of the fight? (AoE counts, pack TTK, nearest-enemy pick) ──────
+    // ── helpers ────────────────────────────────────────────────────────────────────────
 
-    private const ulong Me = 7UL;
+    private bool Include(Mock<IBattleNpc> enemy, ulong currentTargetId = 0, bool playerInCombat = true,
+        bool includeAlliance = false)
+        => EnemyEngagementPolicy.ShouldIncludeEnemyForTargeting(
+            enemy.Object, currentTargetId, playerInCombat, OurSide(includeAlliance));
 
-    /// <summary>
-    /// THE other half of the field bug. An untouched hostile standing near the pull used to count,
-    /// because our own combat flag plus its Hostile flag was enough. That inflated the AoE
-    /// thresholds until an AoE went out and pulled it, and offered it to the nearest-enemy pick.
-    /// </summary>
-    [Fact]
-    public void AnUntouchedHostileIsNotPartOfTheFight()
-        => Assert.False(EnemyEngagementPolicy.IsEnemyInTheFight(Hostile().Object, Me));
-
-    [Fact]
-    public void AMobComingForUsIsPartOfTheFightBeforeAnythingLands()
-        => Assert.True(EnemyEngagementPolicy.IsEnemyInTheFight(
-            CreateEnemy(inCombat: false, targetObjectId: Me, hostile: true).Object, Me));
-
-    [Fact]
-    public void AMobFightingSomeoneElseIsPartOfTheFight()
-        => Assert.True(EnemyEngagementPolicy.IsEnemyInTheFight(
-            CreateEnemy(inCombat: false, targetObjectId: 999UL, hostile: true).Object, Me));
-
-    [Fact]
-    public void AWoundedMobIsPartOfTheFight()
-        => Assert.True(EnemyEngagementPolicy.IsEnemyInTheFight(
-            CreateEnemy(inCombat: false, currentHp: 900u, maxHp: 1000u, hostile: true).Object, Me));
-
-    [Fact]
-    public void ItsOwnCombatFlagIsEnoughWithoutTheHostileFlag()
-        => Assert.True(EnemyEngagementPolicy.IsEnemyInTheFight(
-            CreateEnemy(inCombat: true, hostile: false).Object, Me));
-
-    /// <summary>
-    /// Being in the fight is about the enemy, not about us: our own combat state is not an argument
-    /// here at all, which is exactly what stopped the next pack qualifying the moment we pulled.
-    /// </summary>
-    [Fact]
-    public void OurOwnCombatStateDoesNotEnrolAnyone()
+    private void Add(IGameObject obj)
     {
-        // Same untouched mob, and nothing about the caller can change the answer.
-        Assert.False(EnemyEngagementPolicy.IsEnemyInTheFight(Hostile().Object, Me));
-        Assert.False(EnemyEngagementPolicy.IsEnemyInTheFight(Hostile().Object, playerGameObjectId: 0UL));
+        _byId[obj.GameObjectId] = obj;
+        _byEntity[obj.EntityId] = obj;
     }
 
-    private static Mock<IBattleNpc> Hostile()
-        => CreateEnemy(inCombat: false, targetObjectId: 0, currentHp: 1000u, maxHp: 1000u, hostile: true);
+    private static Mock<IBattleNpc> Enemy(ulong target, bool inCombat = false, bool wounded = false, ulong id = 900)
+    {
+        var mock = new Mock<IBattleNpc>();
+        mock.Setup(x => x.GameObjectId).Returns(id);
+        mock.Setup(x => x.TargetObjectId).Returns(target);
+        mock.Setup(x => x.CurrentHp).Returns(wounded ? 400u : 1000u);
+        mock.Setup(x => x.MaxHp).Returns(1000u);
+        mock.Setup(x => x.StatusFlags).Returns(inCombat ? StatusFlags.InCombat | StatusFlags.Hostile : StatusFlags.Hostile);
+        return mock;
+    }
 
-    private static Mock<IBattleNpc> Untouched()
-        => CreateEnemy(inCombat: false, targetObjectId: 0, currentHp: 1000u, maxHp: 1000u);
-
-    private static Mock<IPlayerCharacter> CreatePlayer(bool inCombat, uint entityId = 100)
+    private static IGameObject Player(ulong id, uint entity, StatusFlags flags)
     {
         var mock = new Mock<IPlayerCharacter>();
-        mock.Setup(x => x.EntityId).Returns(entityId);
-        mock.Setup(x => x.StatusFlags).Returns(inCombat ? StatusFlags.InCombat : 0);
-        return mock;
-    }
-
-    private static Mock<IBattleNpc> CreateEnemy(
-        bool inCombat, ulong gameObjectId = 500, ulong targetObjectId = 0,
-        uint currentHp = 1000, uint maxHp = 1000, bool hostile = false)
-    {
-        var flags = inCombat ? StatusFlags.InCombat : 0;
-        if (hostile) flags |= StatusFlags.Hostile;
-
-        var mock = new Mock<IBattleNpc>();
-        mock.Setup(x => x.GameObjectId).Returns(gameObjectId);
-        mock.Setup(x => x.TargetObjectId).Returns(targetObjectId);
-        mock.Setup(x => x.CurrentHp).Returns(currentHp);
-        mock.Setup(x => x.MaxHp).Returns(maxHp);
+        mock.Setup(x => x.GameObjectId).Returns(id);
+        mock.Setup(x => x.EntityId).Returns(entity);
+        mock.Setup(x => x.ObjectKind).Returns(ObjectKind.Pc);
         mock.Setup(x => x.StatusFlags).Returns(flags);
-        return mock;
+        return mock.Object;
     }
 
-    private static Mock<IBattleChara> CreateBattleChara(bool inCombat, uint entityId)
+    private static IGameObject TrustNpc(ulong id)
     {
-        var mock = new Mock<IBattleChara>();
-        mock.Setup(x => x.EntityId).Returns(entityId);
-        mock.Setup(x => x.IsDead).Returns(false);
-        mock.Setup(x => x.StatusFlags).Returns(inCombat ? StatusFlags.InCombat : 0);
-        return mock;
+        var mock = new Mock<IBattleNpc>();
+        mock.Setup(x => x.GameObjectId).Returns(id);
+        mock.Setup(x => x.EntityId).Returns(1400u);
+        mock.Setup(x => x.ObjectKind).Returns(ObjectKind.BattleNpc);
+        mock.Setup(x => x.SubKind).Returns((byte)9);   // NpcPartyMember
+        mock.Setup(x => x.CurrentHp).Returns(1000u);
+        mock.Setup(x => x.MaxHp).Returns(1000u);
+        return mock.Object;
+    }
+
+    private static IGameObject Pet(ulong id, uint ownerEntity)
+    {
+        var mock = new Mock<IBattleNpc>();
+        mock.Setup(x => x.GameObjectId).Returns(id);
+        mock.Setup(x => x.EntityId).Returns((uint)(id + 10000));
+        mock.Setup(x => x.ObjectKind).Returns(ObjectKind.BattleNpc);
+        mock.Setup(x => x.SubKind).Returns((byte)2);   // Pet
+        mock.Setup(x => x.OwnerId).Returns(ownerEntity);
+        mock.Setup(x => x.CurrentHp).Returns(1000u);
+        mock.Setup(x => x.MaxHp).Returns(1000u);
+        return mock.Object;
     }
 }

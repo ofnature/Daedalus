@@ -450,11 +450,11 @@ public sealed class GeneralSection
 
         ConfigUIHelpers.Toggle(
             Loc.T(LocalizedStrings.Targeting.IncludeHostilesWithoutPersonalCombatFlag,
-                "Include hostiles without your in-combat flag"),
+                "Include mobs fighting your alliance"),
             () => this.config.Targeting.IncludeHostilesWithoutPersonalCombatFlag,
             v => this.config.Targeting.IncludeHostilesWithoutPersonalCombatFlag = v,
             Loc.T(LocalizedStrings.Targeting.IncludeHostilesWithoutPersonalCombatFlagDesc,
-                "In alliance raids, mobs tagged by other parties often lack your personal in-combat flag until you hit them. Enable to keep attacking valid contribution targets. Also activates automatically while group-combat assist is enabled and allies are fighting."),
+                "In alliance raids another party often tags a mob first, and it has no combat flag for your toons until one of them hits it. Turn this on to also attack mobs fighting any member of your alliance, not just your own party. It never includes a stranger's fight in open-world zones such as Bozja, and only applies while your group is in combat."),
             this.save);
 
         ConfigUIHelpers.Toggle(

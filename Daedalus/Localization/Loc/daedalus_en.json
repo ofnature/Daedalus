@@ -144,8 +144,8 @@
   "config.targeting.strict_current_target_desc": "When using Current Target or Focus Target strategy, never fall back to another enemy if yours is gone.",
   "config.targeting.safe_gap_closer": "Safe gap closers",
   "config.targeting.safe_gap_closer_desc": "Only use gap closers on your explicitly selected target, and block them when you are moving away from the target (spread markers, ground AoE at the end point).",
-  "config.targeting.include_hostiles_without_personal_combat_flag": "Include hostiles without your in-combat flag",
-  "config.targeting.include_hostiles_without_personal_combat_flag_desc": "In alliance raids, mobs tagged by other parties often lack your personal in-combat flag until you hit them. Enable to keep attacking valid contribution targets. Also activates automatically while group-combat assist is enabled and allies are fighting.",
+  "config.targeting.include_hostiles_without_personal_combat_flag": "Include mobs fighting your alliance",
+  "config.targeting.include_hostiles_without_personal_combat_flag_desc": "In alliance raids another party often tags a mob first, and it has no combat flag for your toons until one of them hits it. Turn this on to also attack mobs fighting any member of your alliance, not just your own party. It never includes a stranger's fight in open-world zones such as Bozja, and only applies while your group is in combat.",
   "config.targeting.movement_tolerance": "Movement Tolerance",
   "config.targeting.movement_tolerance_desc": "Delay after stopping before casting. Lower = faster, higher = safer.",
 

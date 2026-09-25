@@ -1,3 +1,4 @@
+using System;
 using Dalamud.Game.ClientState.Objects.Enums;
 using Dalamud.Game.ClientState.Objects.SubKinds;
 using Dalamud.Game.ClientState.Objects.Types;
@@ -8,11 +9,22 @@ using Daedalus.Rotation.Common.Helpers;
 namespace Daedalus.Services.Targeting;
 
 /// <summary>
-/// Decides whether a hostile is eligible for auto-targeting when the personal InCombat flag
-/// is missing — common in alliance raids where another party tagged the mob first.
+/// Decides which hostiles are part of OUR fight, as opposed to merely being in a fight.
+///
+/// <para>
+/// In a dungeon the two are the same thing — every mob nearby is fighting your party or nobody. In
+/// open-world content they are not: Bozja's Southern Front (reported 2026-09-25) is full of mobs other
+/// players are fighting, and "it has a target" or "it is wounded" is true of all of them. A PCT set to
+/// Lowest HP then picked whichever stranger's mob was nearly dead, or pulled an untouched one, instead
+/// of helping its own party. So the test is not "is anybody fighting it" but "is it fighting US" —
+/// our party, our alliance when opted in, a Trust ally, or a pet one of them owns.
+/// </para>
 /// </summary>
 internal static class EnemyEngagementPolicy
 {
+    /// <summary>The object id the game uses for "no target".</summary>
+    private const ulong NoTarget = 0xE0000000;
+
     internal static bool IsPlayerEffectivelyInCombat(
         IPlayerCharacter player,
         Configuration configuration,
@@ -30,85 +42,112 @@ internal static class EnemyEngagementPolicy
     }
 
     /// <summary>
-    /// The user has explicitly asked for hostiles that carry no combat flag at all to be fair game.
-    /// Opt-in, default off, and blanket: someone who turns this on wants the unpulled ones too.
+    /// Whether mobs fighting the rest of the ALLIANCE count as ours, not just mobs fighting our own
+    /// party. This is what "include hostiles without a combat flag" was added for: in alliance raids
+    /// another party often tags a mob first, and it carries no combat flag for our toons until one of
+    /// them hits it.
+    /// <para>
+    /// It used to be a blanket "every hostile counts", which is exactly what made Bozja go wrong — a
+    /// stranger is not in your alliance, but the blanket admitted their mobs anyway. Scoped to the
+    /// alliance it covers the raid case and nothing else.
+    /// </para>
     /// </summary>
-    internal static bool AllowsUnclaimedHostiles(Configuration configuration)
+    internal static bool IncludesAlliance(Configuration configuration)
         => configuration.Targeting.IncludeHostilesWithoutPersonalCombatFlag;
 
     /// <summary>
-    /// An ally is fighting, so this character should be fighting too — but that says nothing about
-    /// WHICH enemies are fair game, which is why it is kept separate from
-    /// <see cref="AllowsUnclaimedHostiles"/>. See <see cref="ShouldIncludeEnemyForTargeting"/>.
+    /// Is this object on our side? Us, a party member, an alliance member (only when
+    /// <paramref name="includeAlliance"/>), a Trust / duty-support ally, or a pet or companion owned by
+    /// one of those.
+    /// <para>
+    /// Players are judged by their party/alliance status flags. Trust allies are NOT — memory of
+    /// 2026-07-03: status flags lie on Trust avatars, and the party list is empty in Trust content —
+    /// so they go through <see cref="BasePartyHelper.IsValidTrustNpc"/>, the codebase's one reliable
+    /// test. Pets are judged by their owner, one hop only.
+    /// </para>
     /// </summary>
-    internal static bool IsAnyAllyInCombat(
-        Configuration configuration,
-        IPlayerCharacter player,
-        IPartyList partyList,
-        IObjectTable objectTable)
-        => configuration.EnableOnPartyInCombat
-           && PartyCombatHelper.IsAnyGroupMemberInCombat(player, partyList, objectTable);
+    internal static bool IsOnOurSide(
+        IGameObject? obj,
+        ulong localPlayerId,
+        bool includeAlliance,
+        Func<uint, IGameObject?> byEntityId,
+        bool isOwnerLookup = false)
+    {
+        if (obj is null)
+            return false;
+
+        if (localPlayerId != 0 && obj.GameObjectId == localPlayerId)
+            return true;
+
+        if (obj is IPlayerCharacter pc)
+        {
+            var ours = includeAlliance
+                ? StatusFlags.PartyMember | StatusFlags.AllianceMember
+                : StatusFlags.PartyMember;
+            return (pc.StatusFlags & ours) != 0;
+        }
+
+        if (obj is IBattleNpc npc)
+        {
+            if (BasePartyHelper.IsValidTrustNpc(npc, out _))
+                return true;
+
+            // A mob chewing on a carbuncle, fairy or chocobo is fighting whoever owns it.
+            if (!isOwnerLookup && npc.OwnerId is not (0 or (uint)NoTarget)
+                && byEntityId(npc.OwnerId) is { } owner)
+                return IsOnOurSide(owner, localPlayerId, includeAlliance, byEntityId, isOwnerLookup: true);
+        }
+
+        return false;
+    }
 
     /// <summary>
-    /// Evidence that this enemy is already IN the fight, for when its own InCombat flag has not
-    /// arrived yet. Either something is holding its attention, or something has already hit it.
-    /// A mob standing at full health with no target is not in the fight — it is the next pack.
+    /// The "is this id on our side?" question as one function, for production and tests alike. Our own id
+    /// is recognised before any lookup: whether we are on our own side must never depend on the object
+    /// table having us in it on this particular frame.
     /// </summary>
-    internal static bool HasEngagementEvidence(IBattleNpc enemy)
-        => enemy.TargetObjectId != 0 || enemy.CurrentHp < enemy.MaxHp;
+    internal static Func<ulong, bool> OurSideResolver(
+        ulong localPlayerId,
+        bool includeAlliance,
+        Func<ulong, IGameObject?> byId,
+        Func<uint, IGameObject?> byEntityId)
+        => id => (localPlayerId != 0 && id == localPlayerId)
+                 || IsOnOurSide(byId(id), localPlayerId, includeAlliance, byEntityId);
+
+    /// <summary>The enemy's current target is on our side — it is fighting us, not someone else.</summary>
+    internal static bool IsFightingOurSide(IBattleNpc enemy, Func<ulong, bool> isOurSide)
+        => enemy.TargetObjectId is not (0 or NoTarget) && isOurSide(enemy.TargetObjectId);
 
     /// <summary>
     /// Is this enemy part of the fight we are already in? Drives AoE counts, pack time-to-kill, and
-    /// the nearest-enemy pick, so a "yes" here for an untouched mob both inflates the AoE thresholds
-    /// that decide whether to fire an AoE at all and offers that mob up as a target.
-    ///
+    /// the nearest-enemy pick, so a "yes" here for a mob that isn't ours both inflates the AoE
+    /// thresholds and offers that mob up as a target — an AoE fired on the strength of it clips the
+    /// mob and pulls it.
     /// <para>
-    /// There used to be a final fallback: our own InCombat flag plus the enemy's Hostile flag. But
-    /// Hostile is true of every aggressive mob in the zone whether or not anybody has touched it, so
-    /// from the moment the pull began the next pack qualified too (field 2026-09-17). The four tests
-    /// below already accept everything genuinely in the fight.
+    /// "Holding a target" and "wounded" used to count on their own. In open-world content both are
+    /// true of every mob a stranger is fighting, so they no longer count unless the target is ours.
     /// </para>
     /// </summary>
-    /// <param name="playerGameObjectId">Used to spot a mob that is coming for us specifically.</param>
-    internal static bool IsEnemyInTheFight(IBattleNpc enemy, ulong playerGameObjectId)
+    internal static bool IsEnemyInTheFight(IBattleNpc enemy, Func<ulong, bool> isOurSide)
     {
         if ((enemy.StatusFlags & StatusFlags.InCombat) != 0)
             return true;
 
-        // Coming for us, even if nothing has landed yet. The id guard matters: an unset
-        // TargetObjectId is 0, so without it a mob targeting nobody "matches" a caller that
-        // passed no id, and every untouched mob in the zone is suddenly in the fight.
-        if (playerGameObjectId != 0 && enemy.TargetObjectId == playerGameObjectId)
-            return true;
-
-        var hostile = (enemy.StatusFlags & StatusFlags.Hostile) != 0;
-
-        // Holding someone's attention, or already wounded: somebody is fighting it.
-        return hostile && HasEngagementEvidence(enemy);
+        return IsFightingOurSide(enemy, isOurSide);
     }
 
     /// <summary>
     /// True when an enemy should be considered for aggregate strategies, AoE counts, and combat retarget.
-    ///
     /// <para>
-    /// Field 2026-09-17: casters pulled random mobs while the tank was fighting. An ally in combat
-    /// made this return true for EVERY nearby hostile, pulled or not, because "my party is fighting"
-    /// was treated as the same permission as "this mob is fair game". The nearest hostile to a
-    /// backline caster is very often a pack nobody has touched, so it got hit, and then it came.
-    /// </para>
-    ///
-    /// <para>
-    /// An ally being in combat now only waives the enemy's missing <c>InCombat</c> FLAG, and still
-    /// requires <see cref="HasEngagementEvidence"/> — a target or a wound. Only the explicit
-    /// <paramref name="allowsUnclaimedHostiles"/> opt-in waives the requirement itself.
+    /// Only while we (or our party) are effectively fighting — the documented contract of the alliance
+    /// setting, which a 2026-09-17 rewrite broke by applying it out of combat too.
     /// </para>
     /// </summary>
     internal static bool ShouldIncludeEnemyForTargeting(
         IBattleNpc enemy,
         ulong currentTargetId,
         bool playerEffectivelyInCombat,
-        bool allowsUnclaimedHostiles,
-        bool anyAllyInCombat)
+        Func<ulong, bool> isOurSide)
     {
         if ((enemy.StatusFlags & StatusFlags.InCombat) != 0)
             return true;
@@ -117,12 +156,9 @@ internal static class EnemyEngagementPolicy
         if (currentTargetId != 0 && enemy.GameObjectId == currentTargetId)
             return true;
 
-        if (allowsUnclaimedHostiles)
-            return true;
-
         if (!playerEffectivelyInCombat)
             return false;
 
-        return anyAllyInCombat && HasEngagementEvidence(enemy);
+        return IsFightingOurSide(enemy, isOurSide);
     }
 }

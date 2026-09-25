@@ -549,8 +549,21 @@ public sealed class TargetingService : ITargetingService
         return nearest;
     }
 
-    private static bool IsEngagedOrHostile(IBattleNpc enemy, IPlayerCharacter player)
-        => EnemyEngagementPolicy.IsEnemyInTheFight(enemy, player.GameObjectId);
+    private bool IsEngagedOrHostile(IBattleNpc enemy, IPlayerCharacter player)
+        => EnemyEngagementPolicy.IsEnemyInTheFight(enemy, OurSide(player));
+
+    /// <summary>
+    /// "Is this object on our side?" for the engagement policy, resolved against the live object table.
+    /// Alliance members only count when the alliance setting is on.
+    /// </summary>
+    private Func<ulong, bool> OurSide(IPlayerCharacter player)
+    {
+        return EnemyEngagementPolicy.OurSideResolver(
+            player.GameObjectId,
+            EnemyEngagementPolicy.IncludesAlliance(_configuration),
+            id => _objectTable.SearchById(id),
+            eid => _objectTable.SearchByEntityId(eid));
+    }
 
     /// <param name="radius">Radius in yalms to check.</param>
     /// <param name="player">Current player character.</param>
@@ -1596,8 +1609,7 @@ public sealed class TargetingService : ITargetingService
             enemy,
             currentTargetId,
             IsPlayerEffectivelyInCombat(player),
-            EnemyEngagementPolicy.AllowsUnclaimedHostiles(_configuration),
-            EnemyEngagementPolicy.IsAnyAllyInCombat(_configuration, player, _partyList, _objectTable));
+            OurSide(player));
 
     private bool IsStillValid(IBattleNpc enemy)
     {
