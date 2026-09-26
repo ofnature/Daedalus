@@ -146,4 +146,36 @@ public static class PhoenixDownStagger
     /// <summary>Has our turn come, counting from when the last healer went down?</summary>
     public static bool MayFire(int rank, double secondsSinceAllHealersDown)
         => secondsSinceAllHealersDown >= rank * StaggerSeconds;
+
+    /// <summary>
+    /// Spacing between turns to WALK to a corpse. A walk takes seconds, not milliseconds: at the firing spacing
+    /// every non-tank would be on its way before the nearest arrived. Whoever gets there casts and claims, and
+    /// the claim stops the rest (<see cref="PhoenixDownPolicy.ClaimHoldOffSeconds"/>); the next in line only
+    /// sets off if nobody has claimed by then.
+    /// </summary>
+    public const double ApproachStaggerSeconds = 10.0;
+
+    /// <summary>
+    /// Our place in line to walk to the corpse: living non-tanks nearer to it go first -- the nearest has the
+    /// shortest walk and the least uptime to give up. Every toon sees the same positions, so every toon computes
+    /// the same order. A tank that passed its own policy goes after all of them.
+    /// </summary>
+    public static int ApproachRankOf(float selfDistance, bool selfIsTank, IReadOnlyCollection<float> otherNonTankDistances)
+    {
+        if (selfIsTank)
+            return otherNonTankDistances.Count;
+
+        var rank = 0;
+        foreach (var distance in otherNonTankDistances)
+        {
+            if (distance < selfDistance)
+                rank++;
+        }
+
+        return rank;
+    }
+
+    /// <summary>Has our turn to walk come, counting from when the last healer went down?</summary>
+    public static bool MayApproach(int rank, double secondsSinceAllHealersDown)
+        => secondsSinceAllHealersDown >= rank * ApproachStaggerSeconds;
 }

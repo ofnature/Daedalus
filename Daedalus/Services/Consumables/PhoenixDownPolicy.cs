@@ -58,6 +58,31 @@ public static class PhoenixDownPolicy
     /// </summary>
     public const float MovementGraceSeconds = 0.5f;
 
+    /// <summary>
+    /// Where a walk to the corpse stops: three yalms inside the cast range, so a dodge or a boss step on arrival
+    /// does not put the corpse back out of reach halfway through the cast.
+    /// </summary>
+    public const float ApproachRangeYalms = 12f;
+
+    /// <summary>
+    /// Should this toon be walking to the corpse? Every gate that decides whether a Phoenix Down is wanted from
+    /// this toon at all -- the same ones as <see cref="Decide"/> -- but none of the ones the walk exists to change
+    /// (range) or that only time the button press (moving, casting, the refusal backoff).
+    /// <para>Appalling Behavior, 2026-09-25: both healers-to-be died, the one toon able to cast was out of the
+    /// 15-yalm range, nothing walked it in, and the healer lay dead for three and a half minutes.</para>
+    /// </summary>
+    public static bool WantsApproach(in PhoenixDownSituation s)
+        => s.Enabled
+           && s.SelfAlive
+           && s.InCombat
+           && s.HealersPresent
+           && s.AllHealersDead
+           && !(s.SelfIsTank && !s.SelfIsDesignatedOffTank && s.LivingOthers > 0)
+           && s.ItemCount > 0
+           && s.SecondsSinceOwnUse >= RecastSeconds
+           && s.SecondsSinceForeignClaim >= ClaimHoldOffSeconds
+           && s.TargetFound;
+
     public static (bool Fire, string Reason) Decide(in PhoenixDownSituation s)
     {
         if (!s.Enabled)

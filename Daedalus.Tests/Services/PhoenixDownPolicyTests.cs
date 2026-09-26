@@ -172,4 +172,62 @@ public class PhoenixDownPolicyTests
         Assert.False(fire);
         Assert.Contains("moving", reason);
     }
+
+    // The walk to the corpse (Appalling Behavior, 2026-09-25: the only toon able to cast was out of range and
+    // nothing walked it in, so the healer lay dead for three and a half minutes).
+
+    [Fact]
+    public void Out_of_range_does_not_fire_but_walks()
+    {
+        var far = Firing() with { TargetDistanceYalms = 40f };
+        Assert.False(PhoenixDownPolicy.Decide(far).Fire);
+        Assert.True(PhoenixDownPolicy.WantsApproach(far));
+    }
+
+    [Fact]
+    public void Walking_is_not_stopped_by_moving_casting_or_a_refusal_backoff()
+        => Assert.True(PhoenixDownPolicy.WantsApproach(Firing() with
+        {
+            TargetDistanceYalms = 40f,
+            IsMoving = true,
+            SelfCasting = true,
+            SecondsSinceOwnAttempt = 1,
+        }));
+
+    [Fact]
+    public void The_walk_stops_three_yalms_inside_the_cast_range()
+        => Assert.Equal(PhoenixDownPolicy.RangeYalms - 3f, PhoenixDownPolicy.ApproachRangeYalms);
+
+    [Theory]
+    [InlineData("a healer lives")]
+    [InlineData("tank")]
+    [InlineData("claimed")]
+    [InlineData("no item")]
+    [InlineData("recast")]
+    [InlineData("out of combat")]
+    [InlineData("no corpse")]
+    public void Nothing_walks_when_no_Phoenix_Down_is_wanted_from_this_toon(string why)
+    {
+        var s = Firing() with { TargetDistanceYalms = 40f };
+        s = why switch
+        {
+            "a healer lives" => s with { AllHealersDead = false },
+            "tank" => s with { SelfIsTank = true },
+            "claimed" => s with { SecondsSinceForeignClaim = 1 },
+            "no item" => s with { ItemCount = 0 },
+            "recast" => s with { SecondsSinceOwnUse = 10 },
+            "out of combat" => s with { InCombat = false },
+            _ => s with { TargetFound = false },
+        };
+        Assert.False(PhoenixDownPolicy.WantsApproach(s));
+    }
+
+    [Fact]
+    public void A_designated_off_tank_may_walk()
+        => Assert.True(PhoenixDownPolicy.WantsApproach(Firing() with
+        {
+            TargetDistanceYalms = 40f,
+            SelfIsTank = true,
+            SelfIsDesignatedOffTank = true,
+        }));
 }

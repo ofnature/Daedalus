@@ -875,6 +875,11 @@ public sealed class Plugin : IDalamudPlugin
             log);
         this.phoenixDownService.IsDesignatedOffTank = () =>
             partyCoordinationService?.LocalTankSwapRole == Daedalus.Services.Party.TankSwapRole.DesignatedOffTank;
+        // A corpse out of the 15y range is walked to by Minerva when it is the engine: the request replaces its
+        // uptime goal while it lasts, and danger still moves the toon.
+        this.phoenixDownService.RequestApproach = (point, range, seconds) =>
+            configuration.BossHandling == Daedalus.Config.BossHandling.Minerva
+            && this.minervaSafetyService.RequestStandNear(point, range, seconds);
         if (this.coordinationBus != null)
         {
             this.phoenixDownService.Bus = this.coordinationBus;

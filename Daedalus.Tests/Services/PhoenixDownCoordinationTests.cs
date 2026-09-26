@@ -129,4 +129,28 @@ public sealed class PhoenixDownStaggerTests
     [Fact]
     public void TheSpacingIsWorthASecondAtLeast()
         => Assert.InRange(PhoenixDownStagger.StaggerSeconds, 1.0, 3.0);
+
+    /// <summary>The nearest non-tank walks first: the shortest walk, and the least uptime given up.</summary>
+    [Theory]
+    [InlineData(5f, 0)]
+    [InlineData(15f, 1)]
+    [InlineData(30f, 2)]
+    public void TheWalkGoesToTheNearestFirst(float selfDistance, int expectedRank)
+        => Assert.Equal(expectedRank, PhoenixDownStagger.ApproachRankOf(selfDistance, selfIsTank: false, [10f, 20f]));
+
+    [Fact]
+    public void ATankWalksAfterEveryNonTank()
+        => Assert.Equal(2, PhoenixDownStagger.ApproachRankOf(1f, selfIsTank: true, [10f, 20f]));
+
+    /// <summary>
+    /// A walk takes seconds, so the next in line must not set off before the nearest could have arrived and
+    /// claimed -- at the firing spacing every non-tank would leave the boss at once.
+    /// </summary>
+    [Theory]
+    [InlineData(0, 0.0, true)]
+    [InlineData(1, PhoenixDownStagger.StaggerSeconds, false)]
+    [InlineData(1, PhoenixDownStagger.ApproachStaggerSeconds - 0.1, false)]
+    [InlineData(1, PhoenixDownStagger.ApproachStaggerSeconds, true)]
+    public void EachWalkWaitsForTheOneBefore(int rank, double sinceDown, bool mayWalk)
+        => Assert.Equal(mayWalk, PhoenixDownStagger.MayApproach(rank, sinceDown));
 }

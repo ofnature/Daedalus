@@ -32,6 +32,7 @@ public sealed class MinervaSafetyService : IBossModSafetyService
     private ICallGateSubscriber<bool>? _isSteering;
     private ICallGateSubscriber<int, double, bool>? _requestPositional;
     private ICallGateSubscriber<double, bool>? _requestHold;
+    private ICallGateSubscriber<Vector3, float, double, bool>? _requestStandNear;
 
     private float _snapshotMustNotMoveIn = float.MaxValue;
 
@@ -114,6 +115,28 @@ public sealed class MinervaSafetyService : IBossModSafetyService
         {
             return (_requestHold ??= _pluginInterface
                 .GetIpcSubscriber<double, bool>("Minerva.RequestHold")).InvokeFunc(seconds);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Ask Minerva to walk this toon to within <paramref name="range"/> yalms of a point and keep it there
+    /// (<c>Minerva.RequestStandNear</c>) -- a corpse to Phoenix Down. It replaces Minerva's uptime goal while it
+    /// lasts; danger still moves the character. Timed and re-asserted; asking for 0 releases early. False when
+    /// Minerva is not there to ask, or is a build without the endpoint.
+    /// </summary>
+    public bool RequestStandNear(Vector3 point, float range, double seconds)
+    {
+        if (!IsAvailable)
+            return false;
+
+        try
+        {
+            return (_requestStandNear ??= _pluginInterface
+                .GetIpcSubscriber<Vector3, float, double, bool>("Minerva.RequestStandNear")).InvokeFunc(point, range, seconds);
         }
         catch
         {

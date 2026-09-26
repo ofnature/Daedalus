@@ -72,6 +72,18 @@ public sealed class PhoenixDownService
     /// <summary>Designated off-tank per the LAN tank-swap role — exempt from the tank hold.</summary>
     public Func<bool>? IsDesignatedOffTank { get; set; }
 
+    /// <summary>
+    /// Walks this toon to within range of a point (point, range, seconds) -- <c>Minerva.RequestStandNear</c> when
+    /// Minerva is the engine. Null or false: nothing walks, and an out-of-range corpse stays out of range.
+    /// </summary>
+    public Func<Vector3, float, double, bool>? RequestApproach { get; set; }
+
+    /// <summary>How long each walk request lasts. Re-asserted every check (1s), so it lapses soon after it stops being wanted.</summary>
+    private const double ApproachRequestSeconds = 2.5;
+
+    /// <summary>The corpse being walked to, kept so the request can be held through the cast.</summary>
+    private Vector3? _approachPoint;
+
     public PhoenixDownService(
         IActionService actionService,
         IInventoryProbe inventory,
@@ -113,9 +125,15 @@ public sealed class PhoenixDownService
             return;
         _lastCheck = now;
 
-        // One attempt at a time; the tracker owns the status line until it resolves.
+        // One attempt at a time; the tracker owns the status line until it resolves. Keep the walk request alive
+        // through the cast, or Minerva's uptime goal comes back and pulls toward the boss.
         if (_cast.InFlight)
+        {
+            if (_approachPoint is { } holdAt)
+                RequestApproach?.Invoke(holdAt, PhoenixDownPolicy.ApproachRangeYalms, ApproachRequestSeconds);
             return;
+        }
+        _approachPoint = null;
 
         if (partyList.Length == 0)
         {
@@ -129,6 +147,7 @@ public sealed class PhoenixDownService
         var deadHealers = 0;
         var livingOthers = 0;
         var livingNonTanks = new List<uint>();
+        var livingNonTankSpots = new List<(uint Id, Vector3 Position)>();
         IBattleChara? target = null;
         var targetDistance = float.MaxValue;
 
@@ -144,7 +163,10 @@ public sealed class PhoenixDownService
                 livingOthers++;
 
             if (!isDead && !JobRegistry.IsTank(jobId))
+            {
                 livingNonTanks.Add(member.EntityId);
+                livingNonTankSpots.Add((member.EntityId, member.Position));
+            }
 
             if (!JobRegistry.IsHealer(jobId))
                 continue;
@@ -195,12 +217,40 @@ public sealed class PhoenixDownService
 
         var (fire, reason) = PhoenixDownPolicy.Decide(in situation);
         LastState = reason;
+        var sinceDown = _allHealersDownSince is { } down ? (now - down).TotalSeconds : 0d;
+
+        // Walk to the corpse when it is our turn to: the nearest non-tank first, the next only if nobody has
+        // claimed by then. Asked even once in range, so the uptime goal does not pull the toon back out of it
+        // before the cast starts.
+        if (target is not null && RequestApproach is { } approach && PhoenixDownPolicy.WantsApproach(in situation))
+        {
+            var corpseAt = target.Position;
+            var others = new List<float>();
+            foreach (var (id, position) in livingNonTankSpots)
+            {
+                if (id != player.EntityId)
+                    others.Add(Vector3.Distance(position, corpseAt));
+            }
+
+            var walkRank = PhoenixDownStagger.ApproachRankOf(targetDistance, situation.SelfIsTank, others);
+            var name = target.Name?.TextValue ?? "healer";
+            if (PhoenixDownStagger.MayApproach(walkRank, sinceDown) && approach(corpseAt, PhoenixDownPolicy.ApproachRangeYalms, ApproachRequestSeconds))
+            {
+                _approachPoint = corpseAt;
+                if (targetDistance > PhoenixDownPolicy.RangeYalms)
+                    LastState = $"walking to {name} ({targetDistance:F0}y)";
+            }
+            else if (!fire)
+            {
+                LastState = $"{reason} — #{walkRank + 1} in line to walk to {name}";
+            }
+        }
+
         if (!fire)
             return;
 
         // Wait our turn, so two toons deciding in the same second don't both cast (see PhoenixDownStagger).
         var rank = PhoenixDownStagger.RankOf(player.EntityId, situation.SelfIsTank, livingNonTanks);
-        var sinceDown = _allHealersDownSince is { } down ? (now - down).TotalSeconds : 0d;
         if (!PhoenixDownStagger.MayFire(rank, sinceDown))
         {
             LastState = $"waiting my turn (#{rank + 1} in line)";
