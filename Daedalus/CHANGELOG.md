@@ -3,7 +3,7 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
-## v0.1.81 — unreleased
+## v0.1.81 — 2026-09-25
 
 ### New — Bozja: Lost Actions
 - **Daedalus now uses the Lost Actions RSR's Bozja rotation uses** — whichever you've set to a duty
