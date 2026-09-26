@@ -3,7 +3,7 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
-## v0.1.82 — unreleased
+## v0.1.82 — 2026-09-25
 
 ### Fix — Time Mage stops recasting Slowga on enemies that resist it
 - **Occult Slowga is no longer cast over and over at an enemy that shows "Resist" or "Immune".**
