@@ -20,6 +20,7 @@ public sealed class HealingModule : IApolloModule
     {
         _handlers = new List<IHealingHandler>
         {
+            new DoomTopOffHandler(),
             new BenedictionHandler(),
             new AssizeHealingHandler(),
             new TetragrammatonHandler(),

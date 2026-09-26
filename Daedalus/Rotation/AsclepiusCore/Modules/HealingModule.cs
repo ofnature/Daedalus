@@ -21,6 +21,7 @@ public sealed class HealingModule : IAsclepiusModule
     {
         _handlers = new List<IHealingHandler>
         {
+            new DoomTopOffHandler(),
             new SwiftcastEmergencyHandler(),
             new SingleTargetOgcdHandler(),
             new IxocholeHandler(),

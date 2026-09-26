@@ -458,6 +458,42 @@ public abstract class HealerPartyHelper : BasePartyHelper, ISpikeTargetSource
     public static bool NeedsPriorityHealing(IBattleChara chara)
         => HasDoom(chara) || HasPriorityHealDot(chara) || NeedsAnnouncedTopOff(chara);
 
+    /// <summary>
+    /// The party member who must be healed to FULL now: Doomed (it clears only at 100%), under a heavy priority DoT,
+    /// or announced from another box -- alive, below full, healable and within <paramref name="range"/>; the lowest
+    /// HP of them when there are several. Null when nobody is.
+    /// <para>Target selection already put such a member first (<see cref="FindLowestHpPartyMember"/> treats them as
+    /// 1% HP), but every heal handler then read the member's real HP against its own threshold and let a Doomed
+    /// tank at 85% through. Korha, 2026-09-26, died twice to his own Deep Freeze Doom at 83-85% HP while the Sage
+    /// cast Dosis. The healers' DoomTopOffHandlers answer this instead of the thresholds.</para>
+    /// </summary>
+    /// <param name="needsTopOff">Who counts; <see cref="NeedsPriorityHealing"/> unless a test supplies another.</param>
+    public static IBattleChara? FindMemberNeedingTopOff(IPlayerCharacter player, System.Collections.Generic.IEnumerable<IBattleChara> members,
+        float range, System.Func<IBattleChara, bool>? needsTopOff = null)
+    {
+        needsTopOff ??= NeedsPriorityHealing;
+        IBattleChara? best = null;
+        var bestPercent = float.MaxValue;
+        foreach (var member in members)
+        {
+            if (member.IsDead || member.MaxHp == 0 || member.CurrentHp >= member.MaxHp)
+                continue;
+            if (Vector3.DistanceSquared(player.Position, member.Position) > range * range)
+                continue;
+            if (!needsTopOff(member) || HasTranscendent(member) || HasNoHealStatus(member))
+                continue;
+
+            var percent = (float)member.CurrentHp / member.MaxHp;
+            if (percent < bestPercent)
+            {
+                bestPercent = percent;
+                best = member;
+            }
+        }
+
+        return best;
+    }
+
     /// <summary>True when the member carries a DoT from <see cref="PriorityHealDotStatusIds"/>.</summary>
     public static bool HasPriorityHealDot(IBattleChara chara)
     {

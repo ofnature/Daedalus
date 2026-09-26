@@ -20,6 +20,7 @@ public sealed class HealingModule : IAthenaModule
     {
         _handlers = new List<IHealingHandler>
         {
+            new DoomTopOffHandler(),
             new RecitationHandler(),
             new ExcogitationHandler(),
             new LustrateHandler(),

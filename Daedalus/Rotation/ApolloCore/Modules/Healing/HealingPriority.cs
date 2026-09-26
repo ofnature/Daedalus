@@ -18,6 +18,9 @@ namespace Daedalus.Rotation.ApolloCore.Modules.Healing;
 /// </remarks>
 public enum HealingPriority
 {
+    /// <summary>A Doomed member topped to full before anything else (<see cref="DoomTopOffHandler"/>).</summary>
+    DoomTopOff = 5,
+
     /// <summary>Emergency full heal (Benediction).</summary>
     Benediction = 10,
 

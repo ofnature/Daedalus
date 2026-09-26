@@ -21,6 +21,7 @@ public sealed class HealingModule : IAstraeaModule
     {
         _handlers = new List<IHealingHandler>
         {
+            new DoomTopOffHandler(),
             new PreemptiveHealingHandler(),
             new EsunaHandler(),
             new EssentialDignityHandler(),
