@@ -3,7 +3,7 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
-## v0.1.84 — unreleased
+## v0.1.84 — 2026-09-25
 
 ### Fix — Samurai lands its positionals under Meikyo Shisui
 - **After an Iaijutsu, when both Getsu and Ka are missing and you're already on a flank, the first
