@@ -3,6 +3,19 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.85 — 2026-09-26
+
+### New — toons walk to a dead healer to Phoenix Down them
+- **When the only healer dies out of Phoenix Down range, a toon now walks over and raises them.**
+  Before, the Phoenix Down only fired from within 15 yalms, and nothing ever brought anyone that close
+  — a healer lay dead for three and a half minutes in Appalling Behavior.
+- The living non-tank nearest the body goes first, tanks last, and the next toon only sets off 10
+  seconds later, so the whole party doesn't leave the boss at once. Whoever starts the cast claims the
+  body and the rest stop.
+- Works under Minerva (update Minerva too — older builds just skip the walk); the Revive tab shows
+  "walking to <healer>".
+
+<!-- LATEST-END -->
 ## v0.1.84 — 2026-09-25
 
 ### Fix — Samurai lands its positionals under Meikyo Shisui
@@ -13,7 +26,6 @@ All notable changes to Daedalus will be documented in this file.
 - The positional hint sent to your movement plugin now follows the same finisher order, so it asks for
   the side the next Meikyo finisher actually needs.
 
-<!-- LATEST-END -->
 ## v0.1.83 — 2026-09-25
 
 ### Fix — healers drop a long phantom cast to answer a Doom call
