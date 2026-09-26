@@ -3,6 +3,16 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.83 — unreleased
+
+### Fix — healers drop a long phantom cast to answer a Doom call
+- **A healer halfway through Occult Comet (8s) or a Phantom Summoner cast (4-6s) now cancels it when a
+  party member needs healing to full** — the Phantom Necromancer's Deep Freeze call, a Doom, or False
+  Prediction — so its own heal goes out next instead of after the cast.
+- While that call stands, the healer doesn't start another long phantom cast, and phantom spells no
+  longer take the GCD ahead of the healer's own heals.
+
+<!-- LATEST-END -->
 ## v0.1.82 — 2026-09-25
 
 ### Fix — Time Mage stops recasting Slowga on enemies that resist it
@@ -36,7 +46,6 @@ All notable changes to Daedalus will be documented in this file.
 - **The Oracle casts Invulnerability the moment False Prediction lands** (HP can't drop below 1 for
   8 seconds) — on itself, or on another party member who has it.
 
-<!-- LATEST-END -->
 ## v0.1.81 — 2026-09-25
 
 ### New — Bozja: Lost Actions

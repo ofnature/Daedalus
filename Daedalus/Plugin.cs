@@ -740,6 +740,9 @@ public sealed class Plugin : IDalamudPlugin
             burstWindowService);
         phantomLayer.DebugLog = debugLogService;
         phantomLayer.TimeToKill = timeToKillService;
+        // A healer mid-way through an 8-second Comet can't answer a Deep Freeze top-off call; the
+        // layer cancels the cast the way BossMod does.
+        phantomLayer.CancelCast = CancelCurrentCast;
         // The game's verdict on each of our casts, so a debuff the enemy resisted (Occult Slowga's
         // "Resist" / "Immune") is not recast at it for the rest of its life.
         combatEventService.OnLocalActionOnTarget += phantomLayer.NotifyLocalActionOutcome;
@@ -2322,6 +2325,9 @@ public sealed class Plugin : IDalamudPlugin
             Daedalus.Services.Debug.DebugLogSeverity.Info,
             $"error toast: \"{text}\"");
     }
+
+    private static unsafe void CancelCurrentCast()
+        => FFXIVClientStructs.FFXIV.Client.Game.UI.UIState.Instance()->Hotbar.CancelCast();
 
     public void Dispose()
     {

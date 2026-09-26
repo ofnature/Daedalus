@@ -59,6 +59,17 @@ public sealed class PhantomActionLayer
     private readonly Dictionary<uint, AbilityBehavior> _behaviorCache = [];
     private readonly List<string> _pushRejects = [];
 
+    /// <summary>
+    /// Cancels the cast in progress (UIState Hotbar.CancelCast, as BossMod does). Supplied by Plugin;
+    /// null in tests.
+    /// </summary>
+    public Action? CancelCast { get; set; }
+
+    /// <summary>This frame: we are a healer / a party member in range needs an urgent top-off.</summary>
+    private bool _isHealerThisFrame;
+    private bool _healCallThisFrame;
+    private DateTime _lastHealCallCancel = DateTime.MinValue;
+
     /// <summary>Enemies that resisted Occult Slowga — never slowed again.</summary>
     private readonly ResistedDebuffMemory _slowgaResisted = new(41621);
 
@@ -347,6 +358,8 @@ public sealed class PhantomActionLayer
         _pushHolds.Clear();
         _framePrepared = true;
 
+        AnswerHealCall(ctx);
+
         PushSurvival(ctx, cfg, job, level, selfHpPct, inCombat);
         PushSelfMit(ctx, job, level, selfHpPct, inCombat);
         PushInterrupts(ctx, job, level, inCombat);
@@ -386,7 +399,9 @@ public sealed class PhantomActionLayer
         if (!_raiseQueuedThisFrame)
             _raiseGcdBusySamples = 0;
 
-        if (_actionService.CanExecuteGcd && (_raiseQueuedThisFrame || !RaisePendingForJob(ctx)))
+        // Same yield for an urgent top-off on a healer (Necromancer Deep Freeze / Doom / False
+        // Prediction): the job's heal takes the window, not a phantom spell that happens to be up.
+        if (_actionService.CanExecuteGcd && (_raiseQueuedThisFrame || (!RaisePendingForJob(ctx) && !_healCallThisFrame)))
         {
             // Face the corpse in the instant before our own submit — the only slot where it can
             // stick. Client auto-face turns you toward your HARD target (the enemy), so an
@@ -1609,6 +1624,57 @@ public sealed class PhantomActionLayer
     public Daedalus.Services.Combat.ITimeToKillService? TimeToKill { get; set; }
 
     /// <summary>
+    /// A healer's answer to an urgent top-off call (Necromancer Deep Freeze / Doom / False Prediction):
+    /// note it for the long-cast hold, and cancel a long phantom cast already under way so the job's
+    /// healing gets the next GCD.
+    /// </summary>
+    private void AnswerHealCall(IRotationContext ctx)
+    {
+        _isHealerThisFrame = JobRegistry.IsHealer(ctx.Player.ClassJob.RowId);
+        _healCallThisFrame = _isHealerThisFrame && HealCallPending(ctx);
+        if (!_healCallThisFrame || !ctx.Player.IsCasting)
+            return;
+
+        var castId = ctx.Player.CastActionId;
+        var remaining = ctx.Player.TotalCastTime - ctx.Player.CurrentCastTime;
+        var longCast = PhantomHealCallPolicy.IsLongNonHealPhantomCast(castId, ctx.Player.TotalCastTime);
+        if (!PhantomHealCallPolicy.ShouldCancel(_isHealerThisFrame, _healCallThisFrame, longCast, remaining))
+            return;
+
+        // One attempt a second: the cast bar takes a frame or two to clear.
+        if ((DateTime.UtcNow - _lastHealCallCancel).TotalSeconds < 1.0)
+            return;
+        _lastHealCallCancel = DateTime.UtcNow;
+
+        CancelCast?.Invoke();
+        DebugLog?.Log(Daedalus.Services.Debug.DebugLogCategory.Action,
+            Daedalus.Services.Debug.DebugLogSeverity.Warning,
+            $"Cancelled {_phantomJobs.ResolveActionName(castId)} ({remaining:0.0}s left) — a party member needs healing to full");
+    }
+
+    /// <summary>Someone in heal range needs an urgent top-off and isn't full yet.</summary>
+    private static bool HealCallPending(IRotationContext ctx)
+    {
+        if (NeedsTopOff(ctx.Player))
+            return true;
+
+        foreach (var member in ctx.PartyList)
+        {
+            if (member?.GameObject is IBattleChara chara
+                && chara.GameObjectId != ctx.Player.GameObjectId
+                && System.Numerics.Vector3.DistanceSquared(ctx.Player.Position, chara.Position) <= 900f
+                && NeedsTopOff(chara))
+                return true;
+        }
+
+        return false;
+    }
+
+    private static bool NeedsTopOff(IBattleChara chara)
+        => !chara.IsDead && chara.CurrentHp < chara.MaxHp
+           && Daedalus.Rotation.Common.Helpers.HealerPartyHelper.NeedsPriorityHealing(chara);
+
+    /// <summary>
     /// Who needs Invulnerability against False Prediction: ourselves, else the first other party member
     /// with it. Skips anyone Invulnerability already covers.
     /// </summary>
@@ -1844,6 +1910,15 @@ public sealed class PhantomActionLayer
         // machinery below applies — the catalog's CastTime is the hardcast value and is simply
         // wrong for this one cast. Without this the gate refuses a FREE INSTANT nuke for "moving".
         var instantFromDualcast = _dualcastThisFrame && behavior.Action.IsGCD;
+
+        // A healer does not start an 8-second Comet while someone is Doomed and waiting on a heal.
+        if (!instantFromDualcast && PhantomHealCallPolicy.ShouldHoldLongCast(
+                _isHealerThisFrame, _healCallThisFrame,
+                PhantomHealCallPolicy.IsLongNonHealPhantomCast(actionId, behavior.Action.CastTime)))
+        {
+            _pushHolds.Add($"{action.Name} — held, a party member needs healing to full");
+            return false;
+        }
 
         // A cast bar roots the character; so do Occult Jump and Rage, without one. All go through the same
         // rule: never while the character is being walked somewhere (that walk is a dodge more often
