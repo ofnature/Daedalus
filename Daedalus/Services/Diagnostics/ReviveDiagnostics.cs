@@ -17,6 +17,9 @@ public enum ReviveSource
 
     /// <summary>The Occult Crescent phantom job raise.</summary>
     PhantomRaise,
+
+    /// <summary>Lost Arise / Lost Sacrifice, from a Bozja duty action slot.</summary>
+    BozjaRaise,
 }
 
 /// <summary>

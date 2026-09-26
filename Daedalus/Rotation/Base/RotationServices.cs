@@ -35,6 +35,11 @@ public static class RotationServices
     public static Daedalus.Rotation.Phantom.VariantActionLayer? VariantLayer { get; set; }
 
     /// <summary>
+    /// Bozja Lost Action layer — same hook sites, inert unless a Lost Protect/Shell is slotted.
+    /// </summary>
+    public static Daedalus.Rotation.Phantom.BozjaActionLayer? BozjaLayer { get; set; }
+
+    /// <summary>
     /// RSR-compat IPC surface — melee rotations broadcast their anticipated positional
     /// finisher on RSR's ActionUpdater event gates so positional-following movement
     /// plugins ("Follow RSR's desired positional") follow Daedalus.

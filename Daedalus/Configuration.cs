@@ -243,6 +243,9 @@ public sealed class Configuration : IPluginConfiguration
     // Variant dungeon duty actions
     public VariantConfig Variant { get; set; } = new();
 
+    // Bozja Lost Actions
+    public BozjaConfig Bozja { get; set; } = new();
+
     // Role-specific configuration - Tanks
     public TankConfig Tank { get; set; } = new();
 

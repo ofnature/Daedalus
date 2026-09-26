@@ -55,6 +55,7 @@ public static class ReviveTab
                  {
                      ReviveSource.HealerRaise, ReviveSource.PhoenixDown,
                      ReviveSource.VariantRaise, ReviveSource.PhantomRaise,
+                     ReviveSource.BozjaRaise,
                  })
         {
             var label = Label(source);
@@ -141,6 +142,7 @@ public static class ReviveTab
         ReviveSource.PhoenixDown => "Phoenix Down",
         ReviveSource.VariantRaise => "Variant Raise",
         ReviveSource.PhantomRaise => "Phantom raise",
+        ReviveSource.BozjaRaise => "Bozja raise",
         _ => source.ToString(),
     };
 

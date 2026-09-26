@@ -3,6 +3,32 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.81 — unreleased
+
+### New — Bozja: Lost Actions
+- **Daedalus now uses the Lost Actions RSR's Bozja rotation uses** — whichever you've set to a duty
+  action slot from your holster:
+  - **Raise:** Lost Arise (and Lost Sacrifice, off by default because it KOs you 10 seconds later).
+    Two toons never start on the same body, and it reports to the Revive tab.
+  - **Heals:** Lost Cure, Cure II, Cure III, Cure IV and Full Cure on anyone below the heal threshold;
+    the area heals need 2 or more hurt. Weave heals go first.
+  - **Barriers:** Lost Stoneskin on whoever the enemy is casting at, Stoneskin II on everyone near you
+    when an AoE is coming.
+  - **Party buffs:** Lost Protect, Shell (either tier), Bravery and Bubble — on you, then every party
+    member in 30y. Renewed before running low out of combat; in combat only a missing one is cast.
+  - **Forges:** Spellforge for physical attackers against an enemy with Magical Aversion, Steelsting
+    for healers and casters against Physical Aversion.
+  - **Damage:** Lost Burst and Rampage on 2+ enemies (or only against the matching aversion — your
+    choice), Flare Star, Lost Slash, and Seraph Strike (never on a healer, and only onto a safe landing).
+  - **Combat buffs:** the Fonts of Power and Magic, Chainspell, Banners of Honed Acuity and Honored
+    Sacrifice on cooldown; Lost Focus only on a GCD your job leaves free. Banner of Solemn Clarity is
+    off by default — it ends the moment you act or move.
+- Your toons don't double up: one that sees another already casting the same thing on someone
+  picks the next person.
+- New **Bozja** page in Settings: a toggle per action (with a live [SLOTTED] tag), "Buff the party too",
+  the heal threshold, and the Burst/Rampage mode.
+
+<!-- LATEST-END -->
 ## v0.1.80 — 2026-09-25
 
 ### Fix — toons stop picking fights with strangers' mobs in Bozja
@@ -37,7 +63,6 @@ All notable changes to Daedalus will be documented in this file.
 - New "Gap close with Hissatsu: Gyoten" toggle under Samurai settings. Gyoten goes through the same
   safety check as every other gap closer, so it won't dash you onto ground that's about to go off.
 
-<!-- LATEST-END -->
 ## v0.1.79 — 2026-09-20
 
 ### New — a Revive tab in the Debug window

@@ -828,6 +828,18 @@ public sealed class Plugin : IDalamudPlugin
             actionService, jobGauges, configuration, phantomJobService, timelineService, errorMetricsService, log,
             partyCoordinationService, timeToKillService);
 
+        // Bozja Lost Actions: the set RSR's Bozja rotation uses — raises, heals, barriers, party buffs,
+        // forges, AoE damage and combat self buffs. Lost Seraph Strike leaps onto its target, so it gets the
+        // gap closers' landing check, run the whole way there.
+        var bozjaLayer = new Daedalus.Rotation.Phantom.BozjaActionLayer(
+            actionService, jobGauges, configuration, phantomJobService, timelineService, errorMetricsService, log,
+            partyCoordinationService);
+        bozjaLayer.DashSafety = (from, to) =>
+            Daedalus.Rotation.Common.Helpers.TargetedDashGuard.IsTargetedDashSafe(
+                from, to, new System.Numerics.Vector2(to.X - from.X, to.Z - from.Z).Length(),
+                vNavService, bossModSafetyService);
+        Daedalus.Rotation.Base.RotationServices.BozjaLayer = bozjaLayer;
+
         // Consumable service: inventory probing + recast cooldown + ShouldUseTinctureNow gate.
         // Per-fight inventory-empty warning routed through chatGui.
         this.consumableService = new Daedalus.Services.Consumables.ConsumableService(
