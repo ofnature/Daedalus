@@ -27,9 +27,18 @@ public static class BurstHoldHelper
     /// returns false (rotation should act as if not in burst).
     /// </summary>
     public static bool IsInBurst(IBurstWindowService? burstWindowService)
+        => IsInBurstWith(ModifierKeys, burstWindowService);
+
+    /// <summary>
+    /// <see cref="IsInBurst"/> with the modifier service passed in. Tests use this instead of setting
+    /// <see cref="ModifierKeys"/>: that static is process-wide, and xUnit runs test classes in parallel,
+    /// so a test that set it to "conservative" made unrelated rotation tests hold their burst at random
+    /// (the Red Mage Embolden test failed about one full run in six, 2026-09-25).
+    /// </summary>
+    internal static bool IsInBurstWith(IModifierKeyService? modifierKeys, IBurstWindowService? burstWindowService)
     {
-        if (ModifierKeys?.IsBurstOverride == true) return true;
-        if (ModifierKeys?.IsConservativeOverride == true) return false;
+        if (modifierKeys?.IsBurstOverride == true) return true;
+        if (modifierKeys?.IsConservativeOverride == true) return false;
         return burstWindowService?.IsInBurstWindow == true;
     }
 
@@ -40,9 +49,14 @@ public static class BurstHoldHelper
     /// When the conservative key is held, returns true (hold regardless of detected burst).
     /// </summary>
     public static bool ShouldHoldForBurst(IBurstWindowService? burstWindowService, float thresholdSeconds = 8f)
+        => ShouldHoldForBurstWith(ModifierKeys, burstWindowService, thresholdSeconds);
+
+    /// <summary><see cref="ShouldHoldForBurst"/> with the modifier service passed in (see <see cref="IsInBurstWith"/>).</summary>
+    internal static bool ShouldHoldForBurstWith(
+        IModifierKeyService? modifierKeys, IBurstWindowService? burstWindowService, float thresholdSeconds = 8f)
     {
-        if (ModifierKeys?.IsBurstOverride == true) return false;
-        if (ModifierKeys?.IsConservativeOverride == true) return true;
+        if (modifierKeys?.IsBurstOverride == true) return false;
+        if (modifierKeys?.IsConservativeOverride == true) return true;
         return burstWindowService?.IsBurstImminent(thresholdSeconds) == true &&
                burstWindowService?.IsInBurstWindow != true;
     }
@@ -53,9 +67,14 @@ public static class BurstHoldHelper
     /// Modifier overrides apply: burst-override forces false, conservative forces true.
     /// </summary>
     public static bool ShouldHoldForPhaseTransition(ITimelineService? timelineService, float windowSeconds = 8f)
+        => ShouldHoldForPhaseTransitionWith(ModifierKeys, timelineService, windowSeconds);
+
+    /// <summary><see cref="ShouldHoldForPhaseTransition"/> with the modifier service passed in (see <see cref="IsInBurstWith"/>).</summary>
+    internal static bool ShouldHoldForPhaseTransitionWith(
+        IModifierKeyService? modifierKeys, ITimelineService? timelineService, float windowSeconds = 8f)
     {
-        if (ModifierKeys?.IsBurstOverride == true) return false;
-        if (ModifierKeys?.IsConservativeOverride == true) return true;
+        if (modifierKeys?.IsBurstOverride == true) return false;
+        if (modifierKeys?.IsConservativeOverride == true) return true;
         var nextPhase = timelineService?.GetNextMechanic(TimelineEntryType.Phase);
         if (nextPhase?.IsSoon != true || !nextPhase.Value.IsHighConfidence)
             return false;
