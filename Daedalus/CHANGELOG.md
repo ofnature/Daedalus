@@ -3,6 +3,21 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.86 — 2026-09-26
+
+### Fix — healers actually heal a Doomed toon to full
+- **A Doomed party member is now healed to full even when they look healthy.** Doom only clears at
+  100% HP, and a toon at 83-85% died to its own Deep Freeze Doom twice while the Sage cast Dosis.
+  Healers already picked the Doomed toon first, but every heal then checked their real HP against
+  its own threshold and skipped them.
+- Each healer now tops them off before any other heal or damage, with its strongest heal on hand:
+  - **White Mage:** Benediction, else Tetragrammaton, else Afflatus Solace or Cure II.
+  - **Sage:** Druochole or Taurochole, else Diagnosis.
+  - **Astrologian:** Essential Dignity, else Celestial Intersection, else Benefic II.
+  - **Scholar:** Lustrate, else Physick. No Adloquium: a shield doesn't clear Doom.
+- The same goes for the Oracle's False Prediction and for a top-off called from another box.
+
+<!-- LATEST-END -->
 ## v0.1.85 — 2026-09-26
 
 ### New — toons walk to a dead healer to Phoenix Down them
@@ -15,7 +30,6 @@ All notable changes to Daedalus will be documented in this file.
 - Works under Minerva (update Minerva too — older builds just skip the walk); the Revive tab shows
   "walking to <healer>".
 
-<!-- LATEST-END -->
 ## v0.1.84 — 2026-09-25
 
 ### Fix — Samurai lands its positionals under Meikyo Shisui
