@@ -980,6 +980,29 @@ public static class SAMActions
     }
 
     /// <summary>
+    /// The finisher the next Meikyo Shisui stack goes on, single target: the missing Sen, Getsu (Gekko, rear)
+    /// before Ka (Kasha, flank) before Setsu (Yukikaze), and Gekko once all three are held.
+    /// <para>Except when Getsu and Ka are both missing -- as after every Iaijutsu -- and the character stands on
+    /// a flank: then Kasha first, so the first stack needs no walk and the walk to the rear gets a whole GCD.
+    /// Gekko first from a flank missed its positional nearly every time, because the stack is spent about a
+    /// second after Meikyo goes up (Saar under Minerva, 2026-09-25: 16 of 22 missed positionals in three boss
+    /// fights, each a Meikyo Gekko from the flank followed by a Kasha that landed from the same spot).</para>
+    /// <para>The rotation and the positional anticipation both read this, so the side asked of the mover is the
+    /// side the next GCD needs. <paramref name="standingAtFlank"/> is the caller's "on a flank, and the side
+    /// matters" -- false under True North or against a target without positionals.</para>
+    /// </summary>
+    public static ActionDefinition NextMeikyoFinisher(bool hasGetsu, bool hasKa, bool hasSetsu, bool standingAtFlank)
+    {
+        if (!hasGetsu && !hasKa)
+            return standingAtFlank ? Kasha : Gekko;
+        if (!hasGetsu)
+            return Gekko;
+        if (!hasKa)
+            return Kasha;
+        return hasSetsu ? Gekko : Yukikaze;
+    }
+
+    /// <summary>
     /// Formats Sen for debug display.
     /// </summary>
     public static string FormatSen(SenType sen)

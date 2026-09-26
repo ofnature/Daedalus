@@ -3,6 +3,17 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.84 — unreleased
+
+### Fix — Samurai lands its positionals under Meikyo Shisui
+- **After an Iaijutsu, when both Getsu and Ka are missing and you're already on a flank, the first
+  Meikyo stack now goes on Kasha**, so it needs no walk, and the walk to the rear for Gekko gets a whole
+  GCD. Before, Gekko went first from the flank and missed its positional nearly every time (16 of 22
+  misses across three boss fights).
+- The positional hint sent to your movement plugin now follows the same finisher order, so it asks for
+  the side the next Meikyo finisher actually needs.
+
+<!-- LATEST-END -->
 ## v0.1.83 — 2026-09-25
 
 ### Fix — healers drop a long phantom cast to answer a Doom call
@@ -12,7 +23,6 @@ All notable changes to Daedalus will be documented in this file.
 - While that call stands, the healer doesn't start another long phantom cast, and phantom spells no
   longer take the GCD ahead of the healer's own heals.
 
-<!-- LATEST-END -->
 ## v0.1.82 — 2026-09-25
 
 ### Fix — Time Mage stops recasting Slowga on enemies that resist it

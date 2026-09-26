@@ -6,7 +6,10 @@ namespace Daedalus.Services.Positional;
 /// <summary>
 /// SAM positional anticipation mirrored from Avarice <c>IsSAMAnticipatedRear/Flank</c>.
 /// Fires after Jinpu/Shifu (combo setup), Hakaze/Gyofu stage A/B (predicted step 2),
-/// or during Meikyo Sen routing (~one GCD before finisher).
+/// or during Meikyo Shisui, where it follows the rotation's own finisher order
+/// (<see cref="SAMActions.NextMeikyoFinisher"/>) rather than Avarice's: Avarice cannot know which finisher
+/// Daedalus spends a stack on, and guessing "none" when both Getsu and Ka were missing left every
+/// post-Iaijutsu Meikyo Gekko unaimed.
 /// </summary>
 public sealed class SamuraiPositionalAnticipationProvider : IPositionalAnticipationProvider
 {
@@ -18,7 +21,12 @@ public sealed class SamuraiPositionalAnticipationProvider : IPositionalAnticipat
         if (context.TargetHasPositionalImmunity || context.HasTrueNorth)
             return null;
 
-        // Confirmed Jinpu/Shifu and Meikyo take precedence over Hakaze/Gyofu stage A/B.
+        // Under Meikyo the rotation spends a stack on its finisher ahead of any combo step (priority 4 against 6),
+        // so only the Meikyo order says what the next GCD is -- not Jinpu/Shifu, and not the Hakaze stages.
+        if (context.HasMeikyoShisui && !context.SuppressMeikyoAnticipation)
+            return MeikyoFinisher(in context);
+
+        // Confirmed Jinpu/Shifu take precedence over Hakaze/Gyofu stage A/B.
         if (TryGetRear(in context, out var rear))
             return rear;
 
@@ -43,22 +51,7 @@ public sealed class SamuraiPositionalAnticipationProvider : IPositionalAnticipat
             return true;
         }
 
-        if (TryGetEarlyRear(in context, out anticipation))
-            return true;
-
-        if (context.HasMeikyoShisui
-            && !context.SuppressMeikyoAnticipation
-            && !context.HasGetsuSen
-            && context.HasKaSen)
-        {
-            anticipation = new PositionalAnticipation(
-                PositionalType.Rear,
-                SAMActions.Gekko.ActionId,
-                PositionalAnticipationReason.MeikyoSen);
-            return true;
-        }
-
-        return false;
+        return TryGetEarlyRear(in context, out anticipation);
     }
 
     private static bool TryGetFlank(in PositionalAnticipationContext context, out PositionalAnticipation anticipation)
@@ -76,23 +69,22 @@ public sealed class SamuraiPositionalAnticipationProvider : IPositionalAnticipat
             return true;
         }
 
-        if (TryGetEarlyFlank(in context, out anticipation))
-            return true;
+        return TryGetEarlyFlank(in context, out anticipation);
+    }
 
-        // Meikyo flank: exactly missing Ka (HasGetsu, no Ka). Both or neither → no anticipation.
-        if (context.HasMeikyoShisui
-            && !context.SuppressMeikyoAnticipation
-            && context.HasGetsuSen
-            && !context.HasKaSen)
-        {
-            anticipation = new PositionalAnticipation(
-                PositionalType.Flank,
-                SAMActions.Kasha.ActionId,
-                PositionalAnticipationReason.MeikyoSen);
-            return true;
-        }
+    /// <summary>The side of the finisher the next Meikyo stack goes on; null for Yukikaze, which has none.</summary>
+    private static PositionalAnticipation? MeikyoFinisher(in PositionalAnticipationContext context)
+    {
+        var next = SAMActions.NextMeikyoFinisher(
+            context.HasGetsuSen, context.HasKaSen, context.HasSetsuSen, context.IsAtFlank).ActionId;
 
-        return false;
+        if (next == SAMActions.Gekko.ActionId && context.PlayerLevel >= SAMActions.Gekko.MinLevel)
+            return new PositionalAnticipation(PositionalType.Rear, SAMActions.Gekko.ActionId, PositionalAnticipationReason.MeikyoSen);
+
+        if (next == SAMActions.Kasha.ActionId && context.PlayerLevel >= SAMActions.Kasha.MinLevel)
+            return new PositionalAnticipation(PositionalType.Flank, SAMActions.Kasha.ActionId, PositionalAnticipationReason.MeikyoSen);
+
+        return null;
     }
 
     /// <summary>

@@ -470,7 +470,13 @@ public sealed class DamageModule : INikeModule
     {
         var level = context.Player.Level;
 
-        if (!context.HasGetsu && level >= SAMActions.Gekko.MinLevel)
+        // The order is shared with SamuraiPositionalAnticipationProvider, so the side the mover is asked for is
+        // the side this stack needs -- including Kasha first from a flank when both Getsu and Ka are missing.
+        var positionalsMatter = !context.HasTrueNorth && !context.TargetHasPositionalImmunity;
+        var next = SAMActions.NextMeikyoFinisher(context.HasGetsu, context.HasKa, context.HasSetsu,
+            context.IsAtFlank && positionalsMatter).ActionId;
+
+        if (next == SAMActions.Gekko.ActionId && !context.HasGetsu && level >= SAMActions.Gekko.MinLevel)
         {
             bool correctPositional = context.IsAtRear || context.HasTrueNorth || context.TargetHasPositionalImmunity;
             scheduler.PushGcd(NikeAbilities.Gekko, target.GameObjectId, priority: 4,
@@ -496,7 +502,7 @@ public sealed class DamageModule : INikeModule
             return;
         }
 
-        if (!context.HasKa && level >= SAMActions.Kasha.MinLevel)
+        if (next == SAMActions.Kasha.ActionId && level >= SAMActions.Kasha.MinLevel)
         {
             bool correctPositional = context.IsAtFlank || context.HasTrueNorth || context.TargetHasPositionalImmunity;
             scheduler.PushGcd(NikeAbilities.Kasha, target.GameObjectId, priority: 4,
@@ -522,7 +528,7 @@ public sealed class DamageModule : INikeModule
             return;
         }
 
-        if (!context.HasSetsu && level >= SAMActions.Yukikaze.MinLevel)
+        if (next == SAMActions.Yukikaze.ActionId && level >= SAMActions.Yukikaze.MinLevel)
         {
             scheduler.PushGcd(NikeAbilities.Yukikaze, target.GameObjectId, priority: 4,
                 onDispatched: _ =>

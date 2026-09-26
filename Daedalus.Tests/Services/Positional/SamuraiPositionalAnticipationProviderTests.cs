@@ -220,8 +220,11 @@ public class SamuraiPositionalAnticipationProviderTests
         Assert.Null(_provider.GetAnticipatedPositional(ctx));
     }
 
+    // After any Iaijutsu the Sen are spent and Meikyo starts with both Getsu and Ka missing. This used to
+    // anticipate nothing while the rotation fired Gekko, so the mover was never told to go behind: 16 of Saar's
+    // 22 missed positionals on 2026-09-25 were that Gekko, thrown from the flank.
     [Fact]
-    public void GetAnticipatedPositional_MeikyoNeitherSen_ReturnsNull()
+    public void GetAnticipatedPositional_MeikyoNeitherSen_NotAtFlank_ReturnsRearGekko()
     {
         var ctx = BaseContext with
         {
@@ -231,7 +234,77 @@ public class SamuraiPositionalAnticipationProviderTests
             HasKaSen = false,
         };
 
-        Assert.Null(_provider.GetAnticipatedPositional(ctx));
+        var result = _provider.GetAnticipatedPositional(ctx);
+
+        Assert.NotNull(result);
+        Assert.Equal(PositionalType.Rear, result.Value.Required);
+        Assert.Equal(SAMActions.Gekko.ActionId, result.Value.UpcomingFinisherActionId);
+        Assert.Equal(PositionalAnticipationReason.MeikyoSen, result.Value.Reason);
+    }
+
+    [Fact]
+    public void GetAnticipatedPositional_MeikyoNeitherSen_AtFlank_ReturnsFlankKasha()
+    {
+        var ctx = BaseContext with
+        {
+            PlayerLevel = 100,
+            IsAtFlank = true,
+            HasMeikyoShisui = true,
+            HasGetsuSen = false,
+            HasKaSen = false,
+        };
+
+        var result = _provider.GetAnticipatedPositional(ctx);
+
+        Assert.NotNull(result);
+        Assert.Equal(PositionalType.Flank, result.Value.Required);
+        Assert.Equal(SAMActions.Kasha.ActionId, result.Value.UpcomingFinisherActionId);
+    }
+
+    [Fact]
+    public void GetAnticipatedPositional_MeikyoNeitherSen_AtRear_ReturnsRearGekko()
+    {
+        var ctx = BaseContext with
+        {
+            PlayerLevel = 100,
+            IsAtRear = true,
+            HasMeikyoShisui = true,
+        };
+
+        Assert.Equal(PositionalType.Rear, _provider.GetAnticipatedPositional(ctx)!.Value.Required);
+    }
+
+    // The recorded case exactly: Gyofu, then Meikyo with no Sen, on the flank, Fugetsu low. The Hakaze/Gyofu
+    // stage said Rear (Jinpu next), but the Meikyo stack goes first and it is Kasha from here.
+    [Fact]
+    public void GetAnticipatedPositional_MeikyoAfterGyofu_FollowsMeikyoNotEarlyRear()
+    {
+        var ctx = BaseContext with
+        {
+            LastComboAction = SAMActions.Gyofu.ActionId,
+            PlayerLevel = 100,
+            IsAtFlank = true,
+            HasMeikyoShisui = true,
+            HasFugetsu = true,
+            FugetsuRemainingSeconds = 3f,
+        };
+
+        Assert.Equal(PositionalType.Flank, _provider.GetAnticipatedPositional(ctx)!.Value.Required);
+    }
+
+    [Fact]
+    public void GetAnticipatedPositional_MeikyoOverridesJinpu_ReturnsMeikyoKasha()
+    {
+        var ctx = BaseContext with
+        {
+            LastComboAction = SAMActions.Jinpu.ActionId,
+            PlayerLevel = 100,
+            HasMeikyoShisui = true,
+            HasGetsuSen = true,
+            HasKaSen = false,
+        };
+
+        Assert.Equal(PositionalType.Flank, _provider.GetAnticipatedPositional(ctx)!.Value.Required);
     }
 
     [Fact]
