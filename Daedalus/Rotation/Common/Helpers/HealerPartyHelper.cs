@@ -89,6 +89,16 @@ public abstract class HealerPartyHelper : BasePartyHelper, ISpikeTargetSource
         2976, // Doom (EW — TOP phase 6, Abyssos, etc.)
     };
 
+    /// <summary>
+    /// Damage-over-time effects heavy enough that the victim must be healed ahead of everyone else for
+    /// as long as they last. Unlike Doom they don't clear at full HP; they just keep hitting.
+    /// </summary>
+    private static readonly ushort[] PriorityHealDotStatusIds =
+    {
+        4269, // False Prediction (Occult Crescent Phantom Oracle) — 50,000 potency to self when every
+              // prophecy expires unplayed
+    };
+
     protected HealerPartyHelper(
         IObjectTable objectTable,
         IPartyList partyList,
@@ -152,8 +162,9 @@ public abstract class HealerPartyHelper : BasePartyHelper, ISpikeTargetSource
             // Doom forces max priority — Doom only clears at 100% HP, so even a
             // target at 85% will die if not topped. Treat as near-zero effective HP.
             // The LAN board covers the same case announced from another box (Necromancer
-            // Deep Freeze) for members whose status list we can't read from here.
-            if (HasDoom(member) || NeedsAnnouncedTopOff(member))
+            // Deep Freeze, Oracle False Prediction) for members whose status list we can't
+            // read from here. A heavy DoT (False Prediction) gets the same treatment.
+            if (NeedsPriorityHealing(member))
                 hpPercent = 0.01f;
 
             // Overheal prevention (skip for Doom targets — they need every heal)
@@ -441,6 +452,38 @@ public abstract class HealerPartyHelper : BasePartyHelper, ISpikeTargetSource
     }
 
     /// <summary>
+    /// Heal this member before anyone else, for as long as it isn't full: Doom (clears only at 100%),
+    /// a heavy DoT such as the Oracle's False Prediction, or a request announced from another box.
+    /// </summary>
+    public static bool NeedsPriorityHealing(IBattleChara chara)
+        => HasDoom(chara) || HasPriorityHealDot(chara) || NeedsAnnouncedTopOff(chara);
+
+    /// <summary>True when the member carries a DoT from <see cref="PriorityHealDotStatusIds"/>.</summary>
+    public static bool HasPriorityHealDot(IBattleChara chara)
+    {
+        if (chara.StatusList == null)
+            return false;
+
+        foreach (var status in chara.StatusList)
+        {
+            if (status != null && IsPriorityHealDotStatusId(status.StatusId))
+                return true;
+        }
+        return false;
+    }
+
+    /// <summary>Pure predicate over <see cref="PriorityHealDotStatusIds"/>.</summary>
+    public static bool IsPriorityHealDotStatusId(uint statusId)
+    {
+        for (int i = 0; i < PriorityHealDotStatusIds.Length; i++)
+        {
+            if (PriorityHealDotStatusIds[i] == statusId)
+                return true;
+        }
+        return false;
+    }
+
+    /// <summary>
     /// A LAN-announced "heal me to full" request (Necromancer Deep Freeze Dooms its caster).
     /// Complements <see cref="HasDoom"/>: the status read only works for members whose status
     /// list this client can see, the announcement crosses boxes regardless.
@@ -491,6 +534,12 @@ public abstract class HealerPartyHelper : BasePartyHelper, ISpikeTargetSource
         float maxAcceleration = 1f;
 
         var playerPos = player.Position;
+
+        // Doom / heavy DoT / announced top-off first, whatever the damage-intake scores say. The
+        // triage below weighs damage rate and missing HP, and a Doomed member at 90% loses to any
+        // bleeding tank — the inversion FindLowestHpPartyMember already corrects for.
+        if (FindPriorityHealMember(player, rangeSquared) is { } priority)
+            return priority;
 
         foreach (var member in GetAllPartyMembers(player))
         {
@@ -602,6 +651,36 @@ public abstract class HealerPartyHelper : BasePartyHelper, ISpikeTargetSource
     }
 
     #endregion
+
+    /// <summary>
+    /// The lowest-HP member who needs priority healing (<see cref="NeedsPriorityHealing"/>) and isn't
+    /// full, in range; null when there is none.
+    /// </summary>
+    private IBattleChara? FindPriorityHealMember(IPlayerCharacter player, float rangeSquared)
+    {
+        IBattleChara? best = null;
+        var bestPct = float.MaxValue;
+        foreach (var member in GetAllPartyMembers(player))
+        {
+            if (member.IsDead || member.MaxHp == 0 || HasTranscendent(member))
+                continue;
+            if (Vector3.DistanceSquared(player.Position, member.Position) > rangeSquared)
+                continue;
+
+            var predictedHp = GetPredictedHp(member);
+            if (predictedHp >= member.MaxHp || !NeedsPriorityHealing(member))
+                continue;
+
+            var pct = (float)predictedHp / member.MaxHp;
+            if (pct < bestPct)
+            {
+                best = member;
+                bestPct = pct;
+            }
+        }
+
+        return best;
+    }
 
     #region Party Health Metrics
 

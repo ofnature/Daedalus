@@ -3,6 +3,40 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.82 — unreleased
+
+### Fix — Time Mage stops recasting Slowga on enemies that resist it
+- **Occult Slowga is no longer cast over and over at an enemy that shows "Resist" or "Immune".**
+  It waits for Slow to be missing before casting, and an enemy that can't be slowed never has it, so
+  the Time Mage kept spending GCDs on it. Once an enemy resists, Daedalus leaves it alone for the rest
+  of its life; the rest of the pack still gets slowed.
+
+### New — Time Mage uses Mage Masher, Dispel and Quick
+- **Mage Masher (level 3) is now kept on your target** — 10% less magic damage from it for 60
+  seconds, on a 30-second recast, so it stays up. It's a weave, so it never costs a GCD. Skipped on a
+  target that already has it, one about to die, or one that resisted it. Toggle in Settings ▸ Occult
+  Crescent under Time Mage.
+- **Occult Dispel (level 4)** strips Damage Up, Evasion Up, Magic Damage Up or Dark Defenses off your
+  target. It only costs a GCD when one of those is on it, and gives up on an enemy it doesn't work on.
+- **Occult Quick (level 5)** goes on you in combat: 10% faster casts, GCDs and auto-attacks for 20
+  seconds. Held while another instant-cast buff is running, and during a Red Mage's burst.
+
+### Fix — Phantom Oracle: a prophecy is never left to expire
+- **Predict is only used on a target that will live long enough to play a card** — 20 seconds or
+  more by its time-to-kill, or a fresh pull. Before, it could open a prophecy on a nearly dead mob,
+  and if nothing was played in time it turned into False Prediction, which kills the Oracle.
+- **When the fight ends with a prophecy still open, the Oracle plays whatever card is up right away**
+  (out of combat, no target, or the target about to die) instead of waiting for a better one.
+
+### New — surviving False Prediction
+- If False Prediction does land, every healer now heals that toon ahead of everyone else until it's
+  full again, the same way Doom is handled. The Oracle also announces it to the healers on your other
+  boxes, with a chat line.
+- The same priority now also applies when healers use damage-intake triage, which ignored Doom before.
+- **The Oracle casts Invulnerability the moment False Prediction lands** (HP can't drop below 1 for
+  8 seconds) — on itself, or on another party member who has it.
+
+<!-- LATEST-END -->
 ## v0.1.81 — 2026-09-25
 
 ### New — Bozja: Lost Actions
@@ -28,7 +62,6 @@ All notable changes to Daedalus will be documented in this file.
 - New **Bozja** page in Settings: a toggle per action (with a live [SLOTTED] tag), "Buff the party too",
   the heal threshold, and the Burst/Rampage mode.
 
-<!-- LATEST-END -->
 ## v0.1.80 — 2026-09-25
 
 ### Fix — toons stop picking fights with strangers' mobs in Bozja

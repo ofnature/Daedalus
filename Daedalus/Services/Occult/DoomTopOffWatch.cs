@@ -29,17 +29,23 @@ public static class DoomTopOffWatch
     /// <summary>Testable clock.</summary>
     internal static Func<DateTime> UtcNow { get; set; } = () => DateTime.UtcNow;
 
-    /// <summary>Raised when THIS toon needs to announce a top-off request (wired to the LAN bus).</summary>
-    public static Action<string>? OnLocalRequest { get; set; }
+    /// <summary>
+    /// Raised when THIS toon needs to announce a top-off request (wired to the LAN bus).
+    /// Args: character name, why (for the chat line).
+    /// </summary>
+    public static Action<string, string>? OnLocalRequest { get; set; }
 
-    /// <summary>Announce that a character needs healing to 100% (local record + LAN broadcast).</summary>
-    public static void RequestTopOff(string characterName)
+    /// <summary>
+    /// Announce that a character needs healing to 100% (local record + LAN broadcast). Used by the
+    /// Necromancer's Deep Freeze (Doom on self) and the Oracle's False Prediction (heavy DoT on self).
+    /// </summary>
+    public static void RequestTopOff(string characterName, string reason = "Deep Freeze cast — DOOM")
     {
         if (string.IsNullOrWhiteSpace(characterName))
             return;
 
         Record(characterName);
-        OnLocalRequest?.Invoke(characterName);
+        OnLocalRequest?.Invoke(characterName, reason);
     }
 
     /// <summary>Record a request without re-broadcasting (used by the LAN receive path).</summary>

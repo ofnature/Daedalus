@@ -496,6 +496,29 @@ public class PhantomBandRulesTests
     }
 
     /// <summary>
+    /// Occult Mage Masher: kept up on the target (60s debuff, 30s recast), never on one that already has
+    /// it, resisted it, or is about to die. Unknown time-to-kill (a fresh pull) counts as long.
+    /// </summary>
+    [Theory]
+    [InlineData(true, false, false, float.MaxValue, true)]
+    [InlineData(true, false, false, 30f, true)]
+    [InlineData(true, true, false, 30f, false)]  // already debuffed
+    [InlineData(true, false, true, 30f, false)]  // resisted
+    [InlineData(true, false, false, 5f, false)]  // dies too soon
+    [InlineData(false, false, false, 30f, false)] // out of combat
+    public void TimeMageMageMasher(bool inCombat, bool hasIt, bool resisted, float ttk, bool fire)
+        => Assert.Equal(fire, PhantomBandRules.ShouldMageMasher(DefaultConfig(), inCombat, hasIt, resisted, ttk));
+
+    [Fact]
+    public void TimeMageMageMasher_OffWhenToggledOff()
+    {
+        var cfg = DefaultConfig();
+        Assert.True(cfg.TimeMageUseMageMasher);
+        cfg.TimeMageUseMageMasher = false;
+        Assert.False(PhantomBandRules.ShouldMageMasher(cfg, true, false, false, 30f));
+    }
+
+    /// <summary>
     /// Slowga is the whole of a Lv.1 Time Mage — Comet needs Lv.2 — so it must fire by default,
     /// and it must stop once the Slow is actually up or a 2.5s GCD spell that deals no damage
     /// would be pressed every single GCD.
@@ -510,6 +533,9 @@ public class PhantomBandRulesTests
         Assert.True(PhantomBandRules.ShouldSlowga(cfg, true, targetAlreadySlowed: false, targetIsCriticalEncounterMob: false));
         Assert.False(PhantomBandRules.ShouldSlowga(cfg, true, targetAlreadySlowed: true, targetIsCriticalEncounterMob: false));
         Assert.False(PhantomBandRules.ShouldSlowga(cfg, false, targetAlreadySlowed: false, targetIsCriticalEncounterMob: false));
+        // Resisted / immune: never gets the status, so without this it would be recast every GCD.
+        Assert.False(PhantomBandRules.ShouldSlowga(cfg, true, targetAlreadySlowed: false, targetIsCriticalEncounterMob: false,
+            targetResistedSlowga: true));
 
         cfg.TimeMageUseSlowga = false;
         Assert.False(PhantomBandRules.ShouldSlowga(cfg, true, targetAlreadySlowed: false, targetIsCriticalEncounterMob: false));

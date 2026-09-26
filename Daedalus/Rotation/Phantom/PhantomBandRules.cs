@@ -482,14 +482,63 @@ public static class PhantomBandRules
     /// <summary>
     /// Occult Slowga (Time Mage): a pure debuff, no damage. Fires once and then waits out the
     /// 30s Slow rather than re-spending a GCD every 2.5s, so the gate is "target is not already
-    /// slowed" — reapply follows for free when the status drops off.
+    /// slowed" — reapply follows for free when the status drops off. A target that resisted it
+    /// ("Resist" / "Immune") never gets the status, so that gate would reopen every GCD: once it has
+    /// resisted, it is left alone.
     /// </summary>
+    /// <summary>
+    /// After an Occult Dispel at a target, leave it this long before another: the buff may take a
+    /// moment to drop, and one the game will not remove must not eat every GCD.
+    /// </summary>
+    public const double DispelRetrySeconds = 5.0;
+
+    /// <summary>
+    /// Occult Dispel (Time Mage, RSR parity): in combat, on a target carrying one of the dispellable
+    /// buffs — unless we just tried it, or it had no effect on that enemy before.
+    /// </summary>
+    public static bool ShouldDispel(
+        PhantomConfig cfg, bool inCombat, bool targetHasDispellable, bool dispelledRecently, bool targetResisted)
+        => inCombat
+           && cfg.TimeMageUseDispel
+           && targetHasDispellable
+           && !dispelledRecently
+           && !targetResisted;
+
+    /// <summary>
+    /// Occult Quick on self (RSR parity): in combat, not while another instant-cast buff is up, and not
+    /// during a Red Mage's burst (Manafication / Embolden / Magicked Swordplay / Grand Impact).
+    /// </summary>
+    public static bool ShouldQuick(PhantomConfig cfg, bool inCombat, bool hasInstantCast, bool inRedMageBurst)
+        => inCombat
+           && cfg.TimeMageUseQuick
+           && !hasInstantCast
+           && !inRedMageBurst;
+
+    /// <summary>Occult Mage Masher lasts 60s; not worth it on a target dying sooner than this.</summary>
+    public const float MageMasherMinTtkSeconds = 10f;
+
+    /// <summary>
+    /// Occult Mage Masher (Time Mage): -10% magic attack on the target for 60s, 30s recast, so it can be
+    /// kept up. Only when the target lacks it (from anyone), hasn't resisted it, and will live long
+    /// enough to matter (unknown time-to-kill counts as long). RSR uses it as area defence with no
+    /// debuff check at all.
+    /// </summary>
+    public static bool ShouldMageMasher(
+        PhantomConfig cfg, bool inCombat, bool targetHasMageMasher, bool targetResisted, float targetTtkSeconds)
+        => inCombat
+           && cfg.TimeMageUseMageMasher
+           && !targetHasMageMasher
+           && !targetResisted
+           && targetTtkSeconds >= MageMasherMinTtkSeconds;
+
     public static bool ShouldSlowga(
-        PhantomConfig cfg, bool inCombat, bool targetAlreadySlowed, bool targetIsCriticalEncounterMob)
+        PhantomConfig cfg, bool inCombat, bool targetAlreadySlowed, bool targetIsCriticalEncounterMob,
+        bool targetResistedSlowga = false)
         => inCombat
            && cfg.TimeMageUseSlowga
            && !targetAlreadySlowed
-           && !targetIsCriticalEncounterMob;
+           && !targetIsCriticalEncounterMob
+           && !targetResistedSlowga;
 
     /// <summary>
     /// Occult Missile: a coin flip for 75% of the target's CURRENT HP, "with some exceptions".

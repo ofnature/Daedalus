@@ -263,6 +263,23 @@ public sealed class OccultSection
                     "target and everything within 5 yalms of it. Costs one GCD per pack, and it " +
                     "is the only action a level 1 Time Mage has.",
                     save);
+                ConfigUIHelpers.Toggle("Keep Mage Masher on the target",
+                    () => config.Occult.TimeMageUseMageMasher, v => config.Occult.TimeMageUseMageMasher = v,
+                    "Occult Mage Masher (level 3) lowers your target's magic attack by 10% for 60 seconds. " +
+                    "A weave on a 30-second recast, so it can stay up the whole fight. Skipped on a target " +
+                    "about to die, one that already has it, or one that resisted it.",
+                    save);
+                ConfigUIHelpers.Toggle("Dispel enemy buffs",
+                    () => config.Occult.TimeMageUseDispel, v => config.Occult.TimeMageUseDispel = v,
+                    "Occult Dispel (level 4) removes Damage Up, Evasion Up, Magic Damage Up or Dark " +
+                    "Defenses from your target. Costs a GCD, only when one of those is on it.",
+                    save);
+                ConfigUIHelpers.Toggle("Use Occult Quick in combat",
+                    () => config.Occult.TimeMageUseQuick, v => config.Occult.TimeMageUseQuick = v,
+                    "Occult Quick (level 5, 2-minute recast) on yourself: 10% faster casts, GCDs and " +
+                    "auto-attacks for 20 seconds, plus a burst of movement speed. Held while another " +
+                    "instant-cast buff is up, and during a Red Mage's burst.",
+                    save);
                 break;
 
             case PhantomJob.Monk:

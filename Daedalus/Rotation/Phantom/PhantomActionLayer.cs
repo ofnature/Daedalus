@@ -59,6 +59,22 @@ public sealed class PhantomActionLayer
     private readonly Dictionary<uint, AbilityBehavior> _behaviorCache = [];
     private readonly List<string> _pushRejects = [];
 
+    /// <summary>Enemies that resisted Occult Slowga — never slowed again.</summary>
+    private readonly ResistedDebuffMemory _slowgaResisted = new(41621);
+
+    /// <summary>Enemies that resisted Occult Mage Masher — never re-debuffed.</summary>
+    private readonly ResistedDebuffMemory _mageMasherResisted = new(41624);
+
+    /// <summary>Occult Mage Masher's debuff on the enemy (-10% magic attack, 60s).</summary>
+    private const uint MageMasherStatusId = 4259;
+
+    /// <summary>Enemies Occult Dispel had no effect on — never tried again.</summary>
+    private readonly ResistedDebuffMemory _dispelResisted = new(41622);
+
+    /// <summary>When we last sent Occult Dispel at each enemy (entity id).</summary>
+    private readonly Dictionary<uint, DateTime> _lastDispelAt = [];
+    private DateTime _lastResistPrune = DateTime.MinValue;
+
     /// <summary>
     /// Deliberate, healthy reasons an action was not pushed — as opposed to <see cref="_pushRejects"/>,
     /// which are things standing in the way. Kept apart so a party buff that is simply still up
@@ -225,9 +241,48 @@ public sealed class PhantomActionLayer
         _phantomJobs.LayerLastEvent = $"FAULTED in {stage} — {ex.GetType().Name}: {ex.Message}";
     }
 
+    /// <summary>
+    /// Feed from CombatEventService.OnLocalActionOnTarget: the game's verdict on each of our casts.
+    /// </summary>
+    public void NotifyLocalActionOutcome(uint actionId, uint targetEntityId, Daedalus.Services.LocalActionOutcome outcome)
+    {
+        var before = _slowgaResisted.Count;
+        _slowgaResisted.Observe(actionId, targetEntityId, outcome);
+        if (_slowgaResisted.Count > before)
+            DebugLog?.Log(Daedalus.Services.Debug.DebugLogCategory.Action,
+                Daedalus.Services.Debug.DebugLogSeverity.Info,
+                $"Occult Slowga resisted ({outcome}) — not recasting on that enemy");
+
+        before = _dispelResisted.Count;
+        _dispelResisted.Observe(actionId, targetEntityId, outcome);
+        if (_dispelResisted.Count > before)
+            DebugLog?.Log(Daedalus.Services.Debug.DebugLogCategory.Action,
+                Daedalus.Services.Debug.DebugLogSeverity.Info,
+                $"Occult Dispel had no effect ({outcome}) — not retrying on that enemy");
+
+        before = _mageMasherResisted.Count;
+        _mageMasherResisted.Observe(actionId, targetEntityId, outcome);
+        if (_mageMasherResisted.Count > before)
+            DebugLog?.Log(Daedalus.Services.Debug.DebugLogCategory.Action,
+                Daedalus.Services.Debug.DebugLogSeverity.Info,
+                $"Occult Mage Masher resisted ({outcome}) — not recasting on that enemy");
+    }
+
     private void PreModulesCore(IRotationContext ctx, bool isMoving, bool inCombat)
     {
         var cfg = _configuration.Occult;
+
+        if (_slowgaResisted.Count + _mageMasherResisted.Count + _dispelResisted.Count + _lastDispelAt.Count > 0
+            && (DateTime.UtcNow - _lastResistPrune).TotalSeconds >= 10)
+        {
+            _lastResistPrune = DateTime.UtcNow;
+            Func<uint, bool> alive = id => ctx.ObjectTable.SearchByEntityId(id) is IBattleChara { IsDead: false };
+            _slowgaResisted.Prune(alive);
+            _mageMasherResisted.Prune(alive);
+            _dispelResisted.Prune(alive);
+            foreach (var id in _lastDispelAt.Keys.Where(id => !alive(id)).ToList())
+                _lastDispelAt.Remove(id);
+        }
 
         // Say which. These two used to return silently, leaving _framePrepared false so the
         // post pass never updated the status either — the Duty tab kept whatever it last said,
@@ -983,14 +1038,52 @@ public sealed class PhantomActionLayer
             // this the gate passes every frame and a zero-damage 2.5s GCD spell is re-cast for
             // the whole encounter. RSR excludes critical-encounter mobs for the same reason.
             var slowgaCe = IsCriticalEncounterMob(target);
+            var slowgaResisted = _slowgaResisted.HasResisted(target.EntityId);
             if (PhantomBandRules.ShouldSlowga(
-                    cfg, inCombat, HasAnyStatus(target, PhantomActions.SlowStatusIds), slowgaCe))
+                    cfg, inCombat, HasAnyStatus(target, PhantomActions.SlowStatusIds), slowgaCe, slowgaResisted))
             {
                 TryPush(ctx, 41621, job, level, PrioDamage + 1, target.GameObjectId, target);
             }
             else if (slowgaCe)
             {
                 _pushRejects.Add("Occult Slowga — critical-encounter enemies cannot be slowed");
+            }
+            else if (slowgaResisted)
+            {
+                _pushRejects.Add("Occult Slowga — this enemy resisted it, not recasting");
+            }
+
+            // Occult Mage Masher: a weave, so it never costs a GCD; kept up on the target.
+            var masherResisted = _mageMasherResisted.HasResisted(target.EntityId);
+            if (PhantomBandRules.ShouldMageMasher(cfg, inCombat,
+                    HasAnyStatus(target, [MageMasherStatusId]), masherResisted,
+                    TimeToKill?.GetTtkSeconds(target) ?? float.MaxValue))
+            {
+                TryPush(ctx, 41624, job, level, PrioSelfMit, target.GameObjectId, target);
+            }
+            else if (masherResisted)
+            {
+                _pushRejects.Add("Occult Mage Masher — this enemy resisted it, not recasting");
+            }
+
+            // Occult Dispel: strip a damage/evasion buff off the target (RSR's dispellable list).
+            var dispelTargetId = target.EntityId;
+            var dispelledRecently = _lastDispelAt.TryGetValue(dispelTargetId, out var lastDispel)
+                && (DateTime.UtcNow - lastDispel).TotalSeconds < PhantomBandRules.DispelRetrySeconds;
+            if (PhantomBandRules.ShouldDispel(cfg, inCombat,
+                    HasAnyStatus(target, PhantomActions.DispellableStatusIds), dispelledRecently,
+                    _dispelResisted.HasResisted(dispelTargetId)))
+            {
+                TryPush(ctx, 41622, job, level, PrioDamage - 1, target.GameObjectId, target,
+                    onExtraDispatched: () => _lastDispelAt[dispelTargetId] = DateTime.UtcNow);
+            }
+
+            // Occult Quick on ourselves: faster casts/GCDs for 20s, on a 2-minute recast.
+            if (PhantomBandRules.ShouldQuick(cfg, inCombat,
+                    HasAnyStatus(ctx.Player, PhantomActions.InstantCastStatusIds),
+                    HasAnyStatus(ctx.Player, PhantomActions.RedMageBurstStatusIds)))
+            {
+                TryPush(ctx, 41625, job, level, PrioPartyBuff);
             }
         }
 
@@ -1504,9 +1597,74 @@ public sealed class PhantomActionLayer
     }
 
     private DateTime? _oracleWindowStart;
+    private DateTime _falsePredictionAnnouncedUtc = DateTime.MinValue;
+
+    /// <summary>False Prediction: the Oracle's own 50,000-potency DoT when every prophecy expires unplayed.</summary>
+    private const uint FalsePredictionStatusId = 4269;
+
+    /// <summary>Re-announce this often while it lasts; the board holds a request for 12s.</summary>
+    private const double FalsePredictionAnnounceSeconds = 8.0;
+
+    /// <summary>Time-to-kill estimates, for the Predict gate. Null (tests) = unknown.</summary>
+    public Daedalus.Services.Combat.ITimeToKillService? TimeToKill { get; set; }
+
+    /// <summary>
+    /// Who needs Invulnerability against False Prediction: ourselves, else the first other party member
+    /// with it. Skips anyone Invulnerability already covers.
+    /// </summary>
+    private static IBattleChara? FindFalsePredictionVictim(IRotationContext ctx)
+    {
+        if (OracleCardPolicy.NeedsInvulnerabilityForFalsePrediction(
+                HasAnyStatus(ctx.Player, [FalsePredictionStatusId]),
+                HasAnyStatus(ctx.Player, [PhantomActions.StatusIds.Invulnerability])))
+            return ctx.Player;
+
+        foreach (var member in ctx.PartyList)
+        {
+            if (member?.GameObject is IBattleChara chara
+                && chara.GameObjectId != ctx.Player.GameObjectId
+                && !chara.IsDead
+                && OracleCardPolicy.NeedsInvulnerabilityForFalsePrediction(
+                    HasAnyStatus(chara, [FalsePredictionStatusId]),
+                    HasAnyStatus(chara, [PhantomActions.StatusIds.Invulnerability])))
+                return chara;
+        }
+
+        return null;
+    }
 
     private void PushOracle(IRotationContext ctx, Config.PhantomConfig cfg, PhantomJob job, byte level, float selfHpPct, bool inCombat)
     {
+        // False Prediction landed anyway: tell every healer, on every box, to keep us topped up first.
+        // Local healers also read the status straight off us; the board reaches the rest.
+        if (_actionService.PlayerHasStatus(FalsePredictionStatusId)
+            && (DateTime.UtcNow - _falsePredictionAnnouncedUtc).TotalSeconds >= FalsePredictionAnnounceSeconds)
+        {
+            _falsePredictionAnnouncedUtc = DateTime.UtcNow;
+            var selfName = ctx.Player.Name.TextValue;
+            Daedalus.Services.Occult.DoomTopOffWatch.RequestTopOff(selfName, "False Prediction");
+            DebugLog?.Log(Daedalus.Services.Debug.DebugLogCategory.Action,
+                Daedalus.Services.Debug.DebugLogSeverity.Warning,
+                $"False Prediction on self — priority healing requested for {selfName}");
+        }
+
+        // Invulnerability (HP can't drop below 1 for 8s) is the one thing that outlasts a False
+        // Prediction tick. Ourselves first, then any other party member carrying it (another Oracle).
+        if (FindFalsePredictionVictim(ctx) is { } victim)
+        {
+            var onSelf = victim.GameObjectId == ctx.Player.GameObjectId;
+            TryPush(ctx, 41644, job, level, PrioEmergencySustain - 1,
+                onSelf ? 0 : victim.GameObjectId, onSelf ? null : victim,
+                onExtraDispatched: () => DebugLog?.Log(Daedalus.Services.Debug.DebugLogCategory.Action,
+                    Daedalus.Services.Debug.DebugLogSeverity.Warning,
+                    $"Invulnerability on {(onSelf ? "self" : victim.Name.TextValue)} — False Prediction"));
+        }
+
+        var enemy = ctx.TargetingService.GetUserEnemyTarget() ?? ctx.Player.TargetObject as IBattleChara;
+        var hasTarget = enemy is { IsDead: false };
+        var targetTtk = hasTarget ? TimeToKill?.GetTtkSeconds(enemy!) ?? float.MaxValue : float.MaxValue;
+        var targetHpPct = hasTarget && enemy!.MaxHp > 0 ? (float)enemy.CurrentHp / enemy.MaxHp : 0f;
+
         // Which card is the game currently offering? (Predict morphs the slot per card.)
         var activeCard =
             _actionService.PlayerHasStatus(PhantomActions.StatusIds.PredictionOfJudgment) ? OracleCardPolicy.JudgmentCard
@@ -1520,8 +1678,12 @@ public sealed class PhantomActionLayer
         if (activeCard == 0)
         {
             _oracleWindowStart = null;
-            if (inCombat)
+            if (OracleCardPolicy.ShouldPredict(inCombat, hasTarget, targetTtk, targetHpPct))
                 TryPush(ctx, 41636, job, level, PrioDamage, onExtraDispatched: _oracleDeck.OnPredictDispatched); // Predict
+            else if (inCombat)
+                _pushRejects.Add(hasTarget
+                    ? $"Predict — target dies too soon ({targetTtk:F0}s) for a prophecy to be played in time"
+                    : "Predict — no target");
             return;
         }
 
@@ -1539,7 +1701,8 @@ public sealed class PhantomActionLayer
             selfHpPct,
             ctx.PartyHealthMetrics.avgHpPercent,
             invulnBuffUp: _actionService.PlayerHasStatus(PhantomActions.StatusIds.Invulnerability),
-            invulnReady: level >= 6 && _actionService.IsActionReady(41644));
+            invulnReady: level >= 6 && _actionService.IsActionReady(41644),
+            fightEnding: OracleCardPolicy.FightEnding(inCombat, hasTarget, targetTtk));
 
         switch (decision)
         {

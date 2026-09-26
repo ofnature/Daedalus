@@ -29,7 +29,7 @@ public class DoomTopOffWatchTests : IDisposable
     public void Request_MarksTheToonAndFiresTheAnnouncement()
     {
         string? announced = null;
-        DoomTopOffWatch.OnLocalRequest = n => announced = n;
+        DoomTopOffWatch.OnLocalRequest = (n, _) => announced = n;
 
         DoomTopOffWatch.RequestTopOff("Saar Ishere");
 
@@ -37,11 +37,25 @@ public class DoomTopOffWatchTests : IDisposable
         Assert.Equal("Saar Ishere", announced);
     }
 
+    /// <summary>The chat line names the cause: Deep Freeze by default, False Prediction from the Oracle.</summary>
+    [Fact]
+    public void Request_CarriesItsReason()
+    {
+        string? reason = null;
+        DoomTopOffWatch.OnLocalRequest = (_, r) => reason = r;
+
+        DoomTopOffWatch.RequestTopOff("Saar Ishere");
+        Assert.Equal("Deep Freeze cast — DOOM", reason);
+
+        DoomTopOffWatch.RequestTopOff("Saar Ishere", "False Prediction");
+        Assert.Equal("False Prediction", reason);
+    }
+
     [Fact]
     public void Record_DoesNotReBroadcast()
     {
         var announcements = 0;
-        DoomTopOffWatch.OnLocalRequest = _ => announcements++;
+        DoomTopOffWatch.OnLocalRequest = (_, _) => announcements++;
 
         DoomTopOffWatch.Record("Korha Ishere"); // arrived over LAN from another box
 

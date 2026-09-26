@@ -739,6 +739,10 @@ public sealed class Plugin : IDalamudPlugin
             actionService, jobGauges, configuration, phantomJobService, timelineService, errorMetricsService, log,
             burstWindowService);
         phantomLayer.DebugLog = debugLogService;
+        phantomLayer.TimeToKill = timeToKillService;
+        // The game's verdict on each of our casts, so a debuff the enemy resisted (Occult Slowga's
+        // "Resist" / "Immune") is not recast at it for the rest of its life.
+        combatEventService.OnLocalActionOnTarget += phantomLayer.NotifyLocalActionOutcome;
         phantomLayer.PartyCoordination = partyCoordinationService;
         // The NAME matters as much as the id: the game gives one creature several NameIds
         // (Crescent Void Viper 13896/13907, Animated Doll 13893/13894), and KnownWeakness can only
@@ -798,9 +802,9 @@ public sealed class Plugin : IDalamudPlugin
 
         // Doom top-off board: announce over LAN so healers on other boxes prioritise the
         // Doomed toon even when they cannot read its status list from where they stand.
-        Daedalus.Services.Occult.DoomTopOffWatch.OnLocalRequest = name =>
+        Daedalus.Services.Occult.DoomTopOffWatch.OnLocalRequest = (name, reason) =>
         {
-            chatGui.Print($"Daedalus: Deep Freeze cast — DOOM on {name}, healers topping to full.");
+            chatGui.Print($"Daedalus: {reason} on {name}, healers topping to full.");
             coordinationBus?.PublishPluginRelay(DoomTopOffChannel, System.Text.Json.JsonSerializer.Serialize(name));
         };
         if (coordinationBus != null)

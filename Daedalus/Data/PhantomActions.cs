@@ -353,6 +353,24 @@ public static class PhantomActions
     /// is the safe direction: the worst a false positive can do is skip a reapply on something
     /// already slowed, which is exactly what we wanted anyway.
     /// </summary>
+    /// <summary>
+    /// Enemy buffs Occult Dispel is used on — RSR's PhantomDispellable list: Damage Up (1161, 61),
+    /// Dark Defenses (4355), Magic Damage Up (2556), Evasion Up (1706).
+    /// </summary>
+    public static readonly IReadOnlyList<uint> DispellableStatusIds = [1161, 61, 4355, 2556, 1706];
+
+    /// <summary>
+    /// Instant-cast buffs Occult Quick would overlap — RSR's SwiftcastStatus list: Swiftcast,
+    /// Triplecast, Dualcast (both rows), Occult Quick itself, Lost Chainspell.
+    /// </summary>
+    public static readonly IReadOnlyList<uint> InstantCastStatusIds = [167, 1211, 1249, 5438, 4260, 2560];
+
+    /// <summary>
+    /// Red Mage burst states RSR will not spend a Quick in: Manafication, Embolden, Magicked Swordplay,
+    /// Grand Impact Ready.
+    /// </summary>
+    public static readonly IReadOnlyList<uint> RedMageBurstStatusIds = [1971, 1239, 3875, 3877];
+
     public static readonly IReadOnlyList<uint> SlowStatusIds =
         [9, 10, 193, 442, 561, 1346, 1509, 2246, 3464, 3493];
 

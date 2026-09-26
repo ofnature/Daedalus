@@ -30,6 +30,46 @@ public static class OracleCardPolicy
     /// <summary>Self HP fraction above which Starfall's self-damage is considered survivable.</summary>
     public const float StarfallSafeHpPct = 0.90f;
 
+    /// <summary>
+    /// Only open a prophecy on a target expected to live at least this long: then even the latest
+    /// commit (<see cref="ForceCommitSeconds"/>) comes while the fight is still on.
+    /// </summary>
+    public const float PredictMinTtkSeconds = ForceCommitSeconds;
+
+    /// <summary>
+    /// With no HP-loss samples yet the time-to-kill is unknown — which is every fresh pull. A target at
+    /// or above this much HP counts as a fresh pull, so Predict can still open a fight.
+    /// </summary>
+    public const float FreshPullHpPct = 0.90f;
+
+    /// <summary>A prophecy still open when the target is this close to dying is committed now.</summary>
+    public const float FightEndingTtkSeconds = 5f;
+
+    /// <summary>
+    /// Whether to open a prophecy. Every prophecy that expires unplayed kills the Oracle (False
+    /// Prediction), and the likeliest way to leave one unplayed is to open it as the fight ends, then
+    /// mount up or leave the layer's reach. So only on a target that will outlive the whole window.
+    /// </summary>
+    public static bool ShouldPredict(bool inCombat, bool hasTarget, float targetTtkSeconds, float targetHpPct)
+        => inCombat && hasTarget
+           && (targetTtkSeconds == float.MaxValue
+               ? targetHpPct >= FreshPullHpPct
+               : targetTtkSeconds >= PredictMinTtkSeconds);
+
+    /// <summary>
+    /// The fight is ending under an open prophecy: out of combat, no target left, or the target about
+    /// to die. Play whatever is offered rather than wait for a better card.
+    /// </summary>
+    public static bool FightEnding(bool inCombat, bool hasTarget, float targetTtkSeconds)
+        => !inCombat || !hasTarget || targetTtkSeconds < FightEndingTtkSeconds;
+
+    /// <summary>
+    /// False Prediction is on this member and Invulnerability isn't: cast it. Invulnerability keeps HP
+    /// from dropping below 1 for 8s, the one answer to a 50,000-potency DoT.
+    /// </summary>
+    public static bool NeedsInvulnerabilityForFalsePrediction(bool hasFalsePrediction, bool hasInvulnerability)
+        => hasFalsePrediction && !hasInvulnerability;
+
     public static OracleDecision Decide(
         uint cardActionId,
         PhantomConfig cfg,
@@ -38,9 +78,10 @@ public static class OracleCardPolicy
         float selfHpPct,
         float partyAvgHpPct,
         bool invulnBuffUp,
-        bool invulnReady)
+        bool invulnReady,
+        bool fightEnding = false)
     {
-        var mustCommit = lastCard || windowElapsedSeconds >= ForceCommitSeconds;
+        var mustCommit = lastCard || windowElapsedSeconds >= ForceCommitSeconds || fightEnding;
 
         switch (cardActionId)
         {

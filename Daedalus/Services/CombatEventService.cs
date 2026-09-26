@@ -28,6 +28,13 @@ public enum LocalActionOutcome
     DamageDealt = 1,
     Missed = 2,
     NoEffect = 3,
+
+    /// <summary>
+    /// The action's debuff did not take: the game sent a "resisted status" or "status had no effect"
+    /// entry instead of applying it (BMR ActionEffectType FullResistStatus 55 / StatusNoEffect 20).
+    /// This is the "Resist" / "Immune" a debuff-only action such as Occult Slowga shows.
+    /// </summary>
+    StatusResisted = 4,
 }
 
 /// <summary>
@@ -204,6 +211,8 @@ public sealed unsafe class CombatEventService : ICombatEventService, IDisposable
     private const byte EffectTypeHeal = 4;
     private const byte EffectTypeInvulnerable = 7;
     private const byte EffectTypeNoEffectText = 8;
+    private const byte EffectTypeStatusNoEffect = 20;
+    private const byte EffectTypeFullResistStatus = 55;
 
     // Damage/heal effect field semantics (verified against BossmodReborn ActionEffect.cs):
     // Param4 bit 0x40 = large-value flag, real value = Value + Param3 * 0x10000.
@@ -594,6 +603,18 @@ public sealed unsafe class CombatEventService : ICombatEventService, IDisposable
         receiveHook.Original(casterEntityId, casterPtr, targetPos, header, effects, targetEntityIds);
     }
 
+    /// <summary>
+    /// What one target's effect entries add up to. Damage wins (the hit landed, whatever else rode
+    /// along); a full resist or invulnerability outranks a status resist, which outranks a miss.
+    /// </summary>
+    internal static LocalActionOutcome ClassifyLocalOutcome(
+        int totalDelta, bool sawNoEffect, bool sawStatusResist, bool sawMiss)
+        => totalDelta < 0 ? LocalActionOutcome.DamageDealt
+            : sawNoEffect ? LocalActionOutcome.NoEffect
+            : sawStatusResist ? LocalActionOutcome.StatusResisted
+            : sawMiss ? LocalActionOutcome.Missed
+            : LocalActionOutcome.Unknown;
+
     private void ProcessEffects(
         uint casterEntityId,
         ActionEffectHandler.Header* header,
@@ -613,6 +634,7 @@ public sealed unsafe class CombatEventService : ICombatEventService, IDisposable
             var healWasCrit = false;
             var sawMiss = false;
             var sawNoEffect = false;
+            var sawStatusResist = false;
             for (var j = 0; j < 8; j++)
             {
                 var effect = targetEffects.Effects[j];
@@ -645,6 +667,10 @@ public sealed unsafe class CombatEventService : ICombatEventService, IDisposable
                     case EffectTypeNoEffectText:
                         sawNoEffect = true;
                         break;
+                    case EffectTypeStatusNoEffect:
+                    case EffectTypeFullResistStatus:
+                        sawStatusResist = true;
+                        break;
                 }
             }
 
@@ -652,10 +678,7 @@ public sealed unsafe class CombatEventService : ICombatEventService, IDisposable
             // damage effect, so this must NOT be derived from the deltas alone).
             if (isFromLocalPlayer)
             {
-                var outcome = totalDelta < 0 ? LocalActionOutcome.DamageDealt
-                    : sawNoEffect ? LocalActionOutcome.NoEffect
-                    : sawMiss ? LocalActionOutcome.Missed
-                    : LocalActionOutcome.Unknown;
+                var outcome = ClassifyLocalOutcome(totalDelta, sawNoEffect, sawStatusResist, sawMiss);
                 OnLocalActionOnTarget?.Invoke(header->ActionId, targetId, outcome);
             }
 

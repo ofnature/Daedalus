@@ -331,6 +331,17 @@ public sealed class PhantomConfig
     /// </summary>
     public bool TimeMageUseSlowga { get; set; } = true;
 
+    /// <summary>
+    /// Keep Occult Mage Masher on the target: -10% magic attack for 60s, a 30s-recast oGCD (Lv.3).
+    /// </summary>
+    public bool TimeMageUseMageMasher { get; set; } = true;
+
+    /// <summary>Strip an enemy's damage/evasion buff with Occult Dispel (Lv.4, GCD).</summary>
+    public bool TimeMageUseDispel { get; set; } = true;
+
+    /// <summary>Occult Quick on self in combat (Lv.5, 120s): faster casts and GCDs for 20s.</summary>
+    public bool TimeMageUseQuick { get; set; } = true;
+
     // ── Monk ──
     public float MonkKickMaxRangeYalms { get; set; } = 5f;
     public int MonkChakraMpThreshold { get; set; } = 3000;
