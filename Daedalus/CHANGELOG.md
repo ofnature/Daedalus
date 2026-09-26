@@ -3,7 +3,7 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
-## v0.1.83 — unreleased
+## v0.1.83 — 2026-09-25
 
 ### Fix — healers drop a long phantom cast to answer a Doom call
 - **A healer halfway through Occult Comet (8s) or a Phantom Summoner cast (4-6s) now cancels it when a
