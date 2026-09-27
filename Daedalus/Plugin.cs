@@ -215,6 +215,7 @@ public sealed class Plugin : IDalamudPlugin
     private readonly Daedalus.Services.Consumables.TinctureDispatcher tinctureDispatcher;
     private readonly Daedalus.Services.Consumables.PhoenixDownService phoenixDownService;
     private readonly Daedalus.Services.Interaction.MechanicInteractService mechanicInteractService;
+    private readonly Daedalus.Services.Pull.BossPullService bossPullService;
     private readonly Daedalus.Services.Consumables.EtherService etherService;
 
     // Error metrics
@@ -897,6 +898,16 @@ public sealed class Plugin : IDalamudPlugin
         {
             RequestHold = seconds => this.minervaSafetyService.RequestHold(seconds),
         };
+
+        // The boss nobody else will pull (only Trust or Duty Support NPCs in the party), as Minerva names it: targeted
+        // here, opened on by the rotation (BaseRotation, the boss-pull engage).
+        this.bossPullService = new Daedalus.Services.Pull.BossPullService(
+            objectTable,
+            targetManager,
+            () => configuration.Nav.PullWhenNobodyElseWill && configuration.BossHandling == Daedalus.Config.BossHandling.Minerva,
+            () => this.minervaSafetyService.PullTargetId,
+            () => condition[Dalamud.Game.ClientState.Conditions.ConditionFlag.Mounted],
+            log);
 
         // Cascading ether use — strongest grade in the bag first, stepping down as stock runs
         // out. Built for raise-heavy field content where repeated raises outrun Lucid Dreaming.
@@ -1954,6 +1965,7 @@ public sealed class Plugin : IDalamudPlugin
                 phoenixDownService.Update(objectTable.LocalPlayer, partyList);
                 etherService.Update(objectTable.LocalPlayer);
                 mechanicInteractService.Update(objectTable.LocalPlayer);
+                bossPullService.Update(objectTable.LocalPlayer);
             }
 
             // Enforce the party target mode (Focus / Split / Kill Adds) after the bus pump so mode

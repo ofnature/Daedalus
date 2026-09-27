@@ -100,6 +100,7 @@ public abstract class BaseRotation<TContext, TModule> : IRotation, IDisposable
 
     // External-automation engage edge tracking (log once per activation, not per frame)
     private bool _automationEngageActive;
+    private bool _bossPullActive;
 
     // Cached timestamp for current frame — set once at start of ExecuteInternal
     protected DateTime FrameTimestamp;
@@ -266,6 +267,24 @@ public abstract class BaseRotation<TContext, TModule> : IRotation, IDisposable
             inCombat = true;
             automationEngaged = true;
         }
+        // The boss engine says nobody else will start this fight (Minerva.Hints.PullTarget: only Trust or Duty Support
+        // NPCs in the party, who wait for you). BossPullService has put it on our target; open on it from here, the
+        // engage the automation override above gives, for this one boss only.
+        var bossPull = false;
+        if (!inCombat && !IsMounted()
+            && TargetingService.GetUserEnemyTarget() is { IsDead: false } pullTarget
+            && Daedalus.Services.Pull.BossPullPolicy.Opens(
+                Configuration.Nav.PullWhenNobodyElseWill,
+                RotationServices.BossModSafety?.PullTargetId ?? 0,
+                pullTarget.GameObjectId))
+        {
+            inCombat = true;
+            bossPull = true;
+        }
+        if (bossPull && !_bossPullActive)
+            Log.Info("{0}: boss pull -- opening on the boss nobody else will pull.", Name);
+        _bossPullActive = bossPull;
+
         if (automationEngaged && !_automationEngageActive)
             Log.Info("{0}: automation engage — opening on hard target (external override).", Name);
         _automationEngageActive = automationEngaged;

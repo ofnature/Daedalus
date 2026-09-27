@@ -5,6 +5,12 @@ All notable changes to Daedalus will be documented in this file.
 <!-- LATEST-START -->
 ## v0.1.87 — 2026-09-26
 
+### Automation — pull the boss when only NPCs are with you
+- **With Trust or Duty Support, nobody pulled the boss** unless you did it by hand: the NPCs wait for you, and the
+  rotation never opens out of combat. Now, when Minerva is the boss engine and the only others in your party are
+  NPCs, your toon targets the boss and opens on it from where it stands. Toggle: Nav Control -> **Pull When Nobody
+  Else Will** (on by default). Needs Minerva with the matching update.
+
 ### Automation — click what the fight needs clicked
 - **Toons now interact with the object a boss mechanic needs** once they are in range, when Minerva is the boss
   engine: Aulus mal Asina's Empty Vessel after Mind Jack, Aurum Vale's fruit, Naadam's ovoo and the rest. Minerva

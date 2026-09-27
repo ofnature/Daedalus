@@ -166,26 +166,32 @@ public sealed class MinervaSafetyService : IBossModSafetyService
     private ICallGateSubscriber<ulong[]>? _priorityTargets;
 
     private ICallGateSubscriber<ulong>? _interactTarget;
+    private ICallGateSubscriber<ulong>? _pullTarget;
 
     /// <summary>
     /// The object the fight needs this toon to click (<c>Minerva.Hints.InteractTarget</c>): an Empty Vessel, a fruit, a
     /// lever. 0 for none, and when Minerva is absent or throws.
     /// </summary>
-    public ulong InteractTargetId
-    {
-        get
-        {
-            if (!IsAvailable)
-                return 0;
+    public ulong InteractTargetId => ReadId(ref _interactTarget, "Minerva.Hints.InteractTarget");
 
-            try
-            {
-                return (_interactTarget ??= _pluginInterface.GetIpcSubscriber<ulong>("Minerva.Hints.InteractTarget")).InvokeFunc();
-            }
-            catch
-            {
-                return 0;
-            }
+    /// <summary>
+    /// The boss this toon has to pull because nobody else will (<c>Minerva.Hints.PullTarget</c>): a boss fight not
+    /// started, and only Trust or Duty Support NPCs in the party. 0 for none, and when Minerva is absent or throws.
+    /// </summary>
+    public ulong PullTargetId => ReadId(ref _pullTarget, "Minerva.Hints.PullTarget");
+
+    private ulong ReadId(ref ICallGateSubscriber<ulong>? slot, string name)
+    {
+        if (!IsAvailable)
+            return 0;
+
+        try
+        {
+            return (slot ??= _pluginInterface.GetIpcSubscriber<ulong>(name)).InvokeFunc();
+        }
+        catch
+        {
+            return 0;
         }
     }
 

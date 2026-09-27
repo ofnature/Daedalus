@@ -68,4 +68,6 @@ public sealed class BossHandlingRouter : IBossModSafetyService
     public ulong[] ForbiddenTargets => Active.ForbiddenTargets;
 
     public ulong[] PriorityTargets => Active.PriorityTargets;
+
+    public ulong PullTargetId => Active.PullTargetId;
 }

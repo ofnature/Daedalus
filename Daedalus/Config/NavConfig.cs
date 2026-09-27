@@ -79,6 +79,12 @@ public sealed class NavConfig
     public bool InteractForMechanics { get; set; } = true;
 
     /// <summary>
+    /// Pull the boss when nobody else will: with only Trust or Duty Support NPCs in the party, target the boss Minerva
+    /// names (<c>Minerva.Hints.PullTarget</c>) and open on it from where the toon stands. Minerva only. Default true.
+    /// </summary>
+    public bool PullWhenNobodyElseWill { get; set; } = true;
+
+    /// <summary>
     /// Draw the max-melee debug rings (enemy hitbox / combined / max-melee + grace band) around the
     /// current target. Default false.
     /// </summary>

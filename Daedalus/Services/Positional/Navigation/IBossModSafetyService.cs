@@ -51,4 +51,8 @@ public interface IBossModSafetyService
     /// <summary>Enemies the fight says to attack ahead of everything else, best first: adds during an
     /// invulnerability phase. Empty when the engine has no opinion.</summary>
     ulong[] PriorityTargets => [];
+
+    /// <summary>The boss this toon has to pull because nobody else will (Minerva's <c>Minerva.Hints.PullTarget</c>):
+    /// a boss fight not started, no other player in the party. 0 for none, and always 0 under BossMod.</summary>
+    ulong PullTargetId => 0;
 }

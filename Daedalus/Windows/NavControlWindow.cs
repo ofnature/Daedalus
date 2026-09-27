@@ -102,6 +102,16 @@ public sealed class NavControlWindow : Window
             nav.InteractForMechanics = interact;
         }
 
+        var pull = nav.PullWhenNobodyElseWill;
+        if (ConfigUIHelpers.ToggleCheckbox(
+                "Pull When Nobody Else Will",
+                ref pull,
+                "With only Trust or Duty Support NPCs in the party, target the boss and open on it from where you stand. Minerva only.",
+                saveConfiguration))
+        {
+            nav.PullWhenNobodyElseWill = pull;
+        }
+
         var rings = nav.MaxMeleeDebugRings;
         if (ConfigUIHelpers.ToggleCheckbox(
                 "Max Melee Debug Rings",
