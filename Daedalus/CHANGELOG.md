@@ -5,6 +5,11 @@ All notable changes to Daedalus will be documented in this file.
 <!-- LATEST-START -->
 ## v0.1.88 — 2026-09-27
 
+### Fix — Summoner no longer stutter-steps below level 62
+- **Summoner kept starting Ruin II while moving and cancelling it on the next step**, over and over, whenever it
+  was below Ruin IV (any sync under level 62). Ruin II was treated as instant; it is a 1.5-second cast. On the move
+  without Swiftcast or Further Ruin, the GCD now waits for you to stop instead of starting a cast it cannot finish.
+
 ### Automation — pull the boss when only NPCs are with you
 - **With Trust or Duty Support, nobody pulled the boss** unless you did it by hand: the NPCs wait for you, and the
   rotation never opens out of combat. Now, when Minerva is the boss engine and the only others in your party are

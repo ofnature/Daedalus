@@ -486,16 +486,10 @@ public sealed class DamageModule : IPersephoneModule
                     });
                 return;
             }
-            if (level >= SMNActions.Ruin2.MinLevel)
-            {
-                scheduler.PushGcd(PersephoneAbilities.Ruin2, target.GameObjectId, priority: 8,
-                    onDispatched: _ =>
-                    {
-                        context.Debug.PlannedAction = SMNActions.Ruin2.Name;
-                        context.Debug.DamageState = "Ruin II (movement)";
-                    });
-                return;
-            }
+
+            // Nothing instant to fall back on below Ruin IV: Ruin II is a 1.5s cast too, and pushing it here as the
+            // movement filler started a cast every GCD that the next step cancelled. The filler below is cast-gated
+            // (MechanicCastGate holds it while moving), so the GCD simply waits for the toon to stop.
         }
 
         var action = useAoe ? SMNActions.GetAoeSpell(level, context.ActionService) : SMNActions.GetRuinSpell(level, context.ActionService);

@@ -31,7 +31,9 @@ public static class SMNActions
     };
 
     /// <summary>
-    /// Ruin II - Instant basic damage (Lv.30)
+    /// Ruin II - basic damage (Lv.30), a 1.5s cast. It was instant once, and this said so: Persephone used it as the
+    /// movement filler below Ruin IV, and every GCD on the move started a cast the next step cancelled (The Porta
+    /// Decumana at Lv.50, 2026-09-27: 50 Ruin IIs cut short in six minutes, recorded at 1.45s each).
     /// </summary>
     public static readonly ActionDefinition Ruin2 = new()
     {
@@ -41,7 +43,7 @@ public static class SMNActions
         Category = ActionCategory.GCD,
         TargetType = ActionTargetType.SingleEnemy,
         EffectTypes = ActionEffectType.Damage,
-        CastTime = 0f,
+        CastTime = 1.5f,
         RecastTime = 2.5f,
         Range = 25f,
         MpCost = 400,
