@@ -20,6 +20,10 @@ namespace Daedalus.Ipc;
 /// - Daedalus.GetActiveRotation: Get active rotation name (returns string or empty)
 /// - Daedalus.GetSupportedJobs: Get array of supported job IDs (returns uint[])
 /// - Daedalus.Targeting.RecordExternalWrite: Attribute a hard-target write to automation (takes ulong)
+/// - Daedalus.HoldActions: Take/renew (true) or release (false) a short owned hold on every action
+///   (takes string owner, bool hold; returns false only when another plugin holds it). A lease:
+///   it lapses unless re-asserted — see <see cref="Daedalus.Services.ExternalActionHold"/>.
+/// - Daedalus.IsHoldingActions: Whether a hold is in force right now (returns bool)
 /// - Daedalus.OnStateChanged: Event fired when enabled state changes
 /// </remarks>
 public sealed class DaedalusIpc : IDisposable
@@ -34,12 +38,15 @@ public sealed class DaedalusIpc : IDisposable
     private readonly ICallGateProvider<object> _test;
     private readonly ICallGateProvider<bool, object> _setEnabled;
     private readonly ICallGateProvider<bool> _isEnabled;
+    private readonly ICallGateProvider<bool> _isDisabledByUser;
 
     // Extended endpoints
     private readonly ICallGateProvider<string> _getVersion;
     private readonly ICallGateProvider<string> _getActiveRotation;
     private readonly ICallGateProvider<uint[]> _getSupportedJobs;
     private readonly ICallGateProvider<ulong, object> _recordExternalTargetWrite;
+    private readonly ICallGateProvider<string, bool, bool> _holdActions;
+    private readonly ICallGateProvider<bool> _isHoldingActions;
 
     // Events
     private readonly ICallGateProvider<bool, object> _onStateChanged;
@@ -68,6 +75,9 @@ public sealed class DaedalusIpc : IDisposable
         _isEnabled = pluginInterface.GetIpcProvider<bool>("Daedalus.IsEnabled");
         _isEnabled.RegisterFunc(IsEnabled);
 
+        _isDisabledByUser = pluginInterface.GetIpcProvider<bool>("Daedalus.IsDisabledByUser");
+        _isDisabledByUser.RegisterFunc(IsDisabledByUser);
+
         // Extended endpoints
         _getVersion = pluginInterface.GetIpcProvider<string>("Daedalus.GetVersion");
         _getVersion.RegisterFunc(GetVersion);
@@ -80,6 +90,21 @@ public sealed class DaedalusIpc : IDisposable
 
         _recordExternalTargetWrite = pluginInterface.GetIpcProvider<ulong, object>("Daedalus.Targeting.RecordExternalWrite");
         _recordExternalTargetWrite.RegisterAction(RecordExternalTargetWrite);
+
+        // Never throws into a caller's poll: a failure reads as "not held", the safe answer.
+        _holdActions = pluginInterface.GetIpcProvider<string, bool, bool>("Daedalus.HoldActions");
+        _holdActions.RegisterFunc((owner, hold) =>
+        {
+            try { return Daedalus.Rotation.Base.RotationServices.ActionHold.Set(owner, hold, DateTime.UtcNow); }
+            catch { return false; }
+        });
+
+        _isHoldingActions = pluginInterface.GetIpcProvider<bool>("Daedalus.IsHoldingActions");
+        _isHoldingActions.RegisterFunc(() =>
+        {
+            try { return Daedalus.Rotation.Base.RotationServices.ActionHold.IsHeld(DateTime.UtcNow); }
+            catch { return false; }
+        });
 
         // Event providers
         _onStateChanged = pluginInterface.GetIpcProvider<bool, object>("Daedalus.OnStateChanged");
@@ -131,6 +156,19 @@ public sealed class DaedalusIpc : IDisposable
     {
         return _configuration.Enabled;
     }
+
+    /// <summary>
+    /// True when the user explicitly switched Daedalus OFF, so it will not fight even for an automation
+    /// plugin. Different from <c>!IsEnabled</c>: the switch starts off on a fresh install and automation
+    /// still drives combat then. Odysseus reads this to stop pulling mobs no one is going to fight —
+    /// its pull re-targets every tick, which left a disabled healer unable to target anything
+    /// (reported 2026-09-26).
+    /// </summary>
+    private bool IsDisabledByUser() => DisabledByUser(_configuration);
+
+    /// <summary>The rule behind <see cref="IsDisabledByUser"/>, testable without a plugin interface.</summary>
+    internal static bool DisabledByUser(Configuration configuration)
+        => !configuration.Enabled && configuration.AutomationSuppressedByDisable;
 
     #endregion
 
@@ -223,10 +261,13 @@ public sealed class DaedalusIpc : IDisposable
         _test.UnregisterAction();
         _setEnabled.UnregisterAction();
         _isEnabled.UnregisterFunc();
+        _isDisabledByUser.UnregisterFunc();
         _getVersion.UnregisterFunc();
         _getActiveRotation.UnregisterFunc();
         _getSupportedJobs.UnregisterFunc();
         _recordExternalTargetWrite.UnregisterAction();
+        _holdActions.UnregisterFunc();
+        _isHoldingActions.UnregisterFunc();
 
         // _onStateChanged is a SendMessage-only provider (no RegisterAction/RegisterFunc was called on it).
         // Dalamud cleans up all ICallGateProviders when the plugin interface is released on unload.

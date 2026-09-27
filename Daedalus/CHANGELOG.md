@@ -3,6 +3,24 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.87 — unreleased
+
+### Fix — a disabled Daedalus stops your target being grabbed
+- **With Daedalus switched off, the Questionable bridge kept setting an enemy as your target** every
+  time you had none — so a healer clicking a party member was pulled straight back onto a mob and
+  couldn't target anything. It now only targets while Daedalus is on, the same as the rotation.
+- **Odysseus** did the same during quest fights: with Daedalus off nobody fights, so its combat step
+  kept pulling and re-targeting the nearest mob every tick. Daedalus now tells Odysseus when you've
+  switched it off, and Odysseus waits instead of pulling (update Odysseus too).
+
+### Automation — Odysseus can pause the rotation for a quest item
+- **Quest steps that want an item used on a mob "once it is below half health" now work at high level.**
+  One GCD at level 100 killed the mob from full, so it never sat below half long enough to take the
+  item. Odysseus now asks Daedalus to hold its actions for the fight; your auto-attack chips the mob
+  down, and the item goes on in time. The hold renews every few seconds while Odysseus wants it and
+  lapses on its own otherwise, so it can never leave you standing idle (update Odysseus too).
+
+<!-- LATEST-END -->
 ## v0.1.86 — 2026-09-26
 
 ### Fix — healers actually heal a Doomed toon to full
@@ -17,7 +35,6 @@ All notable changes to Daedalus will be documented in this file.
   - **Scholar:** Lustrate, else Physick. No Adloquium: a shield doesn't clear Doom.
 - The same goes for the Oracle's False Prediction and for a top-off called from another box.
 
-<!-- LATEST-END -->
 ## v0.1.85 — 2026-09-26
 
 ### New — toons walk to a dead healer to Phoenix Down them

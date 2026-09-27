@@ -129,9 +129,19 @@ public sealed class QuestionableIpc : IDisposable
                 break;
         }
 
-        if (active)
+        if (MayAcquireKillTarget(active, _configuration.EffectiveEnabled))
             TryAcquireKillTarget(allowQuestFlagged: combatStep || flaggedHunt);
     }
+
+    /// <summary>
+    /// The bridge writes the hard target only while it is driving AND Daedalus is on. The override
+    /// above already respects the user's Disable, but this targeting ran on its own and did not: with
+    /// Daedalus switched off and Questionable running, every poll put an enemy back as the hard target
+    /// whenever the player had none — so a healer who clicked a party member was yanked straight back
+    /// to a mob, and could not target anything (reported 2026-09-26).
+    /// </summary>
+    internal static bool MayAcquireKillTarget(bool bridgeActive, bool daedalusEffectivelyEnabled)
+        => bridgeActive && daedalusEffectivelyEnabled;
 
     /// <summary>True when a quest-flagged (gold icon) attackable mob is within kill range.</summary>
     private bool HasQuestFlaggedMobNearby()

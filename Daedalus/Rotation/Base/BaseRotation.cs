@@ -291,6 +291,18 @@ public abstract class BaseRotation<TContext, TModule> : IRotation, IDisposable
         // Update debug state from all modules (skip if debug window closed for performance)
         UpdateModuleDebugStates(context);
 
+        // Held by another plugin for a moment — Odysseus using a quest item on a mob that has to be
+        // left alive under a health threshold. Placed after the bookkeeping so combat and GCD state
+        // stay fresh; everything that would submit an action, duty layers included, waits. The
+        // game's auto-attack is not ours and keeps swinging, which is the chip damage the holder
+        // wants. It is a lease, so a holder that crashed cannot leave the character idle.
+        if (RotationServices.ActionHold.IsHeld(DateTime.UtcNow))
+        {
+            if (Configuration.ExternalCombatOverride)
+                DebugState.AutomationState = $"held by {RotationServices.ActionHold.HeldBy(DateTime.UtcNow)}";
+            return;
+        }
+
         // Duty-action layers (occult phantom / variant), pre-pass: collect candidates and
         // pre-empt the GCD window for duty GCDs (emergency heals, damage-band cooldowns,
         // Variant Cure/Raise) — the job rotation would otherwise win every window.

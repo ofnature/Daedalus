@@ -51,4 +51,10 @@ public static class RotationServices
     /// would have to already be watching. Optional — null in tests.
     /// </summary>
     public static Daedalus.Services.Debug.DebugLogService? DebugLog { get; set; }
+
+    /// <summary>
+    /// A short hold another plugin can put on every action the rotation would submit — see
+    /// <see cref="Daedalus.Services.ExternalActionHold"/>. Always present; idle unless held.
+    /// </summary>
+    public static Daedalus.Services.ExternalActionHold ActionHold { get; } = new();
 }

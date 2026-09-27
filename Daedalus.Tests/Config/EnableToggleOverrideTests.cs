@@ -22,6 +22,43 @@ public class EnableToggleOverrideTests
         return new Configuration { Enabled = false };
     }
 
+    /// <summary>
+    /// 2026-09-26: with Daedalus disabled and Questionable running, the bridge still hard-targeted
+    /// enemies every poll, so healers could not keep a party member targeted. Its targeting now follows
+    /// the same switch the rotation does.
+    /// </summary>
+    [Fact]
+    public void UserDisable_StopsTheQuestionableBridgeTargeting()
+    {
+        var config = Fresh();
+        config.ExternalCombatOverride = true;
+        Assert.True(Daedalus.Ipc.QuestionableIpc.MayAcquireKillTarget(true, config.EffectiveEnabled));
+
+        config.SetEnabledByUser(false);
+        Assert.False(Daedalus.Ipc.QuestionableIpc.MayAcquireKillTarget(true, config.EffectiveEnabled));
+    }
+
+    /// <summary>
+    /// Daedalus.IsDisabledByUser (read by Odysseus): only an explicit Disable counts. A fresh install
+    /// has the switch off too, and automation still drives combat there.
+    /// </summary>
+    [Fact]
+    public void DisabledByUser_OnlyAfterAnExplicitDisable()
+    {
+        var config = Fresh();
+        Assert.False(Daedalus.Ipc.DaedalusIpc.DisabledByUser(config)); // never touched
+
+        config.SetEnabledByUser(false);
+        Assert.True(Daedalus.Ipc.DaedalusIpc.DisabledByUser(config));
+
+        config.SetEnabledByUser(true);
+        Assert.False(Daedalus.Ipc.DaedalusIpc.DisabledByUser(config));
+    }
+
+    [Fact]
+    public void QuestionableBridge_NeverTargetsWhenNotDriving()
+        => Assert.False(Daedalus.Ipc.QuestionableIpc.MayAcquireKillTarget(false, true));
+
     [Fact]
     public void UserDisable_WhileAutomationHoldsOverride_StopsTheRotation()
     {
