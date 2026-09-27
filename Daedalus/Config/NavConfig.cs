@@ -72,6 +72,13 @@ public sealed class NavConfig
     public bool SoloPositionLock { get; set; } = false;
 
     /// <summary>
+    /// Click the object a boss module says the fight needs clicked, once in range: Aulus mal Asina's Empty Vessel,
+    /// Aurum Vale's fruit, Naadam's ovoo. Read from Minerva (<c>Minerva.Hints.InteractTarget</c>), so it acts only with
+    /// Minerva as the boss engine. Default true.
+    /// </summary>
+    public bool InteractForMechanics { get; set; } = true;
+
+    /// <summary>
     /// Draw the max-melee debug rings (enemy hitbox / combined / max-melee + grace band) around the
     /// current target. Default false.
     /// </summary>

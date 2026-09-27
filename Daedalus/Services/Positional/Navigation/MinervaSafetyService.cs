@@ -165,6 +165,30 @@ public sealed class MinervaSafetyService : IBossModSafetyService
     private ICallGateSubscriber<ulong[]>? _forbiddenTargets;
     private ICallGateSubscriber<ulong[]>? _priorityTargets;
 
+    private ICallGateSubscriber<ulong>? _interactTarget;
+
+    /// <summary>
+    /// The object the fight needs this toon to click (<c>Minerva.Hints.InteractTarget</c>): an Empty Vessel, a fruit, a
+    /// lever. 0 for none, and when Minerva is absent or throws.
+    /// </summary>
+    public ulong InteractTargetId
+    {
+        get
+        {
+            if (!IsAvailable)
+                return 0;
+
+            try
+            {
+                return (_interactTarget ??= _pluginInterface.GetIpcSubscriber<ulong>("Minerva.Hints.InteractTarget")).InvokeFunc();
+            }
+            catch
+            {
+                return 0;
+            }
+        }
+    }
+
     /// <summary>The module's "never attack" list: invincible or forbidden outright.</summary>
     public ulong[] ForbiddenTargets => ReadIds(ref _forbiddenTargets, "Minerva.Hints.ForbiddenTargets");
 

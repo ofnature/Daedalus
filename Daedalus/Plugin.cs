@@ -214,6 +214,7 @@ public sealed class Plugin : IDalamudPlugin
     private readonly Daedalus.Services.Consumables.ConsumableService consumableService;
     private readonly Daedalus.Services.Consumables.TinctureDispatcher tinctureDispatcher;
     private readonly Daedalus.Services.Consumables.PhoenixDownService phoenixDownService;
+    private readonly Daedalus.Services.Interaction.MechanicInteractService mechanicInteractService;
     private readonly Daedalus.Services.Consumables.EtherService etherService;
 
     // Error metrics
@@ -885,6 +886,17 @@ public sealed class Plugin : IDalamudPlugin
             this.phoenixDownService.Bus = this.coordinationBus;
             this.coordinationBus.OnPhoenixDown += this.phoenixDownService.OnForeignClaim;
         }
+
+        // The object a fight needs clicked (an Empty Vessel, a fruit, a lever), as Minerva's module names it. Minerva
+        // walks the toon there where the fight needs it and presses nothing; the click is ours.
+        this.mechanicInteractService = new Daedalus.Services.Interaction.MechanicInteractService(
+            objectTable,
+            () => configuration.Nav.InteractForMechanics && configuration.BossHandling == Daedalus.Config.BossHandling.Minerva,
+            () => this.minervaSafetyService.InteractTargetId,
+            log)
+        {
+            RequestHold = seconds => this.minervaSafetyService.RequestHold(seconds),
+        };
 
         // Cascading ether use — strongest grade in the bag first, stepping down as stock runs
         // out. Built for raise-heavy field content where repeated raises outrun Lucid Dreaming.
@@ -1941,6 +1953,7 @@ public sealed class Plugin : IDalamudPlugin
             {
                 phoenixDownService.Update(objectTable.LocalPlayer, partyList);
                 etherService.Update(objectTable.LocalPlayer);
+                mechanicInteractService.Update(objectTable.LocalPlayer);
             }
 
             // Enforce the party target mode (Focus / Split / Kill Adds) after the bus pump so mode

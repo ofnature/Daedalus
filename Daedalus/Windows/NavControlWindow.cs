@@ -92,6 +92,16 @@ public sealed class NavControlWindow : Window
             nav.SoloPositionLock = soloLock;
         }
 
+        var interact = nav.InteractForMechanics;
+        if (ConfigUIHelpers.ToggleCheckbox(
+                "Interact for Mechanics",
+                ref interact,
+                "Click what a fight needs clicked once in range (an Empty Vessel, a fruit, a lever), as Minerva's boss module names it. Minerva only.",
+                saveConfiguration))
+        {
+            nav.InteractForMechanics = interact;
+        }
+
         var rings = nav.MaxMeleeDebugRings;
         if (ConfigUIHelpers.ToggleCheckbox(
                 "Max Melee Debug Rings",
