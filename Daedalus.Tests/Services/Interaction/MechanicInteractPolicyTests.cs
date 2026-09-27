@@ -13,7 +13,6 @@ public sealed class MechanicInteractPolicyTests
         Enabled: true,
         TargetId: 0x40034F4A,
         TargetFound: true,
-        TargetTargetable: true,
         InRange: true,
         SelfAlive: true,
         SelfCasting: false,
@@ -33,11 +32,8 @@ public sealed class MechanicInteractPolicyTests
         => Assert.Equal(MechanicInteractDecision.NoTarget, MechanicInteractPolicy.Decide(Ready() with { TargetId = 0 }));
 
     [Fact]
-    public void NamedObjectGoneOrUntargetable_DoesNothing()
-    {
-        Assert.Equal(MechanicInteractDecision.TargetMissing, MechanicInteractPolicy.Decide(Ready() with { TargetFound = false }));
-        Assert.Equal(MechanicInteractDecision.TargetMissing, MechanicInteractPolicy.Decide(Ready() with { TargetTargetable = false }));
-    }
+    public void NamedObjectGone_DoesNothing()
+        => Assert.Equal(MechanicInteractDecision.TargetMissing, MechanicInteractPolicy.Decide(Ready() with { TargetFound = false }));
 
     [Fact]
     public void Dead_DoesNothing()

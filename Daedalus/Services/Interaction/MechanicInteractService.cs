@@ -51,7 +51,6 @@ public sealed unsafe class MechanicInteractService
             Enabled: enabled,
             TargetId: id,
             TargetFound: target != null,
-            TargetTargetable: target?.IsTargetable == true,
             InRange: inRange,
             SelfAlive: player is { IsDead: false },
             SelfCasting: player?.IsCasting == true,
