@@ -3,7 +3,7 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
-## v0.1.87 — 2026-09-26
+## v0.1.88 — 2026-09-27
 
 ### Automation — pull the boss when only NPCs are with you
 - **With Trust or Duty Support, nobody pulled the boss** unless you did it by hand: the NPCs wait for you, and the
@@ -16,6 +16,9 @@ All notable changes to Daedalus will be documented in this file.
   engine: Aulus mal Asina's Empty Vessel after Mind Jack, Aurum Vale's fruit, Naadam's ovoo and the rest. Minerva
   names the object and walks the toon there where the fight needs it; Daedalus does the click. Toggle: Nav Control ->
   **Interact for Mechanics** (on by default). Needs Minerva with the matching update.
+
+<!-- LATEST-END -->
+## v0.1.87 — 2026-09-26
 
 ### Fix — a disabled Daedalus stops your target being grabbed
 - **With Daedalus switched off, the Questionable bridge kept setting an enemy as your target** every
@@ -32,7 +35,6 @@ All notable changes to Daedalus will be documented in this file.
   down, and the item goes on in time. The hold renews every few seconds while Odysseus wants it and
   lapses on its own otherwise, so it can never leave you standing idle (update Odysseus too).
 
-<!-- LATEST-END -->
 ## v0.1.86 — 2026-09-26
 
 ### Fix — healers actually heal a Doomed toon to full
