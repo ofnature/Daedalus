@@ -3,7 +3,7 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
-## v0.1.87 — unreleased
+## v0.1.87 — 2026-09-26
 
 ### Fix — a disabled Daedalus stops your target being grabbed
 - **With Daedalus switched off, the Questionable bridge kept setting an enemy as your target** every
