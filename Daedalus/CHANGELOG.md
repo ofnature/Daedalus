@@ -3,12 +3,15 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
-## v0.1.88 — 2026-09-27
+## v0.1.89 — 2026-09-27
 
 ### Fix — Summoner no longer stutter-steps below level 62
 - **Summoner kept starting Ruin II while moving and cancelling it on the next step**, over and over, whenever it
   was below Ruin IV (any sync under level 62). Ruin II was treated as instant; it is a 1.5-second cast. On the move
   without Swiftcast or Further Ruin, the GCD now waits for you to stop instead of starting a cast it cannot finish.
+
+<!-- LATEST-END -->
+## v0.1.88 — 2026-09-27
 
 ### Automation — pull the boss when only NPCs are with you
 - **With Trust or Duty Support, nobody pulled the boss** unless you did it by hand: the NPCs wait for you, and the
@@ -22,7 +25,6 @@ All notable changes to Daedalus will be documented in this file.
   names the object and walks the toon there where the fight needs it; Daedalus does the click. Toggle: Nav Control ->
   **Interact for Mechanics** (on by default). Needs Minerva with the matching update.
 
-<!-- LATEST-END -->
 ## v0.1.87 — 2026-09-26
 
 ### Fix — a disabled Daedalus stops your target being grabbed
