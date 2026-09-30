@@ -180,6 +180,37 @@ public sealed class MinervaSafetyService : IBossModSafetyService
     /// </summary>
     public ulong PullTargetId => ReadId(ref _pullTarget, "Minerva.Hints.PullTarget");
 
+    private ICallGateSubscriber<(uint, ulong, float, Vector3, float)[]>? _roleplayActions;
+
+    /// <summary>
+    /// What the character you are playing in a quest battle should use now, best first
+    /// (<c>Minerva.Hints.RoleplayActions</c>): Minerva's module runs that character's kit. Empty outside such a fight,
+    /// and when Minerva is absent or throws.
+    /// </summary>
+    public Daedalus.Rotation.Roleplay.RoleplayRequest[] RoleplayActions
+    {
+        get
+        {
+            if (!IsAvailable)
+                return [];
+            try
+            {
+                var raw = (_roleplayActions ??= _pluginInterface.GetIpcSubscriber<(uint, ulong, float, Vector3, float)[]>(
+                    "Minerva.Hints.RoleplayActions")).InvokeFunc();
+                if (raw is not { Length: > 0 })
+                    return [];
+                var requests = new Daedalus.Rotation.Roleplay.RoleplayRequest[raw.Length];
+                for (var i = 0; i < raw.Length; ++i)
+                    requests[i] = new(raw[i].Item1, raw[i].Item2, raw[i].Item3, raw[i].Item4, raw[i].Item5);
+                return requests;
+            }
+            catch
+            {
+                return [];
+            }
+        }
+    }
+
     private ulong ReadId(ref ICallGateSubscriber<ulong>? slot, string name)
     {
         if (!IsAvailable)

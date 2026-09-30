@@ -322,6 +322,12 @@ public abstract class BaseRotation<TContext, TModule> : IRotation, IDisposable
             return;
         }
 
+        // Playing someone else in a quest battle (Y'shtola in The Will of the Moon): the job's actions are gone from the
+        // bar, and the boss engine's module names what that character should press. The layer presses it and the job's
+        // modules stand down for the frame.
+        if (RotationServices.RoleplayLayer?.Execute(context, isMoving, inCombat) == true)
+            return;
+
         // Duty-action layers (occult phantom / variant), pre-pass: collect candidates and
         // pre-empt the GCD window for duty GCDs (emergency heals, damage-band cooldowns,
         // Variant Cure/Raise) — the job rotation would otherwise win every window.

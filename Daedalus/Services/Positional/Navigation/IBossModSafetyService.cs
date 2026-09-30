@@ -55,4 +55,8 @@ public interface IBossModSafetyService
     /// <summary>The boss this toon has to pull because nobody else will (Minerva's <c>Minerva.Hints.PullTarget</c>):
     /// a boss fight not started, no other player in the party. 0 for none, and always 0 under BossMod.</summary>
     ulong PullTargetId => 0;
+
+    /// <summary>What the character you are playing in a quest battle should use now, best first (Minerva's
+    /// <c>Minerva.Hints.RoleplayActions</c>). Empty outside such a fight, and always empty under BossMod.</summary>
+    Daedalus.Rotation.Roleplay.RoleplayRequest[] RoleplayActions => [];
 }

@@ -112,6 +112,16 @@ public sealed class NavControlWindow : Window
             nav.PullWhenNobodyElseWill = pull;
         }
 
+        var kits = nav.PlayRoleplayKits;
+        if (ConfigUIHelpers.ToggleCheckbox(
+                "Play Role-play Kits",
+                ref kits,
+                "In quest battles where you play someone else (Y'shtola, Alphinaud, Hien...), use their actions as Minerva's boss module decides: heals on the ally who must not fall, damage otherwise. Minerva only.",
+                saveConfiguration))
+        {
+            nav.PlayRoleplayKits = kits;
+        }
+
         var rings = nav.MaxMeleeDebugRings;
         if (ConfigUIHelpers.ToggleCheckbox(
                 "Max Melee Debug Rings",

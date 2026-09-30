@@ -85,6 +85,13 @@ public sealed class NavConfig
     public bool PullWhenNobodyElseWill { get; set; } = true;
 
     /// <summary>
+    /// Play the kit of the character a quest battle makes you play -- Y'shtola, Alphinaud, Hien -- as Minerva's boss
+    /// module decides (<c>Minerva.Hints.RoleplayActions</c>), standing the job rotation down meanwhile. Minerva only.
+    /// Default true.
+    /// </summary>
+    public bool PlayRoleplayKits { get; set; } = true;
+
+    /// <summary>
     /// Draw the max-melee debug rings (enemy hitbox / combined / max-melee + grace band) around the
     /// current target. Default false.
     /// </summary>

@@ -40,6 +40,12 @@ public static class RotationServices
     public static Daedalus.Rotation.Phantom.BozjaActionLayer? BozjaLayer { get; set; }
 
     /// <summary>
+    /// Role-play quest battles (you play Y'shtola, Alphinaud, Hien...): presses what the boss engine names for that
+    /// character, and takes the frame from the job's modules while it does. Inert outside such a fight.
+    /// </summary>
+    public static Daedalus.Rotation.Roleplay.RoleplayActionLayer? RoleplayLayer { get; set; }
+
+    /// <summary>
     /// RSR-compat IPC surface — melee rotations broadcast their anticipated positional
     /// finisher on RSR's ActionUpdater event gates so positional-following movement
     /// plugins ("Follow RSR's desired positional") follow Daedalus.

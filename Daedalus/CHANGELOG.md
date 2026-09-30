@@ -3,6 +3,17 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.90 — 2026-09-29
+
+### Automation — play the character a quest battle gives you
+- **In quest battles where you play someone else, Daedalus now plays their kit** instead of sitting idle with your
+  job's rotation and nothing to press. Minerva's boss module decides what to use and on whom; Daedalus presses it. The
+  first is The Will of the Moon: as Y'shtola it keeps Hien alive (he drops fast under Tomahawk and Tranquil
+  Annihilation, and losing him fails the duty), keeps Aero II on Magnai, uses Stone IV otherwise and Aetherwell when
+  low on MP. More characters follow. Toggle: Nav Control -> **Play Role-play Kits** (on by default). Needs Minerva
+  with the matching update.
+
+<!-- LATEST-END -->
 ## v0.1.89 — 2026-09-27
 
 ### Fix — Summoner no longer stutter-steps below level 62
@@ -10,7 +21,6 @@ All notable changes to Daedalus will be documented in this file.
   was below Ruin IV (any sync under level 62). Ruin II was treated as instant; it is a 1.5-second cast. On the move
   without Swiftcast or Further Ruin, the GCD now waits for you to stop instead of starting a cast it cannot finish.
 
-<!-- LATEST-END -->
 ## v0.1.88 — 2026-09-27
 
 ### Automation — pull the boss when only NPCs are with you

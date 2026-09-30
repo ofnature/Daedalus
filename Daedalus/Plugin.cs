@@ -837,6 +837,13 @@ public sealed class Plugin : IDalamudPlugin
             actionService, jobGauges, configuration, phantomJobService, timelineService, errorMetricsService, log,
             partyCoordinationService, timeToKillService);
 
+        // Role-play quest battles: Minerva's module runs the kit of the character you play (Minerva.Hints.RoleplayActions)
+        // and this presses it, standing the job rotation down meanwhile. Minerva only.
+        Daedalus.Rotation.Base.RotationServices.RoleplayLayer = new Daedalus.Rotation.Roleplay.RoleplayActionLayer(
+            actionService, jobGauges, configuration, phantomJobService, timelineService, errorMetricsService, log,
+            () => configuration.Nav.PlayRoleplayKits && configuration.BossHandling == Daedalus.Config.BossHandling.Minerva,
+            () => this.minervaSafetyService.RoleplayActions);
+
         // Bozja Lost Actions: the set RSR's Bozja rotation uses — raises, heals, barriers, party buffs,
         // forges, AoE damage and combat self buffs. Lost Seraph Strike leaps onto its target, so it gets the
         // gap closers' landing check, run the whole way there.
