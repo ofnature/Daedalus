@@ -3,7 +3,7 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
-## v0.1.90 — 2026-09-29
+## v0.1.90 — 2026-09-30
 
 ### Automation — play the character a quest battle gives you
 - **In quest battles where you play someone else, Daedalus now plays their kit** instead of sitting idle with your
@@ -12,6 +12,38 @@ All notable changes to Daedalus will be documented in this file.
   Annihilation, and losing him fails the duty), keeps Aero II on Magnai, uses Stone IV otherwise and Aetherwell when
   low on MP. More characters follow. Toggle: Nav Control -> **Play Role-play Kits** (on by default). Needs Minerva
   with the matching update.
+
+### Fix — Beastmaster actually lands its combos
+- **Trick and your axe now go out as a pair**: the familiar's Trick first, then the axe one step clockwise
+  of its colour (red → blue → yellow → green), which is the intentional combo and banks Mastered Instinct
+  for Rally. Before, the axes and Trick fired on their own and only combined by chance. The axe waits for the
+  familiar to act first — press it too early and it lands first, and the combo comes out backwards.
+- Daedalus knows every beast's Trick colour, and which beast is out from its name or the Battlehorn you
+  pressed. A ready axe or Trick waits up to 12 seconds for its partner, then goes alone rather than sit on
+  a full bar. With no familiar out, or one it can't identify, it plays as before.
+
+### Beastmaster — teams for your Battlehorns, and where to catch every beast
+- **Auto-set Battlehorns** (Beastmaster settings -> Battlehorns): tick it and pick a team from the dropdown.
+  Out of combat, when your horns don't match the team, Daedalus opens the Master's Bestiary, puts the team on
+  your three horns and closes it again. Teams: single target /
+  Crucible piercing-weak (Damselfly, Mantis, Wespe), Crucible slashing-weak, balanced utility, dungeon AoE,
+  party support, levelling, and **My saved horns** ("Save current horns" keeps whatever you have on them now).
+  A beast you haven't caught falls back to the next pick for that horn, or the horn is left alone. Clear the
+  Bestiary's filter and sort first. The teams come from popular community postings; they are starting points
+  and do not guarantee victory in the Crucible.
+- **Set a Battlehorn** (same section): shows what is on your three horns now; for each horn, pick one of your
+  caught beasts from its dropdown and press **Set** — Daedalus opens the Bestiary, puts it on the horn and closes
+  it. Needs Auto-set off, or the team would be put back.
+- **Auto-capture knows which enemies are which beast**: it used to act only on enemies you had scanned with
+  Gauge. It now carries a community-compiled list of 314 enemy names (Black Eft is a Salamander, Roselet a Flying
+  Trap, and so on) and captures any of them whose beast you don't have yet, as long as the enemy isn't above your
+  level. A Gauge scan of an enemy still overrides the list, and names the sources disagree on are left out.
+- **Bestiary: where to catch them**: all 50 beasts with capture level, Trick colour and where to find them,
+  caught ones in green. **Flag** puts the map flag on the spot and opens the map.
+
+### Fix — hook warning on every load
+- Dalamud logged "Hook verification failed" for Daedalus's fly-text hook on every start: the game function
+  gained a new shape. The hook now matches it, so the original gets the right arguments.
 
 <!-- LATEST-END -->
 ## v0.1.89 — 2026-09-27

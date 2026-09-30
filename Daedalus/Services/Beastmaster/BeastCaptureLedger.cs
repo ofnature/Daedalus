@@ -25,9 +25,11 @@ public enum BeastCaptureDifficulty : byte
     /// <summary>"Befriending this beast should take no effort at all." — confirmed 2026-09-10.</summary>
     Trivial = 1,
 
-    // Easy / Moderate / Hard / Extreme are placeholders: no real message has been seen for them yet,
-    // so nothing maps to them. They exist so the real wording slots in without a schema change.
+    /// <summary>"Befriending this beast should be easy." — seen 2026-09-13 (Cave Bat, Megalocrab).</summary>
     Easy = 2,
+
+    // Moderate / Hard / Extreme are placeholders: no real message has been seen for them yet, so
+    // nothing maps to them. They exist so the real wording slots in without a schema change.
     Moderate = 3,
     Hard = 4,
     Extreme = 5,
@@ -35,6 +37,7 @@ public enum BeastCaptureDifficulty : byte
     /// <summary>
     /// "No pact can be forged with this target..." — confirmed 2026-09-10. A flat no: not a beast
     /// that can be tamed at all. Contrast <see cref="LevelGated"/>, which is "not yet".
+    /// <para>Never stored: the ledger drops these rows (see <see cref="BeastCaptureLedger.Record"/>).</para>
     /// </summary>
     Impossible = 6,
 
@@ -143,6 +146,10 @@ public sealed class BeastCaptureLedger
 
     private bool _dirty;
     private bool _ioFaulted;
+
+    // "No pact" names seen this session. Memory only — never written — so the readout can still say
+    // why a dropped row is skipped instead of asking for a scan that was already done.
+    private readonly HashSet<string> _noPactThisSession = new(StringComparer.OrdinalIgnoreCase);
     private DateTime _lastSaveUtc = DateTime.MinValue;
 
     public BeastCaptureLedger(string? configDirectory, IPluginLog? log = null)
@@ -195,8 +202,14 @@ public sealed class BeastCaptureLedger
     /// <summary>
     /// Record a scan. Upserts by name and never discards information: a scan that matched nothing
     /// will not blank a level or tier an earlier one established.
+    /// <para>
+    /// Except "No pact can be forged" (<see cref="BeastCaptureDifficulty.Impossible"/>): kobolds,
+    /// NPCs and every other untameable thing would otherwise fill the table with rows auto-capture
+    /// never acts on. Such a scan is not stored, and removes any row already kept under that name.
+    /// Returns null then.
+    /// </para>
     /// </summary>
-    public BeastCaptureEntry Record(
+    public BeastCaptureEntry? Record(
         string name,
         int level,
         BeastCaptureDifficulty difficulty,
@@ -209,6 +222,14 @@ public sealed class BeastCaptureLedger
     {
         if (string.IsNullOrWhiteSpace(name))
             throw new ArgumentException("A scan with no beast name cannot be keyed.", nameof(name));
+
+        if (difficulty == BeastCaptureDifficulty.Impossible)
+        {
+            _noPactThisSession.Add(name);
+            if (_entries.Remove(name))
+                _dirty = true;
+            return null;
+        }
 
         var nowUtc = DateTime.UtcNow.ToString("O");
 
@@ -268,9 +289,30 @@ public sealed class BeastCaptureLedger
                 changed++;
         }
 
+        // A row whose newest reply is "no pact" is dropped, as Record would have.
+        changed += DropImpossible();
+
         if (changed > 0)
             _dirty = true;
         return changed;
+    }
+
+    /// <summary>A Gauge scan this session said "no pact can be forged" for this name.</summary>
+    public bool IsNoPact(string? name) => !string.IsNullOrWhiteSpace(name) && _noPactThisSession.Contains(name!);
+
+    /// <summary>Remove every "no pact can be forged" row. Returns how many went.</summary>
+    private int DropImpossible()
+    {
+        var gone = _entries.Values
+            .Where(e => e.Difficulty == BeastCaptureDifficulty.Impossible)
+            .Select(e => e.Name)
+            .ToList();
+        foreach (var name in gone)
+        {
+            _entries.Remove(name);
+            _noPactThisSession.Add(name);
+        }
+        return gone.Count;
     }
 
     /// <summary>Later information wins; absent information never erases present information.</summary>
@@ -358,6 +400,10 @@ public sealed class BeastCaptureLedger
 
                 _entries[e.Name] = e;
             }
+
+            // Files written before "no pact" rows were dropped still carry them: prune and rewrite.
+            if (DropImpossible() > 0)
+                _dirty = true;
         }
         catch (Exception ex)
         {
@@ -425,7 +471,8 @@ public sealed class BeastCaptureLedger
     /// <summary>Writes the table. Debounced during play; call directly on dispose.</summary>
     public void Save()
     {
-        if (_filePath is null || _ioFaulted || _entries.Count == 0)
+        // An empty table is written only when something was removed, so pruning the last rows sticks.
+        if (_filePath is null || _ioFaulted || (_entries.Count == 0 && !_dirty))
             return;
 
         try

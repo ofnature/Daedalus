@@ -70,6 +70,9 @@ public static class GaugeScanParser
         // "Befriending this beast should take no effort at all." — Black Eft, Central Shroud.
         new("should take no effort at all", BeastCaptureDifficulty.Trivial, Capturable: true, AlreadyCaptured: false),
 
+        // "Befriending this beast should be easy." — Cave Bat, Lower La Noscea; Megalocrab.
+        new("should be easy", BeastCaptureDifficulty.Easy, Capturable: true, AlreadyCaptured: false),
+
         // "You are not yet strong enough to befriend this beast..." — Geshunpest, Central Shroud.
         // Level-gated, not impossible: "not yet" means it opens up as the player levels.
         new("not yet strong enough to befriend", BeastCaptureDifficulty.LevelGated, Capturable: false, AlreadyCaptured: false),

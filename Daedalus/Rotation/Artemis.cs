@@ -69,6 +69,14 @@ public sealed class Artemis : BaseMeleeDpsRotation<IArtemisContext, IArtemisModu
     private readonly ArtemisBattlehornState _battlehorns = new();
     private readonly Daedalus.Services.Beastmaster.BattlehornReader _battlehornReader;
     private readonly CaptureModule _capture;
+    private readonly ArtemisTrickPairing _pairing = new();
+    private readonly ICombatEventService _combatEvents;
+    private readonly Daedalus.Services.Beastmaster.BattlehornAssigner _hornAssigner =
+        new(new Daedalus.Services.Beastmaster.BattlehornGame());
+
+    // Set each frame, read by the action-effect hook between frames.
+    private uint _playerEntityId;
+    private uint _familiarEntityId;
 
     public Artemis(
         IPluginLog log,
@@ -118,7 +126,12 @@ public sealed class Artemis : BaseMeleeDpsRotation<IArtemisContext, IArtemisModu
         _scheduler = new RotationScheduler(actionService, jobGauges, configuration, timelineService, errorMetrics);
 
         _battlehornReader = new Daedalus.Services.Beastmaster.BattlehornReader(log);
-        _capture = new CaptureModule(beastCaptureLedger);
+
+        // The action-effect hook sees both halves of the pairing: our Battlehorn presses (which beast
+        // came out) and the familiar's own action resolving (the moment to answer its Trick).
+        _combatEvents = combatEventService;
+        _combatEvents.OnAbilityUsed += OnAbilityUsed;
+        _capture = new CaptureModule(beastCaptureLedger, _battlehornReader.IsPetUnlocked);
 
         // Capture first: a missed capture window cannot be retried this pull, while a dropped
         // damage GCD costs only that GCD.
@@ -159,6 +172,25 @@ public sealed class Artemis : BaseMeleeDpsRotation<IArtemisContext, IArtemisModu
     protected override void UpdateMpForecast(IPlayerCharacter player)
         => MpForecastService.Update((int)player.CurrentMp, (int)player.MaxMp, hasLucidDreaming: false);
 
+    /// <summary>
+    /// Keep the Battlehorns on the chosen team, out of combat: the assigner opens the Master's Bestiary
+    /// when they don't match, sets them and closes it. Runs here rather than in the modules so it also
+    /// works with no target and nothing to press.
+    /// </summary>
+    protected override void UpdateJobSpecificServices(IPlayerCharacter player, bool inCombat)
+    {
+        base.UpdateJobSpecificServices(player, inCombat);
+
+        var cfg = Configuration.Beastmaster;
+        _hornAssigner.Tick(
+            () => _battlehornReader.UnlockedCount() is null ? null
+                : BattlehornTeams.ById(cfg.BattlehornTeam) is { } team
+                ? BattlehornTeams.Resolve(team, cfg.SavedBattlehorns,
+                    no => _battlehornReader.IsPetUnlocked((uint)no) == true).Rows
+                : new int[3],
+            allowed: cfg.AutoSetBattlehorns && !inCombat);
+    }
+
     /// <inheritdoc />
     protected override IArtemisContext CreateContext(IPlayerCharacter player, bool inCombat, bool isMoving)
         => new ArtemisContext(
@@ -188,7 +220,9 @@ public sealed class Artemis : BaseMeleeDpsRotation<IArtemisContext, IArtemisModu
             lastComboAction: LastComboAction,
             comboTimeRemaining: ComboTimeRemaining,
             timelineService: _timelineService,
-            log: Log);
+            log: Log,
+            trickPairing: _pairing,
+            activeBattlehornRow: _battlehorns.Active?.PactNameId ?? 0);
 
     /// <inheritdoc />
     protected override void SyncDebugState(IArtemisContext context)
@@ -218,12 +252,21 @@ public sealed class Artemis : BaseMeleeDpsRotation<IArtemisContext, IArtemisModu
         {
             _instinct.Reset();
             _capture.Reset();
+            _pairing.Reset();
         }
+
+        _playerEntityId = context.Player.EntityId;
+        _familiarEntityId = context is ArtemisContext artemisContext ? artemisContext.FamiliarEntityId : 0;
+        if (!context.HasFamiliar)
+            _pairing.Reset();
 
         // The roster is player-assigned and changes out of combat, so re-read it each frame rather
         // than caching: it is three bytes off a struct we already have a pointer to.
         _battlehornReader.TryRead(_battlehorns);
-        _artemisDebugState.Battlehorns = _battlehorns.Describe();
+        _artemisDebugState.Battlehorns = _battlehorns.Describe()
+            + (context.FamiliarBeast is { } beast
+                ? $" — out: {beast.Name} (Trick {beast.TrickAffinity})"
+                : context.HasFamiliar ? " — out: unidentified familiar" : "");
 
         _scheduler.Reset();
         foreach (var module in _modules)
@@ -244,4 +287,35 @@ public sealed class Artemis : BaseMeleeDpsRotation<IArtemisContext, IArtemisModu
     }
 
     #endregion
+
+    /// <summary>Battlehorn action ids, in slot order.</summary>
+    private static readonly uint[] BattlehornIds = [44881, 44892, 44894];
+
+    /// <summary>Auto-attack action ids — the familiar's swings are not its Trick resolving.</summary>
+    private static bool IsAutoAttack(uint actionId) => actionId is 7 or 8;
+
+    private void OnAbilityUsed(uint casterEntityId, uint actionId)
+    {
+        if (casterEntityId == 0)
+            return;
+
+        if (casterEntityId == _playerEntityId)
+        {
+            var slot = System.Array.IndexOf(BattlehornIds, actionId);
+            if (slot >= 0)
+                _battlehorns.OnSummoned(slot);
+            return;
+        }
+
+        if (casterEntityId == _familiarEntityId && !IsAutoAttack(actionId))
+            _pairing.OnFamiliarAction();
+    }
+
+    /// <inheritdoc />
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing)
+            _combatEvents.OnAbilityUsed -= OnAbilityUsed;
+        base.Dispose(disposing);
+    }
 }

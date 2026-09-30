@@ -74,6 +74,11 @@ public sealed class ArtemisContext : IArtemisContext
 
     public ArtemisInstinctTracker Instinct { get; }
     public bool HasFamiliar { get; }
+    public Daedalus.Data.BstFamiliar? FamiliarBeast { get; }
+    public ArtemisTrickPairing TrickPairing { get; }
+
+    /// <summary>The familiar's entity id, 0 when none is out — for the action-effect hook.</summary>
+    public uint FamiliarEntityId { get; }
     public ArtemisDebugState Debug { get; }
 
     #endregion
@@ -105,7 +110,9 @@ public sealed class ArtemisContext : IArtemisContext
         uint lastComboAction,
         float comboTimeRemaining,
         ITimelineService? timelineService = null,
-        IPluginLog? log = null)
+        IPluginLog? log = null,
+        ArtemisTrickPairing? trickPairing = null,
+        uint activeBattlehornRow = 0)
     {
         Player = player;
         InCombat = inCombat;
@@ -138,9 +145,13 @@ public sealed class ArtemisContext : IArtemisContext
 
         // The familiar is an owned pet in the object table, same shape as the Scholar fairy and
         // the Summoner's egis.
-        HasFamiliar = objectTable
+        var familiar = objectTable
             .OfType<IBattleNpc>()
-            .Any(npc => npc.OwnerId == player.EntityId && npc.BattleNpcKind == BattleNpcSubKind.Pet);
+            .FirstOrDefault(npc => npc.OwnerId == player.EntityId && npc.BattleNpcKind == BattleNpcSubKind.Pet);
+        HasFamiliar = familiar != null;
+        FamiliarEntityId = familiar?.EntityId ?? 0;
+        FamiliarBeast = ArtemisFamiliarIdentity.Resolve(HasFamiliar, familiar?.Name.TextValue, activeBattlehornRow);
+        TrickPairing = trickPairing ?? new ArtemisTrickPairing();
 
         var totalHp = 0f;
         var lowestHp = 1f;

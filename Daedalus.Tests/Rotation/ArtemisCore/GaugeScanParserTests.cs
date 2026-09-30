@@ -24,10 +24,12 @@ public sealed class GaugeScanParserTests
     private const string NotYetStrong = "You are not yet strong enough to befriend this beast...";
     private const string AlreadyBefriended = "You have already befriended this beast.";
     private const string NoPact = "No pact can be forged with this target...";
+    private const string Easy = "Befriending this beast should be easy.";
 
     /// <summary>Each confirmed reply, verbatim, and exactly what it means.</summary>
     [Theory]
     [InlineData(NoEffort, BeastCaptureDifficulty.Trivial, true, false)]
+    [InlineData(Easy, BeastCaptureDifficulty.Easy, true, false)] // capturable; lower odds per fight
     [InlineData(NotYetStrong, BeastCaptureDifficulty.LevelGated, false, false)]
     [InlineData(AlreadyBefriended, BeastCaptureDifficulty.Unknown, true, true)]
     [InlineData(NoPact, BeastCaptureDifficulty.Impossible, false, false)]
@@ -199,7 +201,8 @@ public sealed class GaugeScanParserTests
 
         Assert.Contains("too strong", CaptureModule.DescribeSkip("Geshunpest", ledger.Find("Geshunpest")));
         Assert.Contains("already in your Bestiary", CaptureModule.DescribeSkip("Ground Squirrel", ledger.Find("Ground Squirrel")));
-        Assert.Contains("no pact", CaptureModule.DescribeSkip("Some Humanoid", ledger.Find("Some Humanoid")));
+        Assert.Contains("no pact", CaptureModule.DescribeSkip("Some Humanoid", ledger.Find("Some Humanoid"),
+            ledger.IsNoPact("Some Humanoid")));
         Assert.Contains("not scanned yet", CaptureModule.DescribeSkip("Unseen", ledger.Find("Unseen")));
     }
 }

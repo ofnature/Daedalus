@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Numerics;
 using Daedalus.Data;
 using Daedalus.Rotation.ArtemisCore.Modules;
@@ -20,7 +21,7 @@ public sealed class BeastCaptureTests
 {
     private static BeastCaptureLedger Ledger() => new(configDirectory: null);
 
-    private static BeastCaptureEntry Rec(
+    private static BeastCaptureEntry? Rec(
         BeastCaptureLedger l, string name, string raw,
         BeastCaptureDifficulty tier = BeastCaptureDifficulty.Unknown,
         bool? cap = null, bool? owned = null, int level = 0)
@@ -35,7 +36,7 @@ public sealed class BeastCaptureTests
     [Fact]
     public void AnAlreadyCapturedBeastIsStillRecorded()
     {
-        var entry = Rec(Ledger(), "Ground Squirrel", "owned", cap: true, owned: true);
+        var entry = Rec(Ledger(), "Ground Squirrel", "owned", cap: true, owned: true)!;
 
         Assert.True(entry.AlreadyCaptured);
         Assert.Equal(1, entry.Scans);
@@ -360,4 +361,171 @@ public sealed class BeastCaptureTests
     [Fact]
     public void TheCaptureWindowIsTwoMinutes()
         => Assert.Equal(120f, BSTActions.CaptureWindowSeconds);
+
+    // ── "no pact can be forged" is never kept ─────────────────────────────────────────────
+
+    /// <summary>Kobolds, NPCs and other untameables would only bloat the table.</summary>
+    [Fact]
+    public void NoPactIsNotStored()
+    {
+        var l = Ledger();
+        Assert.Null(Rec(l, "Kobold Priest", "No pact can be forged with this target...", BeastCaptureDifficulty.Impossible, cap: false));
+        Assert.Null(l.Find("Kobold Priest"));
+        Assert.Equal(0, l.Count);
+        Assert.True(l.IsNoPact("Kobold Priest"));
+    }
+
+    [Fact]
+    public void NoPactRemovesARowAlreadyKept()
+    {
+        var l = Ledger();
+        Rec(l, "Odd Beast", "unrecognised reply");
+        Rec(l, "Odd Beast", "No pact can be forged with this target...", BeastCaptureDifficulty.Impossible, cap: false);
+        Assert.Null(l.Find("Odd Beast"));
+    }
+
+    /// <summary>A row whose newest reply re-parses as "no pact" goes the same way.</summary>
+    [Fact]
+    public void ReparseDropsRowsThatTurnOutToBeNoPact()
+    {
+        var l = Ledger();
+        Rec(l, "Aurelia", "flat no");
+        l.Reparse(raw => raw == "flat no" ? (BeastCaptureDifficulty.Impossible, false, false) : null);
+        Assert.Null(l.Find("Aurelia"));
+        Assert.True(l.IsNoPact("Aurelia"));
+    }
+
+    /// <summary>Files written before this change still carry "no pact" rows: pruned on load and rewritten.</summary>
+    [Fact]
+    public void LoadPrunesNoPactRowsAndRewritesTheFile()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "daedalus-nopact-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(dir);
+        try
+        {
+            File.WriteAllText(Path.Combine(dir, "beast-captures.json"),
+                "[{\"Name\":\"Kobold Priest\",\"Difficulty\":6,\"Capturable\":false},"
+                + "{\"Name\":\"Black Eft\",\"Difficulty\":1,\"Capturable\":true}]");
+
+            var l = new BeastCaptureLedger(dir);
+            Assert.Null(l.Find("Kobold Priest"));
+            Assert.NotNull(l.Find("Black Eft"));
+
+            l.Save();
+            var saved = File.ReadAllText(Path.Combine(dir, "beast-captures.json"));
+            Assert.DoesNotContain("Kobold Priest", saved);
+            Assert.Contains("Black Eft", saved);
+        }
+        finally
+        {
+            Directory.Delete(dir, recursive: true);
+        }
+    }
+
+    /// <summary>The readout says why, rather than asking for a scan that was already done.</summary>
+    [Fact]
+    public void ANoPactTargetReadsAsNoPactNotUnscanned()
+        => Assert.Contains("no pact", CaptureModule.DescribeSkip("Kobold Priest", null, noPact: true));
+
+    // ── the community enemy-name list ───────────────────────────────────────────────────
+
+    [Theory]
+    [InlineData("Black Eft", 41)]
+    [InlineData("black eft", 41)]
+    [InlineData("Roselet", 20)]
+    [InlineData("Ground Squirrel", 2)]
+    [InlineData("Cave Bat", 19)]
+    [InlineData("Treant Sapling", 36)]
+    [InlineData("Sundrake", 35)]
+    public void TheListNamesTheBeast(string enemy, int no) => Assert.Equal(no, BstCaptureMobs.BeastFor(enemy)!.BestiaryNo);
+
+    /// <summary>Left out: untameables, and names the sources flag as wrong or ambiguous.</summary>
+    [Theory]
+    [InlineData("Kobold Priest")]
+    [InlineData("Ocean Roseling")]
+    [InlineData("Arbor Buzzard")]
+    [InlineData("")]
+    public void NotInTheList(string enemy) => Assert.Null(BstCaptureMobs.BeastFor(enemy));
+
+    [Fact]
+    public void TheDutyBossesUseTheirRealNames()
+    {
+        Assert.Equal(47, BstCaptureMobs.BeastFor("Wandil")?.BestiaryNo);
+        Assert.Null(BstCaptureMobs.BeastFor("Ice Golem")); // a guide's species-name slip, dropped
+    }
+
+    [Fact]
+    public void EveryRowIsARealBeast() =>
+        Assert.All(Enumerable.Range(1, 50), no => Assert.All(BstCaptureMobs.NamesFor(no), n =>
+            Assert.Equal(no, BstCaptureMobs.BeastFor(n)!.BestiaryNo)));
+
+    private static CaptureModule.TargetCheck Check(
+        string name, BeastCaptureEntry? scan = null, bool noPact = false, bool? owned = false,
+        int player = 50, int target = 10)
+        => CaptureModule.CheckTarget(name, scan, noPact, BstCaptureMobs.BeastFor(name),
+            BstCaptureMobs.BeastFor(name) is null ? null : owned, player, target);
+
+    [Fact]
+    public void AListedBeastYouLackIsCaptured() => Assert.True(Check("Black Eft").Go);
+
+    [Fact]
+    public void AListedBeastYouOwnIsSkipped()
+    {
+        var c = Check("Black Eft", owned: true);
+        Assert.False(c.Go);
+        Assert.Contains("already in your Bestiary", c.Why);
+    }
+
+    [Fact]
+    public void AnEnemyAboveYouIsSkipped()
+    {
+        var c = Check("Black Eft", player: 5, target: 6);
+        Assert.False(c.Go);
+        Assert.Contains("above you", c.Why);
+    }
+
+    [Fact]
+    public void AtYourLevelIsFine() => Assert.True(Check("Black Eft", player: 6, target: 6).Go);
+
+    [Fact]
+    public void UnknownOwnershipWaits() => Assert.False(Check("Black Eft", owned: null).Go);
+
+    [Fact]
+    public void UnlistedAndUnscannedIsSkipped()
+    {
+        var c = Check("Some Stranger");
+        Assert.False(c.Go);
+        Assert.Contains("use Gauge", c.Why);
+    }
+
+    [Fact]
+    public void NoPactWinsOverTheList() => Assert.False(Check("Black Eft", noPact: true).Go);
+
+    /// <summary>A scan is direct evidence: an unlisted enemy scanned capturable is captured.</summary>
+    [Fact]
+    public void AScanCoversAnUnlistedEnemy()
+    {
+        var l = Ledger();
+        var scan = Rec(l, "Odd Beast", "easy", BeastCaptureDifficulty.Easy, cap: true, owned: false);
+        Assert.True(Check("Odd Beast", scan).Go);
+    }
+
+    /// <summary>"Not yet strong enough" was true when scanned; the level check re-decides now.</summary>
+    [Fact]
+    public void AnOldLevelGatedScanIsRedecidedByLevel()
+    {
+        var l = Ledger();
+        var scan = Rec(l, "Black Eft", "not yet", BeastCaptureDifficulty.LevelGated, cap: false, owned: false);
+        Assert.True(Check("Black Eft", scan, player: 10, target: 6).Go);
+        Assert.False(Check("Black Eft", scan, player: 5, target: 6).Go);
+    }
+
+    /// <summary>The game's own Bestiary beats a scan that predates the catch.</summary>
+    [Fact]
+    public void TheBestiaryBeatsAnOldScan()
+    {
+        var l = Ledger();
+        var scan = Rec(l, "Black Eft", "no effort", BeastCaptureDifficulty.Trivial, cap: true, owned: false);
+        Assert.False(Check("Black Eft", scan, owned: true).Go);
+    }
 }

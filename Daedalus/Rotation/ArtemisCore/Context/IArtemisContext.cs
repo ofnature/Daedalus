@@ -20,6 +20,15 @@ public interface IArtemisContext : IMeleeDpsRotationContext
     /// <summary>Whether a familiar is currently out, so the familiar orders are worth pushing.</summary>
     bool HasFamiliar { get; }
 
+    /// <summary>
+    /// Which beast is out (by name, else by the Battlehorn last pressed); null when no familiar is out
+    /// or it cannot be identified. Its Trick colour decides the axe that completes the combo.
+    /// </summary>
+    Daedalus.Data.BstFamiliar? FamiliarBeast { get; }
+
+    /// <summary>The Trick → clockwise-axe pairing in progress.</summary>
+    ArtemisTrickPairing TrickPairing { get; }
+
     /// <summary>Debug readout.</summary>
     ArtemisDebugState Debug { get; }
 }

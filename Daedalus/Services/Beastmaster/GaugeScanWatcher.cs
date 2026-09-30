@@ -174,7 +174,7 @@ public sealed class GaugeScanWatcher : IDisposable
         ScansThisSession++;
         _windowOpenedUtc = DateTime.MinValue;   // one reply per cast
 
-        _ledger.Record(
+        var kept = _ledger.Record(
             name: parsed.Name!,
             level: _pendingTargetLevel,
             difficulty: parsed.Difficulty,
@@ -186,8 +186,9 @@ public sealed class GaugeScanWatcher : IDisposable
             rawText: text);
 
         _log?.Information(
-            "[GaugeScan] {Name} lv{Level} {Tier} capturable={Cap} owned={Owned} — {Text}",
-            parsed.Name, _pendingTargetLevel, parsed.Difficulty, parsed.Capturable, parsed.AlreadyCaptured, text);
+            "[GaugeScan] {Name} lv{Level} {Tier} capturable={Cap} owned={Owned}{Dropped} — {Text}",
+            parsed.Name, _pendingTargetLevel, parsed.Difficulty, parsed.Capturable, parsed.AlreadyCaptured,
+            kept == null ? " (no pact — not recorded)" : "", text);
     }
 
     private string ResolveTerritoryName()

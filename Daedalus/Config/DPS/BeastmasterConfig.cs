@@ -32,6 +32,23 @@ public sealed class BeastmasterConfig
     /// </summary>
     public bool EnablePartingBlow { get; set; }
 
+    #region Battlehorns
+
+    /// <summary>
+    /// Keep <see cref="BattlehornTeam"/>'s beasts on the three Battlehorns: out of combat, when they
+    /// don't match, open the Master's Bestiary, assign them and close it. Off by default: it opens a
+    /// window and clicks through it for you.
+    /// </summary>
+    public bool AutoSetBattlehorns { get; set; }
+
+    /// <summary>Id of the chosen team in <see cref="Daedalus.Data.BattlehornTeams"/>.</summary>
+    public string BattlehornTeam { get; set; } = "single-target";
+
+    /// <summary>The player's own team (Bestiary numbers per horn, 0 = leave alone).</summary>
+    public int[] SavedBattlehorns { get; set; } = [0, 0, 0];
+
+    #endregion
+
     #region Capture
 
     /// <summary>

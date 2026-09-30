@@ -11,7 +11,14 @@ using Daedalus.Services.Beastmaster;
 namespace Daedalus.Rotation.ArtemisCore.Modules;
 
 /// <summary>
-/// Fires Capture at the right moment against a beast the ledger says is capturable.
+/// Fires Capture at the right moment against a beast that is capturable and not yet in the Bestiary.
+///
+/// <para>
+/// <b>Which enemies.</b> A Gauge scan of that enemy (the ledger) is direct evidence and wins.
+/// Without one, <see cref="BstCaptureMobs"/> — the community's enemy-name → beast list — names the
+/// beast, and the game's own Bestiary says whether you have it; Capture needs you at or above the
+/// enemy's level. See <see cref="CheckTarget"/>.
+/// </para>
 ///
 /// <para>
 /// <b>Ships in every build.</b> Only the ledger's <i>collection</i> tooling is debug-gated; this
@@ -49,13 +56,20 @@ public sealed class CaptureModule : IArtemisModule
     internal const float NoConfidentEstimateSeconds = 3600f;
 
     private readonly BeastCaptureLedger? _ledger;
+    private readonly Func<uint, bool?> _isPetUnlocked;
 
     /// <summary>Targets we have already fired Capture at, and when. Keyed by game object id.</summary>
     private readonly Dictionary<ulong, DateTime> _appliedUtc = new();
 
     internal Func<DateTime> UtcNow = () => DateTime.UtcNow;
 
-    public CaptureModule(BeastCaptureLedger? ledger) => _ledger = ledger;
+    /// <param name="ledger">Gauge scans; may be null.</param>
+    /// <param name="isPetUnlocked">Bestiary number → owned? Null while the Bestiary has not loaded.</param>
+    public CaptureModule(BeastCaptureLedger? ledger, Func<uint, bool?>? isPetUnlocked = null)
+    {
+        _ledger = ledger;
+        _isPetUnlocked = isPetUnlocked ?? (_ => null);
+    }
 
     public bool TryExecute(IArtemisContext context, bool isMoving) => false;
 
@@ -64,7 +78,7 @@ public sealed class CaptureModule : IArtemisModule
     public void CollectCandidates(IArtemisContext context, RotationScheduler scheduler, bool isMoving)
     {
         var cfg = context.Configuration.Beastmaster;
-        if (!cfg.EnableAutoCapture || _ledger is null || !context.InCombat)
+        if (!cfg.EnableAutoCapture || !context.InCombat)
             return;
 
         var player = context.Player;
@@ -77,9 +91,18 @@ public sealed class CaptureModule : IArtemisModule
             return;
 
         var name = target.Name.TextValue;
-        if (!_ledger.ShouldAutoCapture(name))
+        var listed = BstCaptureMobs.BeastFor(name);
+        var check = CheckTarget(
+            name,
+            _ledger?.Find(name),
+            _ledger?.IsNoPact(name) == true,
+            listed,
+            listed is null ? null : _isPetUnlocked((uint)listed.BestiaryNo),
+            player.Level,
+            (target as Dalamud.Game.ClientState.Objects.Types.ICharacter)?.Level ?? 0);
+        if (!check.Go)
         {
-            context.Debug.CaptureState = DescribeSkip(name, _ledger.Find(name));
+            context.Debug.CaptureState = check.Why;
             return;
         }
 
@@ -112,6 +135,51 @@ public sealed class CaptureModule : IArtemisModule
             _appliedUtc[targetId] = UtcNow();
             context.Debug.PlannedAction = BSTActions.Capture.Name;
         });
+    }
+
+    /// <summary>Whether to go after this enemy at all, and why not.</summary>
+    internal readonly record struct TargetCheck(bool Go, string Why);
+
+    /// <summary>
+    /// Is this enemy worth a Capture? Pure, so the rules are testable.
+    /// <list type="number">
+    /// <item>"No pact" this session → no.</item>
+    /// <item>The list names a beast the Bestiary already holds → no (the game's own record beats an
+    /// old scan).</item>
+    /// <item>A Gauge scan exists → it decides, except a "not yet strong enough" scan of a listed
+    /// enemy, which the level check below re-decides (you may have levelled since).</item>
+    /// <item>Not in the list and never scanned → no: nothing says it is a beast.</item>
+    /// <item>Bestiary not loaded → no: can't tell whether you own it.</item>
+    /// <item>Enemy above your level → no: Capture needs you at or above it.</item>
+    /// </list>
+    /// </summary>
+    internal static TargetCheck CheckTarget(
+        string name, BeastCaptureEntry? scan, bool noPact, BstFamiliar? listed, bool? listedOwned,
+        int playerLevel, int targetLevel)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+            return new(false, "no target");
+        if (noPact)
+            return new(false, DescribeSkip(name, scan, noPact: true));
+        if (listed != null && listedOwned == true)
+            return new(false, $"{name}: {listed.Name} is already in your Bestiary");
+
+        if (scan != null && !(listed != null && scan.Difficulty == BeastCaptureDifficulty.LevelGated))
+        {
+            var capturable = scan.Capturable == true && scan.AlreadyCaptured != true
+                && scan.Difficulty is not (BeastCaptureDifficulty.Impossible or BeastCaptureDifficulty.LevelGated);
+            return capturable
+                ? new(true, $"{name}: scanned capturable")
+                : new(false, DescribeSkip(name, scan));
+        }
+
+        if (listed == null)
+            return new(false, $"{name}: not in the capture list and not scanned — use Gauge on it");
+        if (listedOwned == null)
+            return new(false, $"{name} ({listed.Name}): Bestiary not loaded yet");
+        if (targetLevel > playerLevel)
+            return new(false, $"{name} ({listed.Name}): level {targetLevel} is above you");
+        return new(true, $"{name}: a {listed.Name} you haven't caught");
     }
 
     /// <summary>The timing decision, pure so it can be tested without a game attached.</summary>
@@ -158,10 +226,12 @@ public sealed class CaptureModule : IArtemisModule
     /// Why auto-capture is leaving this target alone, in terms the player can act on. "Not known
     /// capturable" alone would hide the difference between "scan it first" and "you already own it".
     /// </summary>
-    internal static string DescribeSkip(string name, BeastCaptureEntry? entry)
+    internal static string DescribeSkip(string name, BeastCaptureEntry? entry, bool noPact = false)
     {
         if (string.IsNullOrWhiteSpace(name))
             return "no target";
+        if (noPact)
+            return $"{name}: no pact possible";
         if (entry is null)
             return $"{name}: not scanned yet — use Gauge on it";
         if (entry.AlreadyCaptured == true)

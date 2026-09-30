@@ -31,6 +31,9 @@ public sealed class GameDataLocalizer
     /// </summary>
     public static GameDataLocalizer? Instance { get; private set; }
 
+    /// <summary>The game data this localizer reads, for UI that needs a sheet lookup of its own.</summary>
+    public IDataManager DataManager => dataManager;
+
     /// <summary>
     /// Creates a new GameDataLocalizer.
     /// </summary>

@@ -71,8 +71,141 @@ public sealed class DamageModule : IArtemisModule
         var level = player.Level;
 
         PushComboChain(context, scheduler, targetId, level);
-        PushInstinctual(context, scheduler, targetId, level);
-        PushFamiliarOrders(context, scheduler, targetId, level);
+
+        // With a familiar whose Trick colour is known, Trick and the clockwise axe go out as a pair.
+        // Otherwise (no familiar, an unidentified one, or below the levels that make the pair) the
+        // axes and Trick run on their own, as before.
+        var paired = UsesPairing(context, level, out var answer);
+        if (paired)
+            PushPaired(context, scheduler, targetId, level, answer!);
+        else
+            PushInstinctual(context, scheduler, targetId, level);
+
+        PushFamiliarOrders(context, scheduler, targetId, level, trickHandledByPairing: paired);
+    }
+
+    /// <summary>
+    /// Pair Trick with the axe when: a familiar is out and identified, Trick is learned, and the axe
+    /// that answers its colour is learned (Gale Axe, the Volant answer to an Eldritch familiar, only
+    /// arrives at level 16).
+    /// </summary>
+    private static bool UsesPairing(IArtemisContext context, byte level, out ActionDefinition? answer)
+    {
+        answer = null;
+        var cfg = context.Configuration.Beastmaster;
+        if (!cfg.EnableTrick || !cfg.EnableInstinctualSkills || !context.HasFamiliar
+            || context.FamiliarBeast is not { } beast)
+            return false;
+
+        var svc = context.ActionService;
+        if (!ActionAvailability.MeetsLevelAndLearned(level, svc, BSTActions.Trick))
+            return false;
+
+        answer = BSTActions.InstinctualFor(BSTActions.NextInCycle(beast.TrickAffinity));
+        return answer != null && ActionAvailability.MeetsLevelAndLearned(level, svc, answer);
+    }
+
+    /// <summary>What the pairing does this frame. Pure, so the rules can be tested without a game.</summary>
+    public enum PairingStep
+    {
+        /// <summary>A Trick is out and its answer is due: press the clockwise axe.</summary>
+        AnswerTrick,
+        /// <summary>A Trick is out but the familiar has not acted yet: press nothing.</summary>
+        WaitForFamiliar,
+        /// <summary>Both halves are ready: send Trick; the axe follows once the familiar acts.</summary>
+        SendTrick,
+        /// <summary>One half is ready and the other is not: hold it for the pair.</summary>
+        Hold,
+        /// <summary>The axe waited too long for the Trick: send it alone rather than cap TP.</summary>
+        AxeAlone,
+        /// <summary>The Trick waited too long for the axe: send it alone rather than cap Pet TP.</summary>
+        TrickAlone,
+        /// <summary>Neither half is ready.</summary>
+        Nothing,
+    }
+
+    public static PairingStep DecidePairing(
+        bool awaitingAnswer, bool readyToAnswer, bool axeReady, bool trickReady, bool holdExpired)
+    {
+        if (awaitingAnswer)
+            return readyToAnswer ? PairingStep.AnswerTrick : PairingStep.WaitForFamiliar;
+        if (axeReady && trickReady)
+            return PairingStep.SendTrick;
+        if (axeReady)
+            return holdExpired ? PairingStep.AxeAlone : PairingStep.Hold;
+        if (trickReady)
+            return holdExpired ? PairingStep.TrickAlone : PairingStep.Hold;
+        return PairingStep.Nothing;
+    }
+
+    /// <summary>
+    /// Trick first, then the clockwise axe once the familiar has acted: an intentional combo finished by
+    /// our own skill, which banks Mastered Instinct for Rally. Pressing the axe straight after Trick
+    /// resolves it first (the familiar is slow to act) and the combo comes out backwards.
+    /// </summary>
+    private static void PushPaired(
+        IArtemisContext context, RotationScheduler scheduler, ulong targetId, byte level, ActionDefinition answer)
+    {
+        var svc = context.ActionService;
+        var pairing = context.TrickPairing;
+        var beast = context.FamiliarBeast!;
+
+        var awaiting = pairing.IsAwaitingAnswer;
+        var pendingAnswer = awaiting ? BSTActions.InstinctualFor(pairing.AnswerAffinity) : answer;
+        var axeReady = pendingAnswer != null && CanFire(svc, level, pendingAnswer, targetId);
+        var trickReady = !awaiting && CanFire(svc, level, BSTActions.Trick, targetId);
+        var oneSideReady = !awaiting && axeReady != trickReady;
+        var holdExpired = oneSideReady && pairing.HoldExpired();
+        if (!oneSideReady)
+            pairing.ClearHold();
+
+        var step = DecidePairing(awaiting, pairing.ReadyToAnswer, axeReady, trickReady, holdExpired);
+        switch (step)
+        {
+            case PairingStep.AnswerTrick when axeReady:
+                Push(context, scheduler, pendingAnswer!, targetId, priority: 10,
+                    why: $"{pairing.PetAffinity} Trick → {pairing.AnswerAffinity}",
+                    onDispatched: pairing.OnAnswered);
+                break;
+            case PairingStep.AnswerTrick:
+                context.Debug.InstinctState = $"answer {pairing.AnswerAffinity} not ready";
+                break;
+            case PairingStep.WaitForFamiliar:
+                context.Debug.InstinctState = $"waiting for the {beast.Name} Trick to land";
+                break;
+            case PairingStep.SendTrick:
+            case PairingStep.TrickAlone:
+                PushTrick(context, scheduler, targetId, beast.TrickAffinity,
+                    step == PairingStep.SendTrick
+                        ? $"Trick ({beast.TrickAffinity}) → {answer.Name}"
+                        : "Trick alone (axe not ready)");
+                break;
+            case PairingStep.AxeAlone:
+                Push(context, scheduler, answer, targetId, priority: 25, why: "alone (Trick not ready)",
+                    onDispatched: pairing.ClearHold);
+                break;
+            case PairingStep.Hold:
+                context.Debug.InstinctState = axeReady ? "holding axe for the Trick" : "holding Trick for the axe";
+                break;
+            default:
+                context.Debug.InstinctState = "none ready";
+                break;
+        }
+
+        context.Debug.InstinctChain = pairing.Describe();
+    }
+
+    private static void PushTrick(
+        IArtemisContext context, RotationScheduler scheduler, ulong targetId, InstinctAffinity petAffinity, string why)
+    {
+        scheduler.PushOgcd(ArtemisAbilities.Trick, targetId, priority: 10, onDispatched: _ =>
+        {
+            context.Instinct.Record(petAffinity);
+            context.TrickPairing.OnTrickDispatched(petAffinity);
+            context.Debug.PlannedAction = BSTActions.Trick.Name;
+            context.Debug.InstinctState = why;
+            context.Debug.InstinctChain = context.TrickPairing.Describe();
+        });
     }
 
     /// <summary>
@@ -158,7 +291,8 @@ public sealed class DamageModule : IArtemisModule
 
     private static void Push(
         IArtemisContext context, RotationScheduler scheduler,
-        ActionDefinition action, ulong targetId, int priority, string why)
+        ActionDefinition action, ulong targetId, int priority, string why,
+        System.Action? onDispatched = null)
     {
         var behavior = ArtemisAbilities.InstinctualFor(BSTActions.AffinityOf(action.ActionId));
         if (behavior == null)
@@ -176,6 +310,7 @@ public sealed class DamageModule : IArtemisModule
                 affinity = BSTActions.AffinityOf(action.ActionId);
 
             context.Instinct.Record(affinity);
+            onDispatched?.Invoke();
             context.Debug.PlannedAction = action.Name;
             context.Debug.InstinctState = why;
             context.Debug.InstinctChain = context.Instinct.Describe();
@@ -191,7 +326,8 @@ public sealed class DamageModule : IArtemisModule
     /// </para>
     /// </summary>
     private static void PushFamiliarOrders(
-        IArtemisContext context, RotationScheduler scheduler, ulong targetId, byte level)
+        IArtemisContext context, RotationScheduler scheduler, ulong targetId, byte level,
+        bool trickHandledByPairing)
     {
         if (!context.HasFamiliar)
         {
@@ -208,7 +344,7 @@ public sealed class DamageModule : IArtemisModule
                 onDispatched: _ => context.Debug.PlannedAction = BSTActions.PartingBlow.Name);
         }
 
-        if (cfg.EnableTrick && CanFire(svc, level, BSTActions.Trick, targetId))
+        if (!trickHandledByPairing && cfg.EnableTrick && CanFire(svc, level, BSTActions.Trick, targetId))
         {
             scheduler.PushOgcd(ArtemisAbilities.Trick, targetId, priority: 30, onDispatched: _ =>
             {
