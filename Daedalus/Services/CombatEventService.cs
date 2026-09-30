@@ -280,9 +280,12 @@ public sealed unsafe class CombatEventService : ICombatEventService, IDisposable
     // renders the aggregated tick above the enemy, so this feed must carry it. Capped raw dumps
     // to learn the tick discriminator (autos share fly-text kinds with ticks; autos duplicate
     // ActionEffect amounts, ticks arrive ~3s cadence with no matching action).
+    // Shape is ClientStructs' BattleLog.AddToScreenLogWithScreenLogKind: 9 parameters, byte option
+    // and action kind, uint action id. The old 10-int shape failed Dalamud's hook verification
+    // (2026-09-30) and passed a junk tenth argument through to the original.
     private delegate void AddScreenLogDelegate(
-        Character* target, Character* source, int kind, int option,
-        int actionKind, int actionId, int val1, int val2, int val3, int val4);
+        BattleChara* target, BattleChara* source, int kind, byte option,
+        byte actionKind, uint actionId, int val1, int val2, int val3);
 
     private const string AddScreenLogSignature = "E8 ?? ?? ?? ?? BF ?? ?? ?? ?? EB 39";
     private readonly Hook<AddScreenLogDelegate>? addScreenLogHook;
@@ -305,14 +308,14 @@ public sealed unsafe class CombatEventService : ICombatEventService, IDisposable
     public void AttachDebugLog(Debug.DebugLogService service) => debugLog = service;
 
     private void AddScreenLogDetour(
-        Character* target, Character* source, int kind, int option,
-        int actionKind, int actionId, int val1, int val2, int val3, int val4)
+        BattleChara* target, BattleChara* source, int kind, byte option,
+        byte actionKind, uint actionId, int val1, int val2, int val3)
     {
         Interlocked.Increment(ref screenLogInvocations);
         try
         {
-            var targetId = target != null ? target->GameObject.EntityId : 0u;
-            var sourceId = source != null ? source->GameObject.EntityId : 0u;
+            var targetId = target != null ? ((Character*)target)->GameObject.EntityId : 0u;
+            var sourceId = source != null ? ((Character*)source)->GameObject.EntityId : 0u;
 
             // BattleNpc entity-id range — fly text on enemies is where DoT ticks must live.
             if (targetId is >= 0x40000000 and < 0x50000000)
@@ -333,7 +336,7 @@ public sealed unsafe class CombatEventService : ICombatEventService, IDisposable
                     screenLogDumped++;
                     lastScreenLogDumpUtc = now;
                     var line = $"[ScreenLog] kind={kind} option={option} actionKind={actionKind} actionId={actionId} "
-                        + $"val1={val1} val2={val2} val3={val3} val4={val4} src={sourceId:X8} tgt={targetId:X8}";
+                        + $"val1={val1} val2={val2} val3={val3} src={sourceId:X8} tgt={targetId:X8}";
                     log.Info(line);
                     debugLog?.Log(Debug.DebugLogCategory.General, Debug.DebugLogSeverity.Info, line);
                 }
@@ -344,7 +347,7 @@ public sealed unsafe class CombatEventService : ICombatEventService, IDisposable
             log.Error(ex, "CombatEventService: Error in AddScreenLog detour");
         }
 
-        addScreenLogHook?.Original(target, source, kind, option, actionKind, actionId, val1, val2, val3, val4);
+        addScreenLogHook?.Original(target, source, kind, option, actionKind, actionId, val1, val2, val3);
     }
 
     // Hook liveness diagnostics (parser "(?)" tooltip): zero invocations across a fight means
