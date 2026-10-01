@@ -29,6 +29,21 @@ public sealed class BeastmasterSection
     private readonly int[] manualPick = new int[3];
 
     private static readonly Vector4 Caught = new(0.55f, 0.85f, 0.55f, 1f);
+
+    /// <summary>"Enemies: …" per Bestiary number, built once from the auto-capture name list.</summary>
+    private static readonly string[] EnemyNames = BuildEnemyNames();
+
+    private static string[] BuildEnemyNames()
+    {
+        var lines = new string[51];
+        for (var no = 1; no <= 50; no++)
+        {
+            var names = new System.Collections.Generic.List<string>(BstCaptureMobs.NamesFor(no));
+            names.Sort(StringComparer.OrdinalIgnoreCase);
+            lines[no] = names.Count == 0 ? "" : "Enemies: " + string.Join(", ", names);
+        }
+        return lines;
+    }
     private static readonly Vector4 Dim = new(0.6f, 0.6f, 0.6f, 1f);
 
     public BeastmasterSection(Configuration config, Action save)
@@ -327,7 +342,8 @@ public sealed class BeastmasterSection
             : "Your Bestiary has not loaded yet, so caught beasts are not marked.");
         ImGui.TextDisabled(
             "Be at or above the beast's level, bring it low, Capture it, then kill it. Flag drops the map "
-            + "flag on the spot and opens the map.");
+            + "flag on the spot and opens the map. The enemy names are the ones auto-capture goes after "
+            + "(community-compiled; any variant at or below your level counts).");
         if (flagError != null)
             ConfigUIHelpers.WarningText(flagError);
 
@@ -340,7 +356,7 @@ public sealed class BeastmasterSection
             ImGui.TableSetupColumn("Beast", ImGuiTableColumnFlags.WidthFixed, 130f);
             ImGui.TableSetupColumn("Lv", ImGuiTableColumnFlags.WidthFixed, 26f);
             ImGui.TableSetupColumn("Trick", ImGuiTableColumnFlags.WidthFixed, 64f);
-            ImGui.TableSetupColumn("Where");
+            ImGui.TableSetupColumn("Where / enemies that count");
             ImGui.TableSetupColumn("", ImGuiTableColumnFlags.WidthFixed, 40f);
             ImGui.TableHeadersRow();
 
@@ -360,6 +376,8 @@ public sealed class BeastmasterSection
                 ImGui.TextColored(Dim, beast.TrickAffinity.ToString());
                 ImGui.TableNextColumn();
                 ImGui.TextWrapped(spot?.Where ?? "");
+                if (EnemyNames[beast.BestiaryNo].Length > 0)
+                    ImGui.TextColored(Dim, EnemyNames[beast.BestiaryNo]);
                 ImGui.TableNextColumn();
                 if (spot is not { CanFlag: true })
                     continue;

@@ -12,6 +12,10 @@ All notable changes to Daedalus will be documented in this file.
   running underneath the role-play kit. While a role-play kit is being played it now stands down, and Minerva does
   the moving for the character on screen.
 
+### Beastmaster — which enemies count, in the Bestiary list
+- **Bestiary: where to catch them** now lists, under each beast, the enemies that count as it (Black Eft for
+  Salamander, Roselet for Flying Trap, and so on) — the same community-compiled names auto-capture goes after.
+
 <!-- LATEST-END -->
 ## v0.1.90 — 2026-09-30
 
