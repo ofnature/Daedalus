@@ -115,6 +115,11 @@ public sealed class BattlehornAssigner
     {
         _game = game;
         _oneShot = oneShot;
+
+        // A one-shot setter is idle until asked (Restart). Starting it live made the settings page
+        // open the Bestiary on first draw — no request reads as "captures unknown, open to load" —
+        // and left it Busy, greying out every Set button until the window was closed.
+        _done = oneShot;
     }
 
     /// <summary>A one-shot request is being carried out.</summary>
@@ -153,6 +158,12 @@ public sealed class BattlehornAssigner
     {
         if (_oneShot && _done)
             return;
+        if (_oneShot && wantedSource() == null)
+        {
+            // Nothing asked for: a one-shot never opens the Bestiary just to load the captures.
+            _done = true;
+            return;
+        }
 
         var open = _game.IsBestiaryOpen();
         if (!allowed)

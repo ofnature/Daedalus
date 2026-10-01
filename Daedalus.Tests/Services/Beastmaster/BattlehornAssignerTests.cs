@@ -375,6 +375,29 @@ public class BattlehornOneShotTests
         Assert.NotEqual(16, _game.Horns[0]);
     }
 
+    /// <summary>
+    /// Opening the settings page must not open the Bestiary: before any Set is pressed the setter has
+    /// no request, and is idle — not Busy, so the Set buttons work.
+    /// </summary>
+    [Fact]
+    public void IdleUntilAsked()
+    {
+        Run(null, 5);
+        Run([16, 0, 0], 5);
+        Assert.Equal(0, _game.Opens);
+        Assert.False(_setter.Busy);
+    }
+
+    /// <summary>Asked with nothing to set (no request yet): finishes without opening anything.</summary>
+    [Fact]
+    public void ARestartWithNoRequestOpensNothing()
+    {
+        _setter.Restart();
+        Run(null, 5);
+        Assert.Equal(0, _game.Opens);
+        Assert.False(_setter.Busy);
+    }
+
     /// <summary>The setter's messages stay out of the auto-set status line.</summary>
     [Fact]
     public void DoesNotWriteTheAutoSetStatus()

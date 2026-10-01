@@ -3,7 +3,11 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
-## v0.1.92 — 2026-09-30
+## v0.1.92 — 2026-10-01
+
+### Fix — Beastmaster settings no longer pop the Bestiary open
+- **Opening the Beastmaster settings opened the Master's Bestiary**, and the horn **Set** buttons stayed greyed out
+  until you closed it. The horn setter now does nothing until you press Set.
 
 ### Automation — a quest battle's requests are pressed out of combat too
 - **Minerva now plays whole solo duties** from BossmodReborn's quest battle scripts, and they ask for things before any
