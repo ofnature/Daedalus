@@ -33,3 +33,9 @@ CURSOR.md
 COPILOT.md
 AI_NOTES.md
 IDEA.md
+
+# Markdown stays local. Only the README is pushed, plus the changelog the release
+# workflow reads for its notes and the plugin embeds for the in-game changelog.
+*.md
+!/README.md
+!/Daedalus/CHANGELOG.md
