@@ -18,15 +18,14 @@ public sealed class RoleplayActionPolicyTests
     private static RoleplayActionFacts HardcastGcd() => new(IsGcd: true, CastTime: 1.5f, Ready: true);
 
     [Fact]
-    public void NamedInCombat_TakesTheFrameOver()
-        => Assert.True(RoleplayActionPolicy.TakesOver(enabled: true, inCombat: true, requestCount: 3));
+    public void Named_TakesTheFrameOver()
+        => Assert.True(RoleplayActionPolicy.TakesOver(enabled: true, requestCount: 3));
 
     [Fact]
-    public void ToggledOffOutOfCombatOrNothingNamed_LeavesTheJobRotation()
+    public void ToggledOffOrNothingNamed_LeavesTheJobRotation()
     {
-        Assert.False(RoleplayActionPolicy.TakesOver(enabled: false, inCombat: true, requestCount: 3));
-        Assert.False(RoleplayActionPolicy.TakesOver(enabled: true, inCombat: false, requestCount: 3));
-        Assert.False(RoleplayActionPolicy.TakesOver(enabled: true, inCombat: true, requestCount: 0));
+        Assert.False(RoleplayActionPolicy.TakesOver(enabled: false, requestCount: 3));
+        Assert.False(RoleplayActionPolicy.TakesOver(enabled: true, requestCount: 0));
     }
 
     [Fact]

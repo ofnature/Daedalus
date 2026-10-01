@@ -55,13 +55,13 @@ public sealed class RoleplayActionLayer
     }
 
     /// <summary>True when this frame is the kit's: the caller then skips the job's modules.</summary>
-    public bool Execute(IRotationContext ctx, bool isMoving, bool inCombat)
+    public bool Execute(IRotationContext ctx, bool isMoving)
     {
         try
         {
             var enabled = _enabled();
             var requests = enabled ? _requests() : [];
-            var active = RoleplayActionPolicy.TakesOver(enabled, inCombat, requests.Length);
+            var active = RoleplayActionPolicy.TakesOver(enabled, requests.Length);
             if (active != _wasActive)
                 _log.Info(active
                     ? "Roleplay: playing the kit the boss engine names (first: {0})."

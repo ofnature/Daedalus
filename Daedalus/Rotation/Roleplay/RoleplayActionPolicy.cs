@@ -25,11 +25,14 @@ public readonly record struct RoleplayActionFacts(bool IsGcd, float CastTime, bo
 public static class RoleplayActionPolicy
 {
     /// <summary>
-    /// The layer takes the frame over: switched on, in combat, and the engine named something. The job's modules then
-    /// stand down for the frame, whether or not anything is ready to press.
+    /// The layer takes the frame over: switched on, and the engine named something. The job's modules then stand down
+    /// for the frame, whether or not anything is ready to press.
+    /// <para>In or out of combat. A quest battle script asks for things before any fight: Hide before the sneak, Swift
+    /// Deception in A Frosty Reception, Physick on the wounded you walk up to. Minerva names actions only inside a quest
+    /// duty, so nothing else changes (2026-10-01, the BossmodReborn quest scripts ported into Minerva).</para>
     /// </summary>
-    public static bool TakesOver(bool enabled, bool inCombat, int requestCount)
-        => enabled && inCombat && requestCount > 0;
+    public static bool TakesOver(bool enabled, int requestCount)
+        => enabled && requestCount > 0;
 
     /// <summary>
     /// Whether the job's own movement (melee max-melee upkeep, positional hops, a tank's walk-in) may run: not while a

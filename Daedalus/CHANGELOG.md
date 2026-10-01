@@ -3,6 +3,15 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.92 — 2026-09-30
+
+### Automation — a quest battle's requests are pressed out of combat too
+- **Minerva now plays whole solo duties** from BossmodReborn's quest battle scripts, and they ask for things before any
+  fight: Hide before a sneak, Swift Deception in A Frosty Reception, Physick on the wounded you walk up to. The
+  role-play layer now presses what Minerva names in or out of combat. Minerva names actions only inside a quest duty,
+  so nothing else changes.
+
+<!-- LATEST-END -->
 ## v0.1.91 — 2026-09-30
 
 ### Fix — your job stops walking you around while you play someone else
@@ -16,7 +25,6 @@ All notable changes to Daedalus will be documented in this file.
 - **Bestiary: where to catch them** now lists, under each beast, the enemies that count as it (Black Eft for
   Salamander, Roselet for Flying Trap, and so on) — the same community-compiled names auto-capture goes after.
 
-<!-- LATEST-END -->
 ## v0.1.90 — 2026-09-30
 
 ### Automation — play the character a quest battle gives you
