@@ -3,6 +3,16 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.91 — 2026-09-30
+
+### Fix — your job stops walking you around while you play someone else
+- **Playing Y'shtola in The Will of the Moon, the character kept running off**, toward a staff or away from Magnai,
+  and a caster on the move cannot cast: the centre staff took one Stone IV of the two it needed and the duty was
+  lost. Your own job's movement (a melee job's walk to melee range, positional hops, a tank's walk-in) was still
+  running underneath the role-play kit. While a role-play kit is being played it now stands down, and Minerva does
+  the moving for the character on screen.
+
+<!-- LATEST-END -->
 ## v0.1.90 — 2026-09-30
 
 ### Automation — play the character a quest battle gives you
@@ -45,7 +55,6 @@ All notable changes to Daedalus will be documented in this file.
 - Dalamud logged "Hook verification failed" for Daedalus's fly-text hook on every start: the game function
   gained a new shape. The hook now matches it, so the original gets the right arguments.
 
-<!-- LATEST-END -->
 ## v0.1.89 — 2026-09-27
 
 ### Fix — Summoner no longer stutter-steps below level 62

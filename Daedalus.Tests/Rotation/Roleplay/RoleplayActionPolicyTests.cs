@@ -59,6 +59,24 @@ public sealed class RoleplayActionPolicyTests
         => Assert.NotNull(RoleplayActionPolicy.Reject(Heal() with { TargetId = 0 }, HardcastGcd(), isMoving: false));
 
     [Fact]
+    public void WhileAKitIsPlayed_TheJobDoesNotMove()
+    {
+        // The Will of the Moon, 2026-09-30: a ninja's max-melee upkeep walked Y'shtola off her Stone IV casts
+        Assert.False(RoleplayActionPolicy.JobMovementAllowed(jobAllows: true, kitActive: true));
+    }
+
+    [Fact]
+    public void WithoutAKit_TheJobsOwnAnswerStands()
+    {
+        Assert.True(RoleplayActionPolicy.JobMovementAllowed(jobAllows: true, kitActive: false));
+        Assert.False(RoleplayActionPolicy.JobMovementAllowed(jobAllows: false, kitActive: false));
+    }
+
+    [Fact]
+    public void AKitNeverTurnsMovementOn()
+        => Assert.False(RoleplayActionPolicy.JobMovementAllowed(jobAllows: false, kitActive: true));
+
+    [Fact]
     public void AGroundTarget_GoesForAnOgcd_NotYetForAGcd()
     {
         var cannon = Heal() with { TargetId = 0, TargetPos = new Vector3(10f, 0f, 5f) };

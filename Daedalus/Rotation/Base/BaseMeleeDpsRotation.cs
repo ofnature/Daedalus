@@ -330,9 +330,11 @@ public abstract class BaseMeleeDpsRotation<TContext, TModule> : BaseRotation<TCo
         ?? (SupportedJobIds.Length > 0 ? SupportedJobIds[0] : 0u);
 
     protected bool IsAutoMovementAllowed() =>
-        Configuration.EnableAutoMovement
-        && LimitedJobContentPolicy.AllowsAutoMovement(PlayerJobId)
-        && HasPartyOrTrustAllies();
+        Daedalus.Rotation.Roleplay.RoleplayActionPolicy.JobMovementAllowed(
+            Configuration.EnableAutoMovement
+            && LimitedJobContentPolicy.AllowsAutoMovement(PlayerJobId)
+            && HasPartyOrTrustAllies(),
+            RotationServices.RoleplayActive);
 
     /// <summary>Real party members OR trust/duty-support NPC allies (object-table scan).</summary>
     protected bool HasPartyOrTrustAllies()
@@ -466,6 +468,10 @@ public abstract class BaseMeleeDpsRotation<TContext, TModule> : BaseRotation<TCo
     protected bool IsMaxMeleeMaintenanceAllowed()
     {
         if (!Configuration.EnableAutoMovement || !Configuration.MaintainMaxMelee)
+            return false;
+
+        // Playing a role-play kit: the character on screen is not this job (RoleplayActionPolicy.JobMovementAllowed).
+        if (!Daedalus.Rotation.Roleplay.RoleplayActionPolicy.JobMovementAllowed(true, RotationServices.RoleplayActive))
             return false;
 
         // Limited jobs opt out. Unlike the positional movers this is not opt-in per job and it runs

@@ -45,6 +45,9 @@ public static class RotationServices
     /// </summary>
     public static Daedalus.Rotation.Roleplay.RoleplayActionLayer? RoleplayLayer { get; set; }
 
+    /// <summary>A role-play kit is being played; the job's own movement stands down.</summary>
+    public static bool RoleplayActive => RoleplayLayer?.Active == true;
+
     /// <summary>
     /// RSR-compat IPC surface — melee rotations broadcast their anticipated positional
     /// finisher on RSR's ActionUpdater event gates so positional-following movement

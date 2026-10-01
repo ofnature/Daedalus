@@ -31,6 +31,15 @@ public static class RoleplayActionPolicy
     public static bool TakesOver(bool enabled, bool inCombat, int requestCount)
         => enabled && inCombat && requestCount > 0;
 
+    /// <summary>
+    /// Whether the job's own movement (melee max-melee upkeep, positional hops, a tank's walk-in) may run: not while a
+    /// kit is being played. The job underneath is not the character on screen, and the boss engine moves for the kit.
+    /// <para>The Will of the Moon, 2026-09-30: a ninja playing Y'shtola kept walking to melee range of Magnai and the
+    /// staffs; a moving caster cannot hardcast, so the centre staff took one Stone IV of the two it needed and the duty
+    /// was lost ("when the staffs appeared it ran instead of clearing the center staff").</para>
+    /// </summary>
+    public static bool JobMovementAllowed(bool jobAllows, bool kitActive) => jobAllows && !kitActive;
+
     /// <summary>The scheduler priority of the <paramref name="index"/>-th request: the engine's order is the kit's order
     /// of preference, and the scheduler dispatches ascending.</summary>
     public static int SchedulerPriority(int index) => index;

@@ -28,6 +28,10 @@ public sealed class RoleplayActionLayer
     private readonly List<string> _rejects = [];
     private bool _wasActive;
 
+    /// <summary>A kit is being played: set by the last <see cref="Execute"/>. The job's movement reads it
+    /// (<see cref="RoleplayActionPolicy.JobMovementAllowed"/>); it runs earlier in the frame, so it sees the previous one.</summary>
+    public bool Active => _wasActive;
+
     /// <summary>The last frame's outcome, for the debug readout.</summary>
     public string LastEvent { get; private set; } = "idle";
 

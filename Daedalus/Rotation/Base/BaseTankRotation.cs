@@ -211,6 +211,9 @@ public abstract class BaseTankRotation<TContext, TModule> : BaseRotation<TContex
     {
         if (PositionalMovementService == null || !inCombat)
             return;
+        // playing a role-play kit: the character on screen is not this job (RoleplayActionPolicy.JobMovementAllowed)
+        if (!Daedalus.Rotation.Roleplay.RoleplayActionPolicy.JobMovementAllowed(true, RotationServices.RoleplayActive))
+            return;
         if (RangedGcdAction is not { } rangedGcd)
             return;
         if (ActionAvailability.MeetsLevelAndLearned(player.Level, ActionService, rangedGcd))
