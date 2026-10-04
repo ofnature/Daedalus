@@ -79,6 +79,13 @@ public sealed class NavConfig
     public bool InteractForMechanics { get; set; } = true;
 
     /// <summary>
+    /// Press Sprint when Minerva says the way out of a mechanic is longer than walking covers before it lands
+    /// (<c>Minerva.Hints.WantSprint</c>). Eale's Arresting Gaze, 2026-10-03: 18.4y to cover in 2.9s, 17.4y walkable,
+    /// paralysed short. Minerva only. Default true.
+    /// </summary>
+    public bool SprintForDodges { get; set; } = true;
+
+    /// <summary>
     /// Pull the boss when nobody else will: with only Trust or Duty Support NPCs in the party, target the boss Minerva
     /// names (<c>Minerva.Hints.PullTarget</c>) and open on it from where the toon stands. Minerva only. Default true.
     /// </summary>

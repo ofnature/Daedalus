@@ -215,6 +215,7 @@ public sealed class Plugin : IDalamudPlugin
     private readonly Daedalus.Services.Consumables.TinctureDispatcher tinctureDispatcher;
     private readonly Daedalus.Services.Consumables.PhoenixDownService phoenixDownService;
     private readonly Daedalus.Services.Interaction.MechanicInteractService mechanicInteractService;
+    private readonly Daedalus.Services.Movement.DodgeSprintService dodgeSprintService;
     private readonly Daedalus.Services.Pull.BossPullService bossPullService;
     private readonly Daedalus.Services.Consumables.EtherService etherService;
 
@@ -905,6 +906,13 @@ public sealed class Plugin : IDalamudPlugin
         {
             RequestHold = seconds => this.minervaSafetyService.RequestHold(seconds),
         };
+
+        // Sprint out of what walking cannot clear in time, as Minerva's dodge asks; the button is ours.
+        this.dodgeSprintService = new Daedalus.Services.Movement.DodgeSprintService(
+            () => configuration.Nav.SprintForDodges && configuration.BossHandling == Daedalus.Config.BossHandling.Minerva,
+            () => this.minervaSafetyService.WantSprint,
+            () => condition[Dalamud.Game.ClientState.Conditions.ConditionFlag.Mounted],
+            log);
 
         // The boss nobody else will pull (only Trust or Duty Support NPCs in the party), as Minerva names it: targeted
         // here, opened on by the rotation (BaseRotation, the boss-pull engage).
@@ -1972,6 +1980,7 @@ public sealed class Plugin : IDalamudPlugin
                 phoenixDownService.Update(objectTable.LocalPlayer, partyList);
                 etherService.Update(objectTable.LocalPlayer);
                 mechanicInteractService.Update(objectTable.LocalPlayer);
+                dodgeSprintService.Update(objectTable.LocalPlayer);
                 bossPullService.Update(objectTable.LocalPlayer);
             }
 

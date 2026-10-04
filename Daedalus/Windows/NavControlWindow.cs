@@ -102,6 +102,16 @@ public sealed class NavControlWindow : Window
             nav.InteractForMechanics = interact;
         }
 
+        var sprint = nav.SprintForDodges;
+        if (ConfigUIHelpers.ToggleCheckbox(
+                "Sprint for Dodges",
+                ref sprint,
+                "Press Sprint when Minerva says the way out of a mechanic is longer than you can walk before it lands. Minerva only.",
+                saveConfiguration))
+        {
+            nav.SprintForDodges = sprint;
+        }
+
         var pull = nav.PullWhenNobodyElseWill;
         if (ConfigUIHelpers.ToggleCheckbox(
                 "Pull When Nobody Else Will",

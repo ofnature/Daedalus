@@ -166,6 +166,11 @@ public sealed class MinervaSafetyService : IBossModSafetyService
     private ICallGateSubscriber<ulong[]>? _priorityTargets;
 
     private ICallGateSubscriber<ulong>? _interactTarget;
+    private ICallGateSubscriber<bool>? _wantSprint;
+
+    /// <summary>The dodge's way out is longer than walking covers before the ground fires (<c>Minerva.Hints.WantSprint</c>):
+    /// press Sprint. False when Minerva is absent or throws.</summary>
+    public bool WantSprint => ReadBool(ref _wantSprint, "Minerva.Hints.WantSprint");
     private ICallGateSubscriber<ulong>? _pullTarget;
 
     /// <summary>

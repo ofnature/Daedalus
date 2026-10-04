@@ -3,6 +3,15 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.93 — 2026-10-03
+
+### Automation — Sprint out of what you cannot walk out of in time
+- **Minerva now says when a dodge needs Sprint**: the way out is longer than walking covers before the mechanic lands.
+  Daedalus presses Sprint then (Nav: **Sprint for Dodges**, on by default, Minerva only). In Eale's Arresting Gaze the
+  way out was 18.4y with 2.9s left; walking covers 17.4y and the character was paralysed a yalm and a half short,
+  sprinting only half a second before the hit. Sprint at the start covers about 22y.
+
+<!-- LATEST-END -->
 ## v0.1.92 — 2026-10-01
 
 ### Fix — Beastmaster settings no longer pop the Bestiary open
@@ -15,7 +24,6 @@ All notable changes to Daedalus will be documented in this file.
   role-play layer now presses what Minerva names in or out of combat. Minerva names actions only inside a quest duty,
   so nothing else changes.
 
-<!-- LATEST-END -->
 ## v0.1.91 — 2026-09-30
 
 ### Fix — your job stops walking you around while you play someone else
