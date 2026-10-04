@@ -3,7 +3,7 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
-## v0.1.93 — 2026-10-03
+## v0.1.93 — 2026-10-04
 
 ### Automation — Sprint out of what you cannot walk out of in time
 - **Minerva now says when a dodge needs Sprint**: the way out is longer than walking covers before the mechanic lands.
