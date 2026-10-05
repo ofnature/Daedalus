@@ -3,7 +3,7 @@
   <PropertyGroup>
     <AssemblyName>Daedalus</AssemblyName>
     <RootNamespace>Daedalus</RootNamespace>
-    <Version>0.1.93</Version>
+    <Version>0.1.94</Version>
     <DalamudLibPath>$(AppData)\XIVLauncher\addon\Hooks\dev\</DalamudLibPath>
   </PropertyGroup>
 
