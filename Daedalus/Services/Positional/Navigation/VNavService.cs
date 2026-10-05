@@ -8,37 +8,111 @@ using Dalamud.Plugin.Services;
 namespace Daedalus.Services.Positional.Navigation;
 
 /// <summary>
-/// vnavmesh IPC adapter. Fail-open when the plugin or navmesh is unavailable.
+/// Navmesh IPC adapter: vnavmesh, or Ariadne (a vnavmesh fork with the same call shapes under
+/// <c>Ariadne.*</c>), chosen in Settings ▸ General ▸ Boss handling ▸ Navmesh plugin. Fail-open when the
+/// plugin or navmesh is unavailable.
+/// <para>
+/// Only the calls that MOVE the character follow the choice. The floor query stays on the
+/// <c>vnavmesh.*</c> name, answered by vnavmesh when it is loaded and by Ariadne's compatibility gates
+/// when it is not: it moves nothing, and Ariadne's own version returns a task rather than an answer,
+/// which a per-frame floor check cannot wait on.
+/// </para>
 /// </summary>
 public sealed class VNavService : IVNavService
 {
-    private const string PluginInternalName = "vnavmesh";
     private const float DefaultFloorQueryHalfExtent = 1f;
 
     private readonly IDalamudPluginInterface _pluginInterface;
     private readonly IPluginLog? _log;
+    private readonly Func<Daedalus.Config.NavmeshPlugin> _choice;
 
-    private ICallGateSubscriber<bool>? _navIsReady;
-    private ICallGateSubscriber<bool>? _pathIsRunning;
-    private ICallGateSubscriber<bool>? _pathfindInProgress;
-    private ICallGateSubscriber<Vector3, bool, bool>? _pathfindAndMoveTo;
-    private ICallGateSubscriber<Vector3, bool, float, bool>? _pathfindAndMoveCloseTo;
-    private ICallGateSubscriber<object>? _pathStop;
+    /// <summary>One plugin's movement gates.</summary>
+    private sealed class Gates
+    {
+        public ICallGateSubscriber<bool>? NavIsReady;
+        public ICallGateSubscriber<bool>? PathIsRunning;
+        public ICallGateSubscriber<bool>? PathfindInProgress;
+        public ICallGateSubscriber<Vector3, bool, bool>? PathfindAndMoveTo;
+        public ICallGateSubscriber<Vector3, bool, float, bool>? PathfindAndMoveCloseTo;
+        public ICallGateSubscriber<object>? PathStop;
+    }
+
+    private readonly System.Collections.Generic.Dictionary<string, Gates> _gates = new();
     private ICallGateSubscriber<Vector3, bool, float, Vector3?>? _queryPointOnFloor;
 
-    public VNavService(IDalamudPluginInterface pluginInterface, IPluginLog? log = null)
+    // The plugin that was driving when this service last started a move, so a switch mid-path still
+    // stops the walk the old one is running.
+    private string? _lastMover;
+
+    /// <summary>The plugin driving movement right now, for the readouts. Static: the settings page reads it.</summary>
+    public static string ActivePlugin { get; private set; } = Daedalus.Config.NavmeshPluginChoice.VnavmeshName;
+
+    public VNavService(IDalamudPluginInterface pluginInterface, IPluginLog? log = null,
+        Func<Daedalus.Config.NavmeshPlugin>? choice = null)
     {
         _pluginInterface = pluginInterface;
         _log = log;
+        _choice = choice ?? (() => Daedalus.Config.NavmeshPlugin.Vnavmesh);
     }
 
-    public bool IsAvailable => IsPluginLoaded(PluginInternalName);
+    /// <summary>The plugin to drive this call, by the setting.</summary>
+    private string Mover
+    {
+        get
+        {
+            var name = Daedalus.Config.NavmeshPluginChoice.Resolve(_choice(), AriadneLoaded);
+            ActivePlugin = name;
+            return name;
+        }
+    }
 
-    public bool IsNavReady => TryInvoke(() => _navIsReady?.InvokeFunc() ?? false);
+    // "Is Ariadne loaded" walks the installed-plugin list; movement asks several times a frame, and
+    // a plugin loading or unloading is not a per-frame event.
+    private bool _ariadneLoaded;
+    private long _ariadneCheckedAt = long.MinValue;
 
-    public bool IsPathRunning => TryInvoke(() => _pathIsRunning?.InvokeFunc() ?? false);
+    private bool AriadneLoaded
+    {
+        get
+        {
+            var now = Environment.TickCount64;
+            if (now - _ariadneCheckedAt >= 1000)
+            {
+                _ariadneLoaded = IsPluginLoaded(Daedalus.Config.NavmeshPluginChoice.AriadneName);
+                _ariadneCheckedAt = now;
+            }
+            return _ariadneLoaded;
+        }
+    }
 
-    public bool IsPathfindInProgress => TryInvoke(() => _pathfindInProgress?.InvokeFunc() ?? false);
+    private Gates GatesFor(string plugin)
+    {
+        if (!_gates.TryGetValue(plugin, out var g))
+        {
+            var p = plugin + ".";
+            g = new Gates
+            {
+                NavIsReady = _pluginInterface.GetIpcSubscriber<bool>(p + "Nav.IsReady"),
+                PathIsRunning = _pluginInterface.GetIpcSubscriber<bool>(p + "Path.IsRunning"),
+                PathfindInProgress = _pluginInterface.GetIpcSubscriber<bool>(p + "SimpleMove.PathfindInProgress"),
+                PathfindAndMoveTo = _pluginInterface.GetIpcSubscriber<Vector3, bool, bool>(p + "SimpleMove.PathfindAndMoveTo"),
+                PathfindAndMoveCloseTo = _pluginInterface.GetIpcSubscriber<Vector3, bool, float, bool>(p + "SimpleMove.PathfindAndMoveCloseTo"),
+                PathStop = _pluginInterface.GetIpcSubscriber<object>(p + "Path.Stop"),
+            };
+            _gates[plugin] = g;
+        }
+        return g;
+    }
+
+    private Gates Current => GatesFor(Mover);
+
+    public bool IsAvailable => IsPluginLoaded(Mover);
+
+    public bool IsNavReady => TryInvoke(() => Current.NavIsReady?.InvokeFunc() ?? false);
+
+    public bool IsPathRunning => TryInvoke(() => Current.PathIsRunning?.InvokeFunc() ?? false);
+
+    public bool IsPathfindInProgress => TryInvoke(() => Current.PathfindInProgress?.InvokeFunc() ?? false);
 
     public VNavMoveResult PathfindAndMoveTo(Vector3 destination, bool fly = false)
     {
@@ -48,11 +122,11 @@ public sealed class VNavService : IVNavService
         if (!IsNavReady)
             return VNavMoveResult.NavmeshNotReady;
 
-        EnsureSubscribers();
+        _lastMover = Mover;
 
         try
         {
-            return _pathfindAndMoveTo?.InvokeFunc(destination, fly) == true
+            return Current.PathfindAndMoveTo?.InvokeFunc(destination, fly) == true
                 ? VNavMoveResult.Queued
                 : VNavMoveResult.Busy;
         }
@@ -71,11 +145,11 @@ public sealed class VNavService : IVNavService
         if (!IsNavReady)
             return VNavMoveResult.NavmeshNotReady;
 
-        EnsureSubscribers();
+        _lastMover = Mover;
 
         try
         {
-            return _pathfindAndMoveCloseTo?.InvokeFunc(destination, fly, toleranceYalms) == true
+            return Current.PathfindAndMoveCloseTo?.InvokeFunc(destination, fly, toleranceYalms) == true
                 ? VNavMoveResult.Queued
                 : VNavMoveResult.Busy;
         }
@@ -91,16 +165,19 @@ public sealed class VNavService : IVNavService
 
     public void Stop()
     {
+        // The plugin that started the walk, if the setting changed since — then the current one.
+        if (_lastMover is { } last && last != Mover && IsPluginLoaded(last))
+            TryInvoke(() => GatesFor(last).PathStop?.InvokeAction());
+
         if (!IsAvailable)
             return;
 
-        EnsureSubscribers();
-        TryInvoke(() => _pathStop?.InvokeAction());
+        TryInvoke(() => Current.PathStop?.InvokeAction());
     }
 
     public Vector3 SnapToFloor(Vector3 position)
     {
-        if (!IsAvailable)
+        if (!IsFloorQueryAvailable)
             return position;
 
         EnsureSubscribers();
@@ -120,7 +197,7 @@ public sealed class VNavService : IVNavService
     public bool TryGetFloorPoint(Vector3 position, out Vector3 floor)
     {
         floor = position;
-        if (!IsAvailable)
+        if (!IsFloorQueryAvailable)
             return false;
 
         EnsureSubscribers();
@@ -141,14 +218,13 @@ public sealed class VNavService : IVNavService
         }
     }
 
+    /// <summary>The <c>vnavmesh.*</c> floor query has an answerer: vnavmesh, or Ariadne's compatibility gates.</summary>
+    private bool IsFloorQueryAvailable =>
+        IsPluginLoaded(Daedalus.Config.NavmeshPluginChoice.VnavmeshName)
+        || IsPluginLoaded(Daedalus.Config.NavmeshPluginChoice.AriadneName);
+
     private void EnsureSubscribers()
     {
-        _navIsReady ??= _pluginInterface.GetIpcSubscriber<bool>("vnavmesh.Nav.IsReady");
-        _pathIsRunning ??= _pluginInterface.GetIpcSubscriber<bool>("vnavmesh.Path.IsRunning");
-        _pathfindInProgress ??= _pluginInterface.GetIpcSubscriber<bool>("vnavmesh.SimpleMove.PathfindInProgress");
-        _pathfindAndMoveTo ??= _pluginInterface.GetIpcSubscriber<Vector3, bool, bool>("vnavmesh.SimpleMove.PathfindAndMoveTo");
-        _pathfindAndMoveCloseTo ??= _pluginInterface.GetIpcSubscriber<Vector3, bool, float, bool>("vnavmesh.SimpleMove.PathfindAndMoveCloseTo");
-        _pathStop ??= _pluginInterface.GetIpcSubscriber<object>("vnavmesh.Path.Stop");
         _queryPointOnFloor ??= _pluginInterface.GetIpcSubscriber<Vector3, bool, float, Vector3?>("vnavmesh.Query.Mesh.PointOnFloor");
     }
 

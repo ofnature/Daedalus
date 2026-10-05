@@ -3,6 +3,16 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.95 — 2026-10-05
+
+### Settings — pick the navmesh plugin Daedalus moves through
+- **Settings ▸ General ▸ Boss handling ▸ Navmesh plugin**: Auto (Ariadne when it is loaded, otherwise vnavmesh),
+  Ariadne, or vnavmesh. Daedalus always moved through vnavmesh; with Ariadne loaded as well, Minerva walked the
+  character through Ariadne while Daedalus drove vnavmesh, both took over movement, and a walk "ran" for nearly a
+  minute while the character stood still and cast nothing. Auto now picks the same plugin Minerva does. The Debug
+  window's vNav line says which plugin is in use.
+
+<!-- LATEST-END -->
 ## v0.1.94 — 2026-10-04
 
 ### Fix — Astrologian's healing lockout no longer stops all healing
@@ -18,7 +28,6 @@ All notable changes to Daedalus will be documented in this file.
   mechanics engine by default; or BossMod Reborn AI, Minerva, or vnavmesh only. The Debug window's Current State
   shows which plugin is polled and whether it says it is steering.
 
-<!-- LATEST-END -->
 ## v0.1.93 — 2026-10-04
 
 ### Automation — Sprint out of what you cannot walk out of in time

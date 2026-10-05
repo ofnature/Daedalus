@@ -96,6 +96,29 @@ public sealed class GeneralSection
     /// Which plugin is polled for "something is moving the character". Written before save — save is
     /// what hands the value to the rotations' config copy.
     /// </summary>
+    private static readonly string[] NavmeshPluginLabels = ["Auto (Ariadne first)", "Ariadne", "vnavmesh"];
+
+    /// <summary>Which navmesh plugin Daedalus's own movement goes through. Set before save.</summary>
+    private void DrawNavmeshPlugin()
+    {
+        ConfigUIHelpers.Spacing();
+        var index = (int)config.Nav.NavmeshPlugin;
+        if (index < 0 || index >= NavmeshPluginLabels.Length)
+            index = 0;
+        ImGui.SetNextItemWidth(220);
+        if (ImGui.Combo("Navmesh plugin", ref index, NavmeshPluginLabels, NavmeshPluginLabels.Length))
+        {
+            config.Nav.NavmeshPlugin = (Daedalus.Config.NavmeshPlugin)index;
+            save();
+        }
+        ImGui.TextDisabled(
+            $"The plugin Daedalus's own movement goes through (walk-ins, positional hops, raise walks). In use: "
+            + $"{Daedalus.Services.Positional.Navigation.VNavService.ActivePlugin}. Pick the same one as Minerva's "
+            + "\"Navmesh plugin\": Ariadne and vnavmesh both take over movement, and two plugins each driving a "
+            + "different one leave a walk \"running\" while the character stands still. Unloading the one you "
+            + "don't use is the cleanest fix.");
+    }
+
     private void DrawMovementPolling()
     {
         ConfigUIHelpers.Spacing();
@@ -163,6 +186,7 @@ public sealed class GeneralSection
         }
 
         DrawMovementPolling();
+        DrawNavmeshPlugin();
 
         // BossMod Reborn's AI preset is managed only while it is the engine: under Minerva the service is handed
         // an inactive engine and does nothing, so showing the toggle there would offer a switch wired to nothing.

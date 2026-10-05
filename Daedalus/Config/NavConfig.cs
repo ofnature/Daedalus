@@ -55,6 +55,12 @@ public sealed class NavConfig
     public bool YieldToBmrMovement { get; set; } = true;
 
     /// <summary>
+    /// Which navmesh plugin carries out Daedalus's own movement (see <see cref="Config.NavmeshPlugin"/>).
+    /// Auto prefers Ariadne, as Minerva does, so the two drive the same plugin by default.
+    /// </summary>
+    public NavmeshPlugin NavmeshPlugin { get; set; } = NavmeshPlugin.Auto;
+
+    /// <summary>
     /// Hold the boss engine's movement while the player has a cast bar up (and no danger lands before the
     /// cast finishes). Fixes the walk-in loop: a toon outside its stand distance but inside spell range
     /// would start a cast, the engine would step, the cast died — repeating all the way in. With the hold,

@@ -409,7 +409,7 @@ public sealed class Plugin : IDalamudPlugin
 
         // Melee DPS services
         this.positionalService = new PositionalService();
-        this.vNavService = new VNavService(pluginInterface, log);
+        this.vNavService = new VNavService(pluginInterface, log, () => configuration.Nav.NavmeshPlugin);
         // Boss handling: one engine drives, chosen in Settings > General. The router is what
         // every consumer sees, so adding Minerva did not mean editing eight call sites — and no
         // call site can end up talking to the plugin that is not in charge.

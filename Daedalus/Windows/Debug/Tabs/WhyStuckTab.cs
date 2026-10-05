@@ -172,7 +172,8 @@ public static class WhyStuckTab
         // vNav movement state — distinguishes "stalled while standing" from "stalled while AutoDuty moves".
         var moving = rotation.VNavState.StartsWith("Pathing", StringComparison.Ordinal)
             || rotation.VNavState.StartsWith("Finding", StringComparison.Ordinal);
-        ImGui.TextColored(moving ? DebugColors.Warning : DebugColors.Dim, $"vNav: {rotation.VNavState}");
+        ImGui.TextColored(moving ? DebugColors.Warning : DebugColors.Dim,
+            $"vNav: {rotation.VNavState} (via {Daedalus.Services.Positional.Navigation.VNavService.ActivePlugin})");
 
         // Whose "is something moving the character" answer Daedalus is reading (Settings > General >
         // Boss handling), and what it says — a steering flag stuck on holds Daedalus's own movement.
