@@ -140,6 +140,12 @@ public sealed class Configuration : IPluginConfiguration
     public Config.BossHandling BossHandling { get; set; } = Config.BossHandling.BossMod;
 
     /// <summary>
+    /// Which plugin Daedalus polls for "is something moving the character right now". Follows
+    /// <see cref="BossHandling"/> by default; see <see cref="Config.MovementPolling"/>.
+    /// </summary>
+    public Config.MovementPolling MovementPolling { get; set; } = Config.MovementPolling.MechanicsEngine;
+
+    /// <summary>
     /// The currently active configuration preset.
     /// Set to Custom when user modifies individual settings after applying a preset.
     /// </summary>

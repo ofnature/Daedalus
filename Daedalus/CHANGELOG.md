@@ -3,6 +3,22 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.94 — 2026-10-04
+
+### Fix — Astrologian's healing lockout no longer stops all healing
+- **"Healing lockout" held every heal**, including Stellar Detonation and Microcosmos, the very releases it was
+  waiting for, and it also fired on Divining (Oracle ready, up to 30 seconds). It now holds only the GCD heals while
+  Macrocosmos or a mature Earthly Star is up; detonations, oGCD heals, Esuna and Doom top-offs still go out.
+- Healers' damage readout now says **why** a hard cast is held (moving, this spot isn't safe, or a raidwide/buster
+  due) instead of just "mechanic imminent".
+
+### Settings — choose which plugin is polled for movement
+- **Settings ▸ General ▸ Boss handling ▸ Movement polled from**: the plugin Daedalus asks "is something moving the
+  character right now?" — while it says yes, Daedalus's own movement stands down and dashes wait. Same as the
+  mechanics engine by default; or BossMod Reborn AI, Minerva, or vnavmesh only. The Debug window's Current State
+  shows which plugin is polled and whether it says it is steering.
+
+<!-- LATEST-END -->
 ## v0.1.93 — 2026-10-04
 
 ### Automation — Sprint out of what you cannot walk out of in time
@@ -11,7 +27,6 @@ All notable changes to Daedalus will be documented in this file.
   way out was 18.4y with 2.9s left; walking covers 17.4y and the character was paralysed a yalm and a half short,
   sprinting only half a second before the hit. Sprint at the start covers about 22y.
 
-<!-- LATEST-END -->
 ## v0.1.92 — 2026-10-01
 
 ### Fix — Beastmaster settings no longer pop the Bestiary open

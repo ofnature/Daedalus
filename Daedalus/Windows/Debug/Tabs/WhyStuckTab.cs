@@ -174,6 +174,16 @@ public static class WhyStuckTab
             || rotation.VNavState.StartsWith("Finding", StringComparison.Ordinal);
         ImGui.TextColored(moving ? DebugColors.Warning : DebugColors.Dim, $"vNav: {rotation.VNavState}");
 
+        // Whose "is something moving the character" answer Daedalus is reading (Settings > General >
+        // Boss handling), and what it says — a steering flag stuck on holds Daedalus's own movement.
+        if (Daedalus.Rotation.Base.RotationServices.BossModSafety
+            is Daedalus.Services.Positional.Navigation.BossHandlingRouter router)
+        {
+            var steering = router.IsBmrNavigating;
+            ImGui.TextColored(steering ? DebugColors.Warning : DebugColors.Dim,
+                $"Movement polled from {router.MovementPolledFrom}: {(steering ? "steering" : "not steering")}");
+        }
+
         // External-automation bridge (Questionable/Henchman/AutoDuty): shows whether the override is
         // held and whether the engage-on-hard-target substitute for InCombat is currently active.
         if (!string.IsNullOrEmpty(rotation.AutomationState))

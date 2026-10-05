@@ -84,6 +84,48 @@ public sealed class GeneralSection
     /// Which plugin handles boss mechanics. One engine drives — see the type's own note on why
     /// this is a choice rather than two toggles.
     /// </summary>
+    private static readonly string[] MovementPollingLabels =
+    [
+        "Same as mechanics engine",
+        "BossMod Reborn AI",
+        "Minerva",
+        "vnavmesh only (no engine)",
+    ];
+
+    /// <summary>
+    /// Which plugin is polled for "something is moving the character". Written before save — save is
+    /// what hands the value to the rotations' config copy.
+    /// </summary>
+    private void DrawMovementPolling()
+    {
+        ConfigUIHelpers.Spacing();
+        var index = (int)config.MovementPolling;
+        if (index < 0 || index >= MovementPollingLabels.Length)
+            index = 0;
+        ImGui.SetNextItemWidth(220);
+        if (ImGui.Combo("Movement polled from", ref index, MovementPollingLabels, MovementPollingLabels.Length))
+        {
+            config.MovementPolling = (Daedalus.Config.MovementPolling)index;
+            save();
+        }
+        ImGui.TextDisabled(
+            "The plugin Daedalus asks \"is something moving the character right now?\" While it says yes, "
+            + "Daedalus's own movement (walk-ins, positional hops) stands down and dashes wait. Normally the "
+            + "same plugin as the mechanics engine.");
+
+        var engineIsMinerva = config.BossHandling == Daedalus.Config.BossHandling.Minerva;
+        var mismatch = config.MovementPolling switch
+        {
+            Daedalus.Config.MovementPolling.BossMod => engineIsMinerva,
+            Daedalus.Config.MovementPolling.Minerva => !engineIsMinerva,
+            _ => false,
+        };
+        if (mismatch)
+            ConfigUIHelpers.WarningText(
+                "This is a different plugin from the mechanics engine. Only do this if that plugin really is "
+                + "the one moving the character; two plugins steering one character fight each other.");
+    }
+
     private void DrawBossHandlingSection()
     {
         if (!ConfigUIHelpers.SectionHeader("Boss handling", "BossHandling", false))
@@ -119,6 +161,8 @@ public sealed class GeneralSection
                     + "casts and raises are gated on that rather than on a pathfinder's leeway.");
                 break;
         }
+
+        DrawMovementPolling();
 
         // BossMod Reborn's AI preset is managed only while it is the engine: under Minerva the service is handed
         // an inactive engine and does nothing, so showing the toggle there would offer a switch wired to nothing.

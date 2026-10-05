@@ -420,7 +420,7 @@ public sealed class Plugin : IDalamudPlugin
         // retry both ask PlayerSafetyHelper, so they learn it from here without either being changed.
         Daedalus.Rotation.Common.Helpers.PlayerSafetyHelper.ExternalLookAway = minervaEngine.MustNotTurnReader();
         this.bossModSafetyService = new BossHandlingRouter(
-            bossModEngine, minervaEngine, () => configuration.BossHandling);
+            bossModEngine, minervaEngine, () => configuration.BossHandling, () => configuration.MovementPolling);
         // Onslaught during a dodge dashes the character back into the AOE; the router says who is steering.
         this.gapCloserSafetyService.ExternalSteering = () => this.bossModSafetyService.IsBmrNavigating;
         // ... and a dash must not be started on ground that stops being safe before the dash ends.

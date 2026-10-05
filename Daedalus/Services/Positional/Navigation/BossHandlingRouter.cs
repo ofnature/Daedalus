@@ -22,14 +22,42 @@ public sealed class BossHandlingRouter : IBossModSafetyService
     private readonly IBossModSafetyService _bossMod;
     private readonly IBossModSafetyService _minerva;
     private readonly Func<BossHandling> _selection;
+    private readonly Func<MovementPolling> _movementSelection;
 
+    /// <param name="movementSelection">
+    /// Which plugin the "is something steering the character" reads go to (Settings ▸ General ▸
+    /// Boss handling). Null means follow the mechanics engine.
+    /// </param>
     public BossHandlingRouter(
-        IBossModSafetyService bossMod, IBossModSafetyService minerva, Func<BossHandling> selection)
+        IBossModSafetyService bossMod, IBossModSafetyService minerva, Func<BossHandling> selection,
+        Func<MovementPolling>? movementSelection = null)
     {
         _bossMod = bossMod;
         _minerva = minerva;
         _selection = selection;
+        _movementSelection = movementSelection ?? (() => MovementPolling.MechanicsEngine);
     }
+
+    /// <summary>
+    /// The plugin polled for movement, or null for vnavmesh only. Follows the mechanics engine unless
+    /// the user named one.
+    /// </summary>
+    private IBossModSafetyService? Mover => _movementSelection() switch
+    {
+        MovementPolling.BossMod => _bossMod,
+        MovementPolling.Minerva => _minerva,
+        MovementPolling.VnavmeshOnly => null,
+        _ => Active,
+    };
+
+    /// <summary>Which plugin the movement reads go to right now, for the readouts.</summary>
+    public string MovementPolledFrom => _movementSelection() switch
+    {
+        MovementPolling.BossMod => "BossMod Reborn AI",
+        MovementPolling.Minerva => "Minerva",
+        MovementPolling.VnavmeshOnly => "vnavmesh only",
+        _ => Selected == BossHandling.Minerva ? "Minerva (mechanics engine)" : "BossMod Reborn AI (mechanics engine)",
+    };
 
     /// <summary>Which engine is selected right now. Read per call — the user may switch mid-session.</summary>
     public BossHandling Selected => _selection();
@@ -61,9 +89,11 @@ public sealed class BossHandlingRouter : IBossModSafetyService
 
     public int ForbiddenZonesCount => Active.ForbiddenZonesCount;
 
-    public bool IsBmrNavigating => Active.IsBmrNavigating;
+    /// <summary>Movement read: goes to the polled plugin (<see cref="Mover"/>), not the mechanics engine.</summary>
+    public bool IsBmrNavigating => Mover?.IsBmrNavigating ?? false;
 
-    public Vector3? BmrNaviTarget => Active.BmrNaviTarget;
+    /// <inheritdoc cref="IsBmrNavigating"/>
+    public Vector3? BmrNaviTarget => Mover?.BmrNaviTarget;
 
     public ulong[] ForbiddenTargets => Active.ForbiddenTargets;
 
