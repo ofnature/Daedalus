@@ -129,7 +129,8 @@ public static class AstraeaCardHelper
     public static bool HasHealingLockout(IAstraeaContext context)
     {
         if (!context.Configuration.Astrologian.EnableHealingLockout) return false;
-        if (context.HasDivining) return true;
+        // Not Divining: it only means Oracle is ready (an oGCD that weaves anyway), and as a lockout
+        // it held the GCD heals for up to its full 30 s.
         if (context.HasMacrocosmos) return true;
         if (context.IsStarMature) return true;
         return false;

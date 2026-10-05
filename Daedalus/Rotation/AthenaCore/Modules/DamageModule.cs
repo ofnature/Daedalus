@@ -211,7 +211,7 @@ public sealed class DamageModule : BaseDamageModule<IAthenaContext>, IAthenaModu
         }
 
         var dotCastTime = context.HasSwiftcast ? 0f : dotAction.CastTime;
-        if (MechanicCastGate.ShouldBlock(context, dotCastTime)) { SetDpsState(context, "DoT: mechanic imminent"); return; }
+        if (MechanicCastGate.ShouldBlock(context, dotCastTime)) { SetDpsState(context, "DoT: " + MechanicCastGate.FormatBlockedState(context, dotCastTime)); return; }
 
         var dotStatusId = GetDoTStatusId(context);
         if (dotStatusId == 0) return;
@@ -238,7 +238,7 @@ public sealed class DamageModule : BaseDamageModule<IAthenaContext>, IAthenaModu
         if (aoeAction == null) return;
 
         var aoeCastTime = context.HasSwiftcast ? 0f : aoeAction.CastTime;
-        if (MechanicCastGate.ShouldBlock(context, aoeCastTime)) { SetAoEDpsState(context, "Holding: mechanic imminent"); return; }
+        if (MechanicCastGate.ShouldBlock(context, aoeCastTime)) { SetAoEDpsState(context, MechanicCastGate.FormatBlockedState(context, aoeCastTime)); return; }
 
         var pack = context.TargetingService.CountEnemyPack(aoeAction.Radius, context.Player);
         SetAoEDpsEnemyCount(context, pack.AoeRange);
@@ -269,7 +269,7 @@ public sealed class DamageModule : BaseDamageModule<IAthenaContext>, IAthenaModu
 
         var action = GetSingleTargetAction(context, isMoving);
         var stCastTime = context.HasSwiftcast ? 0f : action.CastTime;
-        if (MechanicCastGate.ShouldBlock(context, stCastTime)) { SetDpsState(context, "Holding: mechanic imminent"); return; }
+        if (MechanicCastGate.ShouldBlock(context, stCastTime)) { SetDpsState(context, MechanicCastGate.FormatBlockedState(context, stCastTime)); return; }
 
         var target = context.TargetingService.FindEnemy(
             context.Configuration.Targeting.EnemyStrategy, action.Range, context.Player);

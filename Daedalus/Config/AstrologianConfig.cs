@@ -372,7 +372,8 @@ public sealed class AstrologianConfig
     }
 
     /// <summary>
-    /// Skip routine ST healing while Divining, Macrocosmos, or mature Earthly Star is active.
+    /// Hold the routine GCD heals while Macrocosmos or a mature Earthly Star is up — their own release
+    /// (Microcosmos, Stellar Detonation) does that healing. Never holds the releases or the oGCD heals.
     /// </summary>
     public bool EnableHealingLockout { get; set; } = true;
 

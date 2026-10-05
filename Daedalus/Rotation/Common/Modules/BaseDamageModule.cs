@@ -250,7 +250,7 @@ public abstract class BaseDamageModule<TContext> : IHealerRotationModule<TContex
         var dotCastTime = context.HasSwiftcast ? 0f : dotAction.CastTime;
         if (ShouldBlockCastForMechanic(context, dotCastTime))
         {
-            SetDpsState(context, "DoT: mechanic imminent");
+            SetDpsState(context, "DoT: " + MechanicCastGate.FormatBlockedState(context, dotCastTime));
             return false;
         }
 
@@ -303,7 +303,7 @@ public abstract class BaseDamageModule<TContext> : IHealerRotationModule<TContex
         var aoeCastTime = context.HasSwiftcast ? 0f : aoeAction.CastTime;
         if (ShouldBlockCastForMechanic(context, aoeCastTime))
         {
-            SetAoEDpsState(context, "Holding: mechanic imminent");
+            SetAoEDpsState(context, MechanicCastGate.FormatBlockedState(context, aoeCastTime));
             return false;
         }
 
@@ -359,7 +359,7 @@ public abstract class BaseDamageModule<TContext> : IHealerRotationModule<TContex
         var stCastTime = context.HasSwiftcast ? 0f : action.CastTime;
         if (ShouldBlockCastForMechanic(context, stCastTime))
         {
-            SetDpsState(context, "Holding: mechanic imminent");
+            SetDpsState(context, MechanicCastGate.FormatBlockedState(context, stCastTime));
             return false;
         }
 

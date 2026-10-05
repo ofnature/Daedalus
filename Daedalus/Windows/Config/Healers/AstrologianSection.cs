@@ -299,7 +299,7 @@ public sealed class AstrologianSection
 
             ConfigUIHelpers.Toggle("Healing Lockout During Burst States", () => config.Astrologian.EnableHealingLockout,
                 v => config.Astrologian.EnableHealingLockout = v,
-                "Pause routine heals during Divining, Macrocosmos, or mature Earthly Star.", save);
+                "Hold the GCD heals while Macrocosmos or a mature Earthly Star is up; their own release (Microcosmos, Stellar Detonation) does that healing. oGCD heals still go out.", save);
 
             ConfigUIHelpers.Spacing();
 
