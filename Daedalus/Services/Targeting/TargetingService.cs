@@ -227,6 +227,15 @@ public sealed class TargetingService : ITargetingService
         float refreshThreshold,
         float maxRange,
         IPlayerCharacter player)
+        => FindEnemyNeedingDot(dotStatusId, refreshThreshold, maxRange, player, 0f);
+
+    /// <inheritdoc/>
+    public IBattleNpc? FindEnemyNeedingDot(
+        uint dotStatusId,
+        float refreshThreshold,
+        float maxRange,
+        IPlayerCharacter player,
+        float minTimeToKillSeconds)
     {
         // Hard pause: player has no target — don't DoT anything.
         if (IsDamageTargetingPaused())
@@ -251,7 +260,7 @@ public sealed class TargetingService : ITargetingService
                 return null;
 
             // RSR TimeToKill parity: never spend a DoT on a target about to die.
-            if (DotTtkGate.ShouldSkip(_timeToKillService, _configuration.Targeting, explicitTarget.GameObjectId))
+            if (DotTtkGate.ShouldSkip(_timeToKillService, _configuration.Targeting, explicitTarget.GameObjectId, minTimeToKillSeconds))
                 return null;
 
             return GetDotDuration(explicitTarget, dotStatusId) < refreshThreshold ? explicitTarget : null;
@@ -268,15 +277,47 @@ public sealed class TargetingService : ITargetingService
             _ => FindEnemyByStrategy(EnemyTargetingStrategy.LowestHp, maxRange, player)
         };
 
-        if (strategyTarget == null)
-            return null;
-
         // RSR TimeToKill parity: never spend a DoT on a target about to die. Especially relevant
         // on the LowestHp default strategy, which otherwise prefers exactly the dying mobs.
-        if (DotTtkGate.ShouldSkip(_timeToKillService, _configuration.Targeting, strategyTarget.GameObjectId))
-            return null;
+        if (strategyTarget != null
+            && !DotTtkGate.ShouldSkip(_timeToKillService, _configuration.Targeting, strategyTarget.GameObjectId, minTimeToKillSeconds)
+            && GetDotDuration(strategyTarget, dotStatusId) < refreshThreshold)
+            return strategyTarget;
 
-        return GetDotDuration(strategyTarget, dotStatusId) < refreshThreshold ? strategyTarget : null;
+        // The strategy's pick is dying or already dotted: put the DoT on another enemy in the fight that
+        // still needs it and will live long enough (RSR parity — its DoTs go on any hostile that needs the
+        // status). Stopping at the strategy's pick left whole trash packs undotted: under Tank Assist the
+        // party burns the tank's target, its time-to-kill drops under the cutoff, and nothing else was
+        // considered (Saar, Astrologian, Holminster Switch, 2026-10-05). Only enemies attacking our side —
+        // never an unpulled mob, never a stranger's.
+        return FindDotSpreadTarget(dotStatusId, refreshThreshold, maxRange, player, strategyTarget, minTimeToKillSeconds);
+    }
+
+    /// <summary>
+    /// The enemy to spread a DoT to: attacking our side, missing the DoT (or about to lose it), not dying
+    /// within the DoT time-to-kill cutoff — the one expected to live longest.
+    /// </summary>
+    private IBattleNpc? FindDotSpreadTarget(
+        uint dotStatusId, float refreshThreshold, float maxRange, IPlayerCharacter player, IBattleNpc? exclude,
+        float minTimeToKillSeconds)
+    {
+        var ourSide = OurSide(player);
+        var byId = new System.Collections.Generic.Dictionary<ulong, IBattleNpc>();
+        var candidates = new System.Collections.Generic.List<DotSpreadCandidate>();
+        foreach (var enemy in GetValidEnemies(maxRange, player))
+        {
+            if (exclude != null && enemy.GameObjectId == exclude.GameObjectId)
+                continue;
+            byId[enemy.GameObjectId] = enemy;
+            candidates.Add(new DotSpreadCandidate(
+                enemy.GameObjectId,
+                EnemyEngagementPolicy.IsFightingOurSide(enemy, ourSide),
+                GetDotDuration(enemy, dotStatusId),
+                _timeToKillService?.GetTtkSeconds(enemy.GameObjectId) ?? float.MaxValue));
+        }
+
+        var cutoff = DotTtkGate.Cutoff(_timeToKillService, _configuration.Targeting, minTimeToKillSeconds);
+        return DotSpreadPolicy.Choose(candidates, refreshThreshold, cutoff) is { } id ? byId[id] : null;
     }
 
     /// <inheritdoc/>

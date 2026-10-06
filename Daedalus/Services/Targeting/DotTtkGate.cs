@@ -10,6 +10,24 @@ namespace Daedalus.Services.Targeting;
 /// </summary>
 public static class DotTtkGate
 {
+    /// <summary>
+    /// The cutoff to use: the configured one, raised to <paramref name="minTimeToKillSeconds"/> when a caller
+    /// needs the DoT to outlive more (a pack the AoE would hit instead). Null when nothing gates.
+    /// </summary>
+    public static float? Cutoff(ITimeToKillService? timeToKill, TargetingConfig config, float minTimeToKillSeconds = 0f)
+    {
+        if (timeToKill == null)
+            return null;
+        var configured = config.EnableDotTimeToKillCheck ? config.DotTimeToKillThresholdSeconds : 0f;
+        var cutoff = System.Math.Max(configured, minTimeToKillSeconds);
+        return cutoff > 0f ? cutoff : null;
+    }
+
+    public static bool ShouldSkip(ITimeToKillService? timeToKill, TargetingConfig config, ulong targetGameObjectId,
+        float minTimeToKillSeconds)
+        => Cutoff(timeToKill, config, minTimeToKillSeconds) is { } cutoff
+           && timeToKill!.GetTtkSeconds(targetGameObjectId) < cutoff;
+
     public static bool ShouldSkip(ITimeToKillService? timeToKill, TargetingConfig config, ulong targetGameObjectId)
     {
         if (timeToKill == null || !config.EnableDotTimeToKillCheck)

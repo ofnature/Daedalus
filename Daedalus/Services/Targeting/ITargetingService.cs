@@ -19,6 +19,14 @@ public interface ITargetingService
     IBattleNpc? FindEnemyNeedingDot(uint dotStatusId, float refreshThreshold, float maxRange, IPlayerCharacter player);
 
     /// <summary>
+    /// As above, but only for an enemy expected to live at least <paramref name="minTimeToKillSeconds"/> — in a
+    /// pack an AoE GCD competes with the DoT, and the DoT only wins on a mob that lives long enough. An unknown
+    /// time-to-kill still passes.
+    /// </summary>
+    IBattleNpc? FindEnemyNeedingDot(uint dotStatusId, float refreshThreshold, float maxRange, IPlayerCharacter player,
+        float minTimeToKillSeconds);
+
+    /// <summary>
     /// Longest remaining time for any of <paramref name="statusIds"/> on in-range enemies.
     /// </summary>
     float GetBestStatusRemainingOnAnyEnemy(uint[] statusIds, float maxRange, IPlayerCharacter player);

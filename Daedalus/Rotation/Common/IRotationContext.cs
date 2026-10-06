@@ -122,11 +122,11 @@ public interface IRotationContext
     ITimelineService? TimelineService { get; }
 
     /// <summary>
-    /// Optional enemy time-to-kill estimator. Defaults to null; a job opts in by
-    /// overriding this in its context (pilot: Themis/PLD). Additive default member
-    /// so existing contexts compile unchanged.
+    /// Enemy time-to-kill estimator: the plugin-wide one Plugin samples every frame. It used to default to
+    /// null with only Themis/PLD opting in, so Beastmaster's auto-capture — which reads it — always saw "no
+    /// estimate" and never fired (found 2026-10-05).
     /// </summary>
-    ITimeToKillService? TimeToKillService => null;
+    ITimeToKillService? TimeToKillService => Daedalus.Rotation.Base.RotationServices.TimeToKill;
 
     #endregion
 

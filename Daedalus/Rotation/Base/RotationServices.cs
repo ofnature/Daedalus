@@ -23,6 +23,12 @@ public static class RotationServices
     public static IBossModSafetyService? BossModSafety { get; set; }
 
     /// <summary>
+    /// The enemy time-to-kill estimate, sampled every frame by Plugin. Every rotation context reads it
+    /// (<see cref="Daedalus.Rotation.Common.IRotationContext.TimeToKillService"/>).
+    /// </summary>
+    public static Daedalus.Services.Combat.ITimeToKillService? TimeToKill { get; set; }
+
+    /// <summary>
     /// Occult Crescent phantom duty-action layer — runs after every job's modules
     /// (BaseRotation.ExecuteInternal), inert outside the zone.
     /// </summary>
