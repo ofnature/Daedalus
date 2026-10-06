@@ -34,8 +34,12 @@ public class HealingLockoutTests
     [Fact]
     public void MacrocosmosLocksOut() => Assert.True(AstraeaCardHelper.HasHealingLockout(Context(macro: true)));
 
+    /// <summary>
+    /// Not a mature star (2026-10-05, the level-71 audit): Stellar Detonation waits for the party to need it,
+    /// so a tank at 15% with everyone else full got no GCD heal until the star expired.
+    /// </summary>
     [Fact]
-    public void AMatureStarLocksOut() => Assert.True(AstraeaCardHelper.HasHealingLockout(Context(star: true)));
+    public void AMatureStarDoesNotLockOut() => Assert.False(AstraeaCardHelper.HasHealingLockout(Context(star: true)));
 
     [Fact]
     public void TheSettingTurnsItOff() => Assert.False(AstraeaCardHelper.HasHealingLockout(Context(macro: true, enabled: false)));

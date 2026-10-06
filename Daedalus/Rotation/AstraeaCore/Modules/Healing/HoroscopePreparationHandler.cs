@@ -1,3 +1,4 @@
+using Daedalus.Services.Action;
 using System;
 using Daedalus.Config;
 using Daedalus.Data;
@@ -30,7 +31,7 @@ public sealed class HoroscopePreparationHandler : IHealingHandler
         var player = context.Player;
 
         if (!config.EnableHoroscope || !config.AutoCastHoroscope) return;
-        if (player.Level < ASTActions.Horoscope.MinLevel) return;
+        if (!ActionAvailability.MeetsLevelAndLearned(player.Level, context.ActionService, ASTActions.Horoscope)) return;
         if (context.HasHoroscope || context.HasHoroscopeHelios) return;
         if (!context.ActionService.IsActionReady(ASTActions.Horoscope.ActionId)) return;
 

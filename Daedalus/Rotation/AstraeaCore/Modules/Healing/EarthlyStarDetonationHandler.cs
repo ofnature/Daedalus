@@ -1,3 +1,4 @@
+using Daedalus.Services.Action;
 using System;
 using Daedalus.Config;
 using Daedalus.Data;
@@ -17,6 +18,12 @@ public sealed class EarthlyStarDetonationHandler : IHealingHandler
 
     public bool TryExecute(IAstraeaContext context, bool isMoving) => false;
 
+    /// <summary>
+    /// Injured count that detonates: the configured count, but never more than the party-size rule allows
+    /// (2 in a 4-man).
+    /// </summary>
+    internal static int MinInjuredToDetonate(int configured, int partyRule) => Math.Min(configured, partyRule);
+
     public void CollectCandidates(IAstraeaContext context, RotationScheduler scheduler, bool isMoving)
     {
         var config = context.Configuration.Astrologian;
@@ -24,11 +31,17 @@ public sealed class EarthlyStarDetonationHandler : IHealingHandler
 
         if (!config.EnableEarthlyStar) return;
         if (!context.IsStarPlaced) return;
-        if (player.Level < ASTActions.StellarDetonation.MinLevel) return;
+        if (!ActionAvailability.MeetsLevelAndLearned(player.Level, context.ActionService, ASTActions.StellarDetonation)) return;
         if (!context.ActionService.IsActionReady(ASTActions.StellarDetonation.ActionId)) return;
 
         var (avgHp, _, injured) = context.PartyHealthMetrics;
         bool isMature = context.IsStarMature;
+
+        // CLAUDE.md: never require 3 injured in 4-man content. Same party-size rule as the AoE heals.
+        var minInjured = MinInjuredToDetonate(
+            config.EarthlyStarMinTargets,
+            Daedalus.Rotation.Common.Helpers.AoEHealTargetHelper.GetEffectiveMinTargets(
+                context.Configuration.Healing, context.PartyHelper.GetPartySize(player)));
 
         var raidwideImminent = TimelineHelper.IsRaidwideImminent(
             context.TimelineService, context.BossMechanicDetector, context.Configuration, out _);
@@ -37,12 +50,12 @@ public sealed class EarthlyStarDetonationHandler : IHealingHandler
 
         if (isMature)
         {
-            if (avgHp <= config.EarthlyStarDetonateThreshold || injured >= config.EarthlyStarMinTargets || raidwideImminent)
+            if (avgHp <= config.EarthlyStarDetonateThreshold || injured >= minInjured || raidwideImminent)
                 shouldDetonate = true;
         }
         else if (!config.WaitForGiantDominance)
         {
-            if (avgHp <= config.EarthlyStarDetonateThreshold || injured >= config.EarthlyStarMinTargets || raidwideImminent)
+            if (avgHp <= config.EarthlyStarDetonateThreshold || injured >= minInjured || raidwideImminent)
                 shouldDetonate = true;
         }
         else

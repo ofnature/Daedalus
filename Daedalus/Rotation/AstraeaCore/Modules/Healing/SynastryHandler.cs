@@ -1,3 +1,4 @@
+using Daedalus.Services.Action;
 using System;
 using Daedalus.Config;
 using Daedalus.Data;
@@ -29,7 +30,7 @@ public sealed class SynastryHandler : IHealingHandler
         var player = context.Player;
 
         if (!config.EnableSynastry) return;
-        if (player.Level < ASTActions.Synastry.MinLevel) return;
+        if (!ActionAvailability.MeetsLevelAndLearned(player.Level, context.ActionService, ASTActions.Synastry)) return;
         if (!context.ActionService.IsActionReady(ASTActions.Synastry.ActionId)) return;
         if (context.HasSynastry) return;
 

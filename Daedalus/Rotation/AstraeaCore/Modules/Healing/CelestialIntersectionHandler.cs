@@ -1,3 +1,4 @@
+using Daedalus.Services.Action;
 using System;
 using Daedalus.Config;
 using Daedalus.Data;
@@ -29,7 +30,7 @@ public sealed class CelestialIntersectionHandler : IHealingHandler
         var player = context.Player;
 
         if (!config.EnableCelestialIntersection) return;
-        if (player.Level < ASTActions.CelestialIntersection.MinLevel) return;
+        if (!ActionAvailability.MeetsLevelAndLearned(player.Level, context.ActionService, ASTActions.CelestialIntersection)) return;
         if (!context.ActionService.IsActionReady(ASTActions.CelestialIntersection.ActionId)) return;
 
         var target = context.PartyHelper.FindLowestHpPartyMember(player);

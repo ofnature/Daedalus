@@ -127,6 +127,16 @@ public sealed class AstraeaStatusHelper : BaseStatusHelper
         return HasStatus(battleChara, ASTActions.AspectedBeneficStatusId);
     }
 
+    /// <summary>Aspected Helios or Helios Conjunction regen is on this character.</summary>
+    public bool HasAspectedHeliosRegen(IGameObject target)
+    {
+        if (target is not IBattleChara battleChara)
+            return false;
+
+        return HasStatus(battleChara, ASTActions.AspectedHeliosStatusId)
+               || HasStatus(battleChara, ASTActions.HeliosConjunctionStatusId);
+    }
+
     /// <summary>
     /// Gets the remaining duration of Aspected Benefic on a target.
     /// </summary>

@@ -1,3 +1,4 @@
+using Daedalus.Services.Action;
 using System;
 using Daedalus.Config;
 using Daedalus.Data;
@@ -30,7 +31,7 @@ public sealed class AspectedBeneficHandler : IHealingHandler
         var player = context.Player;
 
         if (!config.EnableAspectedBenefic) return;
-        if (player.Level < ASTActions.AspectedBenefic.MinLevel) return;
+        if (!ActionAvailability.MeetsLevelAndLearned(player.Level, context.ActionService, ASTActions.AspectedBenefic)) return;
 
         var target = context.PartyHelper.FindLowestHpPartyMember(player);
         if (target == null) return;

@@ -1,3 +1,4 @@
+using Daedalus.Services.Action;
 using System;
 using Daedalus.Config;
 using Daedalus.Data;
@@ -24,6 +25,18 @@ public sealed class EarthlyStarPlacementHandler : IHealingHandler
 
     public bool TryExecute(IAstraeaContext context, bool isMoving) => false;
 
+    /// <summary>Seconds for a placed star to mature into Giant Dominance (full strength).</summary>
+    public const float StarMatureSeconds = 10f;
+
+    /// <summary>
+    /// On cooldown: in combat with something to hit that will live long enough for the star to mature. The
+    /// star is free damage and healing every 60 s and detonates by itself when it expires, so a star kept for
+    /// a hurt party mostly never went down at all — but put under a pack about to die it spends the cooldown
+    /// on nothing. No estimate yet (a pull's first seconds, a boss) counts as long enough.
+    /// </summary>
+    internal static bool PlaceOnCooldown(bool enabled, bool inCombat, int engagedEnemies, float averageTtkSeconds)
+        => enabled && inCombat && engagedEnemies > 0 && averageTtkSeconds >= StarMatureSeconds;
+
     public void CollectCandidates(IAstraeaContext context, RotationScheduler scheduler, bool isMoving)
     {
         var config = context.Configuration.Astrologian;
@@ -31,7 +44,7 @@ public sealed class EarthlyStarPlacementHandler : IHealingHandler
 
         if (!config.EnableEarthlyStar) return;
         if (config.StarPlacement == EarthlyStarPlacementStrategy.Manual) return;
-        if (player.Level < ASTActions.EarthlyStar.MinLevel) return;
+        if (!ActionAvailability.MeetsLevelAndLearned(player.Level, context.ActionService, ASTActions.EarthlyStar)) return;
         if (context.IsStarPlaced) return;
         if (!context.ActionService.IsActionReady(ASTActions.EarthlyStar.ActionId)) return;
 
@@ -52,7 +65,10 @@ public sealed class EarthlyStarPlacementHandler : IHealingHandler
         if (!raidwideImminent && !burstImminent)
         {
             var (avgHp, _, _) = context.PartyHealthMetrics;
-            if (avgHp > config.EarthlyStarDetonateThreshold) return;
+            var onCooldown = PlaceOnCooldown(config.EarthlyStarOnCooldown, context.InCombat,
+                context.TargetingService.CountEngagedEnemies(ASTActions.EarthlyStar.Range, player),
+                context.TimeToKillService?.AverageTtk ?? float.MaxValue);
+            if (avgHp > config.EarthlyStarDetonateThreshold && !onCooldown) return;
         }
 
         var targetPosition = player.Position;

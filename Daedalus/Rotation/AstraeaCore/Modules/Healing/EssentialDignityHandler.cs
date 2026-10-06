@@ -1,3 +1,4 @@
+using Daedalus.Services.Action;
 using System;
 using Daedalus.Config;
 using Daedalus.Data;
@@ -24,21 +25,29 @@ public sealed class EssentialDignityHandler : IHealingHandler
 
     public bool TryExecute(IAstraeaContext context, bool isMoving) => false;
 
+    /// <summary>
+    /// Spare charge → the higher threshold; the last of two → the lower, banked one. Below level 78 there is
+    /// only ever one charge and nothing to bank, so it uses the higher threshold: the free heal goes out
+    /// before a GCD heal would (Aspected Benefic sits below it).
+    /// </summary>
+    internal static float ThresholdFor(uint currentCharges, uint maxCharges, float spare, float last)
+        => currentCharges > 1 || maxCharges <= 1 ? spare : last;
+
     public void CollectCandidates(IAstraeaContext context, RotationScheduler scheduler, bool isMoving)
     {
         var config = context.Configuration.Astrologian;
         var player = context.Player;
 
         if (!config.EnableEssentialDignity) return;
-        if (player.Level < ASTActions.EssentialDignity.MinLevel) return;
+        if (!ActionAvailability.MeetsLevelAndLearned(player.Level, context.ActionService, ASTActions.EssentialDignity)) return;
         if (!context.ActionService.IsActionReady(ASTActions.EssentialDignity.ActionId)) return;
 
         // Per-charge thresholds (RSR parity): spend a spare charge proactively (higher HP) but bank the
         // last charge for emergencies (lower HP). Essential Dignity caps at 2 charges, so "spare" = >1.
         var currentCharges = context.ActionService.GetCurrentCharges(ASTActions.EssentialDignity.ActionId);
-        var threshold = currentCharges > 1
-            ? config.EssentialDignitySpareChargeThreshold
-            : config.EssentialDignityThreshold;
+        var maxCharges = context.ActionService.GetMaxCharges(ASTActions.EssentialDignity.ActionId, player.Level);
+        var threshold = ThresholdFor(currentCharges, maxCharges,
+            config.EssentialDignitySpareChargeThreshold, config.EssentialDignityThreshold);
 
         var target = context.PartyHelper.FindEssentialDignityTarget(player, threshold);
         if (target == null) return;

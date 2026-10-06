@@ -1,3 +1,4 @@
+using Daedalus.Services.Action;
 using System;
 using Dalamud.Game.ClientState.Objects.Types;
 using Daedalus.Config;
@@ -99,7 +100,7 @@ public sealed class CardModule : IAstraeaModule
         var player = context.Player;
 
         if (!config.EnableAstrodyne) return;
-        if (player.Level < ASTActions.Astrodyne.MinLevel) return;
+        if (!ActionAvailability.MeetsLevelAndLearned(player.Level, context.ActionService, ASTActions.Astrodyne)) return;
         if (!context.CanUseAstrodyne) return;
         if (context.UniqueSealCount < config.AstrodyneMinSeals) return;
         if (!context.ActionService.IsActionReady(ASTActions.Astrodyne.ActionId)) return;
@@ -172,7 +173,7 @@ public sealed class CardModule : IAstraeaModule
     private void TryPushDraw(IAstraeaContext context, RotationScheduler scheduler)
     {
         var player = context.Player;
-        if (player.Level < ASTActions.AstralDraw.MinLevel) return;
+        if (!ActionAvailability.MeetsLevelAndLearned(player.Level, context.ActionService, ASTActions.AstralDraw)) return;
         if (!context.InCombat) return;
         if (context.HasCard && !AstraeaCardHelper.ShouldExpireBeforeDraw(context)
             && !context.Configuration.Astrologian.DumpCardsWhenIdle) return;
@@ -208,7 +209,7 @@ public sealed class CardModule : IAstraeaModule
         var player = context.Player;
 
         if (!config.EnableMinorArcana) return;
-        if (player.Level < ASTActions.MinorArcana.MinLevel) return;
+        if (!ActionAvailability.MeetsLevelAndLearned(player.Level, context.ActionService, ASTActions.MinorArcana)) return;
         if (context.HasMinorArcana) return;
 
         bool shouldDraw = config.MinorArcanaStrategy switch

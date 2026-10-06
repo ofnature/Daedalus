@@ -1,3 +1,4 @@
+using Daedalus.Services.Action;
 using System;
 using System.Numerics;
 using Daedalus.Config;
@@ -89,7 +90,7 @@ public sealed class DefensiveModule : BaseDefensiveModule<IAstraeaContext>, IAst
             }
         }
 
-        if (player.Level < ASTActions.NeutralSect.MinLevel) return;
+        if (!ActionAvailability.MeetsLevelAndLearned(player.Level, context.ActionService, ASTActions.NeutralSect)) return;
         if (!context.ActionService.IsActionReady(ASTActions.NeutralSect.ActionId)) return;
         if (context.HasNeutralSect) return;
 
@@ -162,7 +163,7 @@ public sealed class DefensiveModule : BaseDefensiveModule<IAstraeaContext>, IAst
         var player = context.Player;
 
         if (!config.EnableSunSign) return;
-        if (player.Level < ASTActions.SunSign.MinLevel) return;
+        if (!ActionAvailability.MeetsLevelAndLearned(player.Level, context.ActionService, ASTActions.SunSign)) return;
         if (!context.StatusHelper.HasSuntouched(player)) return;
         if (!context.StatusHelper.WillSuntouchedExpireWithinGcds(player, 3)) return;
         if (!context.ActionService.IsActionReady(ASTActions.SunSign.ActionId)) return;
@@ -242,7 +243,7 @@ public sealed class DefensiveModule : BaseDefensiveModule<IAstraeaContext>, IAst
             }
         }
 
-        if (player.Level < ASTActions.CollectiveUnconscious.MinLevel) return;
+        if (!ActionAvailability.MeetsLevelAndLearned(player.Level, context.ActionService, ASTActions.CollectiveUnconscious)) return;
         if (!context.ActionService.IsActionReady(ASTActions.CollectiveUnconscious.ActionId)) return;
 
         var (avgHp, _, _) = context.PartyHealthMetrics;

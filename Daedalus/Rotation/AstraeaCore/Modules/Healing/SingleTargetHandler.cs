@@ -1,3 +1,4 @@
+using Daedalus.Services.Action;
 using System;
 using Daedalus.Config;
 using Daedalus.Data;
@@ -45,7 +46,7 @@ public sealed class SingleTargetHandler : IHealingHandler
         ActionDefinition? action = null;
         AbilityBehavior? behavior = null;
 
-        if (config.EnableBeneficII && player.Level >= ASTActions.BeneficII.MinLevel && hpPercent <= config.BeneficIIThreshold)
+        if (config.EnableBeneficII && ActionAvailability.MeetsLevelAndLearned(player.Level, context.ActionService, ASTActions.BeneficII) && hpPercent <= config.BeneficIIThreshold)
         {
             action = ASTActions.BeneficII;
             behavior = AstraeaAbilities.BeneficII;

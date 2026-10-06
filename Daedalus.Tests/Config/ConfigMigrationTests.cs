@@ -16,9 +16,9 @@ public sealed class ConfigMigrationTests
     /// pinned together here.
     /// </summary>
     [Fact]
-    public void CurrentConfigVersion_IsFive()
+    public void CurrentConfigVersion_IsSix()
     {
-        Assert.Equal(5, new Daedalus.Configuration().Version);
+        Assert.Equal(6, new Daedalus.Configuration().Version);
     }
 
     /// <summary>
@@ -38,7 +38,7 @@ public sealed class ConfigMigrationTests
     {
         var config = new Daedalus.Configuration();
 
-        Assert.False(config.Version < 5);
+        Assert.False(config.Version < 6);
         Assert.False(config.Occult.SaveDamageForBurst);
     }
 }

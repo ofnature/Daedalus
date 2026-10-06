@@ -200,6 +200,8 @@ public sealed class Astraea : BaseHealerRotation<IAstraeaContext, IAstraeaModule
         _debugState.IsStarMature = _earthlyStarService.IsStarMature;
         _debugState.StarTimeRemaining = _earthlyStarService.TimeRemaining;
         _debugState.PlayerHpPercent = player.MaxHp > 0 ? (float)player.CurrentHp / player.MaxHp : 1f;
+        if (Configuration.IsDebugWindowOpen)
+            _debugState.CardBuffs = AstraeaCardBuffReader.Read(player.EntityId, _partyHelper.GetAllPartyMembers(player));
 
         // Populate shared DebugState fields for the debug snapshot
         _debugState.AoEStatus = _debugState.AoEHealState;

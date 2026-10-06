@@ -3,6 +3,50 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.96 — 2026-10-05
+
+### Fix — Astrologian, checked at level 71
+- **Gravity now goes off on packs you are standing back from.** It hits 8 yalms around its target, but Daedalus counted
+  enemies within 5 yalms of the Astrologian, so a healer at range never saw a pack and spread Combust instead.
+- **A mature Earthly Star no longer stops your GCD heals**, and it detonates at 2 injured in a 4-player party (it
+  waited for 3, so a tank at 15% with everyone else full got no heal until the star expired).
+- **Lady of Crowns is used on the default setting** (it only ever fired in "Emergency only"), including just before
+  the next draw would replace her. **Lord of Crowns** waits for an enemy within its 20 yalms of you.
+- **Aspected Helios** isn't recast on top of its own regen (plain Helios heals instead), and the pre-emptive Aspected
+  Benefic skips someone who already has it.
+- Ranges and levels corrected from the game's data: Helios, Aspected Helios and Celestial Opposition reach 20 yalms,
+  Collective Unconscious 30, Earthly Star 20; Play III is level 30, Aspected Helios 40.
+
+### Astrologian — free heals first, more damage GCDs
+- **The free oGCD heals now go before the GCD heals.** The old defaults had them backwards (Aspected Benefic at 75%,
+  Essential Dignity at 60%; Helios and Celestial Opposition sharing 70%), so the Astrologian spent damage GCDs while
+  free heals sat ready. Now: Essential Dignity 70%, Aspected Benefic 65%; Celestial Opposition (new slider), Lady of
+  Crowns and Earthly Star 75%, Helios 65%. Your settings move only if they were still on the old defaults. Below
+  level 78, Essential Dignity's single charge uses the higher threshold (there is nothing to bank).
+- **Earthly Star goes down on cooldown in combat** — free damage and healing every 60 seconds — when the enemies will
+  live long enough for it to mature (10 s); not under a pack about to die. Toggle: Earthly Star ▸ Place on cooldown.
+- **Fix — Beastmaster auto-capture never fired by itself**: it times Capture off the enemy's time-to-kill, which only
+  Paladin was ever given, so it always stood down with "no confident TTK". Every job now gets the estimate.
+
+### Fix — DoTs on the whole pack, and Astrologian without its job-quest skills
+- **DoTs now go on the rest of a pack** when the targeting pick can't take one (already dotted, or about to die). Under
+  Tank Assist the party burns the tank's target, so nothing else in a trash pack was ever dotted. Only enemies already
+  attacking your party are dotted — never an unpulled mob or someone else's. All jobs with DoTs.
+- **Astrologian dots the pack, then Gravities it.** With 3+ enemies in Gravity's reach it used to skip Combust
+  altogether. Now Combust goes on each mob that will live long enough to out-damage one more Gravity (about 20 s
+  with three enemies, 26 s with four; never with five or more), and Gravity does the rest.
+- **Astrologian without Aspected Helios, Gravity, Synastry, Collective Unconscious or Celestial Opposition** (job-quest
+  unlocks) now falls back cleanly: plain Helios for group heals instead of none, and an unlearned Celestial Opposition
+  no longer holds the group-heal slot so Helios couldn't go out.
+- Debug: the DoT line shows "DoT: up (Ns left)" while it is ticking (it said "no target"), and the AoE line says when
+  no AoE spell is learned.
+- **Missing window names the quest**: each locked ability shows the job quest that unlocks it ("Gravity (Lv.45) — quest:
+  Ewer Right"). An ability that only counts as learned through its level-learned upgrade (Gravity through Gravity II at
+  82) says so, and that it is locked again when synced below the upgrade's level until the quest is done.
+- Debug ▸ Astrologian: a **Card buffs** column beside Cards lists every card, who has it from you, and the seconds
+  left.
+
+<!-- LATEST-END -->
 ## v0.1.95 — 2026-10-05
 
 ### Settings — pick the navmesh plugin Daedalus moves through
@@ -12,7 +56,6 @@ All notable changes to Daedalus will be documented in this file.
   minute while the character stood still and cast nothing. Auto now picks the same plugin Minerva does. The Debug
   window's vNav line says which plugin is in use.
 
-<!-- LATEST-END -->
 ## v0.1.94 — 2026-10-04
 
 ### Fix — Astrologian's healing lockout no longer stops all healing

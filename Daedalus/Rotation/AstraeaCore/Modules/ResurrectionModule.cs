@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Daedalus.Services.Action;
+using System;
 using Dalamud.Game.ClientState.Objects.Types;
 using Daedalus.Config;
 using Daedalus.Data;
@@ -140,7 +141,7 @@ public sealed class ResurrectionModule : BaseResurrectionModule<IAstraeaContext>
         var player = context.Player;
 
         if (!config.Resurrection.EnableRaise) return;
-        if (player.Level < ASTActions.Lightspeed.MinLevel) return;
+        if (!ActionAvailability.MeetsLevelAndLearned(player.Level, context.ActionService, ASTActions.Lightspeed)) return;
         if (HasSwiftcast(context)) return;
         if (context.HasLightspeed) return;
 

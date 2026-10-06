@@ -20,8 +20,16 @@ public static class AstrologianTab
             return;
         }
 
-        // Cards Section
-        DrawCardsSection(astraeaState);
+        // Cards Section, with who holds each card's buff beside it
+        if (ImGui.BeginTable("AstCardsColumns", 2, ImGuiTableFlags.SizingStretchSame))
+        {
+            ImGui.TableNextRow();
+            ImGui.TableNextColumn();
+            DrawCardsSection(astraeaState);
+            ImGui.TableNextColumn();
+            DrawCardBuffsSection(astraeaState);
+            ImGui.EndTable();
+        }
         ImGui.Spacing();
 
         // Earthly Star Section
@@ -93,6 +101,49 @@ public static class AstrologianTab
             ImGui.TableNextColumn();
             ImGui.Text(state.OracleState);
         }, 140f);
+    }
+
+    /// <summary>Every card, who carries its buff from us, and how long it has left.</summary>
+    private static void DrawCardBuffsSection(AstraeaDebugState state)
+    {
+        ImGui.Text("Card buffs");
+        ImGui.Separator();
+        if (!ImGui.BeginTable("AstCardBuffsTable", 3, ImGuiTableFlags.BordersInnerV | ImGuiTableFlags.SizingStretchProp))
+            return;
+        ImGui.TableSetupColumn("Card", ImGuiTableColumnFlags.WidthFixed, 90f);
+        ImGui.TableSetupColumn("On", ImGuiTableColumnFlags.WidthStretch);
+        ImGui.TableSetupColumn("Left", ImGuiTableColumnFlags.WidthFixed, 44f);
+
+        var dim = new Vector4(0.6f, 0.6f, 0.6f, 1f);
+        var live = new Vector4(0.5f, 1f, 0.5f, 1f);
+        var ending = new Vector4(1f, 0.85f, 0.4f, 1f);
+        foreach (var row in state.CardBuffs)
+        {
+            if (row.Holders.Count == 0)
+            {
+                ImGui.TableNextRow();
+                ImGui.TableNextColumn();
+                ImGui.TextColored(dim, row.Card);
+                ImGui.TableNextColumn();
+                ImGui.TextColored(dim, "—");
+                ImGui.TableNextColumn();
+                continue;
+            }
+
+            foreach (var holder in row.Holders)
+            {
+                var colour = holder.SecondsLeft <= 3f ? ending : live;
+                ImGui.TableNextRow();
+                ImGui.TableNextColumn();
+                ImGui.TextColored(colour, row.Card);
+                ImGui.TableNextColumn();
+                ImGui.TextColored(colour, holder.Target);
+                ImGui.TableNextColumn();
+                ImGui.TextColored(colour, $"{holder.SecondsLeft:0}s");
+            }
+        }
+
+        ImGui.EndTable();
     }
 
     private static void DrawEarthlyStarSection(AstraeaDebugState state)

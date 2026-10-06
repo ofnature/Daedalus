@@ -98,6 +98,11 @@ public sealed class MissingWindow : Window
                 else
                 {
                     ImGui.Text($"{s.Name}  (Lv.{s.MinLevel})");
+                    if (s.UnlockQuest != null)
+                    {
+                        ImGui.SameLine();
+                        ImGui.TextColored(_dim, $"— quest: {s.UnlockQuest}");
+                    }
                 }
             }
         }
@@ -139,12 +144,24 @@ public sealed class MissingWindow : Window
                     DaedalusTheme.StatusIcon(FontAwesomeIcon.Check, _green);
                     ImGui.SameLine();
                     ImGui.TextColored(_dim, $"{s.Name}  (Lv.{s.MinLevel})");
+                    if (s.ViaUpgradeName != null)
+                    {
+                        // Learned through its upgrade only: synced below it, the quest-locked base is all there is.
+                        ImGui.TextColored(_yellow,
+                            $"      via {s.ViaUpgradeName} (Lv.{s.ViaUpgradeLevel}) — locked when synced below "
+                            + $"{s.ViaUpgradeLevel} until \"{s.UnlockQuest}\" is done");
+                    }
                 }
                 else
                 {
                     DaedalusTheme.StatusIcon(FontAwesomeIcon.Times, _red);
                     ImGui.SameLine();
                     ImGui.Text($"{s.Name}  (Lv.{s.MinLevel})");
+                    if (s.UnlockQuest != null)
+                    {
+                        ImGui.SameLine();
+                        ImGui.TextColored(_dim, $"— quest: {s.UnlockQuest}");
+                    }
                 }
             }
         }

@@ -1,3 +1,4 @@
+using Daedalus.Services.Action;
 using System;
 using Daedalus.Config;
 using Daedalus.Data;
@@ -29,7 +30,7 @@ public sealed class ExaltationHandler : IHealingHandler
         var player = context.Player;
 
         if (!config.EnableExaltation) return;
-        if (player.Level < ASTActions.Exaltation.MinLevel) return;
+        if (!ActionAvailability.MeetsLevelAndLearned(player.Level, context.ActionService, ASTActions.Exaltation)) return;
         if (!context.ActionService.IsActionReady(ASTActions.Exaltation.ActionId)) return;
 
         var target = context.PartyHelper.FindExaltationTarget(player);

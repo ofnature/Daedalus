@@ -1,3 +1,4 @@
+using Daedalus.Services.Action;
 using Daedalus.Config;
 using Daedalus.Data;
 using Daedalus.Models.Action;
@@ -72,7 +73,7 @@ public sealed class DamageModule : BaseDamageModule<IAstraeaContext>, IAstraeaMo
         var player = context.Player;
 
         if (!config.EnableOracle) return;
-        if (player.Level < ASTActions.Oracle.MinLevel) return;
+        if (!ActionAvailability.MeetsLevelAndLearned(player.Level, context.ActionService, ASTActions.Oracle)) return;
         if (!context.HasDivining) return;
 
         var target = context.TargetingService.FindEnemy(
@@ -97,13 +98,12 @@ public sealed class DamageModule : BaseDamageModule<IAstraeaContext>, IAstraeaMo
         if (!config.EnableMinorArcana) return;
         if (!context.CardService.HasLord) return;
         if (!AstraeaCardHelper.ShouldPlayLord(context, _burstWindowService)) return;
-        if (player.Level < ASTActions.LordOfCrowns.MinLevel) return;
+        if (!ActionAvailability.MeetsLevelAndLearned(player.Level, context.ActionService, ASTActions.LordOfCrowns)) return;
 
-        var target = context.TargetingService.FindEnemy(
-            context.Configuration.Targeting.EnemyStrategy, ASTActions.LordOfCrowns.Range, player);
-        if (target == null) return;
+        // A 20y burst around the Astrologian, not a targeted skill: it needs an enemy inside that ring.
+        if (context.TargetingService.CountEnemiesInRange(ASTActions.LordOfCrowns.Radius, player) < 1) return;
 
-        scheduler.PushOgcd(AstraeaAbilities.LordOfCrowns, target.GameObjectId, priority: 290,
+        scheduler.PushOgcd(AstraeaAbilities.LordOfCrowns, player.GameObjectId, priority: 290,
             onDispatched: _ =>
             {
                 SetPlannedAction(context, ASTActions.LordOfCrowns.Name);
@@ -119,13 +119,23 @@ public sealed class DamageModule : BaseDamageModule<IAstraeaContext>, IAstraeaMo
         var dotAction = GetDoTAction(context);
         if (dotAction == null) return;
 
+        // In a pack Gravity competes with the DoT: dot only the mobs that live past the break-even.
+        float? packMinTtk = null;
         if (IsAoEDamageEnabled(context))
         {
             var aoeAction = GetAoEDamageAction(context);
             if (aoeAction != null)
             {
-                var pack = context.TargetingService.CountEnemyPack(aoeAction.Radius, context.Player);
-                if (pack.AoeRange >= AoEMinTargets(context)) { SetDpsState(context, $"DoT: skipped ({pack.AoeRange} enemies)"); return; }
+                var (_, hits) = context.TargetingService.FindBestAoETarget(aoeAction.Radius, aoeAction.Range, context.Player);
+                if (hits >= AoEMinTargets(context))
+                {
+                    packMinTtk = AstraeaPackDot.BreakEvenSeconds(hits);
+                    if (packMinTtk > AstraeaPackDot.DotDurationSeconds)
+                    {
+                        SetDpsState(context, $"DoT: skipped ({hits} enemies — Gravity is worth more)");
+                        return;
+                    }
+                }
             }
         }
 
@@ -135,8 +145,18 @@ public sealed class DamageModule : BaseDamageModule<IAstraeaContext>, IAstraeaMo
         var dotStatusId = GetDoTStatusId(context);
         if (dotStatusId == 0) return;
 
-        var target = context.TargetingService.FindEnemyNeedingDot(dotStatusId, DoTRefreshThreshold(context), dotAction.Range, context.Player);
-        if (target == null) { SetDpsState(context, "DoT: no target"); return; }
+        var target = packMinTtk is { } minTtk
+            ? context.TargetingService.FindEnemyNeedingDot(dotStatusId, DoTRefreshThreshold(context), dotAction.Range, context.Player, minTtk)
+            : context.TargetingService.FindEnemyNeedingDot(dotStatusId, DoTRefreshThreshold(context), dotAction.Range, context.Player);
+        if (target == null)
+        {
+            // "No target" used to cover the normal case too — the DoT already ticking with more than the
+            // refresh window left — which read as "never dots" (Saar, Forgiven Dissonance, 2026-10-05).
+            var ours = context.TargetingService.GetBestStatusRemainingFromSourceOnAnyEnemy(
+                [dotStatusId], context.Player.EntityId, dotAction.Range, context.Player);
+            SetDpsState(context, ours > 0f ? $"DoT: up ({ours:0}s left)" : "DoT: no target (none in range, or dying)");
+            return;
+        }
 
         var capturedAction = dotAction;
         var behavior = new AbilityBehavior { Action = dotAction };
@@ -154,23 +174,27 @@ public sealed class DamageModule : BaseDamageModule<IAstraeaContext>, IAstraeaMo
         if (!IsAoEDamageEnabled(context)) return;
 
         var aoeAction = GetAoEDamageAction(context);
-        if (aoeAction == null) return;
+        if (aoeAction == null)
+        {
+            // Gravity is a job-quest unlock (Lv45): without it the pack counters below never update.
+            SetAoEDpsState(context, "No AoE spell learned (Gravity: job quest)");
+            return;
+        }
 
         var aoeCastTime = context.HasSwiftcast ? 0f : aoeAction.CastTime;
         if (MechanicCastGate.ShouldBlock(context, aoeCastTime)) { SetAoEDpsState(context, MechanicCastGate.FormatBlockedState(context, aoeCastTime)); return; }
 
-        var pack = context.TargetingService.CountEnemyPack(aoeAction.Radius, context.Player);
-        SetAoEDpsEnemyCount(context, pack.AoeRange);
-        SetAoEDpsEngagedCount(context, pack.Engaged);
-        if (pack.AoeRange < AoEMinTargets(context)) { SetAoEDpsState(context, $"{pack.AoeRange} < {AoEMinTargets(context)} min"); return; }
+        // Gravity hits 8y around its TARGET. Counting around the Astrologian (as the shared module does
+        // for self-centred AoEs) meant a healer standing back never saw a pack, and spread Combust instead.
+        var (best, hits) = context.TargetingService.FindBestAoETarget(aoeAction.Radius, aoeAction.Range, context.Player);
+        SetAoEDpsEnemyCount(context, hits);
+        SetAoEDpsEngagedCount(context, context.TargetingService.CountEnemyPack(aoeAction.Range, context.Player).Engaged);
+        if (hits < AoEMinTargets(context) || best == null) { SetAoEDpsState(context, $"{hits} < {AoEMinTargets(context)} min"); return; }
 
-        var targetId = aoeAction.TargetType == ActionTargetType.Self
-            ? context.Player.GameObjectId
-            : FindBestAoETarget(context, aoeAction);
-        if (targetId == 0) return;
+        var targetId = best.GameObjectId;
 
         var capturedAction = aoeAction;
-        var capturedEnemyCount = pack.AoeRange;
+        var capturedEnemyCount = hits;
         var behavior = new AbilityBehavior { Action = aoeAction };
 
         scheduler.PushGcd(behavior, targetId, priority: 320,

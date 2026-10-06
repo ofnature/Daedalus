@@ -132,7 +132,9 @@ public static class AstraeaCardHelper
         // Not Divining: it only means Oracle is ready (an oGCD that weaves anyway), and as a lockout
         // it held the GCD heals for up to its full 30 s.
         if (context.HasMacrocosmos) return true;
-        if (context.IsStarMature) return true;
+        // Not a mature Earthly Star: Stellar Detonation waits for the party to need it (or 2+ injured in a
+        // 4-man), so a tank at 15% with everyone else full got no GCD heal until the star expired. RSR has
+        // no star lockout.
         return false;
     }
 

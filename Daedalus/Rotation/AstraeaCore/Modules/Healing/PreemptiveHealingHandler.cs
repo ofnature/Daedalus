@@ -1,3 +1,4 @@
+using Daedalus.Services.Action;
 using System;
 using Daedalus.Config;
 using Daedalus.Data;
@@ -66,7 +67,7 @@ public sealed class PreemptiveHealingHandler : IHealingHandler
 
         // oGCD: Celestial Intersection
         if (config.Astrologian.EnableCelestialIntersection &&
-            player.Level >= ASTActions.CelestialIntersection.MinLevel &&
+            ActionAvailability.MeetsLevelAndLearned(player.Level, context.ActionService, ASTActions.CelestialIntersection) &&
             context.ActionService.IsActionReady(ASTActions.CelestialIntersection.ActionId))
         {
             var ciAction = ASTActions.CelestialIntersection;
@@ -131,9 +132,10 @@ public sealed class PreemptiveHealingHandler : IHealingHandler
                 });
         }
 
-        // GCD fallback: Aspected Benefic
+        // GCD fallback: Aspected Benefic — not on top of its own regen
         if (config.Astrologian.EnableAspectedBenefic &&
-            player.Level >= ASTActions.AspectedBenefic.MinLevel)
+            ActionAvailability.MeetsLevelAndLearned(player.Level, context.ActionService, ASTActions.AspectedBenefic) &&
+            !context.StatusHelper.HasAspectedBenefic(target))
         {
             var abAction = ASTActions.AspectedBenefic;
             var abHealAmount = abAction.HealPotency * 10;

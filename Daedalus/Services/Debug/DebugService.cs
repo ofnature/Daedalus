@@ -822,12 +822,52 @@ public sealed class DebugService
             {
                 if (action.ActionId == 0 || !seen.Add(action.ActionId))
                     continue;
+
+                var learned = _actionService.IsActionLearned(action.ActionId);
+                var (quest, questDone) = UnlockQuestFor(action.ActionId);
+
+                // Learned, but not through its own quest: its level-learned upgrade is what the game is using.
+                string? upgradeName = null;
+                byte upgradeLevel = 0;
+                if (learned && quest != null && !questDone)
+                {
+                    var adjusted = _actionService.GetAdjustedActionId(action.ActionId);
+                    if (adjusted != action.ActionId
+                        && _dataManager.GetExcelSheet<Lumina.Excel.Sheets.Action>()?.GetRowOrDefault(adjusted) is { } up)
+                    {
+                        upgradeName = up.Name.ExtractText();
+                        upgradeLevel = up.ClassJobLevel;
+                    }
+                }
+
                 result.Add(new AbilityUnlockStatus(
-                    action.Name, action.MinLevel, action.ActionId,
-                    _actionService.IsActionLearned(action.ActionId)));
+                    action.Name, action.MinLevel, action.ActionId, learned, quest, upgradeName, upgradeLevel));
             }
         }
         return result;
+    }
+
+    /// <summary>
+    /// The quest named by the action's unlock link (ids above 0x10000 are quests), and whether it is done.
+    /// (null, true) when no quest gates it.
+    /// </summary>
+    private (string? Quest, bool Done) UnlockQuestFor(uint actionId)
+    {
+        try
+        {
+            var row = _dataManager.GetExcelSheet<Lumina.Excel.Sheets.Action>()?.GetRowOrDefault(actionId);
+            var link = row?.UnlockLink.RowId ?? 0;
+            if (link <= 0x10000)
+                return (null, true);
+
+            var name = _dataManager.GetExcelSheet<Lumina.Excel.Sheets.Quest>()?.GetRowOrDefault(link)?.Name.ExtractText();
+            return (string.IsNullOrWhiteSpace(name) ? $"quest #{link - 0x10000}" : name,
+                Daedalus.Services.Action.ActionUnlockHelper.IsUnlockLinkSatisfied(link));
+        }
+        catch
+        {
+            return (null, true);
+        }
     }
 
     /// <summary>Resets spell usage counts without affecting history or GCD uptime data.</summary>

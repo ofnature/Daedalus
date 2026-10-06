@@ -8,6 +8,30 @@ namespace Daedalus.Config;
 /// </summary>
 public sealed class AstrologianConfig
 {
+    /// <summary>
+    /// Config v6: free heals first. The old defaults had the GCD heals firing ABOVE the oGCD ones — Aspected
+    /// Benefic at 75% against Essential Dignity's 60%, Helios and Celestial Opposition sharing 70% — so the
+    /// Astrologian spent damage GCDs while free heals sat ready. Values still at an old default move to the
+    /// new one; anything the player changed is left alone. Returns whether anything changed.
+    /// </summary>
+    public bool MigrateToOgcdFirstHealDefaults()
+    {
+        var changed = false;
+        changed |= Move(ref _aspectedBeneficThreshold, 0.75f, 0.65f);
+        changed |= Move(ref _aoeHealThreshold, 0.70f, 0.65f);
+        changed |= Move(ref _earthlyStarDetonateThreshold, 0.65f, 0.75f);
+        changed |= Move(ref _ladyOfCrownsThreshold, 0.60f, 0.75f);
+        return changed;
+
+        static bool Move(ref float value, float oldDefault, float newDefault)
+        {
+            if (Math.Abs(value - oldDefault) > 0.0005f)
+                return false;
+            value = newDefault;
+            return true;
+        }
+    }
+
     #region Healing Toggles
 
     /// <summary>
@@ -100,7 +124,7 @@ public sealed class AstrologianConfig
     /// <summary>
     /// HP threshold to apply Aspected Benefic.
     /// </summary>
-    private float _aspectedBeneficThreshold = 0.75f;
+    private float _aspectedBeneficThreshold = 0.65f;
     public float AspectedBeneficThreshold
     {
         get => _aspectedBeneficThreshold;
@@ -166,11 +190,23 @@ public sealed class AstrologianConfig
     /// <summary>
     /// HP threshold for AoE healing (Helios, Aspected Helios).
     /// </summary>
-    private float _aoeHealThreshold = 0.70f;
+    private float _aoeHealThreshold = 0.65f;
     public float AoEHealThreshold
     {
         get => _aoeHealThreshold;
         set => _aoeHealThreshold = Math.Clamp(value, 0f, 1f);
+    }
+
+    /// <summary>
+    /// Party average HP for Celestial Opposition. An oGCD, so it sits ABOVE the GCD group heals
+    /// (<see cref="AoEHealThreshold"/>): the free heal goes first and a damage GCD is spent only when it
+    /// is not enough (RSR: area ability 75%, area spell 65%).
+    /// </summary>
+    private float _celestialOppositionThreshold = 0.75f;
+    public float CelestialOppositionThreshold
+    {
+        get => _celestialOppositionThreshold;
+        set => _celestialOppositionThreshold = Math.Clamp(value, 0f, 1f);
     }
 
     #endregion
@@ -190,7 +226,7 @@ public sealed class AstrologianConfig
     /// <summary>
     /// HP threshold for party average to detonate Earthly Star.
     /// </summary>
-    private float _earthlyStarDetonateThreshold = 0.65f;
+    private float _earthlyStarDetonateThreshold = 0.75f;
     public float EarthlyStarDetonateThreshold
     {
         get => _earthlyStarDetonateThreshold;
@@ -212,6 +248,13 @@ public sealed class AstrologianConfig
     /// If false, will detonate immature star if healing is urgent.
     /// </summary>
     public bool WaitForGiantDominance { get; set; } = true;
+
+    /// <summary>
+    /// Place Earthly Star on cooldown in combat, not only when the party is already hurt. It is free damage
+    /// and healing every 60 s — it detonates by itself when it expires — and RSR places it on cooldown.
+    /// Off: the old reactive placement only.
+    /// </summary>
+    public bool EarthlyStarOnCooldown { get; set; } = true;
 
     /// <summary>
     /// Emergency HP threshold to detonate immature star.
@@ -405,7 +448,7 @@ public sealed class AstrologianConfig
     /// <summary>
     /// HP threshold for Lady of Crowns (Minor Arcana heal).
     /// </summary>
-    private float _ladyOfCrownsThreshold = 0.60f;
+    private float _ladyOfCrownsThreshold = 0.75f;
     public float LadyOfCrownsThreshold
     {
         get => _ladyOfCrownsThreshold;

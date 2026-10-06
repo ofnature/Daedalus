@@ -1,3 +1,4 @@
+using Daedalus.Services.Action;
 using System;
 using Daedalus.Config;
 using Daedalus.Data;
@@ -31,7 +32,7 @@ public sealed class CelestialOppositionHandler : IHealingHandler
         var player = context.Player;
 
         if (!config.EnableCelestialOpposition) return;
-        if (player.Level < ASTActions.CelestialOpposition.MinLevel) return;
+        if (!ActionAvailability.MeetsLevelAndLearned(player.Level, context.ActionService, ASTActions.CelestialOpposition)) return;
         if (!context.ActionService.IsActionReady(ASTActions.CelestialOpposition.ActionId)) return;
 
         var (count, _) = context.PartyHelper.CountPartyMembersNeedingAoEHeal(player, 0);
@@ -48,7 +49,7 @@ public sealed class CelestialOppositionHandler : IHealingHandler
         var emergency = AoEEmergencyHelper.IsAoEEmergency(
             context.PartyHelper, player, context.Configuration.Healing);
 
-        var shouldUse = (avgHp <= config.AoEHealThreshold && count >= minTargets) || raidwideImminent || emergency;
+        var shouldUse = (avgHp <= config.CelestialOppositionThreshold && count >= minTargets) || raidwideImminent || emergency;
         if (!shouldUse) return;
 
         var action = ASTActions.CelestialOpposition;

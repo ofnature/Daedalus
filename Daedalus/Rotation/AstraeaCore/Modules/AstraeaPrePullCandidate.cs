@@ -1,3 +1,4 @@
+using Daedalus.Services.Action;
 using Daedalus.Data;
 using Daedalus.Rotation.AstraeaCore.Abilities;
 using Daedalus.Rotation.AstraeaCore.Context;
@@ -22,7 +23,7 @@ public sealed class AstraeaPrePullCandidate : IPrePullCandidate
 
         if (config.PrePullEarthlyStar
             && !ast.IsStarPlaced
-            && player.Level >= ASTActions.EarthlyStar.MinLevel
+            && ActionAvailability.MeetsLevelAndLearned(player.Level, context.ActionService, ASTActions.EarthlyStar)
             && actions.IsActionReady(ASTActions.EarthlyStar.ActionId))
         {
             return actions.ExecuteGroundTargetedOgcd(ASTActions.EarthlyStar, player.Position);
@@ -30,7 +31,7 @@ public sealed class AstraeaPrePullCandidate : IPrePullCandidate
 
         if (config.PrePullAstralDraw
             && ast.CardService.CanAstralDraw
-            && player.Level >= ASTActions.AstralDraw.MinLevel
+            && ActionAvailability.MeetsLevelAndLearned(player.Level, context.ActionService, ASTActions.AstralDraw)
             && actions.IsActionReady(ASTActions.AstralDraw.ActionId))
         {
             return actions.ExecuteOgcd(ASTActions.AstralDraw, player.GameObjectId);

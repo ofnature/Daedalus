@@ -1,3 +1,4 @@
+using Daedalus.Services.Action;
 using System;
 using Daedalus.Config;
 using Daedalus.Data;
@@ -23,19 +24,34 @@ public sealed class LadyOfCrownsHandler : IHealingHandler
 
     public bool TryExecute(IAstraeaContext context, bool isMoving) => false;
 
+    /// <summary>
+    /// When to play Lady. Every strategy plays her for a real group heal (party under the threshold, 2+
+    /// injured) — she used to fire only under EmergencyOnly, so on the default (OnCooldown) she never did.
+    /// Outside EmergencyOnly she is also played, if anyone is hurt, before the next draw replaces her.
+    /// </summary>
+    internal static bool ShouldPlayLady(MinorArcanaUsageStrategy strategy, float avgHp, float threshold,
+        int injured, float drawCooldownRemaining, float expireBeforeDrawSeconds)
+    {
+        if (avgHp <= threshold && injured >= 2)
+            return true;
+        return strategy != MinorArcanaUsageStrategy.EmergencyOnly
+               && injured >= 1
+               && drawCooldownRemaining <= expireBeforeDrawSeconds;
+    }
+
     public void CollectCandidates(IAstraeaContext context, RotationScheduler scheduler, bool isMoving)
     {
         var config = context.Configuration.Astrologian;
         var player = context.Player;
 
         if (!config.EnableMinorArcana) return;
-        if (config.MinorArcanaStrategy != MinorArcanaUsageStrategy.EmergencyOnly) return;
         if (!context.CardService.HasLady) return;
-        if (player.Level < ASTActions.LadyOfCrowns.MinLevel) return;
+        if (!ActionAvailability.MeetsLevelAndLearned(player.Level, context.ActionService, ASTActions.LadyOfCrowns)) return;
 
         var (avgHp, _, injured) = context.PartyHealthMetrics;
-        if (avgHp > config.LadyOfCrownsThreshold) return;
-        if (injured < 2) return;
+        if (!ShouldPlayLady(config.MinorArcanaStrategy, avgHp, config.LadyOfCrownsThreshold, injured,
+                context.CardService.GetDrawCooldownRemaining(), config.ExpireCardsBeforeDrawSeconds))
+            return;
 
         var action = ASTActions.LadyOfCrowns;
         var capturedAvgHp = avgHp;

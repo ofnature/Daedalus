@@ -1,3 +1,4 @@
+using Daedalus.Services.Action;
 using System;
 using Daedalus.Config;
 using Daedalus.Data;
@@ -30,7 +31,7 @@ public sealed class MicrocosmosHandler : IHealingHandler
 
         if (!config.EnableMacrocosmos) return;
         if (!context.HasMacrocosmos) return;
-        if (player.Level < ASTActions.Microcosmos.MinLevel) return;
+        if (!ActionAvailability.MeetsLevelAndLearned(player.Level, context.ActionService, ASTActions.Microcosmos)) return;
         if (!context.ActionService.IsActionReady(ASTActions.Microcosmos.ActionId)) return;
 
         var (avgHp, _, injured) = context.PartyHealthMetrics;

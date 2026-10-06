@@ -1,3 +1,4 @@
+using Daedalus.Services.Action;
 using System;
 using Daedalus.Config;
 using Daedalus.Data;
@@ -67,17 +68,21 @@ public sealed class AoEHealingHandler : IHealingHandler
         ActionDefinition? action = null;
         AbilityBehavior? behavior = null;
 
-        if (config.EnableAspectedHelios && player.Level >= ASTActions.HeliosConjunction.MinLevel)
+        // The regen version is wasted while its regen is still ticking on us (a party member like the rest):
+        // plain Helios heals now, as RSR does by not re-applying a status the target already has.
+        var regenUp = context.StatusHelper.HasAspectedHeliosRegen(player);
+
+        if (config.EnableAspectedHelios && !regenUp && ActionAvailability.MeetsLevelAndLearned(player.Level, context.ActionService, ASTActions.HeliosConjunction))
         {
             action = ASTActions.HeliosConjunction;
             behavior = AstraeaAbilities.HeliosConjunction;
         }
-        else if (config.EnableAspectedHelios && player.Level >= ASTActions.AspectedHelios.MinLevel)
+        else if (config.EnableAspectedHelios && !regenUp && ActionAvailability.MeetsLevelAndLearned(player.Level, context.ActionService, ASTActions.AspectedHelios))
         {
             action = ASTActions.AspectedHelios;
             behavior = AstraeaAbilities.AspectedHelios;
         }
-        else if (config.EnableHelios && player.Level >= ASTActions.Helios.MinLevel)
+        else if (config.EnableHelios && ActionAvailability.MeetsLevelAndLearned(player.Level, context.ActionService, ASTActions.Helios))
         {
             action = ASTActions.Helios;
             behavior = AstraeaAbilities.Helios;

@@ -1,3 +1,4 @@
+using Daedalus.Services.Action;
 using System;
 using Daedalus.Config;
 using Daedalus.Data;
@@ -70,7 +71,7 @@ public sealed class BuffModule : BaseBuffModule<IAstraeaContext>, IAstraeaModule
         var player = context.Player;
 
         if (!config.EnableLightspeed) return;
-        if (player.Level < ASTActions.Lightspeed.MinLevel) return;
+        if (!ActionAvailability.MeetsLevelAndLearned(player.Level, context.ActionService, ASTActions.Lightspeed)) return;
         if (!context.ActionService.IsActionReady(ASTActions.Lightspeed.ActionId)) return;
         if (context.HasLightspeed) return;
 

@@ -1,3 +1,4 @@
+using Daedalus.Services.Action;
 using System;
 using System.Numerics;
 using Daedalus.Config;
@@ -32,7 +33,7 @@ public sealed class MacrocosmosHandler : IHealingHandler
         var player = context.Player;
 
         if (!config.EnableMacrocosmos || !config.AutoUseMacrocosmos) return;
-        if (player.Level < ASTActions.Macrocosmos.MinLevel) return;
+        if (!ActionAvailability.MeetsLevelAndLearned(player.Level, context.ActionService, ASTActions.Macrocosmos)) return;
         if (context.HasMacrocosmos) return;
         if (!context.ActionService.IsActionReady(ASTActions.Macrocosmos.ActionId)) return;
 

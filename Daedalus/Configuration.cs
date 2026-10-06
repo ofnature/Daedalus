@@ -8,7 +8,7 @@ namespace Daedalus;
 
 public sealed class Configuration : IPluginConfiguration
 {
-    public int Version { get; set; } = 5;
+    public int Version { get; set; } = 6;
 
     // Runtime state
     public bool Enabled { get; set; } = false;

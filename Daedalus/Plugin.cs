@@ -307,6 +307,15 @@ public sealed class Plugin : IDalamudPlugin
             pluginInterface.SavePluginConfig(configuration);
         }
 
+        // Version 5 -> 6: Astrologian heals free-heal-first (see MigrateToOgcdFirstHealDefaults). Only values
+        // still at the old shipped defaults move; a threshold the player set is kept.
+        if (configuration.Version < 6)
+        {
+            configuration.Astrologian.MigrateToOgcdFirstHealDefaults();
+            configuration.Version = 6;
+            pluginInterface.SavePluginConfig(configuration);
+        }
+
         // Initialize localization (must be early, before UI construction)
         this.localization = new DaedalusLocalization(clientState, configuration, log);
         this.gameDataLocalizer = new GameDataLocalizer(dataManager);
@@ -743,6 +752,7 @@ public sealed class Plugin : IDalamudPlugin
             burstWindowService);
         phantomLayer.DebugLog = debugLogService;
         phantomLayer.TimeToKill = timeToKillService;
+        Rotation.Base.RotationServices.TimeToKill = timeToKillService;
         // A healer mid-way through an 8-second Comet can't answer a Deep Freeze top-off call; the
         // layer cancels the cast the way BossMod does.
         phantomLayer.CancelCast = CancelCurrentCast;

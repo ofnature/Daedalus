@@ -58,7 +58,7 @@ public sealed class HealingModule : IAstraeaModule
         // Detonation and Microcosmos before its hold, and holds nothing else.
         var lockout = AstraeaCardHelper.HasHealingLockout(context);
         if (lockout)
-            context.Debug.PlanningState = "Healing lockout (Macrocosmos/Star): GCD heals held";
+            context.Debug.PlanningState = "Healing lockout (Macrocosmos): GCD heals held";
 
         foreach (var handler in _handlers)
         {

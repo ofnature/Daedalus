@@ -212,6 +212,9 @@ public sealed class AstraeaDebugState : DebugState
     public string DivinationState { get; set; } = "Idle";
     public string OracleState { get; set; } = "Idle";
 
+    /// <summary>Our card buffs on the party right now: every card, who has it, and for how long.</summary>
+    public System.Collections.Generic.IReadOnlyList<Daedalus.Rotation.AstraeaCore.Helpers.CardBuffRow> CardBuffs { get; set; } = [];
+
     // Earthly Star
     public string EarthlyStarState { get; set; } = "Not Placed";
     public float StarTimeRemaining { get; set; }

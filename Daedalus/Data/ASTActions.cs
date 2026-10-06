@@ -16,7 +16,7 @@ public static class ASTActions
     {
         ActionId = 3594,
         Name = "Benefic",
-        MinLevel = 1,
+        MinLevel = 2,
         Category = ActionCategory.GCD,
         TargetType = ActionTargetType.SingleAlly,
         EffectTypes = ActionEffectType.Heal,
@@ -70,7 +70,7 @@ public static class ASTActions
         CastTime = 1.5f,
         RecastTime = 2.5f,
         Range = 0f,
-        Radius = 15f,
+        Radius = 20f,
         MpCost = 700,
         HealPotency = 400
     };
@@ -79,14 +79,14 @@ public static class ASTActions
     {
         ActionId = 3601,
         Name = "Aspected Helios",
-        MinLevel = 42,
+        MinLevel = 40,
         Category = ActionCategory.GCD,
         TargetType = ActionTargetType.PartyAoE,
         EffectTypes = ActionEffectType.Heal | ActionEffectType.HoT,
         CastTime = 1.5f,
         RecastTime = 2.5f,
         Range = 0f,
-        Radius = 15f,
+        Radius = 20f,
         MpCost = 800,
         HealPotency = 250,
         AppliedStatusId = 836, // Aspected Helios regen
@@ -108,10 +108,10 @@ public static class ASTActions
         CastTime = 1.5f,
         RecastTime = 2.5f,
         Range = 0f,
-        Radius = 15f,
+        Radius = 20f,
         MpCost = 800,
         HealPotency = 250,
-        AppliedStatusId = 3988, // Helios Conjunction regen
+        AppliedStatusId = 3894, // Helios Conjunction regen (3988 is Neutral Sect)
         AppliedStatusDuration = 15f
     };
 
@@ -205,7 +205,7 @@ public static class ASTActions
         CastTime = 1.5f,
         RecastTime = 2.5f,
         Range = 25f,
-        Radius = 5f,
+        Radius = 8f, // around the target
         MpCost = 400,
         DamagePotency = 120
     };
@@ -221,7 +221,7 @@ public static class ASTActions
         CastTime = 1.5f,
         RecastTime = 2.5f,
         Range = 25f,
-        Radius = 5f,
+        Radius = 8f, // around the target
         MpCost = 400,
         DamagePotency = 130
     };
@@ -327,7 +327,7 @@ public static class ASTActions
         CastTime = 0f,
         RecastTime = 60f,
         Range = 0f,
-        Radius = 15f,
+        Radius = 20f,
         MpCost = 0,
         HealPotency = 200,
         AppliedStatusId = 1879, // Opposition regen
@@ -439,7 +439,7 @@ public static class ASTActions
         CastTime = 0f,
         RecastTime = 60f,
         Range = 30f,
-        Radius = 8f,
+        Radius = 20f,
         MpCost = 0,
         AppliedStatusDuration = 20f // Star lasts 20s if not detonated
     };
@@ -668,7 +668,7 @@ public static class ASTActions
     {
         ActionId = 37021,
         Name = "Play III",
-        MinLevel = 70,
+        MinLevel = 30,
         Category = ActionCategory.oGCD,
         TargetType = ActionTargetType.SingleAlly,
         EffectTypes = ActionEffectType.Buff,
@@ -725,11 +725,11 @@ public static class ASTActions
         Name = "Lord of Crowns",
         MinLevel = 70,
         Category = ActionCategory.oGCD,
-        TargetType = ActionTargetType.SingleEnemy, // Target-centered AoE
+        TargetType = ActionTargetType.Self, // 20y around the Astrologian (game: range 0, effect range 20)
         EffectTypes = ActionEffectType.Damage,
         CastTime = 0f,
         RecastTime = 1f,
-        Range = 25f,
+        Range = 0f,
         Radius = 20f,
         MpCost = 0,
         DamagePotency = 400
@@ -856,10 +856,10 @@ public static class ASTActions
         CastTime = 0f, // Channeled
         RecastTime = 60f,
         Range = 0f,
-        Radius = 8f,
+        Radius = 30f,
         MpCost = 0,
         HealPotency = 100, // Per tick
-        AppliedStatusId = 848, // Wheel of Fortune (regen after channel)
+        AppliedStatusId = 956, // Wheel of Fortune (regen after channel)
         AppliedStatusDuration = 15f
     };
 
@@ -1069,7 +1069,7 @@ public static class ASTActions
     /// <summary>
     /// Wheel of Fortune (regen after Collective Unconscious) status ID.
     /// </summary>
-    public const ushort WheelOfFortuneStatusId = 848;
+    public const ushort WheelOfFortuneStatusId = 956;
 
     /// <summary>
     /// Earthly Dominance (immature star) status ID.

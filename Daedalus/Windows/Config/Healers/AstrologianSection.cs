@@ -78,6 +78,11 @@ public sealed class AstrologianSection
             ConfigUIHelpers.Toggle(Loc.T(LocalizedStrings.Astrologian.EnableCelestialOpposition, "Enable Celestial Opposition"), () => config.Astrologian.EnableCelestialOpposition, v => config.Astrologian.EnableCelestialOpposition = v,
                 null, save, actionId: ASTActions.CelestialOpposition.ActionId);
 
+            config.Astrologian.CelestialOppositionThreshold = ConfigUIHelpers.ThresholdSlider("Celestial Opposition Threshold",
+                config.Astrologian.CelestialOppositionThreshold, 50f, 95f,
+                "Party average HP for Celestial Opposition. Keep it above the AoE HP threshold: the free oGCD heals first, "
+                + "and a damage GCD goes to Helios only when it is not enough.", save, v => config.Astrologian.CelestialOppositionThreshold = v);
+
             ConfigUIHelpers.Toggle(Loc.T(LocalizedStrings.Astrologian.EnableExaltation, "Enable Exaltation"), () => config.Astrologian.EnableExaltation, v => config.Astrologian.EnableExaltation = v,
                 null, save, actionId: ASTActions.Exaltation.ActionId);
 
@@ -145,6 +150,11 @@ public sealed class AstrologianSection
             ImGui.TextDisabled(placementDesc);
 
             ConfigUIHelpers.Spacing();
+
+            ConfigUIHelpers.Toggle("Place on cooldown in combat", () => config.Astrologian.EarthlyStarOnCooldown,
+                v => config.Astrologian.EarthlyStarOnCooldown = v,
+                "Put the star down whenever it is ready in combat — free damage and healing every 60s, and it detonates "
+                + "by itself when it expires. Off: only when the party is hurt or a raidwide is coming.", save);
 
             config.Astrologian.EarthlyStarDetonateThreshold = ConfigUIHelpers.ThresholdSlider(Loc.T(LocalizedStrings.Astrologian.DetonateThreshold, "Detonate Threshold"),
                 config.Astrologian.EarthlyStarDetonateThreshold, 40f, 85f, Loc.T(LocalizedStrings.Astrologian.DetonateThresholdDesc, "Party average HP to trigger detonation."), save, v => config.Astrologian.EarthlyStarDetonateThreshold = v);
