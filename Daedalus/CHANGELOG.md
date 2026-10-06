@@ -3,6 +3,20 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.97 — 2026-10-06
+
+### Fix — fewer regen GCDs on a tank who doesn't need them (Astrologian, White Mage)
+- **"Heavy damage" no longer means a boss hitting the tank.** It raised Aspected Benefic and Regen to 95% whenever
+  the party took 300 damage a second — which a boss's auto-attacks do at almost any level — so the regen went out on a
+  90% tank every 15-20 seconds, about a quarter of an Astrologian's GCDs. It now also needs the party to be losing 5%
+  of its combined HP every second (a wall-to-wall pull, a raidwide).
+- **One group heal instead of a single heal each.** With two or more party members low enough to each need a GCD
+  heal, the Astrologian casts Aspected Helios / Helios once, even while the tank sits near full and holds the party
+  average up (it cast three Aspected Benefics in five seconds instead).
+- **Essential Dignity goes first.** When it's ready and covers the hurt party member, the Astrologian no longer casts
+  a GCD heal on them a moment before it lands.
+
+<!-- LATEST-END -->
 ## v0.1.96 — 2026-10-05
 
 ### Fix — Astrologian, checked at level 71
@@ -46,7 +60,6 @@ All notable changes to Daedalus will be documented in this file.
 - Debug ▸ Astrologian: a **Card buffs** column beside Cards lists every card, who has it from you, and the seconds
   left.
 
-<!-- LATEST-END -->
 ## v0.1.95 — 2026-10-05
 
 ### Settings — pick the navmesh plugin Daedalus moves through

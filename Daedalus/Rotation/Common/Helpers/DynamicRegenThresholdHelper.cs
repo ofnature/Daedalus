@@ -25,12 +25,29 @@ public static class DynamicRegenThresholdHelper
         HealingConfig healing,
         IDamageIntakeService damageIntakeService,
         float baseThreshold)
+        => GetEffectiveThreshold(healing, damageIntakeService, baseThreshold, partyMaxHpTotal: 0f);
+
+    /// <summary>
+    /// A party losing at least this share of its combined max HP every second is taking heavy damage. The flat
+    /// <see cref="HealingConfig.RegenHighDamageDpsThreshold"/> (300 DPS) alone is crossed by a boss's auto-attacks on
+    /// the tank at any level past the first few, so the raised threshold (95%) applied the whole fight and the regen
+    /// went out on a 90% tank every 15-20 s — a quarter of an Astrologian's GCDs (Saar, Forgiven Dissonance, 2026-10-06).
+    /// </summary>
+    public const float HeavyDamageShareOfPartyHpPerSecond = 0.05f;
+
+    /// <inheritdoc cref="GetEffectiveThreshold(HealingConfig, IDamageIntakeService, float)"/>
+    /// <param name="partyMaxHpTotal">The party's combined max HP; 0 to use the flat floor alone.</param>
+    public static float GetEffectiveThreshold(
+        HealingConfig healing,
+        IDamageIntakeService damageIntakeService,
+        float baseThreshold,
+        float partyMaxHpTotal)
     {
         if (!healing.EnableDynamicRegenThreshold)
             return baseThreshold;
 
         var partyDamageRate = damageIntakeService.GetPartyDamageRate(3f);
-        if (partyDamageRate < healing.RegenHighDamageDpsThreshold)
+        if (!IsHeavyDamage(partyDamageRate, healing.RegenHighDamageDpsThreshold, partyMaxHpTotal))
             return baseThreshold;
 
         // Only raise — never lower — the caller's base threshold.
@@ -38,4 +55,8 @@ public static class DynamicRegenThresholdHelper
             ? baseThreshold
             : healing.RegenHighDamageThreshold;
     }
+
+    /// <summary>Heavy damage: over the flat floor AND over the share of the party's HP. Pure, for tests.</summary>
+    internal static bool IsHeavyDamage(float partyDamageRate, float flatFloor, float partyMaxHpTotal)
+        => partyDamageRate >= System.Math.Max(flatFloor, partyMaxHpTotal * HeavyDamageShareOfPartyHpPerSecond);
 }

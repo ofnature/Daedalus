@@ -42,6 +42,7 @@ public sealed class SingleTargetHandler : IHealingHandler
         if (context.HealingCoordination.IsTargetReserved(target.EntityId, context.PartyCoordinationService)) return;
 
         var hpPercent = context.PartyHelper.GetHpPercent(target);
+        if (EssentialDignityHandler.WillCover(context, hpPercent)) return;
 
         ActionDefinition? action = null;
         AbilityBehavior? behavior = null;

@@ -38,10 +38,14 @@ public sealed class AspectedBeneficHandler : IHealingHandler
         if (context.HealingCoordination.IsTargetReserved(target.EntityId, context.PartyCoordinationService)) return;
 
         var hpPercent = context.PartyHelper.GetHpPercent(target);
+        var partyMaxHp = 0f;
+        foreach (var member in context.PartyHelper.GetAllPartyMembers(player))
+            partyMaxHp += member.MaxHp;
         var effectiveThreshold = DynamicRegenThresholdHelper.GetEffectiveThreshold(
-            context.Configuration.Healing, context.DamageIntakeService, config.AspectedBeneficThreshold);
+            context.Configuration.Healing, context.DamageIntakeService, config.AspectedBeneficThreshold, partyMaxHp);
         if (hpPercent > effectiveThreshold) return;
         if (context.StatusHelper.HasAspectedBenefic(target)) return;
+        if (EssentialDignityHandler.WillCover(context, hpPercent)) return;
 
         var action = ASTActions.AspectedBenefic;
         var capturedTarget = target;

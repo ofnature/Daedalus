@@ -26,6 +26,15 @@ public sealed class AoEHealingHandler : IHealingHandler
 
     public bool TryExecute(IAstraeaContext context, bool isMoving) => false;
 
+    /// <summary>
+    /// One group heal instead of a single heal each: the party average is down, or enough members are low on their
+    /// own. The average alone missed the common 4-player case — a tank near full holds it above the line while two or
+    /// three others sit at 60%, and each got its own Aspected Benefic (Saar, Tesleen, 2026-10-06: three in five
+    /// seconds where one Aspected Helios would do).
+    /// </summary>
+    internal static bool ShouldGroupHeal(float avgHp, float threshold, int injured, int lowMembers, int minTargets)
+        => (avgHp <= threshold && injured >= minTargets) || lowMembers >= minTargets;
+
     public void CollectCandidates(IAstraeaContext context, RotationScheduler scheduler, bool isMoving)
     {
         if (isMoving) return;
@@ -49,7 +58,16 @@ public sealed class AoEHealingHandler : IHealingHandler
         var emergency = AoEEmergencyHelper.IsAoEEmergency(
             context.PartyHelper, player, context.Configuration.Healing);
 
-        var shouldUse = (avgHp <= config.AoEHealThreshold && count >= minTargets) || raidwideImminent || emergency;
+        // Members low enough that each would otherwise take its own GCD heal, inside Helios's reach.
+        var low = 0;
+        foreach (var member in context.PartyHelper.GetAllPartyMembers(player))
+        {
+            if (member.IsDead) continue;
+            if (System.Numerics.Vector3.DistanceSquared(player.Position, member.Position) > ASTActions.Helios.RadiusSquared) continue;
+            if (context.PartyHelper.GetHpPercent(member) <= config.AoEHealThreshold) low++;
+        }
+
+        var shouldUse = ShouldGroupHeal(avgHp, config.AoEHealThreshold, count, low, minTargets) || raidwideImminent || emergency;
         if (!shouldUse) return;
 
         // GCD-heal gating (RSR GCDHeal parity): with a co-healer present, defer non-critical AoE GCD heals

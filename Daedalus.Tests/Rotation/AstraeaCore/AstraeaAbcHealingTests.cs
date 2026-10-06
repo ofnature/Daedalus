@@ -86,4 +86,19 @@ public class AstraeaAbcHealingTests
     [InlineData(false, true, 3, 45f, false)]           // setting off: reactive only
     public void EarthlyStarOnCooldown(bool enabled, bool inCombat, int engaged, float ttk, bool place)
         => Assert.Equal(place, EarthlyStarPlacementHandler.PlaceOnCooldown(enabled, inCombat, engaged, ttk));
+
+    // ── one group heal instead of a single heal each ────────────────────────────────────
+
+    /// <summary>Tesleen, 2026-10-06: tank at 85%, three others near 60% — average 68%, so three Aspected Benefics.</summary>
+    [Fact]
+    public void TwoLowMembersGetAGroupHealEvenWithTheTankFull()
+        => Assert.True(AoEHealingHandler.ShouldGroupHeal(avgHp: 0.68f, threshold: 0.65f, injured: 4, lowMembers: 2, minTargets: 2));
+
+    [Fact]
+    public void OneLowMemberIsASingleHeal()
+        => Assert.False(AoEHealingHandler.ShouldGroupHeal(avgHp: 0.80f, threshold: 0.65f, injured: 3, lowMembers: 1, minTargets: 2));
+
+    [Fact]
+    public void ALowAverageStillCounts()
+        => Assert.True(AoEHealingHandler.ShouldGroupHeal(avgHp: 0.60f, threshold: 0.65f, injured: 2, lowMembers: 1, minTargets: 2));
 }

@@ -33,8 +33,11 @@ public sealed class RegenHandler : IHealingHandler
         if (!config.EnableHealing || !config.Healing.EnableRegen) return;
         if (player.Level < WHMActions.Regen.MinLevel) return;
 
+        var partyMaxHp = 0f;
+        foreach (var member in context.PartyHelper.GetAllPartyMembers(player))
+            partyMaxHp += member.MaxHp;
         var tankRegenThreshold = DynamicRegenThresholdHelper.GetEffectiveThreshold(
-            config.Healing, context.DamageIntakeService, FFXIVConstants.RegenHpThreshold);
+            config.Healing, context.DamageIntakeService, FFXIVConstants.RegenHpThreshold, partyMaxHp);
         var nonTankRegenThreshold = FFXIVConstants.RegenNonTankHpThreshold;
 
         var target = context.PartyHelper.FindRegenTarget(player, tankRegenThreshold, nonTankRegenThreshold, FFXIVConstants.RegenRefreshThreshold);

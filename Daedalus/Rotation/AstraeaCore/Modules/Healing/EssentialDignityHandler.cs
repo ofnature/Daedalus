@@ -33,6 +33,28 @@ public sealed class EssentialDignityHandler : IHealingHandler
     internal static float ThresholdFor(uint currentCharges, uint maxCharges, float spare, float last)
         => currentCharges > 1 || maxCharges <= 1 ? spare : last;
 
+    /// <summary>
+    /// Essential Dignity is ready and will take a target this hurt this frame — so a GCD heal on it is a damage GCD
+    /// spent on a heal the free one was about to give. Field 2026-10-06 (Saar, Forgiven Dissonance): four times an
+    /// Aspected Benefic went out and Essential Dignity landed on the same member under a second later. Not below the
+    /// GCD-emergency line, where both are wanted.
+    /// </summary>
+    internal static bool WillCover(IAstraeaContext context, float targetHpPercent)
+    {
+        var config = context.Configuration.Astrologian;
+        if (!config.EnableEssentialDignity) return false;
+        if (targetHpPercent <= context.Configuration.Healing.GcdEmergencyThreshold) return false;
+        var level = context.Player.Level;
+        if (!ActionAvailability.MeetsLevelAndLearned(level, context.ActionService, ASTActions.EssentialDignity)) return false;
+        if (!context.ActionService.IsActionReady(ASTActions.EssentialDignity.ActionId)) return false;
+
+        var threshold = ThresholdFor(
+            context.ActionService.GetCurrentCharges(ASTActions.EssentialDignity.ActionId),
+            context.ActionService.GetMaxCharges(ASTActions.EssentialDignity.ActionId, level),
+            config.EssentialDignitySpareChargeThreshold, config.EssentialDignityThreshold);
+        return targetHpPercent <= threshold;
+    }
+
     public void CollectCandidates(IAstraeaContext context, RotationScheduler scheduler, bool isMoving)
     {
         var config = context.Configuration.Astrologian;
