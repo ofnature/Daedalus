@@ -112,6 +112,18 @@ public static class PhantomBuffPolicy
     /// </summary>
     public const byte InquiringMindFreelancerLevel = 15;
 
+    /// <summary>Occult Treasuresight: reports how many treasure coffers are in the zone.</summary>
+    public const uint TreasuresightActionId = 41651;
+
+    /// <summary>The second of Freelancer's four unlocks (5 / 10 / 15 / 20).</summary>
+    public const byte TreasuresightFreelancerLevel = 10;
+
+    /// <summary>Has this character unlocked Occult Treasuresight, whatever job it is on right now?</summary>
+    public static bool CanUseTreasuresight(IReadOnlyDictionary<PhantomJob, byte>? jobLevels)
+        => jobLevels is not null
+           && jobLevels.TryGetValue(PhantomJob.Freelancer, out var level)
+           && level >= TreasuresightFreelancerLevel;
+
     /// <summary>
     /// Can this character collect the whole set with one cast instead of touring four jobs?
     /// <para>

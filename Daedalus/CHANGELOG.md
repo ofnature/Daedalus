@@ -3,6 +3,36 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.98 — 2026-10-11
+
+### Occult Crescent — Phantom Dancer's last two actions
+- **Mesmerize** (Dancer Lv4) is kept up on your target: 5% more damage taken for 100 seconds (and 40% off its damage
+  for the first 4). Not on a target that already has it or Cannoneer's Silver Sickness (they don't stack), nor one
+  about to die.
+- **Steadfast Stance** (Dancer Lv3) goes up when you're hurt in combat: a barrier for 10% of your max HP. Always on
+  yourself — cast on a party member it rushes you to their side, which Daedalus never does for you.
+
+### Occult Crescent — six more phantom actions are now used
+- **Occult Unicorn** (Ranger Lv6): the 40,000 party barrier goes up when you or the party are hurt in combat.
+- **Phantom Rejuvenation** (Oracle Lv4): started as soon as anyone is chipped, since its heal lands 20 seconds later.
+- **Recuperation** (Oracle Lv2): cast on a party member carrying a cleansable debuff that will still be there when
+  the cleanse arrives 20 seconds later.
+- **Phantom Doom** (Oracle Lv3): tried on ordinary enemies, up to three times each (it only has a chance to land).
+  Never on critical-encounter or FATE enemies. It shares a recast with Recuperation, which goes first.
+- **Occult Blink** (White Mage Lv3): on whoever is lowest and in trouble, to swallow the next magic hit.
+- **Vigilance** (Thief Lv3): cast out of combat with an enemy targeted within 30 yalms, so the pull starts with
+  +60% critical hit rate. Never while mounted.
+
+### Occult Crescent — Treasuresight
+- **New "Treasuresight" button in the Occult Crescent window**, shown once Freelancer reaches Lv10. It switches you
+  to Freelancer, casts Occult Treasuresight and switches you back. Occult Treasuresight has to be on the Freelancer
+  duty bar.
+- **The coffer count stays in the window.** The answer ("4 silver · 27 bronze") is shown under the button with how
+  long ago it was taken, instead of scrolling away in chat.
+- **The "Use Occult Treasuresight" setting now does something.** It was read by nothing. Ticked, and while you are
+  playing Freelancer, the count is refreshed once a minute out of combat (never while mounted).
+
+<!-- LATEST-END -->
 ## v0.1.97 — 2026-10-06
 
 ### Fix — fewer regen GCDs on a tank who doesn't need them (Astrologian, White Mage)
@@ -16,7 +46,6 @@ All notable changes to Daedalus will be documented in this file.
 - **Essential Dignity goes first.** When it's ready and covers the hurt party member, the Astrologian no longer casts
   a GCD heal on them a moment before it lands.
 
-<!-- LATEST-END -->
 ## v0.1.96 — 2026-10-05
 
 ### Fix — Astrologian, checked at level 71

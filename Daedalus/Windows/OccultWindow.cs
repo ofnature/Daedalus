@@ -26,12 +26,14 @@ public sealed class OccultWindow : Window
     private readonly Daedalus.Services.Occult.PotFateTracker? _potFates;
     private readonly Daedalus.Services.Occult.PhantomBuffCycleService? _buffCycle;
     private readonly Daedalus.Config.PhantomConfig? _phantomConfig;
+    private readonly Daedalus.Services.Occult.TreasuresightLog? _treasuresight;
 
     public OccultWindow(
         PhantomJobService phantomJobs,
         Daedalus.Services.Occult.PotFateTracker? potFates = null,
         Daedalus.Services.Occult.PhantomBuffCycleService? buffCycle = null,
-        Daedalus.Config.PhantomConfig? phantomConfig = null)
+        Daedalus.Config.PhantomConfig? phantomConfig = null,
+        Daedalus.Services.Occult.TreasuresightLog? treasuresight = null)
         : base("Occult Crescent##DaedalusOccultHud",
             ImGuiWindowFlags.AlwaysAutoResize | ImGuiWindowFlags.NoFocusOnAppearing)
     {
@@ -39,6 +41,7 @@ public sealed class OccultWindow : Window
         _phantomJobs = phantomJobs;
         _buffCycle = buffCycle;
         _phantomConfig = phantomConfig;
+        _treasuresight = treasuresight;
     }
 
     public override void Draw()
@@ -264,6 +267,8 @@ public sealed class OccultWindow : Window
                 + "then returns you to the job you are on now." + crystalNote);
         }
 
+        DrawTreasuresightButton(snapshot, disabled);
+
         if (running)
         {
             ImGui.TextColored(Gold, _buffCycle.Status);
@@ -274,6 +279,51 @@ public sealed class OccultWindow : Window
         }
 
         DrawBuffTimers();
+    }
+
+    /// <summary>
+    /// Occult Treasuresight from any job: switch to Freelancer, cast it, switch back. Only drawn once
+    /// Freelancer has the action, and it shares the buff cycle's machine so the two can never run at once.
+    /// </summary>
+    private void DrawTreasuresightButton(Daedalus.Services.Occult.PhantomStateSnapshot snapshot, bool disabled)
+    {
+        if (_buffCycle is null || !_buffCycle.TreasuresightUnlocked)
+            return;
+
+        if (disabled)
+            ImGui.BeginDisabled();
+
+        if (ImGui.Button("Treasuresight"))
+            _buffCycle.StartTreasuresight();
+
+        if (disabled)
+            ImGui.EndDisabled();
+
+        if (ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenDisabled))
+        {
+            ImGui.SetTooltip(
+                "Casts Occult Treasuresight, which reports how many treasure coffers are in the zone.\n"
+                + "The count shows under this button and in the chat log.\n\n"
+                + "Occult Treasuresight has to be on the Freelancer duty bar.");
+        }
+
+        if (!_buffCycle.IsRunning)
+        {
+            ImGui.SameLine();
+            ImGui.TextColored(Dim, snapshot.ActiveJob == PhantomJob.Freelancer
+                ? "counts the coffers in the zone"
+                : "switches to Freelancer, casts, then switches you back");
+        }
+
+        // The answer, kept here so it does not scroll away with the chat. Always with its age: coffers get
+        // opened and respawn, so an old count is a guess.
+        if (_treasuresight?.Describe(snapshot.TerritoryId) is { Length: > 0 } coffers)
+        {
+            ImGui.Text($"Coffers: {coffers}");
+            ImGui.SameLine();
+            ImGui.TextColored(Dim, Daedalus.Services.Occult.TreasuresightLog.DescribeAge(
+                DateTime.UtcNow - _treasuresight.TakenUtc));
+        }
     }
 
     /// <summary>

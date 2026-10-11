@@ -84,6 +84,11 @@ public sealed class PhantomActionLayer
 
     /// <summary>When we last sent Occult Dispel at each enemy (entity id).</summary>
     private readonly Dictionary<uint, DateTime> _lastDispelAt = [];
+
+    /// <summary>Phantom Doom casts per enemy. It only has a chance to land, so a few tries, then no more.</summary>
+    private readonly Dictionary<uint, int> _phantomDoomAttempts = [];
+
+    private DateTime _lastTreasuresightUtc = DateTime.MinValue;
     private DateTime _lastResistPrune = DateTime.MinValue;
 
     /// <summary>
@@ -283,7 +288,8 @@ public sealed class PhantomActionLayer
     {
         var cfg = _configuration.Occult;
 
-        if (_slowgaResisted.Count + _mageMasherResisted.Count + _dispelResisted.Count + _lastDispelAt.Count > 0
+        if (_slowgaResisted.Count + _mageMasherResisted.Count + _dispelResisted.Count + _lastDispelAt.Count
+                + _phantomDoomAttempts.Count > 0
             && (DateTime.UtcNow - _lastResistPrune).TotalSeconds >= 10)
         {
             _lastResistPrune = DateTime.UtcNow;
@@ -293,6 +299,8 @@ public sealed class PhantomActionLayer
             _dispelResisted.Prune(alive);
             foreach (var id in _lastDispelAt.Keys.Where(id => !alive(id)).ToList())
                 _lastDispelAt.Remove(id);
+            foreach (var id in _phantomDoomAttempts.Keys.Where(id => !alive(id)).ToList())
+                _phantomDoomAttempts.Remove(id);
         }
 
         // Say which. These two used to return silently, leaving _framePrepared false so the
@@ -366,6 +374,7 @@ public sealed class PhantomActionLayer
         PushMpRestore(ctx, cfg, job, level, inCombat);
         PushPhantomRaise(ctx, cfg, job, level);
         PushPartyBuffs(ctx, job, level, inCombat);
+        PushOutOfCombat(ctx, cfg, job, level, inCombat);
         PushDamage(ctx, cfg, job, level, inCombat);
         PushStateMachines(ctx, cfg, job, level, selfHpPct, inCombat);
 
@@ -509,6 +518,34 @@ public sealed class PhantomActionLayer
             TryPush(ctx, 49068, job, level, PrioEmergencySustain + 2, ctx.Player.GameObjectId);
         }
 
+        // Occult Blink (White Mage): the next magic attack on the target does nothing, 30s, on a 90s recast.
+        // Nothing here knows what the next hit will be, so it goes where a hit would hurt most: whoever is
+        // lowest in the self-mit band and not already carrying it.
+        if (job == PhantomJob.PhantomWhiteMage && inCombat)
+        {
+            var unblinked = RestoreCandidates(ctx)
+                .Where(m => !HasAnyStatus(m.Chara, [PhantomActions.StatusIds.OccultBlink]))
+                .ToList();
+            var blinkId = PhantomBandRules.PickPotionTarget(
+                unblinked.Select(m => new PhantomBandRules.PotionCandidate(
+                    m.Chara.GameObjectId, m.Chara.CurrentHp, m.Chara.MaxHp, m.Distance, m.Chara.IsDead)),
+                PhantomBandRules.SelfMitHpPct);
+            if (blinkId is { } blinkFound)
+            {
+                var blinkTarget = unblinked.First(m => m.Chara.GameObjectId == blinkFound).Chara;
+                TryPush(ctx, 49069, job, level, PrioSelfMit, blinkTarget.GameObjectId, blinkTarget);
+            }
+        }
+
+        // Occult Unicorn (Ranger): the same 40,000 party barrier as Earthen Wall below, 15y around the Ranger.
+        if (job == PhantomJob.Ranger
+            && PhantomBandRules.ShouldUnicorn(inCombat,
+                _actionService.PlayerHasStatus(PhantomActions.StatusIds.OccultUnicorn),
+                selfHpPct, ctx.PartyHealthMetrics.avgHpPercent))
+        {
+            TryPush(ctx, 41602, job, level, PrioSelfMit);
+        }
+
         // Earthen Wall (Summoner): a 40,000-potency barrier over the whole party on a 120s
         // timer. Party-wide, so it uses the self-mit threshold rather than a heal threshold.
         if (job == PhantomJob.PhantomSummoner && PhantomBandRules.ShouldSelfMit(selfHpPct, inCombat))
@@ -545,6 +582,12 @@ public sealed class PhantomActionLayer
             TryPush(ctx, 41588, job, level, PrioSelfMit); // Phantom Guard
         if (job == PhantomJob.Gladiator)
             TryPush(ctx, 46595, job, level, PrioSelfMit); // Defend
+
+        // Steadfast Stance (Dancer): a barrier for 10% of max HP, 30s, on a 60s recast. On SELF, explicitly:
+        // cast on a party member it rushes the dancer to their side, and a dash nobody asked for is how a
+        // character ends up in an AoE.
+        if (job == PhantomJob.Dancer && !_actionService.PlayerHasStatus(PhantomActions.StatusIds.SteadfastStance))
+            TryPush(ctx, 46604, job, level, PrioSelfMit, ctx.Player.GameObjectId);
 
         // Occult Mighty Guard (Blue Mage): 20% off self AND nearby party for 15s on a 120s
         // recast. Cheap enough to treat as a self-mit rather than hoarding it for a raidwide
@@ -997,6 +1040,45 @@ public sealed class PhantomActionLayer
             case PhantomJob.MysticKnight:
                 TryPushBuff(ctx, 46590, job, level, PrioPartyBuff);     // Magic Shell
                 break;
+        }
+    }
+
+    /// <summary>The two actions that only make sense with no fight going on.</summary>
+    private void PushOutOfCombat(IRotationContext ctx, Config.PhantomConfig cfg, PhantomJob job, byte level, bool inCombat)
+    {
+        if (inCombat)
+            return;
+
+        // Any action pressed in the saddle dismounts the character, and both of these would do it on a ride
+        // across the zone — which is exactly when nobody is watching for it.
+        if (Daedalus.Rotation.Base.RotationServices.Condition?[
+                Dalamud.Game.ClientState.Conditions.ConditionFlag.Mounted] == true)
+            return;
+
+        // Vigilance (Thief): becomes +60% critical hit rate for 20s the moment the pull starts.
+        if (job == PhantomJob.Thief)
+        {
+            var enemy = ctx.TargetingService.GetUserEnemyTarget();
+            var hasEnemy = enemy is { IsDead: false };
+            var distance = hasEnemy
+                ? System.Numerics.Vector3.Distance(ctx.Player.Position, enemy!.Position) - enemy.HitboxRadius
+                : float.MaxValue;
+            if (PhantomBandRules.ShouldVigilance(inCombat,
+                    _actionService.PlayerHasStatus(PhantomActions.StatusIds.Vigilance),
+                    _actionService.PlayerHasStatus(PhantomActions.StatusIds.ForeseenOffense),
+                    hasEnemy, distance))
+            {
+                TryPush(ctx, 41647, job, level, PrioPartyBuff);
+            }
+        }
+
+        // Occult Treasuresight (Freelancer): the coffer count, in the chat log, once a minute.
+        if (job == PhantomJob.Freelancer
+            && PhantomBandRules.ShouldTreasuresight(cfg.UseTreasuresight, inCombat,
+                (DateTime.UtcNow - _lastTreasuresightUtc).TotalSeconds))
+        {
+            TryPush(ctx, 41651, job, level, PrioDamage,
+                onExtraDispatched: () => _lastTreasuresightUtc = DateTime.UtcNow);
         }
     }
 
@@ -1731,6 +1813,8 @@ public sealed class PhantomActionLayer
         var targetTtk = hasTarget ? TimeToKill?.GetTtkSeconds(enemy!) ?? float.MaxValue : float.MaxValue;
         var targetHpPct = hasTarget && enemy!.MaxHp > 0 ? (float)enemy.CurrentHp / enemy.MaxHp : 0f;
 
+        PushOracleUtilities(ctx, job, level, selfHpPct, inCombat, hasTarget ? enemy : null, targetTtk);
+
         // Which card is the game currently offering? (Predict morphs the slot per card.)
         var activeCard =
             _actionService.PlayerHasStatus(PhantomActions.StatusIds.PredictionOfJudgment) ? OracleCardPolicy.JudgmentCard
@@ -1782,6 +1866,83 @@ public sealed class PhantomActionLayer
         }
     }
 
+    /// <summary>
+    /// Remaining seconds of a party member's cleansable debuff, null when they have none. Wired by the plugin
+    /// to the same detection the healers' Esuna uses; unset, Recuperation simply never fires.
+    /// </summary>
+    public Func<IBattleChara, float?>? CleansableDebuffSeconds { get; set; }
+
+    /// <summary>
+    /// Oracle's three Abilities outside the card game. None of them touches the GCD, so they run every frame
+    /// whatever the prophecy window is doing.
+    /// </summary>
+    private void PushOracleUtilities(
+        IRotationContext ctx, PhantomJob job, byte level, float selfHpPct, bool inCombat,
+        IBattleChara? enemy, float enemyTtk)
+    {
+        // Phantom Rejuvenation: on self, so the 30y heal is centred wherever the Oracle stands.
+        if (PhantomBandRules.ShouldRejuvenate(inCombat,
+                _actionService.PlayerHasStatus(PhantomActions.StatusIds.PhantomRejuvenation),
+                selfHpPct, ctx.PartyHealthMetrics.lowestHpPercent))
+        {
+            TryPush(ctx, 41643, job, level, PrioEmergencySustain + 3, ctx.Player.GameObjectId);
+        }
+
+        // Recuperation and Phantom Doom share one 30s recast. A debuff on the party outranks a
+        // maybe-kill on an enemy, so Doom is only offered when there is nothing to cleanse.
+        if (FindRecuperationTarget(ctx) is { } afflicted)
+        {
+            TryPush(ctx, 41641, job, level, PrioSelfMit + 2, afflicted.GameObjectId, afflicted);
+            return;
+        }
+
+        if (enemy is null)
+            return;
+
+        var enemyId = enemy.EntityId;
+        var attempts = _phantomDoomAttempts.GetValueOrDefault(enemyId);
+        var isCe = IsCriticalEncounterMob(enemy);
+        var isFate = IsFateMob(enemy);
+        if (PhantomBandRules.ShouldPhantomDoom(inCombat,
+                HasAnyStatus(enemy, [PhantomActions.StatusIds.PhantomDoom]),
+                isCe, isFate, attempts, enemyTtk))
+        {
+            TryPush(ctx, 41642, job, level, PrioPartyBuff + 2, enemy.GameObjectId, enemy,
+                onExtraDispatched: () => _phantomDoomAttempts[enemyId] = attempts + 1);
+        }
+        else if (inCombat && (isCe || isFate))
+        {
+            _pushRejects.Add("Phantom Doom — no effect on critical-encounter or FATE enemies");
+        }
+        else if (inCombat && attempts >= PhantomBandRules.PhantomDoomMaxAttempts)
+        {
+            _pushRejects.Add($"Phantom Doom — failed {attempts} times on this enemy, not recasting");
+        }
+    }
+
+    /// <summary>
+    /// The first party member (the player first) within Recuperation's 30y carrying a cleansable debuff that
+    /// will still be there when the cleanse arrives, and not already under Recuperation.
+    /// </summary>
+    private IBattleChara? FindRecuperationTarget(IRotationContext ctx)
+    {
+        if (CleansableDebuffSeconds is null)
+            return null;
+
+        foreach (var (chara, distance) in RestoreCandidates(ctx))
+        {
+            if (chara.IsDead || distance > PhantomBandRules.OccultPotionRangeYalms)
+                continue;
+
+            var alreadyUp = HasAnyStatus(chara,
+                [PhantomActions.StatusIds.Recuperation, PhantomActions.StatusIds.FortifiedRecuperation]);
+            if (PhantomBandRules.ShouldRecuperate(alreadyUp, CleansableDebuffSeconds(chara)))
+                return chara;
+        }
+
+        return null;
+    }
+
     private void PushDancer(IRotationContext ctx, PhantomJob job, byte level, bool inCombat)
     {
         if (!inCombat)
@@ -1800,6 +1961,18 @@ public sealed class PhantomActionLayer
             || _actionService.PlayerHasStatus(PhantomActions.StatusIds.WillingToWaltz);
         if (!anyProc)
             TryPush(ctx, 46598, job, level, PrioPartyBuff);
+
+        // Mesmerize: +5% damage taken on the target for 100s (and 40% off its damage for the first 4s).
+        var enemy = ctx.TargetingService.GetUserEnemyTarget() ?? ctx.Player.TargetObject as IBattleChara;
+        if (enemy is { IsDead: false }
+            && PhantomBandRules.ShouldMesmerize(
+                inCombat,
+                HasAnyStatus(enemy, [PhantomActions.StatusIds.Mesmerized]),
+                HasAnyStatus(enemy, [PhantomActions.StatusIds.SilverSickness]),
+                TimeToKill?.GetTtkSeconds(enemy) ?? float.MaxValue))
+        {
+            TryPush(ctx, 46605, job, level, PrioPartyBuff + 1, enemy.GameObjectId, enemy);
+        }
     }
 
     private void PushGeomancer(IRotationContext ctx, Config.PhantomConfig cfg, PhantomJob job, byte level, bool inCombat)

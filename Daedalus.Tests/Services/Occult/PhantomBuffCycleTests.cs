@@ -463,4 +463,116 @@ public class PhantomBuffCycleTests
         Assert.Empty(world.CastLog);
         Assert.Equal(PhantomJob.Oracle, world.ActiveJob);
     }
+
+    // ── Occult Treasuresight: switch to Freelancer, cast, switch back ────────────────────
+
+    [Fact]
+    public void Treasuresight_switches_to_freelancer_casts_and_switches_back()
+    {
+        var world = new FakeWorld { ActiveJob = PhantomJob.PhantomBlackMage };
+        world.Levels[PhantomJob.Freelancer] = 10;
+        var cycle = Cycle(world);
+
+        Assert.True(cycle.StartTreasuresight());
+        RunToCompletion(cycle);
+
+        Assert.Equal([PhantomJob.Freelancer, PhantomJob.PhantomBlackMage], world.SwitchLog);
+        Assert.Equal([PhantomBuffPolicy.TreasuresightActionId], world.CastLog);
+        Assert.Equal(PhantomJob.PhantomBlackMage, world.ActiveJob);
+        Assert.Equal(BuffCycleState.Idle, cycle.State);
+        Assert.StartsWith("Occult Treasuresight cast", cycle.LastOutcome);
+    }
+
+    /// <summary>It leaves no status behind, so there is nothing to wait for — and nothing to time out on.</summary>
+    [Fact]
+    public void Treasuresight_does_not_wait_for_a_buff()
+    {
+        var world = new FakeWorld { ActiveJob = PhantomJob.Oracle, CastNeverLands = true };
+        world.Levels[PhantomJob.Freelancer] = 10;
+        var cycle = Cycle(world);
+
+        cycle.StartTreasuresight();
+        RunToCompletion(cycle, maxTicks: 10);
+
+        Assert.False(cycle.IsRunning);
+        Assert.Equal(PhantomJob.Oracle, world.ActiveJob);
+    }
+
+    [Fact]
+    public void Treasuresight_on_freelancer_already_switches_nothing()
+    {
+        var world = new FakeWorld { ActiveJob = PhantomJob.Freelancer };
+        world.Levels[PhantomJob.Freelancer] = 12;
+        var cycle = Cycle(world);
+
+        cycle.StartTreasuresight();
+        RunToCompletion(cycle);
+
+        Assert.Empty(world.SwitchLog);
+        Assert.Single(world.CastLog);
+    }
+
+    [Theory]
+    [InlineData(0, false)]
+    [InlineData(9, false)]
+    [InlineData(10, true)]
+    [InlineData(20, true)]
+    public void Treasuresight_needs_freelancer_level_ten(byte level, bool unlocked)
+    {
+        var world = new FakeWorld();
+        if (level > 0)
+            world.Levels[PhantomJob.Freelancer] = level;
+        var cycle = Cycle(world);
+
+        Assert.Equal(unlocked, cycle.TreasuresightUnlocked);
+        Assert.Equal(unlocked, cycle.StartTreasuresight());
+        if (!unlocked)
+            Assert.Empty(world.SwitchLog);
+    }
+
+    /// <summary>Not slotted on the Freelancer bar: say so, and still give the job back.</summary>
+    [Fact]
+    public void Treasuresight_that_cannot_be_cast_says_why_and_restores_the_job()
+    {
+        var world = new FakeWorld { ActiveJob = PhantomJob.Knight, RefuseCast = true };
+        world.Levels[PhantomJob.Freelancer] = 10;
+        var cycle = Cycle(world);
+
+        cycle.StartTreasuresight();
+        RunToCompletion(cycle);
+
+        Assert.Empty(world.CastLog);
+        Assert.Equal(PhantomJob.Knight, world.ActiveJob);
+        Assert.Contains("duty bar", cycle.LastOutcome);
+    }
+
+    [Fact]
+    public void Treasuresight_refuses_in_combat_and_while_a_cycle_is_running()
+    {
+        var world = new FakeWorld { InCombat = true };
+        world.Levels[PhantomJob.Freelancer] = 10;
+        var cycle = Cycle(world);
+        Assert.False(cycle.StartTreasuresight());
+
+        world.InCombat = false;
+        Assert.True(cycle.Start(_ => true));
+        Assert.False(cycle.StartTreasuresight());
+    }
+
+    /// <summary>A buff tour after an errand reports buffs again, not the errand's line.</summary>
+    [Fact]
+    public void A_buff_cycle_after_treasuresight_reports_buffs()
+    {
+        var world = new FakeWorld { NearKnowledgeCrystal = false };
+        world.Levels[PhantomJob.Freelancer] = 10;
+        var cycle = Cycle(world);
+
+        cycle.StartTreasuresight();
+        RunToCompletion(cycle);
+        cycle.Start(_ => true);
+        RunToCompletion(cycle);
+
+        Assert.DoesNotContain("Treasuresight", cycle.LastOutcome);
+        Assert.Equal(5, world.CastLog.Count);
+    }
 }

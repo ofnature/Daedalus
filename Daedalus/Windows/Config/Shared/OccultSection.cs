@@ -223,7 +223,10 @@ public sealed class OccultSection
                     0.10f, 1.00f, "%.2f", null, save, v => config.Occult.FreelancerResuscitationHpPct = v);
                 ConfigUIHelpers.Toggle("Use Occult Treasuresight",
                     () => config.Occult.UseTreasuresight, v => config.Occult.UseTreasuresight = v,
-                    null, save);
+                    "Out of combat, cast Occult Treasuresight once a minute. The number of treasure " +
+                    "coffers in the zone shows in the chat log. Needs Freelancer Lv.10 and the action " +
+                    "on your duty bar.",
+                    save);
                 break;
 
             case PhantomJob.Knight:

@@ -514,6 +514,106 @@ public static class PhantomBandRules
            && !hasInstantCast
            && !inRedMageBurst;
 
+    /// <summary>Party average HP below which Occult Unicorn goes up even with the Ranger itself healthy.</summary>
+    public const float UnicornPartyAvgHpPct = 0.70f;
+
+    /// <summary>
+    /// Occult Unicorn (Ranger Lv6): a 40,000 barrier on self and party within 15y for 30s, on a 120s recast.
+    /// A party barrier, so the party being hurt is as good a reason as the Ranger being hurt.
+    /// </summary>
+    public static bool ShouldUnicorn(bool inCombat, bool barrierUp, float selfHpPct, float partyAvgHpPct)
+        => inCombat && !barrierUp && (selfHpPct < SelfMitHpPct || partyAvgHpPct < UnicornPartyAvgHpPct);
+
+    /// <summary>Anyone below this and Phantom Rejuvenation is worth starting.</summary>
+    public const float RejuvenationHpPct = 0.90f;
+
+    /// <summary>
+    /// Phantom Rejuvenation (Oracle Lv4): 90,000 cure potency to the bearer and party within 30y, but only when
+    /// the 20s effect runs out. An Ability on a 60s recast, so it costs nothing to start early — and it has to be
+    /// started early, since it cannot answer an emergency. Any damage on anyone is reason enough.
+    /// </summary>
+    public static bool ShouldRejuvenate(bool inCombat, bool alreadyUp, float selfHpPct, float partyLowestHpPct)
+        => inCombat && !alreadyUp && (selfHpPct < RejuvenationHpPct || partyLowestHpPct < RejuvenationHpPct);
+
+    /// <summary>Recuperation cleanses when its 20s runs out, so a shorter debuff is gone before it does anything.</summary>
+    public const float RecuperationDelaySeconds = 20f;
+
+    /// <summary>
+    /// Recuperation (Oracle Lv2): removes one detrimental effect from the target and nearby party, 20s after the
+    /// cast. <paramref name="debuffSecondsLeft"/> is the cleansable debuff's remaining time, null when there is
+    /// none; zero or less is a debuff with no timer.
+    /// </summary>
+    public static bool ShouldRecuperate(bool alreadyUp, float? debuffSecondsLeft)
+        => !alreadyUp
+           && debuffSecondsLeft is { } left
+           && (left <= 0f || left > RecuperationDelaySeconds);
+
+    /// <summary>Phantom Doom takes 8-60s to kill; not worth it on something dying sooner than this anyway.</summary>
+    public const float PhantomDoomMinTtkSeconds = 15f;
+
+    /// <summary>
+    /// Phantom Doom only has a CHANCE to land, so one failure proves nothing — but an immune enemy fails every
+    /// time, and without a cap the cast repeats every 30s for as long as it lives.
+    /// </summary>
+    public const int PhantomDoomMaxAttempts = 3;
+
+    /// <summary>
+    /// Phantom Doom (Oracle Lv3): a chance to Doom the target, which dies when the counter runs out. An Ability
+    /// on a 30s recast shared with Recuperation. Not on critical-encounter or FATE enemies (the same exclusion
+    /// as Occult Missile's kill effect), nor after <see cref="PhantomDoomMaxAttempts"/> tries on one enemy.
+    /// </summary>
+    public static bool ShouldPhantomDoom(
+        bool inCombat, bool targetDoomed, bool targetIsCriticalEncounterMob, bool targetIsFateMob,
+        int attemptsOnTarget, float targetTtkSeconds)
+        => inCombat
+           && !targetDoomed
+           && !targetIsCriticalEncounterMob
+           && !targetIsFateMob
+           && attemptsOnTarget < PhantomDoomMaxAttempts
+           && targetTtkSeconds >= PhantomDoomMinTtkSeconds;
+
+    /// <summary>How close the enemy has to be for Vigilance to count as "about to pull".</summary>
+    public const float VigilancePullRangeYalms = 30f;
+
+    /// <summary>
+    /// Vigilance (Thief Lv3): usable only OUT of combat. 20s of Vigilance, which becomes Foreseen Offense
+    /// (+60% critical hit rate, 20s) the moment combat starts. So it goes up when an enemy is targeted and
+    /// close — not all the time, or the character recasts it every 20s while standing in camp.
+    /// </summary>
+    public static bool ShouldVigilance(
+        bool inCombat, bool hasVigilance, bool hasForeseenOffense, bool hasLiveEnemyTarget, float enemyDistanceYalms)
+        => !inCombat
+           && !hasVigilance
+           && !hasForeseenOffense
+           && hasLiveEnemyTarget
+           && enemyDistanceYalms <= VigilancePullRangeYalms;
+
+    /// <summary>How often the coffer count is refreshed while the setting is on.</summary>
+    public const float TreasuresightIntervalSeconds = 60f;
+
+    /// <summary>
+    /// Occult Treasuresight (Freelancer Lv10): reports how many treasure coffers are in the zone. Opt-in, out of
+    /// combat only, and paced well past its 10s recast — the answer changes slowly and each cast is a chat line.
+    /// </summary>
+    public static bool ShouldTreasuresight(bool enabled, bool inCombat, double secondsSinceLast)
+        => enabled && !inCombat && secondsSinceLast >= TreasuresightIntervalSeconds;
+
+    /// <summary>Mesmerized lasts 100s on a 90s recast; not worth the press on a target dying sooner than this.</summary>
+    public const float MesmerizeMinTtkSeconds = 20f;
+
+    /// <summary>
+    /// Mesmerize (Dancer Lv4): the target deals 40% less for 4s, then carries Mesmerized for 100s — 10% less
+    /// damage dealt and 5% MORE damage taken, a party-wide damage gain on anything that lives. An Ability on a
+    /// 90s recast, so it can be kept up. Not while the target already has it, nor Silver Sickness (Cannoneer's;
+    /// the tooltip says the two do not stack), nor on something about to die. Unknown time-to-kill counts as long.
+    /// </summary>
+    public static bool ShouldMesmerize(
+        bool inCombat, bool targetHasMesmerized, bool targetHasSilverSickness, float targetTtkSeconds)
+        => inCombat
+           && !targetHasMesmerized
+           && !targetHasSilverSickness
+           && targetTtkSeconds >= MesmerizeMinTtkSeconds;
+
     /// <summary>Occult Mage Masher lasts 60s; not worth it on a target dying sooner than this.</summary>
     public const float MageMasherMinTtkSeconds = 10f;
 

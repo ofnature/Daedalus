@@ -310,6 +310,35 @@ public static class PhantomActions
         public const uint TemptedToTango = 4795;
         public const uint Jitterbugged = 4796;
         public const uint WillingToWaltz = 4797;
+
+        /// <summary>Dancer's Steadfast Stance barrier (10% of max HP, 30s).</summary>
+        public const uint SteadfastStance = 4800;
+
+        /// <summary>Dancer's Mesmerize, the 100s half: -10% damage dealt, +5% damage taken.</summary>
+        public const uint Mesmerized = 4802;
+
+        /// <summary>Cannoneer's Silver Cannon debuff. Mesmerized does not stack with it (game tooltip).</summary>
+        public const uint SilverSickness = 4264;
+
+        /// <summary>Ranger's Occult Unicorn barrier (absorbs 40,000, 30s).</summary>
+        public const uint OccultUnicorn = 4243;
+
+        /// <summary>Oracle's Recuperation: 20s, then it becomes Fortified Recuperation, which does the cleanse.</summary>
+        public const uint Recuperation = 4271;
+        public const uint FortifiedRecuperation = 4272;
+
+        /// <summary>Oracle's Phantom Doom on an enemy: dead when the counter (8-60s) runs out.</summary>
+        public const uint PhantomDoom = 4273;
+
+        /// <summary>Oracle's Phantom Rejuvenation: heals the bearer and party within 30y when it expires (20s).</summary>
+        public const uint PhantomRejuvenation = 4274;
+
+        /// <summary>Thief's Vigilance (out of combat, 20s) and what it becomes on the pull: +60% critical hit rate.</summary>
+        public const uint Vigilance = 4277;
+        public const uint ForeseenOffense = 4278;
+
+        /// <summary>White Mage's Occult Blink: the next magic attack does nothing (30s).</summary>
+        public const uint OccultBlink = 5316;
         public const uint PentupRage = 4236;
         public const uint Invulnerability = 4275;
 

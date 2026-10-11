@@ -210,6 +210,7 @@ public sealed class Plugin : IDalamudPlugin
     private readonly Daedalus.Services.Occult.PhantomBuffCycleService phantomBuffCycle;
     private readonly Daedalus.Services.Occult.ChestLedger chestLedger;
     private readonly Daedalus.Services.Occult.PotTreasureHunt potTreasureHunt;
+    private readonly Daedalus.Services.Occult.TreasuresightLog treasuresightLog;
     private readonly Daedalus.Services.Debug.DeathReleaseWatch deathReleaseWatch;
     private readonly Daedalus.Services.Consumables.ConsumableService consumableService;
     private readonly Daedalus.Services.Consumables.TinctureDispatcher tinctureDispatcher;
@@ -729,6 +730,7 @@ public sealed class Plugin : IDalamudPlugin
             pluginInterface.ConfigDirectory.FullName);
         this.potTreasureHunt = new Daedalus.Services.Occult.PotTreasureHunt(
             chatGui, objectTable, clientState, configuration.Occult, SaveConfiguration, log);
+        this.treasuresightLog = new Daedalus.Services.Occult.TreasuresightLog(chatGui, clientState, log);
         this.deathReleaseWatch = new Daedalus.Services.Debug.DeathReleaseWatch(objectTable, debugLogService);
         Daedalus.Rotation.Base.RotationServices.DebugLog = debugLogService;
         this.elementalWeaknessLog = new Daedalus.Services.Occult.ElementalWeaknessLog(
@@ -760,6 +762,12 @@ public sealed class Plugin : IDalamudPlugin
         // "Resist" / "Immune") is not recast at it for the rest of its life.
         combatEventService.OnLocalActionOnTarget += phantomLayer.NotifyLocalActionOutcome;
         phantomLayer.PartyCoordination = partyCoordinationService;
+        // Oracle's Recuperation cleanses what Esuna would, so it asks the same detection.
+        phantomLayer.CleansableDebuffSeconds = chara =>
+        {
+            var (_, priority, remaining) = debuffDetectionService.FindHighestPriorityDebuff(chara);
+            return priority == Services.Debuff.DebuffPriority.None ? null : remaining;
+        };
         // The NAME matters as much as the id: the game gives one creature several NameIds
         // (Crescent Void Viper 13896/13907, Animated Doll 13893/13894), and KnownWeakness can only
         // reach its same-name fallback if it is handed one. Passing the id alone left that
@@ -1190,7 +1198,7 @@ public sealed class Plugin : IDalamudPlugin
 
         // Occult zone HUD: auto-open on entering Occult Crescent, close on leaving.
         this.occultWindow = new OccultWindow(
-            phantomJobService, potFateTracker, phantomBuffCycle, configuration.Occult);
+            phantomJobService, potFateTracker, phantomBuffCycle, configuration.Occult, treasuresightLog);
         windowSystem.AddWindow(occultWindow);
         this.clientState.TerritoryChanged += OnOccultTerritoryChanged;
         OnOccultTerritoryChanged(clientState.TerritoryType); // plugin may load mid-zone
@@ -2461,6 +2469,7 @@ public sealed class Plugin : IDalamudPlugin
 
         performanceTracker.Dispose();
         potTreasureHunt.Dispose(); // unhooks the chat handler
+        treasuresightLog.Dispose();
         dpsMeterService.Dispose();
         drawingService.Dispose();
         localization.Dispose();

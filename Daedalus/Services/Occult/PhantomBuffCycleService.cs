@@ -72,6 +72,15 @@ public sealed class PhantomBuffCycleService
     /// </summary>
     private PhantomBuff? _oneShot;
 
+    /// <summary>
+    /// The run is one action that leaves no status behind (Occult Treasuresight) rather than a buff tour:
+    /// switch, cast, switch back. Nothing to wait for after the cast, and its own outcome line.
+    /// </summary>
+    private bool _errand;
+
+    /// <summary>Why the errand's action never went out; empty when it did.</summary>
+    private string _errandNote = string.Empty;
+
     private float _stepElapsed;
     private float _cycleElapsed;
 
@@ -138,6 +147,7 @@ public sealed class PhantomBuffCycleService
         _castCount = 0;
         _cycleElapsed = 0f;
         LastOutcome = string.Empty;
+        _errand = false;
 
         // A Lv15 Freelancer at a crystal gets the lot from one button, so tour nothing. The plan
         // is still built and still reported — it is what says WHICH buffs this cast will grant
@@ -158,6 +168,41 @@ public sealed class PhantomBuffCycleService
         return true;
 
         float Remaining(PhantomBuff b) => _world.StatusRemaining(b.StatusId);
+    }
+
+    /// <summary>
+    /// Switch to Freelancer, cast Occult Treasuresight, switch back. The same machine as the buff cycle on
+    /// purpose: two things changing the phantom job at once would each undo the other, and this way the
+    /// restore guarantee covers both.
+    /// </summary>
+    public bool StartTreasuresight()
+    {
+        if (BlockedReason().Length > 0 || !TreasuresightUnlocked)
+            return false;
+
+        _plan.Clear();
+        StartingJob = _world.ActiveJob;
+        _index = -1;
+        _castCount = 0;
+        _cycleElapsed = 0f;
+        LastOutcome = string.Empty;
+        _errand = true;
+        _errandNote = string.Empty;
+        _oneShot = new PhantomBuff(
+            PhantomJob.Freelancer, PhantomBuffPolicy.TreasuresightActionId, "Occult Treasuresight",
+            0, PhantomBuffPolicy.TreasuresightFreelancerLevel, "Counts the treasure coffers in the zone");
+
+        return AdvanceToNextCastable();
+    }
+
+    /// <summary>Freelancer is far enough along to have Occult Treasuresight. For showing the button at all.</summary>
+    public bool TreasuresightUnlocked
+    {
+        get
+        {
+            try { return PhantomBuffPolicy.CanUseTreasuresight(_world.JobLevels); }
+            catch { return false; }
+        }
     }
 
     /// <summary>
@@ -187,7 +232,7 @@ public sealed class PhantomBuffCycleService
             return;
 
         _log?.Invoke($"Buff cycle stopped: {reason}");
-        LastOutcome = $"{PhantomBuffPolicy.DescribeOutcome(_plan, _castCount)} — {reason}";
+        LastOutcome = $"{Outcome()} — {reason}";
         BeginRestore();
     }
 
@@ -249,6 +294,7 @@ public sealed class PhantomBuffCycleService
         if (!_world.ChangeSupportJob(Current.Job))
         {
             _log?.Invoke($"Buff cycle: the game refused the switch to {Current.Job}");
+            _errandNote = $"the game refused the switch to {Current.Job}";
             SkipCurrent();
             return;
         }
@@ -269,6 +315,7 @@ public sealed class PhantomBuffCycleService
         if (_stepElapsed > StepTimeoutSeconds)
         {
             _log?.Invoke($"Buff cycle: timed out switching to {Current.Job}");
+            _errandNote = $"the switch to {Current.Job} never happened";
             SkipCurrent();
         }
     }
@@ -283,6 +330,7 @@ public sealed class PhantomBuffCycleService
             {
                 _log?.Invoke($"Buff cycle: {Current.ActionName} never became castable "
                     + "(is it on the duty bar for this job?)");
+                _errandNote = $"is it on the {Current.Job} duty bar?";
                 SkipCurrent();
             }
 
@@ -290,9 +338,22 @@ public sealed class PhantomBuffCycleService
         }
 
         if (_world.Cast(Current.ActionId, Current.ActionName))
+        {
+            // An errand leaves no status to wait for: the cast going out is the whole job.
+            if (_errand)
+            {
+                _castCount = 1;
+                AdvanceOrFinish();
+                return;
+            }
+
             EnterState(BuffCycleState.AwaitingBuff, $"Applying {Current.ActionName}{Progress()}");
+        }
         else if (_stepElapsed > StepTimeoutSeconds)
+        {
+            _errandNote = "the game would not take the cast";
             SkipCurrent();
+        }
     }
 
     private void TickAwaitingBuff()
@@ -365,8 +426,21 @@ public sealed class PhantomBuffCycleService
         if (AdvanceToNextCastable())
             return;
 
-        LastOutcome = PhantomBuffPolicy.DescribeOutcome(_plan, _castCount);
+        LastOutcome = Outcome();
         BeginRestore();
+    }
+
+    /// <summary>The result line: the buff tally for a tour, or whether the errand's one action went out.</summary>
+    private string Outcome()
+    {
+        if (!_errand)
+            return PhantomBuffPolicy.DescribeOutcome(_plan, _castCount);
+
+        var name = _oneShot?.ActionName ?? "Action";
+        if (_castCount > 0)
+            return $"{name} cast";
+
+        return _errandNote.Length > 0 ? $"{name} not cast — {_errandNote}" : $"{name} not cast";
     }
 
     /// <summary>Moves to the next buff worth casting; false when the plan is exhausted.</summary>
