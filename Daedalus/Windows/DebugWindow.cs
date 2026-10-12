@@ -278,7 +278,18 @@ public sealed class DebugWindow : Window
         _battlehornReader.TryRead(_battlehornState);
         var unlocked = _battlehornReader.UnlockedCount();
         var bestiary = unlocked is null ? "Bestiary: not loaded" : $"Bestiary: {unlocked}/50 captured";
-        return _battlehornState.Describe() + "  |  " + bestiary;
+
+        // What is actually in the world, found the same way the rotation finds it — so "none out" here
+        // means the rotation sees none either.
+        string? familiarOut = null;
+        var oneWithNature = false;
+        if (_objectTable?.LocalPlayer is { } player)
+        {
+            familiarOut = Daedalus.Services.Beastmaster.FamiliarLookup.Find(_objectTable, player)?.Name.TextValue;
+            oneWithNature = Daedalus.Services.Beastmaster.FamiliarLookup.HasOneWithNature(player);
+        }
+
+        return _battlehornState.Describe(familiarOut, oneWithNature) + "  |  " + bestiary;
     }
 #endif
 

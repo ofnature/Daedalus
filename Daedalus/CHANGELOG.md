@@ -32,6 +32,15 @@ All notable changes to Daedalus will be documented in this file.
 - **The "Use Occult Treasuresight" setting now does something.** It was read by nothing. Ticked, and while you are
   playing Freelancer, the count is refreshed once a minute out of combat (never while mounted).
 
+### Beastmaster — your familiar uses its signature move
+- **Tempered Release is now ordered for you**, once per summon, at your target, as soon as it is ready in combat. Until now the
+  rotation only ordered Trick (and Parting Blow, if you turned it on), so each beast's own move — Meteor, King's
+  Will, The Ram's Voice and the rest — never went out unless you pressed it.
+- **With Parting Blow on, the release goes first**, so it is never lost when the familiar leaves.
+- **Two beasts are held back.** Wespe's Final Sting sends the familiar away, so it only fires with Parting Blow
+  on. Sabotender's Hypodermic Hustle puts a DoT on you, so it waits until you are above 50% HP.
+- New setting: Beastmaster ▸ Familiar ▸ **Use Tempered Release** (on by default).
+
 <!-- LATEST-END -->
 ## v0.1.97 — 2026-10-06
 

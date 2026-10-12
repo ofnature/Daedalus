@@ -340,7 +340,52 @@ public sealed class ArtemisScaffoldTests
     {
         var state = new ArtemisBattlehornState();
         Assert.False(state.IsPopulatedFromGame);
-        Assert.Contains("unknown", state.Describe(), StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("unknown", state.Describe("Ziz", true), StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static ArtemisBattlehornState ReadRoster()
+    {
+        var state = new ArtemisBattlehornState();
+        state.SetRoster(
+            new BattlehornSlot(21, string.Empty, BeastClassification.Unknown),
+            BattlehornSlot.Empty, BattlehornSlot.Empty);
+        return state;
+    }
+
+    /// <summary>
+    /// Field 2026-10-11: the Debug window read "none out, Tempered spent, Borrow spent" with a Ziz out. It
+    /// keeps its own state object, and that object only learns of a summon by witnessing the Battlehorn cast.
+    /// The readout now goes by what is in the world, with no summon ever witnessed.
+    /// </summary>
+    [Fact]
+    public void TheReadoutNamesTheFamiliarThatIsOutWithoutEverSeeingItSummoned()
+    {
+        var line = ReadRoster().Describe("Ziz", oneWithNature: true);
+        Assert.Contains("Ziz out", line);
+        Assert.Contains("ready", line);
+        Assert.DoesNotContain("none out", line);
+    }
+
+    [Fact]
+    public void TheReadoutSaysSpentOnceOneWithNatureIsGone()
+        => Assert.Contains("spent", ReadRoster().Describe("Ziz", oneWithNature: false));
+
+    /// <summary>With nothing out there is no release to be ready or spent, so it says neither.</summary>
+    [Fact]
+    public void TheReadoutSaysNoneOutOnlyWhenNothingIsOut()
+    {
+        var line = ReadRoster().Describe(null, oneWithNature: false);
+        Assert.Contains("none out", line);
+        Assert.DoesNotContain("spent", line);
+    }
+
+    /// <summary>A summon witnessed earlier does not keep a beast "out" after it has left.</summary>
+    [Fact]
+    public void AWitnessedSummonDoesNotOutliveTheFamiliar()
+    {
+        var state = ReadRoster();
+        state.OnSummoned(0);
+        Assert.Contains("none out", state.Describe(null, oneWithNature: false));
     }
 
     [Fact]

@@ -32,6 +32,8 @@ public static class ArtemisAbilities
         { Action = BSTActions.Trick, Toggle = cfg => cfg.Beastmaster.EnableTrick };
     public static readonly AbilityBehavior PartingBlow = new()
         { Action = BSTActions.PartingBlow, Toggle = cfg => cfg.Beastmaster.EnablePartingBlow };
+    public static readonly AbilityBehavior TemperedRelease = new()
+        { Action = BSTActions.TemperedRelease, Toggle = cfg => cfg.Beastmaster.EnableTemperedRelease };
 
     // --- capture ---
     public static readonly AbilityBehavior Capture = new()

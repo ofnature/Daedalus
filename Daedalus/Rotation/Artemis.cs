@@ -263,10 +263,10 @@ public sealed class Artemis : BaseMeleeDpsRotation<IArtemisContext, IArtemisModu
         // The roster is player-assigned and changes out of combat, so re-read it each frame rather
         // than caching: it is three bytes off a struct we already have a pointer to.
         _battlehornReader.TryRead(_battlehorns);
-        _artemisDebugState.Battlehorns = _battlehorns.Describe()
-            + (context.FamiliarBeast is { } beast
-                ? $" — out: {beast.Name} (Trick {beast.TrickAffinity})"
-                : context.HasFamiliar ? " — out: unidentified familiar" : "");
+        _artemisDebugState.Battlehorns = _battlehorns.Describe(
+                context.FamiliarBeast?.Name ?? (context.HasFamiliar ? "unidentified familiar" : null),
+                Daedalus.Services.Beastmaster.FamiliarLookup.HasOneWithNature(context.Player))
+            + (context.FamiliarBeast is { } beast ? $" (Trick {beast.TrickAffinity})" : "");
 
         _scheduler.Reset();
         foreach (var module in _modules)

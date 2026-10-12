@@ -32,6 +32,13 @@ public sealed class BeastmasterConfig
     /// </summary>
     public bool EnablePartingBlow { get; set; }
 
+    /// <summary>
+    /// Order the familiar's signature move with Tempered Release, once per summon. On by default: unlike
+    /// Parting Blow the familiar stays out afterwards (Wespe's Final Sting is the exception, and follows
+    /// <see cref="EnablePartingBlow"/>).
+    /// </summary>
+    public bool EnableTemperedRelease { get; set; } = true;
+
     #region Battlehorns
 
     /// <summary>

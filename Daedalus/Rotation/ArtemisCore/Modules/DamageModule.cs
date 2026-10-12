@@ -1,3 +1,4 @@
+using System;
 using Daedalus.Data;
 using Daedalus.Models.Action;
 using Daedalus.Rotation.ArtemisCore.Abilities;
@@ -317,6 +318,47 @@ public sealed class DamageModule : IArtemisModule
         });
     }
 
+    /// <summary>Wespe's Tempered Release is Final Sting: 2,000-3,000 potency, and the familiar retreats.</summary>
+    public const int WespeBestiaryNo = 10;
+
+    /// <summary>Sabotender's is Hypodermic Hustle: party +20% damage, paid for with a DoT on the beastmaster.</summary>
+    public const int SabotenderBestiaryNo = 22;
+
+    /// <summary>Below this, Hypodermic Hustle's self-damage is not worth the buff.</summary>
+    public const float HustleMinHpPct = 0.50f;
+
+    /// <summary>
+    /// Gap between tries. The game can say "ready" and still refuse the press, and a refusal changes nothing
+    /// the rule can see — so without a gap it is offered again every frame: 30 "unable to cast" lines a
+    /// second and an error toast, for as long as the fight lasts (field 2026-10-11).
+    /// </summary>
+    public const double ReleaseRetrySeconds = 2.0;
+
+    /// <summary>When Tempered Release was last offered to the scheduler.</summary>
+    private DateTime _lastReleaseTryUtc = DateTime.MinValue;
+
+    /// <summary>
+    /// Whether to order the familiar's signature move. Nearly all fifty are plain gains — damage, a debuff on
+    /// the enemy, a party buff — so the rule is "when the game says it is ready". Two carry a cost and are
+    /// held back: Final Sting sends the familiar away, which is the same trade as Parting Blow and so follows
+    /// that setting, and Hypodermic Hustle hurts the beastmaster, so it waits for healthy HP. An unidentified
+    /// familiar (<paramref name="bestiaryNo"/> null) counts as one of the plain ones.
+    /// </summary>
+    public static bool ShouldTemperedRelease(
+        bool enabled, bool ready, int? bestiaryNo, bool partingBlowEnabled, float selfHpPct,
+        double secondsSinceLastTry)
+    {
+        if (!enabled || !ready || secondsSinceLastTry < ReleaseRetrySeconds)
+            return false;
+
+        return bestiaryNo switch
+        {
+            WespeBestiaryNo => partingBlowEnabled,
+            SabotenderBestiaryNo => selfHpPct >= HustleMinHpPct,
+            _ => true,
+        };
+    }
+
     /// <summary>
     /// Trick and Parting Blow both order the familiar, so neither is worth pushing without one out.
     /// <para>
@@ -325,7 +367,7 @@ public sealed class DamageModule : IArtemisModule
     /// That is a trade the player should make, not one the rotation should make for them.
     /// </para>
     /// </summary>
-    private static void PushFamiliarOrders(
+    private void PushFamiliarOrders(
         IArtemisContext context, RotationScheduler scheduler, ulong targetId, byte level,
         bool trickHandledByPairing)
     {
@@ -338,7 +380,27 @@ public sealed class DamageModule : IArtemisModule
         var svc = context.ActionService;
         var cfg = context.Configuration.Beastmaster;
 
-        if (cfg.EnablePartingBlow && CanFire(svc, level, BSTActions.PartingBlow, targetId))
+        // Tempered Release: the beast's own signature move, once per summon. Sent at the enemy, as the
+        // hotbar button would be — see BSTActions.TemperedRelease for why not at ourselves.
+        var player = context.Player;
+        var releaseReady = CanFire(svc, level, BSTActions.TemperedRelease, targetId);
+        var release = ShouldTemperedRelease(
+            cfg.EnableTemperedRelease, releaseReady, context.FamiliarBeast?.BestiaryNo, cfg.EnablePartingBlow,
+            player.MaxHp > 0 ? (float)player.CurrentHp / player.MaxHp : 1f,
+            (DateTime.UtcNow - _lastReleaseTryUtc).TotalSeconds);
+        if (release)
+        {
+            _lastReleaseTryUtc = DateTime.UtcNow;
+            scheduler.PushOgcd(ArtemisAbilities.TemperedRelease, targetId, priority: 12,
+                onDispatched: _ => context.Debug.PlannedAction = BSTActions.TemperedRelease.Name);
+        }
+
+        // Parting Blow sends the familiar away and takes an unspent Tempered Release with it, so it waits
+        // while a release is still owed (the release is also what grants Lingering Vantage, +500 on the Blow).
+        var releaseOwed = cfg.EnableTemperedRelease && releaseReady
+            && ShouldTemperedRelease(true, true, context.FamiliarBeast?.BestiaryNo, cfg.EnablePartingBlow,
+                player.MaxHp > 0 ? (float)player.CurrentHp / player.MaxHp : 1f, double.MaxValue);
+        if (!releaseOwed && cfg.EnablePartingBlow && CanFire(svc, level, BSTActions.PartingBlow, targetId))
         {
             scheduler.PushOgcd(ArtemisAbilities.PartingBlow, targetId, priority: 15,
                 onDispatched: _ => context.Debug.PlannedAction = BSTActions.PartingBlow.Name);

@@ -145,9 +145,7 @@ public sealed class ArtemisContext : IArtemisContext
 
         // The familiar is an owned pet in the object table, same shape as the Scholar fairy and
         // the Summoner's egis.
-        var familiar = objectTable
-            .OfType<IBattleNpc>()
-            .FirstOrDefault(npc => npc.OwnerId == player.EntityId && npc.BattleNpcKind == BattleNpcSubKind.Pet);
+        var familiar = Daedalus.Services.Beastmaster.FamiliarLookup.Find(objectTable, player);
         HasFamiliar = familiar != null;
         FamiliarEntityId = familiar?.EntityId ?? 0;
         FamiliarBeast = ArtemisFamiliarIdentity.Resolve(HasFamiliar, familiar?.Name.TextValue, activeBattlehornRow);

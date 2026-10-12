@@ -113,6 +113,16 @@ public sealed class BeastmasterSection
                 "1,000 potency to the target and everything within 8y — but your familiar RETREATS "
                 + "afterwards, so Trick stops until you summon again. Off by default.", save);
 
+            ConfigUIHelpers.Toggle(
+                "Use Tempered Release",
+                () => config.Beastmaster.EnableTemperedRelease,
+                v => config.Beastmaster.EnableTemperedRelease = v,
+                "Orders your familiar's signature move as soon as it is ready, once per summon. With "
+                + "Parting Blow on, the release always goes first. Two beasts are held back: Wespe's "
+                + "Final Sting sends the familiar away, so it only fires with Parting Blow on, and "
+                + "Sabotender's Hypodermic Hustle puts a DoT on you, so it waits until you are above "
+                + "50% HP.", save);
+
             ConfigUIHelpers.EndIndent();
         }
     }

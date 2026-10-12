@@ -118,15 +118,26 @@ public sealed class ArtemisBattlehornState
         IsPopulatedFromGame = false;
     }
 
-    /// <summary>One-line readout for the debug panel; distinguishes unreadable from empty.</summary>
-    public string Describe()
+    /// <summary>
+    /// One-line readout for the debug panel; distinguishes unreadable from empty.
+    /// <para>
+    /// Both facts are handed in from live game state rather than read off this object's own flags. Those
+    /// flags only move when a Battlehorn cast is witnessed, so after a plugin reload — or in the Debug
+    /// window, which keeps its own copy that witnesses nothing — they said "none out, Tempered spent" with a
+    /// familiar standing there.
+    /// </para>
+    /// </summary>
+    /// <param name="familiarOut">Name of the familiar in the world, null when none is out.</param>
+    /// <param name="oneWithNature">The player has One with Nature: Tempered Release / Borrow not yet spent.</param>
+    public string Describe(string? familiarOut, bool oneWithNature)
     {
         if (!IsPopulatedFromGame)
             return "Battlehorns: unknown (roster not read yet)";
 
-        var active = Active is { } a ? $"{a.Name} ({a.Classification})" : "none out";
-        return $"Battlehorns: {active}"
-             + $", Tempered {(TemperedReleaseAvailable ? "ready" : "spent")}"
-             + $", Borrow {(BorrowAvailable ? "ready" : "spent")}";
+        if (familiarOut is null)
+            return "Battlehorns: none out";
+
+        return $"Battlehorns: {familiarOut} out"
+             + $", Tempered Release / Borrow {(oneWithNature ? "ready" : "spent")}";
     }
 }

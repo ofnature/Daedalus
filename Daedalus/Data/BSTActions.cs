@@ -449,6 +449,26 @@ public static class BSTActions
         RecastTime = 10f, Range = 25f, Radius = 8f, DamagePotency = 1000,
     };
 
+    /// <summary>
+    /// Tempered Release — orders the familiar's signature move, which differs per beast (Lv18). Only in combat
+    /// and under One with Nature, so once per summon.
+    /// <para>
+    /// <b>Sent at the ENEMY, like the hotbar button.</b> Row 44890 reads self-targeted with no range, and sent
+    /// at the player the game answered "Invalid target." every frame (field 2026-10-11, a Ziz, whose release
+    /// is the Petribreath cone). There is a second row of the same name, 47092, that takes a hostile target at
+    /// 30y — the form an attack release takes. Pressed with an enemy targeted the game sorts out which applies,
+    /// falling back to the player for the party-buff releases, so that is what the rotation does. 30y is the
+    /// order's reach; the familiar walks up to use the move itself.
+    /// </para>
+    /// </summary>
+    public static readonly ActionDefinition TemperedRelease = new()
+    {
+        ActionId = 44890, Name = "Tempered Release", MinLevel = 18,
+        Category = ActionCategory.oGCD, TargetType = ActionTargetType.SingleEnemy,
+        EffectTypes = ActionEffectType.Damage,
+        RecastTime = 30f, Range = 30f,
+    };
+
     /// <summary>Gauge — scans a beast's capture odds. Out of combat, 3s recast (Lv1).</summary>
     public static readonly ActionDefinition Gauge = new()
     {
