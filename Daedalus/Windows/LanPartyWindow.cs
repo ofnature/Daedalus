@@ -937,7 +937,7 @@ public sealed class LanPartyWindow : Window, IDisposable
         {
             if (obj is not IBattleNpc npc)
                 continue;
-            if ((byte)npc.BattleNpcKind != Daedalus.Compat.BattleNpcKinds.Combatant && npc.SubKind != 0)
+            if (!EnemyAttackability.IsHostileBattleNpcKind(npc))
                 continue;
             if (npc.CurrentHp == 0 || !npc.IsTargetable || !EnemyAttackability.IsPlayerAttackable(npc))
                 continue;

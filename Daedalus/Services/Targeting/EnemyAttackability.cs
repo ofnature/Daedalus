@@ -29,6 +29,17 @@ public static class EnemyAttackability
     }
 
     /// <summary>
+    /// Is this battle NPC of a kind that can be an enemy at all: an ordinary combatant, a part of a boss, or the
+    /// unclassified kind quest and overworld mobs report.
+    /// <para>A boss's part is a target of its own. The Lost City of Amdapor, 2026-10-11: the Voracious Maw that
+    /// holds whoever the Decaying Gourmand ate is one, every enemy filter turned it away, and with the Maw
+    /// targeted by hand the weaponskills still went to the boss while a party member sat inside for 12.8s.</para>
+    /// <para>Kind only. Whether it can be hit is still <see cref="IsPlayerAttackable"/>'s question.</para>
+    /// </summary>
+    public static bool IsHostileBattleNpcKind(IBattleNpc npc)
+        => (byte)npc.BattleNpcKind is BattleNpcKinds.Combatant or BattleNpcKinds.Part || npc.SubKind == 0;
+
+    /// <summary>
     /// Probe-free hostility check for MOVEMENT decisions: a live, targetable, hostile-kind
     /// BattleNpc is enough to walk toward. Deliberately does NOT run the
     /// <see cref="CanUseDamageActionOnTarget"/> probe — CanUseActionOnTarget false-negatives
@@ -44,7 +55,7 @@ public static class EnemyAttackability
         if (IsExcludedBattleNpcKind(npc))
             return false;
 
-        if ((byte)npc.BattleNpcKind != BattleNpcKinds.Combatant && npc.SubKind != 0)
+        if (!IsHostileBattleNpcKind(npc))
             return false;
 
         return npc.IsTargetable && !npc.IsDead;

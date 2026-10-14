@@ -890,8 +890,8 @@ public sealed unsafe class ActionService : IActionService
         foreach (var obj in _objectTable)
         {
             if (obj is not IBattleNpc npc) continue;
-            // Same combatant filter as TargetingService (BattleNpcKinds.Combatant + SubKind).
-            if ((byte)npc.BattleNpcKind != Daedalus.Compat.BattleNpcKinds.Combatant && npc.SubKind != 0) continue;
+            // Same enemy-kind filter as TargetingService.
+            if (!Daedalus.Services.Targeting.EnemyAttackability.IsHostileBattleNpcKind(npc)) continue;
             if (npc.CurrentHp == 0 || !npc.IsTargetable) continue;
             if (Vector3.DistanceSquared(npc.Position, centerPos) > radiusSq) continue;
             count++;

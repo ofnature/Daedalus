@@ -1321,7 +1321,7 @@ public sealed class TargetingService : ITargetingService
             if (obj.IsDead) continue;
             if (obj.YalmDistanceX > 15) continue;
             if (obj is not IBattleNpc npc) continue;
-            if ((byte)npc.BattleNpcKind != Daedalus.Compat.BattleNpcKinds.Combatant && npc.SubKind != 0) continue;
+            if (!EnemyAttackability.IsHostileBattleNpcKind(npc)) continue;
             // Attackability probe is MANDATORY here: story-ally NPCs (Lyse/Alisaie in Tower of
             // Babil) are BattleNpcs with SubKind 0 and slip past the kind filter — LowestHp then
             // preferred the 60k-HP ally over 130k mobs, and the rotation stalled spamming
@@ -1578,7 +1578,7 @@ public sealed class TargetingService : ITargetingService
         Vector3 playerPos,
         bool applyLineOfSightFilter = true)
     {
-        if ((byte)npc.BattleNpcKind != Daedalus.Compat.BattleNpcKinds.Combatant && npc.SubKind != 0)
+        if (!EnemyAttackability.IsHostileBattleNpcKind(npc))
             return false;
 
         var effectiveRange = maxRange + npc.HitboxRadius + player.HitboxRadius;
@@ -1610,7 +1610,7 @@ public sealed class TargetingService : ITargetingService
         float radius,
         Vector3 playerPos)
     {
-        if ((byte)npc.BattleNpcKind != Daedalus.Compat.BattleNpcKinds.Combatant && npc.SubKind != 0)
+        if (!EnemyAttackability.IsHostileBattleNpcKind(npc))
             return false;
 
         if (!DistanceHelper.IsWithinTargetCircleAoE(centerPos, npc.Position, radius, npc.HitboxRadius))
@@ -1633,7 +1633,7 @@ public sealed class TargetingService : ITargetingService
         if (!enemy.IsTargetable || enemy.IsDead)
             return false;
 
-        if ((byte)enemy.BattleNpcKind != Daedalus.Compat.BattleNpcKinds.Combatant && enemy.SubKind != 0)
+        if (!EnemyAttackability.IsHostileBattleNpcKind(enemy))
             return false;
 
         if (!EnemyAttackability.IsPlayerAttackable(enemy))
@@ -1666,7 +1666,7 @@ public sealed class TargetingService : ITargetingService
         // Safeguard: never resolve/keep a friendly NPC (Trust allies, escort/protect
         // objectives, pets, chocobos, party-member NPCs). Mirrors IsValidEnemy so the
         // sticky/current-target paths and EnsureHardTarget can't hard-target a friendly.
-        if ((byte)enemy.BattleNpcKind != Daedalus.Compat.BattleNpcKinds.Combatant && enemy.SubKind != 0)
+        if (!EnemyAttackability.IsHostileBattleNpcKind(enemy))
             return false;
 
         return EnemyAttackability.IsPlayerAttackable(enemy);

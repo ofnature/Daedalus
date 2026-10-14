@@ -97,6 +97,37 @@ public sealed class EnemyAttackabilityTests
         Assert.False(EnemyAttackability.IsMovementApproachable(new Mock<IGameObject>().Object));
     }
 
+    // --- IsHostileBattleNpcKind: a boss's part is an enemy (the Lost City of Amdapor, 2026-10-11) ---
+    // The Voracious Maw that holds whoever the Decaying Gourmand ate is kind 1, a part of the boss. Every enemy
+    // filter turned it away, so with the Maw targeted by hand the weaponskills still went to the boss.
+
+    [Theory]
+    [InlineData(BattleNpcKinds.Combatant)]
+    [InlineData(BattleNpcKinds.Part)]
+    [InlineData((byte)0)]
+    public void IsHostileBattleNpcKind_AcceptsEnemiesAndTheirParts(byte kind)
+    {
+        var npc = MovementNpc(kind: kind, subKind: kind);
+        Assert.True(EnemyAttackability.IsHostileBattleNpcKind(npc.Object));
+    }
+
+    [Theory]
+    [InlineData(BattleNpcKinds.Pet)]
+    [InlineData(BattleNpcKinds.Chocobo)]
+    [InlineData(BattleNpcKinds.NpcPartyMember)]
+    public void IsHostileBattleNpcKind_RefusesCompanions(byte kind)
+    {
+        var npc = MovementNpc(kind: kind, subKind: kind);
+        Assert.False(EnemyAttackability.IsHostileBattleNpcKind(npc.Object));
+    }
+
+    [Fact]
+    public void IsMovementApproachable_BossPart_Passes()
+    {
+        var maw = MovementNpc(kind: BattleNpcKinds.Part, subKind: BattleNpcKinds.Part);
+        Assert.True(EnemyAttackability.IsMovementApproachable(maw.Object));
+    }
+
     private static Mock<IBattleNpc> MovementNpc(byte kind, byte subKind)
     {
         var npc = new Mock<IBattleNpc>();
