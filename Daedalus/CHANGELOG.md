@@ -3,6 +3,50 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.99 — 2026-10-13
+
+### Patch 7.57
+- **Rebuilt for patch 7.57** (Dalamud 15.0.3.7). This version needs that Dalamud or newer.
+
+### Beastmaster — the rotation now reads the real job gauge
+- **TP, Familiar TP and the instinct diamonds are read from the game** instead of guessed. Until the 7.57
+  Dalamud update the Beastmaster gauge could not be read at all, so the rotation inferred "out of TP" from the
+  game refusing an axe and counted the diamonds itself.
+- **Rally waits for the right number of diamonds:** all three at level 50 (exactly the 250 TP that upgrades your
+  axes), two below 50. **Rallying Cheer** fires when your familiar's TP is under 100.
+- **The level 50 finisher is now played.** With 250 TP and half of the centre lit, the rotation uses the upgraded
+  skill of the opposite half to complete Universality. It picks Calamity or Risen Fall, the two that do not rush
+  you at the target.
+- **Trick combos answer what is actually lit.** The axe that follows your familiar's Trick is chosen from the
+  Heart shown on the gauge, the moment it lights, instead of from a per-beast table and a timer.
+- If the gauge cannot be read, the rotation falls back to the old behaviour rather than stopping.
+
+### Beastmaster — a familiar is kept out for you
+- **A Battlehorn is blown whenever you have no familiar out** — after a death, a zone change or a Parting Blow.
+  Without one the job has no Trick, no combos and no Tempered Release, and until now it stayed that way until
+  you pressed a horn yourself.
+- **The beast that was out comes back** when its horn is ready; otherwise the next horn in line goes out, which
+  is the swap after a Parting Blow.
+- The horn is a one-second cast, so it waits until you are standing still, on foot and not already casting.
+- New setting: Beastmaster ▸ Familiar ▸ **Keep a familiar out** (on by default).
+
+### Beastmaster — the rest of the kit is now pressed
+- **Rally** when your axes have run out of TP, once two Trick combos' worth of Mastered Instinct is banked.
+- **Rallying Cheer** when Trick has run out of Familiar TP.
+- **Shield Charge** for its damage — only from inside melee range, so it never dashes you across the room.
+- **Borrow**, once Tempered Release is spent, and then **the action Beast Mode turns into**: Beastskin on
+  cooldown, Vileskin or Scaleskin below 80% HP, Seedsower with enemies close, Soul Crush in melee, Scouring Ash
+  when you have a debuff to cleanse. Cloud Skim (a dash) and Quelling Wave are left to you.
+- New settings under Beastmaster ▸ Familiar: **Use Rally and Rallying Cheer**, **Use Shield Charge**,
+  **Use Borrow and Beast Mode** (all on by default).
+
+### Targeting — a boss's part is an enemy
+- **Parts of a boss that are targets of their own are now attacked**: the Voracious Maw that holds whoever the
+  Decaying Gourmand ate (the Lost City of Amdapor), and weak points like it. They were filtered out as "not an
+  enemy", so even with one targeted by hand the rotation kept hitting the boss.
+- With Minerva as the engine, a fight that names such a part as the priority target is now followed.
+
+<!-- LATEST-END -->
 ## v0.1.98 — 2026-10-11
 
 ### Occult Crescent — Phantom Dancer's last two actions
@@ -41,7 +85,6 @@ All notable changes to Daedalus will be documented in this file.
   on. Sabotender's Hypodermic Hustle puts a DoT on you, so it waits until you are above 50% HP.
 - New setting: Beastmaster ▸ Familiar ▸ **Use Tempered Release** (on by default).
 
-<!-- LATEST-END -->
 ## v0.1.97 — 2026-10-06
 
 ### Fix — fewer regen GCDs on a tank who doesn't need them (Astrologian, White Mage)

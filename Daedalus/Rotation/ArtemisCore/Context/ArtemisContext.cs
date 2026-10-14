@@ -76,6 +76,7 @@ public sealed class ArtemisContext : IArtemisContext
     public bool HasFamiliar { get; }
     public Daedalus.Data.BstFamiliar? FamiliarBeast { get; }
     public ArtemisTrickPairing TrickPairing { get; }
+    public ArtemisGauge? Gauge { get; }
 
     /// <summary>The familiar's entity id, 0 when none is out — for the action-effect hook.</summary>
     public uint FamiliarEntityId { get; }
@@ -112,8 +113,10 @@ public sealed class ArtemisContext : IArtemisContext
         ITimelineService? timelineService = null,
         IPluginLog? log = null,
         ArtemisTrickPairing? trickPairing = null,
-        uint activeBattlehornRow = 0)
+        uint activeBattlehornRow = 0,
+        ArtemisGauge? gauge = null)
     {
+        Gauge = gauge;
         Player = player;
         InCombat = inCombat;
         IsMoving = isMoving;

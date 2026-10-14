@@ -100,6 +100,40 @@ public sealed class BeastmasterSection
             ConfigUIHelpers.BeginIndent();
 
             ConfigUIHelpers.Toggle(
+                "Use Rally and Rallying Cheer",
+                () => config.Beastmaster.EnableRally,
+                v => config.Beastmaster.EnableRally = v,
+                "Rally refills your TP when the axes have run dry (it waits for two combos' worth of "
+                + "Mastered Instinct while Trick combos are going). Rallying Cheer does the same for "
+                + "your familiar's TP when Trick has run dry.", save);
+
+            ConfigUIHelpers.Toggle(
+                "Use Shield Charge",
+                () => config.Beastmaster.EnableShieldCharge,
+                v => config.Beastmaster.EnableShieldCharge = v,
+                "Uses Shield Charge for its damage, but only from inside melee range, so it never "
+                + "carries you across the room.", save);
+
+            ConfigUIHelpers.Toggle(
+                "Use Borrow and Beast Mode",
+                () => config.Beastmaster.EnableBorrow,
+                v => config.Beastmaster.EnableBorrow = v,
+                "Borrows your familiar's Kinship once Tempered Release is spent, then presses the "
+                + "action Beast Mode turns into: Beastskin on cooldown, Vileskin or Scaleskin when "
+                + "you are below 80% HP, Seedsower with enemies close, Soul Crush in melee, Scouring "
+                + "Ash when you have a debuff to cleanse. Cloud Skim (a dash) and Quelling Wave are "
+                + "left to you.", save);
+
+            ConfigUIHelpers.Toggle(
+                "Keep a familiar out",
+                () => config.Beastmaster.KeepFamiliarOut,
+                v => config.Beastmaster.KeepFamiliarOut = v,
+                "Blows a Battlehorn whenever you have no familiar out — after a death, a zone change or a "
+                + "Parting Blow. The beast that was out comes back when its horn is ready, otherwise the "
+                + "next horn in line. The horn is a one-second cast, so it waits until you are standing "
+                + "still and on foot.", save);
+
+            ConfigUIHelpers.Toggle(
                 "Order Trick",
                 () => config.Beastmaster.EnableTrick,
                 v => config.Beastmaster.EnableTrick = v,

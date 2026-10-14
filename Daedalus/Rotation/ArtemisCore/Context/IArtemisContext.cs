@@ -6,10 +6,9 @@ namespace Daedalus.Rotation.ArtemisCore.Context;
 /// <summary>
 /// Beastmaster-specific rotation context.
 /// <para>
-/// Conspicuously thin compared with every other job, and that is accurate rather than unfinished:
-/// Beastmaster has no readable job gauge (it is absent from ClientStructs), no role actions, and no
-/// burst window to coordinate. What the rotation actually reasons about is the instinct chain and
-/// whether the game will let an action fire.
+/// Thin compared with every other job: Beastmaster has no role actions and no burst window to
+/// coordinate. Its job gauge only became readable with ClientStructs 78975d83 (Dalamud 15.0.3.7), so
+/// <see cref="Gauge"/> is nullable and everything that reads it keeps a path for when it is not there.
 /// </para>
 /// </summary>
 public interface IArtemisContext : IMeleeDpsRotationContext
@@ -25,6 +24,12 @@ public interface IArtemisContext : IMeleeDpsRotationContext
     /// or it cannot be identified. Its Trick colour decides the axe that completes the combo.
     /// </summary>
     Daedalus.Data.BstFamiliar? FamiliarBeast { get; }
+
+    /// <summary>
+    /// The job gauge this frame — TP, familiar TP, the instinct diamonds, what is lit on the Compass.
+    /// Null when it could not be read; callers then fall back to inference.
+    /// </summary>
+    ArtemisGauge? Gauge { get; }
 
     /// <summary>The Trick → clockwise-axe pairing in progress.</summary>
     ArtemisTrickPairing TrickPairing { get; }

@@ -39,6 +39,30 @@ public sealed class BeastmasterConfig
     /// </summary>
     public bool EnableTemperedRelease { get; set; } = true;
 
+    /// <summary>
+    /// Rally when the axes are out of TP, and Rallying Cheer when Trick is out of Familiar TP. Both only
+    /// refill a gauge, so there is nothing to lose by pressing them.
+    /// </summary>
+    public bool EnableRally { get; set; } = true;
+
+    /// <summary>
+    /// Shield Charge as damage, from inside melee range only — it is never used to cross distance.
+    /// </summary>
+    public bool EnableShieldCharge { get; set; } = true;
+
+    /// <summary>
+    /// Borrow the familiar's Kinship once Tempered Release is spent, and press the action Beast Mode becomes
+    /// (see <c>ArtemisCooldownRules.DecideBeastMode</c> for which kin's action is pressed when).
+    /// </summary>
+    public bool EnableBorrow { get; set; } = true;
+
+    /// <summary>
+    /// Blow a Battlehorn whenever no familiar is out — after a death, a zone change, a Parting Blow. The
+    /// beast that was out comes back when its horn is ready, otherwise the next horn in line. On by default:
+    /// without a familiar the job has no Trick, no combos and no Tempered Release.
+    /// </summary>
+    public bool KeepFamiliarOut { get; set; } = true;
+
     #region Battlehorns
 
     /// <summary>

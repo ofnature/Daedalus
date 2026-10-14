@@ -68,15 +68,22 @@ public sealed class Artemis : BaseMeleeDpsRotation<IArtemisContext, IArtemisModu
     private readonly RotationScheduler _scheduler;
     private readonly ArtemisBattlehornState _battlehorns = new();
     private readonly Daedalus.Services.Beastmaster.BattlehornReader _battlehornReader;
+    private readonly Daedalus.Services.Beastmaster.BeastmasterGaugeReader _gaugeReader;
     private readonly CaptureModule _capture;
     private readonly ArtemisTrickPairing _pairing = new();
     private readonly ICombatEventService _combatEvents;
-    private readonly Daedalus.Services.Beastmaster.BattlehornAssigner _hornAssigner =
-        new(new Daedalus.Services.Beastmaster.BattlehornGame());
+    private static readonly Daedalus.Services.Beastmaster.BattlehornGame HornGame = new();
+    private readonly Daedalus.Services.Beastmaster.BattlehornAssigner _hornAssigner = new(HornGame);
 
     // Set each frame, read by the action-effect hook between frames.
     private uint _playerEntityId;
     private uint _familiarEntityId;
+
+    // Keeping a familiar out: which horn's beast was out last, since when there has been none, and when a
+    // horn was last tried.
+    private int _lastOutHorn = ArtemisFamiliarKeeper.None;
+    private System.DateTime _familiarGoneSinceUtc = System.DateTime.MinValue;
+    private System.DateTime _lastHornTryUtc = System.DateTime.MinValue;
 
     public Artemis(
         IPluginLog log,
@@ -126,6 +133,7 @@ public sealed class Artemis : BaseMeleeDpsRotation<IArtemisContext, IArtemisModu
         _scheduler = new RotationScheduler(actionService, jobGauges, configuration, timelineService, errorMetrics);
 
         _battlehornReader = new Daedalus.Services.Beastmaster.BattlehornReader(log);
+        _gaugeReader = new Daedalus.Services.Beastmaster.BeastmasterGaugeReader(log);
 
         // The action-effect hook sees both halves of the pairing: our Battlehorn presses (which beast
         // came out) and the familiar's own action resolving (the moment to answer its Trick).
@@ -222,7 +230,8 @@ public sealed class Artemis : BaseMeleeDpsRotation<IArtemisContext, IArtemisModu
             timelineService: _timelineService,
             log: Log,
             trickPairing: _pairing,
-            activeBattlehornRow: _battlehorns.Active?.PactNameId ?? 0);
+            activeBattlehornRow: _battlehorns.Active?.PactNameId ?? 0,
+            gauge: _gaugeReader.TryRead());
 
     /// <inheritdoc />
     protected override void SyncDebugState(IArtemisContext context)
@@ -266,7 +275,13 @@ public sealed class Artemis : BaseMeleeDpsRotation<IArtemisContext, IArtemisModu
         _artemisDebugState.Battlehorns = _battlehorns.Describe(
                 context.FamiliarBeast?.Name ?? (context.HasFamiliar ? "unidentified familiar" : null),
                 Daedalus.Services.Beastmaster.FamiliarLookup.HasOneWithNature(context.Player))
-            + (context.FamiliarBeast is { } beast ? $" (Trick {beast.TrickAffinity})" : "");
+            + (context.FamiliarBeast is { } beast ? $" (Trick {beast.TrickAffinity})" : "")
+            + (context.Gauge is { } gauge ? $" | {gauge.Describe()}" : " | gauge unreadable");
+
+        // No familiar, no Trick, no combos: call one back before anything else. The horn is a cast, so the
+        // modules sit this frame out rather than queue a weaponskill on top of it.
+        if (TryKeepFamiliarOut(context, isMoving))
+            return;
 
         _scheduler.Reset();
         foreach (var module in _modules)
@@ -288,6 +303,74 @@ public sealed class Artemis : BaseMeleeDpsRotation<IArtemisContext, IArtemisModu
 
     #endregion
 
+    /// <summary>
+    /// Blow a Battlehorn when no familiar is out. Returns true when a horn was actually sent this frame.
+    /// </summary>
+    private bool TryKeepFamiliarOut(IArtemisContext context, bool isMoving)
+    {
+        var now = System.DateTime.UtcNow;
+        var player = context.Player;
+
+        if (context.HasFamiliar)
+        {
+            _familiarGoneSinceUtc = System.DateTime.MinValue;
+
+            // Learn which horn this beast is on from the beast itself, so a death straight after a plugin
+            // reload — when no Battlehorn cast was ever witnessed — still brings the right one back.
+            if (context.FamiliarBeast is { } beast)
+            {
+                for (var i = 0; i < ArtemisBattlehornState.SlotCount; i++)
+                {
+                    if (_battlehorns[i].PactNameId == (uint)beast.BestiaryNo)
+                        _lastOutHorn = i;
+                }
+            }
+
+            return false;
+        }
+
+        if (_familiarGoneSinceUtc == System.DateTime.MinValue)
+            _familiarGoneSinceUtc = now;
+
+        System.Span<bool> usable = stackalloc bool[ArtemisBattlehornState.SlotCount];
+        for (var i = 0; i < usable.Length; i++)
+        {
+            var horn = BSTActions.Battlehorns[i];
+            usable[i] = !_battlehorns[i].IsEmpty
+                && ActionAvailability.MeetsLevelAndLearned(player.Level, ActionService, horn)
+                && ActionService.GetActionStatusCode(horn.ActionId, player.GameObjectId) == 0;
+        }
+
+        var mounted = RotationServices.Condition?[
+            Dalamud.Game.ClientState.Conditions.ConditionFlag.Mounted] == true;
+        // Not with the Master's Bestiary open: reassigning a horn there dismisses the familiar on purpose,
+        // and a horn blown in the middle of it would fight whoever is doing the assigning.
+        var canAct = !player.IsDead && player.CurrentHp > 0 && !isMoving && !mounted && !player.IsCasting
+            && !HornGame.IsBestiaryOpen();
+
+        var slot = ArtemisFamiliarKeeper.PickHorn(
+            Configuration.Beastmaster.KeepFamiliarOut, context.HasFamiliar, canAct,
+            (now - _familiarGoneSinceUtc).TotalSeconds, (now - _lastHornTryUtc).TotalSeconds,
+            _lastOutHorn, usable);
+        if (slot == ArtemisFamiliarKeeper.None)
+            return false;
+
+        _lastHornTryUtc = now;
+        var chosen = BSTActions.Battlehorns[slot];
+        if (!ActionService.ExecuteOgcd(chosen, player.GameObjectId))
+        {
+            // The game said ready and then refused the press. Whatever the reason, it will not have changed
+            // in three seconds, and each refusal is an error toast — so back right off.
+            _lastHornTryUtc = now.AddSeconds(
+                ArtemisFamiliarKeeper.RefusedRetrySeconds - ArtemisFamiliarKeeper.RetrySeconds);
+            return false;
+        }
+
+        _artemisDebugState.PlannedAction = chosen.Name;
+        _artemisDebugState.DamageState = "No familiar — calling one back";
+        return true;
+    }
+
     /// <summary>Battlehorn action ids, in slot order.</summary>
     private static readonly uint[] BattlehornIds = [44881, 44892, 44894];
 
@@ -303,7 +386,11 @@ public sealed class Artemis : BaseMeleeDpsRotation<IArtemisContext, IArtemisModu
         {
             var slot = System.Array.IndexOf(BattlehornIds, actionId);
             if (slot >= 0)
+            {
                 _battlehorns.OnSummoned(slot);
+                _lastOutHorn = slot;
+            }
+
             return;
         }
 

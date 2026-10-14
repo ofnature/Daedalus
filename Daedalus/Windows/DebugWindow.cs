@@ -267,6 +267,7 @@ public sealed class DebugWindow : Window
 #if DEBUG
     private readonly Daedalus.Services.Beastmaster.BattlehornReader _battlehornReader = new();
     private readonly Daedalus.Rotation.ArtemisCore.Helpers.ArtemisBattlehornState _battlehornState = new();
+    private readonly Daedalus.Services.Beastmaster.BeastmasterGaugeReader _beastGaugeReader = new();
 
     /// <summary>
     /// Live Battlehorn roster, read straight from ActionManager.BeastmasterPets. Reads three
@@ -289,7 +290,14 @@ public sealed class DebugWindow : Window
             oneWithNature = Daedalus.Services.Beastmaster.FamiliarLookup.HasOneWithNature(player);
         }
 
-        return _battlehornState.Describe(familiarOut, oneWithNature) + "  |  " + bestiary;
+        // The job gauge, raw — including the fields whose numbering is still unverified, so they can be
+        // read off against what is on screen. Only on Beastmaster: the gauge bytes belong to whatever job
+        // is active.
+        var gauge = _objectTable?.LocalPlayer?.ClassJob.RowId == Daedalus.Data.JobRegistry.Beastmaster
+            ? _beastGaugeReader.TryRead()?.Describe() ?? "gauge unreadable"
+            : "gauge: not on Beastmaster";
+
+        return _battlehornState.Describe(familiarOut, oneWithNature) + "  |  " + bestiary + "\n" + gauge;
     }
 #endif
 

@@ -35,6 +35,29 @@ public static class ArtemisAbilities
     public static readonly AbilityBehavior TemperedRelease = new()
         { Action = BSTActions.TemperedRelease, Toggle = cfg => cfg.Beastmaster.EnableTemperedRelease };
 
+    // --- the rest of the kit ---
+    public static readonly AbilityBehavior Rally = new()
+        { Action = BSTActions.Rally, Toggle = cfg => cfg.Beastmaster.EnableRally };
+    public static readonly AbilityBehavior RallyingCheer = new()
+        { Action = BSTActions.RallyingCheer, Toggle = cfg => cfg.Beastmaster.EnableRally };
+    public static readonly AbilityBehavior ShieldCharge = new()
+        { Action = BSTActions.ShieldCharge, Toggle = cfg => cfg.Beastmaster.EnableShieldCharge };
+    public static readonly AbilityBehavior Borrow = new()
+        { Action = BSTActions.Borrow, Toggle = cfg => cfg.Beastmaster.EnableBorrow };
+
+    // Beast Mode is sent by its base id with no status pre-check on that id: the usable action is whatever
+    // the game has substituted, and the module has already asked the game about THAT one.
+    public static readonly AbilityBehavior BeastMode = new()
+    {
+        Action = BSTActions.BeastMode, Toggle = cfg => cfg.Beastmaster.EnableBorrow,
+        ReplacementBaseId = BSTActions.BeastMode.ActionId,
+    };
+    public static readonly AbilityBehavior BeastModeAtEnemy = new()
+    {
+        Action = BSTActions.BeastModeAtEnemy, Toggle = cfg => cfg.Beastmaster.EnableBorrow,
+        ReplacementBaseId = BSTActions.BeastMode.ActionId,
+    };
+
     // --- capture ---
     public static readonly AbilityBehavior Capture = new()
         { Action = BSTActions.Capture, Toggle = cfg => cfg.Beastmaster.EnableAutoCapture };

@@ -469,6 +469,96 @@ public static class BSTActions
         RecastTime = 30f, Range = 30f,
     };
 
+    /// <summary>Rally — spends Mastered Instinct for TP: 40, plus 70 per diamond. In combat only (Lv28).</summary>
+    public static readonly ActionDefinition Rally = new()
+    {
+        ActionId = 44905, Name = "Rally", MinLevel = 28,
+        Category = ActionCategory.oGCD, TargetType = ActionTargetType.Self,
+        RecastTime = 120f,
+    };
+
+    /// <summary>Rallying Cheer — spends Natural Instinct for Familiar TP: 30, plus 70 per diamond (Lv40).</summary>
+    public static readonly ActionDefinition RallyingCheer = new()
+    {
+        ActionId = 44904, Name = "Rallying Cheer", MinLevel = 40,
+        Category = ActionCategory.oGCD, TargetType = ActionTargetType.Self,
+        RecastTime = 120f,
+    };
+
+    /// <summary>Shield Charge — rushes the target and hits everything within 6y of it; 60s charges (Lv24).</summary>
+    public static readonly ActionDefinition ShieldCharge = new()
+    {
+        ActionId = 44893, Name = "Shield Charge", MinLevel = 24,
+        Category = ActionCategory.oGCD, TargetType = ActionTargetType.SingleEnemy,
+        EffectTypes = ActionEffectType.Damage,
+        RecastTime = 60f, Range = 20f, Radius = 6f, DamagePotency = 220,
+    };
+
+    /// <summary>
+    /// Borrow — takes the familiar's Kinship (90s, paused while the familiar is out), which turns Beast Mode
+    /// into that kin's action. Needs One with Nature (Lv22).
+    /// </summary>
+    public static readonly ActionDefinition Borrow = new()
+    {
+        ActionId = 44895, Name = "Borrow", MinLevel = 22,
+        Category = ActionCategory.oGCD, TargetType = ActionTargetType.Self,
+        RecastTime = 30f,
+    };
+
+    /// <summary>Beast Mode — the button Borrow transforms. Pressed by its base id; the game substitutes (Lv22).</summary>
+    public static readonly ActionDefinition BeastMode = new()
+    {
+        ActionId = 44886, Name = "Beast Mode", MinLevel = 22,
+        Category = ActionCategory.oGCD, TargetType = ActionTargetType.Self,
+        RecastTime = 2.5f,
+    };
+
+    /// <summary>The same button aimed at the enemy, for the one Kinship action that hits something (Soul Crush).</summary>
+    public static readonly ActionDefinition BeastModeAtEnemy = new()
+    {
+        ActionId = 44886, Name = "Beast Mode", MinLevel = 22,
+        Category = ActionCategory.oGCD, TargetType = ActionTargetType.SingleEnemy,
+        EffectTypes = ActionEffectType.Damage,
+        RecastTime = 2.5f, Range = 3f,
+    };
+
+    // What Beast Mode becomes, one per Kinship (Action sheet, read 2026-10-11). None can sit on a hotbar.
+    public const uint BeastskinId = 44896;    // Beastkin: -25% physical damage taken, +5% crit, 30s
+    public const uint VileskinId = 44897;     // Vilekin: 100% block, 15s
+    public const uint CloudSkimId = 44898;    // Cloudkin: a 10y dash
+    public const uint SeedsowerId = 44899;    // Seedkin: -10% damage dealt and a DoT within 6y, 60s
+    public const uint QuellingWaveId = 44900; // Wavekin: 350-potency ranged spell (on the GCD)
+    public const uint ScaleskinId = 44901;    // Scalekin: magic barrier, 8% of max HP
+    public const uint SoulCrushId = 44902;    // Soulkin: 300 in melee and an interrupt
+    public const uint ScouringAshId = 44903;  // Ashkin: cleanse, +10% HP when it removes something
+
+    /// <summary>
+    /// The three Battlehorns, in slot order (Lv1 / 10 / 20). An Ability with a one-second cast: it summons the
+    /// beast assigned to that horn. In combat a horn's own cooldown starts when its beast retreats, which the
+    /// game's action status reports — nothing here models it.
+    /// </summary>
+    public static readonly ActionDefinition[] Battlehorns =
+    [
+        new()
+        {
+            ActionId = 44881, Name = "First Battlehorn", MinLevel = 1,
+            Category = ActionCategory.oGCD, TargetType = ActionTargetType.Self,
+            CastTime = 1f, RecastTime = 2f,
+        },
+        new()
+        {
+            ActionId = 44892, Name = "Second Battlehorn", MinLevel = 10,
+            Category = ActionCategory.oGCD, TargetType = ActionTargetType.Self,
+            CastTime = 1f, RecastTime = 2f,
+        },
+        new()
+        {
+            ActionId = 44894, Name = "Third Battlehorn", MinLevel = 20,
+            Category = ActionCategory.oGCD, TargetType = ActionTargetType.Self,
+            CastTime = 1f, RecastTime = 2f,
+        },
+    ];
+
     /// <summary>Gauge — scans a beast's capture odds. Out of combat, 3s recast (Lv1).</summary>
     public static readonly ActionDefinition Gauge = new()
     {
@@ -512,6 +602,12 @@ public static class BSTActions
         44884 => InstinctAffinity.Rampant,
         44887 => InstinctAffinity.Durant,
         44888 => InstinctAffinity.Eldritch,
+
+        // What the four become at 250 TP (Lv50, Instinctual Mastery). Action sheet, read 2026-10-13.
+        44930 => InstinctAffinity.Sunstrider,   // Brutal Rage      (Avalanche Axe) — rushes 25y
+        44931 => InstinctAffinity.Moonstalker,  // Hawkish Talons   (Mistral Axe)   — rushes 25y
+        44932 => InstinctAffinity.Sunstrider,   // Risen Fall       (Spinning Axe)  — 25y, no rush
+        44933 => InstinctAffinity.Moonstalker,  // Calamity         (Gale Axe)      — 10y line, no rush
         _ => InstinctAffinity.None,
     };
 

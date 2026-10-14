@@ -3,6 +3,7 @@ using Daedalus.Data;
 using Daedalus.Models.Action;
 using Daedalus.Rotation.ArtemisCore.Abilities;
 using Daedalus.Rotation.ArtemisCore.Context;
+using Daedalus.Rotation.ArtemisCore.Helpers;
 using Daedalus.Rotation.Common.Helpers;
 using Daedalus.Rotation.Common.Scheduling;
 using Daedalus.Services.Action;
@@ -76,13 +77,137 @@ public sealed class DamageModule : IArtemisModule
         // With a familiar whose Trick colour is known, Trick and the clockwise axe go out as a pair.
         // Otherwise (no familiar, an unidentified one, or below the levels that make the pair) the
         // axes and Trick run on their own, as before.
+        // Level 50, 250 TP and half the centre lit: the other half's upgraded skill is Universality, and
+        // nothing else on the Compass is worth doing first.
+        var finisher = context.Gauge is { } finisherGauge && context.Configuration.Beastmaster.EnableInstinctualSkills
+            ? BSTActions.InstinctualFor(ArtemisCooldownRules.FinisherAxe(level, finisherGauge))
+            : null;
+        var finishing = finisher != null && CanFire(context.ActionService, level, finisher, targetId);
+
         var paired = UsesPairing(context, level, out var answer);
-        if (paired)
+        if (finishing)
+            Push(context, scheduler, finisher!, targetId, priority: 9, why: "Universality (opposite half)");
+        else if (paired)
             PushPaired(context, scheduler, targetId, level, answer!);
         else
             PushInstinctual(context, scheduler, targetId, level);
 
+        _releaseOwed = false;
         PushFamiliarOrders(context, scheduler, targetId, level, trickHandledByPairing: paired);
+
+        var edgeDistance = System.Numerics.Vector3.Distance(player.Position, target.Position)
+                           - target.HitboxRadius - player.HitboxRadius;
+        PushCooldowns(context, scheduler, targetId, level, edgeDistance, paired);
+    }
+
+    /// <summary>
+    /// Rally, Rallying Cheer, Shield Charge, Borrow and Beast Mode — the buttons that are neither the axe
+    /// chain nor an order to the familiar. Rules in <see cref="ArtemisCooldownRules"/>.
+    /// </summary>
+    private void PushCooldowns(
+        IArtemisContext context, RotationScheduler scheduler, ulong targetId, byte level,
+        float edgeDistance, bool paired)
+    {
+        var svc = context.ActionService;
+        var cfg = context.Configuration.Beastmaster;
+        var player = context.Player;
+        var selfId = player.GameObjectId;
+        var selfHpPct = player.MaxHp > 0 ? (float)player.CurrentHp / player.MaxHp : 1f;
+        var inMelee = edgeDistance <= ArtemisCooldownRules.MeleeYalms;
+
+        // Out of TP: in reach, an axe is off cooldown, and the game still refuses every one of them.
+        var anyAxeOffCooldown = false;
+        var anyAxeUsable = false;
+        foreach (var affinity in FallbackOrder)
+        {
+            var axe = BSTActions.InstinctualFor(affinity);
+            if (axe == null || !ActionAvailability.MeetsLevelAndLearned(level, svc, axe))
+                continue;
+
+            anyAxeOffCooldown |= svc.IsActionReady(axe.ActionId);
+            anyAxeUsable |= svc.GetActionStatusCode(axe.ActionId, targetId) == 0;
+        }
+
+        var axeStarved = inMelee && anyAxeOffCooldown && !anyAxeUsable;
+        if (!axeStarved)
+            _axeStarvedSinceUtc = DateTime.MinValue;
+        else if (_axeStarvedSinceUtc == DateTime.MinValue)
+            _axeStarvedSinceUtc = DateTime.UtcNow;
+
+        // The gauge says how much TP there is and how many diamonds; without it, fall back to "the axes
+        // are refused" and our own tally.
+        var rallyReady = CanFire(svc, level, BSTActions.Rally, selfId);
+        var rally = context.Gauge is { } rallyGauge
+            ? ArtemisCooldownRules.ShouldRallyFromGauge(
+                cfg.EnableRally, rallyReady, rallyGauge.Tp, rallyGauge.MasteredInstinct, level, context.HasFamiliar)
+            : ArtemisCooldownRules.ShouldRally(
+                cfg.EnableRally, rallyReady, SecondsSince(_axeStarvedSinceUtc), paired, _masteredEstimate);
+        if (rally && TryGate(BSTActions.Rally.ActionId))
+        {
+            scheduler.PushOgcd(ArtemisAbilities.Rally, selfId, priority: 14, onDispatched: _ =>
+            {
+                _masteredEstimate = 0;
+                context.Debug.PlannedAction = BSTActions.Rally.Name;
+            });
+        }
+
+        // The same reading for the familiar's bar, off Trick.
+        var trickStarved = context.HasFamiliar
+            && ActionAvailability.MeetsLevelAndLearned(level, svc, BSTActions.Trick)
+            && edgeDistance <= BSTActions.Trick.Range
+            && svc.IsActionReady(BSTActions.Trick.ActionId)
+            && svc.GetActionStatusCode(BSTActions.Trick.ActionId, targetId) != 0;
+        if (!trickStarved)
+            _trickStarvedSinceUtc = DateTime.MinValue;
+        else if (_trickStarvedSinceUtc == DateTime.MinValue)
+            _trickStarvedSinceUtc = DateTime.UtcNow;
+
+        var cheerReady = CanFire(svc, level, BSTActions.RallyingCheer, selfId);
+        var cheer = context.Gauge is { } cheerGauge
+            ? ArtemisCooldownRules.ShouldRallyingCheerFromGauge(
+                cfg.EnableRally, cheerReady, context.HasFamiliar, cheerGauge.PetTp)
+            : ArtemisCooldownRules.ShouldRallyingCheer(
+                cfg.EnableRally, cheerReady, context.HasFamiliar, SecondsSince(_trickStarvedSinceUtc));
+        if (cheer && TryGate(BSTActions.RallyingCheer.ActionId))
+        {
+            scheduler.PushOgcd(ArtemisAbilities.RallyingCheer, selfId, priority: 14,
+                onDispatched: _ => context.Debug.PlannedAction = BSTActions.RallyingCheer.Name);
+        }
+
+        if (ArtemisCooldownRules.ShouldBorrow(
+                cfg.EnableBorrow, CanFire(svc, level, BSTActions.Borrow, selfId), context.HasFamiliar, _releaseOwed)
+            && TryGate(BSTActions.Borrow.ActionId))
+        {
+            scheduler.PushOgcd(ArtemisAbilities.Borrow, selfId, priority: 16,
+                onDispatched: _ => context.Debug.PlannedAction = BSTActions.Borrow.Name);
+        }
+
+        // Beast Mode is whatever the Kinship has made of it; ask the game about THAT action, at the target
+        // it takes.
+        var modeId = svc.GetAdjustedActionId(BSTActions.BeastMode.ActionId);
+        var use = ArtemisCooldownRules.DecideBeastMode(
+            cfg.EnableBorrow, modeId, selfHpPct, edgeDistance,
+            context.DebuffDetectionService.FindHighestPriorityDebuff(player).priority
+                != Daedalus.Services.Debuff.DebuffPriority.None);
+        if (use != BeastModeUse.None && ActionAvailability.MeetsLevelAndLearned(level, svc, BSTActions.BeastMode))
+        {
+            var modeTarget = use == BeastModeUse.Enemy ? targetId : selfId;
+            if (svc.GetActionStatusCode(modeId, modeTarget) == 0 && TryGate(BSTActions.BeastMode.ActionId))
+            {
+                scheduler.PushOgcd(
+                    use == BeastModeUse.Enemy ? ArtemisAbilities.BeastModeAtEnemy : ArtemisAbilities.BeastMode,
+                    modeTarget, priority: 18,
+                    onDispatched: _ => context.Debug.PlannedAction = "Beast Mode (Kinship action)");
+            }
+        }
+
+        if (ArtemisCooldownRules.ShouldShieldCharge(
+                cfg.EnableShieldCharge, CanFire(svc, level, BSTActions.ShieldCharge, targetId), edgeDistance)
+            && TryGate(BSTActions.ShieldCharge.ActionId))
+        {
+            scheduler.PushOgcd(ArtemisAbilities.ShieldCharge, targetId, priority: 22,
+                onDispatched: _ => context.Debug.PlannedAction = BSTActions.ShieldCharge.Name);
+        }
     }
 
     /// <summary>
@@ -144,7 +269,7 @@ public sealed class DamageModule : IArtemisModule
     /// our own skill, which banks Mastered Instinct for Rally. Pressing the axe straight after Trick
     /// resolves it first (the familiar is slow to act) and the combo comes out backwards.
     /// </summary>
-    private static void PushPaired(
+    private void PushPaired(
         IArtemisContext context, RotationScheduler scheduler, ulong targetId, byte level, ActionDefinition answer)
     {
         var svc = context.ActionService;
@@ -152,7 +277,18 @@ public sealed class DamageModule : IArtemisModule
         var beast = context.FamiliarBeast!;
 
         var awaiting = pairing.IsAwaitingAnswer;
-        var pendingAnswer = awaiting ? BSTActions.InstinctualFor(pairing.AnswerAffinity) : answer;
+        if (!awaiting)
+            _gaugeAtTrick = null;
+
+        // With the gauge, the familiar's skill is SEEN landing (the Compass moves) and the answer is the
+        // clockwise neighbour of whatever is actually lit — not the colour a table says this beast uses,
+        // and not a guess at how long the familiar takes to act.
+        var landed = awaiting && context.Gauge is { } now && _gaugeAtTrick is { } before
+            && ArtemisCooldownRules.GaugeMovedSinceTrick(before, now);
+        var gaugeAnswer = landed ? ArtemisCooldownRules.AnswerFromGauge(context.Gauge!.Value) : InstinctAffinity.None;
+        var answerAffinity = gaugeAnswer != InstinctAffinity.None ? gaugeAnswer : pairing.AnswerAffinity;
+
+        var pendingAnswer = awaiting ? BSTActions.InstinctualFor(answerAffinity) : answer;
         var axeReady = pendingAnswer != null && CanFire(svc, level, pendingAnswer, targetId);
         var trickReady = !awaiting && CanFire(svc, level, BSTActions.Trick, targetId);
         var oneSideReady = !awaiting && axeReady != trickReady;
@@ -160,13 +296,18 @@ public sealed class DamageModule : IArtemisModule
         if (!oneSideReady)
             pairing.ClearHold();
 
-        var step = DecidePairing(awaiting, pairing.ReadyToAnswer, axeReady, trickReady, holdExpired);
+        var step = DecidePairing(awaiting, landed || pairing.ReadyToAnswer, axeReady, trickReady, holdExpired);
         switch (step)
         {
             case PairingStep.AnswerTrick when axeReady:
                 Push(context, scheduler, pendingAnswer!, targetId, priority: 10,
-                    why: $"{pairing.PetAffinity} Trick → {pairing.AnswerAffinity}",
-                    onDispatched: pairing.OnAnswered);
+                    why: $"{pairing.PetAffinity} Trick → {answerAffinity}" + (landed ? " (seen on the gauge)" : ""),
+                    onDispatched: () =>
+                    {
+                        pairing.OnAnswered();
+                        // Trick answered by our own axe is an intentional combo we finished: a diamond.
+                        _masteredEstimate = Math.Min(_masteredEstimate + 1, ArtemisCooldownRules.MaxMastered);
+                    });
                 break;
             case PairingStep.AnswerTrick:
                 context.Debug.InstinctState = $"answer {pairing.AnswerAffinity} not ready";
@@ -196,11 +337,12 @@ public sealed class DamageModule : IArtemisModule
         context.Debug.InstinctChain = pairing.Describe();
     }
 
-    private static void PushTrick(
+    private void PushTrick(
         IArtemisContext context, RotationScheduler scheduler, ulong targetId, InstinctAffinity petAffinity, string why)
     {
         scheduler.PushOgcd(ArtemisAbilities.Trick, targetId, priority: 10, onDispatched: _ =>
         {
+            _gaugeAtTrick = context.Gauge;
             context.Instinct.Record(petAffinity);
             context.TrickPairing.OnTrickDispatched(petAffinity);
             context.Debug.PlannedAction = BSTActions.Trick.Name;
@@ -337,6 +479,39 @@ public sealed class DamageModule : IArtemisModule
     /// <summary>When Tempered Release was last offered to the scheduler.</summary>
     private DateTime _lastReleaseTryUtc = DateTime.MinValue;
 
+    /// <summary>When each of the other cooldowns was last offered — the same every-frame guard, per action.</summary>
+    private readonly System.Collections.Generic.Dictionary<uint, DateTime> _lastTryUtc = [];
+
+    /// <summary>A Tempered Release is still owed this summon; Borrow and Parting Blow wait for it.</summary>
+    private bool _releaseOwed;
+
+    /// <summary>
+    /// Our own count of Mastered Instinct: one per Trick answered with the axe, emptied by Rally. The real
+    /// count lives in the job HUD and nowhere readable, so this is an estimate and is only used to keep
+    /// Rally from being thrown away on an empty set of diamonds.
+    /// </summary>
+    private int _masteredEstimate;
+
+    private DateTime _axeStarvedSinceUtc = DateTime.MinValue;
+    private DateTime _trickStarvedSinceUtc = DateTime.MinValue;
+
+    /// <summary>The gauge as it stood when Trick was sent, so the familiar's skill can be seen landing.</summary>
+    private ArtemisGauge? _gaugeAtTrick;
+
+    /// <summary>True, and the try is stamped, when this action has not been offered in the last two seconds.</summary>
+    private bool TryGate(uint actionId)
+    {
+        var now = DateTime.UtcNow;
+        if (_lastTryUtc.TryGetValue(actionId, out var last) && (now - last).TotalSeconds < ReleaseRetrySeconds)
+            return false;
+
+        _lastTryUtc[actionId] = now;
+        return true;
+    }
+
+    private static double SecondsSince(DateTime since)
+        => since == DateTime.MinValue ? 0d : (DateTime.UtcNow - since).TotalSeconds;
+
     /// <summary>
     /// Whether to order the familiar's signature move. Nearly all fifty are plain gains — damage, a debuff on
     /// the enemy, a party buff — so the rule is "when the game says it is ready". Two carry a cost and are
@@ -400,6 +575,7 @@ public sealed class DamageModule : IArtemisModule
         var releaseOwed = cfg.EnableTemperedRelease && releaseReady
             && ShouldTemperedRelease(true, true, context.FamiliarBeast?.BestiaryNo, cfg.EnablePartingBlow,
                 player.MaxHp > 0 ? (float)player.CurrentHp / player.MaxHp : 1f, double.MaxValue);
+        _releaseOwed = releaseOwed;
         if (!releaseOwed && cfg.EnablePartingBlow && CanFire(svc, level, BSTActions.PartingBlow, targetId))
         {
             scheduler.PushOgcd(ArtemisAbilities.PartingBlow, targetId, priority: 15,
