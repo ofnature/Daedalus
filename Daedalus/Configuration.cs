@@ -86,6 +86,16 @@ public sealed class Configuration : IPluginConfiguration
     public bool PreventEscapeClose { get; set; } = false;
 
     /// <summary>
+    /// Pin a "Daedalus" tab to the edge of the screen that pops the main window's controls out while pointed
+    /// at (click it to keep them out). Off by default — it is a trial, and it changes where the main window
+    /// lives. The ordinary window still opens with /daedalus.
+    /// </summary>
+    public bool EdgeDockEnabled { get; set; } = false;
+
+    /// <summary>Pin the edge dock to the right edge of the screen instead of the left.</summary>
+    public bool EdgeDockRightSide { get; set; } = false;
+
+    /// <summary>
     /// When true, Daedalus windows remain visible during in-game cutscenes.
     /// Default false (windows hide during cutscenes).
     /// </summary>
@@ -298,6 +308,8 @@ public sealed class Configuration : IPluginConfiguration
         var languageOverride = LanguageOverride;
         var preventEscapeClose = PreventEscapeClose;
         var showDuringCutscenes = ShowDuringCutscenes;
+        var edgeDockEnabled = EdgeDockEnabled;
+        var edgeDockRightSide = EdgeDockRightSide;
 
         // Reset general behavior
         EnableOnAutoAttack = false;
@@ -366,6 +378,8 @@ public sealed class Configuration : IPluginConfiguration
         LanguageOverride = languageOverride;
         PreventEscapeClose = preventEscapeClose;
         ShowDuringCutscenes = showDuringCutscenes;
+        EdgeDockEnabled = edgeDockEnabled;
+        EdgeDockRightSide = edgeDockRightSide;
     }
 }
 

@@ -634,6 +634,21 @@ public sealed class GeneralSection
 
             ConfigUIHelpers.Spacing();
 
+            ConfigUIHelpers.Toggle("Edge dock (trial)", () => this.config.EdgeDockEnabled, v => this.config.EdgeDockEnabled = v,
+                "Pins a \"Daedalus\" tab to the edge of the screen. Point at it and the main window's controls pop "
+                + "out beside it; click it to keep them out, click again to let them go. The ordinary window "
+                + "still opens with /daedalus and can stay closed while you use the tab.", this.save);
+
+            if (this.config.EdgeDockEnabled)
+            {
+                ConfigUIHelpers.BeginIndent();
+                ConfigUIHelpers.Toggle("Right edge", () => this.config.EdgeDockRightSide, v => this.config.EdgeDockRightSide = v,
+                    "Pin the tab to the right edge of the screen instead of the left.", this.save);
+                ConfigUIHelpers.EndIndent();
+            }
+
+            ConfigUIHelpers.Spacing();
+
             ConfigUIHelpers.Toggle(Loc.T(LocalizedStrings.Window.ShowDuringCutscenes, "Show window during cutscenes"), () => this.config.ShowDuringCutscenes, v => this.config.ShowDuringCutscenes = v,
                 Loc.T(LocalizedStrings.Window.ShowDuringCutsceneDesc, "When enabled, Daedalus windows stay visible during in-game cutscenes."), this.save);
 

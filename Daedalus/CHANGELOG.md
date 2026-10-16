@@ -3,6 +3,17 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.100 — 2026-10-16
+
+### Edge dock (trial)
+- **A "Daedalus" tab can sit on the edge of your screen.** Point at it and the main window's controls pop out
+  beside it; click it to keep them out, click again to let them go. Off by default — turn it on under
+  Settings ▸ Display ▸ Window Behavior ▸ **Edge dock (trial)**, with **Right edge** to move it across.
+- The ordinary window still opens with /daedalus, and can stay closed while you use the tab.
+- **It shares the edge with Charon's dock.** On the same side the two stack as one group — Daedalus above,
+  Charon below — instead of drawing on top of each other, and close up when one goes away.
+
+<!-- LATEST-END -->
 ## v0.1.99 — 2026-10-13
 
 ### Patch 7.57
@@ -46,7 +57,6 @@ All notable changes to Daedalus will be documented in this file.
   enemy", so even with one targeted by hand the rotation kept hitting the boss.
 - With Minerva as the engine, a fight that names such a part as the priority target is now followed.
 
-<!-- LATEST-END -->
 ## v0.1.98 — 2026-10-11
 
 ### Occult Crescent — Phantom Dancer's last two actions

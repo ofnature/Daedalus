@@ -161,6 +161,8 @@ public sealed class Plugin : IDalamudPlugin
     private readonly WindowSystem windowSystem = new("Daedalus");
     private readonly ConfigWindow configWindow;
     private readonly MainWindow mainWindow;
+    private readonly Daedalus.Windows.Dock.EdgeDockWindow edgeDockWindow;
+    private readonly Daedalus.Windows.Dock.DockLayoutShare dockLayout;
     private readonly ControlWindow controlWindow;
     private readonly NavControlWindow navControlWindow;
     private readonly RaidWindow raidWindow;
@@ -1169,6 +1171,17 @@ public sealed class Plugin : IDalamudPlugin
 
         windowSystem.AddWindow(configWindow);
         windowSystem.AddWindow(mainWindow);
+
+        // The edge dock (trial): one tab for now, drawing the main window's own body in its pop-out, so the
+        // two cannot drift apart. Fixed width because that body sizes its buttons off the space left.
+        // The layout is shared with Charon's dock so the two stack on one edge instead of overlapping;
+        // Daedalus sits above (order 10, Charon 20).
+        this.dockLayout = new Daedalus.Windows.Dock.DockLayoutShare(pluginInterface, "Daedalus", order: 10);
+        this.edgeDockWindow = new Daedalus.Windows.Dock.EdgeDockWindow(
+        [
+            new Daedalus.Windows.Dock.EdgeDockWindow.Tab("main", "Daedalus", () => true, () => mainWindow.Draw(), 288f),
+        ], () => configuration.EdgeDockRightSide, dockLayout);
+        windowSystem.AddWindow(edgeDockWindow);
         windowSystem.AddWindow(controlWindow);
         windowSystem.AddWindow(navControlWindow);
         windowSystem.AddWindow(meldOptimizerWindow);
@@ -1744,6 +1757,8 @@ public sealed class Plugin : IDalamudPlugin
 
         // Show welcome window on first run
         welcomeWindow.ShowIfNeeded();
+
+        edgeDockWindow.IsOpen = configuration.EdgeDockEnabled && edgeDockWindow.AnyTab();
 
         windowSystem.Draw();
     }
@@ -2442,6 +2457,7 @@ public sealed class Plugin : IDalamudPlugin
         actionFeedWindow.Dispose();
         lanPartyWindow?.Dispose();
         windowSystem.RemoveAllWindows();
+        dockLayout.Dispose();
         DaedalusIpc.Dispose();
         lanRosterIpc.Dispose();
         pluginRelayIpc.Dispose();
