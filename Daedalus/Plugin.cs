@@ -1189,16 +1189,27 @@ public sealed class Plugin : IDalamudPlugin
                 () => configuration.EdgeDockOccultTab
                       && Daedalus.Data.PhantomJobData.OccultTerritoryIds.Contains((ushort)clientState.TerritoryType),
                 () => occultWindow?.Draw()), // built further down; the tab only draws after that
+            // Fixed width: the Party Coordination body right-aligns its controls off the window's width.
+            new Daedalus.Windows.Dock.EdgeDockWindow.Tab("party", "Party",
+                () => configuration.EdgeDockPartyTab && lanPartyWindow != null
+                      && configuration.PartyCoordination.LanCoordinatorEnabled,
+                () => lanPartyWindow?.Draw(), 680f), // 560 cut off the off-tank picker, the burst column and the footer
         ],
-        id => id == "occult"
-            ? (configuration.EdgeDockOccultEdge, configuration.EdgeDockOccultAlong)
-            : (configuration.EdgeDockMainEdge, configuration.EdgeDockMainAlong),
+        id => id switch
+        {
+            "occult" => (configuration.EdgeDockOccultEdge, configuration.EdgeDockOccultAlong),
+            "party" => (configuration.EdgeDockPartyEdge, configuration.EdgeDockPartyAlong),
+            _ => (configuration.EdgeDockMainEdge, configuration.EdgeDockMainAlong),
+        },
         (id, edge, along) =>
         {
-            if (id == "occult")
-                (configuration.EdgeDockOccultEdge, configuration.EdgeDockOccultAlong) = (edge, along);
-            else
-                (configuration.EdgeDockMainEdge, configuration.EdgeDockMainAlong) = (edge, along);
+            switch (id)
+            {
+                case "occult": (configuration.EdgeDockOccultEdge, configuration.EdgeDockOccultAlong) = (edge, along); break;
+                case "party": (configuration.EdgeDockPartyEdge, configuration.EdgeDockPartyAlong) = (edge, along); break;
+                default: (configuration.EdgeDockMainEdge, configuration.EdgeDockMainAlong) = (edge, along); break;
+            }
+
             SaveConfiguration();
         },
         dockLayout);

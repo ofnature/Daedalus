@@ -669,6 +669,23 @@ public sealed class GeneralSection
                     ConfigUIHelpers.EndIndent();
                 }
 
+                ConfigUIHelpers.Toggle("Party Coordination tab", () => this.config.EdgeDockPartyTab, v => this.config.EdgeDockPartyTab = v,
+                    "Adds a \"Party\" tab that pops out the Party Coordination window, while the LAN coordinator is on. "
+                    + "The ordinary window still opens from the main window.", this.save);
+
+                if (this.config.EdgeDockPartyTab)
+                {
+                    ConfigUIHelpers.BeginIndent();
+                    var partyEdge = this.config.EdgeDockPartyEdge;
+                    if (ConfigUIHelpers.EnumCombo("Party tab edge", ref partyEdge, null, () => { }))
+                    {
+                        this.config.EdgeDockPartyEdge = partyEdge;
+                        this.save();
+                    }
+
+                    ConfigUIHelpers.EndIndent();
+                }
+
                 if (ImGui.Button("Reset tab positions##edgedock"))
                 {
                     this.config.ResetEdgeDockPlacement();
@@ -676,7 +693,7 @@ public sealed class GeneralSection
                 }
 
                 if (ImGui.IsItemHovered())
-                    ImGui.SetTooltip("Put both tabs back on the left edge, in the middle.");
+                    ImGui.SetTooltip("Put every tab back on the left edge, in the middle.");
 
                 ConfigUIHelpers.EndIndent();
             }

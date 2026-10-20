@@ -110,13 +110,27 @@ public sealed class Configuration : IPluginConfiguration
     /// <summary>Where along its edge the Occult tab sits: its centre as a fraction of the edge (0.5 = the middle).</summary>
     public float EdgeDockOccultAlong { get; set; } = 0.5f;
 
-    /// <summary>Both tabs back to the left edge, in the middle.</summary>
+    /// <summary>
+    /// Add a "Party" tab to the edge dock that pops out the Party Coordination window, while the LAN
+    /// coordinator is on.
+    /// </summary>
+    public bool EdgeDockPartyTab { get; set; } = false;
+
+    /// <summary>Which screen edge the edge dock's Party tab is pinned to. Dragging the tab changes it.</summary>
+    public Daedalus.Windows.Dock.DockEdge EdgeDockPartyEdge { get; set; } = Daedalus.Windows.Dock.DockEdge.Left;
+
+    /// <summary>Where along its edge the Party tab sits: its centre as a fraction of the edge (0.5 = the middle).</summary>
+    public float EdgeDockPartyAlong { get; set; } = 0.5f;
+
+    /// <summary>Every tab back to the left edge, in the middle.</summary>
     public void ResetEdgeDockPlacement()
     {
         EdgeDockMainEdge = Daedalus.Windows.Dock.DockEdge.Left;
         EdgeDockOccultEdge = Daedalus.Windows.Dock.DockEdge.Left;
+        EdgeDockPartyEdge = Daedalus.Windows.Dock.DockEdge.Left;
         EdgeDockMainAlong = 0.5f;
         EdgeDockOccultAlong = 0.5f;
+        EdgeDockPartyAlong = 0.5f;
     }
 
     /// <summary>Carries the old Right edge setting over to <see cref="EdgeDockMainEdge"/>. True if it changed anything.</summary>
@@ -355,6 +369,9 @@ public sealed class Configuration : IPluginConfiguration
         var edgeDockOccultEdge = EdgeDockOccultEdge;
         var edgeDockMainAlong = EdgeDockMainAlong;
         var edgeDockOccultAlong = EdgeDockOccultAlong;
+        var edgeDockPartyTab = EdgeDockPartyTab;
+        var edgeDockPartyEdge = EdgeDockPartyEdge;
+        var edgeDockPartyAlong = EdgeDockPartyAlong;
 
         // Reset general behavior
         EnableOnAutoAttack = false;
@@ -429,6 +446,9 @@ public sealed class Configuration : IPluginConfiguration
         EdgeDockOccultEdge = edgeDockOccultEdge;
         EdgeDockMainAlong = edgeDockMainAlong;
         EdgeDockOccultAlong = edgeDockOccultAlong;
+        EdgeDockPartyTab = edgeDockPartyTab;
+        EdgeDockPartyEdge = edgeDockPartyEdge;
+        EdgeDockPartyAlong = edgeDockPartyAlong;
     }
 }
 

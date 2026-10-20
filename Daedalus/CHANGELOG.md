@@ -3,6 +3,15 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.103 — 2026-10-19
+
+### Edge dock — a Party tab
+- **Party Coordination can live on the edge dock.** Turn on **Party Coordination tab** under Settings ▸
+  Display ▸ Window Behavior ▸ Edge dock and a "Party" tab pops the whole window out — roster, target
+  mode, limit break, burst readiness and alerts. It shows while the LAN coordinator is on, and drags to any
+  edge like the others.
+
+<!-- LATEST-END -->
 ## v0.1.102 — 2026-10-19
 
 ### Edge dock — put a tab anywhere
@@ -13,7 +22,6 @@ All notable changes to Daedalus will be documented in this file.
 - **Reset tab positions** (Settings ▸ Display ▸ Window Behavior ▸ Edge dock) puts both tabs back in
   the middle of the left edge.
 
-<!-- LATEST-END -->
 ## v0.1.101 — 2026-10-19
 
 ### Edge dock — an Occult tab, and tabs on any edge
