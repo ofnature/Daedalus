@@ -3,6 +3,21 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.101 — 2026-10-19
+
+### Edge dock — an Occult tab
+- **The Occult HUD can live on the edge dock too.** In Occult Crescent an "Occult" tab sits under the
+  Daedalus one and pops the HUD out the same way. Off by default — turn on **Occult Crescent tab** under
+  Settings ▸ Display ▸ Window Behavior ▸ Edge dock.
+- While it is on, the floating Occult HUD no longer opens by itself when you zone in.
+- **Drag a tab to any edge — top and bottom too.** Press on a tab, drag, and let go near an edge; the edge
+  it will land on lights up gold. Each tab remembers its own edge, so Daedalus and Occult can sit apart. A
+  plain click still pins the panel. On the top and bottom the tabs run along the edge and the panel drops
+  down or pops up.
+- The same choice is in Settings as **Daedalus tab edge** and **Occult tab edge**, replacing the single
+  Right edge setting (a right-edge Daedalus tab stays on the right).
+
+<!-- LATEST-END -->
 ## v0.1.100 — 2026-10-16
 
 ### Edge dock (trial)
@@ -13,7 +28,6 @@ All notable changes to Daedalus will be documented in this file.
 - **It shares the edge with Charon's dock.** On the same side the two stack as one group — Daedalus above,
   Charon below — instead of drawing on top of each other, and close up when one goes away.
 
-<!-- LATEST-END -->
 ## v0.1.99 — 2026-10-13
 
 ### Patch 7.57

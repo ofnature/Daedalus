@@ -92,8 +92,34 @@ public sealed class Configuration : IPluginConfiguration
     /// </summary>
     public bool EdgeDockEnabled { get; set; } = false;
 
-    /// <summary>Pin the edge dock to the right edge of the screen instead of the left.</summary>
+    /// <summary>
+    /// The v0.1.100 "Right edge" setting, replaced by <see cref="EdgeDockMainEdge"/>. Kept only so a saved
+    /// true is carried over once at load (<see cref="MigrateEdgeDock"/>), then cleared.
+    /// </summary>
     public bool EdgeDockRightSide { get; set; } = false;
+
+    /// <summary>Which screen edge the edge dock's Daedalus tab is pinned to. Dragging the tab changes it.</summary>
+    public Daedalus.Windows.Dock.DockEdge EdgeDockMainEdge { get; set; } = Daedalus.Windows.Dock.DockEdge.Left;
+
+    /// <summary>Which screen edge the edge dock's Occult tab is pinned to. Dragging the tab changes it.</summary>
+    public Daedalus.Windows.Dock.DockEdge EdgeDockOccultEdge { get; set; } = Daedalus.Windows.Dock.DockEdge.Left;
+
+    /// <summary>Carries the old Right edge setting over to <see cref="EdgeDockMainEdge"/>. True if it changed anything.</summary>
+    public bool MigrateEdgeDock()
+    {
+        if (!EdgeDockRightSide)
+            return false;
+
+        EdgeDockMainEdge = Daedalus.Windows.Dock.DockEdge.Right;
+        EdgeDockRightSide = false;
+        return true;
+    }
+
+    /// <summary>
+    /// Add an "Occult" tab to the edge dock while in Occult Crescent, popping out the Occult HUD. While it is
+    /// on, the floating HUD no longer opens by itself on zone-in.
+    /// </summary>
+    public bool EdgeDockOccultTab { get; set; } = false;
 
     /// <summary>
     /// When true, Daedalus windows remain visible during in-game cutscenes.
@@ -309,7 +335,9 @@ public sealed class Configuration : IPluginConfiguration
         var preventEscapeClose = PreventEscapeClose;
         var showDuringCutscenes = ShowDuringCutscenes;
         var edgeDockEnabled = EdgeDockEnabled;
-        var edgeDockRightSide = EdgeDockRightSide;
+        var edgeDockMainEdge = EdgeDockMainEdge;
+        var edgeDockOccultTab = EdgeDockOccultTab;
+        var edgeDockOccultEdge = EdgeDockOccultEdge;
 
         // Reset general behavior
         EnableOnAutoAttack = false;
@@ -379,7 +407,9 @@ public sealed class Configuration : IPluginConfiguration
         PreventEscapeClose = preventEscapeClose;
         ShowDuringCutscenes = showDuringCutscenes;
         EdgeDockEnabled = edgeDockEnabled;
-        EdgeDockRightSide = edgeDockRightSide;
+        EdgeDockMainEdge = edgeDockMainEdge;
+        EdgeDockOccultTab = edgeDockOccultTab;
+        EdgeDockOccultEdge = edgeDockOccultEdge;
     }
 }
 

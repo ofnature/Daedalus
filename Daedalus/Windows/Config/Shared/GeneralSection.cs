@@ -642,8 +642,33 @@ public sealed class GeneralSection
             if (this.config.EdgeDockEnabled)
             {
                 ConfigUIHelpers.BeginIndent();
-                ConfigUIHelpers.Toggle("Right edge", () => this.config.EdgeDockRightSide, v => this.config.EdgeDockRightSide = v,
-                    "Pin the tab to the right edge of the screen instead of the left.", this.save);
+                var mainEdge = this.config.EdgeDockMainEdge;
+                if (ConfigUIHelpers.EnumCombo("Daedalus tab edge", ref mainEdge,
+                        "Which edge of the screen the Daedalus tab sits on. You can also drag a tab and let go near "
+                        + "another edge.", () => { }))
+                {
+                    this.config.EdgeDockMainEdge = mainEdge;
+                    this.save();
+                }
+
+                ConfigUIHelpers.Toggle("Occult Crescent tab", () => this.config.EdgeDockOccultTab, v => this.config.EdgeDockOccultTab = v,
+                    "In Occult Crescent, adds an \"Occult\" tab that pops out the Occult HUD. On the same edge as the "
+                    + "Daedalus tab it sits after it. While this is on, the floating HUD no longer opens by itself "
+                    + "when you zone in.", this.save);
+
+                if (this.config.EdgeDockOccultTab)
+                {
+                    ConfigUIHelpers.BeginIndent();
+                    var occultEdge = this.config.EdgeDockOccultEdge;
+                    if (ConfigUIHelpers.EnumCombo("Occult tab edge", ref occultEdge, null, () => { }))
+                    {
+                        this.config.EdgeDockOccultEdge = occultEdge;
+                        this.save();
+                    }
+
+                    ConfigUIHelpers.EndIndent();
+                }
+
                 ConfigUIHelpers.EndIndent();
             }
 

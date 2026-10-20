@@ -8,8 +8,8 @@ namespace Daedalus.Windows.Dock;
 
 /// <summary>One plugin's dock as the shared layout sees it.</summary>
 /// <param name="Owner">The plugin that owns the dock ("Daedalus", "Charon").</param>
-/// <param name="Edge">0 = left edge, 1 = right edge.</param>
-/// <param name="Height">How tall its stack of tabs is this frame, in pixels.</param>
+/// <param name="Edge">0 = left edge, 1 = right edge, 2 = top, 3 = bottom (<see cref="DockEdge"/>).</param>
+/// <param name="Height">How long its row of tabs is along the edge this frame, in pixels.</param>
 /// <param name="Order">Where it sits in the group, smallest first (top). Ties fall back to the owner's name.</param>
 /// <param name="SeenMs">When it last published, on <see cref="Environment.TickCount64"/>.</param>
 public readonly record struct DockSlot(string Owner, int Edge, float Height, int Order, long SeenMs);
@@ -96,16 +96,19 @@ public sealed class DockLayoutShare : IDisposable
         }
     }
 
-    /// <summary>Publish this frame's dock and get back where its top goes.</summary>
-    public float Place(bool rightEdge, float height, float workTop, float workHeight)
+    /// <summary>
+    /// Publish this frame's dock and get back where it starts along its edge: its top on the left and right
+    /// edges, its left on the top and bottom ones (the same stacking, turned). <paramref name="length"/>,
+    /// <paramref name="workStart"/> and <paramref name="workLength"/> are measured along the edge.
+    /// </summary>
+    public float Place(DockEdge edge, float length, float workStart, float workLength)
     {
-        var edge = rightEdge ? 1 : 0;
         if (_slots is null)
-            return workTop + MathF.Max(0f, (workHeight - height) / 2f);
+            return workStart + MathF.Max(0f, (workLength - length) / 2f);
 
         var now = Environment.TickCount64;
-        _slots[_owner] = [edge, (long)MathF.Ceiling(height), _order, now];
-        return DockLayout.TopFor(_owner, edge, height, Read(_slots), now, workTop, workHeight);
+        _slots[_owner] = [(int)edge, (long)MathF.Ceiling(length), _order, now];
+        return DockLayout.TopFor(_owner, (int)edge, length, Read(_slots), now, workStart, workLength);
     }
 
     private static IEnumerable<DockSlot> Read(ConcurrentDictionary<string, long[]> slots)
