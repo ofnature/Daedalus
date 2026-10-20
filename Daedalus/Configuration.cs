@@ -104,6 +104,21 @@ public sealed class Configuration : IPluginConfiguration
     /// <summary>Which screen edge the edge dock's Occult tab is pinned to. Dragging the tab changes it.</summary>
     public Daedalus.Windows.Dock.DockEdge EdgeDockOccultEdge { get; set; } = Daedalus.Windows.Dock.DockEdge.Left;
 
+    /// <summary>Where along its edge the Daedalus tab sits: its centre as a fraction of the edge (0.5 = the middle).</summary>
+    public float EdgeDockMainAlong { get; set; } = 0.5f;
+
+    /// <summary>Where along its edge the Occult tab sits: its centre as a fraction of the edge (0.5 = the middle).</summary>
+    public float EdgeDockOccultAlong { get; set; } = 0.5f;
+
+    /// <summary>Both tabs back to the left edge, in the middle.</summary>
+    public void ResetEdgeDockPlacement()
+    {
+        EdgeDockMainEdge = Daedalus.Windows.Dock.DockEdge.Left;
+        EdgeDockOccultEdge = Daedalus.Windows.Dock.DockEdge.Left;
+        EdgeDockMainAlong = 0.5f;
+        EdgeDockOccultAlong = 0.5f;
+    }
+
     /// <summary>Carries the old Right edge setting over to <see cref="EdgeDockMainEdge"/>. True if it changed anything.</summary>
     public bool MigrateEdgeDock()
     {
@@ -338,6 +353,8 @@ public sealed class Configuration : IPluginConfiguration
         var edgeDockMainEdge = EdgeDockMainEdge;
         var edgeDockOccultTab = EdgeDockOccultTab;
         var edgeDockOccultEdge = EdgeDockOccultEdge;
+        var edgeDockMainAlong = EdgeDockMainAlong;
+        var edgeDockOccultAlong = EdgeDockOccultAlong;
 
         // Reset general behavior
         EnableOnAutoAttack = false;
@@ -410,6 +427,8 @@ public sealed class Configuration : IPluginConfiguration
         EdgeDockMainEdge = edgeDockMainEdge;
         EdgeDockOccultTab = edgeDockOccultTab;
         EdgeDockOccultEdge = edgeDockOccultEdge;
+        EdgeDockMainAlong = edgeDockMainAlong;
+        EdgeDockOccultAlong = edgeDockOccultAlong;
     }
 }
 

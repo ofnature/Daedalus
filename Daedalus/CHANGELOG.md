@@ -3,6 +3,17 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.102 — 2026-10-19
+
+### Edge dock — put a tab anywhere
+- **A tab now stays exactly where you let go of it,** anywhere along any edge, instead of snapping to the
+  middle. Drop one onto another and the two sit side by side, centred on where you put them.
+- **Charon's tabs work the same way.** Daedalus and Charon tabs can share any edge, top and bottom included,
+  and never cover each other. Update both plugins: an older one lays its tabs out without the other's.
+- **Reset tab positions** (Settings ▸ Display ▸ Window Behavior ▸ Edge dock) puts both tabs back in
+  the middle of the left edge.
+
+<!-- LATEST-END -->
 ## v0.1.101 — 2026-10-19
 
 ### Edge dock — an Occult tab, and tabs on any edge
@@ -22,7 +33,6 @@ All notable changes to Daedalus will be documented in this file.
   instead of the target's centre. On a big boss those can be several yalms apart: the centre was clear while
   the landing spot sat inside a line attack about to go off (Elm Gigas, Ancient Aero).
 
-<!-- LATEST-END -->
 ## v0.1.100 — 2026-10-16
 
 ### Edge dock (trial)

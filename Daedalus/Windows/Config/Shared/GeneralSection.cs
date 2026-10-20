@@ -644,8 +644,8 @@ public sealed class GeneralSection
                 ConfigUIHelpers.BeginIndent();
                 var mainEdge = this.config.EdgeDockMainEdge;
                 if (ConfigUIHelpers.EnumCombo("Daedalus tab edge", ref mainEdge,
-                        "Which edge of the screen the Daedalus tab sits on. You can also drag a tab and let go near "
-                        + "another edge.", () => { }))
+                        "Which edge of the screen the Daedalus tab sits on. You can also drag a tab: let go near any "
+                        + "edge, anywhere along it, and it stays there.", () => { }))
                 {
                     this.config.EdgeDockMainEdge = mainEdge;
                     this.save();
@@ -668,6 +668,15 @@ public sealed class GeneralSection
 
                     ConfigUIHelpers.EndIndent();
                 }
+
+                if (ImGui.Button("Reset tab positions##edgedock"))
+                {
+                    this.config.ResetEdgeDockPlacement();
+                    this.save();
+                }
+
+                if (ImGui.IsItemHovered())
+                    ImGui.SetTooltip("Put both tabs back on the left edge, in the middle.");
 
                 ConfigUIHelpers.EndIndent();
             }

@@ -142,6 +142,26 @@ public class EdgeDockTests
         Assert.Equal((new Vector2(800f, 1040f), new Vector2(0f, 1f)), bottom);
     }
 
+    /// <summary>Where along an edge a drop lands: down the side edges, across the top and bottom.</summary>
+    [Fact]
+    public void TheDropSpotIsMeasuredAlongTheEdge()
+    {
+        var point = new Vector2(480f, 270f);
+        Assert.Equal(0.25f, DockMath.AlongFraction(DockEdge.Left, point, WorkPos, WorkSize), 3);
+        Assert.Equal(0.25f, DockMath.AlongFraction(DockEdge.Top, point, WorkPos, WorkSize), 3);
+        Assert.Equal(1f, DockMath.AlongFraction(DockEdge.Bottom, new Vector2(5000f, 0f), WorkPos, WorkSize));
+    }
+
+    /// <summary>Each edge's tab hugs that edge, standing up the sides and lying along the top and bottom.</summary>
+    [Fact]
+    public void ATabHugsItsEdge()
+    {
+        Assert.Equal((new Vector2(0f, 300f), new Vector2(34f, 90f)), DockMath.TabRect(DockEdge.Left, 300f, 90f, 34f, WorkPos, WorkSize));
+        Assert.Equal((new Vector2(1886f, 300f), new Vector2(34f, 90f)), DockMath.TabRect(DockEdge.Right, 300f, 90f, 34f, WorkPos, WorkSize));
+        Assert.Equal((new Vector2(300f, 0f), new Vector2(90f, 34f)), DockMath.TabRect(DockEdge.Top, 300f, 90f, 34f, WorkPos, WorkSize));
+        Assert.Equal((new Vector2(300f, 1046f), new Vector2(90f, 34f)), DockMath.TabRect(DockEdge.Bottom, 300f, 90f, 34f, WorkPos, WorkSize));
+    }
+
     /// <summary>A panel that would run off the screen slides back along the edge instead.</summary>
     [Fact]
     public void APanelNearTheEndOfItsEdgeSlidesBackOnScreen()

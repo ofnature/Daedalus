@@ -5,8 +5,7 @@ using System.Numerics;
 namespace Daedalus.Windows.Dock;
 
 /// <summary>
-/// The screen edge a tab is pinned to. The values are the shared layout's edge numbers: Charon uses 0 and 1
-/// as well, and so far only Daedalus uses the top and bottom edges.
+/// The screen edge a tab is pinned to. The values are the shared layout's edge numbers, the same in Charon.
 /// </summary>
 public enum DockEdge
 {
@@ -132,6 +131,28 @@ public static class DockMath
         Consider(DockEdge.Bottom, workPos.Y + workSize.Y - point.Y);
         return best;
     }
+
+    /// <summary>How far along <paramref name="edge"/> a point is, as a fraction of the edge (0..1).</summary>
+    public static float AlongFraction(DockEdge edge, Vector2 point, Vector2 workPos, Vector2 workSize)
+    {
+        var fraction = IsHorizontal(edge)
+            ? (point.X - workPos.X) / MathF.Max(1f, workSize.X)
+            : (point.Y - workPos.Y) / MathF.Max(1f, workSize.Y);
+        return Math.Clamp(fraction, 0f, 1f);
+    }
+
+    /// <summary>
+    /// A tab's rectangle: <paramref name="start"/> along the edge (its top, or its left on the top and bottom
+    /// edges), <paramref name="length"/> long, <paramref name="thickness"/> out from the edge.
+    /// </summary>
+    public static (Vector2 Min, Vector2 Size) TabRect(
+        DockEdge edge, float start, float length, float thickness, Vector2 workPos, Vector2 workSize) => edge switch
+    {
+        DockEdge.Right => (new Vector2(workPos.X + workSize.X - thickness, start), new Vector2(thickness, length)),
+        DockEdge.Top => (new Vector2(start, workPos.Y), new Vector2(length, thickness)),
+        DockEdge.Bottom => (new Vector2(start, workPos.Y + workSize.Y - thickness), new Vector2(length, thickness)),
+        _ => (new Vector2(workPos.X, start), new Vector2(thickness, length)),
+    };
 
     /// <summary>
     /// Where an open tab's panel goes: beside the tab, on the screen side of it, level with it — slid back

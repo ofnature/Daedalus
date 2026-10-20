@@ -161,8 +161,8 @@ public sealed class Plugin : IDalamudPlugin
     private readonly WindowSystem windowSystem = new("Daedalus");
     private readonly ConfigWindow configWindow;
     private readonly MainWindow mainWindow;
-    private readonly Daedalus.Windows.Dock.EdgeDockWindow[] edgeDocks;
-    private readonly System.Collections.Generic.List<Daedalus.Windows.Dock.DockLayoutShare> dockLayouts = new();
+    private readonly Daedalus.Windows.Dock.EdgeDockWindow edgeDockWindow;
+    private readonly Daedalus.Windows.Dock.DockLayoutShare dockLayout;
     private readonly ControlWindow controlWindow;
     private readonly NavControlWindow navControlWindow;
     private readonly RaidWindow raidWindow;
@@ -1173,48 +1173,36 @@ public sealed class Plugin : IDalamudPlugin
         windowSystem.AddWindow(mainWindow);
 
         // The edge dock (trial): each tab draws its window's own body in its pop-out, so the two cannot drift
-        // apart. Each tab has its own edge, so there is one dock per edge and a tab shows on the dock whose
-        // edge matches; dragging a tab to another edge stores the new one. The layout is shared with Charon's
-        // dock so the two stack on one edge instead of overlapping; Daedalus sits first (order 10, Charon 20).
-        // One share slot per edge, as the share keeps one slot per owner.
+        // apart. Each tab has its own edge and spot along it; dragging a tab stores the new ones. The layout is
+        // shared with Charon's tabs so none cover each other; tabs wanting the same spot put Daedalus's first
+        // (order 10, Charon 20).
         if (configuration.MigrateEdgeDock())
             pluginInterface.SavePluginConfig(configuration);
 
-        void MoveDockTab(string id, Daedalus.Windows.Dock.DockEdge edge)
-        {
-            if (id == "main")
-                configuration.EdgeDockMainEdge = edge;
-            else if (id == "occult")
-                configuration.EdgeDockOccultEdge = edge;
-            SaveConfiguration();
-        }
-
-        Daedalus.Windows.Dock.EdgeDockWindow DockFor(Daedalus.Windows.Dock.DockEdge edge)
-        {
-            var layout = new Daedalus.Windows.Dock.DockLayoutShare(
-                pluginInterface, edge == Daedalus.Windows.Dock.DockEdge.Left ? "Daedalus" : $"Daedalus ({edge})", order: 10);
-            this.dockLayouts.Add(layout);
-            return new Daedalus.Windows.Dock.EdgeDockWindow(
-            [
-                // Fixed width because the main body sizes its buttons off the space left.
-                new Daedalus.Windows.Dock.EdgeDockWindow.Tab("main", "Daedalus",
-                    () => configuration.EdgeDockMainEdge == edge, () => mainWindow.Draw(), 288f),
-                // The Occult HUD sizes itself to its content, so no fixed width.
-                new Daedalus.Windows.Dock.EdgeDockWindow.Tab("occult", "Occult",
-                    () => configuration.EdgeDockOccultTab && configuration.EdgeDockOccultEdge == edge
-                          && Daedalus.Data.PhantomJobData.OccultTerritoryIds.Contains((ushort)clientState.TerritoryType),
-                    () => occultWindow?.Draw()), // built further down; the tab only draws after that
-            ], edge, layout, MoveDockTab,
-            edge == Daedalus.Windows.Dock.DockEdge.Left ? "##DaedalusEdgeDock" : $"##DaedalusEdgeDock{edge}");
-        }
-
-        this.edgeDocks =
+        this.dockLayout = new Daedalus.Windows.Dock.DockLayoutShare(pluginInterface, "Daedalus", order: 10);
+        this.edgeDockWindow = new Daedalus.Windows.Dock.EdgeDockWindow(
         [
-            DockFor(Daedalus.Windows.Dock.DockEdge.Left), DockFor(Daedalus.Windows.Dock.DockEdge.Right),
-            DockFor(Daedalus.Windows.Dock.DockEdge.Top), DockFor(Daedalus.Windows.Dock.DockEdge.Bottom),
-        ];
-        foreach (var dock in edgeDocks)
-            windowSystem.AddWindow(dock);
+            // Fixed width because the main body sizes its buttons off the space left.
+            new Daedalus.Windows.Dock.EdgeDockWindow.Tab("main", "Daedalus", () => true, () => mainWindow.Draw(), 288f),
+            // The Occult HUD sizes itself to its content, so no fixed width.
+            new Daedalus.Windows.Dock.EdgeDockWindow.Tab("occult", "Occult",
+                () => configuration.EdgeDockOccultTab
+                      && Daedalus.Data.PhantomJobData.OccultTerritoryIds.Contains((ushort)clientState.TerritoryType),
+                () => occultWindow?.Draw()), // built further down; the tab only draws after that
+        ],
+        id => id == "occult"
+            ? (configuration.EdgeDockOccultEdge, configuration.EdgeDockOccultAlong)
+            : (configuration.EdgeDockMainEdge, configuration.EdgeDockMainAlong),
+        (id, edge, along) =>
+        {
+            if (id == "occult")
+                (configuration.EdgeDockOccultEdge, configuration.EdgeDockOccultAlong) = (edge, along);
+            else
+                (configuration.EdgeDockMainEdge, configuration.EdgeDockMainAlong) = (edge, along);
+            SaveConfiguration();
+        },
+        dockLayout);
+        windowSystem.AddWindow(edgeDockWindow);
         windowSystem.AddWindow(controlWindow);
         windowSystem.AddWindow(navControlWindow);
         windowSystem.AddWindow(meldOptimizerWindow);
@@ -1792,8 +1780,7 @@ public sealed class Plugin : IDalamudPlugin
         // Show welcome window on first run
         welcomeWindow.ShowIfNeeded();
 
-        foreach (var dock in edgeDocks)
-            dock.IsOpen = configuration.EdgeDockEnabled && dock.AnyTab();
+        edgeDockWindow.IsOpen = configuration.EdgeDockEnabled && edgeDockWindow.AnyTab();
 
         windowSystem.Draw();
     }
@@ -2492,8 +2479,7 @@ public sealed class Plugin : IDalamudPlugin
         actionFeedWindow.Dispose();
         lanPartyWindow?.Dispose();
         windowSystem.RemoveAllWindows();
-        foreach (var layout in dockLayouts)
-            layout.Dispose();
+        dockLayout.Dispose();
         DaedalusIpc.Dispose();
         lanRosterIpc.Dispose();
         pluginRelayIpc.Dispose();

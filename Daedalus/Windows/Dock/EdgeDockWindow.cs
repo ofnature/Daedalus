@@ -9,9 +9,13 @@ using Daedalus.Windows.Common;
 namespace Daedalus.Windows.Dock;
 
 /// <summary>
-/// The edge dock: tabs pinned to one screen edge, each popping its panel out beside it while pointed at
-/// (click to pin). Ported from Charon's <c>EdgeDockWindow</c>. There is one of these per edge; a tab shows on
-/// the one whose edge it is set to, and dragging a tab and letting go near another edge moves it there.
+/// The edge dock: tabs pinned to the screen edges, each popping its panel out beside it while pointed at
+/// (click to pin). Ported from Charon's <c>EdgeDockWindow</c>. Every tab has its own edge and its own spot
+/// along it; dragging a tab and letting go puts it on the nearest edge, where it was let go.
+/// <para>
+/// This window itself is an invisible 1×1 host. Each tab is its own small ImGui window, so tabs can sit
+/// anywhere on any edge, and <see cref="DockLayoutShare"/> keeps them from covering each other or Charon's.
+/// </para>
 /// <para>
 /// A tab's panel is the BODY of the window it stands for — that window's own <c>Draw()</c>, called inside
 /// the pop-out — so the dock and the window cannot drift apart.
@@ -25,9 +29,9 @@ namespace Daedalus.Windows.Dock;
 /// </summary>
 public sealed unsafe class EdgeDockWindow : Window
 {
-    /// <param name="Id">Stable id; also the ImGui id suffix.</param>
+    /// <param name="Id">Stable id; also the ImGui id suffix and the layout key.</param>
     /// <param name="Label">What the tab reads.</param>
-    /// <param name="Applies">Whether the tab is shown on THIS dock right now (its edge included).</param>
+    /// <param name="Applies">Whether the tab is shown right now.</param>
     /// <param name="DrawPanel">The panel body — normally the target window's own <c>Draw()</c>.</param>
     /// <param name="PanelWidth">
     /// A fixed width with the height left to the content. Needed for bodies that size items off the space left
@@ -38,43 +42,45 @@ public sealed unsafe class EdgeDockWindow : Window
 
     private const float TabThickness = 34f;
     private const float TabPadding = 14f;
-    private const float TabGap = 4f;
     private const float PanelGap = 6f;
     private const float LabelScale = 1.25f;
     private const float DragThreshold = 6f;
     private static readonly TimeSpan CloseDelay = TimeSpan.FromMilliseconds(450);
 
+    private const ImGuiWindowFlags TabFlags =
+        ImGuiWindowFlags.NoDecoration | ImGuiWindowFlags.NoBackground | ImGuiWindowFlags.NoMove
+        | ImGuiWindowFlags.NoSavedSettings | ImGuiWindowFlags.NoFocusOnAppearing | ImGuiWindowFlags.NoNav
+        | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse;
+
     private readonly IReadOnlyList<Tab> _tabs;
-    private readonly DockEdge _edge;
-    private readonly DockLayoutShare? _layout;
-    private readonly Action<string, DockEdge> _moveTab;
+    private readonly Func<string, (DockEdge Edge, float Along)> _placement;
+    private readonly Action<string, DockEdge, float> _moveTab;
+    private readonly DockLayoutShare _layout;
     private readonly DockHover _hover = new();
     private List<Tab> _visible = new();
     private Vector2 _panelSize = new(288f, 240f);
     private string? _dragging;
 
-    /// <param name="edge">The edge this dock sits on.</param>
-    /// <param name="layout">
-    /// The layout shared with other plugins' docks, so docks on the same edge stack instead of overlapping.
-    /// Null centres this dock on its own.
-    /// </param>
-    /// <param name="moveTab">A tab was dragged and let go nearest this edge: store it there.</param>
-    /// <param name="windowName">The ImGui window name; each dock needs its own.</param>
+    /// <param name="placement">Where a tab is set to sit: its edge, and its centre as a fraction along it.</param>
+    /// <param name="moveTab">A tab was dragged and let go: store its new edge and spot.</param>
+    /// <param name="layout">The layout shared with other plugins' tabs, so none cover each other.</param>
     public EdgeDockWindow(
-        IReadOnlyList<Tab> tabs, DockEdge edge, DockLayoutShare? layout, Action<string, DockEdge> moveTab,
-        string windowName)
-        : base(windowName)
+        IReadOnlyList<Tab> tabs, Func<string, (DockEdge Edge, float Along)> placement,
+        Action<string, DockEdge, float> moveTab, DockLayoutShare layout)
+        : base("##DaedalusEdgeDock")
     {
         _tabs = tabs;
-        _edge = edge;
-        _layout = layout;
+        _placement = placement;
         _moveTab = moveTab;
+        _layout = layout;
 
-        Flags = ImGuiWindowFlags.NoDecoration | ImGuiWindowFlags.NoBackground | ImGuiWindowFlags.NoMove
-                | ImGuiWindowFlags.NoSavedSettings | ImGuiWindowFlags.NoFocusOnAppearing | ImGuiWindowFlags.NoNav
-                | ImGuiWindowFlags.AlwaysAutoResize | ImGuiWindowFlags.NoScrollbar;
+        Flags = ImGuiWindowFlags.NoDecoration | ImGuiWindowFlags.NoBackground | ImGuiWindowFlags.NoInputs
+                | ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoSavedSettings | ImGuiWindowFlags.NoFocusOnAppearing
+                | ImGuiWindowFlags.NoNav | ImGuiWindowFlags.NoScrollbar;
         RespectCloseHotkey = false;
         PositionCondition = ImGuiCond.Always;
+        SizeCondition = ImGuiCond.Always;
+        Size = Vector2.One;
         IsOpen = false;
     }
 
@@ -90,52 +96,66 @@ public sealed unsafe class EdgeDockWindow : Window
         return _visible.Count > 0;
     }
 
-    private bool Horizontal => DockMath.IsHorizontal(_edge);
-
-    public override void PreDraw()
-    {
-        ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, Vector2.Zero);
-
-        var viewport = ImGui.GetMainViewport();
-        var work = viewport.WorkPos;
-        var size = viewport.WorkSize;
-        var length = _visible.Sum(t => TabLength(t.Label)) + TabGap * Math.Max(0, _visible.Count - 1);
-
-        if (Horizontal)
-        {
-            var x = _layout?.Place(_edge, length, work.X, size.X) ?? work.X + (size.X - length) / 2f;
-            var y = _edge == DockEdge.Top ? work.Y : work.Y + size.Y - TabThickness;
-            Position = new Vector2(x, y);
-        }
-        else
-        {
-            var x = _edge == DockEdge.Right ? work.X + size.X - TabThickness : work.X;
-            var y = _layout?.Place(_edge, length, work.Y, size.Y) ?? work.Y + (size.Y - length) / 2f;
-            Position = new Vector2(x, y);
-        }
-    }
-
-    public override void PostDraw() => ImGui.PopStyleVar();
+    public override void PreDraw() => Position = ImGui.GetMainViewport().WorkPos;
 
     public override void Draw()
     {
-        var drawList = ImGui.GetWindowDrawList();
+        var viewport = ImGui.GetMainViewport();
+        var workPos = viewport.WorkPos;
+        var workSize = viewport.WorkSize;
+
+        var requests = _visible.Select(t =>
+        {
+            var (edge, along) = _placement(t.Id);
+            return new DockRequest(t.Id, edge, along, TabLength(t.Label));
+        }).ToList();
+        var starts = _layout.Place(requests, workPos, workSize);
+
         string? hovered = null;
         Tab? openTab = null;
         var openMin = Vector2.Zero;
         var openSize = Vector2.Zero;
+        var openEdge = DockEdge.Left;
 
-        ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, Horizontal ? new Vector2(TabGap, 0f) : new Vector2(0f, TabGap));
         for (var i = 0; i < _visible.Count; i++)
         {
             var tab = _visible[i];
-            if (Horizontal && i > 0)
-                ImGui.SameLine();
+            var edge = requests[i].Edge;
+            if (!starts.TryGetValue(tab.Id, out var start))
+                continue;
 
-            var length = TabLength(tab.Label);
-            var size = Horizontal ? new Vector2(length, TabThickness) : new Vector2(TabThickness, length);
-            var min = ImGui.GetCursorScreenPos();
+            var (min, size) = DockMath.TabRect(edge, start, requests[i].Length, TabThickness, workPos, workSize);
+            if (DrawTabWindow(tab, edge, min, size, ref hovered))
+            {
+                openTab = tab;
+                openMin = min;
+                openSize = size;
+                openEdge = edge;
+            }
+        }
 
+        if (_dragging != null)
+            DrawDrag(workPos, workSize);
+
+        var panelBusy = openTab != null && DrawPanel(openTab, openEdge, openMin, openSize);
+        _hover.Update(hovered, panelBusy, DateTime.UtcNow, CloseDelay, _visible.Select(t => t.Id).ToList());
+
+        Status = $"{_visible.Count} tab(s): {string.Join(", ", requests.Select(r => $"{r.Id} {r.Edge} {r.Along:0.00}"))}"
+                 + (_hover.Open is { } open ? $" · {open} out{(_hover.Pinned == open ? " (pinned)" : "")}" : "");
+    }
+
+    /// <summary>One tab, in its own little window. True when its panel is out.</summary>
+    private bool DrawTabWindow(Tab tab, DockEdge edge, Vector2 min, Vector2 size, ref string? hovered)
+    {
+        ImGui.SetNextWindowPos(min, ImGuiCond.Always);
+        ImGui.SetNextWindowSize(size, ImGuiCond.Always);
+        ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, Vector2.Zero);
+        ImGui.PushStyleVar(ImGuiStyleVar.WindowMinSize, Vector2.One);
+        ImGui.PushStyleVar(ImGuiStyleVar.WindowBorderSize, 0f);
+
+        var isOpen = false;
+        if (ImGui.Begin($"##DaedalusEdgeDockTab{tab.Id}", TabFlags))
+        {
             // A press that moves becomes a drag; only a press that does not is a click (pin / unpin).
             var clicked = ImGui.InvisibleButton($"##dock{tab.Id}", size);
             if (ImGui.IsItemActive() && ImGui.IsMouseDragging(ImGuiMouseButton.Left, DragThreshold))
@@ -145,54 +165,39 @@ public sealed unsafe class EdgeDockWindow : Window
             if (ImGui.IsItemHovered() && _dragging == null)
                 hovered = tab.Id;
 
-            var isOpen = _hover.Open == tab.Id && _dragging == null;
-            var pinned = _hover.Pinned == tab.Id;
-            DrawTab(drawList, min, size, tab.Label, isOpen || hovered == tab.Id, pinned, _edge);
-
-            if (isOpen)
-            {
-                openTab = tab;
-                openMin = min;
-                openSize = size;
-            }
+            isOpen = _hover.Open == tab.Id && _dragging == null;
+            var lit = isOpen || hovered == tab.Id || _dragging == tab.Id;
+            DrawTab(ImGui.GetWindowDrawList(), min, size, tab.Label, lit, _hover.Pinned == tab.Id, edge);
         }
 
-        ImGui.PopStyleVar();
-
-        if (_dragging != null)
-            DrawDrag();
-
-        var panelBusy = openTab != null && DrawPanel(openTab, openMin, openSize);
-        _hover.Update(hovered, panelBusy, DateTime.UtcNow, CloseDelay, _visible.Select(t => t.Id).ToList());
-
-        Status = $"{_edge}: {_visible.Count} tab(s): {string.Join(", ", _visible.Select(t => t.Label))}"
-                 + (_hover.Open is { } open ? $" · {open} out{(_hover.Pinned == open ? " (pinned)" : "")}" : "");
+        ImGui.End();
+        ImGui.PopStyleVar(3);
+        return isOpen;
     }
 
     /// <summary>
-    /// A tab being dragged: the edge it would land on lit gold, a copy of the tab under the pointer, and on
-    /// release the move.
+    /// A tab being dragged: the edge it would land on lit gold, an outline where it would sit, and on release
+    /// the move.
     /// </summary>
-    private void DrawDrag()
+    private void DrawDrag(Vector2 workPos, Vector2 workSize)
     {
-        var viewport = ImGui.GetMainViewport();
         var mouse = ImGui.GetMousePos();
-        var target = DockMath.NearestEdge(mouse, viewport.WorkPos, viewport.WorkSize);
+        var target = DockMath.NearestEdge(mouse, workPos, workSize);
+        var along = DockMath.AlongFraction(target, mouse, workPos, workSize);
 
         if (!ImGui.IsMouseDown(ImGuiMouseButton.Left))
         {
             var id = _dragging!;
             _dragging = null;
-            if (target != _edge)
-                _moveTab(id, target);
+            _moveTab(id, target, along);
             return;
         }
 
         var fg = ImGui.GetForegroundDrawList();
         var gold = ImGui.GetColorU32(DaedalusTheme.AccentGold);
-        var a = viewport.WorkPos;
-        var b = viewport.WorkPos + viewport.WorkSize;
-        const float bar = 4f;
+        var a = workPos;
+        var b = workPos + workSize;
+        const float bar = 3f;
         switch (target)
         {
             case DockEdge.Left: fg.AddRectFilled(a, new Vector2(a.X + bar, b.Y), gold); break;
@@ -201,12 +206,16 @@ public sealed unsafe class EdgeDockWindow : Window
             case DockEdge.Bottom: fg.AddRectFilled(new Vector2(a.X, b.Y - bar), b, gold); break;
         }
 
+        // The outline of where it would land (before any nudge from its neighbours).
         var label = _visible.FirstOrDefault(t => t.Id == _dragging)?.Label ?? _dragging!;
-        var textSize = ImGui.CalcTextSize(label);
-        var ghostMin = mouse + new Vector2(12f, 12f);
-        var ghostMax = ghostMin + textSize + new Vector2(TabPadding * 2f, 12f);
-        fg.AddRectFilled(ghostMin, ghostMax, ImGui.GetColorU32(new Vector4(0.16f, 0.15f, 0.12f, 0.92f)), 6f);
-        fg.AddText(ghostMin + new Vector2(TabPadding, 6f), gold, label);
+        var length = TabLength(label);
+        var horizontal = DockMath.IsHorizontal(target);
+        var edgeStart = horizontal ? workPos.X : workPos.Y;
+        var edgeLength = horizontal ? workSize.X : workSize.Y;
+        var start = Math.Clamp(edgeStart + along * edgeLength - length / 2f, edgeStart,
+            MathF.Max(edgeStart, edgeStart + edgeLength - length));
+        var (min, size) = DockMath.TabRect(target, start, length, TabThickness, workPos, workSize);
+        fg.AddRect(min, min + size, gold, 6f, ImDrawFlags.None, 2f);
     }
 
     private static float TabLength(string label) =>
@@ -268,11 +277,11 @@ public sealed unsafe class EdgeDockWindow : Window
     }
 
     /// <summary>Draws the open tab's panel beside it. True while the pointer is on it or it is mid-interaction.</summary>
-    private bool DrawPanel(Tab tab, Vector2 tabMin, Vector2 tabSize)
+    private bool DrawPanel(Tab tab, DockEdge edge, Vector2 tabMin, Vector2 tabSize)
     {
         var viewport = ImGui.GetMainViewport();
         var (pos, pivot) = DockMath.PanelPlacement(
-            _edge, tabMin, tabSize, _panelSize, viewport.WorkPos, viewport.WorkSize, PanelGap);
+            edge, tabMin, tabSize, _panelSize, viewport.WorkPos, viewport.WorkSize, PanelGap);
 
         ImGui.SetNextWindowPos(pos, ImGuiCond.Always, pivot);
         if (tab.PanelWidth is { } width)
@@ -283,7 +292,7 @@ public sealed unsafe class EdgeDockWindow : Window
 
         var busy = false;
         ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(10f, 8f));
-        if (ImGui.Begin($"{WindowName}Panel{tab.Id}", flags))
+        if (ImGui.Begin($"##DaedalusEdgeDockPanel{tab.Id}", flags))
         {
             try
             {
