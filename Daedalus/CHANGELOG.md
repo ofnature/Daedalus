@@ -5,7 +5,7 @@ All notable changes to Daedalus will be documented in this file.
 <!-- LATEST-START -->
 ## v0.1.101 — 2026-10-19
 
-### Edge dock — an Occult tab
+### Edge dock — an Occult tab, and tabs on any edge
 - **The Occult HUD can live on the edge dock too.** In Occult Crescent an "Occult" tab sits under the
   Daedalus one and pops the HUD out the same way. Off by default — turn on **Occult Crescent tab** under
   Settings ▸ Display ▸ Window Behavior ▸ Edge dock.
