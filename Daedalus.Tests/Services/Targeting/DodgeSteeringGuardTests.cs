@@ -107,6 +107,35 @@ public sealed class DodgeSteeringGuardTests
         Assert.Equal((new System.Numerics.Vector3(1f, 0f, 2f), new System.Numerics.Vector3(10f, 0f, 20f)), asked);
     }
 
+    /// <summary>
+    /// The dash stops at the target's hitbox, not on its centre. Elm Gigas, 2026-10-19: a 3.5y boss, a 0.5y Samurai,
+    /// and Gyoten put Saar 4 yalms short of the centre -- inside an Ancient Aero line the centre was clear of.
+    /// </summary>
+    [Fact]
+    public void TheLandingIsAtTheTargetsHitbox()
+    {
+        var service = ServiceOnGround(6f, out var target);
+        var player = new Mock<IPlayerCharacter>();
+        player.SetupGet(p => p.Position).Returns(new System.Numerics.Vector3(0f, 0f, 14f));
+        player.SetupGet(p => p.HitboxRadius).Returns(0.5f);
+        target.SetupGet(t => t.Position).Returns(new System.Numerics.Vector3(0f, 0f, 0f));
+        target.SetupGet(t => t.HitboxRadius).Returns(3.5f);
+        System.Numerics.Vector3? asked = null;
+        service.LandingSafe = (_, to) => { asked = to; return true; };
+
+        service.ShouldBlockGapCloser(target.Object, player.Object);
+
+        Assert.NotNull(asked);
+        Assert.Equal(4f, asked!.Value.Z, 3);
+        Assert.Equal(0f, asked.Value.X, 3);
+    }
+
+    /// <summary>Already at the hitbox there is no dash, and the landing is where the player stands.</summary>
+    [Fact]
+    public void InsideTheHitbox_TheLandingIsWhereThePlayerStands()
+        => Assert.Equal(new System.Numerics.Vector3(1f, 0f, 2f),
+            GapCloserSafetyService.GapCloserLanding(new System.Numerics.Vector3(1f, 0f, 2f), new System.Numerics.Vector3(2f, 0f, 3f), 4f));
+
     /// <summary>With no engine wired there is nothing to ask, and the gate behaves exactly as it did before.</summary>
     [Fact]
     public void NoLandingCheckWired_ChangesNothing()

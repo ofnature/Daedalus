@@ -43,11 +43,26 @@ public sealed class GapCloserSafetyService : IGapCloserSafetyService
 
     /// <summary>
     /// Whether a dash from the first point to the second ends somewhere survivable: floor under the landing, and a
-    /// path and landing the boss engine calls clear. A gap closer lands on its target, so this asks about the target's
-    /// spot, not the player's. Plugin wires it to TargetedDashGuard, the check Phantom Kick already uses, through the
-    /// same engine router as <see cref="ExternalSteering"/>.
+    /// path and landing the boss engine calls clear. A gap closer lands at its target, so this asks about where it stops
+    /// there (<see cref="GapCloserLanding"/>), not the player's spot. Plugin wires it to TargetedDashGuard, the check
+    /// Phantom Kick already uses, through the same engine router as <see cref="ExternalSteering"/>.
     /// </summary>
     public System.Func<Vector3, Vector3, bool>? LandingSafe { get; set; }
+
+    /// <summary>
+    /// Where a gap closer stops: at the target's hitbox, short of its centre, which is where BossmodReborn aims the same
+    /// check (<c>player.DistanceToHitbox(target)</c> along the line to it).
+    /// <para>Asking about the centre misses every mechanic that ends a few yalms short of it. Elm Gigas, 2026-10-19,
+    /// twice in one pull: the boss's centre was clear of an Ancient Aero line due in half a second, and the spot 4
+    /// yalms short of it where Gyoten put the Samurai was inside the line.</para>
+    /// </summary>
+    public static Vector3 GapCloserLanding(Vector3 player, Vector3 target, float hitboxes)
+    {
+        var flat = new Vector2(target.X - player.X, target.Z - player.Z).Length();
+        if (flat <= hitboxes || flat < 0.001f)
+            return player;   // already at the hitbox: there is no dash
+        return Vector3.Lerp(player, target, (flat - hitboxes) / flat);
+    }
 
     /// <summary>
     /// What a gap closer costs in stillness: the dash plus its animation lock, measured on Onslaught.
@@ -120,7 +135,8 @@ public sealed class GapCloserSafetyService : IGapCloserSafetyService
         // stopped steering the moment it arrived, and on that frame -- not steering, ground here safe, out of melee --
         // Gyoten dashed it straight back onto the boss and into the Shockwave. Twice in one pull. Both checks above
         // passed, because both ask about where the character is standing, and neither about where it is going.
-        if (LandingSafe is { } landingSafe && !landingSafe(player.Position, target.Position))
+        if (LandingSafe is { } landingSafe
+            && !landingSafe(player.Position, GapCloserLanding(player.Position, target.Position, target.HitboxRadius + player.HitboxRadius)))
         {
             LastBlockReason = "the dash would land in, or cross, ground that is about to go off";
             return true;

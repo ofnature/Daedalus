@@ -17,6 +17,11 @@ All notable changes to Daedalus will be documented in this file.
 - The same choice is in Settings as **Daedalus tab edge** and **Occult tab edge**, replacing the single
   Right edge setting (a right-edge Daedalus tab stays on the right).
 
+### Gap closers — checked where you actually land
+- **A gap closer's safety check now looks at where the dash stops**, at the edge of the target's hitbox,
+  instead of the target's centre. On a big boss those can be several yalms apart: the centre was clear while
+  the landing spot sat inside a line attack about to go off (Elm Gigas, Ancient Aero).
+
 <!-- LATEST-END -->
 ## v0.1.100 — 2026-10-16
 
