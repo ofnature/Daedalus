@@ -1126,7 +1126,8 @@ public sealed class Plugin : IDalamudPlugin
         // leaves every kill to us. Odysseus (MSQ questing) publishes the same gate for the same
         // reason: it owns the quest and the walk, and hands quest combat to us. Parcae (overworld
         // FATE farming) is the same contract again: it picks the FATE, travels, holds the target,
-        // and we fight it.
+        // and we fight it. Demeter (gathering) too: it owns the node circuit and waits while we kill
+        // whatever attacks on the way.
         this.automationBridges =
         [
             new AutomationBusyBridge(pluginInterface, configuration, log, "Henchman", "Henchman.IsBusy", busyGateValue: true),
@@ -1134,6 +1135,7 @@ public sealed class Plugin : IDalamudPlugin
             new AutomationBusyBridge(pluginInterface, configuration, log, "Theseus", "Theseus.IsBusy", busyGateValue: true),
             new AutomationBusyBridge(pluginInterface, configuration, log, "Odysseus", "Odysseus.IsBusy", busyGateValue: true),
             new AutomationBusyBridge(pluginInterface, configuration, log, "Parcae", "Parcae.IsBusy", busyGateValue: true),
+            new AutomationBusyBridge(pluginInterface, configuration, log, "Demeter", "Demeter.IsBusy", busyGateValue: true),
         ];
         foreach (var bridge in this.automationBridges)
         {
