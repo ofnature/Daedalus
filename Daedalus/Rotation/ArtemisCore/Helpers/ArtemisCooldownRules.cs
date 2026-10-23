@@ -144,6 +144,41 @@ public static class ArtemisCooldownRules
     public static bool ShouldBorrow(bool enabled, bool ready, bool hasFamiliar, bool releaseOwed)
         => enabled && ready && hasFamiliar && !releaseOwed;
 
+    /// <summary>Snarl only while the familiar is healthy enough to take the hits.</summary>
+    public const float SnarlMinFamiliarHpPct = 0.50f;
+
+    /// <summary>Below this the familiar is about to go down: take the enemy back with Challenge.</summary>
+    public const float ChallengeFamiliarHpPct = 0.30f;
+
+    /// <summary>Challenge holds the enemy on the beastmaster for 30s; Snarl would undo it, so wait that long.</summary>
+    public const float SnarlAfterChallengeSeconds = 30f;
+
+    /// <summary>Challenge only while the beastmaster can stand being hit.</summary>
+    public const float ChallengeMinSelfHpPct = 0.40f;
+
+    /// <summary>
+    /// Crucible: keep the familiar tanking. Snarl has the familiar Threaten (15s, the same as the recast) and cover
+    /// the beastmaster (45s), so it goes out whenever it is ready — but not onto a familiar that is low, and not
+    /// straight after a Challenge, which would hand back an enemy that was just pulled off it on purpose.
+    /// </summary>
+    public static bool ShouldSnarl(
+        bool enabled, bool onBoardInBattle, bool ready, bool hasFamiliar, float familiarHpPct, float secondsSinceChallenge)
+        => enabled && onBoardInBattle && ready && hasFamiliar
+           && familiarHpPct >= SnarlMinFamiliarHpPct
+           && secondsSinceChallenge >= SnarlAfterChallengeSeconds;
+
+    /// <summary>
+    /// Crucible: the familiar is about to go down while the enemy is on it — take the enemy with Challenge (which also
+    /// ends the familiar's Cover). Not when the beastmaster is too low to take the hits instead.
+    /// </summary>
+    public static bool ShouldChallenge(
+        bool enabled, bool onBoardInBattle, bool ready, bool hasFamiliar, float familiarHpPct,
+        bool enemyOnFamiliar, float selfHpPct)
+        => enabled && onBoardInBattle && ready && hasFamiliar
+           && familiarHpPct < ChallengeFamiliarHpPct
+           && enemyOnFamiliar
+           && selfHpPct >= ChallengeMinSelfHpPct;
+
     /// <summary>
     /// The Beast Mode button, by what it has turned into. <paramref name="adjustedId"/> is what the game
     /// says the button currently is; while that is still Beast Mode itself there is no Kinship and nothing

@@ -63,6 +63,22 @@ public sealed class BeastmasterConfig
     /// </summary>
     public bool KeepFamiliarOut { get; set; } = true;
 
+    #region Crucible
+
+    /// <summary>
+    /// Crucible: keep the familiar tanking with Snarl (it Threatens the enemy and covers you). Held while the familiar
+    /// is under half HP, and for 30s after a Challenge.
+    /// </summary>
+    public bool EnableSnarl { get; set; } = true;
+
+    /// <summary>Crucible: when the familiar drops under 30% HP with the enemy on it, take the enemy with Challenge.</summary>
+    public bool EnableChallenge { get; set; } = true;
+
+    /// <summary>Open the Crucible window on entering a board. It closes again on leaving.</summary>
+    public bool CrucibleWindowAutoOpen { get; set; } = true;
+
+    #endregion
+
     #region Battlehorns
 
     /// <summary>

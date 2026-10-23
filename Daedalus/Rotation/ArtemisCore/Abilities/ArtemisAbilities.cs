@@ -45,6 +45,12 @@ public static class ArtemisAbilities
     public static readonly AbilityBehavior Borrow = new()
         { Action = BSTActions.Borrow, Toggle = cfg => cfg.Beastmaster.EnableBorrow };
 
+    // --- the Crucible's duty actions ---
+    public static readonly AbilityBehavior Snarl = new()
+        { Action = BSTActions.Snarl, Toggle = cfg => cfg.Beastmaster.EnableSnarl };
+    public static readonly AbilityBehavior Challenge = new()
+        { Action = BSTActions.Challenge, Toggle = cfg => cfg.Beastmaster.EnableChallenge };
+
     // Beast Mode is sent by its base id with no status pre-check on that id: the usable action is whatever
     // the game has substituted, and the module has already asked the game about THAT one.
     public static readonly AbilityBehavior BeastMode = new()

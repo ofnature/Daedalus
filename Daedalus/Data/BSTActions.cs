@@ -505,6 +505,32 @@ public static class BSTActions
         RecastTime = 30f,
     };
 
+    /// <summary>
+    /// Snarl — Crucible duty action. The familiar uses Threaten (top of the enemy's enmity, 15s) and covers the
+    /// beastmaster, taking all damage meant for them (45s). Removes the beastmaster's Enmity Up. 25y, 15s recast.
+    /// Only usable while the duty has put it on the duty bar.
+    /// </summary>
+    public static readonly ActionDefinition Snarl = new()
+    {
+        ActionId = 46751, Name = "Snarl", MinLevel = 1,
+        Category = ActionCategory.oGCD, TargetType = ActionTargetType.SingleEnemy,
+        RecastTime = 15f, Range = 25f,
+    };
+
+    /// <summary>
+    /// Challenge — Crucible duty action. The beastmaster goes to the top of the enemy's enmity (30s) and the
+    /// familiar's Cover ends. 25y, 15s recast. Only usable while the duty has put it on the duty bar.
+    /// </summary>
+    public static readonly ActionDefinition Challenge = new()
+    {
+        ActionId = 46750, Name = "Challenge", MinLevel = 1,
+        Category = ActionCategory.oGCD, TargetType = ActionTargetType.SingleEnemy,
+        RecastTime = 15f, Range = 25f,
+    };
+
+    /// <summary>"Covered" — on the beastmaster while the familiar takes their damage (Snarl).</summary>
+    public const uint CoveredStatusId = 4352;
+
     /// <summary>Beast Mode — the button Borrow transforms. Pressed by its base id; the game substitutes (Lv22).</summary>
     public static readonly ActionDefinition BeastMode = new()
     {

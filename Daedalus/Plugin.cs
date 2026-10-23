@@ -66,6 +66,9 @@ public sealed class Plugin : IDalamudPlugin
     private readonly IGameConfig gameConfig;
     private readonly IJobGauges jobGauges;
     private readonly ITargetManager targetManager;
+    private Daedalus.Services.Combat.StrikingDummyReset? strikingDummyReset;
+    private Daedalus.Services.Beastmaster.CrucibleTracker? crucibleTracker;
+    private CrucibleWindow? crucibleWindow;
 
     // Auto-face: original AutoFaceTargetOnAction value captured before we override it (restored on unload).
     private bool? _originalAutoFaceTarget;
@@ -1071,6 +1074,12 @@ public sealed class Plugin : IDalamudPlugin
         this.mainWindow.InOccultZone = () =>
             Daedalus.Data.PhantomJobData.OccultTerritoryIds.Contains((ushort)this.clientState.TerritoryType);
 
+        // A striking dummy never dies: the game's own "Reset Striking Dummy Enmity" is how a practice fight ends.
+        this.strikingDummyReset = new Daedalus.Services.Combat.StrikingDummyReset(objectTable, targetManager, m => log.Info(m));
+        this.mainWindow.DummyTargeted = () => this.strikingDummyReset.ShouldShowButton(condition[Dalamud.Game.ClientState.Conditions.ConditionFlag.InCombat]);
+        this.mainWindow.DummyResetHolding = () => this.strikingDummyReset.Holding;
+        this.mainWindow.ResetDummy = () => ResetStrikingDummies();
+
         // IPC interface for external plugin integration
         this.DaedalusIpc = new DaedalusIpc(
             pluginInterface,
@@ -1191,6 +1200,10 @@ public sealed class Plugin : IDalamudPlugin
                 () => configuration.EdgeDockOccultTab
                       && Daedalus.Data.PhantomJobData.OccultTerritoryIds.Contains((ushort)clientState.TerritoryType),
                 () => occultWindow?.Draw()), // built further down; the tab only draws after that
+            // The Crucible window sizes itself to its content.
+            new Daedalus.Windows.Dock.EdgeDockWindow.Tab("crucible", "Crucible",
+                () => configuration.EdgeDockCrucibleTab && Daedalus.Services.Beastmaster.CrucibleTracker.Current.OnBoard,
+                () => crucibleWindow?.Draw()), // built further down; the tab only draws after that
             // Fixed width: the Party Coordination body right-aligns its controls off the window's width.
             new Daedalus.Windows.Dock.EdgeDockWindow.Tab("party", "Party",
                 () => configuration.EdgeDockPartyTab && lanPartyWindow != null
@@ -1201,6 +1214,7 @@ public sealed class Plugin : IDalamudPlugin
         {
             "occult" => (configuration.EdgeDockOccultEdge, configuration.EdgeDockOccultAlong),
             "party" => (configuration.EdgeDockPartyEdge, configuration.EdgeDockPartyAlong),
+            "crucible" => (configuration.EdgeDockCrucibleEdge, configuration.EdgeDockCrucibleAlong),
             _ => (configuration.EdgeDockMainEdge, configuration.EdgeDockMainAlong),
         },
         (id, edge, along) =>
@@ -1209,6 +1223,7 @@ public sealed class Plugin : IDalamudPlugin
             {
                 case "occult": (configuration.EdgeDockOccultEdge, configuration.EdgeDockOccultAlong) = (edge, along); break;
                 case "party": (configuration.EdgeDockPartyEdge, configuration.EdgeDockPartyAlong) = (edge, along); break;
+                case "crucible": (configuration.EdgeDockCrucibleEdge, configuration.EdgeDockCrucibleAlong) = (edge, along); break;
                 default: (configuration.EdgeDockMainEdge, configuration.EdgeDockMainAlong) = (edge, along); break;
             }
 
@@ -1249,6 +1264,15 @@ public sealed class Plugin : IDalamudPlugin
         windowSystem.AddWindow(occultWindow);
         this.clientState.TerritoryChanged += OnOccultTerritoryChanged;
         OnOccultTerritoryChanged(clientState.TerritoryType); // plugin may load mid-zone
+
+        // The Crucible of the Unbroken (Beastmaster's board game), read from the game's own XBM sheets.
+        this.crucibleTracker = new Daedalus.Services.Beastmaster.CrucibleTracker(
+            Daedalus.Services.Beastmaster.CrucibleSheetReader.Read(dataManager, m => log.Info(m)));
+        var crucibleBestiary = new Daedalus.Services.Beastmaster.BattlehornReader(log);
+        this.crucibleWindow = new CrucibleWindow(no => crucibleBestiary.IsPetUnlocked((uint)no));
+        windowSystem.AddWindow(crucibleWindow);
+        this.clientState.TerritoryChanged += OnCrucibleTerritoryChanged;
+        OnCrucibleTerritoryChanged(clientState.TerritoryType); // plugin may load mid-board
         overlayWindow.IsOpen = configuration.Overlay.IsVisible;
         windowSystem.AddWindow(actionFeedWindow);
         // Visibility is gated by DrawConditions via ActionFeed.IsVisible; keep the window open
@@ -1269,7 +1293,7 @@ public sealed class Plugin : IDalamudPlugin
 
         this.commandManager.AddHandler(CommandName, new CommandInfo(OnCommand)
         {
-            HelpMessage = "Open Daedalus window (short alias: /dae). Subcommands: toggle | debug | occult | meld | dumpjob [id] | dumppet | hardcast [on|off|toggle]"
+            HelpMessage = "Open Daedalus window (short alias: /dae). Subcommands: toggle | debug | occult | crucible | meld | dummy | dumpjob [id] | dumppet | hardcast [on|off|toggle]"
         });
         this.commandManager.AddHandler(CommandAlias, new CommandInfo(OnCommand)
         {
@@ -1756,6 +1780,16 @@ public sealed class Plugin : IDalamudPlugin
         occultWindow.IsOpen = inZone && configuration.Occult.ShowOccultHud && !docked;
     }
 
+    /// <summary>Crucible window auto-visibility: open on entering a board, closed on leaving (Beastmaster setting).</summary>
+    private void OnCrucibleTerritoryChanged(uint territory)
+    {
+        if (crucibleWindow == null || crucibleTracker == null)
+            return;
+        var onBoard = crucibleTracker.Index.BoardForTerritory(territory) != null;
+        var docked = configuration.EdgeDockEnabled && configuration.EdgeDockCrucibleTab;
+        crucibleWindow.IsOpen = onBoard && configuration.Beastmaster.CrucibleWindowAutoOpen && !docked;
+    }
+
     /// <summary>Zone-in: broadcast our job/role and open the 3s role-collection window.</summary>
     private void OnLanTerritoryChanged(uint territory)
     {
@@ -1820,6 +1854,15 @@ public sealed class Plugin : IDalamudPlugin
 
     private void OpenMissingUI() => missingWindow.Toggle();
 
+    /// <summary>Reset nearby striking dummies' enmity and say so in chat.</summary>
+    private void ResetStrikingDummies()
+    {
+        var reset = strikingDummyReset?.Reset() ?? 0;
+        chatGui.Print(reset == 0
+            ? "Daedalus: no striking dummy within 50 yalms to reset."
+            : $"Daedalus: reset {reset} striking dumm{(reset == 1 ? "y" : "ies")} - rotation paused until combat ends.");
+    }
+
     private void OnCommand(string command, string args)
     {
         var trimmed = args.Trim().ToLowerInvariant();
@@ -1849,6 +1892,16 @@ public sealed class Plugin : IDalamudPlugin
 
             case "meld":
                 meldOptimizerWindow.Toggle();
+                break;
+
+            // The Crucible window — enemy weaknesses and moves, the familiars that hit them.
+            case "crucible":
+                crucibleWindow?.Toggle();
+                break;
+
+            // End a practice fight: the game's "Reset Striking Dummy Enmity", for every dummy in range.
+            case "dummy":
+                ResetStrikingDummies();
                 break;
 
             // The zone HUD opens itself on entering the Occult Crescent and, until this existed,
@@ -2057,7 +2110,7 @@ public sealed class Plugin : IDalamudPlugin
             // MASTER-SWITCH gated (field 2026-07-30: a DISABLED toon kept hard-targeting per the
             // party mode — this tick runs before the EffectiveEnabled early-return below, so it
             // needs its own gate; Disable must stop targeting like everything else).
-            if (configuration.EffectiveEnabled)
+            if (configuration.EffectiveEnabled && strikingDummyReset?.Holding != true)
                 partyTargetingCoordinator?.Tick();
 
             // Push the window's off-tank designation into the coordination service so tank rotations
@@ -2223,10 +2276,12 @@ public sealed class Plugin : IDalamudPlugin
 
             // Automation-driven combat only: never grind on a training dummy. If external targeting
             // somehow lands on a striking dummy, drop the target and end the IPC override (the
-            // user's master switch is untouched — manual dummy testing still works).
+            // user's master switch is untouched — manual dummy testing still works). Odysseus is the
+            // exception: job quests send it to a dummy on purpose (TrainingDummyPolicy).
             if (configuration.ExternalCombatOverride
                 && targetManager.Target is IBattleChara autoTarget
-                && RsrCompatIpc.IsTrainingDummy(autoTarget.NameId))
+                && RsrCompatIpc.IsTrainingDummy(autoTarget.NameId)
+                && !Daedalus.Services.Combat.TrainingDummyPolicy.AutomationMayFight(configuration.ExternalCombatOverrideSource))
             {
                 targetManager.Target = null;
                 configuration.ExternalCombatOverride = false;
@@ -2239,6 +2294,16 @@ public sealed class Plugin : IDalamudPlugin
             // stutter-step under their hands. Observed every frame (even disabled) so re-enable
             // never false-triggers on a stale diff.
             Daedalus.Services.Targeting.ManualControlGrace.NoteFrame(targetManager.Target?.GameObjectId ?? 0);
+
+            // After "End dummy fight" the rotation sits out until combat has ended: in the moment the combat flag
+            // lingers, it would pick the dummy back up and pull it again.
+            // Which Crucible board and enemy, before any gate: the window shows it with the rotation off too, and
+            // Artemis reads it this frame for Snarl / Challenge.
+            crucibleTracker?.Update(clientState.TerritoryType, objectTable.LocalPlayer, targetManager.Target, objectTable);
+
+            strikingDummyReset?.Update(condition[Dalamud.Game.ClientState.Conditions.ConditionFlag.InCombat]);
+            if (strikingDummyReset?.Holding == true)
+                return;
 
             if (!configuration.EffectiveEnabled)
                 return;
@@ -2472,6 +2537,7 @@ public sealed class Plugin : IDalamudPlugin
         framework.Update -= OnFrameworkUpdate;
         toastGui.ErrorToast -= OnErrorToast;
         clientState.TerritoryChanged -= OnOccultTerritoryChanged;
+        clientState.TerritoryChanged -= OnCrucibleTerritoryChanged;
 
         if (lanCoordinator != null)
         {

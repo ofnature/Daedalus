@@ -61,6 +61,15 @@ public sealed class MainWindow : Window
     /// <summary>True while a fight is being parsed — draws the activity dot on the Parser button.</summary>
     public Func<bool>? ParserActive { get; set; }
 
+    /// <summary>True while a dummy fight can be ended (dummy targeted, or in combat with one near) — shows the button.</summary>
+    public Func<bool>? DummyTargeted { get; set; }
+
+    /// <summary>True while the rotation is held after "End dummy fight", until combat ends.</summary>
+    public Func<bool>? DummyResetHolding { get; set; }
+
+    /// <summary>Resets nearby striking dummies' enmity (the game's own subcommand-menu entry).</summary>
+    public Action? ResetDummy { get; set; }
+
     private readonly RotationManager rotationManager;
     private readonly ITextureProvider textureProvider;
     private readonly Daedalus.Services.ActionTracker? actionTracker;
@@ -199,6 +208,23 @@ public sealed class MainWindow : Window
             saveConfiguration();
         }
         ImGui.PopStyleColor(4);
+
+        // Only while a dummy is targeted: a dummy never dies, so this is the way a practice fight ends.
+        if (ResetDummy != null && DummyTargeted?.Invoke() == true)
+        {
+            var holding = DummyResetHolding?.Invoke() == true;
+            if (holding)
+                ImGui.BeginDisabled();
+            if (ImGui.Button(holding ? "Ending dummy fight..." : "End dummy fight", new Vector2(-1, 0)))
+                ResetDummy();
+            if (holding)
+                ImGui.EndDisabled();
+            if (ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenDisabled))
+                ImGui.SetTooltip("Resets every striking dummy's enmity toward you (the game's \"Reset Striking Dummy Enmity\"),\n"
+                                 + "clears the dummy off your target, and pauses the rotation until combat has ended so it\n"
+                                 + "does not pull the dummy again. Daedalus stays enabled. Same as /dae dummy.\n"
+                                 + "Each multibox toon resets its own.");
+        }
 
         ImGui.TextColored(DaedalusTheme.TextSecondary, Loc.T(LocalizedStrings.Main.Preset, "Preset"));
         ImGui.SameLine();

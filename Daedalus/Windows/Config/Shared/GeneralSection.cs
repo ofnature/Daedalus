@@ -686,6 +686,23 @@ public sealed class GeneralSection
                     ConfigUIHelpers.EndIndent();
                 }
 
+                ConfigUIHelpers.Toggle("Crucible tab", () => this.config.EdgeDockCrucibleTab, v => this.config.EdgeDockCrucibleTab = v,
+                    "On a Crucible board, adds a \"Crucible\" tab that pops out the Crucible window (enemy weaknesses, "
+                    + "moves and the familiars that hit them). While this is on, the window no longer opens by itself.", this.save);
+
+                if (this.config.EdgeDockCrucibleTab)
+                {
+                    ConfigUIHelpers.BeginIndent();
+                    var crucibleEdge = this.config.EdgeDockCrucibleEdge;
+                    if (ConfigUIHelpers.EnumCombo("Crucible tab edge", ref crucibleEdge, null, () => { }))
+                    {
+                        this.config.EdgeDockCrucibleEdge = crucibleEdge;
+                        this.save();
+                    }
+
+                    ConfigUIHelpers.EndIndent();
+                }
+
                 if (ImGui.Button("Reset tab positions##edgedock"))
                 {
                     this.config.ResetEdgeDockPlacement();

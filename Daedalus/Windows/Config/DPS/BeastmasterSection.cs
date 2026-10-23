@@ -61,6 +61,7 @@ public sealed class BeastmasterSection
         ImGui.PushTextWrapPos(0f);
         DrawInstinctSection();
         DrawFamiliarSection();
+        DrawCrucibleSection();
         DrawBattlehornSection();
         DrawCaptureSection();
         DrawBestiarySection();
@@ -156,6 +157,38 @@ public sealed class BeastmasterSection
                 + "Final Sting sends the familiar away, so it only fires with Parting Blow on, and "
                 + "Sabotender's Hypodermic Hustle puts a DoT on you, so it waits until you are above "
                 + "50% HP.", save);
+
+            ConfigUIHelpers.EndIndent();
+        }
+    }
+
+    private void DrawCrucibleSection()
+    {
+        if (ConfigUIHelpers.SectionHeader("Crucible of the Unbroken", "BST"))
+        {
+            ConfigUIHelpers.BeginIndent();
+
+            ConfigUIHelpers.Toggle(
+                "Open the Crucible window on a board",
+                () => config.Beastmaster.CrucibleWindowAutoOpen,
+                v => config.Beastmaster.CrucibleWindowAutoOpen = v,
+                "Shows the enemy you are fighting, what it is weak to, what its moves do and who they go "
+                + "for, and which of your familiars hit that weakness. Closes when you leave. /dae crucible "
+                + "opens it any time.", save);
+
+            ConfigUIHelpers.Toggle(
+                "Use Snarl",
+                () => config.Beastmaster.EnableSnarl,
+                v => config.Beastmaster.EnableSnarl = v,
+                "Keeps your familiar tanking: it Threatens the enemy and takes the hits meant for you. "
+                + "Not while your familiar is under half HP, and not for 30 seconds after a Challenge.", save);
+
+            ConfigUIHelpers.Toggle(
+                "Use Challenge",
+                () => config.Beastmaster.EnableChallenge,
+                v => config.Beastmaster.EnableChallenge = v,
+                "When your familiar drops under 30% HP with the enemy on it, takes the enemy onto you "
+                + "instead. Not when you are under 40% HP yourself.", save);
 
             ConfigUIHelpers.EndIndent();
         }

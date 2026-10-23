@@ -3,6 +3,24 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.104 — 2026-10-23
+
+### Beastmaster — the Crucible of the Unbroken
+- **A Crucible window.** On a board it shows the enemy you are fighting, what it is weak to, what each of its
+  moves does and who it goes for, the rest of that battle's lineup, and which of your familiars hit the weakness
+  (captured ones first). Read straight from the game's own Crucible data, all five boards. Opens on entering a
+  board; `/dae crucible` any time; also available as an edge-dock tab.
+- **Snarl and Challenge are used for you.** Snarl keeps your familiar tanking while it is above half HP; when it
+  drops under 30% with the enemy on it, Challenge takes the enemy onto you (not when you are under 40%).
+  Settings ▸ Beastmaster ▸ Crucible of the Unbroken.
+
+### End a striking-dummy fight
+- **An "End dummy fight" button** in the main window (and `/dae dummy`) does what the dummy's own "Reset
+  Striking Dummy Enmity" does — and keeps at it until combat has really ended: the rotation pauses, your pet
+  heels (and is sent Away if it keeps fighting), your chocobo withdraws, and the reset repeats while your
+  damage-over-time and stray hits would pull the dummy back. Daedalus stays enabled.
+
+<!-- LATEST-END -->
 ## v0.1.103 — 2026-10-19
 
 ### Edge dock — a Party tab
@@ -11,7 +29,6 @@ All notable changes to Daedalus will be documented in this file.
   mode, limit break, burst readiness and alerts. It shows while the LAN coordinator is on, and drags to any
   edge like the others.
 
-<!-- LATEST-END -->
 ## v0.1.102 — 2026-10-19
 
 ### Edge dock — put a tab anywhere

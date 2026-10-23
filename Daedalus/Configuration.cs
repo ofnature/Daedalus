@@ -122,15 +122,26 @@ public sealed class Configuration : IPluginConfiguration
     /// <summary>Where along its edge the Party tab sits: its centre as a fraction of the edge (0.5 = the middle).</summary>
     public float EdgeDockPartyAlong { get; set; } = 0.5f;
 
+    /// <summary>Add a "Crucible" tab to the edge dock while on a Crucible board, popping out the Crucible window.</summary>
+    public bool EdgeDockCrucibleTab { get; set; } = false;
+
+    /// <summary>Which screen edge the edge dock's Crucible tab is pinned to. Dragging the tab changes it.</summary>
+    public Daedalus.Windows.Dock.DockEdge EdgeDockCrucibleEdge { get; set; } = Daedalus.Windows.Dock.DockEdge.Left;
+
+    /// <summary>Where along its edge the Crucible tab sits: its centre as a fraction of the edge (0.5 = the middle).</summary>
+    public float EdgeDockCrucibleAlong { get; set; } = 0.5f;
+
     /// <summary>Every tab back to the left edge, in the middle.</summary>
     public void ResetEdgeDockPlacement()
     {
         EdgeDockMainEdge = Daedalus.Windows.Dock.DockEdge.Left;
         EdgeDockOccultEdge = Daedalus.Windows.Dock.DockEdge.Left;
         EdgeDockPartyEdge = Daedalus.Windows.Dock.DockEdge.Left;
+        EdgeDockCrucibleEdge = Daedalus.Windows.Dock.DockEdge.Left;
         EdgeDockMainAlong = 0.5f;
         EdgeDockOccultAlong = 0.5f;
         EdgeDockPartyAlong = 0.5f;
+        EdgeDockCrucibleAlong = 0.5f;
     }
 
     /// <summary>Carries the old Right edge setting over to <see cref="EdgeDockMainEdge"/>. True if it changed anything.</summary>
@@ -372,6 +383,9 @@ public sealed class Configuration : IPluginConfiguration
         var edgeDockPartyTab = EdgeDockPartyTab;
         var edgeDockPartyEdge = EdgeDockPartyEdge;
         var edgeDockPartyAlong = EdgeDockPartyAlong;
+        var edgeDockCrucibleTab = EdgeDockCrucibleTab;
+        var edgeDockCrucibleEdge = EdgeDockCrucibleEdge;
+        var edgeDockCrucibleAlong = EdgeDockCrucibleAlong;
 
         // Reset general behavior
         EnableOnAutoAttack = false;
@@ -449,6 +463,9 @@ public sealed class Configuration : IPluginConfiguration
         EdgeDockPartyTab = edgeDockPartyTab;
         EdgeDockPartyEdge = edgeDockPartyEdge;
         EdgeDockPartyAlong = edgeDockPartyAlong;
+        EdgeDockCrucibleTab = edgeDockCrucibleTab;
+        EdgeDockCrucibleEdge = edgeDockCrucibleEdge;
+        EdgeDockCrucibleAlong = edgeDockCrucibleAlong;
     }
 }
 
