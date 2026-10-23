@@ -3,7 +3,7 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
-## v0.1.104 — 2026-10-23
+## v0.1.104 — 2026-10-22
 
 ### Beastmaster — the Crucible of the Unbroken
 - **A Crucible window.** On a board it shows the enemy you are fighting, what it is weak to, what each of its
