@@ -12,7 +12,8 @@ namespace Daedalus.Services.Beastmaster;
 /// by index — the layout below was taken from the 2026.10.16 client and agrees with EXDSchema's XBMBattleDetail /
 /// XBMBattleDetailAction (Name → BNpcName, two moves → XBMBattleDetailAction, Element → XBMElement).
 /// <list type="bullet">
-/// <item>XBMContent: col 0 = ContentFinderCondition.</item>
+/// <item>XBMContent: col 0 = ContentFinderCondition; col 1 = roster cap (10/12/14/12/15, as the boards say); cols 4-36 =
+/// the 33 score bonus values (XBMScoreBonus order).</item>
 /// <item>XBMContentBattle (subrows, one per board): col 0 = battle id; subrow 0 is the final battle.</item>
 /// <item>XBMBattleDetail (subrows, one per battle): 0 BNpcName, 1-5 ratings, 6-7 moves, 8 element, 9 BNpcResist.</item>
 /// <item>XBMBattleDetailAction: 0 Action, 1 XBMActionTarget, 2 XBMActionEffectType, 3 Status.</item>
@@ -52,7 +53,23 @@ public static class CrucibleSheetReader
 
             var battlesByBoard = new Dictionary<uint, List<int>>();
             foreach (var board in excel.GetSubrowSheet<RawSubrow>(name: "XBMContentBattle"))
-                battlesByBoard[board.RowId] = board.Select(r => (int)r.ReadUInt16Column(0)).Where(b => b != 0).ToList();
+                battlesByBoard[board.RowId] = board.Select(r => (int)r.ReadUInt16Column(0)).ToList();
+
+            // The route: each board's spaces (XBMContentStageEvent), and what its random spaces can be
+            // (XBMContentRandomStageEvent → XBMRandomStageEvent). Layout in CrucibleRouteBuilder.
+            var stageRows = new Dictionary<uint, List<CrucibleStageRow>>();
+            foreach (var board in excel.GetSubrowSheet<RawSubrow>(name: "XBMContentStageEvent"))
+                stageRows[board.RowId] = board.Select(r => new CrucibleStageRow(r.ReadInt8Column(0), r.ReadUInt8Column(1), r.ReadInt8Column(2))).ToList();
+
+            var randomOptions = new Dictionary<uint, IReadOnlyList<(byte Type, int Index)>>();
+            foreach (var pool in excel.GetSubrowSheet<RawSubrow>(name: "XBMRandomStageEvent"))
+                randomOptions[pool.RowId] = pool.Select(r => (r.ReadUInt8Column(0), (int)r.ReadInt8Column(1))).ToList();
+
+            var randomByBoard = new Dictionary<uint, List<IReadOnlyList<(byte Type, int Index)>>>();
+            foreach (var board in excel.GetSubrowSheet<RawSubrow>(name: "XBMContentRandomStageEvent"))
+                randomByBoard[board.RowId] = board
+                    .Select(r => randomOptions.GetValueOrDefault(r.ReadUInt16Column(0)) ?? (IReadOnlyList<(byte, int)>)[])
+                    .ToList();
 
             var boards = new List<CrucibleBoard>();
             foreach (var row in excel.GetSheet<RawRow>(name: "XBMContent"))
@@ -60,9 +77,16 @@ public static class CrucibleSheetReader
                 var cfcId = row.ReadUInt16Column(0);
                 if (cfcId == 0 || cfcs.GetRowOrDefault(cfcId) is not { } cfc)
                     continue;
+                var bonuses = Enumerable.Range(4, 33).Select(c => (int)row.ReadUInt16Column(c)).ToList();
+                var rawBattles = battlesByBoard.GetValueOrDefault(row.RowId) ?? [];
+                var route = CrucibleBoardLayout.Place(
+                    CrucibleRouteBuilder.Build(
+                        stageRows.GetValueOrDefault(row.RowId) ?? [], rawBattles,
+                        randomByBoard.GetValueOrDefault(row.RowId) ?? []),
+                    RoutePoints(data, cfc.TerritoryType.ValueNullable?.Bg.ExtractText(), log));
                 boards.Add(new CrucibleBoard(
                     (int)row.RowId, cfcId, cfc.TerritoryType.RowId, cfc.Name.ExtractText(), cfc.ClassJobLevelRequired,
-                    battlesByBoard.GetValueOrDefault(row.RowId) ?? []));
+                    rawBattles.Where(b => b != 0).ToList(), bonuses, route, row.ReadUInt8Column(1), row.ReadUInt8Column(3)));
             }
 
             var finals = boards.Select(b => b.FinalBattle).Where(b => b != 0).ToHashSet();
@@ -88,13 +112,45 @@ public static class CrucibleSheetReader
                 }
             }
 
-            log($"Crucible: read {boards.Count} board(s) and {enemies.Count} enemies from the game data.");
+            log($"Crucible: read {boards.Count} board(s) ({string.Join("/", boards.Select(b => b.Route.Count))} spaces, "
+                + $"{string.Join("/", boards.Select(b => b.Route.Count(s => s.At != null)))} placed) and {enemies.Count} enemies from the game data.");
             return new CrucibleIndex(boards, enemies);
         }
         catch (Exception ex)
         {
             log($"Crucible: could not read the game data ({ex.Message}); the Crucible window will be empty.");
             return CrucibleIndex.Empty;
+        }
+    }
+
+    /// <summary>
+    /// The board's space positions: the player pop points on the <c>LVD_ROUTE_*</c> layers of its territory's
+    /// <c>planmap.lgb</c> (e.g. bg/ffxiv/fst_f1/xbm/f1x1/level/planmap.lgb). Empty when unreadable — the board is then
+    /// just not walked.
+    /// </summary>
+    private static IReadOnlyList<System.Numerics.Vector3> RoutePoints(IDataManager data, string? bg, Action<string> log)
+    {
+        try
+        {
+            var level = bg?.IndexOf("/level/", StringComparison.Ordinal) ?? -1;
+            if (bg == null || level < 0)
+                return [];
+
+            var lgb = data.GetFile<Lumina.Data.Files.LgbFile>($"bg/{bg[..level]}/level/planmap.lgb");
+            if (lgb == null)
+                return [];
+
+            return lgb.Layers
+                .Where(l => l.Name.StartsWith("LVD_ROUTE", StringComparison.Ordinal))
+                .SelectMany(l => l.InstanceObjects)
+                .Where(o => o.Object is Lumina.Data.Parsing.Layer.LayerCommon.PopRangeInstanceObject)
+                .Select(o => new System.Numerics.Vector3(o.Transform.Translation.X, o.Transform.Translation.Y, o.Transform.Translation.Z))
+                .ToList();
+        }
+        catch (Exception ex)
+        {
+            log($"Crucible: could not read the board layout for {bg} ({ex.Message}); that board will not be walked.");
+            return [];
         }
     }
 }

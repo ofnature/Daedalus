@@ -3,6 +3,61 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.105 — 2026-10-25
+
+### Movement — fix: Ariadne was never used on Auto
+- **With the navmesh plugin on Auto, Daedalus never noticed Ariadne was loaded** (since v0.1.100) and sent every
+  move to vnavmesh instead — on an Ariadne-only setup nothing moved: walk-ins, positional hops, raise walks, farm
+  travel. Auto now finds Ariadne again.
+
+### Beastmaster — plan a Crucible run
+- **The Crucible window now plans the board.** It recommends three captured familiars of one kin — the most
+  of them hitting the final boss's weakness, the finisher on the last horn — and shows the bonus points a run
+  keeps if you never shop, feed, rest or use an item (and how many more if nobody falls). Since 7.57 a team of
+  three fills your Battlehorns by itself every battle.
+- **Off a board, `/dae crucible` lets you pick a board** to plan before you go in.
+- **Route and teams.** The window lays the board out move by move from the game's own data — every enemy,
+  elite, campsite, shop, treasure and random space, forks left and right — with each battle's weakness and the
+  three captured beasts to bring to it. At each fork an arrow marks the easier side: a campsite first (HP never
+  refills), a normal enemy over an elite, and between two battles the one your beasts cover.
+- **The Battlehorns are set for you before each battle.** On the horn screen Daedalus puts the three members
+  of your team that hit that battle's weakness on the horns — the Bug team for the final boss — skipping any
+  that have fallen. You still start the battle. Settings ▸ Beastmaster ▸ Crucible of the Unbroken.
+  The first horn fights alone until it falls, so it goes to your strongest beast when the weakness pick is below
+  the board's recommended rank; horns the weakness cannot fill go to your highest ranks.
+- **A recommended roster** for each board (up to its 10/12/14 cap) heads the route, to add in Team Composition.
+  It covers every battle's weakness once before bringing a second beast for any.
+- **Pick your own horns per battle.** A Crucible team window opens on the board layout: the next battle, what it
+  is weak to, and three horn slots on Auto (the recommendation, shown) or a beast you choose. Picks are kept per
+  board and battle and the horns are set from them; fallen beasts are skipped. `/dae crucible team` opens it.
+- **Plan before you enter.** On a board's layout and Team Composition the same window shows the board's
+  roster against your team, a **Set team** button that swaps Team Composition to it, and the horns for every battle.
+- **Clear or Level.** Pick a **core** of three beasts (Auto = your highest ranks). *Clear* brings the core plus the
+  beasts that cover each battle's weakness. *Level* brings the core plus your lowest-rank beasts under 25 and puts
+  the core on the horns every battle — every beast on the team earns Crucible EXP. Ranks are read from Team
+  Composition and shown beside each beast.
+- **Crucible autopilot (opt-in).** On a board, tick *Autopilot* in the team window: it starts each battle once the
+  horns are set, takes the spoils' tokens (and the first item if you tick *Take loot items*), takes the first
+  treasure, leaves shops without buying, rests at a campsite (alone when you are under half HP, for the full 90%;
+  otherwise with your most hurt beast) and closes the result screen.
+  It only answers the prompts its own clicks raise; anything else is left to you.
+- **Walks the board too.** With *Walk the board* ticked (on by default) the autopilot walks from space to space
+  with vnavmesh, taking the suggested side at each fork. The spaces' positions come from the board's own layout
+  data. It waits while a screen is open or you're fighting, and stops if it gets stuck.
+- **True beast ranks from the Master's Bestiary.** *Read ranks* in the team window clicks through the Bestiary and
+  reads every beast's real rank (team screens show ranks synced to the board — Board 1 shows everyone at 5 or
+  under). Clicking a beast in the Bestiary yourself reads it too.
+- **Start run.** With a board's layout open, *Start run* in the team window sets the team, presses Challenge This
+  Board, accepts the warning and commences; the autopilot takes it from there.
+- **Crucible loop.** Set *runs to loop* beside the autopilot: after a run Daedalus talks to Lauda (stand next to
+  her), opens the same board, sets the team for your goal and goes in again, until the count runs out.
+- **The community Bug team comes first.** For a piercing-weak boss the recommendation is Damselfly > Mantis >
+  Wespe (Diremite opens without Damselfly, keeping one kin); attack-type matching is only the fallback.
+- **Your familiar tanks; your HP is the run.** Your HP does not refill between a board's battles and your death
+  ends the board; a familiar's costs one beast. Snarl goes out whenever it is ready (its Cover takes all your
+  damage), and Challenge only pulls the enemy back to save a familiar under 25% while you are above 70%.
+
+<!-- LATEST-END -->
 ## v0.1.104 — 2026-10-22
 
 ### Beastmaster — the Crucible of the Unbroken
@@ -20,7 +75,6 @@ All notable changes to Daedalus will be documented in this file.
   heels (and is sent Away if it keeps fighting), your chocobo withdraws, and the reset repeats while your
   damage-over-time and stray hits would pull the dummy back. Daedalus stays enabled.
 
-<!-- LATEST-END -->
 ## v0.1.103 — 2026-10-19
 
 ### Edge dock — a Party tab

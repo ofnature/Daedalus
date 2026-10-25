@@ -144,40 +144,48 @@ public static class ArtemisCooldownRules
     public static bool ShouldBorrow(bool enabled, bool ready, bool hasFamiliar, bool releaseOwed)
         => enabled && ready && hasFamiliar && !releaseOwed;
 
-    /// <summary>Snarl only while the familiar is healthy enough to take the hits.</summary>
-    public const float SnarlMinFamiliarHpPct = 0.50f;
+    // Who tanks in the Crucible. HP does NOT refill between a board's battles — for the beastmaster or the familiars.
+    // The beastmaster's death ends the run; a familiar's costs one beast of a 10-15 roster, and only the first horn
+    // fights until it falls. So the familiar tanks and the beastmaster stays healthy:
+    //  - 2026-10-22 (3-beast team): Snarl on cooldown wore Damselfly down to 112/535 by the second battle. With three
+    //    beasts each one mattered, so the rule became "the beastmaster tanks, Snarl only in an emergency".
+    //  - 2026-10-24 (12-beast team): that rule killed the run twice at the Voidmancer — Challenge kept pulling the
+    //    Voidmancer, four Zombie Pieces and the Maladies onto the beastmaster, who died with a full-HP Rotting Goobbue
+    //    still out. So Challenge now only rescues a familiar about to fall, and only while the beastmaster is healthy.
+    //  - 2026-10-25: with Snarl held for "beastmaster under 50%", enemies still went for the beastmaster by default:
+    //    1,733 max HP on board 2, 100 → 55% in the first fight with every familiar untouched, dead in the fourth. With
+    //    Snarl up the Voidmancer fight cost the beastmaster 7%. Snarl's recast (15s) matches its Threaten, and its
+    //    Cover takes ALL damage meant for the beastmaster for 45s — so it goes on cooldown while the familiar can soak.
+    //    Twelve familiars hold ~9,600 HP; the beastmaster's 1,733 must last the whole board.
 
-    /// <summary>Below this the familiar is about to go down: take the enemy back with Challenge.</summary>
-    public const float ChallengeFamiliarHpPct = 0.30f;
+    /// <summary>Challenge only to save a familiar this low…</summary>
+    public const float ChallengeFamiliarBelowHpPct = 0.25f;
 
-    /// <summary>Challenge holds the enemy on the beastmaster for 30s; Snarl would undo it, so wait that long.</summary>
-    public const float SnarlAfterChallengeSeconds = 30f;
+    /// <summary>…and only while the beastmaster is this healthy.</summary>
+    public const float ChallengeMinSelfHpPct = 0.70f;
 
-    /// <summary>Challenge only while the beastmaster can stand being hit.</summary>
-    public const float ChallengeMinSelfHpPct = 0.40f;
+    /// <summary>Snarl onto a familiar with at least this much left to soak with.</summary>
+    public const float SnarlMinFamiliarHpPct = 0.25f;
 
     /// <summary>
-    /// Crucible: keep the familiar tanking. Snarl has the familiar Threaten (15s, the same as the recast) and cover
-    /// the beastmaster (45s), so it goes out whenever it is ready — but not onto a familiar that is low, and not
-    /// straight after a Challenge, which would hand back an enemy that was just pulled off it on purpose.
-    /// </summary>
-    public static bool ShouldSnarl(
-        bool enabled, bool onBoardInBattle, bool ready, bool hasFamiliar, float familiarHpPct, float secondsSinceChallenge)
-        => enabled && onBoardInBattle && ready && hasFamiliar
-           && familiarHpPct >= SnarlMinFamiliarHpPct
-           && secondsSinceChallenge >= SnarlAfterChallengeSeconds;
-
-    /// <summary>
-    /// Crucible: the familiar is about to go down while the enemy is on it — take the enemy with Challenge (which also
-    /// ends the familiar's Cover). Not when the beastmaster is too low to take the hits instead.
+    /// Crucible: the enemy has turned onto a familiar that is about to fall — take it back with Challenge (top of its
+    /// enmity for 30s; also ends the familiar's Cover). Not otherwise: the familiar is the tank, and the beastmaster's
+    /// HP is the run.
     /// </summary>
     public static bool ShouldChallenge(
-        bool enabled, bool onBoardInBattle, bool ready, bool hasFamiliar, float familiarHpPct,
-        bool enemyOnFamiliar, float selfHpPct)
+        bool enabled, bool onBoardInBattle, bool ready, bool hasFamiliar, bool enemyOnFamiliar, float familiarHpPct, float selfHpPct)
         => enabled && onBoardInBattle && ready && hasFamiliar
-           && familiarHpPct < ChallengeFamiliarHpPct
            && enemyOnFamiliar
+           && familiarHpPct < ChallengeFamiliarBelowHpPct
            && selfHpPct >= ChallengeMinSelfHpPct;
+
+    /// <summary>
+    /// Crucible: whenever it is ready and the familiar can still soak, Snarl — the familiar Threatens (15s) and covers
+    /// the beastmaster (takes all their damage, 45s). The beastmaster's HP does not refill between battles.
+    /// </summary>
+    public static bool ShouldSnarl(bool enabled, bool onBoardInBattle, bool ready, bool hasFamiliar, float familiarHpPct)
+        => enabled && onBoardInBattle && ready && hasFamiliar
+           && familiarHpPct >= SnarlMinFamiliarHpPct;
 
     /// <summary>
     /// The Beast Mode button, by what it has turned into. <paramref name="adjustedId"/> is what the game

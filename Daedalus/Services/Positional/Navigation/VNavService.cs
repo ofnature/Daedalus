@@ -69,14 +69,22 @@ public sealed class VNavService : IVNavService
     // "Is Ariadne loaded" walks the installed-plugin list; movement asks several times a frame, and
     // a plugin loading or unloading is not a per-frame event.
     private bool _ariadneLoaded;
-    private long _ariadneCheckedAt = long.MinValue;
+    private long? _ariadneCheckedAt;
+
+    /// <summary>
+    /// Whether the "is Ariadne loaded" answer is due a fresh look: never checked yet, or a second has passed. Field bug
+    /// 2026-10-25: the last check started at <c>long.MinValue</c>, and <c>now - long.MinValue</c> overflows negative,
+    /// so the check never ran — Auto never saw Ariadne, fell back to vnavmesh, and every move reported
+    /// PluginUnavailable on an Ariadne-only install (shipped v0.1.100 – v0.1.104).
+    /// </summary>
+    internal static bool AriadneCheckDue(long now, long? lastChecked) => lastChecked is not { } last || now - last >= 1000;
 
     private bool AriadneLoaded
     {
         get
         {
             var now = Environment.TickCount64;
-            if (now - _ariadneCheckedAt >= 1000)
+            if (AriadneCheckDue(now, _ariadneCheckedAt))
             {
                 _ariadneLoaded = IsPluginLoaded(Daedalus.Config.NavmeshPluginChoice.AriadneName);
                 _ariadneCheckedAt = now;

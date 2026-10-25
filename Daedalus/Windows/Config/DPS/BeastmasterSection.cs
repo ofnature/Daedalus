@@ -177,18 +177,37 @@ public sealed class BeastmasterSection
                 + "opens it any time.", save);
 
             ConfigUIHelpers.Toggle(
+                "Set the Battlehorns before each battle",
+                () => config.Beastmaster.AutoCrucibleHorns,
+                v => config.Beastmaster.AutoCrucibleHorns = v,
+                "On the horn screen before each battle, puts the three members of your team that hit the battle's "
+                + "weakness on the horns (the community team for the final boss), skipping any that have fallen. "
+                + "You still start the battle yourself. Steps aside while AutoDuty is running the board — it sets "
+                + "the horns itself.", save);
+
+            ConfigUIHelpers.Toggle(
+                "Open the team picker on the board layout",
+                () => config.Beastmaster.CrucibleTeamPickerAutoOpen,
+                v => config.Beastmaster.CrucibleTeamPickerAutoOpen = v,
+                "While the board layout, Team Composition or horn screen is up, shows the next battle and who goes "
+                + "on each horn: Auto (the recommendation) or a beast you choose. Your picks are kept per board and "
+                + "battle and the horns are set from them. Before entering it also shows the recommended roster and "
+                + "can add it to Team Composition. /dae crucible team opens it any time.", save);
+
+            ConfigUIHelpers.Toggle(
                 "Use Snarl",
                 () => config.Beastmaster.EnableSnarl,
                 v => config.Beastmaster.EnableSnarl = v,
-                "Keeps your familiar tanking: it Threatens the enemy and takes the hits meant for you. "
-                + "Not while your familiar is under half HP, and not for 30 seconds after a Challenge.", save);
+                "Whenever it is ready (every 15 s), your familiar Threatens the enemy and takes all the hits "
+                + "meant for you, while it has 25% HP or more. Your HP does not refill between a board's battles, "
+                + "and your death ends the run.", save);
 
             ConfigUIHelpers.Toggle(
                 "Use Challenge",
                 () => config.Beastmaster.EnableChallenge,
                 v => config.Beastmaster.EnableChallenge = v,
-                "When your familiar drops under 30% HP with the enemy on it, takes the enemy onto you "
-                + "instead. Not when you are under 40% HP yourself.", save);
+                "Rescues a familiar about to fall: when the enemy is on a familiar under 25% HP, Challenge takes "
+                + "it onto you — only while you are above 70%. Otherwise your familiar tanks.", save);
 
             ConfigUIHelpers.EndIndent();
         }

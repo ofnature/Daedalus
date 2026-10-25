@@ -42,7 +42,7 @@ namespace Daedalus;
 
 public sealed class Plugin : IDalamudPlugin
 {
-    public const string PluginVersion = "0.1.104";
+    public const string PluginVersion = "0.1.105";
     private const string CommandName = "/daedalus";
 
     /// <summary>LAN relay channel for Necromancer Deep Freeze "heal me to full" announcements.</summary>
@@ -69,6 +69,16 @@ public sealed class Plugin : IDalamudPlugin
     private Daedalus.Services.Combat.StrikingDummyReset? strikingDummyReset;
     private Daedalus.Services.Beastmaster.CrucibleTracker? crucibleTracker;
     private CrucibleWindow? crucibleWindow;
+    private CrucibleTeamWindow? crucibleTeamWindow;
+    private Daedalus.Services.Beastmaster.CrucibleRecorder? crucibleRecorder;
+    private Daedalus.Services.Beastmaster.CrucibleHornSetter? crucibleHornSetter;
+    private Daedalus.Services.Beastmaster.CrucibleRosterLoader? crucibleRosterLoader;
+    private Daedalus.Services.Beastmaster.CrucibleAutoPilot? crucibleAutoPilot;
+    private Daedalus.Services.Beastmaster.CrucibleLoop? crucibleLoop;
+    private Daedalus.Services.Beastmaster.CrucibleWalker? crucibleWalker;
+    private Daedalus.Services.Beastmaster.CrucibleBestiaryScanner? crucibleBestiaryScanner;
+    private Func<int, bool>? crucibleIsCaptured;
+    private Func<Daedalus.Data.CrucibleBoard, System.Collections.Generic.IReadOnlyList<int>>? crucibleRosterFor;
 
     // Auto-face: original AutoFaceTargetOnAction value captured before we override it (restored on unload).
     private bool? _originalAutoFaceTarget;
@@ -1269,8 +1279,59 @@ public sealed class Plugin : IDalamudPlugin
         this.crucibleTracker = new Daedalus.Services.Beastmaster.CrucibleTracker(
             Daedalus.Services.Beastmaster.CrucibleSheetReader.Read(dataManager, m => log.Info(m)));
         var crucibleBestiary = new Daedalus.Services.Beastmaster.BattlehornReader(log);
-        this.crucibleWindow = new CrucibleWindow(no => crucibleBestiary.IsPetUnlocked((uint)no));
+        this.crucibleHornSetter = new Daedalus.Services.Beastmaster.CrucibleHornSetter(
+            crucibleTracker.Index, m => log.Info(m),
+            (board, battle) => Daedalus.Data.CrucibleLevelPlan.HornChoice(
+                configuration.Beastmaster.CrucibleGoal,
+                configuration.Beastmaster.CrucibleHornPicks.TryGetValue(Daedalus.Data.CrucibleHornPlan.PickKey(board, battle), out var picks) ? picks : null,
+                Daedalus.Data.CrucibleLevelPlan.Core(
+                    configuration.Beastmaster.CrucibleCoreTeam,
+                    Daedalus.Data.BstFamiliars.All.Where(b => crucibleBestiary.IsPetUnlocked((uint)b.BestiaryNo) == true).Select(b => b.BestiaryNo),
+                    no => configuration.Beastmaster.CrucibleRanks.TryGetValue(no, out var rank) ? rank : 1)),
+            no => configuration.Beastmaster.CrucibleRanks.TryGetValue(no, out var known) ? known : 0);
+        this.crucibleWindow = new CrucibleWindow(
+            crucibleTracker.Index, no => crucibleBestiary.IsPetUnlocked((uint)no), () => crucibleHornSetter.Status);
+        this.crucibleRosterLoader = new Daedalus.Services.Beastmaster.CrucibleRosterLoader(m => log.Info(m), (no, rank) =>
+        {
+            // Ranks only rise: a lower reading is the board's sync (board 1 shows everyone at 5 or under — field
+            // 2026-10-25, it overwrote Damselfly's 9 and dropped her from the roster), so keep the highest seen.
+            if (configuration.Beastmaster.CrucibleRanks.TryGetValue(no, out var known) && known >= rank)
+                return;
+            configuration.Beastmaster.CrucibleRanks[no] = rank;
+            SaveConfiguration();
+        });
+        this.crucibleAutoPilot = new Daedalus.Services.Beastmaster.CrucibleAutoPilot(m => log.Info(m));
+        this.crucibleLoop = new Daedalus.Services.Beastmaster.CrucibleLoop(m => log.Info(m));
+        // The Bestiary shows TRUE ranks (team screens sync them to the board), so its reading overwrites — and can
+        // repair a rank a synced screen once lowered.
+        this.crucibleBestiaryScanner = new Daedalus.Services.Beastmaster.CrucibleBestiaryScanner(m => log.Info(m), (no, rank) =>
+        {
+            if (configuration.Beastmaster.CrucibleRanks.TryGetValue(no, out var known) && known == rank)
+                return;
+            configuration.Beastmaster.CrucibleRanks[no] = rank;
+            SaveConfiguration();
+        });
+        this.crucibleWalker = new Daedalus.Services.Beastmaster.CrucibleWalker(crucibleTracker.Index, movementArbiter, m => log.Info(m));
+        crucibleIsCaptured = no => crucibleBestiary.IsPetUnlocked((uint)no) == true;
+        crucibleRosterFor = board =>
+        {
+            var bst = configuration.Beastmaster;
+            int RankOf(int no) => bst.CrucibleRanks.TryGetValue(no, out var rank) ? rank : 1;
+            var captured = Daedalus.Data.BstFamiliars.All
+                .Where(b => crucibleBestiary.IsPetUnlocked((uint)b.BestiaryNo) == true).Select(b => b.BestiaryNo).ToList();
+            var core = Daedalus.Data.CrucibleLevelPlan.Core(bst.CrucibleCoreTeam, captured, RankOf);
+            return bst.CrucibleGoal == Daedalus.Data.CrucibleTeamGoal.Level
+                ? Daedalus.Data.CrucibleLevelPlan.LevelRoster(core, captured, RankOf, board.RosterCap > 0 ? board.RosterCap : 10)
+                : Daedalus.Data.CrucibleLevelPlan.ClearRoster(crucibleTracker.Index, board, core, no => captured.Contains(no));
+        };
+        this.crucibleTeamWindow = new CrucibleTeamWindow(
+            crucibleTracker.Index, no => crucibleBestiary.IsPetUnlocked((uint)no), () => crucibleHornSetter,
+            () => crucibleRosterLoader, () => crucibleAutoPilot, () => crucibleLoop, () => crucibleWalker, () => crucibleBestiaryScanner,
+            () => configuration.Beastmaster, SaveConfiguration);
+        this.crucibleRecorder = new Daedalus.Services.Beastmaster.CrucibleRecorder(
+            gameInteropProvider, pluginInterface.ConfigDirectory.FullName, m => log.Info(m));
         windowSystem.AddWindow(crucibleWindow);
+        windowSystem.AddWindow(crucibleTeamWindow);
         this.clientState.TerritoryChanged += OnCrucibleTerritoryChanged;
         OnCrucibleTerritoryChanged(clientState.TerritoryType); // plugin may load mid-board
         overlayWindow.IsOpen = configuration.Overlay.IsVisible;
@@ -1895,8 +1956,14 @@ public sealed class Plugin : IDalamudPlugin
                 break;
 
             // The Crucible window — enemy weaknesses and moves, the familiars that hit them.
+            // "/dae crucible record" writes down a run for the farming mode (docs/crucible-farm-plan.md, P0).
             case "crucible":
-                crucibleWindow?.Toggle();
+                if (subArg == "record")
+                    chatGui.Print("Daedalus: " + (crucibleRecorder?.Toggle() ?? "the recorder is not available."));
+                else if (subArg == "team")
+                    crucibleTeamWindow?.Toggle();
+                else
+                    crucibleWindow?.Toggle();
                 break;
 
             // End a practice fight: the game's "Reset Striking Dummy Enmity", for every dummy in range.
@@ -2300,6 +2367,47 @@ public sealed class Plugin : IDalamudPlugin
             // Which Crucible board and enemy, before any gate: the window shows it with the rotation off too, and
             // Artemis reads it this frame for Snarl / Challenge.
             crucibleTracker?.Update(clientState.TerritoryType, objectTable.LocalPlayer, targetManager.Target, objectTable);
+            crucibleRecorder?.Update(clientState.TerritoryType, condition[Dalamud.Game.ClientState.Conditions.ConditionFlag.InCombat],
+                objectTable.LocalPlayer, objectTable);
+            crucibleHornSetter?.Update(
+                Daedalus.Data.CrucibleHornPlan.ShouldSetHorns(configuration.Beastmaster.AutoCrucibleHorns, configuration.ExternalCombatOverrideSource),
+                Daedalus.Services.Beastmaster.CrucibleTracker.Current.Board);
+            crucibleRosterLoader?.Update();
+            crucibleBestiaryScanner?.Update();
+            crucibleAutoPilot?.Update(
+                configuration.Beastmaster.CrucibleAutoPilot
+                && Daedalus.Data.CrucibleHornPlan.ShouldSetHorns(configuration.Beastmaster.AutoCrucibleHorns, configuration.ExternalCombatOverrideSource),
+                Daedalus.Services.Beastmaster.CrucibleTracker.Current.Board, crucibleHornSetter, configuration.Beastmaster.CrucibleLootTakeItems,
+                objectTable.LocalPlayer is { MaxHp: > 0 } self ? (float)self.CurrentHp / self.MaxHp : 1f);
+            if (crucibleWalker != null && crucibleIsCaptured != null)
+            {
+                var busy = condition[Dalamud.Game.ClientState.Conditions.ConditionFlag.InCombat]
+                           || condition[Dalamud.Game.ClientState.Conditions.ConditionFlag.Casting]
+                           || condition[Dalamud.Game.ClientState.Conditions.ConditionFlag.BetweenAreas]
+                           || condition[Dalamud.Game.ClientState.Conditions.ConditionFlag.BetweenAreas51]
+                           || condition[Dalamud.Game.ClientState.Conditions.ConditionFlag.OccupiedInEvent]
+                           || condition[Dalamud.Game.ClientState.Conditions.ConditionFlag.OccupiedInCutSceneEvent]
+                           || condition[Dalamud.Game.ClientState.Conditions.ConditionFlag.OccupiedInQuestEvent];
+                crucibleWalker.Update(
+                    configuration.Beastmaster.CrucibleAutoPilot && configuration.Beastmaster.CrucibleWalkBoard,
+                    Daedalus.Services.Beastmaster.CrucibleTracker.Current.Board, objectTable.LocalPlayer, busy, crucibleIsCaptured);
+            }
+
+            if (crucibleLoop != null && crucibleRosterFor != null)
+            {
+                var runsLeft = configuration.Beastmaster.CrucibleLoopRuns;
+                crucibleLoop.Update(
+                    configuration.Beastmaster.CrucibleAutoPilot, ref runsLeft, Daedalus.Services.Beastmaster.CrucibleTracker.Current.Board,
+                    objectTable.LocalPlayer, objectTable, condition[Dalamud.Game.ClientState.Conditions.ConditionFlag.InCombat],
+                    crucibleRosterFor, crucibleRosterLoader);
+                if (runsLeft != configuration.Beastmaster.CrucibleLoopRuns)
+                {
+                    configuration.Beastmaster.CrucibleLoopRuns = runsLeft;
+                    SaveConfiguration();
+                }
+            }
+            crucibleTeamWindow?.Follow(configuration.Beastmaster.CrucibleTeamPickerAutoOpen
+                                       && Daedalus.Services.Beastmaster.CrucibleHornSetter.BoardScreensOpen());
 
             strikingDummyReset?.Update(condition[Dalamud.Game.ClientState.Conditions.ConditionFlag.InCombat]);
             if (strikingDummyReset?.Holding == true)
@@ -2538,6 +2646,7 @@ public sealed class Plugin : IDalamudPlugin
         toastGui.ErrorToast -= OnErrorToast;
         clientState.TerritoryChanged -= OnOccultTerritoryChanged;
         clientState.TerritoryChanged -= OnCrucibleTerritoryChanged;
+        crucibleRecorder?.Dispose();
 
         if (lanCoordinator != null)
         {

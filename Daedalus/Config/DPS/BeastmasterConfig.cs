@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+
 namespace Daedalus.Config.DPS;
 
 /// <summary>
@@ -66,16 +68,63 @@ public sealed class BeastmasterConfig
     #region Crucible
 
     /// <summary>
-    /// Crucible: keep the familiar tanking with Snarl (it Threatens the enemy and covers you). Held while the familiar
-    /// is under half HP, and for 30s after a Challenge.
+    /// Crucible: whenever ready, while your familiar has 25% HP or more, Snarl hands it the enemy (it Threatens and
+    /// covers you — takes all your damage for 45s).
     /// </summary>
     public bool EnableSnarl { get; set; } = true;
 
-    /// <summary>Crucible: when the familiar drops under 30% HP with the enemy on it, take the enemy with Challenge.</summary>
+    /// <summary>
+    /// Crucible: when the enemy is on a familiar under 25% HP, take it back with Challenge — only while you are above
+    /// 70%. Otherwise the familiar tanks: your death ends the run.
+    /// </summary>
     public bool EnableChallenge { get; set; } = true;
+
+    /// <summary>
+    /// On the Crucible's horn screen before each battle, put the three team members that hit the battle's weakness on
+    /// the Battlehorns (the game does not keep them between battles). Never starts the battle.
+    /// </summary>
+    public bool AutoCrucibleHorns { get; set; } = true;
 
     /// <summary>Open the Crucible window on entering a board. It closes again on leaving.</summary>
     public bool CrucibleWindowAutoOpen { get; set; } = true;
+
+    /// <summary>Open the Crucible team picker while the board layout or horn screen is up.</summary>
+    public bool CrucibleTeamPickerAutoOpen { get; set; } = true;
+
+    /// <summary>
+    /// The player's horn picks per battle, keyed <c>"board:battle"</c> (<c>CrucibleHornPlan.PickKey</c>): Bestiary
+    /// numbers in horn order, 0 = Auto. A battle with no entry is all Auto.
+    /// </summary>
+    public Dictionary<string, int[]> CrucibleHornPicks { get; set; } = [];
+
+    /// <summary>What runs are for: clearing (weakness roster and horns) or levelling (core carries, lowest ranks ride).</summary>
+    public Daedalus.Data.CrucibleTeamGoal CrucibleGoal { get; set; } = Daedalus.Data.CrucibleTeamGoal.Clear;
+
+    /// <summary>The three beasts that carry (Bestiary numbers, 0 = the highest rank not already chosen).</summary>
+    public int[] CrucibleCoreTeam { get; set; } = [0, 0, 0];
+
+    /// <summary>Beast ranks as last seen on Team Composition or the horn screen (Bestiary number → rank).</summary>
+    public Dictionary<int, int> CrucibleRanks { get; set; } = [];
+
+    /// <summary>
+    /// Step through the board's screens: start each battle once the horns are set, take the spoils' tokens, the first
+    /// treasure, leave shops, rest the most hurt beast at campsites, close the result. Off by default.
+    /// </summary>
+    public bool CrucibleAutoPilot { get; set; }
+
+    /// <summary>Autopilot: also take the first item from the spoils (beast gear helps survive; costs Nameday Attire).</summary>
+    public bool CrucibleLootTakeItems { get; set; }
+
+    /// <summary>
+    /// Loop: runs still to start. With the autopilot on, after a run Daedalus talks to Lauda (you must be next to
+    /// her), opens the same board, sets the goal's team and goes in again; one is taken off per board entered.
+    /// </summary>
+    public int CrucibleLoopRuns { get; set; }
+
+    /// <summary>
+    /// With the autopilot on, walk the board from space to space (vnavmesh), taking the suggested side at each fork.
+    /// </summary>
+    public bool CrucibleWalkBoard { get; set; } = true;
 
     #endregion
 

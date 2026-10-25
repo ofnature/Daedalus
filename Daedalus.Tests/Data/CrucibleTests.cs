@@ -77,43 +77,135 @@ public class CrucibleTests
     public void EveryBestiaryBeastHasAnAttackEntry()
         => Assert.All(Enumerable.Range(1, 50), no => Assert.True(no is 17 or 19 || BstFamiliarAttacks.Of(no) != CrucibleElement.None));
 
-    // --- Snarl / Challenge ---
+    // --- the ascetic-run plan ---
+
+    // Board 1's bonus row from the 2026.10.16 client (XBMContent row 1, columns 4-36).
+    private static readonly int[] Board1Bonuses =
+        [250, 500, 750, 1000, 1250, 2500, 4250, 250, 1000, 0, 0, 0, 1250, 750, 0, 750, 0, 750, 0, 500, 0, 1000,
+         750, 750, 750, 750, 750, 750, 750, 750, 4000, 6250, 9000];
+
+    private static readonly CrucibleBoard Board1WithBonuses = Board1 with { Bonuses = Board1Bonuses };
 
     [Fact]
-    public void SnarlKeepsAHealthyFamiliarTanking()
-        => Assert.True(ArtemisCooldownRules.ShouldSnarl(true, true, true, hasFamiliar: true, familiarHpPct: 0.9f, secondsSinceChallenge: 999));
-
-    [Fact]
-    public void NoSnarlOntoALowFamiliar()
-        => Assert.False(ArtemisCooldownRules.ShouldSnarl(true, true, true, true, familiarHpPct: 0.4f, secondsSinceChallenge: 999));
-
-    /// <summary>Snarl straight after a Challenge would hand back the enemy just pulled off the familiar.</summary>
-    [Fact]
-    public void NoSnarlRightAfterAChallenge()
-        => Assert.False(ArtemisCooldownRules.ShouldSnarl(true, true, true, true, 0.9f, secondsSinceChallenge: 10));
-
-    [Fact]
-    public void NoSnarlWithoutAFamiliarOrOffTheBoard()
+    public void BonusValuesAreReadInScoreBonusOrder()
     {
-        Assert.False(ArtemisCooldownRules.ShouldSnarl(true, true, true, hasFamiliar: false, 0.9f, 999));
-        Assert.False(ArtemisCooldownRules.ShouldSnarl(true, onBoardInBattle: false, true, true, 0.9f, 999));
+        Assert.Equal(4250, Board1WithBonuses.BonusValue(CrucibleBonus.BeastSquadIII));
+        Assert.Equal(0, Board1WithBonuses.BonusValue(CrucibleBonus.InfinityAndBeyondI)); // Second Master's Board only
+        Assert.Equal(9000, Board1WithBonuses.BonusValue(CrucibleBonus.ThirdDegree));
+    }
+
+    /// <summary>
+    /// Board 1, a vilekin team: Beast Squad III 4,250 + Nameday 750 + Economic Ethos 750 + Starve 750 + Coin Clutcher
+    /// 500 + Sleepless 1,000 + Vile Kin Gambit 750 = 8,750 sure; No Beast Left Behind 1,000 + Unbeastable 1,250 +
+    /// Self-preservation 250 + Selfless 1,000 = 3,500 more if the fights go cleanly.
+    /// </summary>
+    [Fact]
+    public void TheAsceticRunEstimateOnBoard1()
+        => Assert.Equal((8750, 3500), CrucibleRunPlan.BonusEstimate(Board1WithBonuses, BeastClassification.Vilekin));
+
+    [Fact]
+    public void AnUnreadBoardEstimatesNothing() => Assert.Equal((0, 0), CrucibleRunPlan.BonusEstimate(Board1, BeastClassification.Vilekin));
+
+    private static System.Collections.Generic.IEnumerable<string> Names(CrucibleTeam? team) =>
+        team?.Beasts.Select(b => b.Name) ?? [];
+
+    /// <summary>
+    /// Board 1's final boss (Pas de Seul) is piercing-weak: the community Bug team, Damselfly > Mantis > Wespe.
+    /// Field, 2026-10-23: matching attack types alone recommended Antling > Diremite > Wespe, dropping Mantis's
+    /// vulnerability and Damselfly's opener because all three of those deal piercing damage.
+    /// </summary>
+    [Fact]
+    public void Board1RecommendsTheBugTeam()
+    {
+        var captured = new System.Collections.Generic.HashSet<int> { 8, 10, 16, 37, 44 }; // + Antling, Damselfly
+        var team = CrucibleRunPlan.RecommendTeam(Index, Board1, captured.Contains);
+
+        Assert.Equal(["Damselfly", "Mantis", "Wespe"], Names(team));
+        Assert.Equal(BeastClassification.Vilekin, team!.Kin);
+        Assert.True(team.HitsFinalBoss);
+    }
+
+    /// <summary>Without Damselfly the first horn falls to the next on its list — Diremite, keeping one kin.</summary>
+    [Fact]
+    public void WithoutDamselflyDiremiteOpens()
+        => Assert.Equal(["Diremite", "Mantis", "Wespe"], Names(CrucibleRunPlan.RecommendTeam(Index, Board1, new[] { 8, 10, 16 }.Contains)));
+
+    /// <summary>Dullahan is also on the first horn's list, but Diremite keeps the team one kin (the Gambit bonus).</summary>
+    [Fact]
+    public void OneKinIsPreferredForTheOpener()
+        => Assert.Equal(["Diremite", "Mantis", "Wespe"], Names(CrucibleRunPlan.RecommendTeam(Index, Board1, new[] { 8, 10, 16, 18 }.Contains)));
+
+    /// <summary>With only Dullahan for the first horn the team is mixed: no Gambit in the estimate.</summary>
+    [Fact]
+    public void AMixedCuratedTeamHasNoKin()
+    {
+        var team = CrucibleRunPlan.RecommendTeam(Index, Board1, new[] { 10, 16, 18 }.Contains);
+        Assert.Equal(["Dullahan", "Mantis", "Wespe"], Names(team));
+        Assert.Null(team!.Kin);
+    }
+
+    /// <summary>No Mantis: the Bug team cannot be made, so the pick falls back to matching attack types.</summary>
+    [Fact]
+    public void WithoutTheBugTeamTheWeaknessMatchIsUsed()
+    {
+        var team = CrucibleRunPlan.RecommendTeam(Index, Board1, new[] { 8, 10, 37 }.Contains); // Diremite, Wespe, Antling
+        Assert.Equal("matched to weaknesses", team!.Source);
+        Assert.Equal(3, team.Beasts.Count);
+        Assert.Equal(CrucibleElement.Piercing, BstFamiliarAttacks.Of(team.Beasts[^1].BestiaryNo));
     }
 
     [Fact]
-    public void ChallengeTakesTheEnemyOffAFamiliarAboutToFall()
-        => Assert.True(ArtemisCooldownRules.ShouldChallenge(true, true, true, true, familiarHpPct: 0.2f, enemyOnFamiliar: true, selfHpPct: 0.9f));
+    public void NoKinWithThreeCapturedMeansNoTeam()
+        => Assert.Null(CrucibleRunPlan.RecommendTeam(Index, Board1, no => no is 8 or 10)); // only two vilekin
+
+    // --- Snarl / Challenge: the familiar tanks; the beastmaster's HP is the run (field, 2026-10-24) ---
+
+    /// <summary>
+    /// Field 2026-10-24: the beastmaster died at the Voidmancer twice, pulling every enemy off a full-HP familiar. A
+    /// healthy familiar keeps the enemy.
+    /// </summary>
+    [Fact]
+    public void NoChallengeOffAHealthyFamiliar()
+        => Assert.False(ArtemisCooldownRules.ShouldChallenge(true, true, true, true, enemyOnFamiliar: true, familiarHpPct: 0.9f, selfHpPct: 1f));
 
     [Fact]
-    public void NoChallengeWhenTheEnemyIsNotOnTheFamiliar()
-        => Assert.False(ArtemisCooldownRules.ShouldChallenge(true, true, true, true, 0.2f, enemyOnFamiliar: false, 0.9f));
+    public void ChallengeSavesAFamiliarAboutToFall()
+        => Assert.True(ArtemisCooldownRules.ShouldChallenge(true, true, true, true, enemyOnFamiliar: true, familiarHpPct: 0.2f, selfHpPct: 0.9f));
 
     [Fact]
-    public void NoChallengeWhenYouAreTooLowToTakeTheHits()
-        => Assert.False(ArtemisCooldownRules.ShouldChallenge(true, true, true, true, 0.2f, true, selfHpPct: 0.3f));
+    public void NoChallengeWhileTheEnemyIsOnYou()
+        => Assert.False(ArtemisCooldownRules.ShouldChallenge(true, true, true, true, enemyOnFamiliar: false, familiarHpPct: 0.2f, selfHpPct: 0.9f));
+
+    /// <summary>Saving a familiar is never worth the run: not when you are under 70%.</summary>
+    [Fact]
+    public void NoChallengeWhenYouAreHurt()
+        => Assert.False(ArtemisCooldownRules.ShouldChallenge(true, true, true, true, true, familiarHpPct: 0.2f, selfHpPct: 0.65f));
 
     [Fact]
-    public void NoChallengeWhileTheFamiliarIsHealthy()
-        => Assert.False(ArtemisCooldownRules.ShouldChallenge(true, true, true, true, familiarHpPct: 0.6f, true, 0.9f));
+    public void NoChallengeOffTheBoardOrWithoutAFamiliar()
+    {
+        Assert.False(ArtemisCooldownRules.ShouldChallenge(true, onBoardInBattle: false, true, true, true, 0.2f, 0.9f));
+        Assert.False(ArtemisCooldownRules.ShouldChallenge(true, true, true, hasFamiliar: false, true, 0.2f, 0.9f));
+    }
+
+    /// <summary>
+    /// Field 2026-10-25: held until you were under 50%, the first fight took you 100 → 55% with every familiar
+    /// untouched. Your HP does not refill: Snarl goes out whenever ready.
+    /// </summary>
+    [Fact]
+    public void SnarlGoesOutEvenAtFullHp()
+        => Assert.True(ArtemisCooldownRules.ShouldSnarl(true, true, true, true, familiarHpPct: 1f));
+
+    [Fact]
+    public void NoSnarlOntoAFamiliarWithNothingLeft()
+        => Assert.False(ArtemisCooldownRules.ShouldSnarl(true, true, true, true, familiarHpPct: 0.2f));
+
+    [Fact]
+    public void NoSnarlOffTheBoardOrWhileItRecasts()
+    {
+        Assert.False(ArtemisCooldownRules.ShouldSnarl(true, onBoardInBattle: false, true, true, 1f));
+        Assert.False(ArtemisCooldownRules.ShouldSnarl(true, true, ready: false, true, 1f));
+    }
 
     [Fact]
     public void TheDutyActionsAreTheGamesChallengeAndSnarl()

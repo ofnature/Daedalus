@@ -43,10 +43,42 @@ public sealed record CrucibleEnemy(
 
 /// <summary>One Crucible board (an XBMContent row with a duty).</summary>
 /// <param name="Battles">The board's battle pool (XBMContentBattle). The first is its final boss.</param>
+/// <param name="Bonuses">
+/// What each score bonus is worth on this board, in <see cref="CrucibleBonus"/> order — XBMContent columns 4-36, which
+/// line up one for one with XBMScoreBonus (Infinity and Beyond reads 0 everywhere but the Second Master's Board, as the
+/// game's own rules say). Empty when unread.
+/// </param>
 public sealed record CrucibleBoard(
-    int Index, uint ContentFinderConditionId, uint TerritoryId, string Name, byte Level, IReadOnlyList<int> Battles)
+    int Index, uint ContentFinderConditionId, uint TerritoryId, string Name, byte Level, IReadOnlyList<int> Battles,
+    IReadOnlyList<int>? Bonuses = null, IReadOnlyList<CrucibleStage>? Stages = null, int RosterCap = 0, int RankCap = 0)
 {
+    /// <summary>
+    /// The lowest recommended beast rank: the board's band is the five ranks up to its sync cap (XBMContent col 3 =
+    /// 5/10/15/20/25), as the board screen shows it ("Recommended Beast Rank: 6 (Sync from 10)" on board 2). 0 when
+    /// unknown.
+    /// </summary>
+    public int RecommendedRank => RankCap > 0 ? Math.Max(1, RankCap - 4) : 0;
+
+    /// <summary>The board's spaces, move by move (<see cref="CrucibleRouteBuilder"/>); empty when unread.</summary>
+    public IReadOnlyList<CrucibleStage> Route => Stages ?? [];
+
     public int FinalBattle => Battles.Count > 0 ? Battles[0] : 0;
+
+    /// <summary>What a bonus is worth here; 0 when unknown.</summary>
+    public int BonusValue(CrucibleBonus bonus) =>
+        Bonuses is { } b && (int)bonus < b.Count ? b[(int)bonus] : 0;
+}
+
+/// <summary>The Crucible's score bonuses, in XBMScoreBonus row order.</summary>
+public enum CrucibleBonus
+{
+    WillingSacrificeI, WillingSacrificeII, WillingSacrificeIII, NoBeastLeftBehind,
+    BeastSquadI, BeastSquadII, BeastSquadIII, SelfPreservation, Selfless,
+    InfinityAndBeyondI, InfinityAndBeyondII, InfinityAndBeyondIII,
+    Unbeastable, NamedayAttire, WalkingArmory, EconomicEthos, HabitualHoarder,
+    StarveTheFever, FeedTheBold, CoinClutcher, RollingInRiches, SleeplessSurvival,
+    BeastkinGambit, VilekinGambit, CloudkinGambit, SeedkinGambit, WavekinGambit, ScalekinGambit, SoulkinGambit, AshkinGambit,
+    FirstDegree, SecondDegree, ThirdDegree,
 }
 
 /// <summary>
@@ -99,6 +131,154 @@ public sealed class CrucibleIndex
         }
 
         return Enemies.FirstOrDefault(e => e.NameId == nameId);
+    }
+}
+
+/// <summary>A recommended Crucible team of three, in Battlehorn order.</summary>
+/// <param name="Kin">The kin all three share (a Gambit bonus), or null for a mixed team.</param>
+/// <param name="Source">Where the pick came from: a community team by name, or "matched to weaknesses".</param>
+/// <param name="Hits">Of the board's battles, how many are weak to something this team's attacks deal.</param>
+public sealed record CrucibleTeam(
+    BeastClassification? Kin, IReadOnlyList<BstFamiliar> Beasts, bool HitsFinalBoss, int Hits, string Source);
+
+/// <summary>
+/// The plan for a board's "ascetic run" (docs/crucible-farm-plan.md): three familiars of one kin, no shop, no feed,
+/// no campsite, no Crucible items. It keeps the most bonuses and needs the fewest screens.
+/// </summary>
+public static class CrucibleRunPlan
+{
+    /// <summary>The bonuses the ascetic run keeps by playing that way, whatever happens in the fights.</summary>
+    public static readonly CrucibleBonus[] KeptByPolicy =
+    [
+        CrucibleBonus.BeastSquadIII, CrucibleBonus.NamedayAttire, CrucibleBonus.EconomicEthos,
+        CrucibleBonus.StarveTheFever, CrucibleBonus.CoinClutcher, CrucibleBonus.SleeplessSurvival,
+    ];
+
+    /// <summary>The bonuses it keeps if the fights go cleanly: nobody incapacitated, no Damage Down / Vulnerability Up, full HP.</summary>
+    public static readonly CrucibleBonus[] KeptIfClean =
+    [
+        CrucibleBonus.NoBeastLeftBehind, CrucibleBonus.Unbeastable, CrucibleBonus.SelfPreservation, CrucibleBonus.Selfless,
+    ];
+
+    /// <summary>The Gambit bonus for a one-kin team.</summary>
+    public static CrucibleBonus GambitFor(BeastClassification kin) => kin switch
+    {
+        BeastClassification.Beastkin => CrucibleBonus.BeastkinGambit,
+        BeastClassification.Vilekin => CrucibleBonus.VilekinGambit,
+        BeastClassification.Cloudkin => CrucibleBonus.CloudkinGambit,
+        BeastClassification.Seedkin => CrucibleBonus.SeedkinGambit,
+        BeastClassification.Wavekin => CrucibleBonus.WavekinGambit,
+        BeastClassification.Scalekin => CrucibleBonus.ScalekinGambit,
+        BeastClassification.Soulkin => CrucibleBonus.SoulkinGambit,
+        _ => CrucibleBonus.AshkinGambit,
+    };
+
+    /// <summary>(sure, if clean): the bonus points the plan keeps on this board; a one-kin team's Gambit counts as sure.</summary>
+    public static (int Sure, int IfClean) BonusEstimate(CrucibleBoard board, BeastClassification? kin) =>
+        (KeptByPolicy.Sum(board.BonusValue) + (kin is { } k ? board.BonusValue(GambitFor(k)) : 0),
+         KeptIfClean.Sum(board.BonusValue));
+
+    /// <summary>
+    /// The community Crucible teams (<see cref="BattlehornTeams"/>), tried before anything is worked out from attack
+    /// types: the Bug team for a piercing-weak boss (Wespe's Final Sting last), its Dullahan ending for a slashing-weak
+    /// one. They are built on what the beasts DO — Mantis's +10% vulnerability amplifies the finisher, Damselfly opens
+    /// with an AoE Trick and poison — which attack type alone cannot see (it once picked Antling and Diremite over
+    /// Damselfly and Mantis because all three dealt piercing damage).
+    /// </summary>
+    public static readonly string[] CuratedTeamIds = ["single-target", "crucible-slashing"];
+
+    /// <summary>
+    /// A curated team from the captured beasts. Each horn takes the first captured beast of its preference list,
+    /// preferring the kin the other horns already share (a Gambit bonus), and never a beast twice. Null when a horn
+    /// cannot be filled.
+    /// </summary>
+    public static (IReadOnlyList<BstFamiliar> Beasts, BeastClassification? Kin)? FromCurated(BattlehornTeam team, Func<int, bool> isCaptured)
+    {
+        if (team.Horns.Length != 3)
+            return null;
+
+        // Horns with a single choice set the kin the others should match.
+        var fixedKins = team.Horns.Where(h => h.Length == 1)
+            .Select(h => BstFamiliars.ByBestiaryNo((uint)h[0])?.Classification)
+            .Where(k => k != null).Select(k => k!.Value).ToList();
+        BeastClassification? wanted = fixedKins.Count > 0 && fixedKins.All(k => k == fixedKins[0]) ? fixedKins[0] : null;
+
+        var picked = new List<BstFamiliar>();
+        foreach (var horn in team.Horns)
+        {
+            var options = horn
+                .Where(n => isCaptured(n) && picked.All(p => p.BestiaryNo != n))
+                .Select(n => BstFamiliars.ByBestiaryNo((uint)n))
+                .Where(b => b != null).Select(b => b!)
+                .ToList();
+            var choice = options.FirstOrDefault(b => wanted != null && b.Classification == wanted) ?? options.FirstOrDefault();
+            if (choice == null)
+                return null;
+            picked.Add(choice);
+        }
+
+        var kin = picked.All(b => b.Classification == picked[0].Classification) ? picked[0].Classification : (BeastClassification?)null;
+        return (picked, kin);
+    }
+
+    /// <summary>
+    /// The team to bring. A community team (<see cref="CuratedTeamIds"/>) whose finisher hits the final boss's weakness
+    /// comes first. Otherwise the best one-kin team of three from the captured familiars: the most of them hitting the
+    /// final boss's weakness, then the most of the board's battles, then the most beasts available, with the final
+    /// boss's weakness on the last horn. Null when nothing fits.
+    /// </summary>
+    public static CrucibleTeam? RecommendTeam(CrucibleIndex index, CrucibleBoard board, Func<int, bool> isCaptured)
+    {
+        var final = index.EnemiesInBattle(board.FinalBattle).FirstOrDefault()?.Weakness ?? CrucibleElement.None;
+        var poolWeak = board.Battles
+            .Select(b => index.EnemiesInBattle(b).FirstOrDefault()?.Weakness ?? CrucibleElement.None)
+            .ToList();
+
+        int HitsOf(IEnumerable<BstFamiliar> beasts)
+        {
+            var attacks = beasts.Select(b => BstFamiliarAttacks.Of(b.BestiaryNo)).ToHashSet();
+            return poolWeak.Count(w => w != CrucibleElement.None && attacks.Contains(w));
+        }
+
+        // A community team whose finisher hits the final boss's weakness, when its beasts are captured.
+        foreach (var id in CuratedTeamIds)
+        {
+            if (BattlehornTeams.ById(id) is not { } curated || FromCurated(curated, isCaptured) is not { } resolved)
+                continue;
+            if (final == CrucibleElement.None || BstFamiliarAttacks.Of(resolved.Beasts[^1].BestiaryNo) != final)
+                continue;
+            return new CrucibleTeam(resolved.Kin, resolved.Beasts, HitsFinalBoss: true, HitsOf(resolved.Beasts), curated.Name);
+        }
+
+        CrucibleTeam? best = null;
+        var bestScore = (-1, -1, -1);
+        foreach (var kin in Enum.GetValues<BeastClassification>())
+        {
+            var mine = BstFamiliars.All.Where(b => b.Classification == kin && isCaptured(b.BestiaryNo)).ToList();
+            if (mine.Count < 3)
+                continue;
+
+            var picked = mine
+                .OrderByDescending(b => final != CrucibleElement.None && BstFamiliarAttacks.Of(b.BestiaryNo) == final)
+                .ThenByDescending(b => poolWeak.Count(w => w != CrucibleElement.None && w == BstFamiliarAttacks.Of(b.BestiaryNo)))
+                .ThenByDescending(b => b.CaptureLevel)
+                .Take(3)
+                .ToList();
+            var attacks = picked.Select(b => BstFamiliarAttacks.Of(b.BestiaryNo)).ToHashSet();
+            var hitsFinal = final != CrucibleElement.None && attacks.Contains(final);
+            var hits = poolWeak.Count(w => w != CrucibleElement.None && attacks.Contains(w));
+            var score = (picked.Count(b => final != CrucibleElement.None && BstFamiliarAttacks.Of(b.BestiaryNo) == final), hits, mine.Count);
+            if (score.CompareTo(bestScore) > 0)
+            {
+                bestScore = score;
+                var order = picked
+                    .OrderBy(b => final != CrucibleElement.None && BstFamiliarAttacks.Of(b.BestiaryNo) == final)
+                    .ToList();
+                best = new CrucibleTeam(kin, order, hitsFinal, hits, "matched to weaknesses");
+            }
+        }
+
+        return best;
     }
 }
 

@@ -101,13 +101,10 @@ public sealed class DamageModule : IArtemisModule
         PushCrucibleOrders(context, scheduler, target);
     }
 
-    /// <summary>When Challenge last went out, so Snarl does not hand the enemy straight back.</summary>
-    private DateTime _lastChallengeUtc = DateTime.MinValue;
-
     /// <summary>
-    /// The Crucible's two duty actions, which decide who takes the hits: Snarl keeps the familiar tanking, Challenge
-    /// takes the enemy back when the familiar is about to go down. Only on a Crucible board, and only while the duty
-    /// has them on its bar. Rules in <see cref="ArtemisCooldownRules"/>.
+    /// The Crucible's two duty actions, which decide who takes the hits: the familiar tanks — Snarl on cooldown, its
+    /// Cover takes all the beastmaster's damage — and Challenge only rescues a familiar about to fall.
+    /// Only on a Crucible board, and only while the duty has them on its bar. Rules in <see cref="ArtemisCooldownRules"/>.
     /// </summary>
     private void PushCrucibleOrders(
         IArtemisContext context, RotationScheduler scheduler, Dalamud.Game.ClientState.Objects.Types.IBattleChara target)
@@ -129,27 +126,22 @@ public sealed class DamageModule : IArtemisModule
             && svc.IsActionReady(action.ActionId)
             && svc.GetActionStatusCode(action.ActionId, targetId) == 0;
 
-        if (ArtemisCooldownRules.ShouldChallenge(
-                cfg.EnableChallenge, onBoardInBattle: true, Ready(BSTActions.Challenge), familiar != null,
-                familiarHpPct, enemyOnFamiliar, selfHpPct)
-            && TryGate(BSTActions.Challenge.ActionId))
+        if (ArtemisCooldownRules.ShouldSnarl(
+                cfg.EnableSnarl, onBoardInBattle: true, Ready(BSTActions.Snarl), familiar != null, familiarHpPct)
+            && TryGate(BSTActions.Snarl.ActionId))
         {
-            scheduler.PushOgcd(ArtemisAbilities.Challenge, targetId, priority: 6, onDispatched: _ =>
-            {
-                _lastChallengeUtc = DateTime.UtcNow;
-                context.Debug.PlannedAction = "Challenge (familiar low)";
-            });
+            scheduler.PushOgcd(ArtemisAbilities.Snarl, targetId, priority: 6, onDispatched: _ =>
+                context.Debug.PlannedAction = "Snarl (familiar tanks and covers you)");
             return;
         }
 
-        var sinceChallenge = (float)(DateTime.UtcNow - _lastChallengeUtc).TotalSeconds;
-        if (ArtemisCooldownRules.ShouldSnarl(
-                cfg.EnableSnarl, onBoardInBattle: true, Ready(BSTActions.Snarl), familiar != null,
-                familiarHpPct, sinceChallenge)
-            && TryGate(BSTActions.Snarl.ActionId))
+        if (ArtemisCooldownRules.ShouldChallenge(
+                cfg.EnableChallenge, onBoardInBattle: true, Ready(BSTActions.Challenge), familiar != null,
+                enemyOnFamiliar, familiarHpPct, selfHpPct)
+            && TryGate(BSTActions.Challenge.ActionId))
         {
-            scheduler.PushOgcd(ArtemisAbilities.Snarl, targetId, priority: 7, onDispatched: _ =>
-                context.Debug.PlannedAction = "Snarl (familiar tanks)");
+            scheduler.PushOgcd(ArtemisAbilities.Challenge, targetId, priority: 7, onDispatched: _ =>
+                context.Debug.PlannedAction = "Challenge (save the familiar)");
         }
     }
 

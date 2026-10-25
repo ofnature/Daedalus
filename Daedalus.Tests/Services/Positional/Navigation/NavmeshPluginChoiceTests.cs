@@ -27,4 +27,24 @@ public class NavmeshPluginChoiceTests
 
     [Fact]
     public void TheDefaultIsAuto() => Assert.Equal(NavmeshPlugin.Auto, new NavConfig().NavmeshPlugin);
+
+    // --- the "is Ariadne loaded" throttle ---
+
+    /// <summary>
+    /// Field 2026-10-25: the check started from long.MinValue, whose difference overflowed negative, so it never ran
+    /// and Auto never found Ariadne. The very first look must always happen.
+    /// </summary>
+    [Theory]
+    [InlineData(0L)]
+    [InlineData(1_000_000_000L)]
+    [InlineData(long.MaxValue)]
+    public void TheFirstAriadneCheckAlwaysRuns(long now)
+        => Assert.True(Daedalus.Services.Positional.Navigation.VNavService.AriadneCheckDue(now, lastChecked: null));
+
+    [Fact]
+    public void TheAriadneCheckRunsAgainAfterASecond()
+    {
+        Assert.False(Daedalus.Services.Positional.Navigation.VNavService.AriadneCheckDue(5_500, lastChecked: 5_000));
+        Assert.True(Daedalus.Services.Positional.Navigation.VNavService.AriadneCheckDue(6_000, lastChecked: 5_000));
+    }
 }
