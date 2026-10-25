@@ -83,8 +83,15 @@ public static class CrucibleHornPlan
             .Select(x => x.Position)
             .ToList();
 
+        // Worn familiars (HP carries over between battles) go behind healthy ones, keeping their order otherwise: the
+        // first horn tanks alone, and one that starts a battle low cannot be Snarled for long (field 2026-10-25: the
+        // same worn Damselfly led every battle of a board).
+        ordered = ordered.OrderByDescending(p => team[p].Health >= WornHealthPct).ToList();
         return FirstHornTank(board, team, ordered).Take(3).ToList();
     }
+
+    /// <summary>A familiar under this much HP starts a battle worn: it goes on the horns after the healthy ones.</summary>
+    public const float WornHealthPct = 0.35f;
 
     /// <summary>A beast's rank on this board: boards sync ranks down to their cap (board 1: 5).</summary>
     public static int EffectiveRank(CrucibleBoard board, CrucibleTeamMember member) =>
@@ -111,7 +118,8 @@ public static class CrucibleHornPlan
             return ordered;
 
         var tank = ordered
-            .OrderByDescending(p => EffectiveRank(board, team[p]))
+            .OrderByDescending(p => team[p].Health >= WornHealthPct)
+            .ThenByDescending(p => EffectiveRank(board, team[p]))
             .ThenByDescending(p => team[p].Health)
             .First();
         if (EffectiveRank(board, team[tank]) <= leadRank)

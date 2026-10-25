@@ -87,10 +87,28 @@ public static class ArtemisCooldownRules
     /// cannot overwrite anything usable; with a familiar out it waits for the diamonds, without one there
     /// are none coming.
     /// </summary>
+    /// <para>
+    /// At level 50 with a familiar, Rally is the middle step of the infinitive combo, so it also waits for a lit
+    /// half (the intentional combo that opens the 7 s window). In-game tutorial "Perform an Infinitive Combo"
+    /// (2026-10-25): three diamonds → an intentional combo → Rally → the other affinity's skill within 7 s. Rallied
+    /// before the half is lit, the 250-TP axe is spent LIGHTING the half and nothing is left to finish it.
+    /// </para>
     public static bool ShouldRallyFromGauge(
-        bool enabled, bool ready, int tp, int masteredInstinct, byte level, bool hasFamiliar)
+        bool enabled, bool ready, int tp, int masteredInstinct, byte level, bool hasFamiliar, bool halfLit = false)
         => enabled && ready && tp < ArtemisGauge.MinSpendTp
-           && (!hasFamiliar || masteredInstinct >= RallyMinMasteredFor(level));
+           && (!hasFamiliar
+               || (masteredInstinct >= RallyMinMasteredFor(level) && (level < UpgradeLevel || halfLit)));
+
+    /// <summary>
+    /// The infinitive combo's window is open: level 50, half the Compass lit, and either the 250 TP already in hand or
+    /// three diamonds and Rally ready to make it. From the intentional combo the finisher has 7 s, and the axes share
+    /// a 5 s recast — so for those seconds nothing but Rally and the finisher goes out (no Trick, no other axe to
+    /// disturb the Compass).
+    /// </summary>
+    public static bool InfinitiveWindowOpen(byte level, ArtemisGauge gauge, bool rallyReady)
+        => level >= UpgradeLevel
+           && gauge.HasHalf
+           && (gauge.Tp >= ArtemisGauge.MaxTp || (gauge.MasteredInstinct >= MaxMastered && rallyReady));
 
     /// <summary>Rallying Cheer, read off the gauge: the familiar is out and cannot afford a Trick.</summary>
     public static bool ShouldRallyingCheerFromGauge(bool enabled, bool ready, bool hasFamiliar, int petTp)
@@ -196,8 +214,23 @@ public static class ArtemisCooldownRules
     /// than letting it be knocked out, so it keeps its last HP for later. Field 2026-10-25: familiars tanked until
     /// they died with nothing spent. 0 HP is already fallen.
     /// </summary>
-    public static bool IsFamiliarFalling(bool enabled, bool onBoard, float familiarHpPct)
-        => enabled && onBoard && familiarHpPct > 0f && familiarHpPct < FamiliarFallingHpPct;
+    /// <para>
+    /// Not while the beastmaster is critical: then the familiar's Cover is all that stands between them and the
+    /// hits, and a retreat would leave them uncovered until the next horn is out and Snarled — so it tanks to the end.
+    /// </para>
+    /// <para>Not with a tankbuster on its way either: the familiar is kept to take it.</para>
+    public static bool IsFamiliarFalling(
+        bool enabled, bool onBoard, float familiarHpPct, float selfHpPct = 1f, float secondsUntilTankbuster = float.MaxValue)
+        => enabled && onBoard && familiarHpPct > 0f && familiarHpPct < FamiliarFallingHpPct
+           && selfHpPct > SelfCriticalHpPct
+           && secondsUntilTankbuster > TankbusterLeadSeconds;
+
+    /// <summary>
+    /// A tankbuster due within this many seconds is Snarled onto any standing familiar. Minerva warns 4.5-8.7 s ahead
+    /// in the Crucible (Crushing Blade, the Elder's 100-tonze Slash locked on the beastmaster), and Snarl's Cover
+    /// takes ALL the beastmaster's damage.
+    /// </summary>
+    public const float TankbusterLeadSeconds = 10f;
 
     /// <summary>Parting Blow (and Wespe's Final Sting, the same trade) when chosen, or when the familiar is falling.</summary>
     public static bool AllowsPartingBlow(bool enabled, bool familiarFalling) => enabled || familiarFalling;
@@ -208,8 +241,19 @@ public static class ArtemisCooldownRules
     /// <summary>…and only while the beastmaster is this healthy.</summary>
     public const float ChallengeMinSelfHpPct = 0.70f;
 
-    /// <summary>Snarl onto a familiar with at least this much left to soak with.</summary>
-    public const float SnarlMinFamiliarHpPct = 0.25f;
+    /// <summary>
+    /// Snarl onto a familiar with at least this much left — the same line as "falling", so a familiar is always
+    /// either Snarled or spent. Field 2026-10-25 (Minerva session, Saar board 2): at 0.25 a familiar on 20-25% was
+    /// neither Snarled nor retreated, nothing covered the beastmaster, and a tankbuster (the Elder's 100-tonze Slash,
+    /// locked on the beastmaster) killed her.
+    /// </summary>
+    public const float SnarlMinFamiliarHpPct = FamiliarFallingHpPct;
+
+    /// <summary>
+    /// At or below this the beastmaster is critical: Snarl onto any familiar still standing — if one of you has to
+    /// fall it is the familiar (RotationSolver's BST_Reborn: "If one of you has to die, it will be the familiar").
+    /// </summary>
+    public const float SelfCriticalHpPct = 0.30f;
 
     /// <summary>
     /// Crucible: the enemy has turned onto a familiar that is about to fall — take it back with Challenge (top of its
@@ -227,9 +271,24 @@ public static class ArtemisCooldownRules
     /// Crucible: whenever it is ready and the familiar can still soak, Snarl — the familiar Threatens (15s) and covers
     /// the beastmaster (takes all their damage, 45s). The beastmaster's HP does not refill between battles.
     /// </summary>
-    public static bool ShouldSnarl(bool enabled, bool onBoardInBattle, bool ready, bool hasFamiliar, float familiarHpPct)
+    public static bool ShouldSnarl(
+        bool enabled, bool onBoardInBattle, bool ready, bool hasFamiliar, float familiarHpPct, float selfHpPct = 1f,
+        float secondsUntilTankbuster = float.MaxValue)
         => enabled && onBoardInBattle && ready && hasFamiliar
-           && familiarHpPct >= SnarlMinFamiliarHpPct;
+           && (familiarHpPct >= SnarlMinFamiliarHpPct
+               || (familiarHpPct > 0f && (selfHpPct <= SelfCriticalHpPct || secondsUntilTankbuster <= TankbusterLeadSeconds)));
+
+    /// <summary>Why Snarl is not going out this frame, for the debug log; null when it is (or would be, once ready).</summary>
+    public static string? SnarlHeldReason(bool enabled, bool hasFamiliar, float familiarHpPct, float selfHpPct)
+    {
+        if (!enabled)
+            return "Snarl is turned off";
+        if (!hasFamiliar)
+            return "no familiar out";
+        if (familiarHpPct >= SnarlMinFamiliarHpPct || (selfHpPct <= SelfCriticalHpPct && familiarHpPct > 0f))
+            return null;
+        return $"familiar at {familiarHpPct:P0} (under {SnarlMinFamiliarHpPct:P0}), you at {selfHpPct:P0}";
+    }
 
     /// <summary>
     /// The Beast Mode button, by what it has turned into. <paramref name="adjustedId"/> is what the game

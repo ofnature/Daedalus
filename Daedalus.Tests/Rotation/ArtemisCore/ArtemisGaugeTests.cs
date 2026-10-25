@@ -24,7 +24,52 @@ public class ArtemisGaugeTests
     [InlineData(2, false)]
     [InlineData(3, true)]
     public void Rally_AtFiftyWaitsForAllThreeDiamonds(int mastered, bool expected)
-        => Assert.Equal(expected, ArtemisCooldownRules.ShouldRallyFromGauge(true, true, tp: 0, mastered, level: 50, hasFamiliar: true));
+        => Assert.Equal(expected, ArtemisCooldownRules.ShouldRallyFromGauge(true, true, tp: 0, mastered, level: 50, hasFamiliar: true, halfLit: true));
+
+    /// <summary>
+    /// The in-game tutorial's order: three diamonds → an intentional combo (lights half the Compass) → Rally → the
+    /// other half within 7 s. Rallied with nothing lit, the 250-TP axe would be spent lighting the half, with nothing
+    /// left to finish it — so at 50 Rally waits for the half.
+    /// </summary>
+    [Fact]
+    public void Rally_AtFiftyWaitsForTheHalfTheIntentionalComboLights()
+    {
+        Assert.False(ArtemisCooldownRules.ShouldRallyFromGauge(true, true, 0, 3, 50, hasFamiliar: true, halfLit: false));
+        Assert.True(ArtemisCooldownRules.ShouldRallyFromGauge(true, true, 0, 3, 50, hasFamiliar: true, halfLit: true));
+    }
+
+    /// <summary>Below 50 there is no infinitive combo to open, so the half does not matter.</summary>
+    [Fact]
+    public void Rally_BelowFiftyIgnoresTheHalf()
+        => Assert.True(ArtemisCooldownRules.ShouldRallyFromGauge(true, true, 0, 2, 40, hasFamiliar: true, halfLit: false));
+
+    // ── the infinitive combo's 7 s window ────────────────────────────────────────────────
+
+    [Fact]
+    public void Window_OpensWithAHalfAndThreeDiamondsAndRallyReady()
+        => Assert.True(ArtemisCooldownRules.InfinitiveWindowOpen(50, Gauge(tp: 0, lit: InstinctAffinity.Moonstalker, mastered: 3), rallyReady: true));
+
+    /// <summary>After Rally: the half still lit and 250 TP — the finisher is next, nothing else goes out.</summary>
+    [Fact]
+    public void Window_StaysOpenWith250TpAfterRally()
+        => Assert.True(ArtemisCooldownRules.InfinitiveWindowOpen(50, Gauge(tp: 250, lit: InstinctAffinity.Sunstrider), rallyReady: false));
+
+    /// <summary>A half lit by an ordinary intentional combo (diamonds still short) is not a window: play on.</summary>
+    [Fact]
+    public void Window_NotWithoutTheDiamondsOrTheTp()
+        => Assert.False(ArtemisCooldownRules.InfinitiveWindowOpen(50, Gauge(tp: 0, lit: InstinctAffinity.Moonstalker, mastered: 2), rallyReady: true));
+
+    /// <summary>Rally on cooldown with three diamonds: there is no 250 coming, so nothing is held for it.</summary>
+    [Fact]
+    public void Window_NotWhenRallyCannotFire()
+        => Assert.False(ArtemisCooldownRules.InfinitiveWindowOpen(50, Gauge(tp: 0, lit: InstinctAffinity.Moonstalker, mastered: 3), rallyReady: false));
+
+    [Fact]
+    public void Window_NeedsAHalfAndLevel50()
+    {
+        Assert.False(ArtemisCooldownRules.InfinitiveWindowOpen(50, Gauge(tp: 250, lit: InstinctAffinity.Rampant), rallyReady: true));
+        Assert.False(ArtemisCooldownRules.InfinitiveWindowOpen(49, Gauge(tp: 250, lit: InstinctAffinity.Moonstalker), rallyReady: true));
+    }
 
     /// <summary>Below 50 there is no upgrade to reach, so two diamonds — a full-strength axe — is enough.</summary>
     [Theory]
@@ -39,7 +84,7 @@ public class ArtemisGaugeTests
     [InlineData(100, false)]
     [InlineData(250, false)]
     public void Rally_OnlyWhenNoAxeCanBeAfforded(int tp, bool expected)
-        => Assert.Equal(expected, ArtemisCooldownRules.ShouldRallyFromGauge(true, true, tp, 3, 50, true));
+        => Assert.Equal(expected, ArtemisCooldownRules.ShouldRallyFromGauge(true, true, tp, 3, 50, true, halfLit: true));
 
     /// <summary>No familiar means no Trick combos and no diamonds coming: take the flat 40.</summary>
     [Fact]

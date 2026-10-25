@@ -28,7 +28,10 @@ public sealed unsafe class CrucibleAutoPilot
     private string? _expectPrompt;
     private DateTime _expectUntilUtc;
     private int _startedBattle;
-    private bool _lootItemTried, _lootTokensTried;
+    private bool _lootGearDone, _lootTokensTried;
+    private int _lootGearTakes;
+    private int _lootHeldBefore;
+    private readonly HashSet<int> _lootTakenRows = new();
     private bool _treasureTried, _shopTried, _restTried;
     private DateTime _resultSentUtc;
     private DateTime _campSinceUtc;
@@ -126,10 +129,9 @@ public sealed unsafe class CrucibleAutoPilot
             if (now - _lootSinceUtc < LootSettle || loot->AtkValuesCount <= CrucibleAutoPilotRules.LootItemIdIndex(CrucibleAutoPilotRules.LootMaxRows - 1))
                 return;
 
-            switch (CrucibleAutoPilotRules.NextLootStep(takeItems, _lootItemTried, _lootTokensTried))
+            switch (CrucibleAutoPilotRules.NextLootStep(takeItems, _lootGearDone, _lootTokensTried))
             {
                 case CrucibleLootStep.TakeItem:
-                    _lootItemTried = true;
                     TakeGear(now, loot);
                     break;
                 case CrucibleLootStep.TakeTokens:
@@ -148,7 +150,9 @@ public sealed unsafe class CrucibleAutoPilot
             return;
         }
 
-        _lootItemTried = _lootTokensTried = false;
+        _lootGearDone = _lootTokensTried = false;
+        _lootGearTakes = 0;
+        _lootTakenRows.Clear();
         _lootSinceUtc = default;
 
         var treasure = Visible("XBMContentsTreasure");
@@ -229,17 +233,33 @@ public sealed unsafe class CrucibleAutoPilot
                 names.Add($"{_itemName(id)}{(_isBeastGear(id) ? " (gear)" : "")}");
         }
 
-        var pick = CrucibleAutoPilotRules.PickGear(offers, _isBeastGear);
-        var offeredText = names.Count == 0 ? "nothing" : string.Join(", ", names);
-        if (pick < 0)
+        var held = 0;
+        for (var k = 0; k < CrucibleAutoPilotRules.HeldGearMaxRows; k++)
         {
-            _log($"Crucible: spoils — {offeredText}; no beast gear to take.");
-            Done(now, "No beast gear in the spoils.");
+            if (CrucibleAddons.Bool(loot, CrucibleAutoPilotRules.HeldGearFlagIndex(k)))
+                held++;
+        }
+
+        var pick = CrucibleAutoPilotRules.PickGear(offers, _isBeastGear, _lootTakenRows);
+        var offeredText = names.Count == 0 ? "nothing" : string.Join(", ", names);
+        var refused = _lootGearTakes > 0 && held <= _lootHeldBefore;
+        if (CrucibleAutoPilotRules.LootGearDone(pick >= 0, _lootGearTakes, refused))
+        {
+            _lootGearDone = true;
+            _log($"Crucible: spoils — {offeredText}; "
+                 + (_lootGearTakes == 0 ? "no beast gear to take."
+                     : refused ? $"the last piece was refused (gear held {held}); done after {_lootGearTakes - 1} piece(s)."
+                     : $"done after {_lootGearTakes} piece(s) of gear (gear held {held})."));
+            Done(now, _lootGearTakes == 0 ? "No beast gear in the spoils." : "Gear taken.");
             return;
         }
 
         var name = _itemName(offers[pick]);
         _log($"Crucible: spoils — {offeredText}; taking {name}.");
+        _lootGearTakes++;
+        _lootHeldBefore = held;
+        _lootTakenRows.Add(pick);
+        _lootSinceUtc = now; // let the window refill before reading it again
         Expect("Take ", now);
         Fire(loot, 4, pick);
         Done(now, $"Taking {name}.");

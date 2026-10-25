@@ -3,6 +3,33 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.107 — 2026-10-25
+
+### Beastmaster — the infinitive combo
+- **Universality lands in its 7-second window.** At level 50 Rally now waits for the intentional combo that
+  lights half the Inner Compass, then fires first; the opposite-affinity finisher follows, and nothing else
+  (no Trick, no other axe) goes out in between. Rallying before the half was lit used to spend the 250 TP lighting
+  it, with nothing left to finish.
+
+### Beastmaster — the Crucible
+- **Snarl no longer stops partway through a board.** A familiar on 20-25% HP was neither Snarled nor retreated, so
+  nothing covered you — a tankbuster could kill you with your familiar standing beside you. Snarl now reaches down
+  to the falling line, and when you are at 30% HP or less it Snarls onto any familiar still standing (and keeps it
+  tanking rather than retreating it). Familiars that start a battle worn (under 35%) go on the horns after the
+  healthy ones.
+- **Snarl goes out ahead of a tankbuster.** With your boss plugin warning of a tankbuster on you within 10 seconds
+  (Minerva or BossMod), Snarl hands it to any familiar still standing, so the familiar takes it instead of you.
+- **Every piece of beast gear in the spoils is taken**, not just the first: the autopilot keeps taking gear until
+  none is left (or the game refuses one), then the tokens.
+- **A beast the game won't add no longer stops the loop.** Setting the team skips it and carries on with the rest.
+
+### Targeting
+- **Your target follows the fight's priority adds.** With Minerva running the fight, Daedalus now switches your
+  target to the add the fight module says to kill first (e.g. risen Zombie Pieces beside the Voidmancer, the
+  fuller bull in the Tablitaur fight), instead of staying on the boss until something dies. Not when you picked
+  Current/Focus target yourself, out of combat, or right after you click a target.
+
+<!-- LATEST-END -->
 ## v0.1.106 — 2026-10-25
 
 ### Beastmaster — the Crucible
@@ -23,7 +50,6 @@ All notable changes to Daedalus will be documented in this file.
   still unused) and then Parting Blow — 1,000 potency, and it retreats instead of being knocked out, so it keeps
   its last HP for later in the run. *Spend a falling familiar* (on by default).
 
-<!-- LATEST-END -->
 ## v0.1.105 — 2026-10-25
 
 ### Movement — fix: Ariadne was never used on Auto

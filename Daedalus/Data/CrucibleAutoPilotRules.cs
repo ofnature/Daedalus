@@ -27,12 +27,12 @@ public static class CrucibleAutoPilotRules
     public static readonly TimeSpan StartBattleAfter = TimeSpan.FromSeconds(1.5);
 
     /// <summary>
-    /// The next loot step: an item first when items are wanted (once), then the tokens (once), then leave. Taking
-    /// everything closes the window by itself, so Leave only fires if it is still open.
+    /// The next loot step: beast gear while gear is wanted and not yet done, then the tokens (once), then leave.
+    /// Taking everything closes the window by itself, so Leave only fires if it is still open.
     /// </summary>
-    public static CrucibleLootStep NextLootStep(bool takeItems, bool itemTried, bool tokensTried)
+    public static CrucibleLootStep NextLootStep(bool takeItems, bool gearDone, bool tokensTried)
     {
-        if (takeItems && !itemTried)
+        if (takeItems && !gearDone)
             return CrucibleLootStep.TakeItem;
         if (!tokensTried)
             return CrucibleLootStep.TakeTokens;
@@ -50,16 +50,34 @@ public static class CrucibleAutoPilotRules
 
     public static int LootItemIdIndex(int row) => LootFirstOfferId + (LootRowStride * row);
 
+    /// <summary>At most this many pieces of gear from one spoils window — a guard, the window offers at most four.</summary>
+    public const int MaxGearTakes = 4;
+
+    /// <summary>The beast gear already held: rows of five from 78, a flag at 78 + 5·k (up to ten).</summary>
+    public const int HeldGearFirstFlag = 78;
+    public const int HeldGearMaxRows = 10;
+
+    public static int HeldGearFlagIndex(int row) => HeldGearFirstFlag + (LootRowStride * row);
+
+    /// <summary>
+    /// Whether the spoils' gear is done: no untaken gear left, the guard reached, or the last take did not add to
+    /// the gear held (the game refused it — e.g. a full beast-gear inventory). Every piece of gear is taken, not just
+    /// the first (user 2026-10-25). A TAKEN piece stays listed in the offers (recording 2026-10-25: the Ninja Suit
+    /// still at row 0 after "Take the ninja suit?"), so taken rows are remembered rather than read back.
+    /// </summary>
+    public static bool LootGearDone(bool gearOffered, int takes, bool lastTakeRefused)
+        => !gearOffered || takes >= MaxGearTakes || lastTakeRefused;
+
     /// <summary>
     /// The first offered row that is beast gear, or -1. Beast gear is what keeps the run alive (Ring of Sacrifice,
     /// Belt of Constitution, Mythril Armor…); Crucible items and feed are left. The rows are not sorted by type, so
     /// "row 0" was luck (field 2026-10-25: no gear taken on Saar's clear).
     /// </summary>
-    public static int PickGear(IReadOnlyList<int> offers, Func<int, bool> isGear)
+    public static int PickGear(IReadOnlyList<int> offers, Func<int, bool> isGear, IReadOnlySet<int>? takenRows = null)
     {
         for (var i = 0; i < offers.Count; i++)
         {
-            if (offers[i] != 0 && isGear(offers[i]))
+            if (offers[i] != 0 && isGear(offers[i]) && takenRows?.Contains(i) != true)
                 return i;
         }
 

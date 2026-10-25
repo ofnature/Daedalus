@@ -44,6 +44,11 @@ public sealed unsafe class CrucibleRosterLoader
 
     public bool Loading => _wanted != null;
 
+    private readonly HashSet<int> _refused = new();
+
+    /// <summary>Beasts the game refused to add this session; rosters leave them out.</summary>
+    public IReadOnlySet<int> Refused => _refused;
+
     /// <summary>Make the team exactly <paramref name="wanted"/>: beasts not in it leave, missing ones join in order.</summary>
     public void Load(IReadOnlyList<int> wanted)
     {
@@ -101,10 +106,19 @@ public sealed unsafe class CrucibleRosterLoader
 
             if (_lastToggle is { } last)
             {
-                if (team.Contains(last.PetId) != last.Add)
+                if (team.Contains(last.PetId) != last.Add && last.Add)
                 {
-                    Status = $"The game did not take {(last.Add ? "adding" : "removing")} {Name(last.PetId)} — finish by hand in Master's Bestiary.";
-                    _log($"Crucible: team change stopped — TogglePet({last.PetId}) to {(last.Add ? "add" : "remove")} left the team at {team.Count} "
+                    // A beast the game will not add (field 2026-10-25: TogglePet(14) refused, which stopped the whole
+                    // loop): leave it out of this roster and carry on with the rest.
+                    _refused.Add(last.PetId);
+                    _wanted = _wanted.Where(p => p != last.PetId).ToList();
+                    _log($"Crucible: the game would not add {Name(last.PetId)} (TogglePet({last.PetId}), team at {team.Count}, "
+                         + $"mode {agent->Mode}, list source {agent->PetListSource}) — skipping it.");
+                }
+                else if (team.Contains(last.PetId) != last.Add)
+                {
+                    Status = $"The game did not take removing {Name(last.PetId)} — finish by hand in Master's Bestiary.";
+                    _log($"Crucible: team change stopped — TogglePet({last.PetId}) to remove left the team at {team.Count} "
                          + $"(mode {agent->Mode}, sub {agent->SubMode}, list source {agent->PetListSource}).");
                     _wanted = null;
                     return;

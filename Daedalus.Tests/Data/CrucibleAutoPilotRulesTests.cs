@@ -33,6 +33,43 @@ public class CrucibleAutoPilotRulesTests
 
     private static bool IsGear(int id) => id is 2 or 37; // Ring of Sacrifice, Astral Wristlet
 
+    /// <summary>Every piece of gear is taken: still gear on offer after a take means another take.</summary>
+    [Fact]
+    public void MoreGearOnOfferIsTakenToo()
+        => Assert.False(CrucibleAutoPilotRules.LootGearDone(gearOffered: true, takes: 1, lastTakeRefused: false));
+
+    [Fact]
+    public void NoGearLeftEndsTheGear()
+        => Assert.True(CrucibleAutoPilotRules.LootGearDone(gearOffered: false, takes: 2, lastTakeRefused: false));
+
+    /// <summary>A take that added nothing to the gear held was refused (e.g. full gear inventory): stop.</summary>
+    [Fact]
+    public void ARefusedTakeEndsTheGear()
+        => Assert.True(CrucibleAutoPilotRules.LootGearDone(gearOffered: true, takes: 1, lastTakeRefused: true));
+
+    [Fact]
+    public void TheGearTakesAreCapped()
+        => Assert.True(CrucibleAutoPilotRules.LootGearDone(gearOffered: true, takes: CrucibleAutoPilotRules.MaxGearTakes, lastTakeRefused: false));
+
+    /// <summary>
+    /// Recording 2026-10-25: a taken piece STAYS listed at its row. The next pick skips the rows already taken —
+    /// otherwise it would "take" the same piece again and stop there.
+    /// </summary>
+    [Fact]
+    public void ATakenRowIsSkipped()
+        => Assert.Equal(2, CrucibleAutoPilotRules.PickGear([2, 78, 37], IsGear, new System.Collections.Generic.HashSet<int> { 0 }));
+
+    [Fact]
+    public void AllGearTakenLeavesNothingToPick()
+        => Assert.Equal(-1, CrucibleAutoPilotRules.PickGear([2, 78, 37], IsGear, new System.Collections.Generic.HashSet<int> { 0, 2 }));
+
+    [Fact]
+    public void HeldGearFlagsAreFiveApartFrom78()
+    {
+        Assert.Equal(78, CrucibleAutoPilotRules.HeldGearFlagIndex(0));
+        Assert.Equal(83, CrucibleAutoPilotRules.HeldGearFlagIndex(1));
+    }
+
     /// <summary>The first gear row, wherever it sits — a potion first in the list is passed over.</summary>
     [Fact]
     public void TheGearRowIsTakenNotTheFirstRow()

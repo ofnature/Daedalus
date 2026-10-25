@@ -95,12 +95,15 @@ public class CrucibleHornsTests
         Assert.Equal([3, 2, 4], CrucibleHornPlan.Pick(Index, Board, 2, team)); // Coblyn (lightning), Damselfly 8, Goobbue 5
     }
 
-    /// <summary>Between two of the same rank, the one with more HP left — HP does not refill between battles.</summary>
+    /// <summary>
+    /// Between two of the same rank, the one with more HP left — HP does not refill between battles. And one worn under
+    /// 35% goes behind every healthy familiar, even a lower-rank one (it cannot be Snarled for long).
+    /// </summary>
     [Fact]
     public void AmongEqualRanksTheHealthierGoesFirst()
     {
         CrucibleTeamMember[] team = [M(7), M(30, rank: 5, health: 0.2f), M(26, rank: 5, health: 0.9f), M(12, rank: 1)];
-        Assert.Equal([0, 2, 1], CrucibleHornPlan.Pick(Index, Board, 2, team));
+        Assert.Equal([0, 2, 3], CrucibleHornPlan.Pick(Index, Board, 2, team));
     }
 
     /// <summary>A matching beast still beats a stronger one that does not match.</summary>
@@ -158,6 +161,26 @@ public class CrucibleHornsTests
         Assert.Equal(5, CrucibleHornPlan.EffectiveRank(board1Like, M(44, rank: 9)));
         CrucibleTeamMember[] team = [M(12, rank: 5, health: 0.9f), M(44, rank: 9, health: 0.5f)];
         Assert.Equal(0, CrucibleHornPlan.Pick(Index, board1Like, 2, team)[0]); // equal at 5: the healthier leads
+    }
+
+    /// <summary>
+    /// Field 2026-10-25: the same worn Damselfly led every battle of a board. A familiar that starts a battle under 35%
+    /// goes behind the healthy ones, even when it hits the weakness.
+    /// </summary>
+    [Fact]
+    public void AWornFamiliarGoesBehindTheHealthyOnes()
+    {
+        CrucibleTeamMember[] team = [M(7, rank: 5, health: 0.2f), M(44, rank: 4), M(30, rank: 4)]; // Coblyn hits it, but worn
+        var picks = CrucibleHornPlan.Pick(Index, Board, 2, team);
+        Assert.NotEqual(0, picks[0]);
+        Assert.Equal(0, picks[2]);
+    }
+
+    [Fact]
+    public void TheFirstHornTankIsHealthy()
+    {
+        CrucibleTeamMember[] team = [M(7, rank: 4), M(44, rank: 9, health: 0.1f), M(30, rank: 7)];
+        Assert.Equal(2, CrucibleHornPlan.Pick(Index, Board2Like, 2, team)[0]); // Goobbue 7, not the worn Damselfly 9
     }
 
     /// <summary>Unknown ranks change nothing.</summary>

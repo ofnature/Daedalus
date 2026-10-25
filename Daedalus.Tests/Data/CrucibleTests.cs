@@ -196,9 +196,73 @@ public class CrucibleTests
     public void SnarlGoesOutEvenAtFullHp()
         => Assert.True(ArtemisCooldownRules.ShouldSnarl(true, true, true, true, familiarHpPct: 1f));
 
+    /// <summary>
+    /// Field 2026-10-25 (Minerva session, Saar board 2): a familiar on 20-25% was neither Snarled (floor 25%) nor
+    /// retreated (falling under 20%), and a tankbuster locked on the beastmaster killed her. No gap now: Snarl down
+    /// to the falling line.
+    /// </summary>
+    [Theory]
+    [InlineData(0.22f, true)]
+    [InlineData(0.20f, true)]
+    [InlineData(0.19f, false)]
+    public void SnarlReachesDownToTheFallingLine(float familiarHp, bool expected)
+        => Assert.Equal(expected, ArtemisCooldownRules.ShouldSnarl(true, true, true, true, familiarHp));
+
+    /// <summary>Every familiar HP is covered by one of the two: Snarled, or spent and retreated.</summary>
+    [Theory]
+    [InlineData(0.05f)]
+    [InlineData(0.199f)]
+    [InlineData(0.2f)]
+    [InlineData(0.24f)]
+    [InlineData(0.9f)]
+    public void NoFamiliarHpIsNeitherSnarledNorSpent(float familiarHp)
+        => Assert.True(ArtemisCooldownRules.ShouldSnarl(true, true, true, true, familiarHp)
+                       || ArtemisCooldownRules.IsFamiliarFalling(true, onBoard: true, familiarHp));
+
+    /// <summary>RotationSolver's rule: at 30% or under, the familiar takes it even if it falls.</summary>
+    [Fact]
+    public void ACriticalBeastmasterSnarlsAnyStandingFamiliar()
+    {
+        Assert.True(ArtemisCooldownRules.ShouldSnarl(true, true, true, true, familiarHpPct: 0.05f, selfHpPct: 0.25f));
+        Assert.False(ArtemisCooldownRules.ShouldSnarl(true, true, true, true, familiarHpPct: 0f, selfHpPct: 0.25f));
+    }
+
+    /// <summary>
+    /// Field 2026-10-25: the Elder's 100-tonze Slash (locked on the beastmaster) killed Saar uncovered. With the boss
+    /// engine's warning, a tankbuster due within 10 s is Snarled onto any standing familiar — even a low one.
+    /// </summary>
+    [Fact]
+    public void ATankbusterOnItsWaySnarlsAnyStandingFamiliar()
+    {
+        Assert.True(ArtemisCooldownRules.ShouldSnarl(true, true, true, true, familiarHpPct: 0.1f, selfHpPct: 0.9f, secondsUntilTankbuster: 8.7f));
+        Assert.False(ArtemisCooldownRules.ShouldSnarl(true, true, true, true, familiarHpPct: 0.1f, selfHpPct: 0.9f, secondsUntilTankbuster: 30f));
+        Assert.False(ArtemisCooldownRules.ShouldSnarl(true, true, true, true, familiarHpPct: 0f, selfHpPct: 0.9f, secondsUntilTankbuster: 2f));
+    }
+
+    /// <summary>A falling familiar is kept, not retreated, when a tankbuster is about to land — it takes the hit.</summary>
+    [Fact]
+    public void AFallingFamiliarIsKeptForATankbuster()
+    {
+        Assert.False(ArtemisCooldownRules.IsFamiliarFalling(true, onBoard: true, familiarHpPct: 0.1f, selfHpPct: 0.9f, secondsUntilTankbuster: 5f));
+        Assert.True(ArtemisCooldownRules.IsFamiliarFalling(true, onBoard: true, familiarHpPct: 0.1f, selfHpPct: 0.9f, secondsUntilTankbuster: 40f));
+    }
+
+    /// <summary>A critical beastmaster keeps the falling familiar tanking — its Cover is all that is left.</summary>
+    [Fact]
+    public void ACriticalBeastmasterDoesNotRetreatTheFamiliar()
+        => Assert.False(ArtemisCooldownRules.IsFamiliarFalling(true, onBoard: true, familiarHpPct: 0.1f, selfHpPct: 0.2f));
+
+    [Fact]
+    public void TheHeldReasonNamesTheHp()
+    {
+        Assert.Null(ArtemisCooldownRules.SnarlHeldReason(true, true, 0.5f, 0.9f));
+        Assert.Contains("familiar at", ArtemisCooldownRules.SnarlHeldReason(true, true, 0.1f, 0.9f));
+        Assert.Equal("no familiar out", ArtemisCooldownRules.SnarlHeldReason(true, false, 0f, 0.9f));
+    }
+
     [Fact]
     public void NoSnarlOntoAFamiliarWithNothingLeft()
-        => Assert.False(ArtemisCooldownRules.ShouldSnarl(true, true, true, true, familiarHpPct: 0.2f));
+        => Assert.False(ArtemisCooldownRules.ShouldSnarl(true, true, true, true, familiarHpPct: 0.15f));
 
     [Fact]
     public void NoSnarlOffTheBoardOrWhileItRecasts()

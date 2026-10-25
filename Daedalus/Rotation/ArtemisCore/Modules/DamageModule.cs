@@ -84,16 +84,25 @@ public sealed class DamageModule : IArtemisModule
             : null;
         var finishing = finisher != null && CanFire(context.ActionService, level, finisher, targetId);
 
+        // The infinitive combo's 7 s window: only Rally and the finisher until it completes or closes.
+        var window = context.Gauge is { } windowGauge && context.Configuration.Beastmaster.EnableInstinctualSkills
+            && ArtemisCooldownRules.InfinitiveWindowOpen(
+                level, windowGauge, CanFire(context.ActionService, level, BSTActions.Rally, player.GameObjectId));
+
         var paired = UsesPairing(context, level, out var answer);
         if (finishing)
-            Push(context, scheduler, finisher!, targetId, priority: 9, why: "Universality (opposite half)");
+            Push(context, scheduler, finisher!, targetId, priority: 2, why: "Universality (opposite half)");
+        else if (window)
+            context.Debug.InstinctState = context.Gauge!.Value.Tp >= ArtemisGauge.MaxTp
+                ? "infinitive combo: finisher next (axes recasting)"
+                : "infinitive combo: Rally next";
         else if (paired)
             PushPaired(context, scheduler, targetId, level, answer!);
         else
             PushInstinctual(context, scheduler, targetId, level);
 
         _releaseOwed = false;
-        PushFamiliarOrders(context, scheduler, targetId, level, trickHandledByPairing: paired);
+        PushFamiliarOrders(context, scheduler, targetId, level, trickHandledByPairing: paired || window);
 
         var edgeDistance = System.Numerics.Vector3.Distance(player.Position, target.Position)
                            - target.HitboxRadius - player.HitboxRadius;
@@ -117,21 +126,36 @@ public sealed class DamageModule : IArtemisModule
         var player = context.Player;
         var targetId = target.GameObjectId;
         var familiar = Daedalus.Services.Beastmaster.FamiliarLookup.Find(context.ObjectTable, player);
-        var familiarHpPct = familiar is { MaxHp: > 0 } f ? (float)f.CurrentHp / f.MaxHp : 0f;
+        // A familiar the lookup cannot find while one is out (context.HasFamiliar) used to read as 0 HP, which blocks
+        // Snarl and looks exactly like the 20-25% dead band. The game's own status check still gates the press.
+        var lookupMissed = familiar == null && context.HasFamiliar;
+        var familiarOut = familiar != null || context.HasFamiliar;
+        var familiarHpPct = familiar is { MaxHp: > 0 } f ? (float)f.CurrentHp / f.MaxHp : lookupMissed ? 1f : 0f;
         var selfHpPct = player.MaxHp > 0 ? (float)player.CurrentHp / player.MaxHp : 0f;
         var enemyOnFamiliar = familiar != null && target.TargetObjectId == familiar.GameObjectId;
+        LogSnarlState(lookupMissed
+            ? "familiar out but not found in the object table — Snarl allowed"
+            : ArtemisCooldownRules.SnarlHeldReason(cfg.EnableSnarl, familiarOut, familiarHpPct, selfHpPct),
+            familiarHpPct, selfHpPct);
 
         bool Ready(ActionDefinition action) =>
             DutyActionBar.Contains(action.ActionId)
             && svc.IsActionReady(action.ActionId)
             && svc.GetActionStatusCode(action.ActionId, targetId) == 0;
 
+        var busterIn = Daedalus.Services.Beastmaster.CrucibleHints.SecondsUntilTankbuster;
         if (ArtemisCooldownRules.ShouldSnarl(
-                cfg.EnableSnarl, onBoardInBattle: true, Ready(BSTActions.Snarl), familiar != null, familiarHpPct)
+                cfg.EnableSnarl, onBoardInBattle: true, Ready(BSTActions.Snarl), familiarOut, familiarHpPct, selfHpPct, busterIn)
             && TryGate(BSTActions.Snarl.ActionId))
         {
-            scheduler.PushOgcd(ArtemisAbilities.Snarl, targetId, priority: 6, onDispatched: _ =>
-                context.Debug.PlannedAction = "Snarl (familiar tanks and covers you)");
+            var buster = busterIn <= ArtemisCooldownRules.TankbusterLeadSeconds;
+            var critical = selfHpPct <= ArtemisCooldownRules.SelfCriticalHpPct;
+            scheduler.PushOgcd(ArtemisAbilities.Snarl, targetId, priority: buster || critical ? 3 : 6, onDispatched: _ =>
+                context.Debug.PlannedAction = buster
+                    ? $"Snarl (tankbuster in {busterIn:0.0}s — the familiar takes it)"
+                    : critical
+                        ? "Snarl (you are critical — the familiar covers you)"
+                        : "Snarl (familiar tanks and covers you)");
             return;
         }
 
@@ -143,6 +167,23 @@ public sealed class DamageModule : IArtemisModule
             scheduler.PushOgcd(ArtemisAbilities.Challenge, targetId, priority: 7, onDispatched: _ =>
                 context.Debug.PlannedAction = "Challenge (save the familiar)");
         }
+    }
+
+    private string? _lastSnarlState;
+
+    /// <summary>One debug-log line whenever why-Snarl-is-held changes (and when it is allowed again).</summary>
+    private void LogSnarlState(string? heldReason, float familiarHpPct, float selfHpPct)
+    {
+        var state = heldReason ?? "allowed";
+        if (state == _lastSnarlState)
+            return;
+        _lastSnarlState = state;
+        Daedalus.Rotation.Base.RotationServices.DebugLog?.Log(
+            Daedalus.Services.Debug.DebugLogCategory.Action,
+            heldReason == null ? Daedalus.Services.Debug.DebugLogSeverity.Info : Daedalus.Services.Debug.DebugLogSeverity.Warning,
+            heldReason == null
+                ? $"[Crucible] Snarl allowed (familiar {familiarHpPct:P0}, you {selfHpPct:P0})"
+                : $"[Crucible] Snarl held: {heldReason}");
     }
 
     /// <summary>
@@ -184,12 +225,15 @@ public sealed class DamageModule : IArtemisModule
         var rallyReady = CanFire(svc, level, BSTActions.Rally, selfId);
         var rally = context.Gauge is { } rallyGauge
             ? ArtemisCooldownRules.ShouldRallyFromGauge(
-                cfg.EnableRally, rallyReady, rallyGauge.Tp, rallyGauge.MasteredInstinct, level, context.HasFamiliar)
+                cfg.EnableRally, rallyReady, rallyGauge.Tp, rallyGauge.MasteredInstinct, level, context.HasFamiliar,
+                rallyGauge.HasHalf)
             : ArtemisCooldownRules.ShouldRally(
                 cfg.EnableRally, rallyReady, SecondsSince(_axeStarvedSinceUtc), paired, _masteredEstimate);
+        var rallyOpensFinisher = context.Gauge is { HasHalf: true } && level >= ArtemisCooldownRules.UpgradeLevel;
         if (rally && TryGate(BSTActions.Rally.ActionId))
         {
-            scheduler.PushOgcd(ArtemisAbilities.Rally, selfId, priority: 14, onDispatched: _ =>
+            // Inside the infinitive window Rally goes first: the finisher must follow within the 7 s.
+            scheduler.PushOgcd(ArtemisAbilities.Rally, selfId, priority: rallyOpensFinisher ? 1 : 14, onDispatched: _ =>
             {
                 _masteredEstimate = 0;
                 context.Debug.PlannedAction = BSTActions.Rally.Name;
@@ -619,7 +663,9 @@ public sealed class DamageModule : IArtemisModule
         var familiarObject = Daedalus.Services.Beastmaster.FamiliarLookup.Find(context.ObjectTable, player);
         var familiarHpPct = familiarObject is { MaxHp: > 0 } fam ? (float)fam.CurrentHp / fam.MaxHp : 1f;
         var falling = ArtemisCooldownRules.IsFamiliarFalling(
-            cfg.CruciblePartingBlowWhenFalling, Daedalus.Services.Beastmaster.CrucibleTracker.Current.OnBoard, familiarHpPct);
+            cfg.CruciblePartingBlowWhenFalling, Daedalus.Services.Beastmaster.CrucibleTracker.Current.OnBoard, familiarHpPct,
+            player.MaxHp > 0 ? (float)player.CurrentHp / player.MaxHp : 1f,
+            Daedalus.Services.Beastmaster.CrucibleHints.SecondsUntilTankbuster);
         var partingBlowAllowed = ArtemisCooldownRules.AllowsPartingBlow(cfg.EnablePartingBlow, falling);
 
         var releaseReady = CanFire(svc, level, BSTActions.TemperedRelease, targetId);

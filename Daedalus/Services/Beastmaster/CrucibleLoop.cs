@@ -146,7 +146,7 @@ public sealed unsafe class CrucibleLoop
         var layout = Visible("XBMStageDetailList");
         if (layout != null && _entering)
         {
-            var wanted = rosterFor(board);
+            var wanted = rosterFor(board).Where(p => loader?.Refused.Contains(p) != true).ToList();
             var changes = loader == null ? [] : CrucibleLevelPlan.Changes(loader.Team, wanted);
             if (loader is { Loading: true })
                 return;

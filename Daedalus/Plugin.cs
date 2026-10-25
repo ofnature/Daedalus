@@ -42,7 +42,7 @@ namespace Daedalus;
 
 public sealed class Plugin : IDalamudPlugin
 {
-    public const string PluginVersion = "0.1.106";
+    public const string PluginVersion = "0.1.107";
     private const string CommandName = "/daedalus";
 
     /// <summary>LAN relay channel for Necromancer Deep Freeze "heal me to full" announcements.</summary>
@@ -1847,6 +1847,32 @@ public sealed class Plugin : IDalamudPlugin
         occultWindow.IsOpen = inZone && configuration.Occult.ShowOccultHud && !docked;
     }
 
+    private Dalamud.Plugin.Ipc.ICallGateSubscriber<float>? minervaTankbusterIn;
+
+    /// <summary>
+    /// Seconds until the next predicted tankbuster on the beastmaster, from the boss engine in charge: Minerva's
+    /// "Minerva.Hints.SecondsUntilTankbuster" (NaN when none — its Crucible bait busters, added 2026-10-25), else the
+    /// earlier of BossMod's two buster forecasts. <see cref="float.MaxValue"/> when nothing is known.
+    /// </summary>
+    private float ReadSecondsUntilTankbuster()
+    {
+        if (configuration.BossHandling == Daedalus.Config.BossHandling.Minerva)
+        {
+            try
+            {
+                minervaTankbusterIn ??= pluginInterface.GetIpcSubscriber<float>("Minerva.Hints.SecondsUntilTankbuster");
+                var seconds = minervaTankbusterIn.InvokeFunc();
+                return float.IsNaN(seconds) ? float.MaxValue : Math.Max(0f, seconds);
+            }
+            catch
+            {
+                return float.MaxValue; // Minerva not loaded or not answering: no warning
+            }
+        }
+
+        return Math.Min(bossModForecastService.NextTankbusterInSeconds, bossModForecastService.NextTankbusterDamageInSeconds);
+    }
+
     /// <summary>Crucible window auto-visibility: open on entering a board, closed on leaving (Beastmaster setting).</summary>
     private void OnCrucibleTerritoryChanged(uint territory)
     {
@@ -2379,6 +2405,8 @@ public sealed class Plugin : IDalamudPlugin
                 Daedalus.Data.CrucibleHornPlan.ShouldSetHorns(configuration.Beastmaster.AutoCrucibleHorns, configuration.ExternalCombatOverrideSource),
                 Daedalus.Services.Beastmaster.CrucibleTracker.Current.Board);
             crucibleRosterLoader?.Update();
+            Daedalus.Services.Beastmaster.CrucibleHints.SecondsUntilTankbuster =
+                Daedalus.Services.Beastmaster.CrucibleTracker.Current.OnBoard ? ReadSecondsUntilTankbuster() : float.MaxValue;
             crucibleBestiaryScanner?.Update();
             crucibleAutoPilot?.Update(
                 configuration.Beastmaster.CrucibleAutoPilot
