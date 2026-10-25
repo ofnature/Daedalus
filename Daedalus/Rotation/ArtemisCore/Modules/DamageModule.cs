@@ -246,12 +246,22 @@ public sealed class DamageModule : IArtemisModule
             }
         }
 
-        if (ArtemisCooldownRules.ShouldShieldCharge(
-                cfg.EnableShieldCharge, CanFire(svc, level, BSTActions.ShieldCharge, targetId), edgeDistance)
-            && TryGate(BSTActions.ShieldCharge.ActionId))
+        var target = context.TargetingService.GetUserEnemyTarget() ?? context.TargetingService.GetRawEnemyHardTarget();
+        var dashSafe = target != null && target.GameObjectId == targetId
+            && !context.TargetingService.GapCloserSafety.ShouldBlockGapCloser(target, player);
+        var charge = ArtemisCooldownRules.DecideShieldCharge(
+            cfg.EnableShieldCharge, cfg.EnableShieldChargeGapClose, CanFire(svc, level, BSTActions.ShieldCharge, targetId),
+            (int)svc.GetCurrentCharges(BSTActions.ShieldCharge.ActionId), edgeDistance, BSTActions.ShieldCharge.Range, dashSafe);
+        if (charge != ShieldChargeUse.None && TryGate(BSTActions.ShieldCharge.ActionId))
         {
-            scheduler.PushOgcd(ArtemisAbilities.ShieldCharge, targetId, priority: 22,
-                onDispatched: _ => context.Debug.PlannedAction = BSTActions.ShieldCharge.Name);
+            scheduler.PushOgcd(ArtemisAbilities.ShieldCharge, targetId, priority: charge == ShieldChargeUse.GapClose ? 4 : 22,
+                onDispatched: _ => context.Debug.PlannedAction = charge == ShieldChargeUse.GapClose
+                    ? "Shield Charge (gap close)"
+                    : BSTActions.ShieldCharge.Name);
+        }
+        else if (edgeDistance >= ArtemisCooldownRules.ShieldChargeGapYalms && !dashSafe && cfg.EnableShieldChargeGapClose)
+        {
+            context.Debug.DamageState = $"Shield Charge held: {context.TargetingService.GapCloserSafety.LastBlockReason ?? "no explicit target"}";
         }
     }
 
@@ -603,9 +613,18 @@ public sealed class DamageModule : IArtemisModule
         // Tempered Release: the beast's own signature move, once per summon. Sent at the enemy, as the
         // hotbar button would be — see BSTActions.TemperedRelease for why not at ourselves.
         var player = context.Player;
+
+        // A familiar about to fall on a board: spend it first — release, then Parting Blow (it retreats instead of
+        // being knocked out). See ArtemisCooldownRules.IsFamiliarFalling.
+        var familiarObject = Daedalus.Services.Beastmaster.FamiliarLookup.Find(context.ObjectTable, player);
+        var familiarHpPct = familiarObject is { MaxHp: > 0 } fam ? (float)fam.CurrentHp / fam.MaxHp : 1f;
+        var falling = ArtemisCooldownRules.IsFamiliarFalling(
+            cfg.CruciblePartingBlowWhenFalling, Daedalus.Services.Beastmaster.CrucibleTracker.Current.OnBoard, familiarHpPct);
+        var partingBlowAllowed = ArtemisCooldownRules.AllowsPartingBlow(cfg.EnablePartingBlow, falling);
+
         var releaseReady = CanFire(svc, level, BSTActions.TemperedRelease, targetId);
         var release = ShouldTemperedRelease(
-            cfg.EnableTemperedRelease, releaseReady, context.FamiliarBeast?.BestiaryNo, cfg.EnablePartingBlow,
+            cfg.EnableTemperedRelease, releaseReady, context.FamiliarBeast?.BestiaryNo, partingBlowAllowed,
             player.MaxHp > 0 ? (float)player.CurrentHp / player.MaxHp : 1f,
             (DateTime.UtcNow - _lastReleaseTryUtc).TotalSeconds);
         if (release)
@@ -618,13 +637,15 @@ public sealed class DamageModule : IArtemisModule
         // Parting Blow sends the familiar away and takes an unspent Tempered Release with it, so it waits
         // while a release is still owed (the release is also what grants Lingering Vantage, +500 on the Blow).
         var releaseOwed = cfg.EnableTemperedRelease && releaseReady
-            && ShouldTemperedRelease(true, true, context.FamiliarBeast?.BestiaryNo, cfg.EnablePartingBlow,
+            && ShouldTemperedRelease(true, true, context.FamiliarBeast?.BestiaryNo, partingBlowAllowed,
                 player.MaxHp > 0 ? (float)player.CurrentHp / player.MaxHp : 1f, double.MaxValue);
         _releaseOwed = releaseOwed;
-        if (!releaseOwed && cfg.EnablePartingBlow && CanFire(svc, level, BSTActions.PartingBlow, targetId))
+        if (!releaseOwed && partingBlowAllowed && CanFire(svc, level, BSTActions.PartingBlow, targetId))
         {
-            scheduler.PushOgcd(ArtemisAbilities.PartingBlow, targetId, priority: 15,
-                onDispatched: _ => context.Debug.PlannedAction = BSTActions.PartingBlow.Name);
+            scheduler.PushOgcd(ArtemisAbilities.PartingBlow, targetId, priority: falling ? 5 : 15,
+                onDispatched: _ => context.Debug.PlannedAction = falling
+                    ? "Parting Blow (familiar falling — retreat it)"
+                    : BSTActions.PartingBlow.Name);
         }
 
         if (!trickHandledByPairing && cfg.EnableTrick && CanFire(svc, level, BSTActions.Trick, targetId))

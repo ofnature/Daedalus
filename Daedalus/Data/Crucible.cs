@@ -89,10 +89,16 @@ public sealed class CrucibleIndex
     private readonly Dictionary<uint, CrucibleBoard> _byTerritory;
     private readonly ILookup<int, CrucibleEnemy> _byBattle;
 
-    public CrucibleIndex(IEnumerable<CrucibleBoard> boards, IEnumerable<CrucibleEnemy> enemies)
+    /// <param name="beastGear">XBMItem rows that are beast gear (column 0 = 1; 2 = Crucible items, 3 = feed).</param>
+    /// <param name="itemNames">XBMItem names by row (column 11), for logs.</param>
+    public CrucibleIndex(
+        IEnumerable<CrucibleBoard> boards, IEnumerable<CrucibleEnemy> enemies, IEnumerable<int>? beastGear = null,
+        IReadOnlyDictionary<int, string>? itemNames = null)
     {
         Boards = boards.ToList();
         Enemies = enemies.ToList();
+        BeastGear = (beastGear ?? []).ToHashSet();
+        _itemNames = itemNames ?? new Dictionary<int, string>();
         _byTerritory = Boards.Where(b => b.TerritoryId != 0).GroupBy(b => b.TerritoryId).ToDictionary(g => g.Key, g => g.First());
         _byBattle = Enemies.ToLookup(e => e.Battle);
     }
@@ -100,6 +106,14 @@ public sealed class CrucibleIndex
     public static readonly CrucibleIndex Empty = new([], []);
 
     public IReadOnlyList<CrucibleBoard> Boards { get; }
+
+    /// <summary>XBMItem rows that are beast gear — what the autopilot takes from the spoils.</summary>
+    public IReadOnlySet<int> BeastGear { get; }
+
+    private readonly IReadOnlyDictionary<int, string> _itemNames;
+
+    /// <summary>An XBMItem's name, or "item #id".</summary>
+    public string ItemName(int itemId) => _itemNames.TryGetValue(itemId, out var name) && name.Length > 0 ? name : $"item #{itemId}";
 
     public IReadOnlyList<CrucibleEnemy> Enemies { get; }
 

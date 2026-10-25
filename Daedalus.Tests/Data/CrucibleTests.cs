@@ -207,6 +207,34 @@ public class CrucibleTests
         Assert.False(ArtemisCooldownRules.ShouldSnarl(true, true, ready: false, true, 1f));
     }
 
+    // --- a falling familiar is spent, not lost (field 2026-10-25) ---
+
+    [Fact]
+    public void AFamiliarUnder20PercentOnABoardIsFalling()
+        => Assert.True(ArtemisCooldownRules.IsFamiliarFalling(true, onBoard: true, familiarHpPct: 0.15f));
+
+    [Fact]
+    public void AHealthyFamiliarIsNotFalling()
+        => Assert.False(ArtemisCooldownRules.IsFamiliarFalling(true, onBoard: true, familiarHpPct: 0.5f));
+
+    /// <summary>Off the board the general Parting Blow setting stands alone; a knocked-out familiar has nothing left to spend.</summary>
+    [Fact]
+    public void OffTheBoardOrAlreadyFallenIsNotFalling()
+    {
+        Assert.False(ArtemisCooldownRules.IsFamiliarFalling(true, onBoard: false, familiarHpPct: 0.1f));
+        Assert.False(ArtemisCooldownRules.IsFamiliarFalling(true, onBoard: true, familiarHpPct: 0f));
+        Assert.False(ArtemisCooldownRules.IsFamiliarFalling(false, onBoard: true, familiarHpPct: 0.1f));
+    }
+
+    /// <summary>Parting Blow is off by default — but a falling familiar loses nothing by retreating.</summary>
+    [Fact]
+    public void AFallingFamiliarAllowsPartingBlowEvenWhenItIsOff()
+    {
+        Assert.True(ArtemisCooldownRules.AllowsPartingBlow(enabled: false, familiarFalling: true));
+        Assert.False(ArtemisCooldownRules.AllowsPartingBlow(enabled: false, familiarFalling: false));
+        Assert.True(ArtemisCooldownRules.AllowsPartingBlow(enabled: true, familiarFalling: false));
+    }
+
     [Fact]
     public void TheDutyActionsAreTheGamesChallengeAndSnarl()
     {

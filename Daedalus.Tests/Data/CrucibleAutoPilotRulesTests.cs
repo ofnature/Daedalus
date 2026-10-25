@@ -29,6 +29,35 @@ public class CrucibleAutoPilotRulesTests
     public void OnlyItsOwnPromptsAreConfirmed(string prompt, string? expected, bool confirm)
         => Assert.Equal(confirm, CrucibleAutoPilotRules.ShouldConfirm(prompt, expected));
 
+    // --- spoils: take beast gear ---
+
+    private static bool IsGear(int id) => id is 2 or 37; // Ring of Sacrifice, Astral Wristlet
+
+    /// <summary>The first gear row, wherever it sits — a potion first in the list is passed over.</summary>
+    [Fact]
+    public void TheGearRowIsTakenNotTheFirstRow()
+        => Assert.Equal(1, CrucibleAutoPilotRules.PickGear([78, 37], IsGear));
+
+    [Fact]
+    public void NoGearOfferedMeansNoItem()
+        => Assert.Equal(-1, CrucibleAutoPilotRules.PickGear([78, 129], IsGear));
+
+    [Fact]
+    public void AnEmptyRowIsNotAnOffer()
+        => Assert.Equal(1, CrucibleAutoPilotRules.PickGear([0, 2], IsGear));
+
+    /// <summary>
+    /// The recorded offers: 77 (G2 beast potion) at 9, 10 (twisted headband) at 14 — the player's [4 | 1] took the
+    /// headband. Field 2026-10-25: reading the HELD gear at 78+ as offers took a potion over the gear.
+    /// </summary>
+    [Fact]
+    public void OffersAreTheIdsAt9And14()
+    {
+        Assert.Equal(9, CrucibleAutoPilotRules.LootItemIdIndex(0));
+        Assert.Equal(14, CrucibleAutoPilotRules.LootItemIdIndex(1));
+        Assert.Equal(1, CrucibleAutoPilotRules.PickGear([77, 10], id => id == 10));
+    }
+
     /// <summary>The most hurt standing beast rests; a fallen one (0 HP) is passed over.</summary>
     [Fact]
     public void TheMostHurtStandingBeastRests()

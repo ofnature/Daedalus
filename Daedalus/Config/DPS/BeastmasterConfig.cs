@@ -48,9 +48,15 @@ public sealed class BeastmasterConfig
     public bool EnableRally { get; set; } = true;
 
     /// <summary>
-    /// Shield Charge as damage, from inside melee range only — it is never used to cross distance.
+    /// Shield Charge as damage in melee — only while a charge stays banked for closing a gap.
     /// </summary>
     public bool EnableShieldCharge { get; set; } = true;
+
+    /// <summary>
+    /// Shield Charge to close a gap: a target 5-20y off, when the dash is safe (no dodge in progress, safe ground and
+    /// landing, your own target, not moving away from it).
+    /// </summary>
+    public bool EnableShieldChargeGapClose { get; set; } = true;
 
     /// <summary>
     /// Borrow the familiar's Kinship once Tempered Release is spent, and press the action Beast Mode becomes
@@ -85,6 +91,19 @@ public sealed class BeastmasterConfig
     /// </summary>
     public bool AutoCrucibleHorns { get; set; } = true;
 
+    /// <summary>
+    /// On a Crucible board, walk into melee range of the enemy you are fighting (max-melee range-keeping), whatever the
+    /// general Maintain-max-melee switch says. Beastmaster is melee and the board is solo; without it the axe can sit
+    /// out of reach for a whole fight.
+    /// </summary>
+    public bool CrucibleKeepInMelee { get; set; } = true;
+
+    /// <summary>
+    /// On a board, when the familiar drops under 20% HP: fire its Tempered Release if it is still owed, then Parting
+    /// Blow — the familiar retreats instead of being knocked out, keeping its last HP for later in the run.
+    /// </summary>
+    public bool CruciblePartingBlowWhenFalling { get; set; } = true;
+
     /// <summary>Open the Crucible window on entering a board. It closes again on leaving.</summary>
     public bool CrucibleWindowAutoOpen { get; set; } = true;
 
@@ -112,7 +131,7 @@ public sealed class BeastmasterConfig
     /// </summary>
     public bool CrucibleAutoPilot { get; set; }
 
-    /// <summary>Autopilot: also take the first item from the spoils (beast gear helps survive; costs Nameday Attire).</summary>
+    /// <summary>Autopilot: also take beast gear from the spoils (it helps you survive; costs Nameday Attire).</summary>
     public bool CrucibleLootTakeItems { get; set; }
 
     /// <summary>

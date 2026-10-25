@@ -39,6 +39,33 @@ public static class CrucibleAutoPilotRules
         return CrucibleLootStep.Leave;
     }
 
+    // The spoils window (XBMContentsBooty): the OFFERS are rows of five values from 7, the XBMItem id at 9 + 5·r (no
+    // names). Taking row r is [4 | r]. Proven by the player's own picks (recording 2026-10-22): offers 77 (G2 beast
+    // potion), 10 (twisted headband); [4 | 1] → "Take the twisted headband?". Values 27-76 are the Crucible items
+    // held and 78-127 the beast gear held (Ring of Sacrifice there from the start; the Astral Wristlet appears only
+    // after it was taken) — reading those as offers took a potion over the gear (field 2026-10-25, Saar).
+    public const int LootFirstOfferId = 9;
+    public const int LootRowStride = 5;
+    public const int LootMaxRows = 4;
+
+    public static int LootItemIdIndex(int row) => LootFirstOfferId + (LootRowStride * row);
+
+    /// <summary>
+    /// The first offered row that is beast gear, or -1. Beast gear is what keeps the run alive (Ring of Sacrifice,
+    /// Belt of Constitution, Mythril Armor…); Crucible items and feed are left. The rows are not sorted by type, so
+    /// "row 0" was luck (field 2026-10-25: no gear taken on Saar's clear).
+    /// </summary>
+    public static int PickGear(IReadOnlyList<int> offers, Func<int, bool> isGear)
+    {
+        for (var i = 0; i < offers.Count; i++)
+        {
+            if (offers[i] != 0 && isGear(offers[i]))
+                return i;
+        }
+
+        return -1;
+    }
+
     /// <summary>The start of each Yes/No prompt the autopilot's own clicks raise; any other prompt is the player's.</summary>
     public static readonly string[] KnownPrompts =
     [

@@ -112,8 +112,16 @@ public sealed class BeastmasterSection
                 "Use Shield Charge",
                 () => config.Beastmaster.EnableShieldCharge,
                 v => config.Beastmaster.EnableShieldCharge = v,
-                "Uses Shield Charge for its damage, but only from inside melee range, so it never "
-                + "carries you across the room.", save);
+                "Uses Shield Charge for its damage in melee range, but only while it keeps one charge "
+                + "banked for closing a gap.", save);
+
+            ConfigUIHelpers.Toggle(
+                "Close gaps with Shield Charge",
+                () => config.Beastmaster.EnableShieldChargeGapClose,
+                v => config.Beastmaster.EnableShieldChargeGapClose = v,
+                "Rushes to your target when it is 5-20y away instead of running there, when the dash is safe: "
+                + "no dodge in progress, safe ground and landing, your own target, and you are not moving away "
+                + "from it.", save);
 
             ConfigUIHelpers.Toggle(
                 "Use Borrow and Beast Mode",
@@ -193,6 +201,22 @@ public sealed class BeastmasterSection
                 + "on each horn: Auto (the recommendation) or a beast you choose. Your picks are kept per board and "
                 + "battle and the horns are set from them. Before entering it also shows the recommended roster and "
                 + "can add it to Team Composition. /dae crucible team opens it any time.", save);
+
+            ConfigUIHelpers.Toggle(
+                "Keep in melee range on a board",
+                () => config.Beastmaster.CrucibleKeepInMelee,
+                v => config.Beastmaster.CrucibleKeepInMelee = v,
+                "Walks you into melee range of the enemy you are fighting, on a Crucible board only, even with the "
+                + "general Maintain max melee switch off. Without it your axe can stay out of reach the whole fight.",
+                save);
+
+            ConfigUIHelpers.Toggle(
+                "Spend a falling familiar",
+                () => config.Beastmaster.CruciblePartingBlowWhenFalling,
+                v => config.Beastmaster.CruciblePartingBlowWhenFalling = v,
+                "When your familiar drops under 20% HP on a board: its Tempered Release if still unused, then "
+                + "Parting Blow. It retreats instead of being knocked out, keeping its last HP for later in the run, "
+                + "and nothing is lost with it.", save);
 
             ConfigUIHelpers.Toggle(
                 "Use Snarl",

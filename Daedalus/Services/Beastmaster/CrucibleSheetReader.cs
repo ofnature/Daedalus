@@ -114,7 +114,10 @@ public static class CrucibleSheetReader
 
             log($"Crucible: read {boards.Count} board(s) ({string.Join("/", boards.Select(b => b.Route.Count))} spaces, "
                 + $"{string.Join("/", boards.Select(b => b.Route.Count(s => s.At != null)))} placed) and {enemies.Count} enemies from the game data.");
-            return new CrucibleIndex(boards, enemies);
+            var items = excel.GetSheet<RawRow>(name: "XBMItem").ToList();
+            var beastGear = items.Where(r => r.ReadUInt8Column(0) == 1).Select(r => (int)r.RowId).ToList();
+            var itemNames = items.ToDictionary(r => (int)r.RowId, r => Text(r, 11));
+            return new CrucibleIndex(boards, enemies, beastGear, itemNames);
         }
         catch (Exception ex)
         {

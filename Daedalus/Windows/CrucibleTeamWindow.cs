@@ -26,6 +26,8 @@ public sealed class CrucibleTeamWindow : Window
     private readonly Func<CrucibleLoop?> _loop;
     private readonly Func<CrucibleWalker?> _walker;
     private readonly Func<CrucibleBestiaryScanner?> _bestiary;
+    private readonly Func<CrucibleRecorder?> _recorder;
+    private string _recordStatus = "";
     private readonly Func<BeastmasterConfig> _config;
     private readonly Action _save;
     private bool _screensWereOpen;
@@ -33,7 +35,7 @@ public sealed class CrucibleTeamWindow : Window
     public CrucibleTeamWindow(
         CrucibleIndex index, Func<int, bool?> isCaptured, Func<CrucibleHornSetter?> setter, Func<CrucibleRosterLoader?> roster,
         Func<CrucibleAutoPilot?> autoPilot, Func<CrucibleLoop?> loop, Func<CrucibleWalker?> walker,
-        Func<CrucibleBestiaryScanner?> bestiary, Func<BeastmasterConfig> config, Action save)
+        Func<CrucibleBestiaryScanner?> bestiary, Func<CrucibleRecorder?> recorder, Func<BeastmasterConfig> config, Action save)
         : base("Crucible team##DaedalusCrucibleTeam", ImGuiWindowFlags.AlwaysAutoResize | ImGuiWindowFlags.NoFocusOnAppearing)
     {
         _index = index;
@@ -44,6 +46,7 @@ public sealed class CrucibleTeamWindow : Window
         _loop = loop;
         _walker = walker;
         _bestiary = bestiary;
+        _recorder = recorder;
         _config = config;
         _save = save;
     }
@@ -379,9 +382,31 @@ public sealed class CrucibleTeamWindow : Window
         }
     }
 
+    /// <summary>Start / stop a Crucible recording (the same as /dae crucible record).</summary>
+    private void DrawRecord()
+    {
+        if (_recorder() is not { } recorder)
+            return;
+
+        var recording = recorder.Recording;
+        if (recording)
+            ImGui.PushStyleColor(ImGuiCol.Button, DaedalusTheme.StatusRed);
+        if (ImGui.Button(recording ? "Stop recording##crucibleRecord" : "Record##crucibleRecord"))
+            _recordStatus = recorder.Toggle();
+        if (recording)
+            ImGui.PopStyleColor();
+        if (ImGui.IsItemHovered())
+            ImGui.SetTooltip(recording
+                ? "Recording the Crucible. Stop it after the run (or where something went wrong) and send it over.\n" + _recordStatus
+                : "Records the screens, clicks, your position and HP and your familiars' HP for a run — what is needed\n"
+                  + "to see what went wrong. Same as /dae crucible record. Files go to pluginConfigs\\Daedalus\\crucible-recordings.");
+    }
+
     /// <summary>On a board: the autopilot switch and what it did last.</summary>
     private void DrawAutoPilot()
     {
+        DrawRecord();
+        ImGui.SameLine();
         var config = _config();
         var on = config.CrucibleAutoPilot;
         if (ImGui.Checkbox("Autopilot##crucibleAuto", ref on))
@@ -398,14 +423,15 @@ public sealed class CrucibleTeamWindow : Window
 
         ImGui.SameLine();
         var items = config.CrucibleLootTakeItems;
-        if (ImGui.Checkbox("Take loot items##crucibleItems", ref items))
+        if (ImGui.Checkbox("Take beast gear##crucibleItems", ref items))
         {
             config.CrucibleLootTakeItems = items;
             _save();
         }
 
         if (ImGui.IsItemHovered())
-            ImGui.SetTooltip("Also take the first item from the spoils. Beast gear helps you survive; it costs the Nameday Attire bonus.");
+            ImGui.SetTooltip("Also take beast gear from the spoils (the first gear offered; potions and other items are left).\n"
+                             + "It helps you survive; it costs the Nameday Attire bonus.");
 
         ImGui.SameLine();
         var walk = config.CrucibleWalkBoard;

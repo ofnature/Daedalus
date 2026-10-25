@@ -23,6 +23,18 @@ public enum BeastModeUse
 /// cooldown and still refused" stands in for "out of TP".
 /// </para>
 /// </summary>
+/// <summary>What Shield Charge is for this frame.</summary>
+public enum ShieldChargeUse
+{
+    None,
+
+    /// <summary>Rush to a target that is a run away.</summary>
+    GapClose,
+
+    /// <summary>In melee, with a charge to spare.</summary>
+    Damage,
+}
+
 public static class ArtemisCooldownRules
 {
     /// <summary>
@@ -129,13 +141,30 @@ public static class ArtemisCooldownRules
     public static bool ShouldRallyingCheer(bool enabled, bool ready, bool hasFamiliar, double trickStarvedSeconds)
         => enabled && ready && hasFamiliar && trickStarvedSeconds >= StarvedSeconds;
 
+    /// <summary>Beyond this edge distance the target is a run away, not a step: Shield Charge closes it.</summary>
+    public const float ShieldChargeGapYalms = 5f;
+
     /// <summary>
-    /// Shield Charge (Lv24): a rush that hits the target and everything near it — real damage on a 60s charge.
-    /// Only from inside melee range, where the rush goes nowhere: a dash across the room is how a character
-    /// lands in an AoE, and closing distance is the movement code's job.
+    /// Shield Charge (Lv24): a rush that hits the target and everything near it (300 at Lv38+), 3 charges from Lv36.
+    /// <list type="bullet">
+    /// <item><b>Gap close</b> — target 5-20y off and the dash is safe (the shared gap-closer guard: no dodge in
+    /// progress, ground and landing safe, your own target, not moving away). Field 2026-10-25: every multi-second GCD
+    /// gap in a Board 1 clear was the beastmaster running across the arena after spread adds.</item>
+    /// <item><b>Damage</b> — in melee, only while it leaves a charge banked for the next gap (so never below Lv36,
+    /// where it has one charge).</item>
+    /// </list>
     /// </summary>
-    public static bool ShouldShieldCharge(bool enabled, bool ready, float edgeDistanceYalms)
-        => enabled && ready && edgeDistanceYalms <= MeleeYalms;
+    public static ShieldChargeUse DecideShieldCharge(
+        bool enabled, bool gapCloseEnabled, bool ready, int charges, float edgeDistanceYalms, float rangeYalms, bool dashSafe)
+    {
+        if (!enabled || !ready || charges <= 0)
+            return ShieldChargeUse.None;
+
+        if (edgeDistanceYalms >= ShieldChargeGapYalms)
+            return gapCloseEnabled && dashSafe && edgeDistanceYalms <= rangeYalms ? ShieldChargeUse.GapClose : ShieldChargeUse.None;
+
+        return edgeDistanceYalms <= MeleeYalms && charges >= 2 ? ShieldChargeUse.Damage : ShieldChargeUse.None;
+    }
 
     /// <summary>
     /// Borrow (Lv22): takes the familiar's Kinship, which turns Beast Mode into that kin's action. It needs
@@ -157,6 +186,21 @@ public static class ArtemisCooldownRules
     //    Snarl up the Voidmancer fight cost the beastmaster 7%. Snarl's recast (15s) matches its Threaten, and its
     //    Cover takes ALL damage meant for the beastmaster for 45s — so it goes on cooldown while the familiar can soak.
     //    Twelve familiars hold ~9,600 HP; the beastmaster's 1,733 must last the whole board.
+
+    /// <summary>A familiar under this much HP on a board is about to fall: spend it before it does.</summary>
+    public const float FamiliarFallingHpPct = 0.20f;
+
+    /// <summary>
+    /// Crucible: the familiar is about to fall — its Tempered Release, then Parting Blow, before it does. A fallen
+    /// familiar takes its unspent release with it, and Parting Blow (1,000 potency) RETREATS the familiar rather
+    /// than letting it be knocked out, so it keeps its last HP for later. Field 2026-10-25: familiars tanked until
+    /// they died with nothing spent. 0 HP is already fallen.
+    /// </summary>
+    public static bool IsFamiliarFalling(bool enabled, bool onBoard, float familiarHpPct)
+        => enabled && onBoard && familiarHpPct > 0f && familiarHpPct < FamiliarFallingHpPct;
+
+    /// <summary>Parting Blow (and Wespe's Final Sting, the same trade) when chosen, or when the familiar is falling.</summary>
+    public static bool AllowsPartingBlow(bool enabled, bool familiarFalling) => enabled || familiarFalling;
 
     /// <summary>Challenge only to save a familiar this low…</summary>
     public const float ChallengeFamiliarBelowHpPct = 0.25f;

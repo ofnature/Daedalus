@@ -7,6 +7,7 @@ using Dalamud.Game.ClientState.Objects.Enums;
 using Dalamud.Game.ClientState.Objects.SubKinds;
 using Dalamud.Hooking;
 using Dalamud.Plugin.Services;
+using FFXIVClientStructs.FFXIV.Client.Game;
 using FFXIVClientStructs.FFXIV.Client.Game.Event;
 using FFXIVClientStructs.FFXIV.Client.Game.InstanceContent;
 using FFXIVClientStructs.FFXIV.Client.UI;
@@ -52,14 +53,75 @@ public sealed unsafe class CrucibleRecorder : IDisposable
     private bool _inCombat;
     private System.Numerics.Vector3 _lastPos = new(float.NaN);
     private float _lastHpPct = -1f;
+    private string _statusState = "";
+    private string _releaseState = "";
     private Dictionary<ulong, string> _objects = new();
 
-    public CrucibleRecorder(IGameInteropProvider interop, string configFolder, Action<string> log)
+    private readonly Daedalus.Services.ICombatEventService? _combat;
+    private readonly System.Collections.Concurrent.ConcurrentQueue<(DateTime At, uint Caster, uint Target, uint Action, int Amount, bool Crit)> _actions = new();
+
+    /// <param name="combat">Action results from every caster — logged for you and your familiar as ACT / HIT lines.</param>
+    public CrucibleRecorder(
+        IGameInteropProvider interop, string configFolder, Action<string> log, Daedalus.Services.ICombatEventService? combat = null)
     {
         _interop = interop;
         _folder = Path.Combine(configFolder, "crucible-recordings");
         _log = log;
+        _combat = combat;
     }
+
+    // Hook thread: queue only; Update writes them (with names) on the framework thread.
+    private void OnAbilityUsed(uint caster, uint action) => _actions.Enqueue((DateTime.Now, caster, 0, action, -1, false));
+
+    private void OnDamageDealt(Daedalus.Services.DamageDealtEvent e)
+        => _actions.Enqueue((DateTime.Now, e.CasterEntityId, e.TargetEntityId, e.ActionId, e.Amount, e.IsCrit));
+
+    /// <summary>
+    /// Every action you or your familiar resolve (ACT) and every hit you or it land (HIT), with names — the rotation as
+    /// the game saw it. Other casters' lines are dropped.
+    /// </summary>
+    private void DrainActions(IPlayerCharacter? player, IObjectTable objects)
+    {
+        if (player == null)
+        {
+            _actions.Clear();
+            return;
+        }
+
+        var self = player.EntityId;
+        while (_actions.TryDequeue(out var a))
+        {
+            var caster = objects.SearchByEntityId(a.Caster);
+            var mine = a.Caster == self || caster?.OwnerId == self;
+            if (!mine)
+                continue;
+
+            var who = a.Caster == self ? "YOU" : $"PET {caster?.Name.TextValue}";
+            var name = ActionName(a.Action);
+            if (a.Amount < 0)
+            {
+                Write($"ACT {who} {name} ({a.Action})");
+                continue;
+            }
+
+            var target = objects.SearchByEntityId(a.Target)?.Name.TextValue ?? $"#{a.Target:X}";
+            Write($"HIT {who} {name} -> {target} {a.Amount}{(a.Crit ? " crit" : "")}");
+        }
+    }
+
+    private readonly Dictionary<uint, string> _actionNames = new();
+
+    private string ActionName(uint id)
+    {
+        if (_actionNames.TryGetValue(id, out var cached))
+            return cached;
+        var name = ActionNameLookup?.Invoke(id) ?? $"#{id}";
+        _actionNames[id] = name;
+        return name;
+    }
+
+    /// <summary>Action id → name (set by the plugin from the Action sheet).</summary>
+    public Func<uint, string>? ActionNameLookup { get; set; }
 
     public bool Recording => _file != null;
 
@@ -85,6 +147,12 @@ public sealed unsafe class CrucibleRecorder : IDisposable
             _callbackHook.Enable();
             HookAgent(AgentId.XBMStageDetailList, "XBMStageDetailList");
             HookAgent(AgentId.XBMPetParty, "XBMPetParty");
+
+            if (_combat != null)
+            {
+                _combat.OnAbilityUsed += OnAbilityUsed;
+                _combat.OnDamageDealt += OnDamageDealt;
+            }
 
             Write("recording started");
             return $"Recording the Crucible to {path}. Play the board, then \"/dae crucible record\" again to stop.";
@@ -134,6 +202,10 @@ public sealed unsafe class CrucibleRecorder : IDisposable
         if (player == null)
             return;
 
+        PollStatuses(player);
+        PollReleaseReadiness(player);
+        DrainActions(player, objects);
+
         var pos = player.Position;
         if (float.IsNaN(_lastPos.X) || System.Numerics.Vector3.Distance(pos, _lastPos) >= 0.75f)
         {
@@ -171,6 +243,49 @@ public sealed unsafe class CrucibleRecorder : IDisposable
         }
 
         _objects = now;
+    }
+
+    /// <summary>
+    /// Your buffs as they come and go — One with Nature (4601, from a Battlehorn summon; Tempered Release or Borrow
+    /// spends it), the Kinships Borrow grants, Covered (Snarl) — so the recording shows what the rotation could press.
+    /// </summary>
+    private void PollStatuses(IPlayerCharacter player)
+    {
+        var ids = player.StatusList.Where(s => s.StatusId != 0).Select(s => s.StatusId).OrderBy(id => id).ToList();
+        var state = string.Join(",", ids);
+        if (state == _statusState)
+            return;
+
+        var before = _statusState.Length == 0 ? [] : _statusState.Split(',').Select(uint.Parse).ToList();
+        var gained = ids.Except(before).ToList();
+        var lost = before.Except(ids).ToList();
+        _statusState = state;
+        if (gained.Count > 0 || lost.Count > 0)
+            Write($"STATUS +[{string.Join(",", gained)}] -[{string.Join(",", lost)}]{(ids.Contains(4601u) ? " (One with Nature up)" : "")}");
+    }
+
+    /// <summary>
+    /// What the game answers for Tempered Release (both rows: 44890 self, 47092 hostile) and Borrow on your target —
+    /// 0 is usable. The rotation fires them only on 0, and "never used" means it never saw one.
+    /// </summary>
+    private unsafe void PollReleaseReadiness(IPlayerCharacter player)
+    {
+        var am = ActionManager.Instance();
+        if (am == null)
+            return;
+
+        var target = player.TargetObject?.GameObjectId ?? 0xE0000000;
+        var self = player.GameObjectId;
+        var state = $"44890@target={am->GetActionStatus(ActionType.Action, 44890, target)} "
+                    + $"44890@self={am->GetActionStatus(ActionType.Action, 44890, self)} "
+                    + $"47092@target={am->GetActionStatus(ActionType.Action, 47092, target)} "
+                    + $"borrow={am->GetActionStatus(ActionType.Action, 44895, self)} "
+                    + $"adjusted44890={am->GetAdjustedActionId(44890)}";
+        if (state == _releaseState)
+            return;
+
+        _releaseState = state;
+        Write($"RELEASE {state}");
     }
 
     private void PollAddons()
@@ -361,6 +476,12 @@ public sealed unsafe class CrucibleRecorder : IDisposable
 
     private void Stop()
     {
+        if (_combat != null)
+        {
+            _combat.OnAbilityUsed -= OnAbilityUsed;
+            _combat.OnDamageDealt -= OnDamageDealt;
+        }
+
         Write("recording stopped");
         _callbackHook?.Disable();
         foreach (var hook in _agentHooks.Values)

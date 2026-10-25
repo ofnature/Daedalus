@@ -42,7 +42,7 @@ namespace Daedalus;
 
 public sealed class Plugin : IDalamudPlugin
 {
-    public const string PluginVersion = "0.1.105";
+    public const string PluginVersion = "0.1.106";
     private const string CommandName = "/daedalus";
 
     /// <summary>LAN relay channel for Necromancer Deep Freeze "heal me to full" announcements.</summary>
@@ -1300,7 +1300,8 @@ public sealed class Plugin : IDalamudPlugin
             configuration.Beastmaster.CrucibleRanks[no] = rank;
             SaveConfiguration();
         });
-        this.crucibleAutoPilot = new Daedalus.Services.Beastmaster.CrucibleAutoPilot(m => log.Info(m));
+        this.crucibleAutoPilot = new Daedalus.Services.Beastmaster.CrucibleAutoPilot(
+            m => log.Info(m), id => crucibleTracker.Index.BeastGear.Contains(id), id => crucibleTracker.Index.ItemName(id));
         this.crucibleLoop = new Daedalus.Services.Beastmaster.CrucibleLoop(m => log.Info(m));
         // The Bestiary shows TRUE ranks (team screens sync them to the board), so its reading overwrites — and can
         // repair a rank a synced screen once lowered.
@@ -1326,10 +1327,15 @@ public sealed class Plugin : IDalamudPlugin
         };
         this.crucibleTeamWindow = new CrucibleTeamWindow(
             crucibleTracker.Index, no => crucibleBestiary.IsPetUnlocked((uint)no), () => crucibleHornSetter,
-            () => crucibleRosterLoader, () => crucibleAutoPilot, () => crucibleLoop, () => crucibleWalker, () => crucibleBestiaryScanner,
+            () => crucibleRosterLoader, () => crucibleAutoPilot, () => crucibleLoop, () => crucibleWalker, () => crucibleBestiaryScanner, () => crucibleRecorder,
             () => configuration.Beastmaster, SaveConfiguration);
         this.crucibleRecorder = new Daedalus.Services.Beastmaster.CrucibleRecorder(
-            gameInteropProvider, pluginInterface.ConfigDirectory.FullName, m => log.Info(m));
+            gameInteropProvider, pluginInterface.ConfigDirectory.FullName, m => log.Info(m), combatEventService)
+        {
+            ActionNameLookup = id => dataManager.GetExcelSheet<Lumina.Excel.Sheets.Action>().GetRowOrDefault(id)?.Name.ExtractText() is { Length: > 0 } n
+                ? n
+                : $"#{id}",
+        };
         windowSystem.AddWindow(crucibleWindow);
         windowSystem.AddWindow(crucibleTeamWindow);
         this.clientState.TerritoryChanged += OnCrucibleTerritoryChanged;

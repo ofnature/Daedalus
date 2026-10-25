@@ -467,23 +467,21 @@ public abstract class BaseMeleeDpsRotation<TContext, TModule> : BaseRotation<TCo
     /// </summary>
     protected bool IsMaxMeleeMaintenanceAllowed()
     {
-        if (!Configuration.EnableAutoMovement || !Configuration.MaintainMaxMelee)
-            return false;
-
         // Playing a role-play kit: the character on screen is not this job (RoleplayActionPolicy.JobMovementAllowed).
         if (!Daedalus.Rotation.Roleplay.RoleplayActionPolicy.JobMovementAllowed(true, RotationServices.RoleplayActive))
             return false;
 
-        // Limited jobs opt out. Unlike the positional movers this is not opt-in per job and it runs
-        // solo, so without this check a limited job would inherit range-keeping by default.
-        if (!LimitedJobContentPolicy.AllowsAutoMovement(PlayerJobId))
-            return false;
-
-        // Solo Position Lock disables max-melee positioning when solo (no party members).
-        if (Configuration.Nav.SoloPositionLock && PartyList.Length == 0)
-            return false;
-
-        return true;
+        // Limited jobs opt out (unlike the positional movers this runs solo and is not opt-in per job, so a limited job
+        // would otherwise inherit range-keeping by default) — except on a Crucible board, Beastmaster's own melee
+        // content, where its "keep in melee range" setting decides (see MeleeRangeKeeping).
+        return MeleeRangeKeeping.Allowed(
+            autoMovement: Configuration.EnableAutoMovement,
+            maintainMaxMelee: Configuration.MaintainMaxMelee,
+            limitedJob: !LimitedJobContentPolicy.AllowsAutoMovement(PlayerJobId),
+            soloPositionLock: Configuration.Nav.SoloPositionLock,
+            solo: PartyList.Length == 0,
+            onCrucibleBoard: Daedalus.Services.Beastmaster.CrucibleTracker.Current.OnBoard,
+            crucibleKeepInMelee: Configuration.Beastmaster.CrucibleKeepInMelee);
     }
 
     /// <summary>

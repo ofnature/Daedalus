@@ -3,6 +3,27 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.106 — 2026-10-25
+
+### Beastmaster — the Crucible
+- **Beast gear, not just the first item.** *Take beast gear* (was *Take loot items*) now takes the first piece of
+  beast gear the spoils offer — Ring of Sacrifice, Belt of Constitution, armour — wherever it sits in the list,
+  and leaves potions and other items. Each spoils window is logged with what was offered and what was taken.
+- **A Record button** in the Crucible team window starts and stops a Crucible recording — no command to
+  remember.
+- **You walk into melee range on a board.** Beastmaster never moved itself into reach (limited jobs had range-
+  keeping switched off), so with nothing else positioning you the axe could miss for a whole fight — 4-minute
+  fights and a wipe at the Banemite on one character. On a Crucible board Daedalus now walks you in.
+  Settings ▸ Beastmaster ▸ Crucible ▸ *Keep in melee range on a board* (on by default).
+- **Shield Charge closes the gap.** When your target is 5-20y away, Beastmaster rushes in with Shield Charge
+  instead of running — only when the dash is safe (no dodge in progress, safe landing, your own target). In melee it
+  is still used for damage, but always keeps one charge banked for the next gap. *Close gaps with Shield Charge*
+  (on by default).
+- **A falling familiar is spent, not lost.** Under 20% HP on a board, your familiar fires its Tempered Release (if
+  still unused) and then Parting Blow — 1,000 potency, and it retreats instead of being knocked out, so it keeps
+  its last HP for later in the run. *Spend a falling familiar* (on by default).
+
+<!-- LATEST-END -->
 ## v0.1.105 — 2026-10-25
 
 ### Movement — fix: Ariadne was never used on Auto
@@ -57,7 +78,6 @@ All notable changes to Daedalus will be documented in this file.
   ends the board; a familiar's costs one beast. Snarl goes out whenever it is ready (its Cover takes all your
   damage), and Challenge only pulls the enemy back to save a familiar under 25% while you are above 70%.
 
-<!-- LATEST-END -->
 ## v0.1.104 — 2026-10-22
 
 ### Beastmaster — the Crucible of the Unbroken

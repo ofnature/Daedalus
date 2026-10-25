@@ -21,6 +21,7 @@ public sealed unsafe class CrucibleAutoPilot
     private static readonly TimeSpan StepEvery = TimeSpan.FromMilliseconds(700);
     private static readonly TimeSpan ResultCloseAfter = TimeSpan.FromSeconds(4);
     private static readonly TimeSpan CampSettle = TimeSpan.FromSeconds(1);
+    private static readonly TimeSpan LootSettle = TimeSpan.FromSeconds(1);
 
     private readonly Action<string> _log;
     private DateTime _nextStepUtc;
@@ -31,9 +32,20 @@ public sealed unsafe class CrucibleAutoPilot
     private bool _treasureTried, _shopTried, _restTried;
     private DateTime _resultSentUtc;
     private DateTime _campSinceUtc;
+    private DateTime _lootSinceUtc;
     private float _selfHpPct = 1f;
 
-    public CrucibleAutoPilot(Action<string> log) => _log = log;
+    private readonly Func<int, bool> _isBeastGear;
+    private readonly Func<int, string> _itemName;
+
+    /// <param name="isBeastGear">Whether an XBMItem row is beast gear (what is taken from the spoils).</param>
+    /// <param name="itemName">An XBMItem's name (the spoils window holds only ids).</param>
+    public CrucibleAutoPilot(Action<string> log, Func<int, bool> isBeastGear, Func<int, string> itemName)
+    {
+        _log = log;
+        _isBeastGear = isBeastGear;
+        _itemName = itemName;
+    }
 
     /// <summary>What it did last, for the team window.</summary>
     public string Status { get; private set; } = "";
@@ -107,13 +119,18 @@ public sealed unsafe class CrucibleAutoPilot
         var loot = Visible("XBMContentsBooty");
         if (loot != null)
         {
+            // The window opens empty and fills its rows a moment later: reading it on the first frame saw no offers
+            // and never took gear (field 2026-10-25, Saar: "spoils — nothing" every battle). Let it fill and stand.
+            if (_lootSinceUtc == default)
+                _lootSinceUtc = now;
+            if (now - _lootSinceUtc < LootSettle || loot->AtkValuesCount <= CrucibleAutoPilotRules.LootItemIdIndex(CrucibleAutoPilotRules.LootMaxRows - 1))
+                return;
+
             switch (CrucibleAutoPilotRules.NextLootStep(takeItems, _lootItemTried, _lootTokensTried))
             {
                 case CrucibleLootStep.TakeItem:
                     _lootItemTried = true;
-                    Expect("Take ", now);
-                    Fire(loot, 4, 0);
-                    Done(now, "Taking the first item.");
+                    TakeGear(now, loot);
                     break;
                 case CrucibleLootStep.TakeTokens:
                     _lootTokensTried = true;
@@ -132,6 +149,7 @@ public sealed unsafe class CrucibleAutoPilot
         }
 
         _lootItemTried = _lootTokensTried = false;
+        _lootSinceUtc = default;
 
         var treasure = Visible("XBMContentsTreasure");
         if (treasure != null)
@@ -196,6 +214,35 @@ public sealed unsafe class CrucibleAutoPilot
                 Status = "Waiting for the horns…";
             }
         }
+    }
+
+    /// <summary>The spoils: take the first beast-gear row, and log what was offered either way.</summary>
+    private void TakeGear(DateTime now, AtkUnitBase* loot)
+    {
+        var offers = new List<int>(CrucibleAutoPilotRules.LootMaxRows);
+        var names = new List<string>();
+        for (var r = 0; r < CrucibleAutoPilotRules.LootMaxRows; r++)
+        {
+            var id = (int)Number(loot, CrucibleAutoPilotRules.LootItemIdIndex(r));
+            offers.Add(id);
+            if (id != 0)
+                names.Add($"{_itemName(id)}{(_isBeastGear(id) ? " (gear)" : "")}");
+        }
+
+        var pick = CrucibleAutoPilotRules.PickGear(offers, _isBeastGear);
+        var offeredText = names.Count == 0 ? "nothing" : string.Join(", ", names);
+        if (pick < 0)
+        {
+            _log($"Crucible: spoils — {offeredText}; no beast gear to take.");
+            Done(now, "No beast gear in the spoils.");
+            return;
+        }
+
+        var name = _itemName(offers[pick]);
+        _log($"Crucible: spoils — {offeredText}; taking {name}.");
+        Expect("Take ", now);
+        Fire(loot, 4, pick);
+        Done(now, $"Taking {name}.");
     }
 
     /// <summary>Campsite: select the most hurt standing beast, then rest.</summary>

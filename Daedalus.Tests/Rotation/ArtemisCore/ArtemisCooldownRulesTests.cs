@@ -67,20 +67,47 @@ public class ArtemisCooldownRulesTests
 
     // ── Shield Charge ────────────────────────────────────────────────────────────────────
 
-    /// <summary>Damage only. From range it is a dash, and a dash is how a character lands in an AoE.</summary>
+    private static ShieldChargeUse Charge(int charges, float edge, bool dashSafe = true, bool gapClose = true)
+        => ArtemisCooldownRules.DecideShieldCharge(true, gapClose, true, charges, edge, rangeYalms: 20f, dashSafe);
+
+    /// <summary>
+    /// Field 2026-10-25: the GCD gaps in a Board 1 clear were the beastmaster running after spread adds. A target 5-20y
+    /// off is closed with the rush, even on the last charge.
+    /// </summary>
     [Theory]
-    [InlineData(1.5f, true)]
-    [InlineData(3.0f, true)]
-    [InlineData(8.0f, false)]
-    [InlineData(19f, false)]
-    public void ShieldCharge_OnlyFromInsideMeleeRange(float edgeDistance, bool expected)
-        => Assert.Equal(expected, ArtemisCooldownRules.ShouldShieldCharge(true, true, edgeDistance));
+    [InlineData(1, 8f)]
+    [InlineData(3, 15f)]
+    [InlineData(1, 20f)]
+    public void ShieldCharge_ClosesAGap(int charges, float edge)
+        => Assert.Equal(ShieldChargeUse.GapClose, Charge(charges, edge));
+
+    /// <summary>Unsafe dash (dodge in progress, bad landing, not your target, moving away): nothing.</summary>
+    [Fact]
+    public void ShieldCharge_NoGapCloseWhenTheDashIsUnsafe()
+        => Assert.Equal(ShieldChargeUse.None, Charge(3, 10f, dashSafe: false));
+
+    [Fact]
+    public void ShieldCharge_NotBeyondItsRange() => Assert.Equal(ShieldChargeUse.None, Charge(3, 25f));
+
+    /// <summary>In melee it is damage — but one charge always stays banked for the next gap.</summary>
+    [Theory]
+    [InlineData(3, ShieldChargeUse.Damage)]
+    [InlineData(2, ShieldChargeUse.Damage)]
+    [InlineData(1, ShieldChargeUse.None)]
+    public void ShieldCharge_InMeleeBanksOneCharge(int charges, ShieldChargeUse expected)
+        => Assert.Equal(expected, Charge(charges, 1.5f));
+
+    /// <summary>Between a step and a run (3-5y) it is neither: the step is the movement code's.</summary>
+    [Fact]
+    public void ShieldCharge_NotForAStep() => Assert.Equal(ShieldChargeUse.None, Charge(3, 4f));
 
     [Fact]
     public void ShieldCharge_NotWhenOffOrOutOfCharges()
     {
-        Assert.False(ArtemisCooldownRules.ShouldShieldCharge(enabled: false, true, 1f));
-        Assert.False(ArtemisCooldownRules.ShouldShieldCharge(true, ready: false, 1f));
+        Assert.Equal(ShieldChargeUse.None, ArtemisCooldownRules.DecideShieldCharge(false, true, true, 3, 1f, 20f, true));
+        Assert.Equal(ShieldChargeUse.None, ArtemisCooldownRules.DecideShieldCharge(true, true, false, 3, 10f, 20f, true));
+        Assert.Equal(ShieldChargeUse.None, Charge(0, 10f));
+        Assert.Equal(ShieldChargeUse.None, Charge(3, 10f, gapClose: false));
     }
 
     // ── Borrow ───────────────────────────────────────────────────────────────────────────

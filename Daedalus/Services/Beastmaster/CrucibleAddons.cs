@@ -33,6 +33,10 @@ internal static unsafe class CrucibleAddons
         return text == null ? "" : text->NodeText.ToString().Trim();
     }
 
+    /// <summary>A window value as a flag, false when it is not one.</summary>
+    public static bool Bool(AtkUnitBase* unit, int index) =>
+        index < unit->AtkValuesCount && unit->AtkValues[index].Type == AtkValueType.Bool && unit->AtkValues[index].Byte != 0;
+
     /// <summary>A window value as a number, 0 when it is not one.</summary>
     public static long Number(AtkUnitBase* unit, int index)
     {
