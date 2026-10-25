@@ -812,6 +812,34 @@ public sealed class TargetingService : ITargetingService
             return;
 
         TryAutoRetargetOnCombatDeath(player);
+        TryRetargetToFightPriority(player);
+    }
+
+    /// <summary>
+    /// Layer 4: the fight's priority list names a valid enemy in reach that is not the hard target — make it the hard
+    /// target, so the GCDs and auto-attacks follow (see <see cref="CombatRetargetPolicy.ShouldFollowFightPriority"/>).
+    /// </summary>
+    private void TryRetargetToFightPriority(IPlayerCharacter player)
+    {
+        if (!CombatRetargetPolicy.ShouldFollowFightPriority(
+                _configuration.Targeting.EnemyStrategy,
+                IsPlayerEffectivelyInCombat(player),
+                IsHoldingNonEnemyTarget(),
+                ManualControlGrace.IsActive))
+        {
+            return;
+        }
+
+        RefreshFightHints();
+        if (_preferredByFight.Length == 0)
+            return;
+
+        var currentId = _targetManager.Target is IBattleNpc held ? held.GameObjectId : 0UL;
+        var pick = FightTargetHints.FirstPreferred(_preferredByFight, id =>
+            TryResolveValidEnemyInRange(id, CombatRetargetMaxRangeY, player) is { } e
+            && ShouldIncludeEnemyForTargeting(e, currentId, player) ? e : null);
+        if (pick != null && CombatRetargetPolicy.ShouldSwitchToPriority(currentId, pick.GameObjectId))
+            SetGameHardTarget(pick);
     }
 
     private bool IsCombatRetargetScenario(IPlayerCharacter player) =>

@@ -87,6 +87,34 @@ internal static class CombatRetargetPolicy
     }
 
     /// <summary>
+    /// Layer 4 gate: may the fight's priority list (Minerva's module: "these first") move the hard target? The GCDs and
+    /// auto-attacks go to the hard target, and until this only a death, an unreachable target or a facing refusal moved it,
+    /// so a priority add appearing beside a live boss was ignored. Crucible 2026-10-25: risen Zombie Pieces hit the
+    /// beastmaster for 4-17s while she stayed on the Voidmancer (a dead one was replaced in 0.02s), and the Tablitaur
+    /// module's "the fuller bull" went unheeded until one bull died with the other on 72%, which enrages the survivor.
+    /// <para>Not on an explicit strategy (CurrentTarget / FocusTarget: the target is the player's call), not out of
+    /// combat, not while the player holds an ally or NPC, and not within the manual-control grace.</para>
+    /// </summary>
+    public static bool ShouldFollowFightPriority(
+        EnemyTargetingStrategy strategy,
+        bool playerInCombat,
+        bool holdingNonEnemyTarget,
+        bool manualControlGraceActive)
+        => IsAggregateStrategy(strategy)
+           && playerInCombat
+           && !holdingNonEnemyTarget
+           && !manualControlGraceActive;
+
+    /// <summary>
+    /// Switch to <paramref name="pick"/>, the first priority enemy that resolves in reach, whenever it is not the hard target
+    /// already. Minerva orders the list by priority and, among equals, puts the player's own target first and then the
+    /// nearest, so on one of four equal adds the pick is the add already being hit, and a higher priority still wins: Ogre's
+    /// Wisps (2026-10-25) outrank the Great Wisp she may be on.
+    /// </summary>
+    public static bool ShouldSwitchToPriority(ulong currentHardTarget, ulong pick)
+        => pick != 0 && pick != currentHardTarget;
+
+    /// <summary>
     /// Strategy used to pick the game-target write on combat death retarget.
     /// Explicit strategies (CurrentTarget/FocusTarget) fall back to LowestHp for the pick.
     /// </summary>
