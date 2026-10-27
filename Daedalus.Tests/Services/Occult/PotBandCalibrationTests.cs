@@ -1,4 +1,6 @@
-using System;
+using System.IO;
+using System.Linq;
+using System.Text.RegularExpressions;
 using Daedalus.Config;
 using Daedalus.Services.Occult;
 using Xunit;
@@ -10,18 +12,16 @@ namespace Daedalus.Tests.Services.Occult;
 /// confirmed; the rest were estimates, and the plain band's 30y estimate was wrong by half —
 /// found by hand on 2026-08-15 after coffers kept landing outside every cone.
 /// <para>
-/// Serialised with the other tests that read <c>BandRange</c>, because the measurement hook is
-/// static and would otherwise leak across parallel classes.
+/// Hunts here never install their measurements into the static <c>BandRange</c> hook: xUnit runs
+/// classes in parallel, so whichever test built a hunt last decided what every other class read.
+/// What a hunt would install is checked through <c>BandRangeWith</c> instead.
 /// </para>
 /// </summary>
-[Collection("PotBandStaticState")]
-public sealed class PotBandCalibrationTests : IDisposable
+public sealed class PotBandCalibrationTests
 {
     private readonly PhantomConfig _config = new();
 
-    public void Dispose() => PotTreasureTriangulation.MeasuredBandMax = null;
-
-    private PotTreasureHunt Hunt() => new(null, null, null, _config);
+    private PotTreasureHunt Hunt() => new(null, null, null, _config, null, null, installMeasuredBands: false);
 
     private void Record(ElixirProximity band, float distance)
         => _config.PotHuntCalibration.Add(new PotHuntCalibrationSample
@@ -108,8 +108,8 @@ public sealed class PotBandCalibrationTests : IDisposable
         var (_, shipped) = PotTreasureTriangulation.ShippedBandRange(ElixirProximity.Within);
         Record(ElixirProximity.Within, shipped + 25f);
 
-        var hunt = Hunt();          // the constructor installs
-        var (_, live) = PotTreasureTriangulation.BandRange(ElixirProximity.Within);
+        var hunt = Hunt();
+        var (_, live) = PotTreasureTriangulation.BandRangeWith(hunt.MeasuredBands, ElixirProximity.Within);
 
         Assert.True(live > shipped, "BandRange must reflect the measurement");
         Assert.Equal(hunt.SuggestedBandMax(ElixirProximity.Within), live);
@@ -124,5 +124,50 @@ public sealed class PotBandCalibrationTests : IDisposable
     {
         Record(ElixirProximity.VeryFar, 900f);
         Assert.False(Hunt().IsBandWidened(ElixirProximity.VeryFar));
+    }
+
+    // ---------------- guard ----------------
+
+    /// <summary>
+    /// No test may write the band hook: not by assigning it, not through InstallMeasuredBands, and
+    /// not by building a hunt with the public constructor, which installs. The cone and region
+    /// tests read it through BandRange in parallel with whatever test wrote it.
+    /// </summary>
+    [Fact]
+    public void NoTestInstallsTheStaticBandHook()
+    {
+        var root = FindTestsRoot();
+        var offenders = Directory.EnumerateFiles(root, "*.cs", SearchOption.AllDirectories)
+            .Where(f => !f.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}")
+                        && !f.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}"))
+            .Where(f => WritesTheHook(File.ReadAllText(f)))
+            .Select(Path.GetFileName)
+            .ToList();
+
+        Assert.Empty(offenders);
+    }
+
+    private static bool WritesTheHook(string source)
+        => source.Contains(Assignment)
+           || source.Contains(Install)
+           || HuntConstruction.Matches(source).Any(m => !m.Value.Contains(OptOut));
+
+    // Built at runtime so this file doesn't match its own search.
+    private static readonly string Assignment = "PotTreasureTriangulation." + "MeasuredBandMax =";
+    private static readonly string Install = "." + "InstallMeasuredBands(";
+    private static readonly string OptOut = "installMeasuredBands" + ": false";
+
+    // A hunt built in a test, up to the ';': the explicit constructor call, or a target-typed one
+    // opening with three nulls (no chat, object table or client state is how a headless hunt starts).
+    private static readonly Regex HuntConstruction = new(
+        @"new\s*(?:" + "PotTreasureHunt" + @"\s*\(|\(\s*null\s*,\s*null\s*,\s*null\s*,)[^;]*;");
+
+    private static string FindTestsRoot()
+    {
+        var dir = new DirectoryInfo(System.AppContext.BaseDirectory);
+        while (dir is not null && !File.Exists(Path.Combine(dir.FullName, "Daedalus.Tests.csproj")))
+            dir = dir.Parent;
+        Assert.NotNull(dir);
+        return dir!.FullName;
     }
 }

@@ -135,6 +135,16 @@ public static class PotTreasureTriangulation
 
     /// <summary>Inclusive distance window a band allows, in yalms.</summary>
     public static (float Min, float Max) BandRange(ElixirProximity proximity)
+        => BandRangeWith(MeasuredBandMax, proximity);
+
+    /// <summary>
+    /// <see cref="BandRange"/> with the measurement hook passed in. Tests use this instead of
+    /// installing <see cref="MeasuredBandMax"/>: that static is process-wide, xUnit runs test
+    /// classes in parallel, and one class's hunt replaced another's measurements mid-test
+    /// (PotBandCalibrationTests failed about one Occult run in thirty, 2026-10-27).
+    /// </summary>
+    internal static (float Min, float Max) BandRangeWith(
+        Func<ElixirProximity, float?>? measuredBandMax, ElixirProximity proximity)
     {
         var (min, max) = ShippedBandRange(proximity);
 
@@ -142,7 +152,7 @@ public static class PotTreasureTriangulation
         // provably reaches at least that far. A find INSIDE the edge proves nothing about where
         // the edge is, so it must never pull the ceiling down — doing so would exclude the next
         // honest case and send the hunt confidently to the wrong place.
-        if (MeasuredBandMax?.Invoke(proximity) is { } measured && measured > max)
+        if (measuredBandMax?.Invoke(proximity) is { } measured && measured > max)
             max = measured;
 
         return (min, max);

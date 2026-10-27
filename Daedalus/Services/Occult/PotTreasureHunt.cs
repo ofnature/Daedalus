@@ -62,6 +62,24 @@ public sealed class PotTreasureHunt : IDisposable
         PhantomConfig? config,
         System.Action? save = null,
         IPluginLog? log = null)
+        : this(chatGui, objectTable, clientState, config, save, log, installMeasuredBands: true)
+    {
+    }
+
+    /// <summary>
+    /// Tests pass <paramref name="installMeasuredBands"/> false so building a hunt leaves the
+    /// process-wide <see cref="PotTreasureTriangulation.MeasuredBandMax"/> alone; they check what
+    /// would be installed through <see cref="MeasuredBands"/> and
+    /// <see cref="PotTreasureTriangulation.BandRangeWith"/> instead.
+    /// </summary>
+    internal PotTreasureHunt(
+        IChatGui? chatGui,
+        IObjectTable? objectTable,
+        IClientState? clientState,
+        PhantomConfig? config,
+        System.Action? save,
+        IPluginLog? log,
+        bool installMeasuredBands)
     {
         _chatGui = chatGui;
         _objectTable = objectTable;
@@ -73,7 +91,8 @@ public sealed class PotTreasureHunt : IDisposable
         // Measurements only help if the geometry actually reads them. Installed here rather than
         // at each call site because the cone renderer and the region solver both go through
         // BandRange and must never disagree about how far a reading reaches.
-        InstallMeasuredBands();
+        if (installMeasuredBands)
+            InstallMeasuredBands();
 
         if (_chatGui is null)
             return;
@@ -440,7 +459,10 @@ public sealed class PotTreasureHunt : IDisposable
     /// cones, the surviving region and the estimate all widen together.
     /// </summary>
     public void InstallMeasuredBands()
-        => PotTreasureTriangulation.MeasuredBandMax = band => SuggestedBandMax(band);
+        => PotTreasureTriangulation.MeasuredBandMax = MeasuredBands;
+
+    /// <summary>The hook <see cref="InstallMeasuredBands"/> installs.</summary>
+    internal Func<ElixirProximity, float?> MeasuredBands => band => SuggestedBandMax(band);
 
     /// <summary>Drop the current hunt's readings. A new hunt must never inherit old bearings.</summary>
     public void Reset()

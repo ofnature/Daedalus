@@ -13,7 +13,7 @@ namespace Daedalus.Tests.Services.Occult;
 public sealed class PotTreasureHuntTests
 {
     private static PotTreasureHunt Hunt(PhantomConfig? config = null)
-        => new(null, null, null, config ?? new PhantomConfig());
+        => new(null, null, null, config ?? new PhantomConfig(), null, null, installMeasuredBands: false);
 
     [Fact]
     public void HandleMessage_TurnsAReadingIntoABearing()
