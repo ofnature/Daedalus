@@ -206,4 +206,169 @@ public class CrucibleAutoPilotRulesTests
         Assert.Equal(6, CrucibleAutoPilotRules.TreasureItemIdIndex(0));
         Assert.Equal(21, CrucibleAutoPilotRules.TreasureItemIdIndex(3));
     }
+
+    // --- edges and boundaries ---
+
+    /// <summary>Gear still on offer is taken before leaving, even once the tokens have been tried.</summary>
+    [Fact]
+    public void GearStillComesFirstAfterTheTokens()
+        => Assert.Equal(CrucibleLootStep.TakeItem, CrucibleAutoPilotRules.NextLootStep(takeItems: true, gearDone: false, tokensTried: true));
+
+    /// <summary>With item taking off, whether the gear is done changes nothing: tokens, then leave.</summary>
+    [Fact]
+    public void WithItemsOffTheGearStateIsIgnored()
+    {
+        Assert.Equal(CrucibleLootStep.TakeTokens, CrucibleAutoPilotRules.NextLootStep(takeItems: false, gearDone: true, tokensTried: false));
+        Assert.Equal(CrucibleLootStep.Leave, CrucibleAutoPilotRules.NextLootStep(takeItems: false, gearDone: true, tokensTried: true));
+    }
+
+    /// <summary>The take guard is a ceiling: one under it keeps going, at or past it stops.</summary>
+    [Fact]
+    public void TheGearGuardIsAtTheCap()
+    {
+        Assert.False(CrucibleAutoPilotRules.LootGearDone(gearOffered: true, takes: CrucibleAutoPilotRules.MaxGearTakes - 1, lastTakeRefused: false));
+        Assert.True(CrucibleAutoPilotRules.LootGearDone(gearOffered: true, takes: CrucibleAutoPilotRules.MaxGearTakes + 1, lastTakeRefused: false));
+    }
+
+    /// <summary>Nothing taken yet and gear on offer: not done.</summary>
+    [Fact]
+    public void GearOnOfferBeforeAnyTakeIsNotDone()
+        => Assert.False(CrucibleAutoPilotRules.LootGearDone(gearOffered: true, takes: 0, lastTakeRefused: false));
+
+    [Fact]
+    public void NoOffersMeansNoGearPick()
+        => Assert.Equal(-1, CrucibleAutoPilotRules.PickGear([], IsGear));
+
+    /// <summary>An empty row (id 0) is skipped before the gear lookup is asked about it.</summary>
+    [Fact]
+    public void AnEmptyRowIsNeverLookedUp()
+        => Assert.Equal(2, CrucibleAutoPilotRules.PickGear([0, 0, 37], id =>
+        {
+            Assert.NotEqual(0, id);
+            return IsGear(id);
+        }));
+
+    /// <summary>An empty set of taken rows is the same as none.</summary>
+    [Fact]
+    public void NoTakenRowsIsTheSameAsNone()
+        => Assert.Equal(0, CrucibleAutoPilotRules.PickGear([2, 37], IsGear, new System.Collections.Generic.HashSet<int>()));
+
+    /// <summary>Exactly half HP is not "under half": a beast still shares the rest.</summary>
+    [Fact]
+    public void AtExactlyHalfHpABeastStillShares()
+        => Assert.Equal(1, CrucibleAutoPilotRules.CampsitePick([(500, 535), (100, 757)], selfHpPct: CrucibleAutoPilotRules.RestAloneBelowSelfHpPct));
+
+    /// <summary>Two beasts equally hurt: the first listed rests.</summary>
+    [Fact]
+    public void EquallyHurtBeastsGoInListOrder()
+        => Assert.Equal(0, CrucibleAutoPilotRules.CampsitePick([(100, 200), (50, 100), (300, 300)]));
+
+    /// <summary>A beast whose max HP was not read (0) cannot be compared: it is passed over, and alone it is no pick.</summary>
+    [Fact]
+    public void ABeastWithUnknownMaxHpIsPassedOver()
+    {
+        Assert.Equal(1, CrucibleAutoPilotRules.CampsitePick([(100, 0), (500, 1000)]));
+        Assert.Equal(-1, CrucibleAutoPilotRules.CampsitePick([(100, 0)]));
+    }
+
+    [Fact]
+    public void AnEmptyTeamHasNoCampsitePick()
+        => Assert.Equal(-1, CrucibleAutoPilotRules.CampsitePick([]));
+
+    /// <summary>The wait is inclusive: at exactly 1.5 s the battle starts; a tick earlier it does not.</summary>
+    [Fact]
+    public void TheBattleStartsAtExactlyTheWait()
+    {
+        var wait = CrucibleAutoPilotRules.StartBattleAfter;
+        Assert.True(CrucibleAutoPilotRules.ShouldStartBattle(7, 7, wait, alreadyStarted: 0));
+        Assert.False(CrucibleAutoPilotRules.ShouldStartBattle(7, 7, wait - TimeSpan.FromTicks(1), alreadyStarted: 0));
+    }
+
+    /// <summary>Having started a different battle earlier does not block this one.</summary>
+    [Fact]
+    public void AnEarlierBattleDoesNotBlockTheNext()
+        => Assert.True(CrucibleAutoPilotRules.ShouldStartBattle(8, 8, TimeSpan.FromSeconds(2), alreadyStarted: 7));
+
+    // --- treasure scores: the text as it can come ---
+
+    /// <summary>Lines split on CR as well as LF, so CRLF text scores the same as LF text.</summary>
+    [Fact]
+    public void CrLfEffectTextScoresLikeLf()
+        => Assert.Equal(
+            CrucibleAutoPilotRules.TreasureScore("Maximum HP +20%\nDamage Taken -10%"),
+            CrucibleAutoPilotRules.TreasureScore("Maximum HP +20%\r\nDamage Taken -10%"), 3);
+
+    [Fact]
+    public void SurroundingSpacesAreTrimmed()
+        => Assert.Equal(20f, CrucibleAutoPilotRules.TreasureScore("  Maximum HP +20%  "), 3);
+
+    /// <summary>Stats are matched by their whole name: "Physical Damage Dealt" is not "Damage Dealt".</summary>
+    [Fact]
+    public void StatsAreMatchedByTheirWholeName()
+    {
+        Assert.Equal(5f, CrucibleAutoPilotRules.TreasureScore("Physical Damage Dealt +10%"), 3);
+        Assert.Equal(1.5f, CrucibleAutoPilotRules.TreasureScore("Magic Damage Dealt +10%"), 3);
+        Assert.Equal(6f, CrucibleAutoPilotRules.TreasureScore("Damage Dealt +10%"), 3);
+    }
+
+    /// <summary>A stat the table does not know (Slow) is worth nothing, not an error.</summary>
+    [Fact]
+    public void AnUnknownStatScoresNothing() => Assert.Equal(0f, CrucibleAutoPilotRules.TreasureScore("Slow +10%"));
+
+    /// <summary>More damage taken is a drawback: the sign carries through the negative weight.</summary>
+    [Fact]
+    public void MoreDamageTakenCosts() => Assert.Equal(-15f, CrucibleAutoPilotRules.TreasureScore("Damage Taken +10%"), 3);
+
+    /// <summary>Each "on self" chance costs on its own line.</summary>
+    [Fact]
+    public void EachChanceOnSelfCosts()
+        => Assert.Equal(-16f, CrucibleAutoPilotRules.TreasureScore(
+            "5% chance to inflict Stun on self upon suffering damage.\n5% chance to inflict Bind on self upon suffering damage."), 3);
+
+    /// <summary>The revive line is worth a flat 40, whatever follows it.</summary>
+    [Fact]
+    public void TheReviveScoresFlat()
+        => Assert.Equal(40f, CrucibleAutoPilotRules.TreasureScore("Revives beastmaster once upon being KO'd."), 3);
+
+    /// <summary>An empty wanted list is the same as none: resistances score nothing.</summary>
+    [Fact]
+    public void AnEmptyWantedListIsLikeNone()
+        => Assert.Equal(0f, CrucibleAutoPilotRules.TreasureScore(CrimsonRibbon, []), 3);
+
+    /// <summary>A wanted resistance lowered by the item costs at the same weight.</summary>
+    [Fact]
+    public void ALoweredWantedResistanceCosts()
+        => Assert.Equal(-17.5f, CrucibleAutoPilotRules.TreasureScore("Paralysis Resistance -50%", ["Paralysis"]), 3);
+
+    /// <summary>The resistances each board calls for, and none for a board the research does not cover.</summary>
+    [Fact]
+    public void EachBoardsWantedResistances()
+    {
+        Assert.Equal(["Doom"], CrucibleAutoPilotRules.WantedResistances(2));
+        Assert.Equal(["Paralysis"], CrucibleAutoPilotRules.WantedResistances(3));
+        Assert.Equal(["Poison", "Paralysis"], CrucibleAutoPilotRules.WantedResistances(4));
+        Assert.Equal(["Paralysis", "Doom", "Petrification"], CrucibleAutoPilotRules.WantedResistances(5));
+        Assert.Empty(CrucibleAutoPilotRules.WantedResistances(0));
+        Assert.Empty(CrucibleAutoPilotRules.WantedResistances(6));
+        Assert.Empty(CrucibleAutoPilotRules.WantedResistances(-1));
+    }
+
+    /// <summary>Two offers that score the same: the first is picked.</summary>
+    [Fact]
+    public void ATreasureTieGoesToTheFirstOffer()
+        => Assert.Equal(1, CrucibleAutoPilotRules.PickTreasure([0, 1, 2], _ => Belt));
+
+    /// <summary>An offer that only costs is still picked when it is all there is: the coffer never stalls.</summary>
+    [Fact]
+    public void ANegativeOfferIsStillPickedWhenAlone()
+        => Assert.Equal(0, CrucibleAutoPilotRules.PickTreasure([5], _ => "5% chance to inflict Stun on self upon suffering damage."));
+
+    [Fact]
+    public void NoOffersMeansNoTreasurePick()
+        => Assert.Equal(-1, CrucibleAutoPilotRules.PickTreasure([], _ => Belt));
+
+    /// <summary>A taken row that is not on offer changes nothing.</summary>
+    [Fact]
+    public void ATakenRowOutsideTheOffersIsIgnored()
+        => Assert.Equal(0, CrucibleAutoPilotRules.PickTreasure([1], _ => Belt, new System.Collections.Generic.HashSet<int> { 7 }));
 }
