@@ -93,8 +93,9 @@ public sealed class CrucibleIndex
     /// <param name="itemNames">XBMItem names by row (column 11), for logs.</param>
     public CrucibleIndex(
         IEnumerable<CrucibleBoard> boards, IEnumerable<CrucibleEnemy> enemies, IEnumerable<int>? beastGear = null,
-        IReadOnlyDictionary<int, string>? itemNames = null)
+        IReadOnlyDictionary<int, string>? itemNames = null, IReadOnlyDictionary<int, string>? itemEffects = null)
     {
+        _itemEffects = itemEffects ?? new Dictionary<int, string>();
         Boards = boards.ToList();
         Enemies = enemies.ToList();
         BeastGear = (beastGear ?? []).ToHashSet();
@@ -111,6 +112,11 @@ public sealed class CrucibleIndex
     public IReadOnlySet<int> BeastGear { get; }
 
     private readonly IReadOnlyDictionary<int, string> _itemNames;
+
+    private readonly IReadOnlyDictionary<int, string> _itemEffects;
+
+    /// <summary>An XBMItem's effect text (column 12, e.g. "Maximum HP +20%"), or "".</summary>
+    public string ItemEffect(int itemId) => _itemEffects.TryGetValue(itemId, out var effect) ? effect : "";
 
     /// <summary>An XBMItem's name, or "item #id".</summary>
     public string ItemName(int itemId) => _itemNames.TryGetValue(itemId, out var name) && name.Length > 0 ? name : $"item #{itemId}";

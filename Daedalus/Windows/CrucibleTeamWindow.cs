@@ -61,6 +61,18 @@ public sealed class CrucibleTeamWindow : Window
         _screensWereOpen = screensOpen;
     }
 
+    /// <summary>
+    /// Just the run controls, for the edge dock's Crucible tab: autopilot, walk, gear, runs to loop and end-after-this-run,
+    /// record, and Start run while a board's layout is open.
+    /// </summary>
+    public void DrawControls()
+    {
+        DrawAutoPilot();
+        var screen = CrucibleRosterLoader.ScreenBoard();
+        if (CrucibleTracker.Current.Board == null && _index.Boards.FirstOrDefault(b => b.Index == screen) is { } board)
+            DrawStart(board);
+    }
+
     public override void Draw()
     {
         var onBoard = CrucibleTracker.Current.Board;
@@ -222,11 +234,14 @@ public sealed class CrucibleTeamWindow : Window
 
         if (_bestiary() is { } bestiary)
         {
-            if (bestiary.Scanning)
+            // Read once: clicking starts the scan mid-frame, and re-reading Scanning then ended a disabled block that
+            // was never begun (ImGui assert, Korha 2026-10-27).
+            var scanning = bestiary.Scanning;
+            if (scanning)
                 ImGui.BeginDisabled();
             if (ImGui.SmallButton("Read ranks##crucibleReadRanks"))
                 bestiary.StartScan();
-            if (bestiary.Scanning)
+            if (scanning)
                 ImGui.EndDisabled();
             if (ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenDisabled))
                 ImGui.SetTooltip("Opens the Master's Bestiary and reads every beast's true rank (team screens show ranks\n"
@@ -457,7 +472,23 @@ public sealed class CrucibleTeamWindow : Window
         if (ImGui.IsItemHovered())
             ImGui.SetTooltip("With the autopilot on: after a run, talk to Lauda (stand next to her), open the same board, set the\n"
                              + "team for your goal (Level re-picks the lowest ranks each time) and go in again. One run is taken\n"
-                             + "off per board entered; 0 = no loop. You still walk the board yourself.");
+                             + "off per board entered, so on a board this is the runs still to come after this one; 0 = no loop.");
+
+        if (config.CrucibleLoopRuns > 0)
+        {
+            ImGui.SameLine();
+            var onBoard = CrucibleTracker.Current.OnBoard;
+            if (ImGui.SmallButton(onBoard ? "End after this run##crucibleEndLoop" : "Stop loop##crucibleEndLoop"))
+            {
+                config.CrucibleLoopRuns = 0;
+                _save();
+            }
+
+            if (ImGui.IsItemHovered())
+                ImGui.SetTooltip(onBoard
+                    ? "Finish this board (the autopilot and walker carry on) and do not go in again."
+                    : "Do not start another run.");
+        }
 
         if (on && !config.AutoCrucibleHorns)
             ImGui.TextColored(DaedalusTheme.StatusRed, "Turn on \"Set the Battlehorns before each battle\" — the autopilot waits for it.");

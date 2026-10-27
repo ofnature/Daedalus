@@ -84,6 +84,136 @@ public static class CrucibleAutoPilotRules
         return -1;
     }
 
+    /// <summary>The treasure coffer's offers: an XBMItem id at 6 + 5·i, up to four; a pick is [2, i].</summary>
+    public const int TreasureFirstOfferId = 6;
+    public const int TreasureMaxRows = 4;
+
+    public static int TreasureItemIdIndex(int row) => TreasureFirstOfferId + (LootRowStride * row);
+
+    // What a point of each stat is worth in a coffer pick. Every Crucible death so far was HP attrition (no healing,
+    // HP carried between battles), so staying alive outranks damage. A "taken"/"vulnerability" weight is negative
+    // because lower is better there.
+    private static readonly (string Stat, float Weight)[] TreasureWeights =
+    [
+        ("Maximum HP", 1.0f),
+        ("Damage Taken", -1.5f),
+        ("Physical Vulnerability", -1.0f),
+        ("Magic Vulnerability", -0.6f),
+        ("Physical Damage Dealt", 0.5f),
+        ("Magic Damage Dealt", 0.15f),
+        ("Damage Dealt", 0.6f),
+        ("Haste", 0.4f),
+        ("Critical Hit Rate", 0.3f),
+        ("Evasion", 0.3f),
+        ("Rapid Recast", 0.2f),
+        ("Movement Speed", 0.2f),
+        ("TP Accumulation", 0.1f),
+        ("Block Strength", 0.05f),
+        ("Loot Drop Rate", 0.05f),
+        ("Territory Tokens Earned", 0.05f),
+    ];
+
+    private static readonly System.Text.RegularExpressions.Regex TreasureStatLine =
+        new(@"^(?<stat>[A-Za-z' ]+?) (?<sign>[+-])(?<n>\d+)%", System.Text.RegularExpressions.RegexOptions.Compiled);
+
+    /// <summary>Per point of a resistance the board calls for ("Paralysis Resistance +100%" scores 35).</summary>
+    public const float WantedResistanceWeight = 0.35f;
+
+    /// <summary>
+    /// The statuses each board's fights make worth resisting, by board (XBMContent row, = CrucibleBoard.Index). Research 2026-10-26
+    /// (docs/crucible-boards-guide.md): Board 2's Taurus/Ahriman Doom; Board 3's Guttler Thunderbolt and Sahagin spikes
+    /// (uncleansable Paralysis); First Master's Borgny (poison resistance "trivializes" it) and Morbol; Second Master's
+    /// Lauda (anti-paralysis "mandatory"), King Ahriman's Dirty Eye Doom, Medusa and Deepeye petrification.
+    /// </summary>
+    public static IReadOnlyList<string> WantedResistances(int board) => board switch
+    {
+        2 => ["Doom"],
+        3 => ["Paralysis"],
+        4 => ["Poison", "Paralysis"],
+        5 => ["Paralysis", "Doom", "Petrification"],
+        _ => [],
+    };
+
+    private static readonly System.Text.RegularExpressions.Regex RecoverAfterBattle =
+        new(@"Recovers (?<n>\d+)% of maximum HP at the end of battles", System.Text.RegularExpressions.RegexOptions.Compiled);
+
+    /// <summary>
+    /// How much a piece of beast gear is worth from a coffer, read from its effect text (XBMItem column 12, e.g.
+    /// "Maximum HP +20%"): survival first (Max HP, damage taken down, HP back after battles, the revive), then damage.
+    /// A chance to Stun, Doom or chain yourself costs points. Unknown text scores 0.
+    /// </summary>
+    /// <para>A resistance the board calls for (<paramref name="wantedResistances"/>, e.g. "Paralysis" for
+    /// "Paralysis Resistance +100%") scores <see cref="WantedResistanceWeight"/> per point.</para>
+    public static float TreasureScore(string? effect, IReadOnlyCollection<string>? wantedResistances = null)
+    {
+        if (string.IsNullOrEmpty(effect))
+            return 0f;
+
+        var score = 0f;
+        foreach (var raw in effect.Split('\n', '\r'))
+        {
+            var line = raw.Trim();
+            var m = TreasureStatLine.Match(line);
+            if (m.Success)
+            {
+                var stat = m.Groups["stat"].Value;
+                var value = int.Parse(m.Groups["n"].Value) * (m.Groups["sign"].Value == "-" ? -1 : 1);
+                if (wantedResistances != null && stat.EndsWith(" Resistance", StringComparison.Ordinal)
+                    && wantedResistances.Contains(stat[..^" Resistance".Length]))
+                {
+                    score += WantedResistanceWeight * value;
+                    continue;
+                }
+
+                foreach (var (name, weight) in TreasureWeights)
+                {
+                    if (string.Equals(stat, name, StringComparison.Ordinal))
+                    {
+                        score += weight * value;
+                        break;
+                    }
+                }
+
+                continue;
+            }
+
+            var recover = RecoverAfterBattle.Match(line);
+            if (recover.Success)
+                score += 1.2f * int.Parse(recover.Groups["n"].Value);
+            else if (line.StartsWith("Revives beastmaster", StringComparison.Ordinal))
+                score += 40f;
+            else if (line.Contains("on self", StringComparison.Ordinal))
+                score -= 8f;
+        }
+
+        return score;
+    }
+
+    /// <summary>
+    /// The coffer offer to pick: the best <see cref="TreasureScore"/> among offers not yet taken (the first on a tie),
+    /// or -1. A thief's knife yields two picks from one coffer; the window stays open for the second.
+    /// </summary>
+    public static int PickTreasure(
+        IReadOnlyList<int> offers, Func<int, string?> effectOf, IReadOnlySet<int>? takenRows = null,
+        IReadOnlyCollection<string>? wantedResistances = null)
+    {
+        var best = -1;
+        var bestScore = float.MinValue;
+        for (var i = 0; i < offers.Count; i++)
+        {
+            if (offers[i] == 0 || takenRows?.Contains(i) == true)
+                continue;
+            var score = TreasureScore(effectOf(offers[i]), wantedResistances);
+            if (score > bestScore)
+            {
+                bestScore = score;
+                best = i;
+            }
+        }
+
+        return best;
+    }
+
     /// <summary>The start of each Yes/No prompt the autopilot's own clicks raise; any other prompt is the player's.</summary>
     public static readonly string[] KnownPrompts =
     [

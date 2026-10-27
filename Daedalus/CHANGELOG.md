@@ -3,6 +3,28 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.108 — 2026-10-27
+
+### Beastmaster — the Crucible
+- **A familiar about to fall is retreated with Parting Blow.** The retreat never fired for anyone with the normal
+  "Parting Blow" setting off (the default): every familiar was knocked out instead. It now goes out on its own
+  setting, and earlier when the familiar is being hit hard — the line rises with its biggest recent hit and how fast
+  it is losing HP, so a beast that drops from over 20% to 0 in one blow is pulled out first.
+- **Snarl before raidwides.** With Minerva's raidwide warning, a raidwide due in 10 seconds is Snarled onto any
+  familiar still standing, so Cover takes your share. Raidwides Cover cannot take (Durga's Atomic Ray) are skipped.
+- **Soul Crush interrupts.** With a Soulkin's Borrow up, Soul Crush goes at a caster Minerva flags to interrupt
+  (Ossify, Rallying Cheer, Dreadwash, Confound, Natural Nurture and others) before its free-damage use.
+- **Treasure coffers: both picks, and the best one.** With a thief's knife the second pick is taken instead of
+  leaving the window open. Offers are ranked by their effect — survival first (max HP, damage taken down, HP back
+  after battles), then damage — and each board's key resistance counts: paralysis on the Third Board and the Second
+  Master's, poison on the First Master's, Doom on the Second Board.
+- **Crucible edge tab with the run controls.** The edge dock's Crucible tab now holds just the controls — autopilot,
+  walk, beast gear, runs to loop, **End after this run** (or **Stop loop** off a board), Start run and Record. It
+  shows on a board, with a board's screens open, at Lauda, or while a loop has runs left.
+- Fixed: "Read ranks" logged an ImGui error the moment it was pressed, and reading ranks could stall a frame (each
+  beast saved the whole config; they are now saved once).
+<!-- LATEST-END -->
+
 ## v0.1.107 — 2026-10-25
 
 ### Beastmaster — the infinitive combo
@@ -29,7 +51,6 @@ All notable changes to Daedalus will be documented in this file.
   fuller bull in the Tablitaur fight), instead of staying on the boss until something dies. Not when you picked
   Current/Focus target yourself, out of combat, or right after you click a target.
 
-<!-- LATEST-END -->
 ## v0.1.106 — 2026-10-25
 
 ### Beastmaster — the Crucible

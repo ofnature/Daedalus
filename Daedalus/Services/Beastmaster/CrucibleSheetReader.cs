@@ -117,7 +117,8 @@ public static class CrucibleSheetReader
             var items = excel.GetSheet<RawRow>(name: "XBMItem").ToList();
             var beastGear = items.Where(r => r.ReadUInt8Column(0) == 1).Select(r => (int)r.RowId).ToList();
             var itemNames = items.ToDictionary(r => (int)r.RowId, r => Text(r, 11));
-            return new CrucibleIndex(boards, enemies, beastGear, itemNames);
+            var itemEffects = items.ToDictionary(r => (int)r.RowId, r => Text(r, 12));
+            return new CrucibleIndex(boards, enemies, beastGear, itemNames, itemEffects);
         }
         catch (Exception ex)
         {

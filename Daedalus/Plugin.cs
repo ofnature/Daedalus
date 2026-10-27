@@ -42,7 +42,7 @@ namespace Daedalus;
 
 public sealed class Plugin : IDalamudPlugin
 {
-    public const string PluginVersion = "0.1.107";
+    public const string PluginVersion = "0.1.108";
     private const string CommandName = "/daedalus";
 
     /// <summary>LAN relay channel for Necromancer Deep Freeze "heal me to full" announcements.</summary>
@@ -1210,10 +1210,15 @@ public sealed class Plugin : IDalamudPlugin
                 () => configuration.EdgeDockOccultTab
                       && Daedalus.Data.PhantomJobData.OccultTerritoryIds.Contains((ushort)clientState.TerritoryType),
                 () => occultWindow?.Draw()), // built further down; the tab only draws after that
-            // The Crucible window sizes itself to its content.
+            // The Crucible run controls (autopilot, loop runs, end after this run, start, record): on a board, with
+            // its screens open, at Lauda in the Central Shroud, or while a loop has runs left. Sizes to its content.
             new Daedalus.Windows.Dock.EdgeDockWindow.Tab("crucible", "Crucible",
-                () => configuration.EdgeDockCrucibleTab && Daedalus.Services.Beastmaster.CrucibleTracker.Current.OnBoard,
-                () => crucibleWindow?.Draw()), // built further down; the tab only draws after that
+                () => configuration.EdgeDockCrucibleTab
+                      && (Daedalus.Services.Beastmaster.CrucibleTracker.Current.OnBoard
+                          || Daedalus.Services.Beastmaster.CrucibleHornSetter.BoardScreensOpen()
+                          || clientState.TerritoryType == Daedalus.Data.CrucibleLoopRules.LaudaTerritoryId
+                          || configuration.Beastmaster.CrucibleLoopRuns > 0),
+                () => crucibleTeamWindow?.DrawControls()), // built further down; the tab only draws after that
             // Fixed width: the Party Coordination body right-aligns its controls off the window's width.
             new Daedalus.Windows.Dock.EdgeDockWindow.Tab("party", "Party",
                 () => configuration.EdgeDockPartyTab && lanPartyWindow != null
@@ -1298,10 +1303,11 @@ public sealed class Plugin : IDalamudPlugin
             if (configuration.Beastmaster.CrucibleRanks.TryGetValue(no, out var known) && known >= rank)
                 return;
             configuration.Beastmaster.CrucibleRanks[no] = rank;
-            SaveConfiguration();
+            QueueCrucibleRanksSave();
         });
         this.crucibleAutoPilot = new Daedalus.Services.Beastmaster.CrucibleAutoPilot(
-            m => log.Info(m), id => crucibleTracker.Index.BeastGear.Contains(id), id => crucibleTracker.Index.ItemName(id));
+            m => log.Info(m), id => crucibleTracker.Index.BeastGear.Contains(id), id => crucibleTracker.Index.ItemName(id),
+            id => crucibleTracker.Index.ItemEffect(id));
         this.crucibleLoop = new Daedalus.Services.Beastmaster.CrucibleLoop(m => log.Info(m));
         // The Bestiary shows TRUE ranks (team screens sync them to the board), so its reading overwrites — and can
         // repair a rank a synced screen once lowered.
@@ -1310,7 +1316,7 @@ public sealed class Plugin : IDalamudPlugin
             if (configuration.Beastmaster.CrucibleRanks.TryGetValue(no, out var known) && known == rank)
                 return;
             configuration.Beastmaster.CrucibleRanks[no] = rank;
-            SaveConfiguration();
+            QueueCrucibleRanksSave();
         });
         this.crucibleWalker = new Daedalus.Services.Beastmaster.CrucibleWalker(crucibleTracker.Index, movementArbiter, m => log.Info(m));
         crucibleIsCaptured = no => crucibleBestiary.IsPetUnlocked((uint)no) == true;
@@ -1873,6 +1879,70 @@ public sealed class Plugin : IDalamudPlugin
         return Math.Min(bossModForecastService.NextTankbusterInSeconds, bossModForecastService.NextTankbusterDamageInSeconds);
     }
 
+    private Dalamud.Plugin.Ipc.ICallGateSubscriber<ulong[]>? minervaTargetsToInterrupt;
+
+    /// <summary>
+    /// Minerva's "Minerva.Hints.TargetsToInterrupt": enemies casting something to stop, for Soul Crush on a board.
+    /// Empty with another boss engine, or when Minerva is not answering.
+    /// </summary>
+    private ulong[] ReadTargetsToInterrupt()
+    {
+        if (configuration.BossHandling != Daedalus.Config.BossHandling.Minerva)
+            return [];
+
+        try
+        {
+            minervaTargetsToInterrupt ??= pluginInterface.GetIpcSubscriber<ulong[]>("Minerva.Hints.TargetsToInterrupt");
+            return minervaTargetsToInterrupt.InvokeFunc() ?? [];
+        }
+        catch
+        {
+            return [];
+        }
+    }
+
+    private Dalamud.Plugin.Ipc.ICallGateSubscriber<float>? minervaRaidwideIn;
+    private Dalamud.Plugin.Ipc.ICallGateSubscriber<uint>? minervaRaidwideActionId;
+
+    /// <summary>
+    /// Seconds until the next raidwide Snarl's Cover can take, from the boss engine in charge: Minerva's
+    /// "Minerva.Hints.SecondsUntilRaidwide" (NaN when none) with "NextRaidwideActionId" naming it, so the uncoverable
+    /// ones (ArtemisCooldownRules.UncoverableRaidwides) are skipped; an older Minerva without the id reads as coverable.
+    /// Else BossMod's raidwide forecast. <see cref="float.MaxValue"/> when nothing is known.
+    /// </summary>
+    private float ReadSecondsUntilCoverableRaidwide()
+    {
+        if (configuration.BossHandling != Daedalus.Config.BossHandling.Minerva)
+            return bossModForecastService.NextRaidwideInSeconds;
+
+        float seconds;
+        try
+        {
+            minervaRaidwideIn ??= pluginInterface.GetIpcSubscriber<float>("Minerva.Hints.SecondsUntilRaidwide");
+            seconds = minervaRaidwideIn.InvokeFunc();
+        }
+        catch
+        {
+            return float.MaxValue; // Minerva not loaded or not answering: no warning
+        }
+
+        if (float.IsNaN(seconds))
+            return float.MaxValue;
+
+        uint actionId = 0;
+        try
+        {
+            minervaRaidwideActionId ??= pluginInterface.GetIpcSubscriber<uint>("Minerva.Hints.NextRaidwideActionId");
+            actionId = minervaRaidwideActionId.InvokeFunc();
+        }
+        catch
+        {
+            // Not published by this Minerva: the raidwide is read as coverable.
+        }
+
+        return Daedalus.Rotation.ArtemisCore.Helpers.ArtemisCooldownRules.CoverableRaidwideSeconds(Math.Max(0f, seconds), actionId);
+    }
+
     /// <summary>Crucible window auto-visibility: open on entering a board, closed on leaving (Beastmaster setting).</summary>
     private void OnCrucibleTerritoryChanged(uint territory)
     {
@@ -1897,6 +1967,23 @@ public sealed class Plugin : IDalamudPlugin
             JobId = jobId,
             Role = JobRegistry.IsTank(jobId) ? "Tank" : JobRegistry.IsHealer(jobId) ? "Healer" : "DPS",
         });
+    }
+
+    private DateTime crucibleRanksSaveDueUtc = DateTime.MaxValue;
+
+    /// <summary>
+    /// Rank readings arrive a dozen at a time (one per beast on a team screen or Bestiary scan), and each full config save
+    /// is a synchronous write on the framework thread: saving per beast stalled a frame for 69 ms (Korha 2026-10-27).
+    /// Batch them into one save a moment after the last reading.
+    /// </summary>
+    private void QueueCrucibleRanksSave() => crucibleRanksSaveDueUtc = DateTime.UtcNow.AddSeconds(1.5);
+
+    private void FlushCrucibleRanksSave(bool force = false)
+    {
+        if (crucibleRanksSaveDueUtc == DateTime.MaxValue || (!force && DateTime.UtcNow < crucibleRanksSaveDueUtc))
+            return;
+        crucibleRanksSaveDueUtc = DateTime.MaxValue;
+        SaveConfiguration();
     }
 
     private void SaveConfiguration()
@@ -2405,8 +2492,13 @@ public sealed class Plugin : IDalamudPlugin
                 Daedalus.Data.CrucibleHornPlan.ShouldSetHorns(configuration.Beastmaster.AutoCrucibleHorns, configuration.ExternalCombatOverrideSource),
                 Daedalus.Services.Beastmaster.CrucibleTracker.Current.Board);
             crucibleRosterLoader?.Update();
+            FlushCrucibleRanksSave();
             Daedalus.Services.Beastmaster.CrucibleHints.SecondsUntilTankbuster =
                 Daedalus.Services.Beastmaster.CrucibleTracker.Current.OnBoard ? ReadSecondsUntilTankbuster() : float.MaxValue;
+            Daedalus.Services.Beastmaster.CrucibleHints.SecondsUntilRaidwide =
+                Daedalus.Services.Beastmaster.CrucibleTracker.Current.OnBoard ? ReadSecondsUntilCoverableRaidwide() : float.MaxValue;
+            Daedalus.Services.Beastmaster.CrucibleHints.TargetsToInterrupt =
+                Daedalus.Services.Beastmaster.CrucibleTracker.Current.OnBoard ? ReadTargetsToInterrupt() : [];
             crucibleBestiaryScanner?.Update();
             crucibleAutoPilot?.Update(
                 configuration.Beastmaster.CrucibleAutoPilot
@@ -2440,7 +2532,9 @@ public sealed class Plugin : IDalamudPlugin
                     SaveConfiguration();
                 }
             }
+            // Docked, the Team tab shows it instead: the floating window no longer opens by itself.
             crucibleTeamWindow?.Follow(configuration.Beastmaster.CrucibleTeamPickerAutoOpen
+                                       && !(configuration.EdgeDockEnabled && configuration.EdgeDockCrucibleTab)
                                        && Daedalus.Services.Beastmaster.CrucibleHornSetter.BoardScreensOpen());
 
             strikingDummyReset?.Update(condition[Dalamud.Game.ClientState.Conditions.ConditionFlag.InCombat]);

@@ -247,6 +247,117 @@ public class CrucibleTests
         Assert.True(ArtemisCooldownRules.IsFamiliarFalling(true, onBoard: true, familiarHpPct: 0.1f, selfHpPct: 0.9f, secondsUntilTankbuster: 40f));
     }
 
+    /// <summary>
+    /// Field 2026-10-25 (Saar vs Lakhamu Piece): Parting Blow's opt-in toggle (off) made the scheduler drop every retreat
+    /// the module asked for. The retreat has its own behavior, gated on the falling-familiar setting alone.
+    /// </summary>
+    [Fact]
+    public void TheFallingRetreatDoesNotNeedPartingBlowTurnedOn()
+    {
+        var cfg = new Daedalus.Configuration();
+        cfg.Beastmaster.EnablePartingBlow = false;
+        cfg.Beastmaster.CruciblePartingBlowWhenFalling = true;
+        var retreat = Daedalus.Rotation.ArtemisCore.Abilities.ArtemisAbilities.PartingBlowRetreat;
+
+        Assert.Equal(BSTActions.PartingBlow.ActionId, retreat.Action.ActionId);
+        Assert.True(retreat.Toggle!(cfg));
+        Assert.False(Daedalus.Rotation.ArtemisCore.Abilities.ArtemisAbilities.PartingBlow.Toggle!(cfg));
+        cfg.Beastmaster.CruciblePartingBlowWhenFalling = false;
+        Assert.False(retreat.Toggle!(cfg));
+    }
+
+    /// <summary>The falling line rises with the familiar's biggest recent hit and its loss rate, capped at half.</summary>
+    [Fact]
+    public void TheFallingLineRisesForAFamiliarBeingHitHard()
+    {
+        Assert.Equal(ArtemisCooldownRules.FamiliarFallingHpPct, ArtemisCooldownRules.FallingLine(0f, 0f));
+        Assert.Equal(ArtemisCooldownRules.FamiliarFallingHpPct, ArtemisCooldownRules.FallingLine(0.05f, 0.02f));
+        Assert.Equal(0.33f, ArtemisCooldownRules.FallingLine(0.22f, 0f), 3);      // one 22% hit: retreat under 33%
+        Assert.Equal(0.24f, ArtemisCooldownRules.FallingLine(0.05f, 0.06f), 3);   // 6%/s: four seconds of HP
+        Assert.Equal(ArtemisCooldownRules.FallingLineMax, ArtemisCooldownRules.FallingLine(0.6f, 0.5f));
+    }
+
+    /// <summary>A familiar at 28% after a 22% hit is falling; with only small hits it tanks on.</summary>
+    [Fact]
+    public void ARaisedLineRetreatsBeforeTheNextBigHit()
+    {
+        var line = ArtemisCooldownRules.FallingLine(0.22f, 0f);
+        Assert.True(ArtemisCooldownRules.IsFamiliarFalling(true, true, 0.28f, 0.9f, float.MaxValue, line));
+        Assert.False(ArtemisCooldownRules.IsFamiliarFalling(true, true, 0.28f, 0.9f));
+        Assert.False(ArtemisCooldownRules.ShouldSnarl(true, true, true, true, 0.28f, 0.9f, float.MaxValue, line));
+        Assert.True(ArtemisCooldownRules.ShouldSnarl(true, true, true, true, 0.28f, 0.9f));
+        Assert.NotNull(ArtemisCooldownRules.SnarlHeldReason(true, true, 0.28f, 0.9f, line));
+    }
+
+    /// <summary>The trend keeps the biggest drop for 10 s, measures loss over 3 s, and starts over for a new familiar.</summary>
+    [Fact]
+    public void TheHpTrendTracksHitsAndRateAndResetsOnANewFamiliar()
+    {
+        var t0 = new System.DateTime(2026, 10, 25, 19, 14, 40, System.DateTimeKind.Utc);
+        var trend = new FamiliarHpTrend();
+        trend.Sample(1, 0.40f, t0);
+        trend.Sample(1, 0.18f, t0.AddSeconds(1));   // a 22% hit
+        trend.Sample(1, 0.16f, t0.AddSeconds(2));
+        Assert.Equal(0.22f, trend.BiggestHitPct, 3);
+        Assert.Equal(0.08f, trend.LossPerSecond, 3); // 24% over the 3 s window
+
+        trend.Sample(1, 0.16f, t0.AddSeconds(13));   // both drops are now over 10 s old
+        Assert.Equal(0f, trend.BiggestHitPct);
+
+        trend.Sample(2, 1f, t0.AddSeconds(14));      // the next horn
+        Assert.Equal(0f, trend.BiggestHitPct);
+        Assert.Equal(0f, trend.LossPerSecond);
+    }
+
+    /// <summary>A raidwide Cover can take is Snarled onto any standing familiar, like a tankbuster.</summary>
+    [Fact]
+    public void ACoverableRaidwideSnarlsAnyStandingFamiliar()
+    {
+        Assert.True(ArtemisCooldownRules.ShouldSnarl(true, true, true, true, 0.1f, 0.9f, secondsUntilRaidwide: 6f));
+        Assert.False(ArtemisCooldownRules.ShouldSnarl(true, true, true, true, 0.1f, 0.9f, secondsUntilRaidwide: 25f));
+        Assert.False(ArtemisCooldownRules.ShouldSnarl(true, true, true, true, 0f, 0.9f, secondsUntilRaidwide: 2f));
+    }
+
+    /// <summary>A falling familiar is kept, not retreated, for a raidwide on its way (its Cover takes your share).</summary>
+    [Fact]
+    public void AFallingFamiliarIsKeptForARaidwide()
+    {
+        Assert.False(ArtemisCooldownRules.IsFamiliarFalling(true, true, 0.1f, 0.9f, secondsUntilRaidwide: 4f));
+        Assert.True(ArtemisCooldownRules.IsFamiliarFalling(true, true, 0.1f, 0.9f, secondsUntilRaidwide: 30f));
+    }
+
+    /// <summary>
+    /// Durga's Atomic Ray (49272): Cover does not take it (Icy Veins), so it is not a reason to Snarl. A raidwide the
+    /// engine does not name (id 0) is read as coverable.
+    /// </summary>
+    [Fact]
+    public void AnUncoverableRaidwideIsNotAReasonToSnarl()
+    {
+        Assert.Equal(float.MaxValue, ArtemisCooldownRules.CoverableRaidwideSeconds(5f, 49272));
+        Assert.Equal(5f, ArtemisCooldownRules.CoverableRaidwideSeconds(5f, 48669));
+        Assert.Equal(5f, ArtemisCooldownRules.CoverableRaidwideSeconds(5f, 0));
+        Assert.False(ArtemisCooldownRules.ShouldSnarl(true, true, true, true, 0.1f, 0.9f,
+            secondsUntilRaidwide: ArtemisCooldownRules.CoverableRaidwideSeconds(5f, 49272)));
+    }
+
+    /// <summary>Soul Crush goes to the nearest flagged caster in melee that is still casting.</summary>
+    [Fact]
+    public void SoulCrushPicksTheNearestCasterInMelee()
+    {
+        Assert.Equal(2UL, ArtemisCooldownRules.PickInterruptTarget([(1UL, 2.5f, true), (2UL, 1.0f, true)]));
+        Assert.Equal(1UL, ArtemisCooldownRules.PickInterruptTarget([(1UL, 2.5f, true), (2UL, 1.0f, false)]));
+    }
+
+    /// <summary>Nothing to interrupt out of melee (Soul Crush is a 3y action) or once the cast is over.</summary>
+    [Fact]
+    public void SoulCrushHasNoTargetOutOfMeleeOrWhenNobodyCasts()
+    {
+        Assert.Equal(0UL, ArtemisCooldownRules.PickInterruptTarget([(1UL, 6f, true)]));
+        Assert.Equal(0UL, ArtemisCooldownRules.PickInterruptTarget([(1UL, 1f, false)]));
+        Assert.Equal(0UL, ArtemisCooldownRules.PickInterruptTarget([]));
+        Assert.Equal(7UL, ArtemisCooldownRules.PickInterruptTarget([(7UL, ArtemisCooldownRules.MeleeYalms, true)]));
+    }
+
     /// <summary>A critical beastmaster keeps the falling familiar tanking — its Cover is all that is left.</summary>
     [Fact]
     public void ACriticalBeastmasterDoesNotRetreatTheFamiliar()

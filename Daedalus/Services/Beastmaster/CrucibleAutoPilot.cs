@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Daedalus.Data;
 using FFXIVClientStructs.FFXIV.Client.UI;
 using FFXIVClientStructs.FFXIV.Client.UI.Agent;
@@ -11,7 +12,7 @@ namespace Daedalus.Services.Beastmaster;
 /// <summary>
 /// Steps through the Crucible board's screens the way the player did in the recordings (docs/crucible-screens.md):
 /// starts each battle once the horn setter has set the horns, takes the tokens (and optionally the first item) from
-/// the spoils, takes the first treasure, leaves the shop without buying, rests the most hurt beast at a campsite, and
+/// the spoils, takes the best treasure (every pick a thief's knife allows), leaves the shop without buying, rests the most hurt beast at a campsite, and
 /// closes the result screen. It answers Yes only to the prompt its own click raised, and leaves every other screen
 /// to the player. Walking from space to space (which is also how a fork is chosen) is still the player's, and
 /// fighting is the rotation's.
@@ -22,6 +23,7 @@ public sealed unsafe class CrucibleAutoPilot
     private static readonly TimeSpan ResultCloseAfter = TimeSpan.FromSeconds(4);
     private static readonly TimeSpan CampSettle = TimeSpan.FromSeconds(1);
     private static readonly TimeSpan LootSettle = TimeSpan.FromSeconds(1);
+    private static readonly TimeSpan TreasureSettle = TimeSpan.FromSeconds(1.5);
 
     private readonly Action<string> _log;
     private DateTime _nextStepUtc;
@@ -32,7 +34,9 @@ public sealed unsafe class CrucibleAutoPilot
     private int _lootGearTakes;
     private int _lootHeldBefore;
     private readonly HashSet<int> _lootTakenRows = new();
-    private bool _treasureTried, _shopTried, _restTried;
+    private bool _shopTried, _restTried;
+    private readonly HashSet<int> _treasureTakenRows = new();
+    private DateTime _treasureSinceUtc;
     private DateTime _resultSentUtc;
     private DateTime _campSinceUtc;
     private DateTime _lootSinceUtc;
@@ -40,14 +44,18 @@ public sealed unsafe class CrucibleAutoPilot
 
     private readonly Func<int, bool> _isBeastGear;
     private readonly Func<int, string> _itemName;
+    private readonly Func<int, string?> _itemEffect;
 
     /// <param name="isBeastGear">Whether an XBMItem row is beast gear (what is taken from the spoils).</param>
     /// <param name="itemName">An XBMItem's name (the spoils window holds only ids).</param>
-    public CrucibleAutoPilot(Action<string> log, Func<int, bool> isBeastGear, Func<int, string> itemName)
+    /// <param name="itemEffect">An XBMItem's effect text, which ranks the treasure coffer's offers.</param>
+    public CrucibleAutoPilot(
+        Action<string> log, Func<int, bool> isBeastGear, Func<int, string> itemName, Func<int, string?>? itemEffect = null)
     {
         _log = log;
         _isBeastGear = isBeastGear;
         _itemName = itemName;
+        _itemEffect = itemEffect ?? (_ => null);
     }
 
     /// <summary>What it did last, for the team window.</summary>
@@ -72,7 +80,7 @@ public sealed unsafe class CrucibleAutoPilot
 
         try
         {
-            Step(now, horns, takeItems);
+            Step(now, board, horns, takeItems);
         }
         catch (Exception ex)
         {
@@ -80,7 +88,7 @@ public sealed unsafe class CrucibleAutoPilot
         }
     }
 
-    private void Step(DateTime now, CrucibleHornSetter? horns, bool takeItems)
+    private void Step(DateTime now, CrucibleBoard board, CrucibleHornSetter? horns, bool takeItems)
     {
         // A prompt: Yes only to the one our own click raised, within a few seconds of raising it.
         var yesNo = Visible("SelectYesno");
@@ -158,18 +166,12 @@ public sealed unsafe class CrucibleAutoPilot
         var treasure = Visible("XBMContentsTreasure");
         if (treasure != null)
         {
-            if (!_treasureTried)
-            {
-                _treasureTried = true;
-                Expect("Choose the ", now);
-                Fire(treasure, 2, 0);
-                Done(now, "Taking the first treasure.");
-            }
-
+            TakeTreasure(now, treasure, CrucibleAutoPilotRules.WantedResistances(board.Index));
             return;
         }
 
-        _treasureTried = false;
+        _treasureTakenRows.Clear();
+        _treasureSinceUtc = default;
 
         var shop = Visible("XBMContentsItemShop");
         if (shop != null)
@@ -263,6 +265,41 @@ public sealed unsafe class CrucibleAutoPilot
         Expect("Take ", now);
         Fire(loot, 4, pick);
         Done(now, $"Taking {name}.");
+    }
+
+    /// <summary>
+    /// Treasure coffer: the best offer by its effect (survival first), and — while the window stays open, as it does
+    /// for a thief's knife's second pick (field 2026-10-25, Saar: slot 1 "Acquired", the loop sat on the other three)
+    /// — the next best, once the window has settled after each pick.
+    /// </summary>
+    private void TakeTreasure(DateTime now, AtkUnitBase* treasure, IReadOnlyList<string> wanted)
+    {
+        if (_treasureSinceUtc == default)
+            _treasureSinceUtc = now;
+        if (now - _treasureSinceUtc < TreasureSettle
+            || treasure->AtkValuesCount <= CrucibleAutoPilotRules.TreasureItemIdIndex(CrucibleAutoPilotRules.TreasureMaxRows - 1))
+            return;
+
+        var offers = new List<int>(CrucibleAutoPilotRules.TreasureMaxRows);
+        for (var r = 0; r < CrucibleAutoPilotRules.TreasureMaxRows; r++)
+            offers.Add((int)Number(treasure, CrucibleAutoPilotRules.TreasureItemIdIndex(r)));
+
+        var pick = CrucibleAutoPilotRules.PickTreasure(offers, _itemEffect, _treasureTakenRows, wanted);
+        if (pick < 0)
+        {
+            Status = "Treasure: every offer tried — the rest is yours.";
+            return;
+        }
+
+        var name = _itemName(offers[pick]);
+        var offered = string.Join(", ", offers.Where(id => id != 0).Select(id =>
+            $"{_itemName(id)} ({CrucibleAutoPilotRules.TreasureScore(_itemEffect(id), wanted):0})"));
+        _log($"Crucible: treasure — {offered}; choosing {name}" + (_treasureTakenRows.Count > 0 ? " (another pick)." : "."));
+        _treasureTakenRows.Add(pick);
+        _treasureSinceUtc = now; // let the window update (or close) before the next pick
+        Expect("Choose the ", now);
+        Fire(treasure, 2, pick);
+        Done(now, $"Choosing {name}.");
     }
 
     /// <summary>Campsite: select the most hurt standing beast, then rest.</summary>

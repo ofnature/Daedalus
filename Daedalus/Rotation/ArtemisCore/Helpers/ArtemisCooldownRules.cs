@@ -219,11 +219,56 @@ public static class ArtemisCooldownRules
     /// hits, and a retreat would leave them uncovered until the next horn is out and Snarled — so it tanks to the end.
     /// </para>
     /// <para>Not with a tankbuster on its way either: the familiar is kept to take it.</para>
+    /// <para><paramref name="fallingLine"/> is <see cref="FallingLine"/>: the flat line, raised for a familiar being hit hard.</para>
+    /// <para>A raidwide Cover can take (<paramref name="secondsUntilRaidwide"/>) keeps it too, like a tankbuster.</para>
     public static bool IsFamiliarFalling(
-        bool enabled, bool onBoard, float familiarHpPct, float selfHpPct = 1f, float secondsUntilTankbuster = float.MaxValue)
-        => enabled && onBoard && familiarHpPct > 0f && familiarHpPct < FamiliarFallingHpPct
+        bool enabled, bool onBoard, float familiarHpPct, float selfHpPct = 1f, float secondsUntilTankbuster = float.MaxValue,
+        float fallingLine = FamiliarFallingHpPct, float secondsUntilRaidwide = float.MaxValue)
+        => enabled && onBoard && familiarHpPct > 0f && familiarHpPct < fallingLine
            && selfHpPct > SelfCriticalHpPct
-           && secondsUntilTankbuster > TankbusterLeadSeconds;
+           && secondsUntilTankbuster > TankbusterLeadSeconds
+           && secondsUntilRaidwide > RaidwideLeadSeconds;
+
+    /// <summary>
+    /// A raidwide due within this many seconds is Snarled onto any standing familiar: Cover takes the beastmaster's
+    /// share (the familiar still takes its own), and the beastmaster's HP is the run. Same lead as a tankbuster.
+    /// </summary>
+    public const float RaidwideLeadSeconds = 10f;
+
+    /// <summary>
+    /// Raidwides Cover does not take, by action id: Snarling for them only spends the familiar. Icy Veins (2026-09):
+    /// Durga's Atomic Ray on the Second Master's Board, "pet cover will NOT take it". Knockback raidwides are not here:
+    /// their damage is covered, only the push is not.
+    /// </summary>
+    public static readonly System.Collections.Generic.IReadOnlySet<uint> UncoverableRaidwides =
+        new System.Collections.Generic.HashSet<uint> { 49272 };
+
+    /// <summary>
+    /// Seconds until the next raidwide that Cover can take: <paramref name="seconds"/>, or <see cref="float.MaxValue"/>
+    /// when the boss engine names an uncoverable one (<paramref name="actionId"/> 0 = not named, read as coverable).
+    /// </summary>
+    public static float CoverableRaidwideSeconds(float seconds, uint actionId)
+        => UncoverableRaidwides.Contains(actionId) ? float.MaxValue : seconds;
+
+    /// <summary>Retreat with room for this many of the biggest recent hits still to land.</summary>
+    public const float FallingHitMargin = 1.5f;
+
+    /// <summary>Retreat with this many seconds of HP left at the current loss rate (a weave slot plus the order).</summary>
+    public const float FallingLeadSeconds = 4f;
+
+    /// <summary>The falling line is never raised past this; above it the familiar tanks on regardless.</summary>
+    public const float FallingLineMax = 0.5f;
+
+    /// <summary>
+    /// Where "falling" starts for the familiar out now: <see cref="FamiliarFallingHpPct"/>, raised to
+    /// <see cref="FallingHitMargin"/> of its biggest recent hit and to <see cref="FallingLeadSeconds"/> of HP at the
+    /// rate it is losing it, capped at <see cref="FallingLineMax"/>. Field 2026-10-25 (Minerva session, Saar vs
+    /// Lakhamu Piece and its Golem Pieces): two of three familiars went from over 20% to 0 in one hit, the third
+    /// from 16% to 0 in 3 s.
+    /// </summary>
+    public static float FallingLine(float biggestRecentHitPct, float lossPerSecond)
+        => System.Math.Min(FallingLineMax, System.Math.Max(FamiliarFallingHpPct,
+            System.Math.Max(biggestRecentHitPct * FallingHitMargin, lossPerSecond * FallingLeadSeconds)));
 
     /// <summary>
     /// A tankbuster due within this many seconds is Snarled onto any standing familiar. Minerva warns 4.5-8.7 s ahead
@@ -273,21 +318,46 @@ public static class ArtemisCooldownRules
     /// </summary>
     public static bool ShouldSnarl(
         bool enabled, bool onBoardInBattle, bool ready, bool hasFamiliar, float familiarHpPct, float selfHpPct = 1f,
-        float secondsUntilTankbuster = float.MaxValue)
+        float secondsUntilTankbuster = float.MaxValue, float fallingLine = SnarlMinFamiliarHpPct,
+        float secondsUntilRaidwide = float.MaxValue)
         => enabled && onBoardInBattle && ready && hasFamiliar
-           && (familiarHpPct >= SnarlMinFamiliarHpPct
-               || (familiarHpPct > 0f && (selfHpPct <= SelfCriticalHpPct || secondsUntilTankbuster <= TankbusterLeadSeconds)));
+           && (familiarHpPct >= fallingLine
+               || (familiarHpPct > 0f && (selfHpPct <= SelfCriticalHpPct
+                                          || secondsUntilTankbuster <= TankbusterLeadSeconds
+                                          || secondsUntilRaidwide <= RaidwideLeadSeconds)));
 
     /// <summary>Why Snarl is not going out this frame, for the debug log; null when it is (or would be, once ready).</summary>
-    public static string? SnarlHeldReason(bool enabled, bool hasFamiliar, float familiarHpPct, float selfHpPct)
+    public static string? SnarlHeldReason(
+        bool enabled, bool hasFamiliar, float familiarHpPct, float selfHpPct, float fallingLine = SnarlMinFamiliarHpPct)
     {
         if (!enabled)
             return "Snarl is turned off";
         if (!hasFamiliar)
             return "no familiar out";
-        if (familiarHpPct >= SnarlMinFamiliarHpPct || (selfHpPct <= SelfCriticalHpPct && familiarHpPct > 0f))
+        if (familiarHpPct >= fallingLine || (selfHpPct <= SelfCriticalHpPct && familiarHpPct > 0f))
             return null;
-        return $"familiar at {familiarHpPct:P0} (under {SnarlMinFamiliarHpPct:P0}), you at {selfHpPct:P0}";
+        return $"familiar at {familiarHpPct:P0} (under {fallingLine:P0}), you at {selfHpPct:P0}";
+    }
+
+    /// <summary>
+    /// The enemy for Soul Crush (the Soulkin Kinship action, which interrupts) to stop: the nearest of the boss
+    /// engine's interrupt targets that is still casting and within melee. 0 when none is.
+    /// </summary>
+    public static ulong PickInterruptTarget(
+        System.Collections.Generic.IEnumerable<(ulong Id, float EdgeDistance, bool Casting)> candidates)
+    {
+        ulong best = 0;
+        var bestDistance = float.MaxValue;
+        foreach (var (id, distance, casting) in candidates)
+        {
+            if (casting && distance <= MeleeYalms && distance < bestDistance)
+            {
+                best = id;
+                bestDistance = distance;
+            }
+        }
+
+        return best;
     }
 
     /// <summary>

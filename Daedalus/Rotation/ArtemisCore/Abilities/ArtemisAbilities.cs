@@ -32,6 +32,14 @@ public static class ArtemisAbilities
         { Action = BSTActions.Trick, Toggle = cfg => cfg.Beastmaster.EnableTrick };
     public static readonly AbilityBehavior PartingBlow = new()
         { Action = BSTActions.PartingBlow, Toggle = cfg => cfg.Beastmaster.EnablePartingBlow };
+
+    /// <summary>
+    /// The same Parting Blow, sent to retreat a familiar about to fall on a Crucible board. Its own toggle: behind
+    /// EnablePartingBlow (opt-in, off by default) the scheduler dropped every retreat the module asked for, so no
+    /// familiar was ever retreated before 2026-10-25.
+    /// </summary>
+    public static readonly AbilityBehavior PartingBlowRetreat = new()
+        { Action = BSTActions.PartingBlow, Toggle = cfg => cfg.Beastmaster.CruciblePartingBlowWhenFalling };
     public static readonly AbilityBehavior TemperedRelease = new()
         { Action = BSTActions.TemperedRelease, Toggle = cfg => cfg.Beastmaster.EnableTemperedRelease };
 

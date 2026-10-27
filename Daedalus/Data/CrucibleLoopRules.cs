@@ -13,6 +13,9 @@ public static class CrucibleLoopRules
     /// <summary>The NPC the Crucible is entered through.</summary>
     public const string EntryNpc = "Lauda";
 
+    /// <summary>The Central Shroud, where Lauda stands (near Bentbranch, X:21.9 Y:22.8).</summary>
+    public const ushort LaudaTerritoryId = 148;
+
     /// <summary>How close Lauda must be to talk to her (no walking: the loop starts where the last run left you).</summary>
     public const float TalkRange = 6.5f;
 

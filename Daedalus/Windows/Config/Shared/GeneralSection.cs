@@ -687,8 +687,10 @@ public sealed class GeneralSection
                 }
 
                 ConfigUIHelpers.Toggle("Crucible tab", () => this.config.EdgeDockCrucibleTab, v => this.config.EdgeDockCrucibleTab = v,
-                    "On a Crucible board, adds a \"Crucible\" tab that pops out the Crucible window (enemy weaknesses, "
-                    + "moves and the familiars that hit them). While this is on, the window no longer opens by itself.", this.save);
+                    "Adds a \"Crucible\" tab with the run controls: autopilot, runs to loop, end after this run, start and "
+                    + "record. It shows on a board, with a board's screens open, at Lauda, or while a loop has runs left. While "
+                    + "this is on, the Crucible and Crucible team windows no longer open by themselves (both still open from "
+                    + "their commands).", this.save);
 
                 if (this.config.EdgeDockCrucibleTab)
                 {
