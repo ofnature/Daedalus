@@ -13,11 +13,6 @@ namespace Daedalus.Rotation.ApolloCore.Helpers;
 public interface IPartyHelper : ISpikeTargetSource
 {
     /// <summary>
-    /// Yields all party members (player + party list or Trust NPCs).
-    /// </summary>
-    IEnumerable<IBattleChara> GetAllPartyMembers(IPlayerCharacter player, bool includeDead = false);
-
-    /// <summary>
     /// Live party size including the player (Trust NPCs count when PartyList is empty).
     /// </summary>
     int GetPartySize(IPlayerCharacter player, bool includeDead = true);
@@ -45,11 +40,6 @@ public interface IPartyHelper : ISpikeTargetSource
 
     /// <summary>Any dead ally carrying an Occult resurrection block, whatever the range.</summary>
     bool AnyDeadAllyResurrectionBlocked(IPlayerCharacter player);
-
-    /// <summary>
-    /// Gets predicted HP percent for a target.
-    /// </summary>
-    float GetHpPercent(IBattleChara target);
 
     /// <summary>
     /// Calculates party health metrics for defensive cooldown decisions.
