@@ -43,7 +43,7 @@ public sealed class DamageModule : BaseDamageModule<IAstraeaContext>, IAstraeaMo
 
     public override bool TryExecute(IAstraeaContext context, bool isMoving) => false;
 
-    public new void CollectCandidates(IAstraeaContext context, RotationScheduler scheduler, bool isMoving)
+    public void CollectCandidates(IAstraeaContext context, RotationScheduler scheduler, bool isMoving)
     {
         if (!context.InCombat) return;
         if (AstraeaCardHelper.HasAstlock(context)) { SetDpsState(context, "Paused (Collective Unconscious)"); return; }

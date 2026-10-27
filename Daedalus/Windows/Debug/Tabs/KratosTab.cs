@@ -4,7 +4,6 @@ using Daedalus.Localization;
 using Daedalus.Rotation.Common;
 using Daedalus.Rotation.KratosCore.Context;
 using Daedalus.Windows;
-using Daedalus.Rotation.Common;
 using Daedalus.Rotation.Common.Helpers;
 using Daedalus.Windows.Debug;
 

@@ -4,8 +4,6 @@ using Daedalus.Localization;
 using Daedalus.Rotation.Common;
 using Daedalus.Rotation.Common.Helpers;
 using Daedalus.Rotation.NikeCore.Context;
-using Daedalus.Rotation.Common;
-using Daedalus.Rotation.Common.Helpers;
 using Daedalus.Windows.Debug;
 
 namespace Daedalus.Windows.Debug.Tabs;
