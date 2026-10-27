@@ -320,7 +320,7 @@ public class BurstWindowServiceTests
     private static Mock<IPlayerCharacter> PlayerWithNoStatuses()
     {
         var player = new Mock<IPlayerCharacter>();
-        player.Setup(p => p.StatusList).Returns((Dalamud.Game.ClientState.Statuses.StatusList?)null);
+        player.Setup(p => p.StatusList).Returns((Dalamud.Game.ClientState.Statuses.StatusList)null!);
         return player;
     }
 

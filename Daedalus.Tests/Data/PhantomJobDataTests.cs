@@ -109,7 +109,7 @@ public class PhantomJobDataTests
     public void Necromancer_DrainTouch_IsCataloged()
     {
         var drainTouch = PhantomActions.All.FirstOrDefault(a => a.ActionId == 49097);
-        Assert.NotNull(drainTouch);
+        Assert.Contains(PhantomActions.All, a => a.ActionId == 49097);
         Assert.Equal(PhantomJob.Necromancer, drainTouch!.Job);
         Assert.Equal(1, drainTouch.RequiredLevel);
     }

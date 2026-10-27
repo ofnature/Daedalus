@@ -116,8 +116,8 @@ public class ProteusV3CoordinationTests : IDisposable
         var gcd = h.Scheduler.InspectGcdQueue();
         var bristle = gcd.FirstOrDefault(c => c.Behavior == ProteusAbilities.Bristle);
         var sot = gcd.FirstOrDefault(c => c.Behavior == ProteusAbilities.SongOfTorment);
-        Assert.NotNull(bristle);
-        Assert.NotNull(sot);
+        Assert.Contains(gcd, c => c.Behavior == ProteusAbilities.Bristle);
+        Assert.Contains(gcd, c => c.Behavior == ProteusAbilities.SongOfTorment);
         Assert.True(bristle!.Priority < sot!.Priority, "Bristle must snapshot before the bleed");
     }
 

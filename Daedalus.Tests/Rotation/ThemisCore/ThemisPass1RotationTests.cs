@@ -145,7 +145,7 @@ public sealed class ThemisPass1RotationTests
         mock.Setup(x => x.ActionService).Returns(actionService.Object);
         mock.Setup(x => x.TargetingService).Returns(targeting.Object);
         mock.Setup(x => x.ObjectTable).Returns(objectTable.Object);
-        mock.Setup(x => x.PartyHelper).Returns((Daedalus.Rotation.ThemisCore.Helpers.ThemisPartyHelper?)null);
+        mock.Setup(x => x.PartyHelper).Returns((Daedalus.Rotation.ThemisCore.Helpers.ThemisPartyHelper)null!);
         mock.Setup(x => x.TrainingService).Returns((Daedalus.Services.Training.ITrainingService?)null);
         mock.Setup(x => x.TimeToKillService).Returns((Daedalus.Services.Combat.ITimeToKillService?)null);
         mock.Setup(x => x.ComboStep).Returns(comboStep);

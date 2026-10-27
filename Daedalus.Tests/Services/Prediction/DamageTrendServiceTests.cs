@@ -284,9 +284,9 @@ public class DamageTrendServiceTests
 
         // Record multiple spikes with advancing time
         service.RecordSpikeEvent(1u, 3000);
-        service.UpdateTime(10f); // Advance 10 seconds
+        service.Update(10f, new uint[] { }); // Advance 10 seconds
         service.RecordSpikeEvent(1u, 3500);
-        service.UpdateTime(10f); // Advance 10 seconds
+        service.Update(10f, new uint[] { }); // Advance 10 seconds
         service.RecordSpikeEvent(1u, 3200);
 
         // Assert - Now we have 3 spikes with ~10s intervals
@@ -323,7 +323,7 @@ public class DamageTrendServiceTests
 
         // Record only 2 spikes (need at least 3)
         service.RecordSpikeEvent(1u, 3000);
-        service.UpdateTime(10f);
+        service.Update(10f, new uint[] { });
         service.RecordSpikeEvent(1u, 3000);
 
         // Act
@@ -343,13 +343,13 @@ public class DamageTrendServiceTests
 
         // Record 4 spikes with consistent 10-second intervals
         service.RecordSpikeEvent(1u, 3000);
-        service.UpdateTime(10f);
+        service.Update(10f, new uint[] { });
         service.RecordSpikeEvent(1u, 3100);
-        service.UpdateTime(10f);
+        service.Update(10f, new uint[] { });
         service.RecordSpikeEvent(1u, 2900);
-        service.UpdateTime(10f);
+        service.Update(10f, new uint[] { });
         service.RecordSpikeEvent(1u, 3050);
-        service.UpdateTime(5f); // Half interval since last spike
+        service.Update(5f, new uint[] { }); // Half interval since last spike
 
         // Act
         var (seconds, confidence) = service.PredictNextSpike(1u);
@@ -369,11 +369,11 @@ public class DamageTrendServiceTests
 
         // Record 4 spikes with very different intervals (5s, 15s, 8s)
         service.RecordSpikeEvent(1u, 3000);
-        service.UpdateTime(5f);
+        service.Update(5f, new uint[] { });
         service.RecordSpikeEvent(1u, 3100);
-        service.UpdateTime(15f);
+        service.Update(15f, new uint[] { });
         service.RecordSpikeEvent(1u, 2900);
-        service.UpdateTime(8f);
+        service.Update(8f, new uint[] { });
         service.RecordSpikeEvent(1u, 3050);
 
         // Act

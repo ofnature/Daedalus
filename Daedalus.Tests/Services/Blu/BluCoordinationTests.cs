@@ -281,9 +281,9 @@ public class BluCoordinationTests
     public void DutyAssignments_UtilityIds_MatchSpellbook()
     {
         var byName = BLUSpellbook.All.ToDictionary(e => e.Name, e => e.ActionId);
-        Assert.Equal(byName["Level 5 Death"], BLUActions.UtilityIds.Level5Death);
-        Assert.Equal(byName["Sticky Tongue"], BLUActions.UtilityIds.StickyTongue);
-        Assert.Equal(byName["Avail"], BLUActions.UtilityIds.Avail);
+        Assert.Equal(BLUActions.UtilityIds.Level5Death, byName["Level 5 Death"]);
+        Assert.Equal(BLUActions.UtilityIds.StickyTongue, byName["Sticky Tongue"]);
+        Assert.Equal(BLUActions.UtilityIds.Avail, byName["Avail"]);
         Assert.Equal(byName["Cactguard"], BLUActions.Cactguard.ActionId);
     }
 }

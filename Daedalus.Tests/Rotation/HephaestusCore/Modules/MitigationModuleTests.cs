@@ -295,7 +295,7 @@ public class MitigationModuleCollectCandidatesTests
         mock.Setup(x => x.PartyHelper).Returns(partyHelper);
         mock.Setup(x => x.Debug).Returns(debugState);
         mock.Setup(x => x.PartyHealthMetrics).Returns((avgPartyHp, avgPartyHp, injuredPartyCount));
-        mock.Setup(x => x.ObjectTable).Returns((Dalamud.Plugin.Services.IObjectTable?)null);
+        mock.Setup(x => x.ObjectTable).Returns((Dalamud.Plugin.Services.IObjectTable)null!);
 
         return mock.Object;
     }
