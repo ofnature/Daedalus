@@ -776,8 +776,8 @@ public sealed class DamageModule : IHecateModule
         }
         else if (!context.HasThunderDoT || context.ThunderDoTRemaining < context.Configuration.BlackMage.ThunderRefreshThreshold)
         {
-            var thunderTargetHpPercent = target != null && target.MaxHp > 0 ? (float)target.CurrentHp / target.MaxHp : 1f;
-            if (target != null && thunderTargetHpPercent < context.Configuration.BlackMage.ThunderMinTargetHp)
+            var thunderTargetHpPercent = target.MaxHp > 0 ? (float)target.CurrentHp / target.MaxHp : 1f;
+            if (thunderTargetHpPercent < context.Configuration.BlackMage.ThunderMinTargetHp)
             {
                 // Target too low HP — skip Thunder
             }

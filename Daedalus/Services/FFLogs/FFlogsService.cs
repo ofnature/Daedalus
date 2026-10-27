@@ -378,22 +378,25 @@ public sealed class FFlogsService : IFFlogsService, IDisposable
             // Check for rate limiting
             if (response.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
             {
-                _lastError ="Rate limited - try again later";
-                return FFlogsResult<T>.Fail(LastError, FFlogsErrorType.RateLimited);
+                var error = "Rate limited - try again later";
+                _lastError = error;
+                return FFlogsResult<T>.Fail(error, FFlogsErrorType.RateLimited);
             }
 
             if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
             {
                 // Token may have expired, clear and retry once
                 accessToken = null;
-                _lastError ="Authentication expired";
-                return FFlogsResult<T>.Fail(LastError, FFlogsErrorType.InvalidCredentials);
+                var error = "Authentication expired";
+                _lastError = error;
+                return FFlogsResult<T>.Fail(error, FFlogsErrorType.InvalidCredentials);
             }
 
             if (!response.IsSuccessStatusCode)
             {
-                _lastError =$"API request failed: {response.StatusCode}";
-                return FFlogsResult<T>.Fail(LastError, FFlogsErrorType.ServerError);
+                var error = $"API request failed: {response.StatusCode}";
+                _lastError = error;
+                return FFlogsResult<T>.Fail(error, FFlogsErrorType.ServerError);
             }
 
             var content = await response.Content.ReadAsStringAsync();
@@ -401,8 +404,9 @@ public sealed class FFlogsService : IFFlogsService, IDisposable
 
             if (result?.Errors != null && result.Errors.Count > 0)
             {
-                _lastError =result.Errors[0].Message;
-                return FFlogsResult<T>.Fail(LastError, FFlogsErrorType.ServerError);
+                var error = result.Errors[0].Message;
+                _lastError = error;
+                return FFlogsResult<T>.Fail(error, FFlogsErrorType.ServerError);
             }
 
             // Update rate limit info if provided
@@ -412,14 +416,16 @@ public sealed class FFlogsService : IFFlogsService, IDisposable
         }
         catch (HttpRequestException ex)
         {
-            _lastError =$"Network error: {ex.Message}";
-            return FFlogsResult<T>.Fail(LastError, FFlogsErrorType.NetworkError);
+            var error = $"Network error: {ex.Message}";
+            _lastError = error;
+            return FFlogsResult<T>.Fail(error, FFlogsErrorType.NetworkError);
         }
         catch (Exception ex)
         {
-            _lastError =$"Unexpected error: {ex.Message}";
+            var error = $"Unexpected error: {ex.Message}";
+            _lastError = error;
             log.Error($"FFLogs API error: {ex}");
-            return FFlogsResult<T>.Fail(LastError, FFlogsErrorType.Unknown);
+            return FFlogsResult<T>.Fail(error, FFlogsErrorType.Unknown);
         }
     }
 
