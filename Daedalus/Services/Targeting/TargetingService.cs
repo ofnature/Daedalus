@@ -1347,7 +1347,7 @@ public sealed class TargetingService : ITargetingService
             if (obj.ObjectKind != ObjectKind.BattleNpc) continue;
             if (!obj.IsTargetable) continue;
             if (obj.IsDead) continue;
-            if (obj.YalmDistanceX > 15) continue;
+            if (obj.CurrentDistance > 15) continue;
             if (obj is not IBattleNpc npc) continue;
             if (!EnemyAttackability.IsHostileBattleNpcKind(npc)) continue;
             // Attackability probe is MANDATORY here: story-ally NPCs (Lyse/Alisaie in Tower of
@@ -1567,7 +1567,7 @@ public sealed class TargetingService : ITargetingService
             if (!obj.IsTargetable || obj.IsDead)
                 continue;
 
-            if (obj.YalmDistanceX > maxRangeYalms + (int)Math.Ceiling(obj.HitboxRadius))
+            if (obj.CurrentDistance > maxRangeYalms + (int)Math.Ceiling(obj.HitboxRadius))
                 continue;
 
             if (obj is not IBattleNpc npc)

@@ -300,9 +300,9 @@ public static class SafeGameAccess
         {
             var beastChakra = new byte[3];
             var gauge = jobGauge->Monk;
-            beastChakra[0] = (byte)gauge.BeastChakra[0];
-            beastChakra[1] = (byte)gauge.BeastChakra[1];
-            beastChakra[2] = (byte)gauge.BeastChakra[2];
+            beastChakra[0] = (byte)gauge.BeastChakra1;
+            beastChakra[1] = (byte)gauge.BeastChakra2;
+            beastChakra[2] = (byte)gauge.BeastChakra3;
             return beastChakra;
         }
         catch

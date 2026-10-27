@@ -31,6 +31,15 @@ public sealed class CardTrackingService : ICardTrackingService
     private ASTGauge Gauge => _jobGauges.Get<ASTGauge>();
 
     /// <summary>
+    /// The three drawn cards, read the same way the obsolete <c>ASTGauge.DrawnCards</c> did.
+    /// </summary>
+    private DalamudCardType[] DrawnCards()
+    {
+        var gauge = Gauge;
+        return [gauge.Card1, gauge.Card2, gauge.Card3];
+    }
+
+    /// <summary>
     /// Gets the first available card type from the hand.
     /// Prioritizes Balance > Spear for general usage.
     /// </summary>
@@ -168,7 +177,7 @@ public sealed class CardTrackingService : ICardTrackingService
     {
         try
         {
-            var cards = Gauge.DrawnCards;
+            var cards = DrawnCards();
             if (cards == null || cards.Length == 0)
                 return ASTActions.CardType.None;
 
@@ -197,7 +206,7 @@ public sealed class CardTrackingService : ICardTrackingService
     {
         try
         {
-            var cards = Gauge.DrawnCards;
+            var cards = DrawnCards();
             if (cards == null || cards.Length == 0)
                 return false;
 
@@ -217,7 +226,7 @@ public sealed class CardTrackingService : ICardTrackingService
     {
         try
         {
-            var cards = Gauge.DrawnCards;
+            var cards = DrawnCards();
             if (cards == null || cards.Length == 0)
                 return false;
 
@@ -237,7 +246,7 @@ public sealed class CardTrackingService : ICardTrackingService
     {
         try
         {
-            var cards = Gauge.DrawnCards;
+            var cards = DrawnCards();
             if (cards == null || cards.Length == 0)
                 return false;
 
@@ -256,7 +265,7 @@ public sealed class CardTrackingService : ICardTrackingService
     {
         try
         {
-            var cards = Gauge.DrawnCards;
+            var cards = DrawnCards();
             if (cards == null || cards.Length == 0)
                 return 0;
 
@@ -275,7 +284,7 @@ public sealed class CardTrackingService : ICardTrackingService
     {
         try
         {
-            var cards = Gauge.DrawnCards;
+            var cards = DrawnCards();
             if (cards == null || cards.Length == 0)
                 return 0;
 
@@ -294,7 +303,7 @@ public sealed class CardTrackingService : ICardTrackingService
     {
         try
         {
-            var cards = Gauge.DrawnCards;
+            var cards = DrawnCards();
             if (cards == null || cards.Length == 0)
                 return 0;
 
@@ -313,7 +322,7 @@ public sealed class CardTrackingService : ICardTrackingService
     {
         try
         {
-            var cards = Gauge.DrawnCards;
+            var cards = DrawnCards();
             if (cards == null || cards.Length == 0)
                 return 0;
 
@@ -332,7 +341,7 @@ public sealed class CardTrackingService : ICardTrackingService
     {
         try
         {
-            var cards = Gauge.DrawnCards;
+            var cards = DrawnCards();
             if (cards == null || cards.Length == 0)
                 return "Empty";
 
@@ -356,7 +365,7 @@ public sealed class CardTrackingService : ICardTrackingService
             if (Gauge.ActiveDraw != expectedDraw)
                 return false;
 
-            var cards = Gauge.DrawnCards;
+            var cards = DrawnCards();
             if (cards == null || cards.Length == 0)
                 return true;
 
