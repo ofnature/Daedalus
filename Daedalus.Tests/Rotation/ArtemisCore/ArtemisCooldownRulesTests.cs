@@ -183,6 +183,62 @@ public class ArtemisCooldownRulesTests
         => Assert.Equal(BeastModeUse.None,
             ArtemisCooldownRules.DecideBeastMode(false, BSTActions.BeastskinId, 1f, 1f, false));
 
+    // ── edges ────────────────────────────────────────────────────────────────────────────
+
+    /// <summary>Exactly 5y off is already a run: the gap close applies from the threshold itself.</summary>
+    [Fact]
+    public void ShieldCharge_TheGapStartsAtExactlyFiveYalms()
+        => Assert.Equal(ShieldChargeUse.GapClose, Charge(1, ArtemisCooldownRules.ShieldChargeGapYalms));
+
+    /// <summary>Melee reach is inclusive: at exactly 3y it is damage, just past it nothing.</summary>
+    [Fact]
+    public void ShieldCharge_MeleeEndsAtThreeYalms()
+    {
+        Assert.Equal(ShieldChargeUse.Damage, Charge(2, ArtemisCooldownRules.MeleeYalms));
+        Assert.Equal(ShieldChargeUse.None, Charge(2, ArtemisCooldownRules.MeleeYalms + 0.01f));
+    }
+
+    /// <summary>The gap-close switch governs only the gap close: in melee the damage use stands.</summary>
+    [Fact]
+    public void ShieldCharge_GapCloseOffStillHitsInMelee()
+        => Assert.Equal(ShieldChargeUse.Damage, Charge(3, 1f, gapClose: false));
+
+    /// <summary>A range shorter than the gap threshold never closes a gap.</summary>
+    [Fact]
+    public void ShieldCharge_NoGapCloseWhenItsRangeIsShorterThanTheGap()
+        => Assert.Equal(ShieldChargeUse.None, ArtemisCooldownRules.DecideShieldCharge(true, true, true, 3, 6f, rangeYalms: 4f, dashSafe: true));
+
+    [Fact]
+    public void ShieldCharge_NegativeChargesAreNone()
+        => Assert.Equal(ShieldChargeUse.None, Charge(-1, 1f));
+
+    /// <summary>The skins wait for HP strictly under 80%: at exactly 80% nothing is hitting hard enough.</summary>
+    [Theory]
+    [InlineData(BSTActions.VileskinId)]
+    [InlineData(BSTActions.ScaleskinId)]
+    public void TheDefensiveSkinsStartJustUnderEightyPercent(uint id)
+    {
+        Assert.Equal(BeastModeUse.None, Mode(id, hp: ArtemisCooldownRules.SkinHpPct));
+        Assert.Equal(BeastModeUse.Self, Mode(id, hp: ArtemisCooldownRules.SkinHpPct - 0.01f));
+    }
+
+    /// <summary>Seedsower's 6y and Soul Crush's 3y are both inclusive.</summary>
+    [Fact]
+    public void BeastMode_RangesAreInclusive()
+    {
+        Assert.Equal(BeastModeUse.Self, Mode(BSTActions.SeedsowerId, distance: ArtemisCooldownRules.SeedsowerYalms));
+        Assert.Equal(BeastModeUse.None, Mode(BSTActions.SeedsowerId, distance: ArtemisCooldownRules.SeedsowerYalms + 0.01f));
+        Assert.Equal(BeastModeUse.Enemy, Mode(BSTActions.SoulCrushId, distance: ArtemisCooldownRules.MeleeYalms));
+        Assert.Equal(BeastModeUse.None, Mode(BSTActions.SoulCrushId, distance: ArtemisCooldownRules.MeleeYalms + 0.01f));
+    }
+
+    /// <summary>An id that is no known Kinship action (or nothing at all) presses nothing.</summary>
+    [Theory]
+    [InlineData(0u)]
+    [InlineData(1u)]
+    public void BeastMode_AnUnknownIdPressesNothing(uint id)
+        => Assert.Equal(BeastModeUse.None, Mode(id, hp: 0.1f, distance: 1f, debuff: true));
+
     // ── the data ─────────────────────────────────────────────────────────────────────────
 
     [Fact]

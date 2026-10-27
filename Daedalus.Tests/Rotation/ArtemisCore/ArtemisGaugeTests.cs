@@ -209,4 +209,41 @@ public class ArtemisGaugeTests
         Assert.False(Gauge(lit: InstinctAffinity.Moonstalker).HasHeart);
         Assert.False(Gauge().HasHeart);
     }
+
+    // ── edges ────────────────────────────────────────────────────────────────────────────
+
+    /// <summary>The diamond count steps from two to three exactly at level 50.</summary>
+    [Fact]
+    public void Rally_TheDiamondCountStepsUpAtFifty()
+    {
+        Assert.Equal(ArtemisCooldownRules.RallyMinMastered, ArtemisCooldownRules.RallyMinMasteredFor(49));
+        Assert.Equal(ArtemisCooldownRules.MaxMastered, ArtemisCooldownRules.RallyMinMasteredFor(50));
+        Assert.Equal(ArtemisCooldownRules.MaxMastered, ArtemisCooldownRules.RallyMinMasteredFor(100));
+    }
+
+    /// <summary>At 49 two diamonds and no half are enough; one level up the same gauge waits.</summary>
+    [Fact]
+    public void Rally_FortyNineAndFiftyDisagreeOnTheSameGauge()
+    {
+        Assert.True(ArtemisCooldownRules.ShouldRallyFromGauge(true, true, 0, 2, 49, hasFamiliar: true, halfLit: false));
+        Assert.False(ArtemisCooldownRules.ShouldRallyFromGauge(true, true, 0, 2, 50, hasFamiliar: true, halfLit: false));
+    }
+
+    /// <summary>One TP short of 250 with no Rally to make it up: the window stays shut.</summary>
+    [Fact]
+    public void Window_OneTpShortWithoutRallyIsShut()
+        => Assert.False(ArtemisCooldownRules.InfinitiveWindowOpen(50, Gauge(tp: 249, lit: InstinctAffinity.Sunstrider, mastered: 3), rallyReady: false));
+
+    /// <summary>A Heart is not half a Universality, even with three diamonds and Rally ready.</summary>
+    [Fact]
+    public void Window_NotOnAHeart()
+        => Assert.False(ArtemisCooldownRules.InfinitiveWindowOpen(50, Gauge(tp: 0, lit: InstinctAffinity.Volant, mastered: 3), rallyReady: true));
+
+    /// <summary>Every Heart, not just one, leaves no finisher.</summary>
+    [Theory]
+    [InlineData(InstinctAffinity.Volant)]
+    [InlineData(InstinctAffinity.Rampant)]
+    [InlineData(InstinctAffinity.Eldritch)]
+    public void Finisher_NoneOnAnyHeart(InstinctAffinity lit)
+        => Assert.Equal(InstinctAffinity.None, ArtemisCooldownRules.FinisherAxe(50, Gauge(tp: 250, lit: lit)));
 }

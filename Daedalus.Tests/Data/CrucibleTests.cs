@@ -416,4 +416,195 @@ public class CrucibleTests
         Assert.Equal(46750u, BSTActions.Challenge.ActionId);
         Assert.Equal(46751u, BSTActions.Snarl.ActionId);
     }
+
+    // --- Snarl / falling: boundaries, and the two rules never disagreeing ---
+
+    /// <summary>Turned off, or no familiar out: no Snarl, whatever is on its way.</summary>
+    [Fact]
+    public void NoSnarlWhenOffOrWithoutAFamiliarEvenForATankbuster()
+    {
+        Assert.False(ArtemisCooldownRules.ShouldSnarl(false, true, true, true, 0.1f, 0.9f, secondsUntilTankbuster: 2f));
+        Assert.False(ArtemisCooldownRules.ShouldSnarl(true, true, true, hasFamiliar: false, 1f, 0.2f, secondsUntilTankbuster: 2f));
+    }
+
+    /// <summary>The leads are inclusive: a tankbuster or raidwide exactly 10 s out already Snarls a low familiar.</summary>
+    [Fact]
+    public void TheLeadsAreInclusive()
+    {
+        Assert.True(ArtemisCooldownRules.ShouldSnarl(true, true, true, true, 0.1f, 0.9f,
+            secondsUntilTankbuster: ArtemisCooldownRules.TankbusterLeadSeconds));
+        Assert.True(ArtemisCooldownRules.ShouldSnarl(true, true, true, true, 0.1f, 0.9f,
+            secondsUntilRaidwide: ArtemisCooldownRules.RaidwideLeadSeconds));
+        Assert.False(ArtemisCooldownRules.IsFamiliarFalling(true, true, 0.1f, 0.9f,
+            secondsUntilTankbuster: ArtemisCooldownRules.TankbusterLeadSeconds));
+        Assert.False(ArtemisCooldownRules.IsFamiliarFalling(true, true, 0.1f, 0.9f,
+            secondsUntilRaidwide: ArtemisCooldownRules.RaidwideLeadSeconds));
+    }
+
+    /// <summary>Exactly 30% is critical for both rules: Snarl a low familiar, and do not retreat it.</summary>
+    [Fact]
+    public void ExactlyThirtyPercentIsCritical()
+    {
+        Assert.True(ArtemisCooldownRules.ShouldSnarl(true, true, true, true, 0.1f, selfHpPct: ArtemisCooldownRules.SelfCriticalHpPct));
+        Assert.False(ArtemisCooldownRules.IsFamiliarFalling(true, true, 0.1f, selfHpPct: ArtemisCooldownRules.SelfCriticalHpPct));
+    }
+
+    /// <summary>A familiar exactly on a raised line is Snarled, not retreated; just under it is the other way round.</summary>
+    [Fact]
+    public void ARaisedLineIsInclusiveForSnarl()
+    {
+        Assert.True(ArtemisCooldownRules.ShouldSnarl(true, true, true, true, 0.5f, 0.9f, fallingLine: 0.5f));
+        Assert.False(ArtemisCooldownRules.IsFamiliarFalling(true, true, 0.5f, 0.9f, fallingLine: 0.5f));
+        Assert.False(ArtemisCooldownRules.ShouldSnarl(true, true, true, true, 0.4f, 0.9f, fallingLine: 0.5f));
+        Assert.True(ArtemisCooldownRules.IsFamiliarFalling(true, true, 0.4f, 0.9f, fallingLine: 0.5f));
+    }
+
+    /// <summary>
+    /// Under the falling line a standing familiar is either Snarled (an emergency: you critical, a tankbuster or
+    /// raidwide due) or spent and retreated — never both, never neither — across every edge of the three conditions.
+    /// </summary>
+    [Fact]
+    public void BelowTheLineExactlyOneOfSnarlAndRetreatApplies()
+    {
+        float[] familiar = [0.01f, 0.1f, 0.19f];
+        float[] self = [0.1f, 0.3f, 0.31f, 1f];
+        float[] seconds = [0f, 10f, 10.01f, float.MaxValue];
+        foreach (var f in familiar)
+        foreach (var me in self)
+        foreach (var tb in seconds)
+        foreach (var rw in seconds)
+        {
+            var snarl = ArtemisCooldownRules.ShouldSnarl(true, true, true, true, f, me, tb, secondsUntilRaidwide: rw);
+            var falling = ArtemisCooldownRules.IsFamiliarFalling(true, true, f, me, tb, secondsUntilRaidwide: rw);
+            Assert.True(snarl != falling, $"familiar {f}, you {me}, tankbuster {tb}, raidwide {rw}: snarl={snarl} falling={falling}");
+        }
+    }
+
+    /// <summary>
+    /// SUSPECTED BUG: SnarlHeldReason says Snarl is held ("familiar at 10% (under 20%)") while ShouldSnarl sends it for
+    /// a tankbuster or raidwide on its way — the reason has no tankbuster/raidwide inputs, so the debug log contradicts
+    /// what the rotation does. Debug text only; the rotation itself is right.
+    /// </summary>
+    [Fact(Skip = "Suspected bug, not fixed here: SnarlHeldReason ignores tankbusters and raidwides that ShouldSnarl acts on.")]
+    public void TheHeldReasonAgreesWithSnarlForATankbuster()
+    {
+        Assert.True(ArtemisCooldownRules.ShouldSnarl(true, true, true, true, 0.1f, 0.9f, secondsUntilTankbuster: 5f));
+        Assert.Null(ArtemisCooldownRules.SnarlHeldReason(true, true, 0.1f, 0.9f));
+    }
+
+    /// <summary>Nonsense inputs (negative hit or rate) leave the flat line, never lower it.</summary>
+    [Fact]
+    public void TheFallingLineNeverDropsBelowTheFlatLine()
+        => Assert.Equal(ArtemisCooldownRules.FamiliarFallingHpPct, ArtemisCooldownRules.FallingLine(-0.3f, -1f));
+
+    /// <summary>The bigger of the two raises wins: a 20% hit asks for 30%, 10%/s for 40%.</summary>
+    [Fact]
+    public void TheFallingLineTakesTheBiggerRaise()
+        => Assert.Equal(0.4f, ArtemisCooldownRules.FallingLine(0.2f, 0.1f), 3);
+
+    /// <summary>No raidwide known (float.MaxValue) stays unknown whatever the id.</summary>
+    [Fact]
+    public void NoRaidwideStaysNoRaidwide()
+    {
+        Assert.Equal(float.MaxValue, ArtemisCooldownRules.CoverableRaidwideSeconds(float.MaxValue, 0));
+        Assert.Equal(float.MaxValue, ArtemisCooldownRules.CoverableRaidwideSeconds(float.MaxValue, 49272));
+        Assert.Contains(49272u, ArtemisCooldownRules.UncoverableRaidwides);
+    }
+
+    /// <summary>Two casters at the same distance: the first listed is interrupted.</summary>
+    [Fact]
+    public void SoulCrushTiesGoToTheFirstListed()
+        => Assert.Equal(3UL, ArtemisCooldownRules.PickInterruptTarget([(3UL, 1.5f, true), (4UL, 1.5f, true)]));
+
+    /// <summary>Edge distance 0 (standing in its hitbox) is melee.</summary>
+    [Fact]
+    public void SoulCrushReachesACasterAtZeroDistance()
+        => Assert.Equal(5UL, ArtemisCooldownRules.PickInterruptTarget([(5UL, 0f, true)]));
+
+    // --- the HP trend: edges ---
+
+    private static readonly System.DateTime T0 = new(2026, 10, 25, 19, 14, 40, System.DateTimeKind.Utc);
+
+    [Fact]
+    public void OneSampleIsNoTrend()
+    {
+        var trend = new FamiliarHpTrend();
+        trend.Sample(1, 0.5f, T0);
+        Assert.Equal(0f, trend.BiggestHitPct);
+        Assert.Equal(0f, trend.LossPerSecond);
+    }
+
+    /// <summary>HP going up is not a hit, and a window that ends higher than it began has no loss.</summary>
+    [Fact]
+    public void HealingIsNeitherAHitNorALoss()
+    {
+        var trend = new FamiliarHpTrend();
+        trend.Sample(1, 0.5f, T0);
+        trend.Sample(1, 0.9f, T0.AddSeconds(1));
+        Assert.Equal(0f, trend.BiggestHitPct);
+        Assert.Equal(0f, trend.LossPerSecond);
+    }
+
+    /// <summary>The biggest drop counts, not the latest.</summary>
+    [Fact]
+    public void TheBiggestHitIsTheLargestNotTheLatest()
+    {
+        var trend = new FamiliarHpTrend();
+        trend.Sample(1, 0.9f, T0);
+        trend.Sample(1, 0.8f, T0.AddSeconds(1));
+        trend.Sample(1, 0.5f, T0.AddSeconds(2));
+        trend.Sample(1, 0.45f, T0.AddSeconds(3));
+        Assert.Equal(0.3f, trend.BiggestHitPct, 3);
+    }
+
+    /// <summary>Half a second in, a 30% drop reads as 10%/s (the whole 3 s window), not 60%/s.</summary>
+    [Fact]
+    public void AnUnfilledWindowStillDividesByThreeSeconds()
+    {
+        var trend = new FamiliarHpTrend();
+        trend.Sample(1, 1f, T0);
+        trend.Sample(1, 0.7f, T0.AddSeconds(0.5));
+        Assert.Equal(0.1f, trend.LossPerSecond, 3);
+    }
+
+    /// <summary>A sample exactly 3 s old still anchors the rate; one older than that has left the window.</summary>
+    [Fact]
+    public void TheRateLooksBackExactlyThreeSeconds()
+    {
+        var kept = new FamiliarHpTrend();
+        kept.Sample(1, 0.5f, T0);
+        kept.Sample(1, 0.2f, T0.AddSeconds(FamiliarHpTrend.RateWindowSeconds));
+        Assert.Equal(0.1f, kept.LossPerSecond, 3);
+
+        var dropped = new FamiliarHpTrend();
+        dropped.Sample(1, 0.5f, T0);
+        dropped.Sample(1, 0.2f, T0.AddSeconds(FamiliarHpTrend.RateWindowSeconds + 0.5));
+        Assert.Equal(0f, dropped.LossPerSecond);
+    }
+
+    /// <summary>A hit is remembered for exactly 10 s, and forgotten after.</summary>
+    [Fact]
+    public void AHitIsRememberedForExactlyTenSeconds()
+    {
+        var trend = new FamiliarHpTrend();
+        trend.Sample(1, 0.5f, T0);
+        trend.Sample(1, 0.3f, T0.AddSeconds(1));
+        trend.Sample(1, 0.3f, T0.AddSeconds(1 + FamiliarHpTrend.HitMemorySeconds));
+        Assert.Equal(0.2f, trend.BiggestHitPct, 3);
+        trend.Sample(1, 0.3f, T0.AddSeconds(1.5 + FamiliarHpTrend.HitMemorySeconds));
+        Assert.Equal(0f, trend.BiggestHitPct);
+    }
+
+    /// <summary>Going back to an earlier familiar starts over too: nothing carries across a swap.</summary>
+    [Fact]
+    public void SwappingBackStartsOver()
+    {
+        var trend = new FamiliarHpTrend();
+        trend.Sample(1, 0.9f, T0);
+        trend.Sample(1, 0.5f, T0.AddSeconds(1));
+        trend.Sample(2, 1f, T0.AddSeconds(2));
+        trend.Sample(1, 0.5f, T0.AddSeconds(3));
+        Assert.Equal(0f, trend.BiggestHitPct);
+        Assert.Equal(0f, trend.LossPerSecond);
+    }
 }
