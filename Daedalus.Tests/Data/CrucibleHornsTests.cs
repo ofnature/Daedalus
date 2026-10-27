@@ -337,4 +337,141 @@ public class CrucibleHornsTests
         var captured = new System.Collections.Generic.HashSet<int> { 44, 16, 10, 30, 26, 5, 7, 11, 4 };
         Assert.Equal(4, CrucibleHornPlan.Roster(Index, small, captured.Contains).Count);
     }
+
+    // --- Recommend: edges ---
+
+    [Fact]
+    public void AnEmptyTeamGetsNoRecommendation() => Assert.Empty(CrucibleHornPlan.Recommend(Index, Board, 1, []));
+
+    /// <summary>Fewer than three standing: every one of them goes on a horn, and no fallen one fills the gap.</summary>
+    [Fact]
+    public void FewerThanThreeStandingAllGoOn()
+        => Assert.Equal([0], CrucibleHornPlan.Recommend(Index, Board, 1, [M(30), M(26, alive: false)]));
+
+    /// <summary>Three horns at most, however big the team.</summary>
+    [Fact]
+    public void NeverMoreThanThreeHorns() => Assert.Equal(3, CrucibleHornPlan.Recommend(Index, Board, 1, Team).Count);
+
+    /// <summary>A battle the index has no lineup for still fills the horns, by rank.</summary>
+    [Fact]
+    public void AnUnknownBattleIsFilledByRank()
+    {
+        CrucibleTeamMember[] team = [M(7, rank: 1), M(44, rank: 8), M(30, rank: 5), M(26, rank: 3)];
+        Assert.Equal([1, 2, 3], CrucibleHornPlan.Recommend(Index, Board, 99, team));
+    }
+
+    /// <summary>Same rank, same HP: the later-caught beast (the stronger base) goes first — Goobbue (Lv12) over Buffalo (Lv9).</summary>
+    [Fact]
+    public void OnEqualRankAndHpTheLaterCaughtGoesFirst()
+        => Assert.Equal([1, 0], CrucibleHornPlan.Recommend(Index, Board, 99, [M(26, rank: 5), M(30, rank: 5)]));
+
+    /// <summary>Nothing to tell them apart: team order.</summary>
+    [Fact]
+    public void IdenticalMembersKeepTeamOrder()
+        => Assert.Equal([0, 1], CrucibleHornPlan.Recommend(Index, Board, 99, [M(30), M(30)]));
+
+    /// <summary>Worn means strictly under 35%: a match at exactly 35% keeps its place.</summary>
+    [Fact]
+    public void ExactlyThirtyFivePercentIsNotWorn()
+    {
+        CrucibleTeamMember[] team = [M(7, rank: 5, health: CrucibleHornPlan.WornHealthPct), M(44, rank: 4), M(30, rank: 4)];
+        Assert.Equal(0, CrucibleHornPlan.Recommend(Index, Board, 2, team)[0]);
+    }
+
+    /// <summary>A board with no rank band (no cap read) never moves an under-rank match off the first horn.</summary>
+    [Fact]
+    public void NoRankBandMeansNoFirstHornSwap()
+    {
+        CrucibleTeamMember[] team = [M(7, rank: 1), M(44, rank: 9)];
+        Assert.Equal([0, 1], CrucibleHornPlan.Recommend(Index, Board, 2, team));
+    }
+
+    /// <summary>With every beast worn, the strongest still takes the first horn from an under-rank match.</summary>
+    [Fact]
+    public void WithEveryoneWornTheStrongestStillTanks()
+    {
+        CrucibleTeamMember[] team = [M(7, rank: 4, health: 0.2f), M(44, rank: 9, health: 0.1f), M(30, rank: 7, health: 0.3f)];
+        Assert.Equal([1, 0, 2], CrucibleHornPlan.Recommend(Index, Board2Like, 2, team));
+    }
+
+    /// <summary>The first-horn rank is the board-synced one: on a cap-10 board a rank-25 beast is a 10.</summary>
+    [Fact]
+    public void ARankAboveTheCapCountsAsTheCap()
+        => Assert.Equal(10, CrucibleHornPlan.EffectiveRank(Board2Like, M(44, rank: 25)));
+
+    /// <summary>A board without a cap leaves ranks as read.</summary>
+    [Fact]
+    public void NoCapLeavesTheRankAlone() => Assert.Equal(25, CrucibleHornPlan.EffectiveRank(Board, M(44, rank: 25)));
+
+    // --- Roster: edges ---
+
+    [Fact]
+    public void NothingCapturedMeansAnEmptyRoster() => Assert.Empty(CrucibleHornPlan.Roster(Index, Board, _ => false));
+
+    /// <summary>A board whose cap was not read (0) brings at most ten, and never the same beast twice.</summary>
+    [Fact]
+    public void AnUnreadCapIsTenAndNoBeastTwice()
+    {
+        var roster = CrucibleHornPlan.Roster(Index, Board with { RosterCap = 0 }, _ => true);
+        Assert.InRange(roster.Count, 1, 10);
+        Assert.Equal(roster.Count, roster.Select(b => b.BestiaryNo).Distinct().Count());
+    }
+
+    /// <summary>A battle reachable only through a random space is still covered (Coblyn for the arch demon).</summary>
+    [Fact]
+    public void ARandomSpacesBattleIsCovered()
+    {
+        var board = Board with
+        {
+            Stages =
+            [
+                new CrucibleStage(1, 0, CrucibleStageType.Enemy, 1, []),
+                new CrucibleStage(2, 0, CrucibleStageType.Random, 0,
+                    [new CrucibleStageOption(CrucibleStageType.Treasure, 0), new CrucibleStageOption(CrucibleStageType.Enemy, 2)]),
+                new CrucibleStage(9, 0, CrucibleStageType.Boss, 6, []),
+            ],
+        };
+        var captured = new System.Collections.Generic.HashSet<int> { 44, 16, 10, 30, 7 };
+        Assert.Contains(CrucibleHornPlan.Roster(Index, board, captured.Contains), b => b.Name == "Coblyn");
+    }
+
+    // --- CrucibleLevelPlan.ClearRoster (built on Roster, so it shares this file's board) ---
+
+    private static readonly System.Collections.Generic.HashSet<int> AllCaptured = [44, 16, 10, 30, 26, 5, 7, 11, 4];
+
+    /// <summary>The core leads, then the coverage picks, with no beast twice.</summary>
+    [Fact]
+    public void TheClearRosterIsTheCoreThenCoverage()
+    {
+        int[] core = [26, 5, 44];
+        var roster = CrucibleLevelPlan.ClearRoster(Index, Board, core, AllCaptured.Contains);
+        Assert.Equal(core, roster.Take(3));
+        Assert.Equal(roster.Count, roster.Distinct().Count());
+        Assert.Contains(7, roster); // Coblyn, from the coverage picks
+    }
+
+    [Fact]
+    public void TheClearRosterRespectsTheCap()
+    {
+        var roster = CrucibleLevelPlan.ClearRoster(Index, Board with { RosterCap = 4 }, [26, 5, 44], AllCaptured.Contains);
+        Assert.Equal([26, 5, 44], roster.Take(3));
+        Assert.Equal(4, roster.Count);
+    }
+
+    /// <summary>A cap smaller than the core keeps the core's first picks only.</summary>
+    [Fact]
+    public void ACapUnderTheCoreKeepsItsFirstPicks()
+        => Assert.Equal([26, 5], CrucibleLevelPlan.ClearRoster(Index, Board with { RosterCap = 2 }, [26, 5, 44], AllCaptured.Contains));
+
+    /// <summary>An unread cap (0) is ten.</summary>
+    [Fact]
+    public void AnUnreadClearCapIsTen()
+        => Assert.InRange(CrucibleLevelPlan.ClearRoster(Index, Board with { RosterCap = 0 }, [26, 5, 44], _ => true).Count, 4, 10);
+
+    /// <summary>With no core the roster is just the coverage picks.</summary>
+    [Fact]
+    public void NoCoreIsJustTheCoverage()
+        => Assert.Equal(
+            CrucibleHornPlan.Roster(Index, Board, AllCaptured.Contains).Select(b => b.BestiaryNo),
+            CrucibleLevelPlan.ClearRoster(Index, Board, [], AllCaptured.Contains));
 }

@@ -81,4 +81,39 @@ public class CrucibleLevelingTests
 
     [Fact]
     public void NoChangesWhenTheTeamMatches() => Assert.Empty(CrucibleLevelPlan.Changes([44, 30], [30, 44]));
+
+    // --- LevelRoster: edges ---
+
+    /// <summary>A cap smaller than the core keeps the core's first picks and nothing else.</summary>
+    [Fact]
+    public void ALevelCapUnderTheCoreKeepsItsFirstPicks()
+        => Assert.Equal([44, 30], CrucibleLevelPlan.LevelRoster([44, 30, 26], Captured, RankOf, cap: 2));
+
+    [Fact]
+    public void AZeroLevelCapIsAnEmptyRoster()
+        => Assert.Empty(CrucibleLevelPlan.LevelRoster([44, 30, 26], Captured, RankOf, cap: 0));
+
+    /// <summary>A core beast already at 25 still rides along; only the fill skips beasts at 25.</summary>
+    [Fact]
+    public void ACoreBeastAtTwentyFiveStillComes()
+        => Assert.Equal(10, CrucibleLevelPlan.LevelRoster([10], Captured, RankOf, cap: 3)[0]);
+
+    /// <summary>A core beast is not added a second time by the fill.</summary>
+    [Fact]
+    public void TheCoreIsNotAddedTwice()
+    {
+        var roster = CrucibleLevelPlan.LevelRoster([5, 7], Captured, RankOf, cap: 10);
+        Assert.Equal(roster.Count, roster.Distinct().Count());
+        Assert.Equal([5, 7], roster.Take(2));
+    }
+
+    /// <summary>Lowest rank first, before Bestiary order: a rank-1 beast goes ahead of a rank-5 one with a lower number.</summary>
+    [Fact]
+    public void TheFillIsLowestRankFirst()
+        => Assert.Equal([16, 26], CrucibleLevelPlan.LevelRoster([], [26, 16], RankOf, cap: 5));
+
+    /// <summary>With no core and nothing captured there is nothing to bring.</summary>
+    [Fact]
+    public void NothingCapturedAndNoCoreIsEmpty()
+        => Assert.Empty(CrucibleLevelPlan.LevelRoster([], [], RankOf, cap: 10));
 }
