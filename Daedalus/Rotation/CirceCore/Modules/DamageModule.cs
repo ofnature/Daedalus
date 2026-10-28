@@ -8,6 +8,7 @@ using Daedalus.Rotation.CirceCore.Helpers;
 using Daedalus.Rotation.Common.Helpers;
 using Daedalus.Rotation.Common.Scheduling;
 using Daedalus.Services;
+using Daedalus.Services.Action;
 using Daedalus.Services.Targeting;
 using Daedalus.Services.Training;
 
@@ -599,7 +600,9 @@ public sealed class DamageModule : ICirceModule
             return;
         }
 
-        if (useAoe)
+        // Below Verthunder II there is no AoE hardcast (GetAoeHardcast falls back to Jolt), so fall through to the
+        // Jolt push; mapping that to Veraero II queued an action the scheduler drops and left no filler.
+        if (useAoe && ActionAvailability.MeetsLevelAndLearned(level, context.ActionService, RDMActions.Verthunder2))
         {
             var aoeHardcast = RDMActions.GetAoeHardcast(level, context.BlackMana, context.WhiteMana);
             var ability = aoeHardcast == RDMActions.Verthunder2 ? CirceAbilities.Verthunder2 : CirceAbilities.Veraero2;

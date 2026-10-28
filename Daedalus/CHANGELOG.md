@@ -3,6 +3,32 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.110 — (unreleased)
+
+### Rotations — checked against RotationSolverReborn
+- **Dark Knight: Oblation no longer burns both charges at once.** When your HP was low, the second weave slot could
+  press Oblation again before the first one's buff showed up, wasting the other charge on a refresh. It now waits
+  for another oGCD in between.
+- **Machinist: the raid Automaton Queen plan stays in step.** In trials and raids (or with the Complex Queen mode)
+  the plan of Battery amounts per summon could start one step ahead on every pull after the first, and its 12th
+  summon (80 → 100 Battery) could never match. Each summon is now counted when the Queen comes out.
+- **Melee jobs (Samurai, Ninja, Monk, Dragoon, Reaper, Viper): rear and flank are read on the ground.** Standing
+  above or below a target (a slope, a raised platform) tilted the check toward "flank", so True North could be
+  spent when you were already at the rear, or skipped when you were at the front. Height no longer counts.
+- **Viper: the second Coil and both Dens are pressed again.** The rotation misread which twinblade step the job gauge
+  was on: after Hunter's Coil it tried Hunter's Den instead of Swiftskin's Coil, and after Vicepit it tried
+  Swiftskin's Coil instead of a Den, so those hits (and their Twinfang/Twinblood follow-ups) were lost.
+- **Sage: no Eukrasian Dosis on an enemy about to die.** The "skip the DoT on a dying target" check was undone for
+  Sage alone, so the last mob of a pull still got Eukrasia + Eukrasian Dosis instead of a stronger Dosis.
+- **Scholar: Recitation waits for its follow-up.** Recitation was pressed for Excogitation (or Indomitability) even
+  while that action was still on cooldown, so the 15-second buff had nothing to go on. It is now held until the
+  follow-up is ready, and never pressed for a follow-up you have turned off.
+- **Red Mage: synced below level 18, packs get Jolt again.** Against three or more enemies the rotation reached for
+  Veraero II, which you don't have yet, and cast nothing — so no Dualcast either. It now casts Jolt.
+- **Beastmaster: Trick and Parting Blow no longer step on each other.** With Parting Blow turned on, it could go out
+  right after a Trick (the familiar left before its Trick landed), or a Trick could go to a familiar that was just
+  sent away. One of them now waits for the next weave. The Crucible's "familiar falling" retreat is unchanged.
+
 ## v0.1.109 — 2026-10-27
 
 ### Beastmaster — the Crucible

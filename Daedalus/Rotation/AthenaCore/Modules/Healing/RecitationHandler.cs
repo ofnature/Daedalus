@@ -98,7 +98,11 @@ public sealed class RecitationHandler : IHealingHandler
         var config = context.Configuration.Scholar;
         var player = context.Player;
 
+        // Only when the follow-up can go out inside the 15s buff: Recitation (60s) and Excog (45s) drift apart
+        // (RSR ShouldUseRecitation, the branch RSR 7f857722 fixed).
+        if (!config.EnableExcogitation) return false;
         if (player.Level < SCHActions.Excogitation.MinLevel) return false;
+        if (!context.ActionService.IsActionReady(SCHActions.Excogitation.ActionId)) return false;
 
         var target = context.PartyHelper.FindExcogitationTarget(player);
         if (target == null) return false;
@@ -111,6 +115,10 @@ public sealed class RecitationHandler : IHealingHandler
     {
         var config = context.Configuration.Scholar;
         var player = context.Player;
+
+        if (!config.EnableIndomitability) return false;
+        if (player.Level < SCHActions.Indomitability.MinLevel) return false;
+        if (!context.ActionService.IsActionReady(SCHActions.Indomitability.ActionId)) return false;
 
         var (avgHp, _, injuredCount) = context.PartyHelper.CalculatePartyHealthMetrics(player);
         var minTargets = AoEHealTargetHelper.GetEffectiveMinTargets(

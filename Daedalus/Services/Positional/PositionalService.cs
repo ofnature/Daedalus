@@ -47,14 +47,17 @@ public sealed class PositionalService : IPositionalService
     internal static PositionalType ClassifyPositional(IBattleChara player, IBattleChara target)
     {
         var faceVec = GetFaceVector(target);
-        var dir = player.Position - target.Position;
+        // The game judges positionals on the ground plane; a height difference must not tilt the angle
+        // toward Flank (RSR 8153eea2).
+        var offset = player.Position - target.Position;
+        var dir = new Vector2(offset.X, offset.Z);
         if (dir.LengthSquared() < 1e-6f)
             return PositionalType.Front;
 
-        dir = Vector3.Normalize(dir);
-        faceVec = Vector3.Normalize(faceVec);
+        dir = Vector2.Normalize(dir);
+        var face = Vector2.Normalize(new Vector2(faceVec.X, faceVec.Z));
 
-        var dot = Math.Clamp(Vector3.Dot(faceVec, dir), -1f, 1f);
+        var dot = Math.Clamp(Vector2.Dot(face, dir), -1f, 1f);
         var angle = MathF.Acos(dot);
 
         if (angle < FrontAngleRadians)

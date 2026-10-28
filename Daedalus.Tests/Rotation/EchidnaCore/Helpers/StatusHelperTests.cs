@@ -341,25 +341,28 @@ public class StatusHelperTests
     }
 
     [Fact]
-    public void GetDreadComboOgcd_HunterCoilReady_ReturnsTwinfang()
+    public void GetDreadComboOgcd_SwiftskinCoilReady_ReturnsTwinfang()
     {
-        var action = VPRActions.GetDreadComboOgcd(VPRActions.DreadCombo.HunterCoilReady, isAoe: false);
+        // Hunter's Coil was used (Swiftskin's owed): Twinfang is pending.
+        var action = VPRActions.GetDreadComboOgcd(VPRActions.DreadCombo.SwiftskinCoilReady, isAoe: false);
         Assert.NotNull(action);
         Assert.Equal(VPRActions.Twinfang.ActionId, action!.ActionId);
     }
 
     [Fact]
-    public void GetDreadComboOgcd_SwiftskinCoilReady_ReturnsTwinblood()
+    public void GetDreadComboOgcd_HunterCoilReady_ReturnsTwinblood()
     {
-        var action = VPRActions.GetDreadComboOgcd(VPRActions.DreadCombo.SwiftskinCoilReady, isAoe: false);
+        // Swiftskin's Coil was used (Hunter's owed): Twinblood is pending.
+        var action = VPRActions.GetDreadComboOgcd(VPRActions.DreadCombo.HunterCoilReady, isAoe: false);
         Assert.NotNull(action);
         Assert.Equal(VPRActions.Twinblood.ActionId, action!.ActionId);
     }
 
     [Fact]
-    public void GetDreadComboOgcd_HunterDenReady_AoE_ReturnsTwinfangBite()
+    public void GetDreadComboOgcd_SwiftskinDenReady_AoE_ReturnsTwinfangBite()
     {
-        var action = VPRActions.GetDreadComboOgcd(VPRActions.DreadCombo.HunterDenReady, isAoe: true);
+        // Hunter's Den was used (Swiftskin's owed): Twinfang Bite is pending.
+        var action = VPRActions.GetDreadComboOgcd(VPRActions.DreadCombo.SwiftskinDenReady, isAoe: true);
         Assert.NotNull(action);
         Assert.Equal(VPRActions.TwinfangBite.ActionId, action!.ActionId);
     }
