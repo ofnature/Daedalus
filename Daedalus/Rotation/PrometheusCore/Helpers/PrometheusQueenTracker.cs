@@ -18,34 +18,31 @@ public sealed class PrometheusQueenTracker
         (70, 100),
         (100, 50),
         (50, 80),
-        (70, 100),
+        (80, 100),
         (100, 50),
         (50, 60),
     ];
 
     private int _currentStep;
-    private byte _lastTrackedSummonBattery;
+    private bool _wasQueenActive;
 
     public int CurrentStep => _currentStep;
 
-    public void Reset()
+    public void Reset(bool isQueenActive = false)
     {
         _currentStep = 0;
-        _lastTrackedSummonBattery = 0;
+        _wasQueenActive = isQueenActive;
     }
 
     /// <summary>
-    /// Advances the step when a new Queen summon is detected via gauge LastQueenBattery.
+    /// Advances the step once per Queen summon (the frame the Queen comes out). The gauge's LastQueenBattery
+    /// keeps its value between pulls and can repeat, so a change in it is not a summon (RSR 8153eea2).
     /// </summary>
-    public void OnFrame(int lastQueenBattery)
+    public void OnFrame(bool isQueenActive)
     {
-        var tracked = (byte)System.Math.Clamp(lastQueenBattery, 0, 100);
-        if (_lastTrackedSummonBattery == tracked)
-            return;
-
-        _lastTrackedSummonBattery = tracked;
-        if (_currentStep < StepPairs.Length)
+        if (isQueenActive && !_wasQueenActive && _currentStep < StepPairs.Length)
             _currentStep++;
+        _wasQueenActive = isQueenActive;
     }
 
     /// <summary>

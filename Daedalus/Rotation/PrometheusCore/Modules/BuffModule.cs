@@ -52,7 +52,7 @@ public sealed class BuffModule : IPrometheusModule
     {
         if (!context.InCombat)
         {
-            _queenTracker.Reset();
+            _queenTracker.Reset(context.IsQueenActive);
             _packTtk.Reset();
             context.Debug.BuffState = "Not in combat";
             return;
@@ -404,9 +404,10 @@ public sealed class BuffModule : IPrometheusModule
             context.TargetingService.SumEnemyCurrentHpInRange(FFXIVConstants.RangedTargetingRange, player),
             DateTime.UtcNow);
 
-        if (context.IsQueenActive) return;
+        // Before the Queen-active return: the tracker counts summons by the frame the Queen comes out.
+        _queenTracker.OnFrame(context.IsQueenActive);
 
-        _queenTracker.OnFrame(context.LastQueenBattery);
+        if (context.IsQueenActive) return;
 
         var nextGcdId = PredictNextGcd(context, enemyCount);
         var batteryMin = context.Configuration.Machinist.BatteryMinGauge;

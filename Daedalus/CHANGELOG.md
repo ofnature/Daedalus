@@ -9,6 +9,9 @@ All notable changes to Daedalus will be documented in this file.
 - **Dark Knight: Oblation no longer burns both charges at once.** When your HP was low, the second weave slot could
   press Oblation again before the first one's buff showed up, wasting the other charge on a refresh. It now waits
   for another oGCD in between.
+- **Machinist: the raid Automaton Queen plan stays in step.** In trials and raids (or with the Complex Queen mode)
+  the plan of Battery amounts per summon could start one step ahead on every pull after the first, and its 12th
+  summon (80 → 100 Battery) could never match. Each summon is now counted when the Queen comes out.
 
 ## v0.1.109 — 2026-10-27
 

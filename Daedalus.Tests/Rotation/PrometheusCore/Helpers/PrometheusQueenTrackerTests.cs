@@ -21,10 +21,11 @@ public class PrometheusQueenTrackerTests
     }
 
     [Fact]
-    public void OnFrame_AdvancesStepWhenLastQueenBatteryChanges()
+    public void OnFrame_AdvancesStepWhenQueenComesOut()
     {
         var tracker = new PrometheusQueenTracker();
-        tracker.OnFrame(60);
+        tracker.OnFrame(isQueenActive: true);
+        tracker.OnFrame(isQueenActive: true);
         Assert.Equal(1, tracker.CurrentStep);
         Assert.True(tracker.MatchesCurrentStep(lastQueenBattery: 60, battery: 90));
     }
@@ -33,7 +34,7 @@ public class PrometheusQueenTrackerTests
     public void Reset_ClearsStepProgress()
     {
         var tracker = new PrometheusQueenTracker();
-        tracker.OnFrame(60);
+        tracker.OnFrame(isQueenActive: true);
         tracker.Reset();
         Assert.Equal(0, tracker.CurrentStep);
         Assert.True(tracker.MatchesCurrentStep(lastQueenBattery: 0, battery: 60));
