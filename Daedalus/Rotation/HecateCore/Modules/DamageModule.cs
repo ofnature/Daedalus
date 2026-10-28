@@ -6,6 +6,7 @@ using Daedalus.Rotation.Common.Scheduling;
 using Daedalus.Rotation.HecateCore.Abilities;
 using Daedalus.Rotation.HecateCore.Context;
 using Daedalus.Services;
+using Daedalus.Services.Action;
 using Daedalus.Services.Targeting;
 using Daedalus.Services.Training;
 
@@ -33,7 +34,6 @@ public sealed class DamageModule : IHecateModule
         BurstHoldHelper.ShouldHoldForBurst(_burstWindowService, thresholdSeconds);
 
     private const int DespairMpCost = 800;
-    private const float ElementRefreshThreshold = 6f;
     // RSR-aligned fire-transition gate (9600, not a full bar). The old MpPercent >= 0.99f
     // demanded 9900+ MP, which natural regen alone can never reliably cross mid-stall.
     private const int FireTransitionMpThreshold = 9600;
@@ -114,8 +114,9 @@ public sealed class DamageModule : IHecateModule
         var player = context.Player;
         var level = player.Level;
 
+        var xenoglossyAvailable = ActionAvailability.MeetsLevelAndLearned(level, context.ActionService, BLMActions.Xenoglossy);
         if (context.Configuration.BlackMage.EnableXenoglossy && context.PolyglotStacks > 0
-            && level >= BLMActions.Xenoglossy.MinLevel && !useAoe)
+            && xenoglossyAvailable && !useAoe)
         {
             scheduler.PushGcd(HecateAbilities.Xenoglossy, target.GameObjectId, priority: 1,
                 onDispatched: _ =>
@@ -138,8 +139,11 @@ public sealed class DamageModule : IHecateModule
             return;
         }
 
+        // Before Xenoglossy (Lv80) Foul is the only Polyglot spender, single target included
+        // (RSR BLM_Default UsePolyglot: FoulPvE.CanUse(skipAoeCheck: !XenoglossyPvE.EnoughLevel)).
         if (context.Configuration.BlackMage.EnableFoul && context.PolyglotStacks > 0
-            && level >= BLMActions.Foul.MinLevel && useAoe)
+            && ActionAvailability.MeetsLevelAndLearned(level, context.ActionService, BLMActions.Foul)
+            && (useAoe || !xenoglossyAvailable))
         {
             scheduler.PushGcd(HecateAbilities.Foul, target.GameObjectId, priority: 1,
                 onDispatched: _ =>
@@ -314,9 +318,15 @@ public sealed class DamageModule : IHecateModule
                 });
         }
 
+        // An expiring Thunderhead is spent regardless; the DoT-refresh trigger honours the same
+        // MaintainThunder / ThunderMinTargetHp gates as the ice-phase Thunder branch.
         var thunderRefresh = context.Configuration.BlackMage.ThunderRefreshThreshold;
+        var targetHpPercent = target.MaxHp > 0 ? (float)target.CurrentHp / target.MaxHp : 1f;
+        var dotRefreshWanted = context.Configuration.BlackMage.MaintainThunder
+            && targetHpPercent >= context.Configuration.BlackMage.ThunderMinTargetHp
+            && context.ThunderDoTRemaining < thunderRefresh;
         if (context.HasThunderhead
-            && (context.ThunderheadRemaining < 5f || context.ThunderDoTRemaining < thunderRefresh))
+            && (context.ThunderheadRemaining < 5f || dotRefreshWanted))
         {
             var thunderAction = useAoe ? BLMActions.GetThunderAoe(level, context.ActionService) : BLMActions.GetThunderST(level, context.ActionService);
             var ability = MapThunderAbility(thunderAction);
@@ -344,7 +354,9 @@ public sealed class DamageModule : IHecateModule
     {
         var level = context.Player.Level;
         if (context.PolyglotStacks == 0) return;
-        var maxPolyglot = level >= 98 ? 3 : 2;
+        // Trait sheet: Enhanced Polyglot (Lv80) allows a second stack, Enhanced Polyglot II (Lv98) a third;
+        // below 80 the cap is 1 (RSR BlackMageRotation.IsPolyglotStacksMaxed).
+        var maxPolyglot = level >= 98 ? 3 : level >= 80 ? 2 : 1;
         var cfg = context.Configuration.BlackMage;
 
         if (context.PolyglotStacks >= maxPolyglot)
@@ -407,11 +419,13 @@ public sealed class DamageModule : IHecateModule
 
     private static (ActionDefinition? action, AbilityBehavior? ability) SelectPolyglotAction(IHecateContext context, byte level, bool useAoe)
     {
-        if (context.Configuration.BlackMage.EnableFoul && useAoe && level >= BLMActions.Foul.MinLevel)
+        var foulAvailable = ActionAvailability.MeetsLevelAndLearned(level, context.ActionService, BLMActions.Foul);
+        if (context.Configuration.BlackMage.EnableFoul && useAoe && foulAvailable)
             return (BLMActions.Foul, HecateAbilities.Foul);
-        if (context.Configuration.BlackMage.EnableXenoglossy && level >= BLMActions.Xenoglossy.MinLevel)
+        if (context.Configuration.BlackMage.EnableXenoglossy
+            && ActionAvailability.MeetsLevelAndLearned(level, context.ActionService, BLMActions.Xenoglossy))
             return (BLMActions.Xenoglossy, HecateAbilities.Xenoglossy);
-        if (context.Configuration.BlackMage.EnableFoul && level >= BLMActions.Foul.MinLevel)
+        if (context.Configuration.BlackMage.EnableFoul && foulAvailable)
             return (BLMActions.Foul, HecateAbilities.Foul);
         return (null, null);
     }
@@ -421,14 +435,13 @@ public sealed class DamageModule : IHecateModule
         var level = context.Player.Level;
         context.Debug.Phase = "Fire";
 
-        if (context.ElementTimer < 3f && context.ElementTimer > 0)
-        {
-            TryPushIceTransition(context, scheduler, target);
-            return;
-        }
-
+        // No element-timer exit: since Dawntrail Astral Fire has no duration (Fire III / Despair / Manafont
+        // just "Grant Astral Fire III"), and the gauge's EnochianTimer (ElementTimer) is the 30s Polyglot
+        // cycle (Trait "Enhanced Enochian": Polyglot "upon maintaining Enochian for 30 seconds"). Gating on
+        // it cast Blizzard III mid-Fire every ~30s. Paradox is spent whenever it's up (RSR ModifyParadoxPvE:
+        // IsParadoxActive); it costs MP in Astral Fire (free only in Umbral Ice), so it needs the MP.
         if (context.Configuration.BlackMage.EnableParadox && context.HasParadox
-            && context.ElementTimer < ElementRefreshThreshold && level >= BLMActions.Paradox.MinLevel)
+            && context.CurrentMp >= BLMActions.Paradox.MpCost && level >= BLMActions.Paradox.MinLevel)
         {
             var castTime = context.HasInstantCast ? 0f : BLMActions.Paradox.CastTime;
             if (MechanicCastGate.ShouldBlock(context, castTime))
@@ -440,7 +453,7 @@ public sealed class DamageModule : IHecateModule
                 onDispatched: _ =>
                 {
                     context.Debug.PlannedAction = BLMActions.Paradox.Name;
-                    context.Debug.DamageState = "Paradox (timer refresh)";
+                    context.Debug.DamageState = "Paradox (Astral Fire)";
                     TrainingHelper.Decision(context.TrainingService)
                         .Action(BLMActions.Paradox.ActionId, BLMActions.Paradox.Name)
                         .AsCasterResource("Element Timer", (int)context.ElementTimer)
@@ -465,8 +478,14 @@ public sealed class DamageModule : IHecateModule
 
         // Despair finisher window
         var fire4MinMp = context.Configuration.BlackMage.FireIVMinMp;
-        // Prefer Despair when configured Fire IV count has been reached (tracked via Astral Soul stacks)
-        var fireIVsReached = context.AstralSoulStacks >= context.Configuration.BlackMage.FireIVsBeforeDespair;
+        // Prefer Despair when configured Fire IV count has been reached (tracked via Astral Soul stacks) —
+        // but only as the pre-Manafont line (Despair empties MP, Manafont refills it). Despair doesn't
+        // spend Astral Soul, so once Manafont is used this branch would Despair again on every refill and
+        // Astral Soul would never reach 6 for Flare Star (RSR: Fire IV until 6 stacks, then Flare Star).
+        var manafontUp = context.Configuration.BlackMage.EnableManafont && context.ManafontReady
+            && ActionAvailability.MeetsLevelAndLearned(level, context.ActionService, BLMActions.Manafont);
+        var fireIVsReached = context.AstralSoulStacks >= context.Configuration.BlackMage.FireIVsBeforeDespair
+            && context.AstralSoulStacks < 6 && manafontUp;
         if (fireIVsReached && context.Configuration.BlackMage.EnableDespair && level >= BLMActions.Despair.MinLevel
             && context.CurrentMp >= DespairMpCost)
         {
@@ -534,7 +553,13 @@ public sealed class DamageModule : IHecateModule
             return;
         }
 
-        if (level >= BLMActions.Fire4.MinLevel && context.CurrentMp >= fire4MinMp)
+        // Astral Fire increases fire-spell MP cost (Fire IV 800 → 1600); an Umbral Heart nullifies that
+        // increase (Blizzard IV / Manafont tooltip). Without hearts, gating Fire IV on 800 pushed a cast the
+        // game refuses at 800-1599 MP while the transition below waited for < 800 — a stall below Despair.
+        var fire4Available = ActionAvailability.MeetsLevelAndLearned(level, context.ActionService, BLMActions.Fire4);
+        var fire4Cost = context.UmbralHearts > 0 ? BLMActions.Fire4.MpCost : BLMActions.Fire4.MpCost * 2;
+        var fire4Gate = System.Math.Max(fire4MinMp, fire4Cost);
+        if (fire4Available && context.CurrentMp >= fire4Gate)
         {
             var castTime = context.HasInstantCast ? 0f : BLMActions.Fire4.CastTime;
             if (MechanicCastGate.ShouldBlock(context, castTime))
@@ -571,7 +596,7 @@ public sealed class DamageModule : IHecateModule
         // floor is MpCost×2+800 (=2400). The old branch pushed Fire UNCONDITIONALLY and
         // returned, making the ice transition below unreachable under Lv60 — a sub-30 BLM
         // burned MP dry on Fire and never cast Blizzard at all (field report 2026-07-17).
-        if (level < BLMActions.Fire4.MinLevel)
+        if (!fire4Available)
         {
             if (context.CurrentMp >= BLMActions.Fire.MpCost * 2 + 800)
             {
@@ -596,7 +621,7 @@ public sealed class DamageModule : IHecateModule
             return;
         }
 
-        if (context.CurrentMp < DespairMpCost)
+        if (context.CurrentMp < fire4Gate)
             TryPushIceTransition(context, scheduler, target);
     }
 
@@ -604,7 +629,8 @@ public sealed class DamageModule : IHecateModule
     {
         var level = context.Player.Level;
 
-        if (level >= BLMActions.Flare.MinLevel && context.CurrentMp >= context.Configuration.BlackMage.FireIVMinMp)
+        if (ActionAvailability.MeetsLevelAndLearned(level, context.ActionService, BLMActions.Flare)
+            && context.CurrentMp >= context.Configuration.BlackMage.FireIVMinMp)
         {
             var castTime = context.HasInstantCast ? 0f : BLMActions.Flare.CastTime;
             if (MechanicCastGate.ShouldBlock(context, castTime))
@@ -622,7 +648,11 @@ public sealed class DamageModule : IHecateModule
         }
 
         var fireAoe = BLMActions.GetFireAoe(level, context.ActionService);
-        var fireAoeAbility = fireAoe == BLMActions.HighFire2 ? HecateAbilities.HighFire2 : HecateAbilities.Fire2;
+        // GetFireAoe falls back to plain Fire below Fire II (Lv18); mapping that to the Fire II behaviour
+        // made the scheduler drop it (below MinLevel) and nothing castable was queued.
+        var fireAoeAbility = fireAoe == BLMActions.HighFire2 ? HecateAbilities.HighFire2
+            : fireAoe == BLMActions.Fire2 ? HecateAbilities.Fire2
+            : HecateAbilities.Fire;
         if (level >= fireAoe.MinLevel && context.CurrentMp >= fireAoe.MpCost)
         {
             var castTime = context.HasInstantCast ? 0f : fireAoe.CastTime;
@@ -709,8 +739,9 @@ public sealed class DamageModule : IHecateModule
         // phase in a Blizzard chain-cast at full MP, and these exit checks were unreachable.
         // MP full = the ice phase has done its job; TryPushFireTransition Transposes back
         // (sub-35) or Fire III's (35+, where B3 delivered UI3 and this order never mattered).
+        var blizzard4Available = ActionAvailability.MeetsLevelAndLearned(level, context.ActionService, BLMActions.Blizzard4);
         if (context.CurrentMp >= FireTransitionMpThreshold
-            && (context.UmbralHearts >= 3 || level < BLMActions.Blizzard4.MinLevel))
+            && (context.UmbralHearts >= 3 || !blizzard4Available))
         {
             TryPushFireTransition(context, scheduler, target);
             return;
@@ -739,7 +770,7 @@ public sealed class DamageModule : IHecateModule
         }
 
         // Generate Umbral Hearts with Blizzard IV
-        if (context.UmbralHearts < 3 && context.UmbralIceStacks == 3 && level >= BLMActions.Blizzard4.MinLevel)
+        if (context.UmbralHearts < 3 && context.UmbralIceStacks == 3 && blizzard4Available)
         {
             var castTime = context.HasInstantCast ? 0f : BLMActions.Blizzard4.CastTime;
             if (MechanicCastGate.ShouldBlock(context, castTime))
@@ -828,9 +859,12 @@ public sealed class DamageModule : IHecateModule
         if (useAoe && context.UmbralHearts < 3)
         {
             var iceAoe = BLMActions.GetIceAoe(level, context.ActionService);
+            // GetIceAoe falls back to plain Blizzard below Blizzard II (Lv12) — map it to Blizzard, not
+            // the Blizzard II behaviour the scheduler would drop.
             var ability = iceAoe == BLMActions.Freeze ? HecateAbilities.Freeze
                         : iceAoe == BLMActions.HighBlizzard2 ? HecateAbilities.HighBlizzard2
-                        : HecateAbilities.Blizzard2;
+                        : iceAoe == BLMActions.Blizzard2 ? HecateAbilities.Blizzard2
+                        : HecateAbilities.Blizzard;
             if (level >= iceAoe.MinLevel)
             {
                 var castTime = context.HasInstantCast ? 0f : iceAoe.CastTime;
@@ -856,8 +890,9 @@ public sealed class DamageModule : IHecateModule
         // Despair-emptied MP: 60-90s "Waiting for MP" stalls with only natural regen crawling
         // (Origenics field report 2026-07-05). Reaching this point means UI stacks are 3 (the
         // build-to-UI3 branch above returns otherwise), so cast an ice GCD to trigger the refill.
-        var refillAction = useAoe && level >= BLMActions.Freeze.MinLevel ? BLMActions.Freeze
-            : level >= BLMActions.Blizzard4.MinLevel ? BLMActions.Blizzard4
+        var refillAction = useAoe && ActionAvailability.MeetsLevelAndLearned(level, context.ActionService, BLMActions.Freeze)
+            ? BLMActions.Freeze
+            : blizzard4Available ? BLMActions.Blizzard4
             : BLMActions.Blizzard;
         var refillAbility = refillAction == BLMActions.Freeze ? HecateAbilities.Freeze
             : refillAction == BLMActions.Blizzard4 ? HecateAbilities.Blizzard4

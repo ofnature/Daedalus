@@ -63,6 +63,11 @@ All notable changes to Daedalus will be documented in this file.
 - **Pictomancer: Mog of the Ages and Retribution of the Madeen fire again; low-level Hammer Time is spent.** The
   portrait gauge was read from the wrong bits, so Retribution of the Madeen never fired and Mog could be skipped after
   Clawed Muse. Below level 86 the second and third Hammer Stamps were never pressed and Hammer Time ran out.
+- **Black Mage: the fire phase follows Dawntrail's rules.** It no longer drops to Blizzard III in the middle of Astral
+  Fire every 30 seconds (that timer is the Polyglot timer), casts Flare Star after Manafont instead of a second
+  Despair, and goes to ice when Fire IV costs more than the MP left instead of stalling. Below level 80 the single
+  Polyglot is spent on Foul; job-quest spells you haven't learned, low-level AoE Fire/Blizzard and the Thunder upkeep
+  settings are respected.
 
 ## v0.1.109 — 2026-10-27
 
