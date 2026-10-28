@@ -322,15 +322,36 @@ public sealed class DamageModule : IEchidnaModule
             }
         }
 
+        // RSR StateUpdater.ShouldAddPositional: only when the NEXT GCD owes a positional we're not at (not in
+        // packs, Reawaken or Dens), and only in the last weave slot so the player can still walk there.
         if (context.Configuration.MeleeShared.EnableTrueNorth
             && !context.HasTrueNorth
-            && !context.IsAtRear && !context.IsAtFlank
             && !context.TargetHasPositionalImmunity
+            && NeedsTrueNorthForNextGcd(context)
+            && context.ActionService.GcdRemaining <= RoleActionGates.TrueNorthLastWeaveRemain
             && RoleActionGates.TrueNorthReady(context))
         {
             scheduler.PushOgcd(EchidnaAbilities.TrueNorth, player.GameObjectId, priority: 6,
                 onDispatched: _ => context.Debug.PlannedAction = RoleActions.TrueNorth.Name);
         }
+    }
+
+    private static bool NeedsTrueNorthForNextGcd(IEchidnaContext context)
+    {
+        // Reawaken's Generations / Ouroboros have no positionals; the coil/finisher map can't see that.
+        if (context.IsReawakened) return false;
+
+        var next = Echidna.ComputeNextPositional(
+            context.DreadCombo,
+            context.LastComboAction,
+            hasRearVenom: context.HasHindstungVenom || context.HasHindsbaneVenom,
+            hasFlankVenom: context.HasFlankstungVenom || context.HasFlanksbaneVenom);
+        return next switch
+        {
+            PositionalType.Rear => !context.IsAtRear,
+            PositionalType.Flank => !context.IsAtFlank,
+            _ => false,
+        };
     }
 
     #endregion

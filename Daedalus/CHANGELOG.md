@@ -39,6 +39,9 @@ All notable changes to Daedalus will be documented in this file.
 - **Warrior: Nascent Flash skips invulnerable allies.** A co-tank in Superbolide, Holmgang, Living Dead or Hallowed
   Ground (or under HP Recovery Down) no longer wins the "lowest HP" pick; Nascent Flash goes to the next ally who
   needs it. Walking Dead still counts, since that Dark Knight has to be healed.
+- **Viper: automatic True North only when a positional is owed, in the last weave slot.** It used to go out
+  whenever you stood at the front — in packs, during Reawaken, before the Dens — and in the first weave slot.
+  It now waits for a Coil or Sting finisher you're out of position for, just before that hit.
 
 ## v0.1.109 — 2026-10-27
 
