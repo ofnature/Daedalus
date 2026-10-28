@@ -94,6 +94,36 @@ public static class CrucibleWalkPlan
                && player.Z >= placed.Min(p => p.Z) - 12f && player.Z <= placed.Max(p => p.Z) + 15f;
     }
 
+    /// <summary>The key of one fork in <c>CrucibleFlippedForks</c>: "board:move".</summary>
+    public static string ForkKey(int board, int move) => $"{board}:{move}";
+
+    /// <summary>
+    /// Forks known to sit the other way round from the game data's left/right. Board 1 move 3: the walker aimed for the
+    /// treasure at x −695 and the campsite opened (Korha, 2026-10-27, fork log); its battle forks matched.
+    /// </summary>
+    public static readonly IReadOnlySet<string> KnownFlippedForks = new HashSet<string> { "1:3" };
+
+    /// <summary>Whether a fork is the other way round: known, toggled by what was learned in play.</summary>
+    public static bool IsForkFlipped(string key, ICollection<string>? learned) =>
+        KnownFlippedForks.Contains(key) != (learned?.Contains(key) == true);
+
+    /// <summary>
+    /// Which space type a screen that just opened belongs to: a campsite (the team screen without the battle list), a
+    /// treasure coffer or a shop. Null for anything else (battles are told apart by the battle the horn screen shows).
+    /// </summary>
+    public static CrucibleStageType? OpenedSpace(bool treasure, bool shop, bool teamScreen, bool battleList) =>
+        treasure ? CrucibleStageType.Treasure
+        : shop ? CrucibleStageType.Shop
+        : teamScreen && !battleList ? CrucibleStageType.Campsite
+        : null;
+
+    /// <summary>
+    /// Whether a fork is the other way round: we walked to <paramref name="walkedTo"/>'s spot and a space of its
+    /// sibling's type opened instead (and the two types differ).
+    /// </summary>
+    public static bool ForkIsFlipped(IReadOnlyList<CrucibleStage> route, CrucibleStage walkedTo, CrucibleStageType opened) =>
+        walkedTo.Type != opened && Sibling(route, walkedTo) is { } other && other.Type == opened;
+
     /// <summary>
     /// At a two-way fork, the other side's space. Used when the battle that opened is the other side's: the layout's
     /// left/right was read the wrong way round for this board.

@@ -214,6 +214,26 @@ public static class CrucibleAutoPilotRules
         return best;
     }
 
+    /// <summary>
+    /// For Legendary, whether to take beast gear on this board: where holding 10 pieces pays (Walking Armory, Boards 2/3
+    /// and up) the gear is taken, as the Legendary runs found do (Meoni's series, Merton9999 on the forum) — it also keeps
+    /// the three beasts alive; where it pays nothing (Board 1) none is taken, for Nameday Attire.
+    /// </summary>
+    public static bool LegendaryTakesGear(CrucibleBoard board) => board.BonusValue(CrucibleBonus.WalkingArmory) > 0;
+
+    /// <summary>
+    /// For Legendary: the best offer that is NOT beast gear (Nameday Attire is lost the moment gear is acquired); the best
+    /// gear only when every remaining offer is gear (a coffer has to be taken from).
+    /// </summary>
+    public static int PickTreasureAvoidingGear(
+        IReadOnlyList<int> offers, Func<int, bool> isGear, Func<int, string?> effectOf, IReadOnlySet<int>? takenRows = null,
+        IReadOnlyCollection<string>? wantedResistances = null)
+    {
+        var nonGear = offers.Select(id => isGear(id) ? 0 : id).ToList();
+        var pick = PickTreasure(nonGear, effectOf, takenRows, wantedResistances);
+        return pick >= 0 ? pick : PickTreasure(offers, effectOf, takenRows, wantedResistances);
+    }
+
     /// <summary>The start of each Yes/No prompt the autopilot's own clicks raise; any other prompt is the player's.</summary>
     public static readonly string[] KnownPrompts =
     [
@@ -222,6 +242,7 @@ public static class CrucibleAutoPilotRules
         "Choose the ",                    // treasure coffer
         "Conclude purchasing and leave",  // leaving the shop
         "Rest ",                          // campsite: "Rest and recover 45%…" / "Rest alone while your familiars keep watch…"
+        "Leave the campsite",             // campsite, Legendary: "Leave the campsite without resting? / You cannot return…"
     ];
 
     /// <summary>Answer Yes only to a prompt the autopilot itself just raised.</summary>

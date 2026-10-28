@@ -42,7 +42,7 @@ namespace Daedalus;
 
 public sealed class Plugin : IDalamudPlugin
 {
-    public const string PluginVersion = "0.1.108";
+    public const string PluginVersion = "0.1.109";
     private const string CommandName = "/daedalus";
 
     /// <summary>LAN relay channel for Necromancer Deep Freeze "heal me to full" announcements.</summary>
@@ -1284,18 +1284,30 @@ public sealed class Plugin : IDalamudPlugin
         this.crucibleTracker = new Daedalus.Services.Beastmaster.CrucibleTracker(
             Daedalus.Services.Beastmaster.CrucibleSheetReader.Read(dataManager, m => log.Info(m)));
         var crucibleBestiary = new Daedalus.Services.Beastmaster.BattlehornReader(log);
+
+        // The beasts that carry every battle on the horns: the Legendary team (three of one kin), else the core team.
+        System.Collections.Generic.IReadOnlyList<int> CrucibleCarryTeam(Daedalus.Data.CrucibleBoard board)
+        {
+            var bst = configuration.Beastmaster;
+            int RankOf(int no) => bst.CrucibleRanks.TryGetValue(no, out var rank) ? rank : 1;
+            var captured = Daedalus.Data.BstFamiliars.All
+                .Where(b => crucibleBestiary.IsPetUnlocked((uint)b.BestiaryNo) == true).Select(b => b.BestiaryNo).ToList();
+            return bst.CrucibleGoal == Daedalus.Data.CrucibleTeamGoal.Legendary
+                ? Daedalus.Data.CrucibleLevelPlan.LegendaryTeam(bst.CrucibleCoreTeam, captured, RankOf, board.RankCap)
+                : Daedalus.Data.CrucibleLevelPlan.Core(bst.CrucibleCoreTeam, captured, RankOf);
+        }
         this.crucibleHornSetter = new Daedalus.Services.Beastmaster.CrucibleHornSetter(
             crucibleTracker.Index, m => log.Info(m),
             (board, battle) => Daedalus.Data.CrucibleLevelPlan.HornChoice(
                 configuration.Beastmaster.CrucibleGoal,
                 configuration.Beastmaster.CrucibleHornPicks.TryGetValue(Daedalus.Data.CrucibleHornPlan.PickKey(board, battle), out var picks) ? picks : null,
-                Daedalus.Data.CrucibleLevelPlan.Core(
-                    configuration.Beastmaster.CrucibleCoreTeam,
-                    Daedalus.Data.BstFamiliars.All.Where(b => crucibleBestiary.IsPetUnlocked((uint)b.BestiaryNo) == true).Select(b => b.BestiaryNo),
-                    no => configuration.Beastmaster.CrucibleRanks.TryGetValue(no, out var rank) ? rank : 1)),
+                CrucibleCarryTeam(board)),
             no => configuration.Beastmaster.CrucibleRanks.TryGetValue(no, out var known) ? known : 0);
         this.crucibleWindow = new CrucibleWindow(
-            crucibleTracker.Index, no => crucibleBestiary.IsPetUnlocked((uint)no), () => crucibleHornSetter.Status);
+            crucibleTracker.Index, no => crucibleBestiary.IsPetUnlocked((uint)no), () => crucibleHornSetter.Status)
+        {
+            Legendary = () => configuration.Beastmaster.CrucibleGoal == Daedalus.Data.CrucibleTeamGoal.Legendary,
+        };
         this.crucibleRosterLoader = new Daedalus.Services.Beastmaster.CrucibleRosterLoader(m => log.Info(m), (no, rank) =>
         {
             // Ranks only rise: a lower reading is the board's sync (board 1 shows everyone at 5 or under — field
@@ -1318,7 +1330,8 @@ public sealed class Plugin : IDalamudPlugin
             configuration.Beastmaster.CrucibleRanks[no] = rank;
             QueueCrucibleRanksSave();
         });
-        this.crucibleWalker = new Daedalus.Services.Beastmaster.CrucibleWalker(crucibleTracker.Index, movementArbiter, m => log.Info(m));
+        this.crucibleWalker = new Daedalus.Services.Beastmaster.CrucibleWalker(crucibleTracker.Index, movementArbiter, m => log.Info(m),
+            () => configuration.Beastmaster.CrucibleFlippedForks, SaveConfiguration);
         crucibleIsCaptured = no => crucibleBestiary.IsPetUnlocked((uint)no) == true;
         crucibleRosterFor = board =>
         {
@@ -1326,6 +1339,8 @@ public sealed class Plugin : IDalamudPlugin
             int RankOf(int no) => bst.CrucibleRanks.TryGetValue(no, out var rank) ? rank : 1;
             var captured = Daedalus.Data.BstFamiliars.All
                 .Where(b => crucibleBestiary.IsPetUnlocked((uint)b.BestiaryNo) == true).Select(b => b.BestiaryNo).ToList();
+            if (bst.CrucibleGoal == Daedalus.Data.CrucibleTeamGoal.Legendary)
+                return Daedalus.Data.CrucibleLevelPlan.LegendaryTeam(bst.CrucibleCoreTeam, captured, RankOf, board.RankCap);
             var core = Daedalus.Data.CrucibleLevelPlan.Core(bst.CrucibleCoreTeam, captured, RankOf);
             return bst.CrucibleGoal == Daedalus.Data.CrucibleTeamGoal.Level
                 ? Daedalus.Data.CrucibleLevelPlan.LevelRoster(core, captured, RankOf, board.RosterCap > 0 ? board.RosterCap : 10)
@@ -2504,7 +2519,8 @@ public sealed class Plugin : IDalamudPlugin
                 configuration.Beastmaster.CrucibleAutoPilot
                 && Daedalus.Data.CrucibleHornPlan.ShouldSetHorns(configuration.Beastmaster.AutoCrucibleHorns, configuration.ExternalCombatOverrideSource),
                 Daedalus.Services.Beastmaster.CrucibleTracker.Current.Board, crucibleHornSetter, configuration.Beastmaster.CrucibleLootTakeItems,
-                objectTable.LocalPlayer is { MaxHp: > 0 } self ? (float)self.CurrentHp / self.MaxHp : 1f);
+                objectTable.LocalPlayer is { MaxHp: > 0 } self ? (float)self.CurrentHp / self.MaxHp : 1f,
+                configuration.Beastmaster.CrucibleGoal == Daedalus.Data.CrucibleTeamGoal.Legendary);
             if (crucibleWalker != null && crucibleIsCaptured != null)
             {
                 var busy = condition[Dalamud.Game.ClientState.Conditions.ConditionFlag.InCombat]
@@ -2516,7 +2532,8 @@ public sealed class Plugin : IDalamudPlugin
                            || condition[Dalamud.Game.ClientState.Conditions.ConditionFlag.OccupiedInQuestEvent];
                 crucibleWalker.Update(
                     configuration.Beastmaster.CrucibleAutoPilot && configuration.Beastmaster.CrucibleWalkBoard,
-                    Daedalus.Services.Beastmaster.CrucibleTracker.Current.Board, objectTable.LocalPlayer, busy, crucibleIsCaptured);
+                    Daedalus.Services.Beastmaster.CrucibleTracker.Current.Board, objectTable.LocalPlayer, busy, crucibleIsCaptured,
+                    configuration.Beastmaster.CrucibleGoal == Daedalus.Data.CrucibleTeamGoal.Legendary);
             }
 
             if (crucibleLoop != null && crucibleRosterFor != null)

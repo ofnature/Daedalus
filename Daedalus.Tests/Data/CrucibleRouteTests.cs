@@ -135,4 +135,44 @@ public class CrucibleRouteTests
         var captured = new HashSet<int> { 44, 16, 10 };
         Assert.Equal(["Damselfly", "Mantis", "Wespe"], CrucibleRoutePlan.TeamFor(Index, Board1Board, 6, captured.Contains).Select(b => b.Name));
     }
+
+    /// <summary>Legendary never takes a campsite side (resting costs Sleepless Survival): the treasure instead.</summary>
+    [Fact]
+    public void LegendaryAvoidsCampsites()
+    {
+        Assert.Equal(2, CrucibleRoutePlan.SuggestedSide(Index, Board1Board, Fork(3), _ => true, legendary: true)); // 3R treasure
+        Assert.Equal(1, CrucibleRoutePlan.SuggestedSide(Index, Board1Board, Fork(7), _ => true, legendary: true)); // 7L treasure
+    }
+
+    /// <summary>Board 1 move 3 is known to be the other way round (Korha 2026-10-27); a learned entry toggles it back.</summary>
+    [Fact]
+    public void Board1Move3IsAKnownFlippedFork()
+    {
+        Assert.True(CrucibleWalkPlan.IsForkFlipped(CrucibleWalkPlan.ForkKey(1, 3), null));
+        Assert.False(CrucibleWalkPlan.IsForkFlipped(CrucibleWalkPlan.ForkKey(1, 3), new List<string> { "1:3" }));
+        Assert.False(CrucibleWalkPlan.IsForkFlipped(CrucibleWalkPlan.ForkKey(1, 7), null));
+        Assert.True(CrucibleWalkPlan.IsForkFlipped(CrucibleWalkPlan.ForkKey(2, 4), new List<string> { "2:4" }));
+    }
+
+    /// <summary>Aimed for the treasure and a campsite (its sibling) opened: the fork is the other way round. The
+    /// treasure itself, or a screen that is neither, says nothing.</summary>
+    [Fact]
+    public void AFlippedForkIsSeenFromTheSpaceThatOpened()
+    {
+        var fork = Fork(3); // 3L campsite, 3R treasure
+        var treasure = fork.First(s => s.Type == CrucibleStageType.Treasure);
+        Assert.True(CrucibleWalkPlan.ForkIsFlipped(Board1(), treasure, CrucibleStageType.Campsite));
+        Assert.False(CrucibleWalkPlan.ForkIsFlipped(Board1(), treasure, CrucibleStageType.Treasure));
+        Assert.False(CrucibleWalkPlan.ForkIsFlipped(Board1(), treasure, CrucibleStageType.Shop));
+    }
+
+    /// <summary>The screen that opened names the space: coffer, shop, or the team screen without the battle list (camp).</summary>
+    [Fact]
+    public void TheOpenedScreenNamesTheSpace()
+    {
+        Assert.Equal(CrucibleStageType.Treasure, CrucibleWalkPlan.OpenedSpace(true, false, false, false));
+        Assert.Equal(CrucibleStageType.Shop, CrucibleWalkPlan.OpenedSpace(false, true, false, false));
+        Assert.Equal(CrucibleStageType.Campsite, CrucibleWalkPlan.OpenedSpace(false, false, true, false));
+        Assert.Null(CrucibleWalkPlan.OpenedSpace(false, false, true, true)); // the horn screen before a battle
+    }
 }

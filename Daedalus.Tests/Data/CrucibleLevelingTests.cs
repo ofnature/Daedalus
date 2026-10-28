@@ -116,4 +116,37 @@ public class CrucibleLevelingTests
     [Fact]
     public void NothingCapturedAndNoCoreIsEmpty()
         => Assert.Empty(CrucibleLevelPlan.LevelRoster([], [], RankOf, cap: 10));
+
+    /// <summary>Legendary: three of ONE kin, strongest kin first (Wespe 25, Damselfly 8, Mantis 1 are all vilekin).</summary>
+    [Fact]
+    public void TheLegendaryTeamIsThreeOfOneKin()
+        => Assert.Equal([10, 44, 16], CrucibleLevelPlan.LegendaryTeam([0, 0, 0], Captured, RankOf));
+
+    /// <summary>The player's core picks lead when they are one kin: Goobbue picked → the beastkin team.</summary>
+    [Fact]
+    public void LegendaryKeepsCorePicksOfOneKin()
+        => Assert.Equal([30, 26, 5], CrucibleLevelPlan.LegendaryTeam([30, 0, 0], Captured, RankOf));
+
+    /// <summary>Core picks of two kins cannot make a Gambit: the strongest kin is used instead.</summary>
+    [Fact]
+    public void LegendaryIgnoresMixedKinPicks()
+        => Assert.Equal([10, 44, 16], CrucibleLevelPlan.LegendaryTeam([30, 44, 0], Captured, RankOf));
+
+    /// <summary>The board's rank sync caps what a rank is worth: at a cap of 5 Wespe's 25 counts as 5.</summary>
+    [Fact]
+    public void LegendaryWeighsRanksAtTheBoardsSync()
+    {
+        var ranks = new Dictionary<int, int> { [10] = 25, [44] = 1, [16] = 1, [30] = 5, [26] = 5, [5] = 4 };
+        Assert.Equal([26, 30, 5], CrucibleLevelPlan.LegendaryTeam([0, 0, 0], Captured, no => ranks.GetValueOrDefault(no, 1), rankCap: 5)); // ties by Bestiary number
+    }
+
+    /// <summary>Legendary horns come from the team; a per-battle pick outside it is ignored, one inside it is kept.</summary>
+    [Fact]
+    public void LegendaryHornsStayInsideTheTeam()
+    {
+        IReadOnlyList<int> team = [10, 44, 16];
+        Assert.Equal(team, CrucibleLevelPlan.HornChoice(CrucibleTeamGoal.Legendary, [30, 0, 0], team));
+        Assert.Equal([16, 0, 0], CrucibleLevelPlan.HornChoice(CrucibleTeamGoal.Legendary, [16, 0, 0], team));
+        Assert.Equal(team, CrucibleLevelPlan.HornChoice(CrucibleTeamGoal.Legendary, null, team));
+    }
 }

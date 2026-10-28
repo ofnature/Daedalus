@@ -122,19 +122,26 @@ public static class CrucibleRoutePlan
     /// The side to take at a fork, for an easy clear: a campsite over anything (HP never refills otherwise), a normal
     /// enemy over an elite, between two battles the one your beasts cover better, a treasure over a random. 0 when the
     /// move is not a fork.
+    /// <para>
+    /// For Legendary (<paramref name="legendary"/>) a campsite is last (resting costs Sleepless Survival, 1,000), then a
+    /// random space (it can turn out to be a campsite), and a shop beats a treasure (a coffer of only beast gear costs
+    /// Nameday Attire; a shop is left without buying).
+    /// </para>
     /// </summary>
-    public static int SuggestedSide(CrucibleIndex index, CrucibleBoard board, IReadOnlyList<CrucibleStage> fork, Func<int, bool> isCaptured)
+    public static int SuggestedSide(
+        CrucibleIndex index, CrucibleBoard board, IReadOnlyList<CrucibleStage> fork, Func<int, bool> isCaptured,
+        bool legendary = false)
     {
         if (fork.Count < 2)
             return 0;
 
         int Rank(CrucibleStage s) => s.Type switch
         {
-            CrucibleStageType.Campsite => 100,
-            CrucibleStageType.Treasure => 60,
+            CrucibleStageType.Campsite => legendary ? -10 : 100,
+            CrucibleStageType.Treasure => legendary ? 35 : 60,
             CrucibleStageType.Enemy => 50 + Coverage(index, s.Battle, TeamFor(index, board, s.Battle, isCaptured)),
-            CrucibleStageType.Random => 40,
-            CrucibleStageType.Shop => 30,
+            CrucibleStageType.Random => legendary ? 10 : 40,
+            CrucibleStageType.Shop => legendary ? 40 : 30,
             CrucibleStageType.Elite => 20 + Coverage(index, s.Battle, TeamFor(index, board, s.Battle, isCaptured)),
             _ => 0,
         };

@@ -23,6 +23,9 @@ public sealed class CrucibleWindow : Window
 
     /// <param name="isCaptured">Whether a beast (by Bestiary number) is captured; null while the Bestiary is unread.</param>
     /// <param name="hornStatus">What the horn setter did last ("" when nothing).</param>
+    /// <summary>Whether the run goal is Legendary, which changes the suggested side at a fork.</summary>
+    public Func<bool>? Legendary { get; init; }
+
     public CrucibleWindow(CrucibleIndex index, Func<int, bool?> isCaptured, Func<string> hornStatus)
         : base("Crucible##DaedalusCrucible", ImGuiWindowFlags.AlwaysAutoResize | ImGuiWindowFlags.NoFocusOnAppearing)
     {
@@ -177,7 +180,7 @@ public sealed class CrucibleWindow : Window
         foreach (var move in board.Route.GroupBy(s => s.Move))
         {
             var fork = move.ToList();
-            var take = CrucibleRoutePlan.SuggestedSide(_index, board, fork, Captured);
+            var take = CrucibleRoutePlan.SuggestedSide(_index, board, fork, Captured, Legendary?.Invoke() == true);
             foreach (var stage in fork)
             {
                 ImGui.TableNextRow();

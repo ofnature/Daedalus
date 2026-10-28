@@ -119,6 +119,20 @@ public sealed class BeastmasterConfig
     /// <summary>What runs are for: clearing (weakness roster and horns) or levelling (core carries, lowest ranks ride).</summary>
     public Daedalus.Data.CrucibleTeamGoal CrucibleGoal { get; set; } = Daedalus.Data.CrucibleTeamGoal.Clear;
 
+    /// <summary>
+    /// Legendary goal only: the beastmaster tanks (Challenge whenever the enemy is not on you) so the familiars finish at
+    /// full HP for Selfless (+1,000), as Meoni's Legendary series does. Snarl then only saves a beastmaster at 30% HP or
+    /// less. Off by default: at low ranks the familiar tanking is what keeps the beastmaster alive.
+    /// </summary>
+    public bool CrucibleLegendaryBeastmasterTanks { get; set; } = false;
+
+    /// <summary>
+    /// Forks learned to sit the other way round from what the walker believed ("board:move"), when a space of the other
+    /// side's type opened. Toggles on top of <c>CrucibleWalkPlan.KnownFlippedForks</c>. Empty by default: a list default
+    /// with items would be appended to on every load.
+    /// </summary>
+    public List<string> CrucibleFlippedForks { get; set; } = [];
+
     /// <summary>The three beasts that carry (Bestiary numbers, 0 = the highest rank not already chosen).</summary>
     public int[] CrucibleCoreTeam { get; set; } = [0, 0, 0];
 

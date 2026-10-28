@@ -41,6 +41,10 @@ public sealed unsafe class CrucibleAutoPilot
     private DateTime _campSinceUtc;
     private DateTime _lootSinceUtc;
     private float _selfHpPct = 1f;
+    private bool _legendary;
+    private bool _legendaryNoGear;
+    private bool _gearTakenOnBoard;
+    private int _boardIndex;
 
     private readonly Func<int, bool> _isBeastGear;
     private readonly Func<int, string> _itemName;
@@ -63,9 +67,26 @@ public sealed unsafe class CrucibleAutoPilot
 
     /// <summary>Framework thread, every frame.</summary>
     /// <param name="selfHpPct">The beastmaster's HP as a fraction of max (decides resting alone at a campsite).</param>
-    public void Update(bool enabled, CrucibleBoard? board, CrucibleHornSetter? horns, bool takeItems, float selfHpPct = 1f)
+    /// <param name="legendary">
+    /// Score for Legendary: no rest at a campsite (Sleepless Survival); beast gear taken where holding it pays (Walking
+    /// Armory) and refused elsewhere (Nameday Attire: none from the spoils, a coffer's non-gear offer over gear).
+    /// </param>
+    public void Update(
+        bool enabled, CrucibleBoard? board, CrucibleHornSetter? horns, bool takeItems, float selfHpPct = 1f, bool legendary = false)
     {
         _selfHpPct = selfHpPct;
+        // Legendary: gear only where holding it pays (Walking Armory); elsewhere none, for Nameday Attire.
+        // Once gear has been taken on this board (a coffer offering only gear), Nameday Attire is gone: avoiding gear
+        // after that only throws away the better offer (Korha 2026-10-27: a Reraiser over Heavy Axe).
+        if (board?.Index != _boardIndex)
+        {
+            _boardIndex = board?.Index ?? 0;
+            _gearTakenOnBoard = false;
+        }
+
+        _legendaryNoGear = legendary && board != null && !CrucibleAutoPilotRules.LegendaryTakesGear(board) && !_gearTakenOnBoard;
+        _legendary = legendary;
+        takeItems = legendary ? !_legendaryNoGear : takeItems;
         if (!enabled || board == null)
         {
             if (board == null)
@@ -110,7 +131,15 @@ public sealed unsafe class CrucibleAutoPilot
         {
             if (_resultSentUtc == default)
             {
-                _log($"Crucible: result — {Text(result, 69)} {Number(result, 2):N0} ({Text(result, 3)}), {Number(result, 63)} {Text(result, 58)}");
+                // [68] is the TOTAL and [69] its rank; [2] is only the performance part (completion + spaces) and was
+                // logged as the score until 2026-10-27 (Korha: "Apex 7,550" for a 16,300 run). Bonus names sit at
+                // 15+i and their points at 31+i, [14] of them; [13] is the bonus total.
+                var bonusCount = Math.Clamp((int)Number(result, 14), 0, 16);
+                var bonuses = string.Join(", ", Enumerable.Range(0, bonusCount)
+                    .Select(i => $"{Text(result, 15 + i)} {Number(result, 31 + i):N0}"));
+                _log($"Crucible: result — {Text(result, 69)} {Number(result, 68):N0} ({Text(result, 3)}): performance "
+                     + $"{Number(result, 2):N0} + bonuses {Number(result, 13):N0}{(bonuses.Length > 0 ? $" ({bonuses})" : "")}; "
+                     + $"{Number(result, 63)} {Text(result, 58)}");
                 Fire(result, 0);
                 _resultSentUtc = now;
                 Done(now, "Closing the result.");
@@ -196,6 +225,22 @@ public sealed unsafe class CrucibleAutoPilot
             // The selection flickers to the whole team as the screen opens: let it settle first.
             if (_campSinceUtc == default)
                 _campSinceUtc = now;
+            if (_legendary)
+            {
+                // Resting at all costs Sleepless Survival (1,000): Leave — the camp window's [4], then Yes to "Leave the
+                // campsite without resting?" (recorded by hand on Korha, 2026-10-27).
+                if (!_restTried && now - _campSinceUtc > CampSettle)
+                {
+                    _restTried = true;
+                    _log("Crucible: Legendary — leaving the campsite without resting (Sleepless Survival).");
+                    Expect("Leave the campsite", now);
+                    Fire(camp, 4);
+                    Done(now, "Legendary: leaving the campsite without resting.");
+                }
+
+                return;
+            }
+
             if (!_restTried && now - _campSinceUtc > CampSettle)
                 Rest(now, party, camp);
             return;
@@ -259,6 +304,7 @@ public sealed unsafe class CrucibleAutoPilot
         var name = _itemName(offers[pick]);
         _log($"Crucible: spoils — {offeredText}; taking {name}.");
         _lootGearTakes++;
+        _gearTakenOnBoard = true;
         _lootHeldBefore = held;
         _lootTakenRows.Add(pick);
         _lootSinceUtc = now; // let the window refill before reading it again
@@ -284,7 +330,13 @@ public sealed unsafe class CrucibleAutoPilot
         for (var r = 0; r < CrucibleAutoPilotRules.TreasureMaxRows; r++)
             offers.Add((int)Number(treasure, CrucibleAutoPilotRules.TreasureItemIdIndex(r)));
 
-        var pick = CrucibleAutoPilotRules.PickTreasure(offers, _itemEffect, _treasureTakenRows, wanted);
+        var pick = _legendaryNoGear
+            ? CrucibleAutoPilotRules.PickTreasureAvoidingGear(offers, _isBeastGear, _itemEffect, _treasureTakenRows, wanted)
+            : CrucibleAutoPilotRules.PickTreasure(offers, _itemEffect, _treasureTakenRows, wanted);
+        if (pick >= 0 && _isBeastGear(offers[pick]))
+            _gearTakenOnBoard = true;
+        if (_legendaryNoGear && pick >= 0 && _isBeastGear(offers[pick]))
+            _log("Crucible: Legendary — every offer in the coffer is beast gear; taking it costs Nameday Attire.");
         if (pick < 0)
         {
             Status = "Treasure: every offer tried — the rest is yours.";

@@ -135,15 +135,45 @@ public sealed class DamageModule : IArtemisModule
         var familiarHpPct = familiar is { MaxHp: > 0 } f ? (float)f.CurrentHp / f.MaxHp : lookupMissed ? 1f : 0f;
         var selfHpPct = player.MaxHp > 0 ? (float)player.CurrentHp / player.MaxHp : 0f;
         var enemyOnFamiliar = familiar != null && target.TargetObjectId == familiar.GameObjectId;
-        LogSnarlState(lookupMissed
-            ? "familiar out but not found in the object table — Snarl allowed"
-            : ArtemisCooldownRules.SnarlHeldReason(cfg.EnableSnarl, familiarOut, familiarHpPct, selfHpPct, _fallingLine),
-            familiarHpPct, selfHpPct);
 
         bool Ready(ActionDefinition action) =>
             DutyActionBar.Contains(action.ActionId)
             && svc.IsActionReady(action.ActionId)
             && svc.GetActionStatusCode(action.ActionId, targetId) == 0;
+
+        // Legendary with the beastmaster tanking (Meoni's way): Challenge keeps every enemy on you so the familiars end at
+        // full HP (Selfless); Snarl only rescues a critical beastmaster.
+        if (cfg.CrucibleGoal == CrucibleTeamGoal.Legendary && cfg.CrucibleLegendaryBeastmasterTanks)
+        {
+            LogSnarlState(selfHpPct <= ArtemisCooldownRules.SelfCriticalHpPct ? null : "the beastmaster tanks (Legendary)",
+                familiarHpPct, selfHpPct);
+            if (ArtemisCooldownRules.ShouldSnarlWhileTanking(
+                    cfg.EnableSnarl, onBoardInBattle: true, Ready(BSTActions.Snarl), familiarOut, familiarHpPct, selfHpPct)
+                && TryGate(BSTActions.Snarl.ActionId))
+            {
+                scheduler.PushOgcd(ArtemisAbilities.Snarl, targetId, priority: 3, onDispatched: _ =>
+                    context.Debug.PlannedAction = "Snarl (you are critical — the familiar covers you)");
+                return;
+            }
+
+            if (ArtemisCooldownRules.ShouldChallengeToTank(
+                    cfg.EnableChallenge, onBoardInBattle: true, Ready(BSTActions.Challenge),
+                    target.TargetObjectId == player.GameObjectId, selfHpPct)
+                && TryGate(BSTActions.Challenge.ActionId))
+            {
+                scheduler.PushOgcd(ArtemisAbilities.Challenge, targetId, priority: 6, onDispatched: _ =>
+                    context.Debug.PlannedAction = "Challenge (you tank — the familiars stay full for Selfless)");
+            }
+
+            return;
+        }
+
+        LogSnarlState(lookupMissed
+            ? "familiar out but not found in the object table — Snarl allowed"
+            : ArtemisCooldownRules.SnarlHeldReason(cfg.EnableSnarl, familiarOut, familiarHpPct, selfHpPct, _fallingLine,
+                Daedalus.Services.Beastmaster.CrucibleHints.SecondsUntilTankbuster,
+                Daedalus.Services.Beastmaster.CrucibleHints.SecondsUntilRaidwide),
+            familiarHpPct, selfHpPct);
 
         var busterIn = Daedalus.Services.Beastmaster.CrucibleHints.SecondsUntilTankbuster;
         var raidwideIn = Daedalus.Services.Beastmaster.CrucibleHints.SecondsUntilRaidwide;

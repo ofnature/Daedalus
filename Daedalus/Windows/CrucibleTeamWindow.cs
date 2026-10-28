@@ -68,9 +68,60 @@ public sealed class CrucibleTeamWindow : Window
     public void DrawControls()
     {
         DrawAutoPilot();
+        DrawGoal();
         var screen = CrucibleRosterLoader.ScreenBoard();
         if (CrucibleTracker.Current.Board == null && _index.Boards.FirstOrDefault(b => b.Index == screen) is { } board)
             DrawStart(board);
+    }
+
+    /// <summary>What the run is for (Clear / Level / Legendary), and for Legendary who tanks. In the team window and the edge tab.</summary>
+    private void DrawGoal()
+    {
+        var config = _config();
+        var goal = (int)config.CrucibleGoal;
+        ImGui.TextColored(DaedalusTheme.TextSecondary, "Run for:");
+        ImGui.SameLine();
+        var changed = ImGui.RadioButton("Clear##crucibleGoal", ref goal, (int)CrucibleTeamGoal.Clear);
+        if (ImGui.IsItemHovered())
+            ImGui.SetTooltip("Beat the board: the core plus beasts that hit each battle's weakness; horns by weakness.");
+        ImGui.SameLine();
+        changed |= ImGui.RadioButton("Level##crucibleGoal", ref goal, (int)CrucibleTeamGoal.Level);
+        if (ImGui.IsItemHovered())
+            ImGui.SetTooltip("Level beasts: the core carries every battle on the horns; the rest of the roster is your\n"
+                             + "lowest-rank beasts below 25. Every beast on the team earns Crucible EXP, horn or not.");
+        ImGui.SameLine();
+        changed |= ImGui.RadioButton("Legendary##crucibleGoal", ref goal, (int)CrucibleTeamGoal.Legendary);
+        if (ImGui.IsItemHovered())
+            ImGui.SetTooltip("Score for Legendary rank: a team of only three beasts of ONE kin (Beast Squad III + Kin Gambit,\n"
+                             + "5,000 points). The autopilot never rests at a campsite and never buys; it takes no beast gear on\n"
+                             + "Board 1 (Nameday Attire) and all of it from Board 2 on (Walking Armory, and it keeps the beasts alive).\n"
+                             + "The walker avoids campsite sides at forks. Keep every familiar from falling (it retreats them).\n\n"
+                             + "NOT a guarantee: there is RNG at work. Coffers that offer only beast gear, random spaces that turn\n"
+                             + "into campsites, and every Damage Down / Vulnerability Up you take decide the bonuses, and the three\n"
+                             + "beasts need ranks near the board's rank sync to survive it. On Board 1 the line is 17,500 and this\n"
+                             + "plan scores about 17,300 + your HP share, so a single lost bonus can drop it to Apex.");
+        if (changed)
+        {
+            config.CrucibleGoal = (CrucibleTeamGoal)goal;
+            _save();
+        }
+
+        if (config.CrucibleGoal != CrucibleTeamGoal.Legendary)
+            return;
+
+        ImGui.SameLine();
+        var tanks = config.CrucibleLegendaryBeastmasterTanks;
+        if (ImGui.Checkbox("You tank (Challenge)##crucibleLegendaryTank", ref tanks))
+        {
+            config.CrucibleLegendaryBeastmasterTanks = tanks;
+            _save();
+        }
+
+        if (ImGui.IsItemHovered())
+            ImGui.SetTooltip("Challenge whenever an enemy is not on you, so no familiar takes a hit: Selfless (+1,000) needs every\n"
+                             + "familiar at 100% HP at the end. Snarl then only covers you at 30% HP or less.\n"
+                             + "Off: the familiar tanks (Snarl on cooldown), which is what keeps you alive at low ranks.\n"
+                             + "Turn it on when your beastmaster's gear and the team's ranks can take the hits.");
     }
 
     public override void Draw()
@@ -163,25 +214,23 @@ public sealed class CrucibleTeamWindow : Window
         string Ranked(int no) => $"{Name(no)} {(config.CrucibleRanks.TryGetValue(no, out var r) ? r.ToString() : "?")}";
 
         ImGui.Separator();
-        var goal = (int)config.CrucibleGoal;
-        ImGui.TextColored(DaedalusTheme.TextSecondary, "Run for:");
-        ImGui.SameLine();
-        var changed = ImGui.RadioButton("Clear##crucibleGoal", ref goal, (int)CrucibleTeamGoal.Clear);
-        if (ImGui.IsItemHovered())
-            ImGui.SetTooltip("Beat the board: the core plus beasts that hit each battle's weakness; horns by weakness.");
-        ImGui.SameLine();
-        changed |= ImGui.RadioButton("Level##crucibleGoal", ref goal, (int)CrucibleTeamGoal.Level);
-        if (ImGui.IsItemHovered())
-            ImGui.SetTooltip("Level beasts: the core carries every battle on the horns; the rest of the roster is your\n"
-                             + "lowest-rank beasts below 25. Every beast on the team earns Crucible EXP, horn or not.");
-        if (changed)
+        DrawGoal();
+
+        // The core: three picks, Auto = the highest rank not already chosen. For Legendary the picks lead the team when
+        // they are all one kin; otherwise the kin whose best three rank highest is used.
+        var core = CrucibleLevelPlan.Core(config.CrucibleCoreTeam, captured, RankOf);
+        if (config.CrucibleGoal == CrucibleTeamGoal.Legendary)
         {
-            config.CrucibleGoal = (CrucibleTeamGoal)goal;
-            _save();
+
+            var legendary = CrucibleLevelPlan.LegendaryTeam(config.CrucibleCoreTeam, captured, RankOf, board.RankCap);
+            var kin = legendary.Count > 0 ? BstFamiliars.ByBestiaryNo((uint)legendary[0])?.Classification.ToString() : null;
+            ImGui.TextColored(DaedalusTheme.TextSecondary, $"Legendary team{(kin != null ? $" ({kin} Gambit)" : "")}:");
+            ImGui.SameLine();
+            ImGui.Text(legendary.Count == 0 ? "no captured beasts" : string.Join(" > ", legendary.Select(Ranked)));
+            if (legendary.Count < CrucibleLevelPlan.LegendaryTeamSize)
+                ImGui.TextColored(DaedalusTheme.StatusRed, "No kin has three captured beasts: the Gambit still counts, but a beast short.");
         }
 
-        // The core: three picks, Auto = the highest rank not already chosen.
-        var core = CrucibleLevelPlan.Core(config.CrucibleCoreTeam, captured, RankOf);
         ImGui.TextColored(DaedalusTheme.TextSecondary, "Core:");
         for (var slot = 0; slot < 3; slot++)
         {
@@ -212,9 +261,12 @@ public sealed class CrucibleTeamWindow : Window
         }
 
         var cap = board.RosterCap > 0 ? board.RosterCap : 10;
-        var roster = config.CrucibleGoal == CrucibleTeamGoal.Level
-            ? CrucibleLevelPlan.LevelRoster(core, captured, RankOf, cap)
-            : CrucibleLevelPlan.ClearRoster(_index, board, core, no => _isCaptured(no) == true);
+        var roster = config.CrucibleGoal switch
+        {
+            CrucibleTeamGoal.Legendary => CrucibleLevelPlan.LegendaryTeam(config.CrucibleCoreTeam, captured, RankOf, board.RankCap),
+            CrucibleTeamGoal.Level => CrucibleLevelPlan.LevelRoster(core, captured, RankOf, cap),
+            _ => CrucibleLevelPlan.ClearRoster(_index, board, core, no => _isCaptured(no) == true),
+        };
 
         var loader = _roster();
         var current = loader is { TeamBoard: var listed } && listed == board.Index ? loader.Team : [];
@@ -351,7 +403,12 @@ public sealed class CrucibleTeamWindow : Window
             _save();
         }
 
-        var horns = CrucibleHornPlan.Pick(_index, board, battle, pool, CrucibleLevelPlan.HornChoice(config.CrucibleGoal, chosen, CoreTeam()));
+        var carry = config.CrucibleGoal == CrucibleTeamGoal.Legendary
+            ? CrucibleLevelPlan.LegendaryTeam(config.CrucibleCoreTeam,
+                BstFamiliars.All.Where(b => _isCaptured(b.BestiaryNo) == true).Select(b => b.BestiaryNo),
+                no => config.CrucibleRanks.GetValueOrDefault(no, 1), board.RankCap)
+            : CoreTeam();
+        var horns = CrucibleHornPlan.Pick(_index, board, battle, pool, CrucibleLevelPlan.HornChoice(config.CrucibleGoal, chosen, carry));
         ImGui.TextColored(DaedalusTheme.TextSecondary, "Horns:");
         ImGui.SameLine();
         ImGui.Text(horns.Count == 0 ? "nobody left standing" : string.Join(" > ", horns.Select(p => Name(pool[p].PetId))));

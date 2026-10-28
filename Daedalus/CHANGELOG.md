@@ -3,6 +3,26 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.109 — 2026-10-27
+
+### Beastmaster — the Crucible
+- **Legendary run goal.** "Run for" now has **Legendary** next to Clear and Level, in the team window and the Crucible
+  edge tab. It registers only three beasts of one kin (Beast Squad III + a Kin Gambit, 5,000 points) and puts them on
+  the horns; it never rests (it presses **Leave** at a campsite) and never buys; it takes no beast gear on Board 1
+  (Nameday Attire) and all of it from Board 2 on; the walker keeps off campsite sides at forks. The hover says it
+  plainly: not a guarantee — coffers of only gear, random spaces and avoidable hits decide the bonuses.
+- **"You tank (Challenge)"** for Legendary: Challenge keeps the enemies on you so the familiars end at full HP
+  (Selfless, +1,000); Snarl then only covers you at 30% HP or less. Off by default — it needs the gear and ranks to
+  take every hit.
+- **The real score in the log.** The result line printed only the performance part (e.g. "Apex 7,550" for a 16,300
+  run); it now prints the total, the rank, and every bonus with its points.
+- **The walker learns forks that sit the other way round.** Board 1's first fork sent it to the campsite while aiming
+  for the treasure; that fork is now known, and any campsite, coffer or shop that opens where the other one was
+  expected is remembered from then on.
+- **Coffers after gear:** once a piece of gear has been taken on a board, coffers pick the best offer again instead
+  of avoiding gear for a bonus that is already gone.
+<!-- LATEST-END -->
+
 ## v0.1.108 — 2026-10-27
 
 ### Beastmaster — the Crucible
@@ -23,7 +43,6 @@ All notable changes to Daedalus will be documented in this file.
   shows on a board, with a board's screens open, at Lauda, or while a loop has runs left.
 - Fixed: "Read ranks" logged an ImGui error the moment it was pressed, and reading ranks could stall a frame (each
   beast saved the whole config; they are now saved once).
-<!-- LATEST-END -->
 
 ## v0.1.107 — 2026-10-25
 

@@ -47,19 +47,47 @@ public sealed class CrucibleWalker
     private int _attempts;
     private VNavMoveResult _lastResult = VNavMoveResult.Queued;
 
-    public CrucibleWalker(CrucibleIndex index, IMovementArbiter move, Action<string> log)
+    private readonly Func<List<string>>? _flippedForks;
+    private readonly System.Action? _save;
+
+    /// <param name="flippedForks">The persisted "board:move" forks that sit the other way round (learned, see <see cref="CheckForkSides"/>).</param>
+    public CrucibleWalker(CrucibleIndex index, IMovementArbiter move, Action<string> log,
+        Func<List<string>>? flippedForks = null, System.Action? save = null)
     {
         _index = index;
         _move = move;
         _log = log;
+        _flippedForks = flippedForks;
+        _save = save;
     }
+
+    private bool ForkFlipped(CrucibleBoard board, int move) =>
+        CrucibleWalkPlan.IsForkFlipped(CrucibleWalkPlan.ForkKey(board.Index, move), _flippedForks?.Invoke());
 
     /// <summary>What it did last, for the team window.</summary>
     public string Status { get; private set; } = "";
 
     /// <summary>Framework thread, every frame.</summary>
     /// <param name="busy">In combat, casting, between areas or in an event — never walk then.</param>
-    public void Update(bool enabled, CrucibleBoard? board, IPlayerCharacter? player, bool busy, Func<int, bool> isCaptured)
+    private string? _lastFork;
+
+    /// <summary>
+    /// One line per fork decision: each side's space type and placed position, and the side taken. Field 2026-10-27
+    /// (Korha, Legendary, Board 1): the walker went to the campsite while the rule ranks a campsite last.
+    /// </summary>
+    private void LogFork(IReadOnlyList<CrucibleStage> fork, int side, bool legendary, bool flipped)
+    {
+        var line = string.Join(" | ", fork.Select(s =>
+            $"{s.Move}{s.SideLabel}={s.Type}{(s.At is { } p ? $"@({p.X:0.0},{p.Z:0.0})" : "@unplaced")}"));
+        var key = $"{line} -> {side}{(legendary ? " legendary" : "")}{(flipped ? " flipped" : "")}";
+        if (key == _lastFork)
+            return;
+        _lastFork = key;
+        _log($"Crucible: fork {line} -> side {side}{(legendary ? " (Legendary)" : "")}{(flipped ? " (layout flipped: walking to the other side's spot)" : "")}");
+    }
+
+    public void Update(
+        bool enabled, CrucibleBoard? board, IPlayerCharacter? player, bool busy, Func<int, bool> isCaptured, bool legendary = false)
     {
         if (!enabled || board == null || player == null)
         {
@@ -103,7 +131,12 @@ public sealed class CrucibleWalker
         if (now < _holdUntilUtc)
             return;
 
-        var next = CrucibleWalkPlan.Next(route, position, fork => CrucibleRoutePlan.SuggestedSide(_index, board, fork, isCaptured));
+        var next = CrucibleWalkPlan.Next(route, position, fork =>
+        {
+            var side = CrucibleRoutePlan.SuggestedSide(_index, board, fork, isCaptured, legendary);
+            LogFork(fork, side, legendary, _flipped.Contains(board.Index) != ForkFlipped(board, fork[0].Move));
+            return side;
+        });
         if (next == null)
         {
             Halt();
@@ -186,21 +219,49 @@ public sealed class CrucibleWalker
     /// </summary>
     private void CheckForkSides(CrucibleBoard board, bool screenOpen)
     {
-        if (!screenOpen || _target is not { IsBattle: true, Side: > 0 } walkedTo || _flipped.Contains(board.Index))
+        if (screenOpen && _target is { IsBattle: false, Side: > 0 } space)
+        {
+            // A campsite, coffer or shop: if the other side's type opened, this one fork is the other way round. Board 1
+            // move 3 was (2026-10-27) while its battle forks were not, so it is remembered per fork, not per board.
+            var opened = CrucibleWalkPlan.OpenedSpace(
+                IsOpen("XBMContentsTreasure"), IsOpen("XBMContentsItemShop"), IsOpen("XBMPetParty"), IsOpen("XBMStageDetailList"));
+            var key = CrucibleWalkPlan.ForkKey(board.Index, space.Move);
+            if (opened is { } type && _flippedForks?.Invoke() is { } forks)
+            {
+                // We aimed for `space` (wherever we currently believe it stands): if its sibling's type opened instead,
+                // that belief is wrong — toggle it.
+                if (CrucibleWalkPlan.ForkIsFlipped(board.Route, space, type))
+                {
+                    if (!forks.Remove(key))
+                        forks.Add(key);
+                    _save?.Invoke();
+                    _log($"Crucible: {board.Name} — aimed for the {space.Type.ToString().ToLowerInvariant()} at move {space.Move} "
+                         + $"but a {type.ToString().ToLowerInvariant()} opened; this fork is the other way round (remembered).");
+                }
+            }
+
+            _target = null; // judged once per arrival
             return;
-        if (CrucibleHornSetter.UpcomingBattles() is not [var shown] || shown == walkedTo.Battle)
+        }
+
+        if (!screenOpen || _target is not { IsBattle: true, Side: > 0 } walkedTo2 || _flipped.Contains(board.Index))
             return;
-        if (CrucibleWalkPlan.Sibling(board.Route, walkedTo) is { IsBattle: true } other && other.Battle == shown)
+        var walkedToBattle = walkedTo2;
+        if (CrucibleHornSetter.UpcomingBattles() is not [var shown] || shown == walkedToBattle.Battle)
+            return;
+        if (CrucibleWalkPlan.Sibling(board.Route, walkedToBattle) is { IsBattle: true } other && other.Battle == shown)
         {
             _flipped.Add(board.Index);
-            _log($"Crucible: {board.Name} — walked to move {walkedTo.Move}{walkedTo.SideLabel} but {other.SideLabel}'s battle opened; "
+            _log($"Crucible: {board.Name} — walked to move {walkedToBattle.Move}{walkedToBattle.SideLabel} but {other.SideLabel}'s battle opened; "
                  + "swapping left and right for this board.");
         }
     }
 
     private Vector3 TargetPosition(CrucibleBoard board, IReadOnlyList<CrucibleStage> route, CrucibleStage stage)
     {
-        if (_flipped.Contains(board.Index) && CrucibleWalkPlan.Sibling(route, stage) is { At: { } swapped })
+        // Flipped when the whole board is (a battle fork told us) or this one fork is — but not both.
+        if (_flipped.Contains(board.Index) != ForkFlipped(board, stage.Move)
+            && CrucibleWalkPlan.Sibling(route, stage) is { At: { } swapped })
             return swapped;
         return stage.At!.Value;
     }

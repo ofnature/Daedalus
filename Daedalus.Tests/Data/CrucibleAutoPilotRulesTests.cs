@@ -371,4 +371,30 @@ public class CrucibleAutoPilotRulesTests
     [Fact]
     public void ATakenRowOutsideTheOffersIsIgnored()
         => Assert.Equal(0, CrucibleAutoPilotRules.PickTreasure([1], _ => Belt, new System.Collections.Generic.HashSet<int> { 7 }));
+
+    /// <summary>Legendary takes a coffer's non-gear offer (Nameday Attire) even over better gear; gear only when all are gear.</summary>
+    [Fact]
+    public void LegendaryPicksNonGearFromACoffer()
+    {
+        var effects = new System.Collections.Generic.Dictionary<int, string> { [1] = Belt, [37] = AstralWristlet };
+        string? Of(int id) => effects.GetValueOrDefault(id);
+        bool IsGear(int id) => id is 1 or 37;
+        Assert.Equal(2, CrucibleAutoPilotRules.PickTreasureAvoidingGear([1, 37, 136, 0], IsGear, Of)); // 136: a potion
+        Assert.Equal(0, CrucibleAutoPilotRules.PickTreasureAvoidingGear([1, 37, 0, 0], IsGear, Of));   // only gear: the Belt
+    }
+
+    /// <summary>
+    /// Legendary takes beast gear only where holding 10 pieces pays (Walking Armory: 0 on Board 1, 500 on Board 2, as
+    /// the client's XBMContent rows say); on Board 1 none, for Nameday Attire.
+    /// </summary>
+    [Fact]
+    public void LegendaryTakesGearOnlyWhereWalkingArmoryPays()
+    {
+        var bonuses1 = new int[33];
+        var bonuses2 = new int[33];
+        bonuses1[(int)CrucibleBonus.NamedayAttire] = bonuses2[(int)CrucibleBonus.NamedayAttire] = 750;
+        bonuses2[(int)CrucibleBonus.WalkingArmory] = 500;
+        Assert.False(CrucibleAutoPilotRules.LegendaryTakesGear(new CrucibleBoard(1, 1088, 1339, "First", 30, [6], bonuses1)));
+        Assert.True(CrucibleAutoPilotRules.LegendaryTakesGear(new CrucibleBoard(2, 1089, 1340, "Second", 40, [13], bonuses2)));
+    }
 }

@@ -326,15 +326,34 @@ public static class ArtemisCooldownRules
                                           || secondsUntilTankbuster <= TankbusterLeadSeconds
                                           || secondsUntilRaidwide <= RaidwideLeadSeconds)));
 
+    /// <summary>
+    /// Legendary with the beastmaster tanking: Challenge whenever the enemy is not on the beastmaster (the pull included),
+    /// so no familiar takes a hit and Selfless holds. Not while the beastmaster is critical: then Snarl's Cover saves the
+    /// run, and Challenge would end it.
+    /// </summary>
+    public static bool ShouldChallengeToTank(bool enabled, bool onBoardInBattle, bool ready, bool enemyOnBeastmaster, float selfHpPct)
+        => enabled && onBoardInBattle && ready && !enemyOnBeastmaster && selfHpPct > SelfCriticalHpPct;
+
+    /// <summary>Legendary with the beastmaster tanking: Snarl only to save a critical beastmaster (Selfless is spent then).</summary>
+    public static bool ShouldSnarlWhileTanking(
+        bool enabled, bool onBoardInBattle, bool ready, bool hasFamiliar, float familiarHpPct, float selfHpPct)
+        => enabled && onBoardInBattle && ready && hasFamiliar && familiarHpPct > 0f && selfHpPct <= SelfCriticalHpPct;
+
     /// <summary>Why Snarl is not going out this frame, for the debug log; null when it is (or would be, once ready).</summary>
+    /// <para>Takes the same tankbuster / raidwide warnings as <see cref="ShouldSnarl"/>, so the log never says "held" while
+    /// Snarl goes out for one (found by the cloud cleanup pass, 2026-10-27).</para>
     public static string? SnarlHeldReason(
-        bool enabled, bool hasFamiliar, float familiarHpPct, float selfHpPct, float fallingLine = SnarlMinFamiliarHpPct)
+        bool enabled, bool hasFamiliar, float familiarHpPct, float selfHpPct, float fallingLine = SnarlMinFamiliarHpPct,
+        float secondsUntilTankbuster = float.MaxValue, float secondsUntilRaidwide = float.MaxValue)
     {
         if (!enabled)
             return "Snarl is turned off";
         if (!hasFamiliar)
             return "no familiar out";
-        if (familiarHpPct >= fallingLine || (selfHpPct <= SelfCriticalHpPct && familiarHpPct > 0f))
+        if (familiarHpPct >= fallingLine
+            || (familiarHpPct > 0f && (selfHpPct <= SelfCriticalHpPct
+                                       || secondsUntilTankbuster <= TankbusterLeadSeconds
+                                       || secondsUntilRaidwide <= RaidwideLeadSeconds)))
             return null;
         return $"familiar at {familiarHpPct:P0} (under {fallingLine:P0}), you at {selfHpPct:P0}";
     }

@@ -485,11 +485,13 @@ public class CrucibleTests
     /// a tankbuster or raidwide on its way — the reason has no tankbuster/raidwide inputs, so the debug log contradicts
     /// what the rotation does. Debug text only; the rotation itself is right.
     /// </summary>
-    [Fact(Skip = "Suspected bug, not fixed here: SnarlHeldReason ignores tankbusters and raidwides that ShouldSnarl acts on.")]
+    [Fact]
     public void TheHeldReasonAgreesWithSnarlForATankbuster()
     {
         Assert.True(ArtemisCooldownRules.ShouldSnarl(true, true, true, true, 0.1f, 0.9f, secondsUntilTankbuster: 5f));
-        Assert.Null(ArtemisCooldownRules.SnarlHeldReason(true, true, 0.1f, 0.9f));
+        Assert.Null(ArtemisCooldownRules.SnarlHeldReason(true, true, 0.1f, 0.9f, secondsUntilTankbuster: 5f));
+        Assert.Null(ArtemisCooldownRules.SnarlHeldReason(true, true, 0.1f, 0.9f, secondsUntilRaidwide: 5f));
+        Assert.NotNull(ArtemisCooldownRules.SnarlHeldReason(true, true, 0.1f, 0.9f, secondsUntilTankbuster: 30f));
     }
 
     /// <summary>Nonsense inputs (negative hit or rate) leave the flat line, never lower it.</summary>
@@ -606,5 +608,24 @@ public class CrucibleTests
         trend.Sample(1, 0.5f, T0.AddSeconds(3));
         Assert.Equal(0f, trend.BiggestHitPct);
         Assert.Equal(0f, trend.LossPerSecond);
+    }
+
+    /// <summary>Legendary, beastmaster tanking: Challenge whenever the enemy is not on you (the pull too), not while critical.</summary>
+    [Fact]
+    public void TankingChallengesAnyEnemyNotOnYou()
+    {
+        Assert.True(ArtemisCooldownRules.ShouldChallengeToTank(true, true, true, enemyOnBeastmaster: false, selfHpPct: 0.9f));
+        Assert.False(ArtemisCooldownRules.ShouldChallengeToTank(true, true, true, enemyOnBeastmaster: true, selfHpPct: 0.9f));
+        Assert.False(ArtemisCooldownRules.ShouldChallengeToTank(true, true, true, enemyOnBeastmaster: false, selfHpPct: 0.25f));
+        Assert.False(ArtemisCooldownRules.ShouldChallengeToTank(true, true, ready: false, enemyOnBeastmaster: false, selfHpPct: 0.9f));
+    }
+
+    /// <summary>Legendary, beastmaster tanking: Snarl only rescues a critical beastmaster, never on cooldown.</summary>
+    [Fact]
+    public void TankingSnarlsOnlyWhenYouAreCritical()
+    {
+        Assert.False(ArtemisCooldownRules.ShouldSnarlWhileTanking(true, true, true, true, familiarHpPct: 1f, selfHpPct: 0.9f));
+        Assert.True(ArtemisCooldownRules.ShouldSnarlWhileTanking(true, true, true, true, familiarHpPct: 1f, selfHpPct: 0.3f));
+        Assert.False(ArtemisCooldownRules.ShouldSnarlWhileTanking(true, true, true, true, familiarHpPct: 0f, selfHpPct: 0.2f));
     }
 }
