@@ -1,5 +1,6 @@
 using Daedalus.Data;
 using Daedalus.Rotation.ApolloCore.Context;
+using Daedalus.Services.Action;
 
 namespace Daedalus.Rotation.ApolloCore.Modules.Healing;
 
@@ -18,7 +19,10 @@ internal static class ThinAirHelper
         var config = context.Configuration;
         var player = context.Player;
 
-        if (!config.Buffs.EnableThinAir || player.Level < WHMActions.ThinAir.MinLevel)
+        // Thin Air is quest-locked (Lv58 job quest) and can be synced out; IsActionReady reads true for an
+        // unlearned action, so a raw level check here made every Cure II / Medica wait for a buff that never comes.
+        if (!config.Buffs.EnableThinAir
+            || !ActionAvailability.MeetsLevelAndLearned(player.Level, context.ActionService, WHMActions.ThinAir))
             return false;
 
         if (context.HasThinAir)

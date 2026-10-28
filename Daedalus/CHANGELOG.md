@@ -42,6 +42,11 @@ All notable changes to Daedalus will be documented in this file.
 - **Viper: automatic True North only when a positional is owed, in the last weave slot.** It used to go out
   whenever you stood at the front — in packs, during Reawaken, before the Dens — and in the first weave slot.
   It now waits for a Coil or Sting finisher you're out of position for, just before that hit.
+- **White Mage: heals, raises and Doom top-offs no longer stall.** Without the Thin Air quest (or level-synced below
+  it), every Cure II, Medica and Raise waited for a Thin Air that never came, and out of combat a fallen ally was
+  never raised. A Doomed ally also got no heal when Benediction or Afflatus Solace was turned off. Thin Air is now
+  only waited for when you can use it, and the next usable heal goes out.
+
 
 ## v0.1.109 — 2026-10-27
 

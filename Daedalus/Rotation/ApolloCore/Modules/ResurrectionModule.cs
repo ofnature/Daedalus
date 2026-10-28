@@ -7,6 +7,7 @@ using Daedalus.Rotation.ApolloCore.Abilities;
 using Daedalus.Rotation.ApolloCore.Context;
 using Daedalus.Rotation.Common.Modules;
 using Daedalus.Rotation.Common.Scheduling;
+using Daedalus.Services.Action;
 using Daedalus.Services.Party;
 using Daedalus.Services.Training;
 
@@ -46,7 +47,14 @@ public sealed class ResurrectionModule : BaseResurrectionModule<IApolloContext>,
         var config = context.Configuration;
         var player = context.Player;
 
-        if (!config.Buffs.EnableThinAir || player.Level < WHMActions.ThinAir.MinLevel)
+        // Out of combat Thin Air (an oGCD) is never cast — oGCD dispatch is combat-gated — so waiting for it
+        // leaves the corpse on the floor forever (same trap as the out-of-combat Swiftcast wait).
+        if (!context.InCombat)
+            return false;
+
+        // Quest-locked (Lv58) / synced out: IsActionReady reads true for an unlearned action.
+        if (!config.Buffs.EnableThinAir
+            || !ActionAvailability.MeetsLevelAndLearned(player.Level, context.ActionService, WHMActions.ThinAir))
             return false;
 
         if (context.HasThinAir)

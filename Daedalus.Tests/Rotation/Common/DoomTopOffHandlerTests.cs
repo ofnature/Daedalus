@@ -106,6 +106,66 @@ public class DoomTopOffHandlerTests
         Assert.Null(Pushed(RunApollo(down, isMoving: true).InspectGcdQueue(), Doomed));
     }
 
+    // A branch must not claim the top-off with a push the scheduler drops (toggle off / not learned): the Doomed member
+    // then got nothing at all. LilyCount reads the job gauge, so these run against a mocked context.
+    private static RotationScheduler RunApolloMocked(Mock<IActionService> actions, Configuration config, int lilies = 0)
+    {
+        var partyHelper = MockBuilders.CreateMockPartyHelper();
+        partyHelper.Setup(p => p.GetAllPartyMembers(It.IsAny<IPlayerCharacter>(), It.IsAny<bool>())).Returns(Party());
+        var context = new Mock<Daedalus.Rotation.ApolloCore.Context.IApolloContext>();
+        context.Setup(c => c.Player).Returns(MockBuilders.CreateMockPlayerCharacter(level: 100).Object);
+        context.Setup(c => c.PartyHelper).Returns(partyHelper.Object);
+        context.Setup(c => c.ActionService).Returns(actions.Object);
+        context.Setup(c => c.Configuration).Returns(config);
+        context.Setup(c => c.LilyCount).Returns(lilies);
+        var scheduler = SchedulerFactory.CreateForTest(actionService: actions, config: config);
+        new ApolloDoom(IsDoomed).CollectCandidates(context.Object, scheduler, isMoving: false);
+        return scheduler;
+    }
+
+    private static uint? ApolloPick(RotationScheduler s)
+        => (Pushed(s.InspectOgcdQueue(), Doomed) ?? Pushed(s.InspectGcdQueue(), Doomed))?.Behavior.Action.ActionId;
+
+    [Fact]
+    public void WhiteMage_BenedictionDisabled_FallsToTetragrammaton()
+    {
+        var config = ApolloTestContext.CreateDefaultWhiteMageConfiguration();
+        config.Healing.EnableBenediction = false;
+        Assert.Equal(WHMActions.Tetragrammaton.ActionId, ApolloPick(RunApolloMocked(Ready(), config)));
+    }
+
+    [Fact]
+    public void WhiteMage_BenedictionNotLearned_FallsToTetragrammaton()
+    {
+        var actions = Ready();
+        actions.Setup(a => a.IsActionLearned(WHMActions.Benediction.ActionId)).Returns(false);
+        Assert.Equal(WHMActions.Tetragrammaton.ActionId,
+            ApolloPick(RunApolloMocked(actions, ApolloTestContext.CreateDefaultWhiteMageConfiguration())));
+    }
+
+    [Fact]
+    public void WhiteMage_SolaceDisabled_WithLilies_FallsToCureII()
+    {
+        var config = ApolloTestContext.CreateDefaultWhiteMageConfiguration();
+        config.Healing.EnableAfflatusSolace = false;
+        var down = Ready(WHMActions.Benediction.ActionId, WHMActions.Tetragrammaton.ActionId);
+        Assert.Equal(WHMActions.CureII.ActionId, ApolloPick(RunApolloMocked(down, config, lilies: 2)));
+    }
+
+    [Fact]
+    public void WhiteMage_CureIINotLearned_FallsToCure()
+    {
+        var down = Ready(WHMActions.Benediction.ActionId, WHMActions.Tetragrammaton.ActionId);
+        down.Setup(a => a.IsActionLearned(WHMActions.CureII.ActionId)).Returns(false);
+        Assert.Equal(WHMActions.Cure.ActionId,
+            ApolloPick(RunApolloMocked(down, ApolloTestContext.CreateDefaultWhiteMageConfiguration())));
+    }
+
+    [Fact]
+    public void WhiteMage_AllEnabled_StillBenediction()
+        => Assert.Equal(WHMActions.Benediction.ActionId,
+            ApolloPick(RunApolloMocked(Ready(), ApolloTestContext.CreateDefaultWhiteMageConfiguration(), lilies: 2)));
+
     [Fact]
     public void WhiteMage_NothingWhenNobodyIsDoomed()
     {
