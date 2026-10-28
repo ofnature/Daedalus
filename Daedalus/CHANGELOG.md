@@ -57,6 +57,9 @@ All notable changes to Daedalus will be documented in this file.
   Fuga was aimed at yourself, which the game refuses, so the AoE combo never started. Tsubame-gaeshi follow-ups now go
   out from level 74 (not 76), and at 40–49 two Sen are spent on Tenka Goken instead of sitting there forever, so
   Higanbana is refreshed again.
+- **Dragoon: Life Surge isn't wasted on True Thrust at low level.** Below 26 it went out after Vorpal Thrust, but the
+  next hit there is True Thrust. It now waits for a real third hit (Full Thrust and its upgrades, or Coerthan Torment
+  once learned).
 
 ## v0.1.109 — 2026-10-27
 
