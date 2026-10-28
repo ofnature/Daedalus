@@ -23,6 +23,8 @@ All notable changes to Daedalus will be documented in this file.
 - **Scholar: Recitation waits for its follow-up.** Recitation was pressed for Excogitation (or Indomitability) even
   while that action was still on cooldown, so the 15-second buff had nothing to go on. It is now held until the
   follow-up is ready, and never pressed for a follow-up you have turned off.
+- **Red Mage: synced below level 18, packs get Jolt again.** Against three or more enemies the rotation reached for
+  Veraero II, which you don't have yet, and cast nothing — so no Dualcast either. It now casts Jolt.
 
 ## v0.1.109 — 2026-10-27
 
