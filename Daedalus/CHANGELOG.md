@@ -36,6 +36,9 @@ All notable changes to Daedalus will be documented in this file.
 - **Samurai and Ninja: automatic True North waits for the last weave slot.** It used to go out as soon as a rear or
   flank hit was coming, even with time left to walk there. It now waits until just before that hit, so moving into
   position yourself saves the charge.
+- **Warrior: Nascent Flash skips invulnerable allies.** A co-tank in Superbolide, Holmgang, Living Dead or Hallowed
+  Ground (or under HP Recovery Down) no longer wins the "lowest HP" pick; Nascent Flash goes to the next ally who
+  needs it. Walking Dead still counts, since that Dark Knight has to be healed.
 
 ## v0.1.109 — 2026-10-27
 

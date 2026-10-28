@@ -553,7 +553,7 @@ public sealed class MitigationModule : IAresModule
         if (player.Level < WARActions.NascentFlash.MinLevel) return;
         if (myHpPercent < 0.60f) return;
 
-        var flashTarget = context.PartyHelper.FindNascentFlashTarget(player, 0.60f);
+        var flashTarget = context.PartyHelper.FindNascentFlashTarget(player, 0.60f, context.ActionService.GcdDuration);
         if (flashTarget == null) return;
 
         var dx = player.Position.X - flashTarget.Position.X;
