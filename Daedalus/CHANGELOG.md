@@ -49,6 +49,10 @@ All notable changes to Daedalus will be documented in this file.
 - **Astrologian: raises out of combat, and Synastry goes to an ally.** Out of combat it waited for Lightspeed before
   raising, which is never used out of combat, so the fallen ally stayed down. Synastry could also pick the
   Astrologian, which the game refuses; it now goes to the lowest-HP ally other than you.
+- **Dark Knight: Edge and Flood below level 74, Dark Missionary from 66.** Below 74 the rotation reached for
+  Edge/Flood of Shadow, which you don't have yet, so Darkside was never up, Delirium never went out at 68–73 and Dark
+  Arts procs were wasted. It now uses Edge/Flood of Darkness until they upgrade (Flood alone below 40), and Dark
+  Missionary is used from its real level, 66 instead of 76.
 
 ## v0.1.109 — 2026-10-27
 
