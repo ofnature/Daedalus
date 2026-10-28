@@ -15,6 +15,9 @@ All notable changes to Daedalus will be documented in this file.
 - **Melee jobs (Samurai, Ninja, Monk, Dragoon, Reaper, Viper): rear and flank are read on the ground.** Standing
   above or below a target (a slope, a raised platform) tilted the check toward "flank", so True North could be
   spent when you were already at the rear, or skipped when you were at the front. Height no longer counts.
+- **Viper: the second Coil and both Dens are pressed again.** The rotation misread which twinblade step the job gauge
+  was on: after Hunter's Coil it tried Hunter's Den instead of Swiftskin's Coil, and after Vicepit it tried
+  Swiftskin's Coil instead of a Den, so those hits (and their Twinfang/Twinblood follow-ups) were lost.
 
 ## v0.1.109 — 2026-10-27
 

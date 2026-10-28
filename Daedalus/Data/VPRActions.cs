@@ -982,17 +982,19 @@ public static class VPRActions
     #region Combo Enums
 
     /// <summary>
-    /// Viper combo state tracking from the job gauge.
+    /// Viper twinblade state from the job gauge, named by the step still owed. The game stores the LAST twinblade
+    /// action (ClientStructs/Dalamud DreadCombo: 1 Dreadwinder, 2 Hunter's Coil, 3 Swiftskin's Coil, 4 Pit of Dread,
+    /// 5 Hunter's Den, 6 Swiftskin's Den), so after one Coil/Den the other one is owed.
     /// </summary>
     public enum DreadCombo : byte
     {
         None = 0,
-        DreadwindyReady = 1,
-        PitReady = 2,
-        HunterCoilReady = 3,
-        SwiftskinCoilReady = 4,
-        HunterDenReady = 5,
-        SwiftskinDenReady = 6,
+        DreadwindyReady = 1,    // Vicewinder used → either Coil
+        SwiftskinCoilReady = 2, // Hunter's Coil used
+        HunterCoilReady = 3,    // Swiftskin's Coil used
+        PitReady = 4,           // Vicepit used → either Den
+        SwiftskinDenReady = 5,  // Hunter's Den used
+        HunterDenReady = 6,     // Swiftskin's Den used
     }
 
     /// <summary>
@@ -1048,10 +1050,11 @@ public static class VPRActions
     {
         return state switch
         {
-            DreadCombo.HunterCoilReady => Twinfang,
-            DreadCombo.SwiftskinCoilReady => Twinblood,
-            DreadCombo.HunterDenReady => isAoe ? TwinfangBite : Twinfang,
-            DreadCombo.SwiftskinDenReady => isAoe ? TwinbloodBite : Twinblood,
+            // The state names the step still owed, so the pending oGCD is the one from the step just used.
+            DreadCombo.SwiftskinCoilReady => Twinfang,
+            DreadCombo.HunterCoilReady => Twinblood,
+            DreadCombo.SwiftskinDenReady => isAoe ? TwinfangBite : Twinfang,
+            DreadCombo.HunterDenReady => isAoe ? TwinbloodBite : Twinblood,
             _ => null
         };
     }
