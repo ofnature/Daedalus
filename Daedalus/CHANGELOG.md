@@ -46,7 +46,9 @@ All notable changes to Daedalus will be documented in this file.
   it), every Cure II, Medica and Raise waited for a Thin Air that never came, and out of combat a fallen ally was
   never raised. A Doomed ally also got no heal when Benediction or Afflatus Solace was turned off. Thin Air is now
   only waited for when you can use it, and the next usable heal goes out.
-
+- **Astrologian: raises out of combat, and Synastry goes to an ally.** Out of combat it waited for Lightspeed before
+  raising, which is never used out of combat, so the fallen ally stayed down. Synastry could also pick the
+  Astrologian, which the game refuses; it now goes to the lowest-HP ally other than you.
 
 ## v0.1.109 — 2026-10-27
 
