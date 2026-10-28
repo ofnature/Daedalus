@@ -4,6 +4,7 @@ using Xunit;
 namespace Daedalus.Tests.Data;
 
 /// <summary>Rotations read a copy of the settings: the Legendary goal and "You tank" must reach that copy.</summary>
+[Collection("ExternalCombatOverrideState")]
 public class CrucibleLegendaryConfigCopyTests
 {
     [Fact]

@@ -40,6 +40,7 @@ public sealed class DutyContentClassifierTests
     }
 }
 
+[Collection("ExternalCombatOverrideState")]
 public sealed class DutyConfigurationServiceTests
 {
     [Fact]

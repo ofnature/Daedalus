@@ -16,6 +16,7 @@ namespace Daedalus.Tests.Config;
 /// back, so the raise waited for a Swiftcast it was never allowed to skip.
 /// </para>
 /// </summary>
+[Collection("ExternalCombatOverrideState")]
 public class DutyProfileResurrectionTests
 {
     public static TheoryData<EffectiveDutyProfile> AllProfiles => new()
