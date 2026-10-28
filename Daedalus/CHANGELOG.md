@@ -30,6 +30,9 @@ All notable changes to Daedalus will be documented in this file.
   sent away. One of them now waits for the next weave. The Crucible's "familiar falling" retreat is unchanged.
 - **Dragoon: Lance Charge waits for Battle Litany.** When Battle Litany is back within 10 seconds, Lance Charge now
   waits for it so both buffs go out together. Before you learn Battle Litany, Lance Charge is used as before.
+- **Monk: The Forbidden Chakra is held for one GCD, not eight seconds.** With burst pooling on, it used to sit on a
+  full Chakra gauge for 8 seconds before every party burst. It now waits only for the last GCD before Brotherhood
+  comes back, so it lands inside Brotherhood. Enlightenment in packs is never held.
 
 ## v0.1.109 — 2026-10-27
 
