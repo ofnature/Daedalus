@@ -3,6 +3,13 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.110 — (unreleased)
+
+### Rotations — checked against RotationSolverReborn
+- **Dark Knight: Oblation no longer burns both charges at once.** When your HP was low, the second weave slot could
+  press Oblation again before the first one's buff showed up, wasting the other charge on a refresh. It now waits
+  for another oGCD in between.
+
 ## v0.1.109 — 2026-10-27
 
 ### Beastmaster — the Crucible

@@ -337,6 +337,9 @@ public sealed class MitigationModule : INyxModule
         var player = context.Player;
         if (player.Level < DRKActions.Oblation.MinLevel) return;
         if (context.HasOblation) return;
+        // 2 charges bypass the 1s repeat-oGCD block and the buff can land after the next weave slot, so the
+        // status check alone burns the second charge on a refresh (RSR 7b8a2f52).
+        if (context.ActionService.WasLastOgcd(DRKActions.Oblation.ActionId)) return;
         if (context.HasWalkingDead) return;
         if (hpPercent > context.Configuration.Tank.MitigationThreshold) return;
         if (!context.ActionService.IsActionReady(DRKActions.Oblation.ActionId)) return;
