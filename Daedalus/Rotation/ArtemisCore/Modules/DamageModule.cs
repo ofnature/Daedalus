@@ -547,6 +547,8 @@ public sealed class DamageModule : IArtemisModule
     private void PushTrick(
         IArtemisContext context, RotationScheduler scheduler, ulong targetId, InstinctAffinity petAffinity, string why)
     {
+        // The familiar that was just sent off with Parting Blow is still in the object table (RSR 5ffd2205).
+        if (context.ActionService.WasLastOgcd(BSTActions.PartingBlow.ActionId)) return;
         scheduler.PushOgcd(ArtemisAbilities.Trick, targetId, priority: 10, onDispatched: _ =>
         {
             _gaugeAtTrick = context.Gauge;
@@ -798,7 +800,10 @@ public sealed class DamageModule : IArtemisModule
             && ShouldTemperedRelease(true, true, context.FamiliarBeast?.BestiaryNo, partingBlowAllowed,
                 player.MaxHp > 0 ? (float)player.CurrentHp / player.MaxHp : 1f, double.MaxValue);
         _releaseOwed = releaseOwed;
-        if (!releaseOwed && partingBlowAllowed && CanFire(svc, level, BSTActions.PartingBlow, targetId))
+        // Not straight after a Trick: the familiar is slow to act, and retreating it now loses the Trick (RSR 8f258dbc).
+        // The falling retreat is exempt — it saves the familiar.
+        var trickInFlight = !falling && svc.WasLastOgcd(BSTActions.Trick.ActionId);
+        if (!releaseOwed && partingBlowAllowed && !trickInFlight && CanFire(svc, level, BSTActions.PartingBlow, targetId))
         {
             var line = _fallingLine;
             scheduler.PushOgcd(falling ? ArtemisAbilities.PartingBlowRetreat : ArtemisAbilities.PartingBlow, targetId,
@@ -815,7 +820,8 @@ public sealed class DamageModule : IArtemisModule
                 });
         }
 
-        if (!trickHandledByPairing && cfg.EnableTrick && CanFire(svc, level, BSTActions.Trick, targetId))
+        if (!trickHandledByPairing && cfg.EnableTrick && !svc.WasLastOgcd(BSTActions.PartingBlow.ActionId)
+            && CanFire(svc, level, BSTActions.Trick, targetId))
         {
             scheduler.PushOgcd(ArtemisAbilities.Trick, targetId, priority: 30, onDispatched: _ =>
             {
