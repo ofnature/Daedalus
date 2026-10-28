@@ -33,6 +33,9 @@ All notable changes to Daedalus will be documented in this file.
 - **Monk: The Forbidden Chakra is held for one GCD, not eight seconds.** With burst pooling on, it used to sit on a
   full Chakra gauge for 8 seconds before every party burst. It now waits only for the last GCD before Brotherhood
   comes back, so it lands inside Brotherhood. Enlightenment in packs is never held.
+- **Samurai and Ninja: automatic True North waits for the last weave slot.** It used to go out as soon as a rear or
+  flank hit was coming, even with time left to walk there. It now waits until just before that hit, so moving into
+  position yourself saves the charge.
 
 ## v0.1.109 — 2026-10-27
 

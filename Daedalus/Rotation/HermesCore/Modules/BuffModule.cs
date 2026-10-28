@@ -80,6 +80,8 @@ public sealed class BuffModule : IHermesModule
         if (!context.Configuration.MeleeShared.EnableTrueNorth) return;
         if (context.HasTrueNorth || context.TargetHasPositionalImmunity) return;
         if (!HermesPositionalHelper.NeedsTrueNorthForUpcomingFinisher(context)) return;
+        // Last weave slot only (RSR): earlier slots leave the player time to move into position.
+        if (context.ActionService.GcdRemaining > RoleActionGates.TrueNorthLastWeaveRemain) return;
         if (!RoleActionGates.TrueNorthReady(context)) return;
 
         scheduler.PushOgcd(HermesAbilities.TrueNorth, context.Player.GameObjectId, priority: 5,
