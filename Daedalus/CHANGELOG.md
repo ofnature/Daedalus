@@ -28,6 +28,8 @@ All notable changes to Daedalus will be documented in this file.
 - **Beastmaster: Trick and Parting Blow no longer step on each other.** With Parting Blow turned on, it could go out
   right after a Trick (the familiar left before its Trick landed), or a Trick could go to a familiar that was just
   sent away. One of them now waits for the next weave. The Crucible's "familiar falling" retreat is unchanged.
+- **Dragoon: Lance Charge waits for Battle Litany.** When Battle Litany is back within 10 seconds, Lance Charge now
+  waits for it so both buffs go out together. Before you learn Battle Litany, Lance Charge is used as before.
 
 ## v0.1.109 — 2026-10-27
 
