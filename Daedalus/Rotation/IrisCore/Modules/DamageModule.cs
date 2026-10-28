@@ -8,6 +8,7 @@ using Daedalus.Rotation.IrisCore.Abilities;
 using Daedalus.Rotation.IrisCore.Context;
 using Daedalus.Rotation.IrisCore.Helpers;
 using Daedalus.Services;
+using Daedalus.Services.Action;
 using Daedalus.Services.Targeting;
 using Daedalus.Services.Training;
 
@@ -461,10 +462,14 @@ public sealed class DamageModule : IIrisModule
                 context.ActionService,
                 context.HasHammerTime,
                 context.HammerTimeStacks,
-                context.HammerComboStep))
+                context.HammerComboStep,
+                level))
             return;
 
-        if (context.HammerComboStep == 1 && !IrisActionProbes.IsHammerBrushReady(context.ActionService))
+        // Below Lv86 the slot never turns into Hammer Brush (step 1 just means "last GCD was a Stamp");
+        // GetHammerComboAction maps step 1 back to Hammer Stamp there, so only wait for Brush when it exists.
+        if (context.HammerComboStep == 1 && !IrisActionProbes.IsHammerBrushReady(context.ActionService)
+            && ActionAvailability.MeetsLevelAndLearned(level, context.ActionService, PCTActions.HammerBrush))
             return;
 
         if (context.HammerComboStep == 2 && !IrisActionProbes.IsPolishingHammerReady(context.ActionService))

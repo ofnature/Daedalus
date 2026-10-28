@@ -60,6 +60,9 @@ All notable changes to Daedalus will be documented in this file.
 - **Dragoon: Life Surge isn't wasted on True Thrust at low level.** Below 26 it went out after Vorpal Thrust, but the
   next hit there is True Thrust. It now waits for a real third hit (Full Thrust and its upgrades, or Coerthan Torment
   once learned).
+- **Pictomancer: Mog of the Ages and Retribution of the Madeen fire again; low-level Hammer Time is spent.** The
+  portrait gauge was read from the wrong bits, so Retribution of the Madeen never fired and Mog could be skipped after
+  Clawed Muse. Below level 86 the second and third Hammer Stamps were never pressed and Hammer Time ran out.
 
 ## v0.1.109 — 2026-10-27
 

@@ -94,21 +94,44 @@ public class IrisActionProbesTests
     public void CanStartHammerStamp_False_WhenOnlyTwoHammerTimeStacks()
     {
         var svc = WithAdjust(PCTActions.HammerStamp.ActionId, PCTActions.HammerStamp.ActionId);
-        Assert.False(IrisActionProbes.CanStartHammerStamp(svc.Object, hasHammerTime: true, hammerTimeStacks: 2, hammerComboStep: 0));
+        Assert.False(IrisActionProbes.CanStartHammerStamp(svc.Object, hasHammerTime: true, hammerTimeStacks: 2, hammerComboStep: 0, level: 100));
     }
 
     [Fact]
     public void CanStartHammerStamp_True_WhenThreeStacksAndStampProbeReady()
     {
         var svc = WithAdjust(PCTActions.HammerStamp.ActionId, PCTActions.HammerStamp.ActionId);
-        Assert.True(IrisActionProbes.CanStartHammerStamp(svc.Object, hasHammerTime: true, hammerTimeStacks: 3, hammerComboStep: 0));
+        Assert.True(IrisActionProbes.CanStartHammerStamp(svc.Object, hasHammerTime: true, hammerTimeStacks: 3, hammerComboStep: 0, level: 100));
     }
 
     [Fact]
     public void CanStartHammerStamp_True_WhenAlreadyInCombo()
     {
         var svc = MockBuilders.CreateMockActionService();
-        Assert.True(IrisActionProbes.CanStartHammerStamp(svc.Object, hasHammerTime: false, hammerTimeStacks: 0, hammerComboStep: 1));
+        Assert.True(IrisActionProbes.CanStartHammerStamp(svc.Object, hasHammerTime: false, hammerTimeStacks: 0, hammerComboStep: 1, level: 100));
+    }
+
+    [Fact]
+    public void CanStartHammerStamp_True_BelowHammerBrush_WithTwoStacksLeft()
+    {
+        // Below Lv86 the Stamp never morphs; the 2 leftover stacks are 2 more Stamps (RSR ModifyHammerStampPvE).
+        var svc = WithAdjust(PCTActions.HammerStamp.ActionId, PCTActions.HammerStamp.ActionId);
+        Assert.True(IrisActionProbes.CanStartHammerStamp(svc.Object, hasHammerTime: true, hammerTimeStacks: 2, hammerComboStep: 0, level: 70));
+    }
+
+    [Fact]
+    public void CanStartHammerStamp_True_WhenHammerBrushNotLearned_WithOneStackLeft()
+    {
+        var svc = WithAdjust(PCTActions.HammerStamp.ActionId, PCTActions.HammerStamp.ActionId);
+        svc.Setup(x => x.IsActionLearned(PCTActions.HammerBrush.ActionId)).Returns(false);
+        Assert.True(IrisActionProbes.CanStartHammerStamp(svc.Object, hasHammerTime: true, hammerTimeStacks: 1, hammerComboStep: 0, level: 90));
+    }
+
+    [Fact]
+    public void CanStartHammerStamp_False_BelowHammerBrush_WithNoStacks()
+    {
+        var svc = WithAdjust(PCTActions.HammerStamp.ActionId, PCTActions.HammerStamp.ActionId);
+        Assert.False(IrisActionProbes.CanStartHammerStamp(svc.Object, hasHammerTime: false, hammerTimeStacks: 0, hammerComboStep: 0, level: 70));
     }
 
     [Fact]

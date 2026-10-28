@@ -183,12 +183,19 @@ public static class IrisActionProbes
         return comboHammerStep;
     }
 
-    public static bool CanStartHammerStamp(IActionService actionService, bool hasHammerTime, int hammerTimeStacks, int hammerComboStep)
+    public static bool CanStartHammerStamp(IActionService actionService, bool hasHammerTime, int hammerTimeStacks, int hammerComboStep, byte level)
     {
         if (hammerComboStep > 0)
             return true;
 
-        return hasHammerTime && hammerTimeStacks >= 3
+        // Below Hammer Brush (Lv86) the Stamp never morphs: each of the 3 Hammer Time stacks is its own Stamp,
+        // so 1-2 left over must still be pressed or they expire. RSR ModifyHammerStampPvE:
+        // HammerStacks == 3 || (!EnhancedPictomancyIiTrait.EnoughLevel && HammerStacks > 0).
+        var stacksReady = hammerTimeStacks >= 3
+                          || (hammerTimeStacks > 0
+                              && !ActionAvailability.MeetsLevelAndLearned(level, actionService, PCTActions.HammerBrush));
+
+        return hasHammerTime && stacksReady
                && IsAdjustedTo(actionService, PCTActions.HammerStamp.ActionId, PCTActions.HammerStamp.ActionId);
     }
 }
