@@ -18,6 +18,8 @@ All notable changes to Daedalus will be documented in this file.
 - **Viper: the second Coil and both Dens are pressed again.** The rotation misread which twinblade step the job gauge
   was on: after Hunter's Coil it tried Hunter's Den instead of Swiftskin's Coil, and after Vicepit it tried
   Swiftskin's Coil instead of a Den, so those hits (and their Twinfang/Twinblood follow-ups) were lost.
+- **Sage: no Eukrasian Dosis on an enemy about to die.** The "skip the DoT on a dying target" check was undone for
+  Sage alone, so the last mob of a pull still got Eukrasia + Eukrasian Dosis instead of a stronger Dosis.
 
 ## v0.1.109 — 2026-10-27
 

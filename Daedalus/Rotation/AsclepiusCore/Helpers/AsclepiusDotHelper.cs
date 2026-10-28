@@ -61,12 +61,9 @@ public static class AsclepiusDotHelper
         var threshold = RefreshThreshold(context);
         var dotStatusId = SGEActions.GetDotStatusId(context.Player.Level);
 
-        var needing = context.TargetingService.FindEnemyNeedingDot(
+        // No fallback to the plain enemy pick: once uptime is unhealthy, FindEnemyNeedingDot returns null only for
+        // an enemy it skipped on purpose (about to die — the DoT time-to-kill gate), and Dosis beats the DoT there.
+        return context.TargetingService.FindEnemyNeedingDot(
             dotStatusId, threshold, dotAction.Range, context.Player);
-        if (needing != null)
-            return needing;
-
-        return context.TargetingService.FindEnemy(
-            context.Configuration.Targeting.EnemyStrategy, dotAction.Range, context.Player);
     }
 }
