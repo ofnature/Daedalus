@@ -104,7 +104,7 @@ public sealed class MonkConfig
 
     /// <summary>
     /// Pool gauge resources (Forbidden Chakra, Masterful Blitz) for raid buff burst windows.
-    /// When enabled, holds gauge spenders within 8s of an imminent burst.
+    /// When enabled, The Forbidden Chakra waits for the last GCD before Brotherhood comes back (RSR's hold).
     /// </summary>
     public bool EnableBurstPooling { get; set; } = true;
 

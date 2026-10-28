@@ -4,6 +4,7 @@ using Daedalus.Rotation.Common.Scheduling;
 using Daedalus.Rotation.ZeusCore.Abilities;
 using Daedalus.Rotation.ZeusCore.Context;
 using Daedalus.Services;
+using Daedalus.Services.Action;
 using Daedalus.Services.Training;
 using Daedalus.Services.Party;
 
@@ -162,6 +163,15 @@ public sealed class BuffModule : IZeusModule
         if (ShouldHoldForBurst(context.Configuration.Dragoon.BattleLitanyHoldTime))
         {
             context.Debug.BuffState = "Holding Lance Charge for burst";
+            return;
+        }
+
+        // RSR DRG_Reborn: hold Lance Charge while Battle Litany is cooling down and back within 10s, so the
+        // two buffs go out together. Not learned yet (or already ready) means nothing to wait for.
+        if (ActionAvailability.MeetsLevelAndLearned(level, context.ActionService, DRGActions.BattleLitany)
+            && context.ActionService.GetCooldownRemaining(DRGActions.BattleLitany.ActionId) is > 0f and <= 10f)
+        {
+            context.Debug.BuffState = "Holding Lance Charge for Battle Litany";
             return;
         }
 

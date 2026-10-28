@@ -217,13 +217,18 @@ public sealed class DamageModule : IKratosModule
         var player = context.Player;
         var level = player.Level;
         if (context.Chakra < context.Configuration.Monk.ChakraMinGauge) return;
-        if (context.Configuration.Monk.EnableBurstPooling && ShouldHoldForBurst(8f) && context.Chakra < 45) return;
 
-        // Hold Chakra when Brotherhood is imminent — BH grants Chakra generation,
-        // so spending at 4-5 right before BH wastes the incoming Chakra.
-        if (level >= MNKActions.Brotherhood.MinLevel && context.Chakra < 5
-            && context.ActionService.GetCooldownRemaining(MNKActions.Brotherhood.ActionId) is > 0f and < 10f)
-            return;
+        // RSR MNK_Reborn: outside Brotherhood, hold the single-target spender only for the last GCD before
+        // Brotherhood comes back, so it lands inside the buff. Brotherhood ready or not learned: no hold.
+        // This replaces an 8s burst hold whose "Chakra < 45" was always true (Chakra never gets near 45), so it
+        // sat on a full gauge for 8s before every burst, and a Brotherhood hold gated on Chakra < 5 that the
+        // ChakraMinGauge check above (default 5) made unreachable.
+        var brotherhoodCooldown = context.ActionService.GetCooldownRemaining(MNKActions.Brotherhood.ActionId);
+        var holdForBrotherhood = context.Configuration.Monk.EnableBurstPooling
+            && !context.HasBrotherhood
+            && ActionAvailability.MeetsLevelAndLearned(level, context.ActionService, MNKActions.Brotherhood)
+            && brotherhoodCooldown > 0f
+            && brotherhoodCooldown <= context.ActionService.GcdDuration;
 
         if (useAoE && level >= MNKActions.HowlingFist.MinLevel)
         {
@@ -260,6 +265,12 @@ public sealed class DamageModule : IKratosModule
 
         if (level >= MNKActions.SteelPeak.MinLevel)
         {
+            if (holdForBrotherhood)
+            {
+                context.Debug.DamageState = "Holding Chakra for Brotherhood";
+                return;
+            }
+
             var stAction = MNKActions.GetChakraSpender((byte)level, context.ActionService);
             var ability = level >= MNKActions.TheForbiddenChakra.MinLevel ? KratosAbilities.TheForbiddenChakra : KratosAbilities.SteelPeak;
             if (!context.ActionService.IsActionReady(stAction.ActionId)) return;

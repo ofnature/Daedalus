@@ -28,6 +28,17 @@ All notable changes to Daedalus will be documented in this file.
 - **Beastmaster: Trick and Parting Blow no longer step on each other.** With Parting Blow turned on, it could go out
   right after a Trick (the familiar left before its Trick landed), or a Trick could go to a familiar that was just
   sent away. One of them now waits for the next weave. The Crucible's "familiar falling" retreat is unchanged.
+- **Dragoon: Lance Charge waits for Battle Litany.** When Battle Litany is back within 10 seconds, Lance Charge now
+  waits for it so both buffs go out together. Before you learn Battle Litany, Lance Charge is used as before.
+- **Monk: The Forbidden Chakra is held for one GCD, not eight seconds.** With burst pooling on, it used to sit on a
+  full Chakra gauge for 8 seconds before every party burst. It now waits only for the last GCD before Brotherhood
+  comes back, so it lands inside Brotherhood. Enlightenment in packs is never held.
+- **Samurai and Ninja: automatic True North waits for the last weave slot.** It used to go out as soon as a rear or
+  flank hit was coming, even with time left to walk there. It now waits until just before that hit, so moving into
+  position yourself saves the charge.
+- **Warrior: Nascent Flash skips invulnerable allies.** A co-tank in Superbolide, Holmgang, Living Dead or Hallowed
+  Ground (or under HP Recovery Down) no longer wins the "lowest HP" pick; Nascent Flash goes to the next ally who
+  needs it. Walking Dead still counts, since that Dark Knight has to be healed.
 
 ## v0.1.109 — 2026-10-27
 

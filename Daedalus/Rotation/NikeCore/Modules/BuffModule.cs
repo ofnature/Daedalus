@@ -306,6 +306,8 @@ public sealed class BuffModule : INikeModule
             needPositional = true;
 
         if (!needPositional) return;
+        // Last weave slot only (RSR): earlier slots leave the player time to move into position.
+        if (context.ActionService.GcdRemaining > RoleActionGates.TrueNorthLastWeaveRemain) return;
         if (!RoleActionGates.TrueNorthReady(context)) return;
 
         scheduler.PushOgcd(NikeAbilities.TrueNorth, player.GameObjectId, priority: 5,

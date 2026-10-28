@@ -15,6 +15,13 @@ namespace Daedalus.Rotation.Common.RoleActionHelpers;
 public static class RoleActionGates
 {
     /// <summary>
+    /// RSR CustomRotation_Ability: automatic True North only goes in the last weave slot (GCD remaining at or
+    /// below this), so a charge isn't spent while the player still has time to walk to the positional.
+    /// 1.35s is RSR's 0.63s clip guard plus one oGCD animation lock.
+    /// </summary>
+    public const float TrueNorthLastWeaveRemain = 1.35f;
+
+    /// <summary>
     /// True iff Swiftcast is leveled and ready to fire (cooldown matured).
     /// </summary>
     public static bool SwiftcastReady(IRotationContext ctx)
