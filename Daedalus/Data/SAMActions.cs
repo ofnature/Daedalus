@@ -181,11 +181,13 @@ public static class SAMActions
         Name = "Fuga",
         MinLevel = 26,
         Category = ActionCategory.GCD,
-        TargetType = ActionTargetType.Self,
+        // Hostile-targeted cone (game Action sheet: CanTargetSelf False, CanTargetHostile True,
+        // Range 8) — unlike Fuko, which is self-centred.
+        TargetType = ActionTargetType.SingleEnemy,
         EffectTypes = ActionEffectType.Damage,
         CastTime = 0f,
         RecastTime = 2.5f,
-        Range = 0f,
+        Range = 8f,
         Radius = 5f,
         MpCost = 0,
         DamagePotency = 90
@@ -322,13 +324,13 @@ public static class SAMActions
     #region Tsubame-gaeshi (Iaijutsu Follow-ups)
 
     /// <summary>
-    /// Tsubame-gaeshi - Base action that transforms based on last Iaijutsu (Lv.76)
+    /// Tsubame-gaeshi - Base action that transforms based on last Iaijutsu (Lv.74; game Action sheet ClassJobLevel 74)
     /// </summary>
     public static readonly ActionDefinition TsubameGaeshi = new()
     {
         ActionId = 16483,
         Name = "Tsubame-gaeshi",
-        MinLevel = 76,
+        MinLevel = 74,
         Category = ActionCategory.GCD,
         TargetType = ActionTargetType.SingleEnemy,
         EffectTypes = ActionEffectType.Damage,
@@ -360,13 +362,13 @@ public static class SAMActions
     };
 
     /// <summary>
-    /// Kaeshi: Goken - Follow-up to Tenka Goken (Lv.76)
+    /// Kaeshi: Goken - Follow-up to Tenka Goken (Lv.74; game Action sheet ClassJobLevel 74)
     /// </summary>
     public static readonly ActionDefinition KaeshiGoken = new()
     {
         ActionId = 16485,
         Name = "Kaeshi: Goken",
-        MinLevel = 76,
+        MinLevel = 74,
         Category = ActionCategory.GCD,
         TargetType = ActionTargetType.SingleEnemy,
         EffectTypes = ActionEffectType.Damage,
@@ -379,13 +381,13 @@ public static class SAMActions
     };
 
     /// <summary>
-    /// Kaeshi: Setsugekka - Follow-up to Midare Setsugekka (Lv.76)
+    /// Kaeshi: Setsugekka - Follow-up to Midare Setsugekka (Lv.74; game Action sheet ClassJobLevel 74)
     /// </summary>
     public static readonly ActionDefinition KaeshiSetsugekka = new()
     {
         ActionId = 16486,
         Name = "Kaeshi: Setsugekka",
-        MinLevel = 76,
+        MinLevel = 74,
         Category = ActionCategory.GCD,
         TargetType = ActionTargetType.SingleEnemy,
         EffectTypes = ActionEffectType.Damage,

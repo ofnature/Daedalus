@@ -53,6 +53,10 @@ All notable changes to Daedalus will be documented in this file.
   Edge/Flood of Shadow, which you don't have yet, so Darkside was never up, Delirium never went out at 68–73 and Dark
   Arts procs were wasted. It now uses Edge/Flood of Darkness until they upgrade (Flood alone below 40), and Dark
   Missionary is used from its real level, 66 instead of 76.
+- **Samurai: AoE combo and Tsubame-gaeshi at lower levels.** Below 26 a pack got no weaponskills at all; from 26 to 85
+  Fuga was aimed at yourself, which the game refuses, so the AoE combo never started. Tsubame-gaeshi follow-ups now go
+  out from level 74 (not 76), and at 40–49 two Sen are spent on Tenka Goken instead of sitting there forever, so
+  Higanbana is refreshed again.
 
 ## v0.1.109 — 2026-10-27
 
