@@ -20,6 +20,9 @@ All notable changes to Daedalus will be documented in this file.
   Swiftskin's Coil instead of a Den, so those hits (and their Twinfang/Twinblood follow-ups) were lost.
 - **Sage: no Eukrasian Dosis on an enemy about to die.** The "skip the DoT on a dying target" check was undone for
   Sage alone, so the last mob of a pull still got Eukrasia + Eukrasian Dosis instead of a stronger Dosis.
+- **Scholar: Recitation waits for its follow-up.** Recitation was pressed for Excogitation (or Indomitability) even
+  while that action was still on cooldown, so the 15-second buff had nothing to go on. It is now held until the
+  follow-up is ready, and never pressed for a follow-up you have turned off.
 
 ## v0.1.109 — 2026-10-27
 
