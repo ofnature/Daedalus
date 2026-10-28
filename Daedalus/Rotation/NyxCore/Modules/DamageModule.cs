@@ -171,12 +171,12 @@ public sealed class DamageModule : INyxModule
     {
         if (!context.HasDarkArts) return;
         var level = context.Player.Level;
-        var action = context.Configuration.Tank.EnableAoEDamage && enemyCount >= context.Configuration.Tank.GetEffectiveAoEMinTargets(JobRegistry.DarkKnight)
+        var useFlood = UseFlood(context, level, enemyCount);
+        var action = useFlood
             ? DRKActions.GetFloodAction(level, context.ActionService) : DRKActions.GetEdgeAction(level, context.ActionService);
         if (!context.ActionService.IsActionReady(action.ActionId)) return;
 
-        var isAoe = context.Configuration.Tank.EnableAoEDamage && enemyCount >= context.Configuration.Tank.GetEffectiveAoEMinTargets(JobRegistry.DarkKnight);
-        var behavior = isAoe ? NyxAbilities.FloodOfShadow : NyxAbilities.EdgeOfShadow;
+        var behavior = useFlood ? NyxAbilities.FloodOfShadow : NyxAbilities.EdgeOfShadow;
         scheduler.PushOgcd(behavior, targetId, priority: 1,
             onDispatched: _ =>
             {
@@ -257,6 +257,15 @@ public sealed class DamageModule : INyxModule
     }
 
     /// <summary>
+    /// Flood for AoE packs, and also single target at Lv30-39: Edge of Darkness is Lv40 while Flood of Darkness
+    /// (Lv30) already grants Darkside and hits the target (RSR DRK_Reborn tries Flood, then Edge).
+    /// </summary>
+    private static bool UseFlood(INyxContext context, byte level, int enemyCount)
+        => (context.Configuration.Tank.EnableAoEDamage
+                && enemyCount >= context.Configuration.Tank.GetEffectiveAoEMinTargets(JobRegistry.DarkKnight))
+           || !Daedalus.Services.Action.ActionAvailability.MeetsLevelAndLearned(level, context.ActionService, DRKActions.EdgeOfDarkness);
+
+    /// <summary>
     /// Edge/Flood (Darkside maintenance + MP spend) decision — RSR <c>CheckDarkSide</c> parity. Refreshes
     /// Darkside before it lapses (within ~3 GCDs), then spends MP above a floor that reserves 3000 for The
     /// Blackest Night (unless TBN is disabled). In the burst window (Delirium/Blood Weapon up) it spends
@@ -286,9 +295,9 @@ public sealed class DamageModule : INyxModule
         }
 
         var level = context.Player.Level;
-        var isAoe = context.Configuration.Tank.EnableAoEDamage && enemyCount >= context.Configuration.Tank.GetEffectiveAoEMinTargets(JobRegistry.DarkKnight);
-        var action = isAoe ? DRKActions.GetFloodAction(level, context.ActionService) : DRKActions.GetEdgeAction(level, context.ActionService);
-        var behavior = isAoe ? NyxAbilities.FloodOfShadow : NyxAbilities.EdgeOfShadow;
+        var useFlood = UseFlood(context, level, enemyCount);
+        var action = useFlood ? DRKActions.GetFloodAction(level, context.ActionService) : DRKActions.GetEdgeAction(level, context.ActionService);
+        var behavior = useFlood ? NyxAbilities.FloodOfShadow : NyxAbilities.EdgeOfShadow;
 
         bool inBurst = context.HasDelirium || context.HasBloodWeapon;
         bool keepTbnReserve = context.Configuration.Tank.EnableTheBlackestNight;

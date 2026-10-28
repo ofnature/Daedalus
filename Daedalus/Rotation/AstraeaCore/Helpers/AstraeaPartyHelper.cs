@@ -341,8 +341,31 @@ public class AstraeaPartyHelper : HealerPartyHelper
                 return tank;
         }
 
-        // Priority 2: Lowest HP party member
-        return FindLowestHpPartyMember(player);
+        // Priority 2: Lowest HP party member OTHER than the Astrologian — Synastry can't target self
+        // (game Action sheet 3612: CanTargetSelf False), so returning the player made the game refuse it and
+        // the next-lowest ally never got the link.
+        IBattleChara? lowest = null;
+        var lowestHp = float.MaxValue;
+        foreach (var member in GetAllPartyMembers(player))
+        {
+            if (member.EntityId == player.EntityId || member.IsDead || HasTranscendent(member))
+                continue;
+            if (Vector3.DistanceSquared(player.Position, member.Position) > ASTActions.Synastry.RangeSquared)
+                continue;
+
+            var hpPercent = GetHpPercent(member);
+            if (hpPercent >= 1f)
+                continue;
+            if (NeedsPriorityHealing(member)) // Doom / heavy DoT first, as FindLowestHpPartyMember ranks them
+                hpPercent = 0.01f;
+            if (hpPercent < lowestHp)
+            {
+                lowestHp = hpPercent;
+                lowest = member;
+            }
+        }
+
+        return lowest;
     }
 
     #endregion

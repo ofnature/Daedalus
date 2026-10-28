@@ -5,6 +5,7 @@ using Daedalus.Rotation.ApolloCore.Abilities;
 using Daedalus.Rotation.ApolloCore.Context;
 using Daedalus.Rotation.Common.Helpers;
 using Daedalus.Rotation.Common.Scheduling;
+using Daedalus.Services.Action;
 
 namespace Daedalus.Rotation.ApolloCore.Modules.Healing;
 
@@ -33,22 +34,29 @@ public sealed class DoomTopOffHandler(Func<IBattleChara, bool>? needsTopOff = nu
         var who = target.Name?.TextValue ?? "party member";
         Action<Daedalus.Rotation.Common.IRotationContext> planned(string heal) => _ => context.Debug.PlannedAction = $"{heal} (Doom top-off: {who})";
 
-        if (level >= WHMActions.Benediction.MinLevel && ready.IsActionReady(WHMActions.Benediction.ActionId))
+        // A branch only claims the top-off when the scheduler can actually dispatch it: its behaviour toggle is on and
+        // it is learned (Benediction / Tetragrammaton / Cure II are job-quest unlocks). Returning after a push the
+        // scheduler drops (toggle off / NotLearned) left the Doomed member with no heal at all.
+        bool usable(AbilityBehavior ability) =>
+            ability.Toggle?.Invoke(context.Configuration) != false
+            && ActionAvailability.MeetsLevelAndLearned(level, ready, ability.Action);
+
+        if (usable(ApolloAbilities.Benediction) && ready.IsActionReady(WHMActions.Benediction.ActionId))
         {
             scheduler.PushOgcd(ApolloAbilities.Benediction, target.GameObjectId, priority: (int)Priority, onDispatched: planned("Benediction"));
             return;
         }
 
-        if (level >= WHMActions.Tetragrammaton.MinLevel && ready.IsActionReady(WHMActions.Tetragrammaton.ActionId))
+        if (usable(ApolloAbilities.Tetragrammaton) && ready.IsActionReady(WHMActions.Tetragrammaton.ActionId))
         {
             scheduler.PushOgcd(ApolloAbilities.Tetragrammaton, target.GameObjectId, priority: (int)Priority, onDispatched: planned("Tetragrammaton"));
             return;
         }
 
-        if (level >= WHMActions.AfflatusSolace.MinLevel && context.LilyCount > 0)
+        if (usable(ApolloAbilities.AfflatusSolace) && context.LilyCount > 0)
             scheduler.PushGcd(ApolloAbilities.AfflatusSolace, target.GameObjectId, priority: (int)Priority, onDispatched: planned("Afflatus Solace"));
         else if (!isMoving)
-            scheduler.PushGcd(level >= WHMActions.CureII.MinLevel ? ApolloAbilities.CureII : ApolloAbilities.Cure,
+            scheduler.PushGcd(ActionAvailability.MeetsLevelAndLearned(level, ready, WHMActions.CureII) ? ApolloAbilities.CureII : ApolloAbilities.Cure,
                 target.GameObjectId, priority: (int)Priority, onDispatched: planned("Cure"));
     }
 }

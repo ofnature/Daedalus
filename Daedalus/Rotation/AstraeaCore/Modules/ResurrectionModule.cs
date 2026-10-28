@@ -42,6 +42,15 @@ public sealed class ResurrectionModule : BaseResurrectionModule<IAstraeaContext>
         if (context.HasSwiftcast || context.HasLightspeed)
             return false;
 
+        // Out of combat Lightspeed (an oGCD) is never cast — oGCD dispatch is combat-gated — so this wait
+        // (true even while Lightspeed is ready) left the corpse unraised forever, like the OOC Swiftcast wait.
+        if (!context.InCombat)
+            return false;
+
+        // Only wait for a Lightspeed TryPushLightspeed can actually push.
+        if (!ActionAvailability.MeetsLevelAndLearned(context.Player.Level, context.ActionService, ASTActions.Lightspeed))
+            return false;
+
         var lightspeedCooldown = context.ActionService.GetCooldownRemaining(ASTActions.Lightspeed.ActionId);
         return lightspeedCooldown <= 10f;
     }

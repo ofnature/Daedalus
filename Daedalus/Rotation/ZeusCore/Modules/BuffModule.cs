@@ -92,12 +92,15 @@ public sealed class BuffModule : IZeusModule
         var shouldUseLifeSurge = false;
         if (drakesbaneNext)
             shouldUseLifeSurge = true;
+        // Only when step 3 exists: below Full Thrust (Lv26, or not learned) the resolver falls back to
+        // Vorpal Thrust itself, the chain restarts on True Thrust, and the crit was wasted on it.
         else if ((context.LastComboAction == DRGActions.VorpalThrust.ActionId
-                  || context.LastComboAction == DRGActions.LanceBarrage.ActionId) && comboActive)
+                  || context.LastComboAction == DRGActions.LanceBarrage.ActionId) && comboActive
+                 && DRGActions.GetVorpalFinisher(level, context.ActionService).ActionId != DRGActions.VorpalThrust.ActionId)
             shouldUseLifeSurge = true;
         else if (context.LastComboAction == DRGActions.SonicThrust.ActionId &&
                  comboActive &&
-                 level >= DRGActions.CoerthanTorment.MinLevel)
+                 ActionAvailability.MeetsLevelAndLearned(level, context.ActionService, DRGActions.CoerthanTorment))
             shouldUseLifeSurge = true;
 
         if (!shouldUseLifeSurge)

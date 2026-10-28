@@ -68,7 +68,8 @@ public sealed class BuffModule : IHecateModule
         if (level < BLMActions.Amplifier.MinLevel) return;
         if (!context.AmplifierReady) return;
 
-        var maxPolyglot = level >= 98 ? 3 : 2;
+        // Trait sheet: Enhanced Polyglot (Lv80) → 2 stacks, Enhanced Polyglot II (Lv98) → 3; 1 below 80.
+        var maxPolyglot = level >= 98 ? 3 : level >= 80 ? 2 : 1;
         if (context.PolyglotStacks >= maxPolyglot) return;
         if (!context.IsEnochianActive) return;
         if (ShouldHoldForBurst(8f)) return;

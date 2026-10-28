@@ -39,6 +39,35 @@ All notable changes to Daedalus will be documented in this file.
 - **Warrior: Nascent Flash skips invulnerable allies.** A co-tank in Superbolide, Holmgang, Living Dead or Hallowed
   Ground (or under HP Recovery Down) no longer wins the "lowest HP" pick; Nascent Flash goes to the next ally who
   needs it. Walking Dead still counts, since that Dark Knight has to be healed.
+- **Viper: automatic True North only when a positional is owed, in the last weave slot.** It used to go out
+  whenever you stood at the front — in packs, during Reawaken, before the Dens — and in the first weave slot.
+  It now waits for a Coil or Sting finisher you're out of position for, just before that hit.
+- **White Mage: heals, raises and Doom top-offs no longer stall.** Without the Thin Air quest (or level-synced below
+  it), every Cure II, Medica and Raise waited for a Thin Air that never came, and out of combat a fallen ally was
+  never raised. A Doomed ally also got no heal when Benediction or Afflatus Solace was turned off. Thin Air is now
+  only waited for when you can use it, and the next usable heal goes out.
+- **Astrologian: raises out of combat, and Synastry goes to an ally.** Out of combat it waited for Lightspeed before
+  raising, which is never used out of combat, so the fallen ally stayed down. Synastry could also pick the
+  Astrologian, which the game refuses; it now goes to the lowest-HP ally other than you.
+- **Dark Knight: Edge and Flood below level 74, Dark Missionary from 66.** Below 74 the rotation reached for
+  Edge/Flood of Shadow, which you don't have yet, so Darkside was never up, Delirium never went out at 68–73 and Dark
+  Arts procs were wasted. It now uses Edge/Flood of Darkness until they upgrade (Flood alone below 40), and Dark
+  Missionary is used from its real level, 66 instead of 76.
+- **Samurai: AoE combo and Tsubame-gaeshi at lower levels.** Below 26 a pack got no weaponskills at all; from 26 to 85
+  Fuga was aimed at yourself, which the game refuses, so the AoE combo never started. Tsubame-gaeshi follow-ups now go
+  out from level 74 (not 76), and at 40–49 two Sen are spent on Tenka Goken instead of sitting there forever, so
+  Higanbana is refreshed again.
+- **Dragoon: Life Surge isn't wasted on True Thrust at low level.** Below 26 it went out after Vorpal Thrust, but the
+  next hit there is True Thrust. It now waits for a real third hit (Full Thrust and its upgrades, or Coerthan Torment
+  once learned).
+- **Pictomancer: Mog of the Ages and Retribution of the Madeen fire again; low-level Hammer Time is spent.** The
+  portrait gauge was read from the wrong bits, so Retribution of the Madeen never fired and Mog could be skipped after
+  Clawed Muse. Below level 86 the second and third Hammer Stamps were never pressed and Hammer Time ran out.
+- **Black Mage: the fire phase follows Dawntrail's rules.** It no longer drops to Blizzard III in the middle of Astral
+  Fire every 30 seconds (that timer is the Polyglot timer), casts Flare Star after Manafont instead of a second
+  Despair, and goes to ice when Fire IV costs more than the MP left instead of stalling. Below level 80 the single
+  Polyglot is spent on Foul; job-quest spells you haven't learned, low-level AoE Fire/Blizzard and the Thunder upkeep
+  settings are respected.
 
 ## v0.1.109 — 2026-10-27
 

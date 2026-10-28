@@ -381,7 +381,11 @@ public sealed class DamageModule : INikeModule
 
             case 2:
                 if (level < SAMActions.TenkaGoken.MinLevel) return;
-                if (!useAoE) return;
+                // Single target builds to 3 Sen for Midare — but below Midare (Lv50, with Yukikaze the only
+                // Setsu source) Sen caps at Getsu+Ka, so holding 2 Sen stalled Iaijutsu forever and Higanbana
+                // (1 Sen) was never re-applied. Spend the pair on Tenka Goken there.
+                if (!useAoE && ActionAvailability.MeetsLevelAndLearned(level, context.ActionService, SAMActions.MidareSetsugekka))
+                    return;
                 if (hasTendo)
                     PushIaijutsu(context, scheduler, target, SAMActions.TendoGoken, NikeAbilities.TendoGoken, SAMActions.IaijutsuType.TenkaGoken);
                 else
@@ -1018,8 +1022,19 @@ public sealed class DamageModule : INikeModule
         var player = context.Player;
         var level = player.Level;
         var comboStep = context.ComboStep;
+        // No AoE chain before Fuga (Lv26, or not learned): the starter push below is level-gated, so a pack
+        // queued no GCD at all. Run the single-target combo instead (DRG Doom Spike parity).
+        if (!ActionAvailability.MeetsLevelAndLearned((byte)level, context.ActionService, SAMActions.Fuga))
+        {
+            TryPushSingleTargetCombo(context, scheduler, target);
+            return;
+        }
+
         var aoeStarter = SAMActions.GetAoeComboStarter((byte)level, context.ActionService);
         var starterAbility = aoeStarter == SAMActions.Fuko ? NikeAbilities.Fuko : NikeAbilities.Fuga;
+        // Fuko is self-centred, but Fuga is a hostile-targeted cone (game Action sheet: CanTargetSelf False,
+        // CanTargetHostile True) — at the player the game refused it and Lv26-85 packs never started the combo.
+        var starterTargetId = aoeStarter == SAMActions.Fuko ? player.GameObjectId : target.GameObjectId;
         // Dual-source starter detection. The gauge combo-step read can lag (or briefly read 0) for a
         // frame or two after Fuko/Fuga fires; if we rely on it alone, onStarter is false, the finisher
         // is never pushed, and the p7 starter re-push gets blocked by ShouldBlockRepeatGcd (Fuko was the
@@ -1111,7 +1126,7 @@ public sealed class DamageModule : INikeModule
         // AoE combo starter / fallback at p7
         if (level >= aoeStarter.MinLevel)
         {
-            scheduler.PushGcd(starterAbility, player.GameObjectId, priority: 7,
+            scheduler.PushGcd(starterAbility, starterTargetId, priority: 7,
                 onDispatched: _ =>
                 {
                     context.Debug.PlannedAction = aoeStarter.Name;

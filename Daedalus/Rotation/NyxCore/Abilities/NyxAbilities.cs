@@ -64,8 +64,21 @@ public static class NyxAbilities
     public static readonly AbilityBehavior Disesteem = new() { Action = DRKActions.Disesteem, Toggle = cfg => cfg.Tank.EnableDamage };
 
     // --- MP spenders ---
-    public static readonly AbilityBehavior EdgeOfShadow = new() { Action = DRKActions.EdgeOfShadow, Toggle = cfg => cfg.Tank.EnableDamage };
-    public static readonly AbilityBehavior FloodOfShadow = new() { Action = DRKActions.FloodOfShadow, Toggle = cfg => cfg.Tank.EnableAoEDamage };
+    // Base action is the pre-74 Edge/Flood of Darkness (Lv40 / Lv30) with the Lv74 *of Shadow upgrade as a
+    // level replacement. With the Lv74 action as base the scheduler's level gate dropped every push below 74:
+    // no Darkside, so no Delirium (gated on Darkside) at 68-73 and Dark Arts never spent.
+    public static readonly AbilityBehavior EdgeOfShadow = new()
+    {
+        Action = DRKActions.EdgeOfDarkness,
+        Toggle = cfg => cfg.Tank.EnableDamage,
+        LevelReplacements = new[] { ((byte)74, DRKActions.EdgeOfShadow) },
+    };
+    public static readonly AbilityBehavior FloodOfShadow = new()
+    {
+        Action = DRKActions.FloodOfDarkness,
+        Toggle = cfg => cfg.Tank.EnableAoEDamage,
+        LevelReplacements = new[] { ((byte)74, DRKActions.FloodOfShadow) },
+    };
 
     // --- oGCD damage ---
     public static readonly AbilityBehavior Shadowbringer = new() { Action = DRKActions.Shadowbringer, Toggle = cfg => cfg.Tank.EnableShadowbringer };

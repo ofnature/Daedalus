@@ -69,6 +69,44 @@ public class DamageModuleThunderGateTests
         Assert.Equal(BLMActions.StatusIds.Thunderhead, HecateAbilities.HighThunder2.ProcBuff);
     }
 
+    // The expiring-proc pusher refreshed the DoT in every phase whenever it was low, ignoring the
+    // MaintainThunder / ThunderMinTargetHp settings that only the ice-phase branch checked.
+
+    [Fact]
+    public void FirePhase_DotDown_MaintainThunderOff_DoesNotRefresh()
+    {
+        var scheduler = HecateDamageScenario.Run(level: 90, inAstralFire: true, umbralHearts: 3,
+            hasThunderhead: true, thunderheadRemaining: 20f, hasThunderDoT: false, thunderDoTRemaining: 0f,
+            configure: c => c.MaintainThunder = false);
+        Assert.DoesNotContain(scheduler.InspectGcdQueue(), c => IsThunder(c.Behavior));
+    }
+
+    [Fact]
+    public void FirePhase_DotDown_TargetBelowMinHp_DoesNotRefresh()
+    {
+        var scheduler = HecateDamageScenario.Run(level: 90, inAstralFire: true, umbralHearts: 3,
+            hasThunderhead: true, thunderheadRemaining: 20f, hasThunderDoT: false, thunderDoTRemaining: 0f,
+            targetHp: 5000u); // 5% < default ThunderMinTargetHp 10%
+        Assert.DoesNotContain(scheduler.InspectGcdQueue(), c => IsThunder(c.Behavior));
+    }
+
+    [Fact]
+    public void FirePhase_DotDown_MaintainThunderOn_Refreshes()
+    {
+        var scheduler = HecateDamageScenario.Run(level: 90, inAstralFire: true, umbralHearts: 3,
+            hasThunderhead: true, thunderheadRemaining: 20f, hasThunderDoT: false, thunderDoTRemaining: 0f);
+        Assert.Contains(scheduler.InspectGcdQueue(), c => IsThunder(c.Behavior));
+    }
+
+    [Fact]
+    public void FirePhase_ThunderheadExpiring_SpentEvenWithMaintainThunderOff()
+    {
+        var scheduler = HecateDamageScenario.Run(level: 90, inAstralFire: true, umbralHearts: 3,
+            hasThunderhead: true, thunderheadRemaining: 3f, hasThunderDoT: false, thunderDoTRemaining: 0f,
+            configure: c => c.MaintainThunder = false);
+        Assert.Contains(scheduler.InspectGcdQueue(), c => IsThunder(c.Behavior));
+    }
+
     private static bool IsThunder(Daedalus.Rotation.Common.Scheduling.AbilityBehavior behavior)
         => behavior == HecateAbilities.Thunder || behavior == HecateAbilities.Thunder3
         || behavior == HecateAbilities.HighThunder || behavior == HecateAbilities.Thunder2

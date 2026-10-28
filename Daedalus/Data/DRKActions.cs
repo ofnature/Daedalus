@@ -688,14 +688,14 @@ public static class DRKActions
     };
 
     /// <summary>
-    /// Dark Missionary - Party magic mitigation (Lv.76)
+    /// Dark Missionary - Party magic mitigation (Lv.66; game Action sheet ClassJobLevel 66)
     /// 10% magic damage reduction for party for 15s
     /// </summary>
     public static readonly ActionDefinition DarkMissionary = new()
     {
         ActionId = 16471,
         Name = "Dark Missionary",
-        MinLevel = 76,
+        MinLevel = 66,
         Category = ActionCategory.oGCD,
         TargetType = ActionTargetType.Self,
         EffectTypes = ActionEffectType.Buff,

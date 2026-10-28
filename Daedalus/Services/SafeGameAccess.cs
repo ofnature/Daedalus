@@ -2119,10 +2119,15 @@ public static class SafeGameAccess
     /// <returns>True if Mog portrait is ready, false otherwise.</returns>
     public static unsafe bool GetPctMogReady(IErrorMetricsService? errorMetrics = null)
     {
-        var flags = GetPctCreatureFlags(errorMetrics);
-        // Mog ready flag is bit 1
-        return (flags & 0x02) != 0;
+        return IsPctMogPortraitFlagSet(GetPctCreatureFlags(errorMetrics));
     }
+
+    // ClientStructs JobGaugeEnums.CreatureFlags: Pom = 1, Wings = 2, Claw = 4 (the drawn creature parts),
+    // MooglePortait = 16, MadeenPortrait = 32 — PictomancerGauge.MooglePortraitReady/MadeenPortraitReady
+    // test those two bits (RSR PictomancerRotation agrees). Bits 2/4 are Wings/Claw, not the portraits.
+    internal static bool IsPctMogPortraitFlagSet(byte flags) => (flags & 0x10) != 0;
+
+    internal static bool IsPctMadeenPortraitFlagSet(byte flags) => (flags & 0x20) != 0;
 
     /// <summary>
     /// Checks if Retribution of the Madeen portrait is ready (after 4 Living Muses).
@@ -2131,9 +2136,7 @@ public static class SafeGameAccess
     /// <returns>True if Madeen portrait is ready, false otherwise.</returns>
     public static unsafe bool GetPctMadeenReady(IErrorMetricsService? errorMetrics = null)
     {
-        var flags = GetPctCreatureFlags(errorMetrics);
-        // Madeen ready flag is bit 2
-        return (flags & 0x04) != 0;
+        return IsPctMadeenPortraitFlagSet(GetPctCreatureFlags(errorMetrics));
     }
 
     /// <summary>
