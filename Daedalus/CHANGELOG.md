@@ -12,6 +12,9 @@ All notable changes to Daedalus will be documented in this file.
 - **Machinist: the raid Automaton Queen plan stays in step.** In trials and raids (or with the Complex Queen mode)
   the plan of Battery amounts per summon could start one step ahead on every pull after the first, and its 12th
   summon (80 → 100 Battery) could never match. Each summon is now counted when the Queen comes out.
+- **Melee jobs (Samurai, Ninja, Monk, Dragoon, Reaper, Viper): rear and flank are read on the ground.** Standing
+  above or below a target (a slope, a raised platform) tilted the check toward "flank", so True North could be
+  spent when you were already at the rear, or skipped when you were at the front. Height no longer counts.
 
 ## v0.1.109 — 2026-10-27
 

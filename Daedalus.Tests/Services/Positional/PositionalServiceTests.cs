@@ -262,6 +262,39 @@ public class PositionalServiceTests
 
     #endregion
 
+    #region Height difference (positionals are judged on the ground plane)
+
+    [Fact]
+    public void GetPositional_BehindAndAboveTarget_ReturnsRear()
+    {
+        // 3y behind, 4y higher: in 3D the angle is ~127° (Flank); on the ground it is 180°.
+        var target = CreateActor(Vector3.Zero, rotation: 0f);
+        var player = CreateActor(new Vector3(0, 4, -3));
+
+        Assert.Equal(PositionalType.Rear, _service.GetPositional(player.Object, target.Object));
+    }
+
+    [Fact]
+    public void GetPositional_InFrontAndBelowTarget_ReturnsFront()
+    {
+        var target = CreateActor(new Vector3(0, 4, 0), rotation: 0f);
+        var player = CreateActor(new Vector3(0, 0, 3));
+
+        Assert.Equal(PositionalType.Front, _service.GetPositional(player.Object, target.Object));
+    }
+
+    [Fact]
+    public void GetPositional_DirectlyAboveTarget_ReturnsFront()
+    {
+        // No ground offset at all: same as standing on the target's spot.
+        var target = CreateActor(Vector3.Zero, rotation: 0f);
+        var player = CreateActor(new Vector3(0, 5, 0));
+
+        Assert.Equal(PositionalType.Front, _service.GetPositional(player.Object, target.Object));
+    }
+
+    #endregion
+
     #region Omnidirectional Targets (positional immunity)
 
     [Fact]
