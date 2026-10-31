@@ -107,6 +107,20 @@ public static class CrucibleLevelPlan
 
     private static readonly int[] BugTeam = [Damselfly, Mantis, Wespe];
 
+    /// <summary>Bestiary numbers of the Beastkin team for the Third Board.</summary>
+    public const int CuSith = 1, Coeurl = 33, Behemoth = 50;
+
+    /// <summary>
+    /// A board's own Legendary team, in horn order, when a guide names one; null otherwise. Third Board: Beastkin — Cu
+    /// Sith starts, Coeurl's debuff buffs Behemoth's Trick, Behemoth is the damage (Ponzi, "How To Get Legendary On The
+    /// Third Board", 2026-09). At the board's rank sync it ties the Bug team, which then won the tie (Korha 2026-10-31).
+    /// </summary>
+    public static IReadOnlyList<int>? BoardLegendaryTeam(int boardIndex) => boardIndex switch
+    {
+        3 => [CuSith, Coeurl, Behemoth],
+        _ => null,
+    };
+
     /// <summary>
     /// Lead enemies (BNpcName, lower case, matched as a substring) that poison does not land on, so the Bug team leads
     /// with Mantis. From Meoni's Legendary runs (2026-09): bone knight/bishop, banemite, Pas de Seul, Voidmancer, Golem,
@@ -141,9 +155,11 @@ public static class CrucibleLevelPlan
     /// <para>On Board 1 every beast syncs to 5, so every kin ties and the first kin in the list won: Goobbue, Buffalo,
     /// Coeurl, with nothing to finish a boss (Korha 2026-10-27, died at Pas de Seul). The Bug team now wins that tie.</para>
     /// Fewer than three when no kin has three.
+    /// <para>Without picks of the player's, the board's own team (<see cref="BoardLegendaryTeam"/>) is fielded when all
+    /// three are captured and its weakest is no weaker (capped) than the weakest of the team worked out otherwise.</para>
     /// </summary>
     public static IReadOnlyList<int> LegendaryTeam(
-        IReadOnlyList<int> chosen, IEnumerable<int> captured, Func<int, int> rankOf, int rankCap = MaxRank)
+        IReadOnlyList<int> chosen, IEnumerable<int> captured, Func<int, int> rankOf, int rankCap = MaxRank, int boardIndex = 0)
     {
         var pool = captured.Distinct()
             .Select(no => (No: no, Beast: BstFamiliars.ByBestiaryNo((uint)no)))
@@ -169,6 +185,9 @@ public static class CrucibleLevelPlan
             .ThenByDescending(t => t.Min(Capped))
             .ThenByDescending(t => BugTeam.All(t.Contains))
             .FirstOrDefault() ?? [];
+        if (BoardLegendaryTeam(boardIndex) is { } own && own.All(no => pool.Any(x => x.No == no))
+            && (team.Count < LegendaryTeamSize || own.Min(Capped) >= team.Min(Capped)))
+            return own;
         return LegendaryHornOrder(team, poisonImmune: false);
     }
 

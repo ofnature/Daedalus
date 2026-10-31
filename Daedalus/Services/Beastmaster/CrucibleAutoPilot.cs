@@ -64,6 +64,11 @@ public sealed unsafe class CrucibleAutoPilot
     private DateTime _nextPotionUtc;
     private DateTime _fangMenuUntilUtc;
     private DateTime _nextFangUtc;
+    private DateTime _eyeMenuUntilUtc;
+    private DateTime _nextEyeUtc;
+    private uint _eyePressed;
+    private int _eyeBattle;
+    private readonly HashSet<uint> _eyesUsed = new();
 
     // A pressed potion not yet seen leaving the HUD: which item, how many were held, when "Use" was pressed.
     private uint _pressedPotionId;
@@ -164,7 +169,9 @@ public sealed unsafe class CrucibleAutoPilot
 
         if (_usePotionsNow && TryDrinkPotion(now))
             return;
-        if (_legendary && TryUseFang(now))
+        if (TryUseFang(now)) // only when Artemis says the Siren's adds are bunched; any goal (Legendary gives up Economic Ethos)
+            return;
+        if (TryUseEye(now))
             return;
 
         var result = Visible("XBMResult");
@@ -328,10 +335,14 @@ public sealed unsafe class CrucibleAutoPilot
 
         var tokens = CrucibleAutoPilotRules.ParseTokens(Text(shop, CrucibleAutoPilotRules.ShopTokensIndex)) ?? 0;
         var held = 0;
+        var fangHeld = false;
         for (var k = 0; k < CrucibleAutoPilotRules.MaxCrucibleItemsHeld; k++)
         {
-            if (Number(shop, CrucibleAutoPilotRules.ShopHeldItemRowIndex(k)) != 0)
-                held++;
+            var heldRow = (int)Number(shop, CrucibleAutoPilotRules.ShopHeldItemRowIndex(k));
+            if (heldRow == 0)
+                continue;
+            held++;
+            fangHeld |= CrucibleAutoPilotRules.FangItemIds.Contains((uint)(heldRow + CrucibleAutoPilotRules.CrucibleItemIconOffset));
         }
 
         if (_shopPlan == null)
@@ -340,7 +351,10 @@ public sealed unsafe class CrucibleAutoPilot
                 ? CrucibleAutoPilotRules.ShopBuysForHoarder(offers, tokens, held, _isCrucibleItem, ShopAhead(board),
                     board.BonusValue(CrucibleBonus.HabitualHoarder), _boughtOnBoard ? 0 : board.BonusValue(CrucibleBonus.CoinClutcher),
                     board.BonusValue(CrucibleBonus.RollingInRiches))
-                : _usePotionsNow ? CrucibleAutoPilotRules.ShopBuysForPotions(offers, tokens, held, _isCrucibleItem) : [];
+                : _usePotionsNow
+                    ? CrucibleAutoPilotRules.ShopBuysForPotions(offers, tokens, held, _isCrucibleItem,
+                        wantFang: board.Index == CrucibleAutoPilotRules.SirenBoardIndex && !fangHeld)
+                    : [];
             _shopPlan = new Queue<int>(plan);
             var stock = string.Join(", ", offers.Select(o => $"{_itemName(o.ItemId)} {o.Price}{(o.Sold ? " (sold)" : "")}"));
             _log($"Crucible: shop — {tokens:N0} tokens, {held} item(s) held; {stock}. "
@@ -604,7 +618,7 @@ public sealed unsafe class CrucibleAutoPilot
 
     /// <summary>
     /// The Siren's adds are bunched on the hard target (Artemis says so through <see cref="CrucibleHints.FangReady"/>):
-    /// use the strongest held Fang — its HUD slot, then "Use", as a potion. Legendary only (it costs Economic Ethos).
+    /// use the strongest held Fang — its HUD slot, then "Use", as a potion. Any goal (on Legendary it costs Economic Ethos).
     /// </summary>
     private bool TryUseFang(DateTime now)
     {
@@ -615,7 +629,8 @@ public sealed unsafe class CrucibleAutoPilot
             if (Text(menu, 8) == "Use")
             {
                 FireMixed(menu, 0, 0, 0u, null, null);
-                _log("Crucible: Siren — the adds are bunched; using a Fang on them (Economic Ethos is given up).");
+                _log("Crucible: Siren — the adds are bunched; using a Fang on them"
+                     + (_legendary ? " (Economic Ethos is given up)." : "."));
                 _nextFangUtc = now + TimeSpan.FromSeconds(3);
                 Done(now, "Using a Fang on the Siren's adds.");
             }
@@ -647,6 +662,67 @@ public sealed unsafe class CrucibleAutoPilot
         _fangMenuUntilUtc = now + TimeSpan.FromSeconds(2);
         FireMixed(hud, CrucibleAutoPilotRules.HudItemSlotEvent, pick, null);
         Done(now, "Opening a Fang…");
+        return true;
+    }
+
+    /// <summary>
+    /// Clear and Level: in each battle but the final boss, use a held Thief's Eye (loot ×3) and Merchant's Eye (tokens
+    /// ×2) once each — HUD slot, then "Use", as a potion (<see cref="CrucibleAutoPilotRules.ShouldUseEyes"/>).
+    /// </summary>
+    private bool TryUseEye(DateTime now)
+    {
+        var menu = now < _eyeMenuUntilUtc ? Visible("ContextMenu") : null;
+        if (menu != null)
+        {
+            _eyeMenuUntilUtc = default;
+            if (Text(menu, 8) == "Use")
+            {
+                FireMixed(menu, 0, 0, 0u, null, null);
+                _eyesUsed.Add(_eyePressed);
+                _log($"Crucible: used {(_eyePressed == CrucibleAutoPilotRules.EyeItemIds[0] ? "Thief's Eye (loot ×3)" : "Merchant's Eye (tokens ×2)")} for this battle.");
+                _nextEyeUtc = now + TimeSpan.FromSeconds(2);
+                Done(now, "Using an Eye.");
+            }
+
+            return true;
+        }
+
+        var fighting = CrucibleTracker.Current.Enemy;
+        if (!CrucibleAutoPilotRules.ShouldUseEyes(_legendary, fighting))
+            return false;
+        if (fighting!.Battle != _eyeBattle)
+        {
+            _eyeBattle = fighting.Battle;
+            _eyesUsed.Clear();
+        }
+
+        var player = FFXIVClientStructs.FFXIV.Client.Game.Control.Control.GetLocalPlayer();
+        if (now < _nextEyeUtc || player == null || !player->InCombat) // battlegrounds only: a press before the pull is wasted
+            return false;
+        var hud = Visible("XBMContentsMainHUD");
+        if (hud == null || Visible("XBMContentsBooty") != null || Visible("XBMContentsTreasure") != null
+            || Visible("XBMContentsItemShop") != null || Visible("XBMResult") != null || Visible("XBMPetParty") != null)
+            return false;
+
+        var held = new List<uint>(10);
+        var usable = new List<bool>(10);
+        for (var slot = 0; slot < 10; slot++)
+        {
+            held.Add(Number(hud, CrucibleAutoPilotRules.HudItemRowIndex(slot)) != 0
+                ? (uint)Number(hud, CrucibleAutoPilotRules.HudItemIdIndex(slot))
+                : 0u);
+            usable.Add(HudFlag(hud, CrucibleAutoPilotRules.HudItemUsableIndex(slot)));
+        }
+
+        var pick = CrucibleAutoPilotRules.PickEye(CrucibleAutoPilotRules.UsableOnly(held, usable), _eyesUsed);
+        if (pick < 0)
+            return false;
+
+        _eyePressed = held[pick];
+        _nextEyeUtc = now + TimeSpan.FromSeconds(1.5); // the menu did not open: try again soon
+        _eyeMenuUntilUtc = now + TimeSpan.FromSeconds(2);
+        FireMixed(hud, CrucibleAutoPilotRules.HudItemSlotEvent, pick, null);
+        Done(now, "Opening an Eye…");
         return true;
     }
 

@@ -627,6 +627,40 @@ public class CrucibleAutoPilotRulesTests
         Assert.Empty(CrucibleAutoPilotRules.ShopBuysForPotions(offers, tokens: 1000, itemsHeld: 10, IsItem));
     }
 
+    /// <summary>Third Board, no Fang held: the strongest affordable Fang first (Fire 128 over Ice 129 over Vampiric 134), then potions.</summary>
+    [Fact]
+    public void AFangIsBoughtForTheSiren()
+    {
+        CrucibleShopOffer[] offers = [Offer(0, 134, 68), Offer(1, 129, 45), Offer(2, 128, 45), Offer(3, 79, 158)];
+        Assert.Equal([2, 3], CrucibleAutoPilotRules.ShopBuysForPotions(offers, 1000, 0, IsItem, wantFang: true));
+        Assert.Equal([3], CrucibleAutoPilotRules.ShopBuysForPotions(offers, 1000, 0, IsItem, wantFang: false));
+        Assert.Equal([1], CrucibleAutoPilotRules.ShopBuysForPotions([Offer(0, 128, 45, sold: true), Offer(1, 129, 45)], 50, 0, IsItem, wantFang: true));
+        Assert.Empty(CrucibleAutoPilotRules.ShopBuysForPotions(offers, 1000, 10, IsItem, wantFang: true));
+    }
+
+    /// <summary>The Eyes: Clear and Level only, never in the final boss's battle (its win ends the board), nothing out of battle.</summary>
+    [Fact]
+    public void EyesAreForBattlesThatPaySpoils()
+    {
+        var trash = new CrucibleEnemy(14564, "cavalier piece", 2, false, default, [], []);
+        var boss = new CrucibleEnemy(14592, "guttler", 1, true, default, [], []);
+        Assert.True(CrucibleAutoPilotRules.ShouldUseEyes(legendary: false, trash));
+        Assert.False(CrucibleAutoPilotRules.ShouldUseEyes(legendary: true, trash));
+        Assert.False(CrucibleAutoPilotRules.ShouldUseEyes(legendary: false, boss));
+        Assert.False(CrucibleAutoPilotRules.ShouldUseEyes(legendary: false, null));
+    }
+
+    /// <summary>Each Eye once a battle: Thief's (243160) and Merchant's (243161), whichever slot they sit in.</summary>
+    [Fact]
+    public void EachEyeOnceABattle()
+    {
+        uint[] held = [243138, 243161, 0, 243160, 243160];
+        Assert.Equal(1, CrucibleAutoPilotRules.PickEye(held, new System.Collections.Generic.HashSet<uint>()));
+        Assert.Equal(3, CrucibleAutoPilotRules.PickEye(held, new System.Collections.Generic.HashSet<uint> { 243161 }));
+        Assert.Equal(-1, CrucibleAutoPilotRules.PickEye(held, new System.Collections.Generic.HashSet<uint> { 243160, 243161 }));
+        Assert.Equal(-1, CrucibleAutoPilotRules.PickEye([243138, 243188], new System.Collections.Generic.HashSet<uint>()));
+    }
+
     /// <summary>The last shop finishes the ten with the cheapest items: Hoarder 1,000 beats Coin Clutcher 500.</summary>
     [Fact]
     public void HoarderBuysTheCheapestAtTheLastShop()

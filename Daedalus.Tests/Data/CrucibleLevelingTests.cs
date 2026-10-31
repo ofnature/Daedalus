@@ -133,6 +133,38 @@ public class CrucibleLevelingTests
     public void LegendaryIgnoresMixedKinPicks()
         => Assert.Equal([44, 16, 10], CrucibleLevelPlan.LegendaryTeam([30, 44, 0], Captured, RankOf));
 
+    /// <summary>Korha 2026-10-31, Board 3 (sync 15): bugs and Beastkin all at 15 — the board's own team (Cu Sith, Coeurl, Behemoth) is fielded.</summary>
+    [Fact]
+    public void ThirdBoardFieldsItsBeastkinTeam()
+    {
+        int[] captured = [44, 16, 10, 1, 33, 50, 30];
+        int Rank(int no) => no == 1 ? 19 : 15;
+        Assert.Equal([1, 33, 50], CrucibleLevelPlan.LegendaryTeam([0, 0, 0], captured, Rank, rankCap: 15, boardIndex: 3));
+        Assert.Equal([44, 16, 10], CrucibleLevelPlan.LegendaryTeam([0, 0, 0], captured, Rank, rankCap: 15, boardIndex: 1));
+    }
+
+    /// <summary>Not when one of the three is weaker at the sync than the team worked out otherwise.</summary>
+    [Fact]
+    public void ThirdBoardTeamYieldsWhenWeaker()
+    {
+        int[] captured = [44, 16, 10, 1, 33, 50];
+        int Rank(int no) => no == 50 ? 12 : 15;
+        Assert.Equal([44, 16, 10], CrucibleLevelPlan.LegendaryTeam([0, 0, 0], captured, Rank, rankCap: 15, boardIndex: 3));
+    }
+
+    /// <summary>Not when one of the three is not captured, and never over the player's own picks.</summary>
+    [Fact]
+    public void ThirdBoardTeamNeedsAllThreeAndNoPicks()
+    {
+        Assert.Equal([44, 16, 10], CrucibleLevelPlan.LegendaryTeam([0, 0, 0], [44, 16, 10, 1, 33], _ => 15, rankCap: 15, boardIndex: 3));
+        Assert.Equal([44, 10, 16], CrucibleLevelPlan.LegendaryTeam([44, 0, 0], [44, 16, 10, 1, 33, 50], _ => 15, rankCap: 15, boardIndex: 3));
+    }
+
+    /// <summary>Its horns keep the board team's order: Cu Sith starts, Coeurl debuffs, Behemoth finishes.</summary>
+    [Fact]
+    public void ThirdBoardHornsKeepTheGuideOrder()
+        => Assert.Equal([1, 33, 50], CrucibleLevelPlan.HornChoice(CrucibleTeamGoal.Legendary, null, [1, 33, 50], "siren piece"));
+
     /// <summary>Board 1 syncs everyone to 5, so every kin ties: the Bug team wins the tie (Korha 2026-10-27 got beastkin).</summary>
     [Fact]
     public void TheBugTeamWinsATieAtTheSync()

@@ -42,7 +42,7 @@ namespace Daedalus;
 
 public sealed class Plugin : IDalamudPlugin
 {
-    public const string PluginVersion = "0.1.110";
+    public const string PluginVersion = "0.1.111";
     private const string CommandName = "/daedalus";
 
     /// <summary>LAN relay channel for Necromancer Deep Freeze "heal me to full" announcements.</summary>
@@ -1296,7 +1296,7 @@ public sealed class Plugin : IDalamudPlugin
             var captured = Daedalus.Data.BstFamiliars.All
                 .Where(b => crucibleBestiary.IsPetUnlocked((uint)b.BestiaryNo) == true).Select(b => b.BestiaryNo).ToList();
             return bst.CrucibleGoal == Daedalus.Data.CrucibleTeamGoal.Legendary
-                ? Daedalus.Data.CrucibleLevelPlan.LegendaryTeam(bst.CrucibleCoreTeam, captured, RankOf, board.RankCap)
+                ? Daedalus.Data.CrucibleLevelPlan.LegendaryTeam(bst.CrucibleCoreTeam, captured, RankOf, board.RankCap, board.Index)
                 : Daedalus.Data.CrucibleLevelPlan.Core(bst.CrucibleCoreTeam, captured, RankOf);
         }
         this.crucibleHornSetter = new Daedalus.Services.Beastmaster.CrucibleHornSetter(
@@ -1344,7 +1344,7 @@ public sealed class Plugin : IDalamudPlugin
             var captured = Daedalus.Data.BstFamiliars.All
                 .Where(b => crucibleBestiary.IsPetUnlocked((uint)b.BestiaryNo) == true).Select(b => b.BestiaryNo).ToList();
             if (bst.CrucibleGoal == Daedalus.Data.CrucibleTeamGoal.Legendary)
-                return Daedalus.Data.CrucibleLevelPlan.LegendaryTeam(bst.CrucibleCoreTeam, captured, RankOf, board.RankCap);
+                return Daedalus.Data.CrucibleLevelPlan.LegendaryTeam(bst.CrucibleCoreTeam, captured, RankOf, board.RankCap, board.Index);
             var core = Daedalus.Data.CrucibleLevelPlan.Core(bst.CrucibleCoreTeam, captured, RankOf);
             return bst.CrucibleGoal == Daedalus.Data.CrucibleTeamGoal.Level
                 ? Daedalus.Data.CrucibleLevelPlan.LevelRoster(core, captured, RankOf, board.RosterCap > 0 ? board.RosterCap : 10)

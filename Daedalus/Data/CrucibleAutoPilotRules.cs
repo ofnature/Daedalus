@@ -320,6 +320,34 @@ public static class CrucibleAutoPilotRules
     /// <summary>Crucible items' XBMItem rows 76-143 carry the HUD icon ids 243136-243203 (the ids the potion table uses).</summary>
     public const int CrucibleItemIconOffset = 243_060;
 
+    /// <summary>
+    /// Thief's Eye (loot ×3) and Merchant's Eye (tokens ×2) for the next enemy space cleared, HUD icon ids. "Can only be
+    /// used on Crucible battlegrounds" — so inside a battle.
+    /// </summary>
+    public static readonly IReadOnlyList<uint> EyeItemIds = [243160, 243161];
+
+    /// <summary>
+    /// Whether to use the Eyes in this battle: Clear and Level runs (on Legendary an item costs Economic Ethos), in a
+    /// battle that pays spoils — not the final boss, whose win ends the board.
+    /// </summary>
+    public static bool ShouldUseEyes(bool legendary, CrucibleEnemy? fighting) =>
+        !legendary && fighting is { IsFinalBoss: false };
+
+    /// <summary>The HUD slot of a held Eye not yet used this battle, or -1.</summary>
+    public static int PickEye(IReadOnlyList<uint> heldItemIds, IReadOnlySet<uint> usedThisBattle)
+    {
+        for (var slot = 0; slot < heldItemIds.Count; slot++)
+        {
+            if (EyeItemIds.Contains(heldItemIds[slot]) && !usedThisBattle.Contains(heldItemIds[slot]))
+                return slot;
+        }
+
+        return -1;
+    }
+
+    /// <summary>The board with the Siren, whose bunched adds a Fang clears (Third Board).</summary>
+    public const int SirenBoardIndex = 3;
+
     /// <summary>The HP a Crucible item restores (<see cref="PotionRestorePct"/>), by its XBMItem row; 0 for anything else.</summary>
     public static int ShopRestorePct(int itemRow) =>
         PotionRestorePct.TryGetValue((uint)(itemRow + CrucibleItemIconOffset), out var pct) ? pct : 0;
@@ -327,12 +355,22 @@ public static class CrucibleAutoPilotRules
     /// <summary>
     /// What to buy so the beastmaster has potions to drink (any goal but Legendary, with "use potions" on): the
     /// strongest healing items first, cheaper first on a tie, while there is a free item slot and tokens for it. Never
-    /// feed or gear. Rows in buying order.
+    /// feed or gear. With <paramref name="wantFang"/>, the strongest affordable Fang goes first. Rows in buying order.
     /// </summary>
     public static IReadOnlyList<int> ShopBuysForPotions(
-        IReadOnlyList<CrucibleShopOffer> offers, int tokens, int itemsHeld, Func<int, bool> isCrucibleItem)
+        IReadOnlyList<CrucibleShopOffer> offers, int tokens, int itemsHeld, Func<int, bool> isCrucibleItem, bool wantFang = false)
     {
         var buys = new List<int>();
+        // A Fang for the Siren's adds first, when asked for (the Third Board, none held): the strongest affordable one.
+        if (wantFang && itemsHeld < MaxCrucibleItemsHeld
+            && offers.Where(o => !o.Sold && o.Price <= tokens && FangItemIds.Contains((uint)(o.ItemId + CrucibleItemIconOffset)))
+                .OrderBy(o => FangItemIds.ToList().IndexOf((uint)(o.ItemId + CrucibleItemIconOffset)))
+                .FirstOrDefault() is { ItemId: > 0 } fang)
+        {
+            tokens -= fang.Price;
+            buys.Add(fang.Row);
+        }
+
         foreach (var offer in offers
                      .Where(o => !o.Sold && isCrucibleItem(o.ItemId) && ShopRestorePct(o.ItemId) > 0)
                      .OrderByDescending(o => ShopRestorePct(o.ItemId)).ThenBy(o => o.Price))

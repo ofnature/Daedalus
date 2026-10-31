@@ -3,6 +3,23 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.111 — 2026-10-31
+
+### Beastmaster — the Crucible
+- **Third Board Legendary fields the Beastkin team.** Cu Sith starts, Coeurl's debuff buffs Behemoth's Trick, and
+  Behemoth does the damage (the team from the Third Board Legendary guide). At the board's rank sync it tied the
+  Bug team, which won the tie. The Bug team is still used when one of the three isn't captured or is weaker at
+  the sync, and your own team picks always come first.
+- **The Siren's adds are cleared on Level and Clear runs too.** Once her summoned adds bunch up, Tempered Release
+  goes first (for Lingering Vantage), then Parting Blow hits the bunch; when Parting Blow isn't ready, the strongest
+  Fang you hold is used. Before, only Legendary did this, and on Level runs the adds wore the familiars down until
+  the beastmaster was left alone. With "Use potions" on, Third Board shops also buy one Fang when you have none.
+- **Thief's Eye and Merchant's Eye are used in battle (Level and Clear).** At the start of each battle except the
+  final boss, a held Thief's Eye (loot ×3) and Merchant's Eye (tokens ×2) are used, once each, for that battle's
+  spoils. Legendary keeps them (using an item costs Economic Ethos).
+
+<!-- LATEST-END -->
+
 ## v0.1.110 — 2026-10-31
 
 ### Beastmaster — the Crucible
@@ -112,8 +129,6 @@ All notable changes to Daedalus will be documented in this file.
   Despair, and goes to ice when Fire IV costs more than the MP left instead of stalling. Below level 80 the single
   Polyglot is spent on Foul; job-quest spells you haven't learned, low-level AoE Fire/Blizzard and the Thunder upkeep
   settings are respected.
-
-<!-- LATEST-END -->
 
 ## v0.1.109 — 2026-10-27
 

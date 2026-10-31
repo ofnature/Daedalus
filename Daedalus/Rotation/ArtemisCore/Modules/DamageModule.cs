@@ -147,6 +147,10 @@ public sealed class DamageModule : IArtemisModule
         var legendary = cfg.CrucibleGoal == CrucibleTeamGoal.Legendary;
         if (legendary && PushSirenOrders(context, scheduler, cfg, familiar, familiarOut, familiarHpPct, selfHpPct))
             return;
+        // Every goal clears the Siren's adds in one hit: on a Level or Clear run they wear the familiars down fast
+        // (user, 2026-10-31: a roommate kept dying there), and no bonus is at stake. The usual rules go on as well.
+        if (!legendary && FindSiren(context, out _, out var sirenAdds) is { } levelSiren)
+            KillSirenAdds(context, scheduler, levelSiren, sirenAdds, familiarOut);
 
         // Legendary, shared tanking: whoever has more HP to spare holds the enemy. The beastmaster's turn is handled here;
         // the familiar's turn is the usual path below (Snarl onto it).
@@ -252,22 +256,7 @@ public sealed class DamageModule : IArtemisModule
         IArtemisContext context, RotationScheduler scheduler, Daedalus.Config.DPS.BeastmasterConfig cfg,
         Dalamud.Game.ClientState.Objects.Types.IBattleChara? familiar, bool familiarOut, float familiarHpPct, float selfHpPct)
     {
-        Dalamud.Game.ClientState.Objects.Types.IBattleNpc? siren = null;
-        var crawlerAlive = false;
-        var adds = new List<(ulong Id, System.Numerics.Vector2 At)>();
-        foreach (var obj in context.ObjectTable)
-        {
-            if (obj is not Dalamud.Game.ClientState.Objects.Types.IBattleNpc npc || npc.IsDead || npc.CurrentHp == 0)
-                continue;
-            if (npc.NameId == ArtemisCooldownRules.CrawlingPieceNameId)
-                crawlerAlive = true;
-            else if (npc.NameId == ArtemisCooldownRules.SirenNameId && npc.IsTargetable && (siren == null || npc.MaxHp > siren.MaxHp))
-                siren = npc; // the targetable one: she has invisible helpers of the same name
-            if (npc.NameId is ArtemisCooldownRules.CrawlingPieceNameId or ArtemisCooldownRules.ShamblingPieceNameId)
-                adds.Add((npc.GameObjectId, new System.Numerics.Vector2(npc.Position.X, npc.Position.Z)));
-        }
-
-        if (siren == null)
+        if (FindSiren(context, out var crawlerAlive, out var adds) is not { } siren)
             return false;
 
         KillSirenAdds(context, scheduler, siren, adds, familiarOut);
@@ -309,12 +298,34 @@ public sealed class DamageModule : IArtemisModule
         return true;
     }
 
+    /// <summary>The Siren (the targetable one), whether a Crawling Piece lives, and where her adds stand; null when she is not here.</summary>
+    private static Dalamud.Game.ClientState.Objects.Types.IBattleNpc? FindSiren(
+        IArtemisContext context, out bool crawlerAlive, out List<(ulong Id, System.Numerics.Vector2 At)> adds)
+    {
+        Dalamud.Game.ClientState.Objects.Types.IBattleNpc? siren = null;
+        crawlerAlive = false;
+        adds = new List<(ulong Id, System.Numerics.Vector2 At)>();
+        foreach (var obj in context.ObjectTable)
+        {
+            if (obj is not Dalamud.Game.ClientState.Objects.Types.IBattleNpc npc || npc.IsDead || npc.CurrentHp == 0)
+                continue;
+            if (npc.NameId == ArtemisCooldownRules.CrawlingPieceNameId)
+                crawlerAlive = true;
+            else if (npc.NameId == ArtemisCooldownRules.SirenNameId && npc.IsTargetable && (siren == null || npc.MaxHp > siren.MaxHp))
+                siren = npc; // the targetable one: she has invisible helpers of the same name
+            if (npc.NameId is ArtemisCooldownRules.CrawlingPieceNameId or ArtemisCooldownRules.ShamblingPieceNameId)
+                adds.Add((npc.GameObjectId, new System.Numerics.Vector2(npc.Position.X, npc.Position.Z)));
+        }
+
+        return siren;
+    }
+
     /// <summary>
     /// Kill the Siren's adds in one hit once they have bunched. Parting Blow first while it is ready (free, and it killed
     /// all five on 2026-10-31); it waits for them inside its 8 yalms. Otherwise put the hard target on one that catches
     /// them all and tell the autopilot a Fang can go
-    /// (<see cref="Daedalus.Services.Beastmaster.CrucibleHints.FangTargetId"/>) — Legendary only, the user's call: the
-    /// Fang costs Economic Ethos, and is worth it for no crawler on the beastmaster.
+    /// (<see cref="Daedalus.Services.Beastmaster.CrucibleHints.FangTargetId"/>). Every goal: on Legendary the Fang costs
+    /// Economic Ethos and is worth it for no crawler on the beastmaster (the user's call); elsewhere it is free.
     /// </summary>
     private void KillSirenAdds(
         IArtemisContext context, RotationScheduler scheduler, Dalamud.Game.ClientState.Objects.Types.IBattleNpc siren,

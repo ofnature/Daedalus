@@ -296,7 +296,7 @@ public sealed class CrucibleTeamWindow : Window
         if (config.CrucibleGoal == CrucibleTeamGoal.Legendary)
         {
 
-            var legendary = CrucibleLevelPlan.LegendaryTeam(config.CrucibleCoreTeam, captured, RankOf, board.RankCap);
+            var legendary = CrucibleLevelPlan.LegendaryTeam(config.CrucibleCoreTeam, captured, RankOf, board.RankCap, board.Index);
             var kin = legendary.Count > 0 ? BstFamiliars.ByBestiaryNo((uint)legendary[0])?.Classification.ToString() : null;
             ImGui.TextColored(DaedalusTheme.TextSecondary, $"Legendary team{(kin != null ? $" ({kin} Gambit)" : "")}:");
             ImGui.SameLine();
@@ -337,7 +337,7 @@ public sealed class CrucibleTeamWindow : Window
         var cap = board.RosterCap > 0 ? board.RosterCap : 10;
         var roster = config.CrucibleGoal switch
         {
-            CrucibleTeamGoal.Legendary => CrucibleLevelPlan.LegendaryTeam(config.CrucibleCoreTeam, captured, RankOf, board.RankCap),
+            CrucibleTeamGoal.Legendary => CrucibleLevelPlan.LegendaryTeam(config.CrucibleCoreTeam, captured, RankOf, board.RankCap, board.Index),
             CrucibleTeamGoal.Level => CrucibleLevelPlan.LevelRoster(core, captured, RankOf, cap),
             _ => CrucibleLevelPlan.ClearRoster(_index, board, core, no => _isCaptured(no) == true),
         };
@@ -480,7 +480,7 @@ public sealed class CrucibleTeamWindow : Window
         var carry = config.CrucibleGoal == CrucibleTeamGoal.Legendary
             ? CrucibleLevelPlan.LegendaryTeam(config.CrucibleCoreTeam,
                 BstFamiliars.All.Where(b => _isCaptured(b.BestiaryNo) == true).Select(b => b.BestiaryNo),
-                no => config.CrucibleRanks.GetValueOrDefault(no, 1), board.RankCap)
+                no => config.CrucibleRanks.GetValueOrDefault(no, 1), board.RankCap, board.Index)
             : CoreTeam();
         var horns = CrucibleHornPlan.Pick(_index, board, battle, pool, CrucibleLevelPlan.HornChoice(config.CrucibleGoal, chosen, carry,
             _index.EnemiesInBattle(battle).FirstOrDefault()?.Name));
