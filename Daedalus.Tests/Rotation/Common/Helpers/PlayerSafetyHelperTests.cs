@@ -64,4 +64,21 @@ public class PlayerSafetyHelperTests
         Assert.True(PlayerSafetyHelper.IsForcedMovementStatusId(1143u));
         Assert.False(PlayerSafetyHelper.IsForcedMovementStatusId(1144u));
     }
+
+    /// <summary>
+    /// The march-setup debuffs and the march itself are facing-critical: nothing may turn the character while they run
+    /// (Minerva turns it onto a march that stays on the floor — Siren / Voidmancer, 2026-10-27).
+    /// </summary>
+    [Theory]
+    [InlineData(1257u)] // Forced March
+    [InlineData(2161u)] // Forward March
+    [InlineData(2162u)] // About Face
+    [InlineData(2163u)] // Left Face
+    [InlineData(2164u)] // Right Face
+    public void MarchFacingStatuses_AreListed(uint statusId)
+        => Assert.Contains(statusId, Daedalus.Data.FFXIVConstants.MarchFacingStatusIds);
+
+    [Fact]
+    public void A_null_player_has_no_march()
+        => Assert.False(PlayerSafetyHelper.HasMarchFacingStatus(null));
 }

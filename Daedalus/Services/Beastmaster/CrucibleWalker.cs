@@ -102,7 +102,7 @@ public sealed class CrucibleWalker
             _moving = false; // our path finished on its own
 
         var screenOpen = Screens.Any(IsOpen);
-        CheckForkSides(board, screenOpen);
+        CheckForkSides(board, screenOpen, player.Position);
         if (busy || screenOpen)
         {
             Halt();
@@ -136,7 +136,7 @@ public sealed class CrucibleWalker
             var side = CrucibleRoutePlan.SuggestedSide(_index, board, fork, isCaptured, legendary);
             LogFork(fork, side, legendary, _flipped.Contains(board.Index) != ForkFlipped(board, fork[0].Move));
             return side;
-        });
+        }, stage => TargetPosition(board, route, stage));
         if (next == null)
         {
             Halt();
@@ -193,7 +193,8 @@ public sealed class CrucibleWalker
         // (its AI holds position on the board, which as a MaxMelee move refused every step — field 2026-10-25, the
         // player walked the whole board by hand) but never through real zone or damage danger. BossMod defers to a
         // running vnav path.
-        var result = _move.PathfindAndMoveCloseTo(at, 0.3f, MovementIntent.PositionalArc);
+        // Across to the target's lane first when it is on the other one, so this lane's next space is not walked into.
+        var result = _move.PathfindAndMoveCloseTo(CrucibleWalkPlan.LaneWaypoint(position, at), 0.3f, MovementIntent.PositionalArc);
         if (result != _lastResult)
         {
             var snapshot = _move.Snapshot;
@@ -217,7 +218,7 @@ public sealed class CrucibleWalker
     /// After walking to one side of a battle fork, the battle that opened should be that side's. If it is the other
     /// side's, this board's left and right were read the wrong way round: swap them for the rest of the session.
     /// </summary>
-    private void CheckForkSides(CrucibleBoard board, bool screenOpen)
+    private void CheckForkSides(CrucibleBoard board, bool screenOpen, Vector3 player)
     {
         if (screenOpen && _target is { IsBattle: false, Side: > 0 } space)
         {
@@ -230,7 +231,15 @@ public sealed class CrucibleWalker
             {
                 // We aimed for `space` (wherever we currently believe it stands): if its sibling's type opened instead,
                 // that belief is wrong — toggle it.
-                if (CrucibleWalkPlan.ForkIsFlipped(board.Route, space, type))
+                var sibling = CrucibleWalkPlan.Sibling(board.Route, space);
+                if (CrucibleWalkPlan.ForkIsFlipped(board.Route, space, type)
+                    && sibling is { At: not null } && space.At is not null
+                    && !CrucibleWalkPlan.OpenedAtTarget(player, TargetPosition(board, board.Route, space), TargetPosition(board, board.Route, sibling)))
+                {
+                    _log($"Crucible: {board.Name} — a {type.ToString().ToLowerInvariant()} opened on the way to the "
+                         + $"{space.Type.ToString().ToLowerInvariant()} at move {space.Move}: its space was crossed (not a flipped fork).");
+                }
+                else if (CrucibleWalkPlan.ForkIsFlipped(board.Route, space, type))
                 {
                     if (!forks.Remove(key))
                         forks.Add(key);

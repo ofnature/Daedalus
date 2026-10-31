@@ -628,4 +628,104 @@ public class CrucibleTests
         Assert.True(ArtemisCooldownRules.ShouldSnarlWhileTanking(true, true, true, true, familiarHpPct: 1f, selfHpPct: 0.3f));
         Assert.False(ArtemisCooldownRules.ShouldSnarlWhileTanking(true, true, true, true, familiarHpPct: 0f, selfHpPct: 0.2f));
     }
+
+    /// <summary>A falling familiar stays out when no other horn could replace it (Korha's Board 1 boss death).</summary>
+    [Fact]
+    public void AFallingFamiliarStaysWhenNoHornCanReplaceIt()
+    {
+        Assert.True(ArtemisCooldownRules.IsFamiliarFalling(true, true, 0.1f, 0.6f));
+        Assert.False(ArtemisCooldownRules.IsFamiliarFalling(true, true, 0.1f, 0.6f, replacementReady: false));
+    }
+
+    /// <summary>Shared tanking: the familiar holds; the beastmaster (50%+) takes over only from a familiar about to fall.</summary>
+    [Fact]
+    public void SharedTankingGivesTheEnemyToWhoeverHasMoreHp()
+    {
+        Assert.True(ArtemisCooldownRules.BeastmasterHoldsShared(0.58f, familiarOut: true, familiarHpPct: 0.19f)); // Korha vs buffalo
+        Assert.False(ArtemisCooldownRules.BeastmasterHoldsShared(0.90f, true, 0.55f));  // a healthy familiar keeps it (Cover = no debuffs on you)
+        Assert.False(ArtemisCooldownRules.BeastmasterHoldsShared(0.90f, true, 0.30f));  // at the take-over line it still holds
+        Assert.False(ArtemisCooldownRules.BeastmasterHoldsShared(0.45f, true, 0.10f));  // under the 50% floor
+        Assert.True(ArtemisCooldownRules.BeastmasterHoldsShared(0.45f, familiarOut: false, familiarHpPct: 0f)); // nobody else
+        Assert.False(ArtemisCooldownRules.BeastmasterHoldsShared(0.25f, false, 0f));     // critical: never
+    }
+
+    /// <summary>While the beastmaster holds, Snarl only hands a tankbuster or raidwide to a familiar above the line.</summary>
+    [Fact]
+    public void SharedTankingSnarlsOnlyForBustersAndRaidwides()
+    {
+        var line = ArtemisCooldownRules.FamiliarFallingHpPct;
+        Assert.False(ArtemisCooldownRules.ShouldSnarlWhileHoldingShared(true, true, true, 0.8f, line, float.MaxValue, float.MaxValue));
+        Assert.True(ArtemisCooldownRules.ShouldSnarlWhileHoldingShared(true, true, true, 0.8f, line, 5f, float.MaxValue));
+        Assert.True(ArtemisCooldownRules.ShouldSnarlWhileHoldingShared(true, true, true, 0.8f, line, float.MaxValue, 5f));
+        Assert.False(ArtemisCooldownRules.ShouldSnarlWhileHoldingShared(true, true, true, 0.1f, line, 5f, float.MaxValue));
+    }
+
+    [Fact]
+    public void SharedTankingIsOffByDefault() => Assert.False(new Daedalus.Config.DPS.BeastmasterConfig().CrucibleLegendarySharedTank);
+
+    // --- the Siren on Legendary (user 2026-10-30): familiar through Summon and the crawler, beastmaster otherwise ---
+
+    [Fact]
+    public void SirenSummonCastHandsHerToTheFamiliar() =>
+        Assert.True(ArtemisCooldownRules.SirenFamiliarHolds(summonCasting: true, crawlerAlive: false));
+
+    [Fact]
+    public void SirenCrawlerAliveKeepsHerOnTheFamiliar() =>
+        Assert.True(ArtemisCooldownRules.SirenFamiliarHolds(summonCasting: false, crawlerAlive: true));
+
+    [Fact]
+    public void SirenCrawlerDeadHandsHerBackToTheBeastmaster() =>
+        Assert.False(ArtemisCooldownRules.SirenFamiliarHolds(summonCasting: false, crawlerAlive: false));
+
+    [Fact]
+    public void SirenSummonWithACrawlerStillUpStaysOnTheFamiliar() =>
+        Assert.True(ArtemisCooldownRules.SirenFamiliarHolds(summonCasting: true, crawlerAlive: true));
+
+    // --- the Zu: a release can break eggs, and every broken egg makes the Zu stronger ---
+
+    [Fact]
+    public void ZuHealthyHoldsTheRelease() =>
+        Assert.True(ArtemisCooldownRules.HoldReleaseAtZu(onBoard: true, ArtemisCooldownRules.ZuNameId, 0.60f, familiarFalling: false));
+
+    [Fact]
+    public void ZuNearlyDeadLetsTheReleaseFinishIt() =>
+        Assert.False(ArtemisCooldownRules.HoldReleaseAtZu(true, ArtemisCooldownRules.ZuNameId, ArtemisCooldownRules.ZuReleaseAtHpPct, false));
+
+    [Fact]
+    public void ZuHoldGivesWayToAFallingFamiliar() =>
+        Assert.False(ArtemisCooldownRules.HoldReleaseAtZu(true, ArtemisCooldownRules.ZuNameId, 0.60f, familiarFalling: true));
+
+    [Fact]
+    public void ZuHoldIsOnlyForTheZu()
+    {
+        Assert.False(ArtemisCooldownRules.HoldReleaseAtZu(true, 14577, 0.60f, false)); // catoblepas
+        Assert.False(ArtemisCooldownRules.HoldReleaseAtZu(onBoard: false, ArtemisCooldownRules.ZuNameId, 0.60f, false));
+    }
+
+    /// <summary>Lingering Vantage (Status sheet, 2026-10-31): "Next Parting Blow will deal increased damage".</summary>
+    [Fact]
+    public void LingeringVantageIdIsTheReleaseBuff() => Assert.Equal(4614u, ArtemisCooldownRules.LingeringVantageStatusId);
+
+    /// <summary>The Siren's release-before-Blow skips Wespe: Final Sting would send it away before the Blow.</summary>
+    [Fact]
+    public void SirenVantageReleaseSkipsWespe()
+    {
+        Assert.False(Daedalus.Rotation.ArtemisCore.Modules.DamageModule.ShouldTemperedRelease(
+            true, true, Daedalus.Rotation.ArtemisCore.Modules.DamageModule.WespeBestiaryNo, partingBlowEnabled: false, 1f, double.MaxValue));
+        Assert.True(Daedalus.Rotation.ArtemisCore.Modules.DamageModule.ShouldTemperedRelease(
+            true, true, bestiaryNo: 44, partingBlowEnabled: false, 1f, double.MaxValue)); // Damselfly
+    }
+
+    /// <summary>The Zu's BNpcName, read off XBMBattleDetail 16.0 (2026-10-31).</summary>
+    [Fact]
+    public void ZuIdIsTheThirdBoardElite() => Assert.Equal(14572u, ArtemisCooldownRules.ZuNameId);
+
+    /// <summary>The ids read off the Minerva replay of 2026-10-30 (Summon BDB7, crawler 14586, Siren 14583).</summary>
+    [Fact]
+    public void SirenIdsMatchTheReplay()
+    {
+        Assert.Equal(48567u, ArtemisCooldownRules.SirenSummonActionId);
+        Assert.Equal(14586u, ArtemisCooldownRules.CrawlingPieceNameId);
+        Assert.Equal(14583u, ArtemisCooldownRules.SirenNameId);
+    }
 }

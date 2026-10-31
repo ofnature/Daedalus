@@ -52,6 +52,35 @@ internal static unsafe class CrucibleAddons
     }
 
     /// <summary>Send the window the same click the player's would (integer arguments).</summary>
+    /// <summary>
+    /// A callback with mixed value types, exactly as the game sends them: int, uint, or null for an empty value. The
+    /// Crucible item menu answers "Use" with [i0, i0, u0, -, -] (recording, Korha 2026-10-27).
+    /// </summary>
+    public static void FireMixed(AtkUnitBase* unit, params object?[] parts)
+    {
+        var values = stackalloc AtkValue[parts.Length];
+        for (var i = 0; i < parts.Length; i++)
+        {
+            values[i] = default;
+            switch (parts[i])
+            {
+                case int n:
+                    values[i].Type = AtkValueType.Int;
+                    values[i].Int = n;
+                    break;
+                case uint u:
+                    values[i].Type = AtkValueType.UInt;
+                    values[i].UInt = u;
+                    break;
+                default:
+                    values[i].Type = AtkValueType.Undefined;
+                    break;
+            }
+        }
+
+        unit->FireCallback((uint)parts.Length, values, true);
+    }
+
     public static void Fire(AtkUnitBase* unit, params int[] ints)
     {
         var values = stackalloc AtkValue[ints.Length];

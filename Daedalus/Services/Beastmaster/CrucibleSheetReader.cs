@@ -118,7 +118,8 @@ public static class CrucibleSheetReader
             var beastGear = items.Where(r => r.ReadUInt8Column(0) == 1).Select(r => (int)r.RowId).ToList();
             var itemNames = items.ToDictionary(r => (int)r.RowId, r => Text(r, 11));
             var itemEffects = items.ToDictionary(r => (int)r.RowId, r => Text(r, 12));
-            return new CrucibleIndex(boards, enemies, beastGear, itemNames, itemEffects);
+            var crucibleItems = items.Where(r => r.ReadUInt8Column(0) == 2).Select(r => (int)r.RowId).ToList();
+            return new CrucibleIndex(boards, enemies, beastGear, itemNames, itemEffects, crucibleItems);
         }
         catch (Exception ex)
         {

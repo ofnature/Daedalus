@@ -63,6 +63,10 @@ public static class PlayerSafetyHelper
     /// </summary>
     public static bool IsLookAwayMechanicActive(Dalamud.Plugin.Services.IObjectTable? objectTable)
     {
+        // A forced march pending or running: its direction comes from our facing, which the boss engine sets.
+        if (HasMarchFacingStatus(objectTable?.LocalPlayer))
+            return true;
+
         if (ExternalLookAway is { } external)
         {
             try
@@ -88,6 +92,21 @@ public static class PlayerSafetyHelper
             if (npc.IsCasting && FFXIVConstants.GazeCastActionIds.Contains(npc.CastActionId))
                 return true;
         }
+        return false;
+    }
+
+    /// <summary>True while a forced march is pending or running (<see cref="FFXIVConstants.MarchFacingStatusIds"/>).</summary>
+    public static bool HasMarchFacingStatus(IBattleChara? player)
+    {
+        if (player?.StatusList == null)
+            return false;
+
+        foreach (var status in player.StatusList)
+        {
+            if (status != null && FFXIVConstants.MarchFacingStatusIds.Contains(status.StatusId))
+                return true;
+        }
+
         return false;
     }
 

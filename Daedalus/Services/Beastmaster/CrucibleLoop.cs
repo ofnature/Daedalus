@@ -35,6 +35,14 @@ public sealed unsafe class CrucibleLoop
     private bool _teamTried;
     private bool _entering;
 
+    /// <summary>
+    /// The roster asked for on this entry, fixed at the first Load. The roster is worked out from beast ranks, and the
+    /// Team Composition screen updates those ranks while the team is being changed — so recomputing it afterwards could
+    /// ask for a different team than the one just loaded, and the loop stopped although the load had worked (Korha
+    /// 2026-10-27 23:20: "Team set: 12 beasts" and "the team could not be set" in the same second).
+    /// </summary>
+    private List<int>? _teamWanted;
+
     public CrucibleLoop(Action<string> log) => _log = log;
 
     /// <summary>What it did last, for the team window.</summary>
@@ -53,6 +61,7 @@ public sealed unsafe class CrucibleLoop
         _entering = true;
         _boardHighlighted = true;
         _teamTried = false;
+        _teamWanted = null;
         _outsideSinceUtc = default;
         _nextStepUtc = default;
         _lastProgressUtc = DateTime.UtcNow;
@@ -146,7 +155,7 @@ public sealed unsafe class CrucibleLoop
         var layout = Visible("XBMStageDetailList");
         if (layout != null && _entering)
         {
-            var wanted = rosterFor(board).Where(p => loader?.Refused.Contains(p) != true).ToList();
+            var wanted = (_teamWanted ?? rosterFor(board)).Where(p => loader?.Refused.Contains(p) != true).ToList();
             var changes = loader == null ? [] : CrucibleLevelPlan.Changes(loader.Team, wanted);
             if (loader is { Loading: true })
                 return;
@@ -155,11 +164,13 @@ public sealed unsafe class CrucibleLoop
             {
                 if (_teamTried)
                 {
-                    Stop(ref runsLeft, "Loop stopped: the team could not be set — check Team Composition.");
+                    Stop(ref runsLeft, "Loop stopped: the team could not be set — check Team Composition. "
+                                       + $"(wanted {string.Join(",", wanted)}; team {string.Join(",", loader.Team)})");
                     return;
                 }
 
                 _teamTried = true;
+                _teamWanted = wanted;
                 loader.Load(wanted);
                 Progress(now, "Setting the team…");
                 return;
@@ -238,6 +249,7 @@ public sealed unsafe class CrucibleLoop
         _entering = true;
         _boardHighlighted = false;
         _teamTried = false;
+        _teamWanted = null;
         TargetSystem.Instance()->InteractWithObject((GameObjectStruct*)lauda.Address, false);
         Progress(now, $"Talking to {CrucibleLoopRules.EntryNpc}.");
     }

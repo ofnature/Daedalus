@@ -3,7 +3,51 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
-## v0.1.110 — (unreleased)
+## v0.1.110 — 2026-10-31
+
+### Beastmaster — the Crucible
+- **Live bonus tracker in the Crucible tab.** Every bonus the board pays, as it stands: intact, lost (the moment it
+  happens — a familiar knocked out, a Damage Down or Vulnerability Up on you, an item used, beast gear taken, a rest),
+  earned, or decided at the end — plus the score it projects against the Legendary line, "sure" and "if kept" —
+  including feeds, tokens spent and the gear, items and tokens you hold.
+- **Legendary plays smarter.** The team prefers Damselfly, Mantis and Wespe (the "Bug team") when every kin ties at
+  the board's rank sync, and the horn order follows each boss: poison first, or Mantis first against a boss poison
+  doesn't land on. Wespe's Final Sting is kept for the kill (target at 30% or less) instead of being spent by Borrow.
+- **Who tanks on Legendary: Familiars, You or Shared.** Shared keeps the familiar on the enemy so its Cover takes the
+  debuffs that cost Unbeastable, and you take over only to save a familiar about to fall.
+- **The Siren on Legendary (Third Board).** You hold her with Challenge until she casts Summon; then a familiar takes
+  her with Snarl, so her Crawling Piece goes for the familiar instead of you. You leave that crawler alone until it has
+  grabbed the familiar (it binds on contact — Bind and Damage Down cost Unbeastable), then kill it, and take the Siren
+  back once no crawler is left.
+- **Every battle gets a fresh beast when one is standing.** A worn beast (under 35% HP) — even one from the core
+  team on a Level run, or one you picked — gives its horn to a healthy beast from the roster. A Level run on the
+  Third Board sent the same three worn beasts into Lakhamu and the Siren while eleven sat at full HP, and the
+  beastmaster ended up tanking and died.
+- **A falling familiar is no longer retreated when no other horn is ready** — three quick retreats once left you alone
+  with the boss for over a minute. It stays out and soaks.
+- **Potions.** Clear and Level runs pick potions up and drink at 40% HP; Legendary picks them up too and drinks only as
+  a last resort at 20% (it costs Economic Ethos, dying costs every bonus). A drink is only counted once the potion has
+  left the HUD, and a press that did nothing is retried at once.
+- **Results window** after Clear and Legendary runs: the score, how far from Legendary, and the bonuses missed.
+  **Pause** button (and `/dae crucible pause`) to stop the autopilot mid-board and take over.
+- **Fixes:** the multi-run loop no longer stops when beast ranks rise while the team is being set; the walker keeps to
+  its lane inside a branch — taking one side of a fork closes the other, so it no longer stands still aiming at a
+  space that can't be reached (or walks into the wrong one); Legendary closes a coffer of only beast
+  gear on Board 1 (Nameday Attire) and presses Leave at campsites; bosses nearly dead are finished before adds; a
+  Siren crawler that binds you is killed first; march statuses are treated like a gaze.
+- **Rally waits for the next beast.** With diamonds banked, a beast leaving (a retreat or a swap) no longer sets
+  Rally off at once — it holds up to 20 seconds for the next one, so the diamonds still feed a finisher.
+- **Third Board Legendary takes the Zu.** At move 4 the walker now goes left to the Zu elite (800 points) instead of
+  the catoblepas. At the Zu, Tempered Release and Parting Blow wait until it is nearly dead, so they don't break the
+  eggs that make it stronger.
+- **One hit for the Siren's adds (Legendary).** Once her summoned adds bunch up on your beast, Parting Blow goes out
+  on them — it kills the whole set, crawler included. Tempered Release goes first when it's ready, for Lingering
+  Vantage (1,500 potency instead of 1,000). When Parting Blow isn't ready, the strongest Fang you hold is
+  used instead (that one costs Economic Ethos).
+- **The autopilot buys at shops.** With "Use potions" on, Clear and Level runs buy the strongest healing items in the
+  shop (beast potions, crucible ash), up to ten held — rows below the fold included. Legendary buys only at the last
+  shop on the route, and only the cheapest items that bring you to ten held for Habitual Hoarder (1,000), when that
+  pays more than the Coin Clutcher (and Rolling in Riches) it costs. Feed and beast gear are never bought.
 
 ### Rotations — checked against RotationSolverReborn
 - **Dark Knight: Oblation no longer burns both charges at once.** When your HP was low, the second weave slot could
@@ -69,6 +113,8 @@ All notable changes to Daedalus will be documented in this file.
   Polyglot is spent on Foul; job-quest spells you haven't learned, low-level AoE Fire/Blizzard and the Thunder upkeep
   settings are respected.
 
+<!-- LATEST-END -->
+
 ## v0.1.109 — 2026-10-27
 
 ### Beastmaster — the Crucible
@@ -87,7 +133,6 @@ All notable changes to Daedalus will be documented in this file.
   expected is remembered from then on.
 - **Coffers after gear:** once a piece of gear has been taken on a board, coffers pick the best offer again instead
   of avoiding gear for a bonus that is already gone.
-<!-- LATEST-END -->
 
 ## v0.1.108 — 2026-10-27
 

@@ -26,6 +26,8 @@ public class CrucibleAutoPilotRulesTests
     [InlineData("Take 203 territory tokens?", null, false)]                        // nothing expected
     [InlineData("Forfeit the board?", "Take ", false)]                             // a different prompt
     [InlineData("Discard changes and return to board selection?", "Discard", false)] // not a known prompt
+    [InlineData("Purchase the g3 beast potion?", "Purchase the ", true)]
+    [InlineData("Purchase the lily simular and feed it to your buffalo?", "Purchase the ", false)] // a feed picks a beast
     public void OnlyItsOwnPromptsAreConfirmed(string prompt, string? expected, bool confirm)
         => Assert.Equal(confirm, CrucibleAutoPilotRules.ShouldConfirm(prompt, expected));
 
@@ -396,5 +398,283 @@ public class CrucibleAutoPilotRulesTests
         bonuses2[(int)CrucibleBonus.WalkingArmory] = 500;
         Assert.False(CrucibleAutoPilotRules.LegendaryTakesGear(new CrucibleBoard(1, 1088, 1339, "First", 30, [6], bonuses1)));
         Assert.True(CrucibleAutoPilotRules.LegendaryTakesGear(new CrucibleBoard(2, 1089, 1340, "Second", 40, [13], bonuses2)));
+    }
+
+    /// <summary>Spoils: gear first, then Crucible items (never feed), only while fewer than ten items are held.</summary>
+    [Fact]
+    public void SpoilsTakeGearThenPotionsUpToTen()
+    {
+        bool Gear(int id) => id == 1;
+        bool Item(int id) => id is 136 or 140;
+        Assert.Equal(1, CrucibleAutoPilotRules.PickLoot([136, 1, 140, 0], Gear, Item, takeGear: true, takeItems: true, itemsHeld: 0));
+        Assert.Equal(0, CrucibleAutoPilotRules.PickLoot([136, 1, 140, 0], Gear, Item, takeGear: false, takeItems: true, itemsHeld: 0));
+        Assert.Equal(2, CrucibleAutoPilotRules.PickLoot([136, 1, 140, 0], Gear, Item, false, true, 0, new System.Collections.Generic.HashSet<int> { 0 }));
+        Assert.Equal(-1, CrucibleAutoPilotRules.PickLoot([136, 1, 140, 0], Gear, Item, false, true, itemsHeld: 10));
+        Assert.Equal(-1, CrucibleAutoPilotRules.PickLoot([136, 0, 0, 0], Gear, Item, true, false, 0));
+        Assert.Equal(-1, CrucibleAutoPilotRules.PickLoot([999, 0, 0, 0], Gear, Item, true, true, 0)); // feed: neither
+    }
+
+    /// <summary>The held Crucible items' rows sit at 30 + 5·k in the spoils window.</summary>
+    [Fact]
+    public void HeldItemSlotsAreEveryFifthValueFrom30()
+    {
+        Assert.Equal(30, CrucibleAutoPilotRules.HeldItemRowIndex(0));
+        Assert.Equal(75, CrucibleAutoPilotRules.HeldItemRowIndex(9));
+    }
+
+    /// <summary>At 40% or less the strongest held potion is drunk; above it, or with none held, nothing.</summary>
+    [Fact]
+    public void PotionsAreDrunkAtFortyPercentStrongestFirst()
+    {
+        uint[] held = [0, 243136, 0, 243138, 243141, 0, 0, 0, 0, 0]; // G1 potion, G3 potion, G2 ash
+        Assert.Equal(3, CrucibleAutoPilotRules.PickPotion(held, 0.23f));   // G3 (36%) over G2 ash (25%)
+        Assert.Equal(3, CrucibleAutoPilotRules.PickPotion(held, 0.40f));
+        Assert.Equal(-1, CrucibleAutoPilotRules.PickPotion(held, 0.41f));
+        Assert.Equal(-1, CrucibleAutoPilotRules.PickPotion(held, 0f));    // dead: nothing to drink for
+        Assert.Equal(-1, CrucibleAutoPilotRules.PickPotion([0, 243204, 0], 0.2f)); // no potion (another item) held
+    }
+
+    /// <summary>A pressed potion counts as drunk only once it leaves the HUD; one still there after 2.5s is tried again.</summary>
+    [Fact]
+    public void APotionCountsOnlyOnceItLeavesTheHud()
+    {
+        uint[] held = [243138, 0, 243138, 243141];
+        Assert.Equal(2, CrucibleAutoPilotRules.CountHeld(held, 243138));
+        Assert.Equal(0, CrucibleAutoPilotRules.CountHeld(held, 243136));
+        Assert.True(CrucibleAutoPilotRules.PotionOutcome(2, 1, 0.4));    // gone: drunk
+        Assert.Null(CrucibleAutoPilotRules.PotionOutcome(2, 2, 1.0));    // still there: wait
+        Assert.False(CrucibleAutoPilotRules.PotionOutcome(2, 2, 2.5));   // never went off: try again
+        Assert.True(CrucibleAutoPilotRules.PotionOutcome(1, 0, 9.0));    // late but gone still counts
+    }
+
+    /// <summary>The HUD's further values: usable flag at 10 + 5·k, gear held at 60 + 5·k, campsite feed counter per row.</summary>
+    [Fact]
+    public void HudAndCampIndices()
+    {
+        Assert.Equal(10, CrucibleAutoPilotRules.HudItemUsableIndex(0));
+        Assert.Equal(55, CrucibleAutoPilotRules.HudItemUsableIndex(9));
+        Assert.Equal(60, CrucibleAutoPilotRules.HudGearHeldIndex(0));
+        Assert.Equal(105, CrucibleAutoPilotRules.HudGearHeldIndex(9));
+        Assert.Equal(78, CrucibleAutoPilotRules.PetPartyFedIndex(0));
+        Assert.Equal(155, CrucibleAutoPilotRules.PetPartyFedIndex(1));
+    }
+
+    /// <summary>Tokens are read from text; only a fall is spending.</summary>
+    [Fact]
+    public void TokensAreReadAndOnlyAFallIsSpent()
+    {
+        Assert.Equal(1234, CrucibleAutoPilotRules.ParseTokens("1,234"));
+        Assert.Equal(0, CrucibleAutoPilotRules.ParseTokens("0"));
+        Assert.Null(CrucibleAutoPilotRules.ParseTokens(""));
+        Assert.Equal(0, CrucibleAutoPilotRules.TokensSpent(null, 500));  // first reading
+        Assert.Equal(0, CrucibleAutoPilotRules.TokensSpent(500, 900));   // spoils paid out
+        Assert.Equal(300, CrucibleAutoPilotRules.TokensSpent(900, 600)); // a shop purchase
+    }
+
+    /// <summary>A slot the HUD says cannot be used right now is not offered to the potion pick.</summary>
+    [Fact]
+    public void AnUnusableSlotIsNotPicked()
+    {
+        uint[] held = [243138, 0, 243137];
+        var both = CrucibleAutoPilotRules.UsableOnly(held, [true, true, true]);
+        Assert.Equal(0, CrucibleAutoPilotRules.PickPotion(both, 0.3f));
+        var firstBusy = CrucibleAutoPilotRules.UsableOnly(held, [false, true, true]);
+        Assert.Equal(2, CrucibleAutoPilotRules.PickPotion(firstBusy, 0.3f));      // the usable G2 instead
+        Assert.Equal(-1, CrucibleAutoPilotRules.PickPotion(
+            CrucibleAutoPilotRules.UsableOnly(held, [false, true, false]), 0.3f)); // none usable: wait
+    }
+
+    /// <summary>Legendary drinks only at 20% or less: Economic Ethos (750) is worth keeping until death is the cost.</summary>
+    [Fact]
+    public void LegendaryDrinksOnlyAsALastResort()
+    {
+        uint[] held = [0, 243138, 0];
+        var at = CrucibleAutoPilotRules.LegendaryPotionAtHpPct;
+        Assert.Equal(-1, CrucibleAutoPilotRules.PickPotion(held, 0.38f, at)); // Clear would drink here
+        Assert.Equal(-1, CrucibleAutoPilotRules.PickPotion(held, 0.21f, at));
+        Assert.Equal(1, CrucibleAutoPilotRules.PickPotion(held, 0.20f, at));
+        Assert.Equal(1, CrucibleAutoPilotRules.PickPotion(held, 0.06f, at)); // Korha's boss death started at 6%
+        Assert.Equal(-1, CrucibleAutoPilotRules.PickPotion(held, 0f, at));
+    }
+
+    /// <summary>The HUD's item slots: id at 11 + 5·k, row right after.</summary>
+    [Fact]
+    public void HudItemSlotsStartAtEleven()
+    {
+        Assert.Equal(11, CrucibleAutoPilotRules.HudItemIdIndex(0));
+        Assert.Equal(12, CrucibleAutoPilotRules.HudItemRowIndex(0));
+        Assert.Equal(56, CrucibleAutoPilotRules.HudItemIdIndex(9));
+    }
+
+    /// <summary>Legendary closes a coffer only when every untaken offer is gear (Nameday Attire); any item keeps it open.</summary>
+    [Fact]
+    public void ACofferOfOnlyGearIsClosedForNameday()
+    {
+        bool Gear(int id) => id is 1 or 37;
+        Assert.True(CrucibleAutoPilotRules.CloseCofferForNameday([1, 37, 0, 0], Gear));
+        Assert.False(CrucibleAutoPilotRules.CloseCofferForNameday([1, 37, 136, 0], Gear));
+        Assert.False(CrucibleAutoPilotRules.CloseCofferForNameday([0, 0, 0, 0], Gear));
+        Assert.True(CrucibleAutoPilotRules.CloseCofferForNameday([136, 1, 0, 0], Gear, new System.Collections.Generic.HashSet<int> { 0 }));
+        Assert.Contains("Close the coffer", CrucibleAutoPilotRules.KnownPrompts);
+    }
+
+    // --- the Siren's Fang: one item kills the bunched adds ---
+
+    private static (ulong, System.Numerics.Vector2) At(ulong id, float x, float z) => (id, new System.Numerics.Vector2(x, z));
+
+    /// <summary>Fire (2,500) over ice (2,000) over Vampiric (1,500); potions are not Fangs.</summary>
+    [Fact]
+    public void PickFangTakesTheStrongest()
+    {
+        Assert.Equal(2, CrucibleAutoPilotRules.PickFang([243137, 243194, 243188, 243189]));
+        Assert.Equal(0, CrucibleAutoPilotRules.PickFang([243189, 0, 243194]));
+        Assert.Equal(-1, CrucibleAutoPilotRules.PickFang([243137, 243197, 0]));
+    }
+
+    /// <summary>Summon's spawn (Minerva replay 2026-10-31): the crawler 21y from the far shambling — no Fang yet.</summary>
+    [Fact]
+    public void FangWaitsWhileTheAddsAreSpread()
+    {
+        (ulong, System.Numerics.Vector2)[] adds =
+            [At(1, 120f, -410f), At(2, 127.1f, -412.9f), At(3, 109.4f, -409.4f), At(4, 130f, -420f)];
+        Assert.Equal(0ul, CrucibleAutoPilotRules.FangAim(adds, adds, hardTarget: 3));
+    }
+
+    /// <summary>Bunched on the familiar: the hard target already covers them, so it stays the aim.</summary>
+    [Fact]
+    public void FangKeepsAHardTargetThatCoversThemAll()
+    {
+        (ulong, System.Numerics.Vector2)[] adds = [At(1, 113f, -418f), At(2, 114f, -419f), At(3, 112f, -417f)];
+        Assert.Equal(2ul, CrucibleAutoPilotRules.FangAim(adds, adds, hardTarget: 2));
+    }
+
+    /// <summary>Held on something outside the bunch: aim at the first candidate that covers every add.</summary>
+    [Fact]
+    public void FangMovesTheAimOntoTheBunch()
+    {
+        (ulong, System.Numerics.Vector2)[] adds = [At(1, 100f, -400f), At(2, 108f, -400f)];
+        (ulong, System.Numerics.Vector2)[] candidates = [At(1, 100f, -400f), At(2, 108f, -400f), At(9, 130f, -430f)];
+        Assert.Equal(1ul, CrucibleAutoPilotRules.FangAim(adds, candidates, hardTarget: 9));
+    }
+
+    /// <summary>Parting Blow's 8y waits for a tighter bunch than the Fang's 12y: 9y apart is a Fang, not a Blow.</summary>
+    [Fact]
+    public void PartingBlowNeedsATighterBunch()
+    {
+        (ulong, System.Numerics.Vector2)[] adds = [At(1, 100f, -400f), At(2, 109f, -400f)];
+        Assert.Equal(1ul, CrucibleAutoPilotRules.FangAim(adds, adds, hardTarget: 1));
+        Assert.Equal(0ul, CrucibleAutoPilotRules.FangAim(adds, adds, hardTarget: 1, CrucibleAutoPilotRules.PartingBlowReachYalms));
+    }
+
+    /// <summary>The replay's second Summon: five adds within a few yalms of the familiar — one Parting Blow takes them all.</summary>
+    [Fact]
+    public void PartingBlowCatchesABunchOnTheFamiliar()
+    {
+        (ulong, System.Numerics.Vector2)[] adds =
+            [At(1, 115f, -418f), At(2, 116f, -419f), At(3, 114f, -417f), At(4, 117f, -416f), At(5, 115f, -421f)];
+        Assert.Equal(3ul, CrucibleAutoPilotRules.FangAim(adds, adds, hardTarget: 3, CrucibleAutoPilotRules.PartingBlowReachYalms));
+    }
+
+    /// <summary>One add left is not worth a Fang.</summary>
+    [Fact]
+    public void FangIsNotSpentOnASingleAdd()
+        => Assert.Equal(0ul, CrucibleAutoPilotRules.FangAim([At(1, 0f, 0f)], [At(1, 0f, 0f)], hardTarget: 1));
+
+    // XBMItem rows (scratchpad dump of the sheet): 77 G2 Beast Potion, 78 G3, 79 G4, 81 G2 Crucible Ash,
+    // 108 Potion of Tempered Intensity (20), 110 Tempered Evasion (21), 166 Lily Simular (feed), 1 Belt of Constitution (gear).
+    private static bool IsItem(int row) => row is >= 76 and <= 143;
+
+    private static CrucibleShopOffer Offer(int row, int item, int price, bool sold = false) => new(row, item, price, sold);
+
+    [Theory]
+    [InlineData("130", 130)]
+    [InlineData("64 (-50%)", 64)]
+    [InlineData("1,200", 1200)]
+    [InlineData("", null)]
+    public void ShopPriceReadsTheNumberBeforeTheDiscount(string text, int? price)
+        => Assert.Equal(price, CrucibleAutoPilotRules.ParsePrice(text));
+
+    /// <summary>The row → icon offset the potion table needs: G1 Beast Potion and Steelsting Tome, the two ends.</summary>
+    [Fact]
+    public void CrucibleItemRowsMapToTheirIcons()
+    {
+        Assert.Equal(243136, 76 + CrucibleAutoPilotRules.CrucibleItemIconOffset);
+        Assert.Equal(243203, 143 + CrucibleAutoPilotRules.CrucibleItemIconOffset);
+        Assert.Equal(50, CrucibleAutoPilotRules.ShopRestorePct(79));
+        Assert.Equal(0, CrucibleAutoPilotRules.ShopRestorePct(166));
+    }
+
+    /// <summary>The recorded shop's layout: row 0's item at [4], its price at [5], sold at [7]; held rows at [157 + 5k].</summary>
+    [Fact]
+    public void ShopIndicesMatchTheRecording()
+    {
+        Assert.Equal(4, CrucibleAutoPilotRules.ShopItemIdIndex(0));
+        Assert.Equal(5, CrucibleAutoPilotRules.ShopPriceIndex(0));
+        Assert.Equal(7, CrucibleAutoPilotRules.ShopSoldIndex(0));
+        Assert.Equal(79, CrucibleAutoPilotRules.ShopItemIdIndex(15));
+        Assert.Equal(157, CrucibleAutoPilotRules.ShopHeldItemRowIndex(0));
+    }
+
+    /// <summary>Strongest healing first, never feed or gear, nothing sold, nothing unaffordable, and no more than the free slots.</summary>
+    [Fact]
+    public void PotionsAreBoughtStrongestFirst()
+    {
+        CrucibleShopOffer[] offers =
+            [Offer(0, 166, 10), Offer(1, 1, 10), Offer(2, 77, 72), Offer(3, 79, 158), Offer(4, 78, 113, sold: true), Offer(5, 81, 158), Offer(6, 108, 20)];
+        Assert.Equal([3, 5, 2], CrucibleAutoPilotRules.ShopBuysForPotions(offers, tokens: 1000, itemsHeld: 0, IsItem));
+        Assert.Equal([3], CrucibleAutoPilotRules.ShopBuysForPotions(offers, tokens: 1000, itemsHeld: 9, IsItem));
+        Assert.Equal([2], CrucibleAutoPilotRules.ShopBuysForPotions(offers, tokens: 100, itemsHeld: 0, IsItem));
+        Assert.Empty(CrucibleAutoPilotRules.ShopBuysForPotions(offers, tokens: 1000, itemsHeld: 10, IsItem));
+    }
+
+    /// <summary>The last shop finishes the ten with the cheapest items: Hoarder 1,000 beats Coin Clutcher 500.</summary>
+    [Fact]
+    public void HoarderBuysTheCheapestAtTheLastShop()
+    {
+        CrucibleShopOffer[] offers = [Offer(0, 166, 5), Offer(1, 79, 158), Offer(2, 108, 20), Offer(3, 110, 21), Offer(4, 77, 72)];
+        Assert.Equal([2, 3], CrucibleAutoPilotRules.ShopBuysForHoarder(offers, 1500, itemsHeld: 8, IsItem, shopAhead: false, 1000, 500, 500));
+    }
+
+    /// <summary>Not while a shop lies ahead (loot may fill it for free), not when this shop cannot finish ten.</summary>
+    [Fact]
+    public void HoarderWaitsAndNeverBuysHalfway()
+    {
+        CrucibleShopOffer[] offers = [Offer(0, 108, 20), Offer(1, 110, 21)];
+        Assert.Empty(CrucibleAutoPilotRules.ShopBuysForHoarder(offers, 1500, 8, IsItem, shopAhead: true, 1000, 500, 500));
+        Assert.Empty(CrucibleAutoPilotRules.ShopBuysForHoarder(offers, 1500, 7, IsItem, shopAhead: false, 1000, 500, 500));
+        Assert.Empty(CrucibleAutoPilotRules.ShopBuysForHoarder(offers, 30, 8, IsItem, shopAhead: false, 1000, 500, 500));
+        Assert.Empty(CrucibleAutoPilotRules.ShopBuysForHoarder(offers, 1500, 10, IsItem, shopAhead: false, 1000, 500, 500));
+        Assert.Empty(CrucibleAutoPilotRules.ShopBuysForHoarder(offers, 1500, 8, IsItem, shopAhead: false, 0, 500, 500)); // board pays no Hoarder
+    }
+
+    /// <summary>Dropping under 2,000 tokens costs Rolling in Riches too: 1,000 for 1,000 is no gain. Once Clutcher is gone it is.</summary>
+    [Fact]
+    public void HoarderWeighsRollingInRiches()
+    {
+        CrucibleShopOffer[] offers = [Offer(0, 108, 20), Offer(1, 110, 21)];
+        Assert.Empty(CrucibleAutoPilotRules.ShopBuysForHoarder(offers, 2030, 8, IsItem, shopAhead: false, 1000, 500, 500));
+        Assert.Equal([0, 1], CrucibleAutoPilotRules.ShopBuysForHoarder(offers, 2030, 8, IsItem, shopAhead: false, 1000, 0, 500));
+        Assert.Equal([0, 1], CrucibleAutoPilotRules.ShopBuysForHoarder(offers, 2100, 8, IsItem, shopAhead: false, 1000, 500, 500));
+    }
+
+    /// <summary>Board 3's shops are on moves 3, 7R and 11: only 11 is the last. Standing short of the row still counts as there.</summary>
+    [Fact]
+    public void OnlyTheLastShopHasNoShopAhead()
+    {
+        CrucibleStage[] route =
+        [
+            new(3, 0, CrucibleStageType.Shop, 0, []),
+            new(7, 1, CrucibleStageType.Treasure, 0, []), new(7, 2, CrucibleStageType.Shop, 0, []),
+            new(10, 1, CrucibleStageType.Random, 0, [new(CrucibleStageType.Enemy, 5), new(CrucibleStageType.Treasure, 0)]),
+            new(11, 0, CrucibleStageType.Shop, 0, []),
+            new(12, 0, CrucibleStageType.Boss, 1, []),
+        ];
+        Assert.True(CrucibleAutoPilotRules.ShopAhead(route, 3));
+        Assert.True(CrucibleAutoPilotRules.ShopAhead(route, 7));
+        Assert.False(CrucibleAutoPilotRules.ShopAhead(route, 11));
+        Assert.False(CrucibleAutoPilotRules.ShopAhead(route, 10)); // short of the shop's row: it is the one on 11
+        Assert.True(CrucibleAutoPilotRules.ShopAhead([], 11));
+        Assert.True(CrucibleAutoPilotRules.ShopAhead(
+            [new(4, 0, CrucibleStageType.Shop, 0, []), new(6, 0, CrucibleStageType.Random, 0, [new(CrucibleStageType.Shop, 0)])], 4));
     }
 }

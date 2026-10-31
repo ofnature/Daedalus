@@ -115,6 +115,53 @@ internal static class CombatRetargetPolicy
         => pick != 0 && pick != currentHardTarget;
 
     /// <summary>
+    /// Statuses on the player that last until their SOURCE dies — so the source is the target. Crucible Siren's Crawling
+    /// Piece: Death Throes 48568 applies Bind 5710 on contact, gone the moment that crawler dies (Minerva recording,
+    /// Korha 2026-10-27: bound, the GCDs went to the Shambling Pieces and the hard target flipped to Siren, dead at 233 s).
+    /// </summary>
+    public static readonly System.Collections.Generic.IReadOnlySet<uint> UntilSourceDiesStatusIds =
+        new System.Collections.Generic.HashSet<uint> { 5710 };
+
+    /// <summary>
+    /// The Siren on Legendary (user 2026-10-30): leave a Crawling Piece alone while it is going for someone else and has
+    /// not grabbed anyone yet — it binds on contact, and walking up to hit it is how the beastmaster got Bind and Damage
+    /// Down (Minerva replay: it went for Diremite, Korha struck it, Death Throes landed on Korha 0.3s later). Once it has
+    /// bound the familiar, kill it to free the familiar; one coming for the beastmaster is killed at once.
+    /// </summary>
+    public static bool HoldOffCrawler(bool legendaryOnBoard, uint nameId, bool targetsPlayer, bool hasGrabbed)
+        => legendaryOnBoard && nameId == Daedalus.Rotation.ArtemisCore.Helpers.ArtemisCooldownRules.CrawlingPieceNameId
+           && !targetsPlayer && !hasGrabbed;
+
+    /// <summary>The enemy to kill to break a status that lasts until its source dies, or 0.</summary>
+    public static ulong SourceToKill(System.Collections.Generic.IEnumerable<(uint StatusId, ulong SourceId)> playerStatuses)
+    {
+        foreach (var (statusId, sourceId) in playerStatuses)
+        {
+            if (sourceId is not (0 or 0xE0000000) && UntilSourceDiesStatusIds.Contains(statusId))
+                return sourceId;
+        }
+
+        return 0;
+    }
+
+    /// <summary>At or below this much HP a big target is finished before the fight's priority adds are taken.</summary>
+    public const float FinishLowTargetHpPct = 0.10f;
+
+    /// <summary>"Big": the held target's max HP is at least this many times the priority add's.</summary>
+    public const float FinishLowTargetMaxHpRatio = 2f;
+
+    /// <summary>
+    /// Stay on a nearly dead boss instead of turning to the adds the fight's priority list names (user, 2026-10-27: "when
+    /// a boss is very low it should be killed asap instead of adds"). Only when the held target is much bigger than the
+    /// add: the pairs that must die together (the Tablitaur bulls, Loosefrox and Chewchum) are alike in size, so the
+    /// "fuller one first" balancing still runs to the end. An immune boss is never held — the caller only asks while the
+    /// held target is a valid, attackable enemy.
+    /// </summary>
+    public static bool ShouldFinishHeldTarget(float heldHpPct, uint heldMaxHp, uint pickMaxHp)
+        => heldHpPct > 0f && heldHpPct <= FinishLowTargetHpPct
+           && heldMaxHp >= pickMaxHp * FinishLowTargetMaxHpRatio;
+
+    /// <summary>
     /// Strategy used to pick the game-target write on combat death retarget.
     /// Explicit strategies (CurrentTarget/FocusTarget) fall back to LowestHp for the pick.
     /// </summary>

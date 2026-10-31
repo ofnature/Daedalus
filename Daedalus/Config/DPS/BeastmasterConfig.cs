@@ -127,11 +127,18 @@ public sealed class BeastmasterConfig
     public bool CrucibleLegendaryBeastmasterTanks { get; set; } = false;
 
     /// <summary>
-    /// Forks learned to sit the other way round from what the walker believed ("board:move"), when a space of the other
-    /// side's type opened. Toggles on top of <c>CrucibleWalkPlan.KnownFlippedForks</c>. Empty by default: a list default
-    /// with items would be appended to on every load.
+    /// Legendary goal only: shared tanking — whoever has more HP to spare holds the enemy (the beastmaster Challenges
+    /// while at 50%+ and healthier than the familiar; the familiar is Snarled back in otherwise). Overrides
+    /// <see cref="CrucibleLegendaryBeastmasterTanks"/> when on.
     /// </summary>
-    public List<string> CrucibleFlippedForks { get; set; } = [];
+    public bool CrucibleLegendarySharedTank { get; set; } = false;
+
+    /// <summary>
+    /// Forks learned to sit the other way round from the game data's left/right ("board:move"): a space of the sibling's
+    /// type opened right where the walker aimed. A fresh key (the old "CrucibleFlippedForks" learned Board 1 move 3 from
+    /// a lane-crossing mistake, 2026-10-27). Empty by default: a list default with items would be appended to on load.
+    /// </summary>
+    public List<string> CrucibleLearnedForkSides { get; set; } = [];
 
     /// <summary>The three beasts that carry (Bestiary numbers, 0 = the highest rank not already chosen).</summary>
     public int[] CrucibleCoreTeam { get; set; } = [0, 0, 0];
@@ -147,6 +154,20 @@ public sealed class BeastmasterConfig
 
     /// <summary>Autopilot: also take beast gear from the spoils (it helps you survive; costs Nameday Attire).</summary>
     public bool CrucibleLootTakeItems { get; set; }
+
+    /// <summary>
+    /// Autopilot: also take Crucible items (potions, crucible ash, reraisers, tomes…; never beast feed) from the spoils,
+    /// up to the ten the game holds. Holding them costs nothing — only using one costs Economic Ethos — and ending with
+    /// ten pays Habitual Hoarder (1,000 on Board 2 and up). Clear and Level goals only (user, 2026-10-27): Legendary
+    /// leaves potions alone.
+    /// </summary>
+    public bool CrucibleLootTakePotions { get; set; } = true;
+
+    /// <summary>
+    /// Autopilot, Clear and Level goals: drink the strongest held beast potion or crucible ash at 40% HP or less (through
+    /// the board HUD's item menu). Costs Economic Ethos (750), which those runs are not chasing.
+    /// </summary>
+    public bool CrucibleUsePotions { get; set; } = true;
 
     /// <summary>
     /// Loop: runs still to start. With the autopilot on, after a run Daedalus talks to Lauda (you must be next to

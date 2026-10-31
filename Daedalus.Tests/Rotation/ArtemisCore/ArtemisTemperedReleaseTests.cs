@@ -41,6 +41,31 @@ public class ArtemisTemperedReleaseTests
         => Assert.Equal(expected, DamageModule.ShouldTemperedRelease(
             true, true, DamageModule.WespeBestiaryNo, partingBlowEnabled, 1f, Long));
 
+    /// <summary>In the Crucible, Final Sting goes as the kill shot even with Parting Blow off.</summary>
+    [Fact]
+    public void FinalStingFinishesALowTargetInTheCrucible()
+    {
+        Assert.True(DamageModule.ShouldTemperedRelease(true, true, DamageModule.WespeBestiaryNo, false, 1f, Long, stingFinisher: true));
+        Assert.False(DamageModule.ShouldTemperedRelease(true, true, DamageModule.WespeBestiaryNo, false, 1f, Long, stingFinisher: false));
+        Assert.False(DamageModule.ShouldTemperedRelease(true, ready: false, DamageModule.WespeBestiaryNo, false, 1f, Long, stingFinisher: true));
+    }
+
+    /// <summary>In the Crucible a Wespe's charge is kept for the sting (Borrow would spend it); elsewhere it is not.</summary>
+    [Fact]
+    public void AWespeOnABoardKeepsItsChargeForTheSting()
+    {
+        Assert.True(DamageModule.SavesFinalSting(onBoard: true, DamageModule.WespeBestiaryNo));
+        Assert.False(DamageModule.SavesFinalSting(onBoard: false, DamageModule.WespeBestiaryNo));
+        Assert.False(DamageModule.SavesFinalSting(onBoard: true, DamageModule.SabotenderBestiaryNo));
+        Assert.False(DamageModule.SavesFinalSting(onBoard: true, bestiaryNo: null));
+    }
+
+    /// <summary>The finisher flag only matters for Wespe.</summary>
+    [Fact]
+    public void TheFinisherFlagLeavesOtherBeastsAlone()
+        => Assert.False(DamageModule.ShouldTemperedRelease(
+            true, true, DamageModule.SabotenderBestiaryNo, false, 0.3f, Long, stingFinisher: true));
+
     /// <summary>Hypodermic Hustle puts a DoT on the beastmaster.</summary>
     [Theory]
     [InlineData(0.90f, true)]

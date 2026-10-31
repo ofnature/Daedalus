@@ -61,4 +61,23 @@ public static class ArtemisFamiliarKeeper
 
         return None;
     }
+
+    /// <summary>
+    /// True when the roster is known and no horn but the out beast's own (<paramref name="outSlot"/>) is ready: a
+    /// retreat now would leave the beastmaster with no familiar until a horn comes back. In combat a horn's cooldown
+    /// starts when its beast retreats; Korha 2026-10-27 (Board 1 boss): three falling retreats in 40s put all three
+    /// horns down, and the boss had her alone for 70s, 58% to 6%. False while the roster is unread (no evidence).
+    /// </summary>
+    public static bool NoReplacementHorn(bool rosterKnown, int outSlot, ReadOnlySpan<bool> usable)
+    {
+        if (!rosterKnown)
+            return false;
+        for (var i = 0; i < usable.Length; i++)
+        {
+            if (i != outSlot && usable[i])
+                return false;
+        }
+
+        return true;
+    }
 }

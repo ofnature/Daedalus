@@ -125,7 +125,8 @@ public static class CrucibleRoutePlan
     /// <para>
     /// For Legendary (<paramref name="legendary"/>) a campsite is last (resting costs Sleepless Survival, 1,000), then a
     /// random space (it can turn out to be a campsite), and a shop beats a treasure (a coffer of only beast gear costs
-    /// Nameday Attire; a shop is left without buying).
+    /// Nameday Attire; a shop is left without buying). An elite in <see cref="LegendaryElites"/> beats everything: its
+    /// 800 points are part of that board's Legendary.
     /// </para>
     /// </summary>
     public static int SuggestedSide(
@@ -142,10 +143,21 @@ public static class CrucibleRoutePlan
             CrucibleStageType.Enemy => 50 + Coverage(index, s.Battle, TeamFor(index, board, s.Battle, isCaptured)),
             CrucibleStageType.Random => legendary ? 10 : 40,
             CrucibleStageType.Shop => legendary ? 40 : 30,
-            CrucibleStageType.Elite => 20 + Coverage(index, s.Battle, TeamFor(index, board, s.Battle, isCaptured)),
+            CrucibleStageType.Elite => (legendary && IsLegendaryElite(index, s.Battle) ? 200 : 20)
+                                       + Coverage(index, s.Battle, TeamFor(index, board, s.Battle, isCaptured)),
             _ => 0,
         };
 
         return fork.OrderByDescending(Rank).ThenBy(s => s.Side).First().Side;
     }
+
+    /// <summary>
+    /// Elites Legendary goes out of its way for, by BNpcName. Zu piece (Third Board, move 4L): the community route takes it
+    /// over the Catoblepas for its 800 points (Ponzi's Third Board guide, 2026-09-22). Board 2's elite stays skipped — its
+    /// Legendary came by the Wyvern.
+    /// </summary>
+    public static readonly IReadOnlySet<uint> LegendaryElites = new HashSet<uint> { 14572 };
+
+    private static bool IsLegendaryElite(CrucibleIndex index, int battle)
+        => index.EnemiesInBattle(battle).Any(e => LegendaryElites.Contains(e.NameId));
 }

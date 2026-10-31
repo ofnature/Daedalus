@@ -576,4 +576,29 @@ public class CrucibleBonusTrackerTests
         Assert.Equal(1303, 17_500 - realScore);
         Assert.Equal(17_500 - s.ProjectedSure, s.GapSure);
     }
+
+    [Fact]
+    public void ZeroHpInCombatWithNoRetreat_IsAKnockOut() =>
+        Assert.True(CrucibleBonusRules.IsKnockOut(hpZero: true, inCombat: true, secondsSinceRetreat: null));
+
+    /// <summary>2026-10-30 14:16:09: Wespe read 0 HP 0.3 s after Tempered Release (Final Sting) — out for the battle, not KO'd.</summary>
+    [Fact]
+    public void ZeroHpRightAfterFinalSting_IsNotAKnockOut() =>
+        Assert.False(CrucibleBonusRules.IsKnockOut(hpZero: true, inCombat: true, secondsSinceRetreat: 0.3f));
+
+    [Fact]
+    public void ZeroHpRightAfterPartingBlow_IsARetreat() =>
+        Assert.False(CrucibleBonusRules.IsKnockOut(hpZero: true, inCombat: true, secondsSinceRetreat: 0.2f));
+
+    [Fact]
+    public void ZeroHpLongAfterPartingBlow_IsAKnockOut() =>
+        Assert.True(CrucibleBonusRules.IsKnockOut(true, true, CrucibleBonusRules.RetreatExplainsZeroHpSeconds + 0.5f));
+
+    [Fact]
+    public void ZeroHpAfterTheBattle_IsNotAKnockOut() =>
+        Assert.False(CrucibleBonusRules.IsKnockOut(hpZero: true, inCombat: false, secondsSinceRetreat: null));
+
+    [Fact]
+    public void HpAboveZero_IsNeverAKnockOut() =>
+        Assert.False(CrucibleBonusRules.IsKnockOut(hpZero: false, inCombat: true, secondsSinceRetreat: null));
 }

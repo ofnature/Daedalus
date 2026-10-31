@@ -144,14 +144,83 @@ public class CrucibleRouteTests
         Assert.Equal(1, CrucibleRoutePlan.SuggestedSide(Index, Board1Board, Fork(7), _ => true, legendary: true)); // 7L treasure
     }
 
-    /// <summary>Board 1 move 3 is known to be the other way round (Korha 2026-10-27); a learned entry toggles it back.</summary>
+    // Board 3's move 4: the Zu piece elite (battle 16) or the catoblepas (battle 17).
+    private static readonly CrucibleStage[] Board3Move4 =
+    [
+        new(4, 1, CrucibleStageType.Elite, 16, []),
+        new(4, 2, CrucibleStageType.Enemy, 17, []),
+    ];
+
+    private static readonly CrucibleBoard Board3Board = new(3, 0, 0, "Third Board of the Unbroken", 50, [21, 14, 15, 16, 17, 18, 19]);
+
+    private static readonly CrucibleIndex Board3Index = new(
+        [Board3Board],
+        [
+            Enemy(14572, "zu piece", 16, CrucibleElement.Blunt),
+            Enemy(14577, "catoblepas piece", 17, CrucibleElement.Blunt),
+        ]);
+
+    /// <summary>Third Board Legendary takes the Zu: the community route counts on its 800 points.</summary>
     [Fact]
-    public void Board1Move3IsAKnownFlippedFork()
+    public void LegendaryTakesTheZuElite()
+        => Assert.Equal(1, CrucibleRoutePlan.SuggestedSide(Board3Index, Board3Board, Board3Move4, _ => true, legendary: true));
+
+    /// <summary>Clear and Level keep the easier normal enemy.</summary>
+    [Fact]
+    public void ClearAndLevelKeepTheCatoblepas()
+        => Assert.Equal(2, CrucibleRoutePlan.SuggestedSide(Board3Index, Board3Board, Board3Move4, _ => true));
+
+    /// <summary>The Zu wins even when the catoblepas is the one the beasts cover.</summary>
+    [Fact]
+    public void LegendaryTakesTheZuEvenUncovered()
     {
-        Assert.True(CrucibleWalkPlan.IsForkFlipped(CrucibleWalkPlan.ForkKey(1, 3), null));
-        Assert.False(CrucibleWalkPlan.IsForkFlipped(CrucibleWalkPlan.ForkKey(1, 3), new List<string> { "1:3" }));
-        Assert.False(CrucibleWalkPlan.IsForkFlipped(CrucibleWalkPlan.ForkKey(1, 7), null));
+        var board3 = new CrucibleIndex(
+            [Board3Board],
+            [Enemy(14572, "zu piece", 16, CrucibleElement.Fire), Enemy(14577, "catoblepas piece", 17, CrucibleElement.Blunt)]);
+        var bluntOnly = new HashSet<int> { 26 }; // Buffalo
+        Assert.Equal(1, CrucibleRoutePlan.SuggestedSide(board3, Board3Board, Board3Move4, bluntOnly.Contains, legendary: true));
+    }
+
+    /// <summary>Any other elite stays behind a normal enemy on Legendary (Board 2's came by the Wyvern).</summary>
+    [Fact]
+    public void LegendarySkipsOtherElites()
+    {
+        var other = new CrucibleIndex(
+            [Board3Board],
+            [Enemy(14999, "other elite", 16, CrucibleElement.Blunt), Enemy(14577, "catoblepas piece", 17, CrucibleElement.Blunt)]);
+        Assert.Equal(2, CrucibleRoutePlan.SuggestedSide(other, Board3Board, Board3Move4, _ => true, legendary: true));
+    }
+
+    /// <summary>
+    /// No fork is assumed the other way round any more — Board 1 move 3 never was, the walker crossed its campsite on the
+    /// way (2026-10-27). Only a learned entry flips one.
+    /// </summary>
+    [Fact]
+    public void OnlyALearnedForkIsFlipped()
+    {
+        Assert.False(CrucibleWalkPlan.IsForkFlipped(CrucibleWalkPlan.ForkKey(1, 3), null));
         Assert.True(CrucibleWalkPlan.IsForkFlipped(CrucibleWalkPlan.ForkKey(2, 4), new List<string> { "2:4" }));
+    }
+
+    /// <summary>From 2L (x −705, z −16.5) to 3R (x −695, z −25.5): across to the east lane halfway down first.</summary>
+    [Fact]
+    public void AnotherLaneIsReachedHalfwayDownFirst()
+    {
+        var wp = CrucibleWalkPlan.LaneWaypoint(new System.Numerics.Vector3(-705f, 0f, -16.5f), new System.Numerics.Vector3(-695f, 0f, -25.5f));
+        Assert.Equal(-695f, wp.X, 2);
+        Assert.Equal(-21f, wp.Z, 2);
+        var same = new System.Numerics.Vector3(-705f, 0f, -25.5f);
+        Assert.Equal(same, CrucibleWalkPlan.LaneWaypoint(new System.Numerics.Vector3(-705f, 0f, -16.5f), same)); // same lane: straight
+    }
+
+    /// <summary>A wrong space opening near our own spot is a flipped fork; opening near the sibling's spot was a crossing.</summary>
+    [Fact]
+    public void AWrongSpaceOnTheWayIsACrossingNotAFlip()
+    {
+        var treasure = new System.Numerics.Vector3(-695f, 0f, -25.5f);
+        var camp = new System.Numerics.Vector3(-705f, 0f, -25.5f);
+        Assert.False(CrucibleWalkPlan.OpenedAtTarget(new System.Numerics.Vector3(-704.4f, 0f, -24.5f), treasure, camp)); // 19:45 run
+        Assert.True(CrucibleWalkPlan.OpenedAtTarget(new System.Numerics.Vector3(-695.5f, 0f, -25f), treasure, camp));
     }
 
     /// <summary>Aimed for the treasure and a campsite (its sibling) opened: the fork is the other way round. The

@@ -91,6 +91,36 @@ public class ArtemisGaugeTests
     public void Rally_WithNoFamiliarDoesNotWaitForDiamonds()
         => Assert.True(ArtemisCooldownRules.ShouldRallyFromGauge(true, true, 0, masteredInstinct: 0, 50, hasFamiliar: false));
 
+    /// <summary>Korha 2026-10-31: a beast left on two diamonds and Rally went out for 208 TP; the next beast is coming.</summary>
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(3)]
+    public void Rally_WithDiamondsBankedWaitsForTheNextFamiliar(int mastered)
+        => Assert.False(ArtemisCooldownRules.ShouldRallyFromGauge(
+            true, true, 0, mastered, 50, hasFamiliar: false, secondsWithoutFamiliar: 3));
+
+    [Fact]
+    public void Rally_WithDiamondsBankedGivesUpWhenNoFamiliarComes()
+        => Assert.True(ArtemisCooldownRules.ShouldRallyFromGauge(
+            true, true, 0, 2, 50, hasFamiliar: false,
+            secondsWithoutFamiliar: ArtemisCooldownRules.RallyHoldForFamiliarSeconds));
+
+    [Fact]
+    public void Rally_WithNothingBankedDoesNotWaitForAFamiliar()
+        => Assert.True(ArtemisCooldownRules.ShouldRallyFromGauge(
+            true, true, 0, 0, 50, hasFamiliar: false, secondsWithoutFamiliar: 1));
+
+    [Fact]
+    public void Rally_HoldAppliesBelowFifty()
+        => Assert.False(ArtemisCooldownRules.ShouldRallyFromGauge(
+            true, true, 0, 2, 40, hasFamiliar: false, secondsWithoutFamiliar: 5));
+
+    [Fact]
+    public void Rally_FamiliarBackWithThreeAndAHalfLitGoes()
+        => Assert.True(ArtemisCooldownRules.ShouldRallyFromGauge(
+            true, true, 0, 3, 50, hasFamiliar: true, halfLit: true, secondsWithoutFamiliar: 0));
+
     [Fact]
     public void Rally_NotWhenOffOrOnCooldown()
     {

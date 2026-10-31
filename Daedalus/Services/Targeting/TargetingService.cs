@@ -830,16 +830,56 @@ public sealed class TargetingService : ITargetingService
             return;
         }
 
+        var currentId = _targetManager.Target is IBattleNpc held ? held.GameObjectId : 0UL;
+
+        // Bound by something that lets go only when it dies (Siren's Crawling Piece): kill it, ahead of everything.
+        var binder = CombatRetargetPolicy.SourceToKill(player.StatusList.Select(s => (s.StatusId, (ulong)s.SourceId)));
+        if (binder != 0 && TryResolveValidEnemyInRange(binder, CombatRetargetMaxRangeY, player, applyLineOfSightFilter: false) is { } bindingEnemy)
+        {
+            if (bindingEnemy.GameObjectId != currentId)
+                SetGameHardTarget(bindingEnemy);
+            return;
+        }
+
         RefreshFightHints();
         if (_preferredByFight.Length == 0)
             return;
 
-        var currentId = _targetManager.Target is IBattleNpc held ? held.GameObjectId : 0UL;
+        // The fight module names these enemies, so they are in the fight by definition: no "is it fighting our side"
+        // filter. That filter passed over Siren's Crawling Piece — Minerva's first priority all fight — while it held
+        // Korha bound (2026-10-27): it grabs on contact and need not be in combat or targeting anyone.
+        var legendaryOnBoard = _configuration.Beastmaster.CrucibleGoal == CrucibleTeamGoal.Legendary
+                               && Daedalus.Services.Beastmaster.CrucibleTracker.Current.OnBoard;
         var pick = FightTargetHints.FirstPreferred(_preferredByFight, id =>
-            TryResolveValidEnemyInRange(id, CombatRetargetMaxRangeY, player) is { } e
-            && ShouldIncludeEnemyForTargeting(e, currentId, player) ? e : null);
-        if (pick != null && CombatRetargetPolicy.ShouldSwitchToPriority(currentId, pick.GameObjectId))
-            SetGameHardTarget(pick);
+            TryResolveValidEnemyInRange(id, CombatRetargetMaxRangeY, player) is { } enemy
+            && !CombatRetargetPolicy.HoldOffCrawler(legendaryOnBoard, enemy.NameId, enemy.TargetObjectId == player.GameObjectId,
+                HasGrabbed(enemy.GameObjectId))
+                ? enemy
+                : null);
+        if (pick == null || !CombatRetargetPolicy.ShouldSwitchToPriority(currentId, pick.GameObjectId))
+            return;
+
+        // A boss on its last few percent is finished first; its adds can wait a GCD or two.
+        if (currentId != 0
+            && TryResolveValidEnemyInRange(currentId, CombatRetargetMaxRangeY, player) is { MaxHp: > 0 } heldEnemy
+            && ShouldIncludeEnemyForTargeting(heldEnemy, currentId, player)
+            && CombatRetargetPolicy.ShouldFinishHeldTarget((float)heldEnemy.CurrentHp / heldEnemy.MaxHp, heldEnemy.MaxHp, pick.MaxHp))
+            return;
+
+        SetGameHardTarget(pick);
+    }
+
+    /// <summary>Someone wears a status from this enemy that lasts until it dies (a crawler's Bind): it has grabbed them.</summary>
+    private bool HasGrabbed(ulong enemyId)
+    {
+        foreach (var obj in _objectTable)
+        {
+            if (obj is IBattleChara chara
+                && chara.StatusList.Any(s => s.SourceId == enemyId && CombatRetargetPolicy.UntilSourceDiesStatusIds.Contains(s.StatusId)))
+                return true;
+        }
+
+        return false;
     }
 
     private bool IsCombatRetargetScenario(IPlayerCharacter player) =>

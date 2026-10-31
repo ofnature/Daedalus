@@ -231,7 +231,27 @@ public sealed class Artemis : BaseMeleeDpsRotation<IArtemisContext, IArtemisModu
             log: Log,
             trickPairing: _pairing,
             activeBattlehornRow: _battlehorns.Active?.PactNameId ?? 0,
-            gauge: _gaugeReader.TryRead());
+            gauge: _gaugeReader.TryRead(),
+            noReplacementHorn: NoReplacementHorn(player));
+
+    /// <summary>
+    /// Whether no horn but the out beast's own is ready (see ArtemisFamiliarKeeper.NoReplacementHorn). Read from the
+    /// horns' cooldowns, not the press status: the status also says "no" during an animation lock, which made the check
+    /// flicker in the weave slot where the retreat is decided (field 2026-10-27, logged "held" right after a retreat).
+    /// </summary>
+    private bool NoReplacementHorn(IPlayerCharacter player)
+    {
+        System.Span<bool> usable = stackalloc bool[ArtemisBattlehornState.SlotCount];
+        for (var i = 0; i < usable.Length; i++)
+        {
+            var horn = BSTActions.Battlehorns[i];
+            usable[i] = !_battlehorns[i].IsEmpty
+                && ActionAvailability.MeetsLevelAndLearned(player.Level, ActionService, horn)
+                && ActionService.IsActionReady(horn.ActionId);
+        }
+
+        return ArtemisFamiliarKeeper.NoReplacementHorn(_battlehorns.IsPopulatedFromGame, _lastOutHorn, usable);
+    }
 
     /// <inheritdoc />
     protected override void SyncDebugState(IArtemisContext context)
@@ -351,7 +371,12 @@ public sealed class Artemis : BaseMeleeDpsRotation<IArtemisContext, IArtemisModu
         var slot = ArtemisFamiliarKeeper.PickHorn(
             Configuration.Beastmaster.KeepFamiliarOut, context.HasFamiliar, canAct,
             (now - _familiarGoneSinceUtc).TotalSeconds, (now - _lastHornTryUtc).TotalSeconds,
-            _lastOutHorn, usable);
+            // On a Crucible board before the fight, the first horn: its order is set per battle (Legendary: poison first
+            // or Mantis first), and the beast last out belonged to the previous battle.
+            Daedalus.Services.Beastmaster.CrucibleTracker.Current.OnBoard && !context.InCombat
+                ? ArtemisFamiliarKeeper.None
+                : _lastOutHorn,
+            usable);
         if (slot == ArtemisFamiliarKeeper.None)
             return false;
 

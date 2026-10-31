@@ -154,6 +154,14 @@ public static class FFXIVConstants
     // the player handle the mechanic without Daedalus retrying casts every frame.
     // Covers PvE encounters that reuse the PvP forced-march status IDs. Verify against
     // Lumina Status sheet or in-game /xldata if a fight's gate stops firing.
+    /// <summary>
+    /// The march-setup debuffs (Forward March 2161, About Face 2162, Left Face 2163, Right Face 2164) and the march
+    /// itself (Forced March 1257): which way the character faces while they run decides where the march walks it, and
+    /// the boss engine turns it onto a direction that stays on the floor (Minerva, Siren / Voidmancer, 2026-10-27: a
+    /// march walked Korha off the edge). Nothing of ours may turn the character meanwhile — treated like a gaze.
+    /// </summary>
+    public static readonly HashSet<uint> MarchFacingStatusIds = new() { 1257, 2161, 2162, 2163, 2164 };
+
     /// <summary>Status IDs that force the player into involuntary directional movement.</summary>
     public static readonly HashSet<uint> ForcedMovementStatusIds = new()
     {

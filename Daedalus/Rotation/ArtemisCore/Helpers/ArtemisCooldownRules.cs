@@ -93,11 +93,21 @@ public static class ArtemisCooldownRules
     /// (2026-10-25): three diamonds → an intentional combo → Rally → the other affinity's skill within 7 s. Rallied
     /// before the half is lit, the 250-TP axe is spent LIGHTING the half and nothing is left to finish it.
     /// </para>
+    /// <para>
+    /// With no familiar but diamonds banked, the beast is usually only between swaps (a retreat, then the next one
+    /// summoned), so Rally waits up to <see cref="RallyHoldForFamiliarSeconds"/> for it. Korha 2026-10-31: a beast left
+    /// on two diamonds, Rally went straight out for 208 TP, and its two-minute recast cost the next finisher.
+    /// </para>
     public static bool ShouldRallyFromGauge(
-        bool enabled, bool ready, int tp, int masteredInstinct, byte level, bool hasFamiliar, bool halfLit = false)
+        bool enabled, bool ready, int tp, int masteredInstinct, byte level, bool hasFamiliar, bool halfLit = false,
+        double secondsWithoutFamiliar = double.MaxValue)
         => enabled && ready && tp < ArtemisGauge.MinSpendTp
-           && (!hasFamiliar
-               || (masteredInstinct >= RallyMinMasteredFor(level) && (level < UpgradeLevel || halfLit)));
+           && (hasFamiliar
+               ? masteredInstinct >= RallyMinMasteredFor(level) && (level < UpgradeLevel || halfLit)
+               : masteredInstinct == 0 || secondsWithoutFamiliar >= RallyHoldForFamiliarSeconds);
+
+    /// <summary>How long banked diamonds keep Rally waiting for a familiar to come back before it takes the TP anyway.</summary>
+    public const double RallyHoldForFamiliarSeconds = 20;
 
     /// <summary>
     /// The infinitive combo's window is open: level 50, half the Compass lit, and either the 250 TP already in hand or
@@ -221,10 +231,13 @@ public static class ArtemisCooldownRules
     /// <para>Not with a tankbuster on its way either: the familiar is kept to take it.</para>
     /// <para><paramref name="fallingLine"/> is <see cref="FallingLine"/>: the flat line, raised for a familiar being hit hard.</para>
     /// <para>A raidwide Cover can take (<paramref name="secondsUntilRaidwide"/>) keeps it too, like a tankbuster.</para>
+    /// <para>Not when no other horn is ready (<paramref name="replacementReady"/>): the retreat would leave the
+    /// beastmaster alone until a horn comes back, so the familiar stays and soaks.</para>
     public static bool IsFamiliarFalling(
         bool enabled, bool onBoard, float familiarHpPct, float selfHpPct = 1f, float secondsUntilTankbuster = float.MaxValue,
-        float fallingLine = FamiliarFallingHpPct, float secondsUntilRaidwide = float.MaxValue)
+        float fallingLine = FamiliarFallingHpPct, float secondsUntilRaidwide = float.MaxValue, bool replacementReady = true)
         => enabled && onBoard && familiarHpPct > 0f && familiarHpPct < fallingLine
+           && replacementReady
            && selfHpPct > SelfCriticalHpPct
            && secondsUntilTankbuster > TankbusterLeadSeconds
            && secondsUntilRaidwide > RaidwideLeadSeconds;
@@ -333,6 +346,71 @@ public static class ArtemisCooldownRules
     /// </summary>
     public static bool ShouldChallengeToTank(bool enabled, bool onBoardInBattle, bool ready, bool enemyOnBeastmaster, float selfHpPct)
         => enabled && onBoardInBattle && ready && !enemyOnBeastmaster && selfHpPct > SelfCriticalHpPct;
+
+    /// <summary>Third Board's Siren Piece, her Crawling Piece add (BNpcName rows) and her Summon cast (2.7s).</summary>
+    public const uint SirenNameId = 14583, CrawlingPieceNameId = 14586, SirenSummonActionId = 48567;
+
+    /// <summary>
+    /// The Siren on Legendary (user 2026-10-30): the familiar holds her from the moment she casts Summon until every
+    /// Crawling Piece is dead; the beastmaster holds her the rest of the time. A crawler goes for whoever holds the Siren
+    /// and binds on contact — Bind and Damage Down, which cost Unbeastable on the beastmaster (Minerva replay, Korha
+    /// 2026-10-30: with Diremite holding her the first crawler went for Diremite; with no familiar out the second went
+    /// for Korha).
+    /// </summary>
+    public static bool SirenFamiliarHolds(bool summonCasting, bool crawlerAlive) => summonCasting || crawlerAlive;
+
+    /// <summary>
+    /// Lingering Vantage, from Tempered Release: "Next Parting Blow will deal increased damage" (1,000 → 1,500). On the
+    /// beastmaster (Minerva replay 2026-10-31, STA+ 4614 on Korha after the release).
+    /// </summary>
+    public const uint LingeringVantageStatusId = 4614;
+
+    /// <summary>The Siren's Shambling Piece adds (Summon brings three, with one Crawling Piece).</summary>
+    public const uint ShamblingPieceNameId = 14585;
+
+    /// <summary>Zu piece (Third Board elite).</summary>
+    public const uint ZuNameId = 14572;
+
+    /// <summary>At or below this the Zu is close enough to dead for a release to finish it.</summary>
+    public const float ZuReleaseAtHpPct = 0.15f;
+
+    /// <summary>
+    /// Hold Tempered Release at the Zu: every egg it breaks makes the Zu stronger, and a release can be an AoE (Ponzi's
+    /// Third Board guide: "not going to use behemoth meteor unless it's about to kill the zoo"). Parting Blow waits on an
+    /// owed release, so it is held too. Not when the familiar is falling — its retreat comes first.
+    /// </summary>
+    public static bool HoldReleaseAtZu(bool onBoard, uint targetNameId, float targetHpPct, bool familiarFalling)
+        => onBoard && targetNameId == ZuNameId && targetHpPct > ZuReleaseAtHpPct && !familiarFalling;
+
+    /// <summary>Shared tanking: the beastmaster takes the enemy only while at or above this much HP…</summary>
+    public const float SharedTankSelfFloorPct = 0.50f;
+
+    /// <summary>…and only off a familiar this low: one that is about to fall.</summary>
+    public const float SharedTakeOverFamiliarBelowPct = 0.30f;
+
+    /// <summary>
+    /// Shared tanking (Legendary, user 2026-10-27): the FAMILIAR holds the enemy by default — its Cover takes what lands
+    /// on the beastmaster, Damage Down / Vulnerability Up included, and those cost Unbeastable (1,250) the moment the
+    /// beastmaster wears one (user: "the vuln stacks need a pet to tank them"; field 2026-10-27: Korha's debuffs came
+    /// from Death Throes, Burst, Dark Orb, Arm of Purgatory, Buffet…). The beastmaster takes over only to save a familiar
+    /// about to fall (below <see cref="SharedTakeOverFamiliarBelowPct"/>, so No Beast Left Behind holds) while at or above
+    /// <see cref="SharedTankSelfFloorPct"/>, or when no familiar is standing (the only choice). Never critical.
+    /// </summary>
+    public static bool BeastmasterHoldsShared(float selfHpPct, bool familiarOut, float familiarHpPct)
+        => selfHpPct > SelfCriticalHpPct
+           && (!familiarOut || familiarHpPct <= 0f
+               || (selfHpPct >= SharedTankSelfFloorPct && familiarHpPct < SharedTakeOverFamiliarBelowPct));
+
+    /// <summary>
+    /// Shared tanking while the beastmaster holds: Snarl (Cover moves the beastmaster's damage onto the familiar) only
+    /// for a tankbuster or raidwide on its way, onto a familiar above the falling line. Critical never applies here:
+    /// <see cref="BeastmasterHoldsShared"/> hands the enemy back first.
+    /// </summary>
+    public static bool ShouldSnarlWhileHoldingShared(
+        bool enabled, bool ready, bool hasFamiliar, float familiarHpPct, float fallingLine,
+        float secondsUntilTankbuster, float secondsUntilRaidwide)
+        => enabled && ready && hasFamiliar && familiarHpPct >= fallingLine
+           && (secondsUntilTankbuster <= TankbusterLeadSeconds || secondsUntilRaidwide <= RaidwideLeadSeconds);
 
     /// <summary>Legendary with the beastmaster tanking: Snarl only to save a critical beastmaster (Selfless is spent then).</summary>
     public static bool ShouldSnarlWhileTanking(

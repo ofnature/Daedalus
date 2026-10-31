@@ -18,7 +18,8 @@ public enum CrucibleTeamGoal
 
     /// <summary>
     /// Score for Legendary: three beasts of one kin (Beast Squad III 4,250 + a Kin Gambit 750) on the roster and the horns,
-    /// and none of the things that cost a bonus: no beast gear, no rest, no shopping. Research 2026-10-27
+    /// and none of the things that cost a bonus: no beast gear, no rest, no shopping (but the last shop's items that make
+    /// ten held for Habitual Hoarder, when that pays more than Coin Clutcher). Research 2026-10-27
     /// (docs/crucible-legendary.md): with no familiar falling that is ~17,300 + HP on Board 1 against a 17,500 line.
     /// </summary>
     Legendary,
@@ -79,11 +80,16 @@ public static class CrucibleLevelPlan
     /// otherwise, when levelling, the core team; otherwise none (all Auto). For Legendary <paramref name="core"/> is the
     /// three-beast team, and a per-battle pick outside it is ignored (the roster holds only those three).
     /// </summary>
-    public static IReadOnlyList<int>? HornChoice(CrucibleTeamGoal goal, IReadOnlyList<int>? perBattle, IReadOnlyList<int> core)
+    /// <para>Legendary with no pick of the player's: the core in <see cref="LegendaryHornOrder"/> for the battle's lead
+    /// enemy (<paramref name="leadEnemyName"/>).</para>
+    public static IReadOnlyList<int>? HornChoice(
+        CrucibleTeamGoal goal, IReadOnlyList<int>? perBattle, IReadOnlyList<int> core, string? leadEnemyName = null)
     {
         var picked = perBattle != null && perBattle.Any(no => no != 0);
         if (goal == CrucibleTeamGoal.Legendary)
-            return picked && perBattle!.Where(no => no != 0).All(core.Contains) ? perBattle : core;
+            return picked && perBattle!.Where(no => no != 0).All(core.Contains)
+                ? perBattle
+                : LegendaryHornOrder(core, IsPoisonImmune(leadEnemyName));
         if (picked)
             return perBattle;
         return goal == CrucibleTeamGoal.Level ? core : null;
@@ -93,9 +99,48 @@ public static class CrucibleLevelPlan
     public const int LegendaryTeamSize = 3;
 
     /// <summary>
+    /// The "Bug team" (Bestiary numbers): Damselfly poisons, Mantis puts physical vulnerability on, Wespe's Final Sting
+    /// (2,000-3,000 potency) finishes. Meoni runs it on every Legendary board ("very overpowered"); vilekin, so it also
+    /// pays the Vilekin Gambit.
+    /// </summary>
+    public const int Damselfly = 44, Mantis = 16, Wespe = 10;
+
+    private static readonly int[] BugTeam = [Damselfly, Mantis, Wespe];
+
+    /// <summary>
+    /// Lead enemies (BNpcName, lower case, matched as a substring) that poison does not land on, so the Bug team leads
+    /// with Mantis. From Meoni's Legendary runs (2026-09): bone knight/bishop, banemite, Pas de Seul, Voidmancer, Golem,
+    /// Borgny. Everything else is treated as poisonable (the wiki lists most bosses as vulnerable to Poison).
+    /// </summary>
+    public static readonly IReadOnlyList<string> PoisonImmuneLeads =
+        ["bone knight", "bone bishop", "banemite", "pas de seul", "voidmancer", "golem", "borgny"];
+
+    /// <summary>Whether poison does not land on this lead enemy (<see cref="PoisonImmuneLeads"/>).</summary>
+    public static bool IsPoisonImmune(string? leadEnemyName)
+        => !string.IsNullOrEmpty(leadEnemyName)
+           && PoisonImmuneLeads.Any(n => leadEnemyName.Contains(n, StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>
+    /// The horn order for one battle. The Bug team goes Damselfly → Mantis → Wespe against a poisonable boss (poison,
+    /// vulnerability, then Final Sting into it) and Mantis → Wespe → Damselfly against a poison-immune one (Meoni);
+    /// anything else keeps its order.
+    /// </summary>
+    public static IReadOnlyList<int> LegendaryHornOrder(IReadOnlyList<int> team, bool poisonImmune)
+    {
+        if (!BugTeam.All(team.Contains))
+            return team;
+        int[] order = poisonImmune ? [Mantis, Wespe, Damselfly] : [Damselfly, Mantis, Wespe];
+        return order.Concat(team.Where(no => !BugTeam.Contains(no))).ToList();
+    }
+
+    /// <summary>
     /// The Legendary team: three captured beasts of ONE kin (the Kin Gambit), strongest first. The player's core picks
     /// lead when they are all one kin; otherwise the kin whose best three rank highest (capped at the board's rank sync,
-    /// since rank above it does nothing there), then the higher weakest member. Fewer than three when no kin has three.
+    /// since rank above it does nothing there), then the higher weakest member, then the Bug team. Within a kin the Bug
+    /// team's members go first among equal capped ranks.
+    /// <para>On Board 1 every beast syncs to 5, so every kin ties and the first kin in the list won: Goobbue, Buffalo,
+    /// Coeurl, with nothing to finish a boss (Korha 2026-10-27, died at Pas de Seul). The Bug team now wins that tie.</para>
+    /// Fewer than three when no kin has three.
     /// </summary>
     public static IReadOnlyList<int> LegendaryTeam(
         IReadOnlyList<int> chosen, IEnumerable<int> captured, Func<int, int> rankOf, int rankCap = MaxRank)
@@ -115,13 +160,16 @@ public static class CrucibleLevelPlan
                 .Take(LegendaryTeamSize)
                 .ToList();
 
-        return pool
+        var team = pool
             .GroupBy(x => x.Beast!.Classification)
-            .Select(g => g.OrderByDescending(x => rankOf(x.No)).ThenBy(x => x.No).Take(LegendaryTeamSize).Select(x => x.No).ToList())
+            .Select(g => g.OrderByDescending(x => Capped(x.No)).ThenByDescending(x => BugTeam.Contains(x.No))
+                .ThenByDescending(x => rankOf(x.No)).ThenBy(x => x.No).Take(LegendaryTeamSize).Select(x => x.No).ToList())
             .OrderByDescending(t => t.Count)
             .ThenByDescending(t => t.Sum(Capped))
             .ThenByDescending(t => t.Min(Capped))
+            .ThenByDescending(t => BugTeam.All(t.Contains))
             .FirstOrDefault() ?? [];
+        return LegendaryHornOrder(team, poisonImmune: false);
     }
 
     /// <summary>The toggles that turn the team into the wanted roster: leavers first (room for the joiners), then joiners in order.</summary>

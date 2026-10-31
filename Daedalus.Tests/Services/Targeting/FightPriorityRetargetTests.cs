@@ -63,4 +63,72 @@ public class FightPriorityRetargetTests
         // Nothing in reach.
         Assert.False(CombatRetargetPolicy.ShouldSwitchToPriority(currentHardTarget: 1, pick: 0));
     }
+
+    /// <summary>A boss on 8% is finished before its adds (Voidmancer 100k vs a 10k Zombie Piece).</summary>
+    [Fact]
+    public void A_nearly_dead_boss_is_finished_before_its_adds()
+    {
+        Assert.True(CombatRetargetPolicy.ShouldFinishHeldTarget(0.08f, heldMaxHp: 100_000, pickMaxHp: 10_000));
+        Assert.True(CombatRetargetPolicy.ShouldFinishHeldTarget(0.10f, 100_000, 10_000));
+    }
+
+    /// <summary>Above the line the adds still come first.</summary>
+    [Fact]
+    public void A_boss_with_more_left_still_yields_to_the_adds()
+        => Assert.False(CombatRetargetPolicy.ShouldFinishHeldTarget(0.25f, 100_000, 10_000));
+
+    /// <summary>
+    /// Two bosses of a size (the Tablitaur bulls) are never held: the fight's "fuller one first" balancing must keep
+    /// running, or the survivor enrages.
+    /// </summary>
+    [Fact]
+    public void A_low_partner_of_equal_size_is_not_held()
+        => Assert.False(CombatRetargetPolicy.ShouldFinishHeldTarget(0.05f, heldMaxHp: 60_000, pickMaxHp: 58_000));
+
+    /// <summary>A dead or unread target holds nothing.</summary>
+    [Fact]
+    public void A_dead_target_is_not_held()
+        => Assert.False(CombatRetargetPolicy.ShouldFinishHeldTarget(0f, 100_000, 10_000));
+
+    /// <summary>Bound by a Crawling Piece (Bind 5710 until it dies): its source is the enemy to kill.</summary>
+    [Fact]
+    public void The_crawler_that_binds_you_is_the_target()
+    {
+        Assert.Equal(0x4000F42EUL, CombatRetargetPolicy.SourceToKill([(2593u, 0x40000001UL), (5710u, 0x4000F42EUL)]));
+    }
+
+    /// <summary>Other statuses, or a bind with no source, point at nobody.</summary>
+    [Fact]
+    public void Other_statuses_name_no_target()
+    {
+        Assert.Equal(0UL, CombatRetargetPolicy.SourceToKill([(2518u, 0x40000002UL)])); // another Bind: not "until it dies"
+        Assert.Equal(0UL, CombatRetargetPolicy.SourceToKill([(5710u, 0xE0000000UL)]));
+        Assert.Equal(0UL, CombatRetargetPolicy.SourceToKill([]));
+    }
+
+    // --- the Siren's crawler on Legendary (user 2026-10-30): hold off until it has grabbed the familiar ---
+
+    private const uint Crawler = 14586;
+
+    /// <summary>Replay 2026-10-30: it went for Diremite and Korha walked up and struck it — Bind and Damage Down on Korha.</summary>
+    [Fact]
+    public void ACrawlerGoingForTheFamiliarIsLeftAlone() =>
+        Assert.True(CombatRetargetPolicy.HoldOffCrawler(true, Crawler, targetsPlayer: false, hasGrabbed: false));
+
+    [Fact]
+    public void ACrawlerThatHasGrabbedTheFamiliarIsKilled() =>
+        Assert.False(CombatRetargetPolicy.HoldOffCrawler(true, Crawler, targetsPlayer: false, hasGrabbed: true));
+
+    /// <summary>With no familiar out it comes for the beastmaster anyway: kill it at once.</summary>
+    [Fact]
+    public void ACrawlerComingForTheBeastmasterIsKilled() =>
+        Assert.False(CombatRetargetPolicy.HoldOffCrawler(true, Crawler, targetsPlayer: true, hasGrabbed: false));
+
+    [Fact]
+    public void OffLegendaryTheCrawlerIsKilledAsBefore() =>
+        Assert.False(CombatRetargetPolicy.HoldOffCrawler(false, Crawler, targetsPlayer: false, hasGrabbed: false));
+
+    [Fact]
+    public void OtherAddsAreNeverHeldOff() =>
+        Assert.False(CombatRetargetPolicy.HoldOffCrawler(true, 14585, targetsPlayer: false, hasGrabbed: false)); // shambler
 }

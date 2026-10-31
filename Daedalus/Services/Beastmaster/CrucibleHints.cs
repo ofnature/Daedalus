@@ -15,6 +15,12 @@ public static class CrucibleHints
     public static float SecondsUntilTankbuster { get; set; } = float.MaxValue;
 
     /// <summary>
+    /// The player paused the Crucible automation (autopilot, walker, loop, horn setter) — to do something by hand, e.g.
+    /// record using a potion or feeding (user, 2026-10-27). Combat is untouched. Not saved: a reload starts unpaused.
+    /// </summary>
+    public static bool AutomationPaused { get; set; }
+
+    /// <summary>
     /// Seconds until the next raidwide that Snarl's Cover can take; <see cref="float.MaxValue"/> when none is known or
     /// the next one is uncoverable (<c>ArtemisCooldownRules.UncoverableRaidwides</c>). Minerva
     /// ("Minerva.Hints.SecondsUntilRaidwide" + "NextRaidwideActionId") or BossMod's raidwide forecast.
@@ -28,4 +34,18 @@ public static class CrucibleHints
     /// Rupture). Empty when none, off a board, or with another boss engine.
     /// </summary>
     public static System.Collections.Generic.IReadOnlyList<ulong> TargetsToInterrupt { get; set; } = [];
+
+    /// <summary>
+    /// The Siren's adds are bunched and the hard target catches them all: the autopilot may use a Fang. Written by Artemis
+    /// on Legendary; 0 when not. Only trusted while <see cref="FangAimUtc"/> is fresh (the rotation stops writing off a
+    /// target).
+    /// </summary>
+    public static ulong FangTargetId { get; set; }
+
+    /// <summary>When <see cref="FangTargetId"/> was last written.</summary>
+    public static System.DateTime FangAimUtc { get; set; }
+
+    /// <summary>A Fang may go out now.</summary>
+    public static bool FangReady(System.DateTime now)
+        => FangTargetId != 0 && (now - FangAimUtc).TotalSeconds < 1.0;
 }

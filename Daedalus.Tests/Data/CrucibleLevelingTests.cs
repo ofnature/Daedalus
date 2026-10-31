@@ -117,10 +117,11 @@ public class CrucibleLevelingTests
     public void NothingCapturedAndNoCoreIsEmpty()
         => Assert.Empty(CrucibleLevelPlan.LevelRoster([], [], RankOf, cap: 10));
 
-    /// <summary>Legendary: three of ONE kin, strongest kin first (Wespe 25, Damselfly 8, Mantis 1 are all vilekin).</summary>
+    /// <summary>Legendary: three of ONE kin, strongest kin first (Wespe 25, Damselfly 8, Mantis 1 are all vilekin), in
+    /// the Bug team's horn order.</summary>
     [Fact]
     public void TheLegendaryTeamIsThreeOfOneKin()
-        => Assert.Equal([10, 44, 16], CrucibleLevelPlan.LegendaryTeam([0, 0, 0], Captured, RankOf));
+        => Assert.Equal([44, 16, 10], CrucibleLevelPlan.LegendaryTeam([0, 0, 0], Captured, RankOf));
 
     /// <summary>The player's core picks lead when they are one kin: Goobbue picked → the beastkin team.</summary>
     [Fact]
@@ -130,7 +131,42 @@ public class CrucibleLevelingTests
     /// <summary>Core picks of two kins cannot make a Gambit: the strongest kin is used instead.</summary>
     [Fact]
     public void LegendaryIgnoresMixedKinPicks()
-        => Assert.Equal([10, 44, 16], CrucibleLevelPlan.LegendaryTeam([30, 44, 0], Captured, RankOf));
+        => Assert.Equal([44, 16, 10], CrucibleLevelPlan.LegendaryTeam([30, 44, 0], Captured, RankOf));
+
+    /// <summary>Board 1 syncs everyone to 5, so every kin ties: the Bug team wins the tie (Korha 2026-10-27 got beastkin).</summary>
+    [Fact]
+    public void TheBugTeamWinsATieAtTheSync()
+    {
+        int[] captured = [44, 16, 10, 28, 30, 26, 1];
+        Assert.Equal([44, 16, 10], CrucibleLevelPlan.LegendaryTeam([0, 0, 0], captured, _ => 14, rankCap: 5));
+    }
+
+    /// <summary>Inside vilekin, Wespe beats Worm at the same capped rank: the Bug team's members go first.</summary>
+    [Fact]
+    public void BugMembersLeadTheirKinAtEqualRank()
+    {
+        var ranks = new Dictionary<int, int> { [44] = 14, [16] = 14, [10] = 8, [28] = 9 };
+        Assert.Equal([44, 16, 10], CrucibleLevelPlan.LegendaryTeam([0, 0, 0], [44, 16, 10, 28], no => ranks[no], rankCap: 5));
+    }
+
+    /// <summary>Per boss: poison first against a poisonable lead, Mantis first against a poison-immune one (Meoni).</summary>
+    [Fact]
+    public void BugTeamHornOrderFollowsPoisonImmunity()
+    {
+        int[] team = [44, 16, 10];
+        Assert.Equal([44, 16, 10], CrucibleLevelPlan.HornChoice(CrucibleTeamGoal.Legendary, null, team, "arch demon piece"));
+        Assert.Equal([16, 10, 44], CrucibleLevelPlan.HornChoice(CrucibleTeamGoal.Legendary, null, team, "Pas de Seul"));
+        Assert.Equal([16, 10, 44], CrucibleLevelPlan.HornChoice(CrucibleTeamGoal.Legendary, null, team, "bone knight"));
+        Assert.Equal([44, 16, 10], CrucibleLevelPlan.HornChoice(CrucibleTeamGoal.Legendary, null, team, null));
+    }
+
+    /// <summary>The player's own per-battle order is kept, and another team keeps its order.</summary>
+    [Fact]
+    public void HornOrderLeavesPlayerPicksAndOtherTeamsAlone()
+    {
+        Assert.Equal([10, 44, 16], CrucibleLevelPlan.HornChoice(CrucibleTeamGoal.Legendary, [10, 44, 16], [44, 16, 10], "Pas de Seul"));
+        Assert.Equal([30, 26, 5], CrucibleLevelPlan.HornChoice(CrucibleTeamGoal.Legendary, null, [30, 26, 5], "Pas de Seul"));
+    }
 
     /// <summary>The board's rank sync caps what a rank is worth: at a cap of 5 Wespe's 25 counts as 5.</summary>
     [Fact]
@@ -145,8 +181,9 @@ public class CrucibleLevelingTests
     public void LegendaryHornsStayInsideTheTeam()
     {
         IReadOnlyList<int> team = [10, 44, 16];
-        Assert.Equal(team, CrucibleLevelPlan.HornChoice(CrucibleTeamGoal.Legendary, [30, 0, 0], team));
+        IReadOnlyList<int> poisonFirst = [44, 16, 10]; // the Bug team, in its poison-first order
+        Assert.Equal(poisonFirst, CrucibleLevelPlan.HornChoice(CrucibleTeamGoal.Legendary, [30, 0, 0], team));
         Assert.Equal([16, 0, 0], CrucibleLevelPlan.HornChoice(CrucibleTeamGoal.Legendary, [16, 0, 0], team));
-        Assert.Equal(team, CrucibleLevelPlan.HornChoice(CrucibleTeamGoal.Legendary, null, team));
+        Assert.Equal(poisonFirst, CrucibleLevelPlan.HornChoice(CrucibleTeamGoal.Legendary, null, team));
     }
 }

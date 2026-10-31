@@ -75,6 +75,7 @@ public sealed class ArtemisContext : IArtemisContext
     public ArtemisInstinctTracker Instinct { get; }
     public bool HasFamiliar { get; }
     public Daedalus.Data.BstFamiliar? FamiliarBeast { get; }
+    public bool NoReplacementHorn { get; }
     public ArtemisTrickPairing TrickPairing { get; }
     public ArtemisGauge? Gauge { get; }
 
@@ -114,9 +115,11 @@ public sealed class ArtemisContext : IArtemisContext
         IPluginLog? log = null,
         ArtemisTrickPairing? trickPairing = null,
         uint activeBattlehornRow = 0,
-        ArtemisGauge? gauge = null)
+        ArtemisGauge? gauge = null,
+        bool noReplacementHorn = false)
     {
         Gauge = gauge;
+        NoReplacementHorn = noReplacementHorn;
         Player = player;
         InCombat = inCombat;
         IsMoving = isMoving;

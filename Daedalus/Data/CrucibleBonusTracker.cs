@@ -197,6 +197,19 @@ public static class CrucibleBonusRules
             || name.Equals("Vulnerability Up", StringComparison.OrdinalIgnoreCase);
     }
 
+    /// <summary>A Parting Blow or Tempered Release pressed this recently explains a familiar's HP reading 0 (it left).</summary>
+    public const float RetreatExplainsZeroHpSeconds = 3f;
+
+    /// <summary>
+    /// Whether a familiar's HP reaching 0 is a knockout. A retreat (Parting Blow), Wespe's Final Sting (its Tempered
+    /// Release: out for that battle only) and the end of a battle also take the familiar off the field with its HP
+    /// reading 0 — on 2026-10-28 every "knocked out" logged was one of those, and the result screen still paid No Beast
+    /// Left Behind.
+    /// </summary>
+    /// <param name="secondsSinceRetreat">Seconds since Parting Blow or Tempered Release was used, or null if neither has been.</param>
+    public static bool IsKnockOut(bool hpZero, bool inCombat, float? secondsSinceRetreat) =>
+        hpZero && inCombat && !(secondsSinceRetreat is { } s && s < RetreatExplainsZeroHpSeconds);
+
     /// <summary>The Beast Squad tier a roster of this size pays, or null (empty, or above the largest tier).</summary>
     public static CrucibleBonus? BeastSquadFor(int rosterSize) => rosterSize switch
     {

@@ -91,4 +91,19 @@ public class ArtemisFamiliarKeeperTests
 
     [Fact]
     public void OnByDefault() => Assert.True(new BeastmasterConfig().KeepFamiliarOut);
+
+    /// <summary>Korha 2026-10-27: every other horn on cooldown after retreats — no beast could replace the one out.</summary>
+    [Fact]
+    public void NoReplacementWhenOnlyTheOutBeastsHornIsReady()
+    {
+        Assert.True(ArtemisFamiliarKeeper.NoReplacementHorn(true, outSlot: 1, [false, true, false]));
+        Assert.True(ArtemisFamiliarKeeper.NoReplacementHorn(true, outSlot: 1, [false, false, false]));
+        Assert.False(ArtemisFamiliarKeeper.NoReplacementHorn(true, outSlot: 1, [false, true, true]));
+        Assert.False(ArtemisFamiliarKeeper.NoReplacementHorn(true, outSlot: ArtemisFamiliarKeeper.None, [true, false, false]));
+    }
+
+    /// <summary>An unread roster is no evidence: the retreat keeps working as before.</summary>
+    [Fact]
+    public void AnUnreadRosterNeverHoldsTheRetreat()
+        => Assert.False(ArtemisFamiliarKeeper.NoReplacementHorn(false, outSlot: 0, [false, false, false]));
 }

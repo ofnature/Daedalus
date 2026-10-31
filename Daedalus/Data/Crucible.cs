@@ -93,8 +93,10 @@ public sealed class CrucibleIndex
     /// <param name="itemNames">XBMItem names by row (column 11), for logs.</param>
     public CrucibleIndex(
         IEnumerable<CrucibleBoard> boards, IEnumerable<CrucibleEnemy> enemies, IEnumerable<int>? beastGear = null,
-        IReadOnlyDictionary<int, string>? itemNames = null, IReadOnlyDictionary<int, string>? itemEffects = null)
+        IReadOnlyDictionary<int, string>? itemNames = null, IReadOnlyDictionary<int, string>? itemEffects = null,
+        IEnumerable<int>? crucibleItems = null)
     {
+        CrucibleItems = (crucibleItems ?? []).ToHashSet();
         _itemEffects = itemEffects ?? new Dictionary<int, string>();
         Boards = boards.ToList();
         Enemies = enemies.ToList();
@@ -110,6 +112,9 @@ public sealed class CrucibleIndex
 
     /// <summary>XBMItem rows that are beast gear — what the autopilot takes from the spoils.</summary>
     public IReadOnlySet<int> BeastGear { get; }
+
+    /// <summary>XBMItem rows that are Crucible items (column 0 = 2: potions, ash, reraisers, tomes, sand…; not feed).</summary>
+    public IReadOnlySet<int> CrucibleItems { get; }
 
     private readonly IReadOnlyDictionary<int, string> _itemNames;
 

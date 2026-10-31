@@ -26,6 +26,12 @@ public interface IArtemisContext : IMeleeDpsRotationContext
     Daedalus.Data.BstFamiliar? FamiliarBeast { get; }
 
     /// <summary>
+    /// No other Battlehorn is ready to replace the familiar that is out, so a retreat would leave the beastmaster alone.
+    /// See <see cref="Helpers.ArtemisFamiliarKeeper.NoReplacementHorn"/>.
+    /// </summary>
+    bool NoReplacementHorn => false;
+
+    /// <summary>
     /// The job gauge this frame — TP, familiar TP, the instinct diamonds, what is lit on the Compass.
     /// Null when it could not be read; callers then fall back to inference.
     /// </summary>

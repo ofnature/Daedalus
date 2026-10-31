@@ -69,9 +69,78 @@ public sealed class CrucibleTeamWindow : Window
     {
         DrawAutoPilot();
         DrawGoal();
+        DrawBonuses();
         var screen = CrucibleRosterLoader.ScreenBoard();
         if (CrucibleTracker.Current.Board == null && _index.Boards.FirstOrDefault(b => b.Index == screen) is { } board)
             DrawStart(board);
+    }
+
+    /// <summary>
+    /// The live bonus tracker (<see cref="CrucibleBonusWatcher"/>): the projection against the Legendary line, then every
+    /// bonus the board pays — what is lost shows the moment it happens. Shown on a board and after it, until the next one.
+    /// </summary>
+    private void DrawBonuses()
+    {
+        if (CrucibleBonusWatcher.Tracker is not { } tracker)
+            return;
+
+        var s = tracker.Snapshot();
+        if (!ImGui.CollapsingHeader($"Bonuses — {tracker.Board.Name}##crucibleBonuses", ImGuiTreeNodeFlags.DefaultOpen))
+            return;
+
+        if (s.Died)
+            ImGui.TextColored(DaedalusTheme.StatusRed, $"Died: no bonuses; {s.PerformanceSoFar:N0} so far.");
+        else
+        {
+            ImGui.Text($"Sure {s.ProjectedSure:N0}   If kept {s.ProjectedIfKept:N0}");
+            if (s.GapIfKept is { } gap)
+            {
+                ImGui.SameLine();
+                if (gap > 0)
+                    ImGui.TextColored(DaedalusTheme.StatusRed, $"{gap:N0} short of Legendary even if kept");
+                else if (s.GapSure is > 0)
+                    ImGui.TextColored(DaedalusTheme.StatusYellow, $"Legendary if kept ({-gap:N0} over)");
+                else
+                    ImGui.TextColored(DaedalusTheme.StatusGreen, "Legendary is sure");
+            }
+
+            if (ImGui.IsItemHovered())
+                ImGui.SetTooltip($"Line {s.LegendaryLine:N0}. Performance if finished {s.PerformanceIfFinished:N0} (the board's\n"
+                                 + "least-paying route), plus bonuses. Your remaining-HP share is NOT included, so the real\n"
+                                 + "score is that much higher. Sure = bonuses that can no longer be lost.");
+        }
+
+        if (!ImGui.BeginTable("##crucibleBonusLines", 3, ImGuiTableFlags.SizingFixedFit))
+            return;
+
+        foreach (var line in s.Lines)
+        {
+            ImGui.TableNextRow();
+            ImGui.TableNextColumn();
+            var color = line.State switch
+            {
+                CrucibleBonusState.Lost => DaedalusTheme.StatusRed,
+                CrucibleBonusState.Earned => DaedalusTheme.StatusGreen,
+                CrucibleBonusState.AtRisk => DaedalusTheme.StatusYellow,
+                CrucibleBonusState.NotTracked => DaedalusTheme.TextSecondary,
+                _ => DaedalusTheme.TextPrimary,
+            };
+            ImGui.TextColored(color, CrucibleResultRules.Label(line.Bonus));
+            ImGui.TableNextColumn();
+            ImGui.Text($"{line.Points:N0}");
+            ImGui.TableNextColumn();
+            var state = line.State switch
+            {
+                CrucibleBonusState.DecidedAtEnd => "at the end",
+                CrucibleBonusState.AtRisk => "at risk",
+                CrucibleBonusState.NotTracked => "not tracked",
+                _ => line.State.ToString().ToLowerInvariant(),
+            };
+            var why = line.Reason == CrucibleBonusReason.None ? "" : $" — {line.Reason}";
+            ImGui.TextColored(DaedalusTheme.TextSecondary, state + why);
+        }
+
+        ImGui.EndTable();
     }
 
     /// <summary>What the run is for (Clear / Level / Legendary), and for Legendary who tanks. In the team window and the edge tab.</summary>
@@ -110,18 +179,23 @@ public sealed class CrucibleTeamWindow : Window
             return;
 
         ImGui.SameLine();
-        var tanks = config.CrucibleLegendaryBeastmasterTanks;
-        if (ImGui.Checkbox("You tank (Challenge)##crucibleLegendaryTank", ref tanks))
+        var tank = config.CrucibleLegendarySharedTank ? 2 : config.CrucibleLegendaryBeastmasterTanks ? 1 : 0;
+        ImGui.SetNextItemWidth(110f * Dalamud.Interface.Utility.ImGuiHelpers.GlobalScale);
+        if (ImGui.Combo("Tank##crucibleLegendaryTank", ref tank, "Familiars\0You\0Shared\0"))
         {
-            config.CrucibleLegendaryBeastmasterTanks = tanks;
+            config.CrucibleLegendaryBeastmasterTanks = tank == 1;
+            config.CrucibleLegendarySharedTank = tank == 2;
             _save();
         }
 
         if (ImGui.IsItemHovered())
-            ImGui.SetTooltip("Challenge whenever an enemy is not on you, so no familiar takes a hit: Selfless (+1,000) needs every\n"
-                             + "familiar at 100% HP at the end. Snarl then only covers you at 30% HP or less.\n"
-                             + "Off: the familiar tanks (Snarl on cooldown), which is what keeps you alive at low ranks.\n"
-                             + "Turn it on when your beastmaster's gear and the team's ranks can take the hits.");
+            ImGui.SetTooltip("Who holds the enemies on a Legendary run (nobody heals on one).\n"
+                             + "Familiars: Snarl on cooldown, the familiar tanks and covers you.\n"
+                             + "You: Challenge whenever an enemy is not on you, so the familiars end full for Selfless (+1,000);\n"
+                             + "  Snarl only covers you at 30% HP or less. Needs gear that can take the hits.\n"
+                             + "  (Damage Down / Vulnerability Up that land on you cost Unbeastable.)\n"
+                             + "Shared: the familiar tanks and covers you, so debuffs land on it (Unbeastable). You Challenge only\n"
+                             + "  to save a familiar about to fall (under 30%) while you are at 50%+, or when none is standing.");
     }
 
     public override void Draw()
@@ -408,7 +482,8 @@ public sealed class CrucibleTeamWindow : Window
                 BstFamiliars.All.Where(b => _isCaptured(b.BestiaryNo) == true).Select(b => b.BestiaryNo),
                 no => config.CrucibleRanks.GetValueOrDefault(no, 1), board.RankCap)
             : CoreTeam();
-        var horns = CrucibleHornPlan.Pick(_index, board, battle, pool, CrucibleLevelPlan.HornChoice(config.CrucibleGoal, chosen, carry));
+        var horns = CrucibleHornPlan.Pick(_index, board, battle, pool, CrucibleLevelPlan.HornChoice(config.CrucibleGoal, chosen, carry,
+            _index.EnemiesInBattle(battle).FirstOrDefault()?.Name));
         ImGui.TextColored(DaedalusTheme.TextSecondary, "Horns:");
         ImGui.SameLine();
         ImGui.Text(horns.Count == 0 ? "nobody left standing" : string.Join(" > ", horns.Select(p => Name(pool[p].PetId))));
@@ -479,6 +554,19 @@ public sealed class CrucibleTeamWindow : Window
     {
         DrawRecord();
         ImGui.SameLine();
+        var paused = CrucibleHints.AutomationPaused;
+        if (paused)
+            ImGui.PushStyleColor(ImGuiCol.Button, DaedalusTheme.StatusRed);
+        if (ImGui.Button(paused ? "Resume##cruciblePause" : "Pause##cruciblePause"))
+            CrucibleHints.AutomationPaused = !paused;
+        if (paused)
+            ImGui.PopStyleColor();
+        if (ImGui.IsItemHovered())
+            ImGui.SetTooltip(paused
+                ? "Paused: the autopilot, walker, loop and horn setter are holding. Combat still runs. Click to resume."
+                : "Hold the autopilot, walker, loop and horn setter so you can do things by hand (combat still runs) —\n"
+                  + "e.g. record using a potion or feeding. /dae crucible pause toggles it too. Not saved: a reload resumes.");
+        ImGui.SameLine();
         var config = _config();
         var on = config.CrucibleAutoPilot;
         if (ImGui.Checkbox("Autopilot##crucibleAuto", ref on))
@@ -489,7 +577,8 @@ public sealed class CrucibleTeamWindow : Window
 
         if (ImGui.IsItemHovered())
             ImGui.SetTooltip("Steps through the board: starts each battle once the horns are set, takes the spoils' tokens,\n"
-                             + "the first treasure, leaves shops without buying, rests the most hurt beast at a campsite and\n"
+                             + "the first treasure, buys at shops (see Use potions; Legendary: only to finish Habitual Hoarder at the\n"
+                             + "last shop), rests the most hurt beast at a campsite and\n"
                              + "closes the result. Walking the board (and so the forks) and any prompt it did not raise stay yours.\n"
                              + "Needs \"Set the Battlehorns before each battle\" on.");
 
@@ -502,8 +591,36 @@ public sealed class CrucibleTeamWindow : Window
         }
 
         if (ImGui.IsItemHovered())
-            ImGui.SetTooltip("Also take beast gear from the spoils (the first gear offered; potions and other items are left).\n"
+            ImGui.SetTooltip("Also take beast gear from the spoils (every piece offered).\n"
                              + "It helps you survive; it costs the Nameday Attire bonus.");
+
+        ImGui.SameLine();
+        var potions = config.CrucibleLootTakePotions;
+        if (ImGui.Checkbox("Take potions##cruciblePotions", ref potions))
+        {
+            config.CrucibleLootTakePotions = potions;
+            _save();
+        }
+
+        if (ImGui.IsItemHovered())
+            ImGui.SetTooltip("Take Crucible items from the spoils — beast potions, crucible ash, reraisers, tomes and the like (never\n"
+                             + "beast feed) — up to the ten the game holds. Holding them costs no bonus; only USING one costs Economic\n"
+                             + "Ethos (750). Ending with ten pays Habitual Hoarder (1,000) from Board 2 on.");
+
+        ImGui.SameLine();
+        var drink = config.CrucibleUsePotions;
+        if (ImGui.Checkbox("Use potions##crucibleUsePotions", ref drink))
+        {
+            config.CrucibleUsePotions = drink;
+            _save();
+        }
+
+        if (ImGui.IsItemHovered())
+            ImGui.SetTooltip("At 40% HP or less, drink the strongest held beast potion or crucible ash. It opens the item from the\n"
+                             + "board HUD and picks Use. With the autopilot on, shops are bought out of healing items, up to ten held.\n"
+                             + "Legendary: only as a last resort, at 20% HP or less. It costs Economic Ethos (750), but dying ends the\n"
+                             + "run with no bonuses at all. Legendary shops buy no potions: only the cheapest items that make ten held\n"
+                             + "for Habitual Hoarder, at the last shop, when that pays more than Coin Clutcher (and Rolling in Riches).");
 
         ImGui.SameLine();
         var walk = config.CrucibleWalkBoard;

@@ -24,27 +24,31 @@ public static class CrucibleHornPlan
     /// <summary>
     /// Up to three living team members for this battle, in horn order. The player's own picks for the battle
     /// (<paramref name="chosen"/>, Bestiary numbers, 0 = Auto) go first where they are on the team and standing; the
-    /// horns left over are filled with <see cref="Recommend"/>'s picks.
+    /// horns left over are filled with <see cref="Recommend"/>'s picks. A worn pick (under <see cref="WornHealthPct"/>)
+    /// gives way to a healthy beast wherever one is standing: field 2026-10-30, a Level run put the worn core (30%, 13%,
+    /// 10%) on every horn at the Third Board's Lakhamu and Siren while eleven beasts sat at full HP — nothing could hold
+    /// the enemy, the beastmaster tanked and died.
     /// </summary>
     public static IReadOnlyList<int> Pick(
         CrucibleIndex index, CrucibleBoard board, int battle, IReadOnlyList<CrucibleTeamMember> team, IReadOnlyList<int>? chosen = null)
     {
-        var picks = new List<int>(3);
+        var candidates = new List<int>();
         foreach (var petId in chosen ?? [])
         {
             var position = Enumerable.Range(0, team.Count)
-                .FirstOrDefault(i => petId != 0 && team[i].Alive && team[i].PetId == petId && !picks.Contains(i), -1);
-            if (position >= 0 && picks.Count < 3)
-                picks.Add(position);
+                .FirstOrDefault(i => petId != 0 && team[i].Alive && team[i].PetId == petId && !candidates.Contains(i), -1);
+            if (position >= 0 && candidates.Count < 3)
+                candidates.Add(position);
         }
 
         foreach (var position in Recommend(index, board, battle, team))
         {
-            if (picks.Count < 3 && !picks.Contains(position))
-                picks.Add(position);
+            if (!candidates.Contains(position))
+                candidates.Add(position);
         }
 
-        return picks;
+        // Healthy first, keeping the order otherwise (the player's picks, then the recommended ones).
+        return candidates.OrderByDescending(p => team[p].Health >= WornHealthPct).Take(3).ToList();
     }
 
     /// <summary>

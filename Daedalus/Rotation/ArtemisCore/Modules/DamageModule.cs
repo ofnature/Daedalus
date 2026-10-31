@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Daedalus.Data;
 using Daedalus.Models.Action;
 using Daedalus.Rotation.ArtemisCore.Abilities;
@@ -104,7 +105,9 @@ public sealed class DamageModule : IArtemisModule
             PushInstinctual(context, scheduler, targetId, level);
 
         _releaseOwed = false;
-        PushFamiliarOrders(context, scheduler, targetId, level, trickHandledByPairing: paired || window);
+        PushFamiliarOrders(context, scheduler, targetId, level, trickHandledByPairing: paired || window,
+            targetHpPct: target.MaxHp > 0 ? (float)target.CurrentHp / target.MaxHp : 1f,
+            targetNameId: (target as Dalamud.Game.ClientState.Objects.Types.IBattleNpc)?.NameId ?? 0);
 
         var edgeDistance = System.Numerics.Vector3.Distance(player.Position, target.Position)
                            - target.HitboxRadius - player.HitboxRadius;
@@ -141,9 +144,43 @@ public sealed class DamageModule : IArtemisModule
             && svc.IsActionReady(action.ActionId)
             && svc.GetActionStatusCode(action.ActionId, targetId) == 0;
 
+        var legendary = cfg.CrucibleGoal == CrucibleTeamGoal.Legendary;
+        if (legendary && PushSirenOrders(context, scheduler, cfg, familiar, familiarOut, familiarHpPct, selfHpPct))
+            return;
+
+        // Legendary, shared tanking: whoever has more HP to spare holds the enemy. The beastmaster's turn is handled here;
+        // the familiar's turn is the usual path below (Snarl onto it).
+        if (legendary && cfg.CrucibleLegendarySharedTank
+            && ArtemisCooldownRules.BeastmasterHoldsShared(selfHpPct, familiarOut, familiarHpPct))
+        {
+            LogSnarlState($"you hold the enemy (shared tanking): you {selfHpPct:P0}, familiar {familiarHpPct:P0}",
+                familiarHpPct, selfHpPct);
+            var busterSoon = Daedalus.Services.Beastmaster.CrucibleHints.SecondsUntilTankbuster;
+            var raidwideSoon = Daedalus.Services.Beastmaster.CrucibleHints.SecondsUntilRaidwide;
+            if (ArtemisCooldownRules.ShouldSnarlWhileHoldingShared(
+                    cfg.EnableSnarl, Ready(BSTActions.Snarl), familiarOut, familiarHpPct, _fallingLine, busterSoon, raidwideSoon)
+                && TryGate(BSTActions.Snarl.ActionId))
+            {
+                scheduler.PushOgcd(ArtemisAbilities.Snarl, targetId, priority: 3, onDispatched: _ =>
+                    context.Debug.PlannedAction = "Snarl (a tankbuster or raidwide — the familiar takes it)");
+                return;
+            }
+
+            if (ArtemisCooldownRules.ShouldChallengeToTank(
+                    cfg.EnableChallenge, onBoardInBattle: true, Ready(BSTActions.Challenge),
+                    target.TargetObjectId == player.GameObjectId, selfHpPct)
+                && TryGate(BSTActions.Challenge.ActionId))
+            {
+                scheduler.PushOgcd(ArtemisAbilities.Challenge, targetId, priority: 6, onDispatched: _ =>
+                    context.Debug.PlannedAction = "Challenge (shared tanking — your turn to hold it)");
+            }
+
+            return;
+        }
+
         // Legendary with the beastmaster tanking (Meoni's way): Challenge keeps every enemy on you so the familiars end at
         // full HP (Selfless); Snarl only rescues a critical beastmaster.
-        if (cfg.CrucibleGoal == CrucibleTeamGoal.Legendary && cfg.CrucibleLegendaryBeastmasterTanks)
+        if (legendary && cfg.CrucibleLegendaryBeastmasterTanks && !cfg.CrucibleLegendarySharedTank)
         {
             LogSnarlState(selfHpPct <= ArtemisCooldownRules.SelfCriticalHpPct ? null : "the beastmaster tanks (Legendary)",
                 familiarHpPct, selfHpPct);
@@ -206,7 +243,156 @@ public sealed class DamageModule : IArtemisModule
         }
     }
 
+    /// <summary>
+    /// Legendary against the Siren: the familiar holds her through Summon and while a Crawling Piece lives, the
+    /// beastmaster the rest of the time (<see cref="ArtemisCooldownRules.SirenFamiliarHolds"/>). Both orders go at the
+    /// Siren, whatever the hard target is. False (the usual rules) when she is not here, or the beastmaster is critical.
+    /// </summary>
+    private bool PushSirenOrders(
+        IArtemisContext context, RotationScheduler scheduler, Daedalus.Config.DPS.BeastmasterConfig cfg,
+        Dalamud.Game.ClientState.Objects.Types.IBattleChara? familiar, bool familiarOut, float familiarHpPct, float selfHpPct)
+    {
+        Dalamud.Game.ClientState.Objects.Types.IBattleNpc? siren = null;
+        var crawlerAlive = false;
+        var adds = new List<(ulong Id, System.Numerics.Vector2 At)>();
+        foreach (var obj in context.ObjectTable)
+        {
+            if (obj is not Dalamud.Game.ClientState.Objects.Types.IBattleNpc npc || npc.IsDead || npc.CurrentHp == 0)
+                continue;
+            if (npc.NameId == ArtemisCooldownRules.CrawlingPieceNameId)
+                crawlerAlive = true;
+            else if (npc.NameId == ArtemisCooldownRules.SirenNameId && npc.IsTargetable && (siren == null || npc.MaxHp > siren.MaxHp))
+                siren = npc; // the targetable one: she has invisible helpers of the same name
+            if (npc.NameId is ArtemisCooldownRules.CrawlingPieceNameId or ArtemisCooldownRules.ShamblingPieceNameId)
+                adds.Add((npc.GameObjectId, new System.Numerics.Vector2(npc.Position.X, npc.Position.Z)));
+        }
+
+        if (siren == null)
+            return false;
+
+        KillSirenAdds(context, scheduler, siren, adds, familiarOut);
+        if (selfHpPct <= ArtemisCooldownRules.SelfCriticalHpPct)
+            return false;
+
+        var svc = context.ActionService;
+        var sirenId = siren.GameObjectId;
+        bool ReadyOn(ActionDefinition action) =>
+            DutyActionBar.Contains(action.ActionId)
+            && svc.IsActionReady(action.ActionId)
+            && svc.GetActionStatusCode(action.ActionId, sirenId) == 0;
+
+        var summoning = siren.IsCasting && siren.CastActionId == ArtemisCooldownRules.SirenSummonActionId;
+        if (ArtemisCooldownRules.SirenFamiliarHolds(summoning, crawlerAlive) && familiarOut && familiarHpPct >= _fallingLine)
+        {
+            LogSnarlState($"Siren: {(summoning ? "Summon" : "a crawler is up")} — the familiar holds her", familiarHpPct, selfHpPct);
+            if (cfg.EnableSnarl && ReadyOn(BSTActions.Snarl)
+                && (familiar == null || siren.TargetObjectId != familiar.GameObjectId)
+                && TryGate(BSTActions.Snarl.ActionId))
+            {
+                scheduler.PushOgcd(ArtemisAbilities.Snarl, sirenId, priority: 3, onDispatched: _ =>
+                    context.Debug.PlannedAction = "Snarl (Siren: the familiar holds her while her crawler is up)");
+            }
+
+            return true;
+        }
+
+        LogSnarlState("Siren: no crawler — you hold her", familiarHpPct, selfHpPct);
+        if (ArtemisCooldownRules.ShouldChallengeToTank(
+                cfg.EnableChallenge, onBoardInBattle: true, ReadyOn(BSTActions.Challenge),
+                siren.TargetObjectId == context.Player.GameObjectId, selfHpPct)
+            && TryGate(BSTActions.Challenge.ActionId))
+        {
+            scheduler.PushOgcd(ArtemisAbilities.Challenge, sirenId, priority: 6, onDispatched: _ =>
+                context.Debug.PlannedAction = "Challenge (Siren: you hold her until the next Summon)");
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// Kill the Siren's adds in one hit once they have bunched. Parting Blow first while it is ready (free, and it killed
+    /// all five on 2026-10-31); it waits for them inside its 8 yalms. Otherwise put the hard target on one that catches
+    /// them all and tell the autopilot a Fang can go
+    /// (<see cref="Daedalus.Services.Beastmaster.CrucibleHints.FangTargetId"/>) — Legendary only, the user's call: the
+    /// Fang costs Economic Ethos, and is worth it for no crawler on the beastmaster.
+    /// </summary>
+    private void KillSirenAdds(
+        IArtemisContext context, RotationScheduler scheduler, Dalamud.Game.ClientState.Objects.Types.IBattleNpc siren,
+        List<(ulong Id, System.Numerics.Vector2 At)> adds, bool familiarOut)
+    {
+        var hard = context.TargetingService.GetGameHardTargetId();
+        var candidates = new List<(ulong Id, System.Numerics.Vector2 At)>(adds)
+        {
+            (siren.GameObjectId, new System.Numerics.Vector2(siren.Position.X, siren.Position.Z)),
+        };
+        Daedalus.Services.Beastmaster.CrucibleHints.FangAimUtc = DateTime.UtcNow;
+        Daedalus.Services.Beastmaster.CrucibleHints.FangTargetId = 0;
+
+        var level = context.Player.Level;
+        var svc = context.ActionService;
+        var blowReady = familiarOut && ActionAvailability.MeetsLevelAndLearned(level, svc, BSTActions.PartingBlow)
+                        && svc.IsActionReady(BSTActions.PartingBlow.ActionId);
+        if (blowReady)
+        {
+            // Release first: it grants Lingering Vantage, which lifts the Blow from 1,000 to 1,500 (user, 2026-10-31).
+            // Gone off the instant the adds appear, so the Vantage is up by the time they bunch. Not Wespe's Final
+            // Sting, which would send it away before the Blow (ShouldTemperedRelease refuses it with no Parting Blow).
+            var hasVantage = false;
+            foreach (var status in context.Player.StatusList)
+                hasVantage |= status.StatusId == ArtemisCooldownRules.LingeringVantageStatusId;
+            var selfHpPct = context.Player.MaxHp > 0 ? (float)context.Player.CurrentHp / context.Player.MaxHp : 1f;
+            if (!hasVantage && adds.Count > 0
+                && ShouldTemperedRelease(
+                    context.Configuration.Beastmaster.EnableTemperedRelease,
+                    CanFire(svc, level, BSTActions.TemperedRelease, siren.GameObjectId), context.FamiliarBeast?.BestiaryNo,
+                    partingBlowEnabled: false, selfHpPct, double.MaxValue))
+            {
+                if (TryGate(BSTActions.TemperedRelease.ActionId))
+                {
+                    scheduler.PushOgcd(ArtemisAbilities.TemperedRelease, siren.GameObjectId, priority: 2, onDispatched: _ =>
+                        context.Debug.PlannedAction = "Tempered Release (Siren: Lingering Vantage for the Parting Blow)");
+                }
+
+                return;
+            }
+
+            var blowAim = CrucibleAutoPilotRules.FangAim(adds, candidates, hard, CrucibleAutoPilotRules.PartingBlowReachYalms);
+            if (blowAim != 0 && CanFire(svc, level, BSTActions.PartingBlow, blowAim) && TryGate(BSTActions.PartingBlow.ActionId))
+            {
+                var count = adds.Count;
+                scheduler.PushOgcd(ArtemisAbilities.PartingBlow, blowAim, priority: 2, onDispatched: _ =>
+                {
+                    context.Debug.PlannedAction = "Parting Blow (Siren: the adds are bunched)";
+                    Daedalus.Rotation.Base.RotationServices.DebugLog?.Log(
+                        Daedalus.Services.Debug.DebugLogCategory.Action, Daedalus.Services.Debug.DebugLogSeverity.Info,
+                        $"[Crucible] Siren: Parting Blow on {count} bunched adds");
+                });
+            }
+
+            return; // a ready Parting Blow is worth waiting for: no Fang while it can still do the job
+        }
+
+        var aim = CrucibleAutoPilotRules.FangAim(adds, candidates, hard);
+        if (aim != 0 && aim != hard)
+            context.TargetingService.EnsureHardTarget(aim);
+
+        Daedalus.Services.Beastmaster.CrucibleHints.FangTargetId = aim != 0 && aim == hard ? aim : 0;
+    }
+
     private string? _lastSnarlState;
+    private bool _retreatHeldLogged;
+
+    /// <summary>One line when a falling familiar is kept out because no other horn could replace it.</summary>
+    private void LogRetreatHeld(bool held, float familiarHpPct)
+    {
+        if (held == _retreatHeldLogged)
+            return;
+        _retreatHeldLogged = held;
+        if (held)
+            Daedalus.Rotation.Base.RotationServices.DebugLog?.Log(
+                Daedalus.Services.Debug.DebugLogCategory.Action, Daedalus.Services.Debug.DebugLogSeverity.Info,
+                $"[Crucible] Parting Blow held: familiar at {familiarHpPct:P0} but no other horn is ready — it stays out so you are not left alone");
+    }
     private string? _lastInfinitiveState;
 
     /// <summary>
@@ -301,11 +487,16 @@ public sealed class DamageModule : IArtemisModule
 
         // The gauge says how much TP there is and how many diamonds; without it, fall back to "the axes
         // are refused" and our own tally.
+        if (context.HasFamiliar)
+            _familiarGoneSinceUtc = DateTime.MinValue;
+        else if (_familiarGoneSinceUtc == DateTime.MinValue)
+            _familiarGoneSinceUtc = DateTime.UtcNow;
+
         var rallyReady = CanFire(svc, level, BSTActions.Rally, selfId);
         var rally = context.Gauge is { } rallyGauge
             ? ArtemisCooldownRules.ShouldRallyFromGauge(
                 cfg.EnableRally, rallyReady, rallyGauge.Tp, rallyGauge.MasteredInstinct, level, context.HasFamiliar,
-                rallyGauge.HasHalf)
+                rallyGauge.HasHalf, SecondsSince(_familiarGoneSinceUtc))
             : ArtemisCooldownRules.ShouldRally(
                 cfg.EnableRally, rallyReady, SecondsSince(_axeStarvedSinceUtc), paired, _masteredEstimate);
         var rallyOpensFinisher = context.Gauge is { HasHalf: true } && level >= ArtemisCooldownRules.UpgradeLevel;
@@ -672,6 +863,19 @@ public sealed class DamageModule : IArtemisModule
     /// <summary>Wespe's Tempered Release is Final Sting: 2,000-3,000 potency, and the familiar retreats.</summary>
     public const int WespeBestiaryNo = 10;
 
+    /// <summary>
+    /// In the Crucible, Final Sting is the kill shot: at or below this much target HP (its potency grows as the target's
+    /// HP falls, 2,000 to 3,000). Earlier and the fight drags on without the Wespe (Meoni's Legendary runs).
+    /// </summary>
+    public const float FinalStingAtTargetHpPct = 0.30f;
+
+    /// <summary>
+    /// In the Crucible a Wespe's once-per-summon charge (One with Nature) is kept for Final Sting, so Borrow and a plain
+    /// Parting Blow wait for it: Borrow spends the same charge. Korha 2026-10-27, Pas de Seul: the sting was rightly held
+    /// above 30%, Borrow went 10s after the summon, and the Wespe never stung.
+    /// </summary>
+    public static bool SavesFinalSting(bool onBoard, int? bestiaryNo) => onBoard && bestiaryNo == WespeBestiaryNo;
+
     /// <summary>Sabotender's is Hypodermic Hustle: party +20% damage, paid for with a DoT on the beastmaster.</summary>
     public const int SabotenderBestiaryNo = 22;
 
@@ -703,6 +907,7 @@ public sealed class DamageModule : IArtemisModule
 
     private DateTime _axeStarvedSinceUtc = DateTime.MinValue;
     private DateTime _trickStarvedSinceUtc = DateTime.MinValue;
+    private DateTime _familiarGoneSinceUtc = DateTime.MinValue;
 
     /// <summary>The gauge as it stood when Trick was sent, so the familiar's skill can be seen landing.</summary>
     private ArtemisGauge? _gaugeAtTrick;
@@ -727,17 +932,19 @@ public sealed class DamageModule : IArtemisModule
     /// held back: Final Sting sends the familiar away, which is the same trade as Parting Blow and so follows
     /// that setting, and Hypodermic Hustle hurts the beastmaster, so it waits for healthy HP. An unidentified
     /// familiar (<paramref name="bestiaryNo"/> null) counts as one of the plain ones.
+    /// <para>In the Crucible Final Sting also goes as the finisher (<paramref name="stingFinisher"/>: the target at or
+    /// below <see cref="FinalStingAtTargetHpPct"/>), whatever the Parting Blow setting.</para>
     /// </summary>
     public static bool ShouldTemperedRelease(
         bool enabled, bool ready, int? bestiaryNo, bool partingBlowEnabled, float selfHpPct,
-        double secondsSinceLastTry)
+        double secondsSinceLastTry, bool stingFinisher = false)
     {
         if (!enabled || !ready || secondsSinceLastTry < ReleaseRetrySeconds)
             return false;
 
         return bestiaryNo switch
         {
-            WespeBestiaryNo => partingBlowEnabled,
+            WespeBestiaryNo => partingBlowEnabled || stingFinisher,
             SabotenderBestiaryNo => selfHpPct >= HustleMinHpPct,
             _ => true,
         };
@@ -753,7 +960,7 @@ public sealed class DamageModule : IArtemisModule
     /// </summary>
     private void PushFamiliarOrders(
         IArtemisContext context, RotationScheduler scheduler, ulong targetId, byte level,
-        bool trickHandledByPairing)
+        bool trickHandledByPairing, float targetHpPct = 1f, uint targetNameId = 0)
     {
         if (!context.HasFamiliar)
         {
@@ -779,14 +986,27 @@ public sealed class DamageModule : IArtemisModule
             cfg.CruciblePartingBlowWhenFalling, Daedalus.Services.Beastmaster.CrucibleTracker.Current.OnBoard, familiarHpPct,
             player.MaxHp > 0 ? (float)player.CurrentHp / player.MaxHp : 1f,
             Daedalus.Services.Beastmaster.CrucibleHints.SecondsUntilTankbuster, _fallingLine,
-            Daedalus.Services.Beastmaster.CrucibleHints.SecondsUntilRaidwide);
+            Daedalus.Services.Beastmaster.CrucibleHints.SecondsUntilRaidwide, replacementReady: !context.NoReplacementHorn);
+        LogRetreatHeld(context.NoReplacementHorn
+                       && ArtemisCooldownRules.IsFamiliarFalling(
+                           cfg.CruciblePartingBlowWhenFalling, Daedalus.Services.Beastmaster.CrucibleTracker.Current.OnBoard,
+                           familiarHpPct, player.MaxHp > 0 ? (float)player.CurrentHp / player.MaxHp : 1f,
+                           Daedalus.Services.Beastmaster.CrucibleHints.SecondsUntilTankbuster, _fallingLine,
+                           Daedalus.Services.Beastmaster.CrucibleHints.SecondsUntilRaidwide),
+            familiarHpPct);
         var partingBlowAllowed = ArtemisCooldownRules.AllowsPartingBlow(cfg.EnablePartingBlow, falling);
 
         var releaseReady = CanFire(svc, level, BSTActions.TemperedRelease, targetId);
-        var release = ShouldTemperedRelease(
+        var stingFinisher = Daedalus.Services.Beastmaster.CrucibleTracker.Current.OnBoard
+                            && targetHpPct > 0f && targetHpPct <= FinalStingAtTargetHpPct;
+        var zuHold = ArtemisCooldownRules.HoldReleaseAtZu(
+            Daedalus.Services.Beastmaster.CrucibleTracker.Current.OnBoard, targetNameId, targetHpPct, falling);
+        if (zuHold && releaseReady)
+            context.Debug.InstinctState = "Zu: release held (it breaks eggs) until the Zu is nearly dead";
+        var release = !zuHold && ShouldTemperedRelease(
             cfg.EnableTemperedRelease, releaseReady, context.FamiliarBeast?.BestiaryNo, partingBlowAllowed,
             player.MaxHp > 0 ? (float)player.CurrentHp / player.MaxHp : 1f,
-            (DateTime.UtcNow - _lastReleaseTryUtc).TotalSeconds);
+            (DateTime.UtcNow - _lastReleaseTryUtc).TotalSeconds, stingFinisher);
         if (release)
         {
             _lastReleaseTryUtc = DateTime.UtcNow;
@@ -797,8 +1017,9 @@ public sealed class DamageModule : IArtemisModule
         // Parting Blow sends the familiar away and takes an unspent Tempered Release with it, so it waits
         // while a release is still owed (the release is also what grants Lingering Vantage, +500 on the Blow).
         var releaseOwed = cfg.EnableTemperedRelease && releaseReady
-            && ShouldTemperedRelease(true, true, context.FamiliarBeast?.BestiaryNo, partingBlowAllowed,
-                player.MaxHp > 0 ? (float)player.CurrentHp / player.MaxHp : 1f, double.MaxValue);
+            && (ShouldTemperedRelease(true, true, context.FamiliarBeast?.BestiaryNo, partingBlowAllowed,
+                    player.MaxHp > 0 ? (float)player.CurrentHp / player.MaxHp : 1f, double.MaxValue, stingFinisher)
+                || SavesFinalSting(Daedalus.Services.Beastmaster.CrucibleTracker.Current.OnBoard, context.FamiliarBeast?.BestiaryNo));
         _releaseOwed = releaseOwed;
         // Not straight after a Trick: the familiar is slow to act, and retreating it now loses the Trick (RSR 8f258dbc).
         // The falling retreat is exempt — it saves the familiar.

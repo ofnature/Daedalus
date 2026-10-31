@@ -227,6 +227,53 @@ public class CrucibleHornsTests
     public void NoPicksIsTheRecommendation()
         => Assert.Equal(CrucibleHornPlan.Recommend(Index, Board, 2, Team), CrucibleHornPlan.Pick(Index, Board, 2, Team, [0, 0, 0]));
 
+    // --- worn picks (field 2026-10-30, Third Board, Level run: the worn core on every horn while 11 beasts sat full) ---
+
+    /// <summary>Every pick worn and healthy beasts standing: the healthy ones take the horns.</summary>
+    [Fact]
+    public void WornPicksGiveWayToHealthyBeasts()
+    {
+        CrucibleTeamMember[] team = [M(44, health: 0.30f), M(16, health: 0.13f), M(30, health: 0.10f), M(26), M(5), M(7)];
+        var picks = CrucibleHornPlan.Pick(Index, Board, 1, team, [44, 16, 30]);
+        Assert.Equal(3, picks.Count);
+        Assert.All(picks, p => Assert.True(team[p].Health >= CrucibleHornPlan.WornHealthPct));
+    }
+
+    /// <summary>A healthy pick keeps its horn and goes first; only the worn picks are replaced.</summary>
+    [Fact]
+    public void AHealthyPickStaysAndOnlyTheWornAreReplaced()
+    {
+        CrucibleTeamMember[] team = [M(44, health: 0.20f), M(16), M(30, health: 0.10f), M(26), M(5), M(7)];
+        var picks = CrucibleHornPlan.Pick(Index, Board, 1, team, [44, 16, 30]);
+        Assert.Equal(1, picks[0]); // Mantis, the healthy pick
+        Assert.DoesNotContain(0, picks);
+        Assert.DoesNotContain(2, picks);
+    }
+
+    /// <summary>With nobody healthy to swap in, the worn picks still take the horns (a horn left empty is a beast lost).</summary>
+    [Fact]
+    public void WithNoHealthySparesTheWornPicksStay()
+    {
+        CrucibleTeamMember[] team = [M(44, health: 0.30f), M(16, health: 0.13f), M(30, health: 0.10f)];
+        Assert.Equal([0, 1, 2], CrucibleHornPlan.Pick(Index, Board, 1, team, [44, 16, 30]));
+    }
+
+    /// <summary>Healthy picks keep the player's order.</summary>
+    [Fact]
+    public void HealthyPicksKeepTheirOrder()
+        => Assert.Equal([4, 3], CrucibleHornPlan.Pick(Index, Board, 1, Team, [11, 7]).Take(2));
+
+    /// <summary>One worn pick among three healthy ones moves behind them only when a healthy spare exists.</summary>
+    [Fact]
+    public void OneWornPickIsSwappedForAHealthySpare()
+    {
+        CrucibleTeamMember[] team = [M(44), M(16, health: 0.15f), M(30), M(26)];
+        var picks = CrucibleHornPlan.Pick(Index, Board, 1, team, [44, 16, 30]);
+        Assert.Equal(3, picks.Count);
+        Assert.DoesNotContain(1, picks);
+        Assert.Equal(0, picks[0]);
+    }
+
     [Fact]
     public void PicksAreKeptPerBoardAndBattle()
         => Assert.NotEqual(CrucibleHornPlan.PickKey(Board, 1), CrucibleHornPlan.PickKey(Board with { Index = 2 }, 1));

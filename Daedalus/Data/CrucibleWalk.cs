@@ -69,9 +69,15 @@ public static class CrucibleWalkPlan
     /// <summary>
     /// The space to walk to next: the only one on the next move, or at a fork the side <paramref name="chooseSide"/>
     /// picks (1-based; anything else means the left). Null when the board is done or its spaces are not placed.
+    /// Inside a branch there is no choice: taking one side of a fork closes the other on every board, so the next fork
+    /// keeps to the lane you are on.
     /// </summary>
-    public static CrucibleStage? Next(IReadOnlyList<CrucibleStage> route, Vector3 player, Func<IReadOnlyList<CrucibleStage>, int> chooseSide)
+    /// <param name="spotOf">Where a space is actually walked to (a fork learned flipped walks to its sibling's spot);
+    /// defaults to its placed position.</param>
+    public static CrucibleStage? Next(IReadOnlyList<CrucibleStage> route, Vector3 player, Func<IReadOnlyList<CrucibleStage>, int> chooseSide,
+        Func<CrucibleStage, Vector3>? spotOf = null)
     {
+        spotOf ??= s => s.At!.Value;
         var next = CurrentMove(route, player) + 1;
         var options = route.Where(s => s.Move == next && s.At != null).ToList();
         if (options.Count == 0)
@@ -79,8 +85,25 @@ public static class CrucibleWalkPlan
         if (options.Count == 1)
             return options[0];
 
+        // Inside a branch the lane is already chosen: a fork's lanes do not cross until they rejoin (board 2, 2026-10-30:
+        // 3R taken, then 4L asked for — the walker stood still, and the left lane showed as closed).
+        if (LaneSpace(route, player, next - 1) is { } here
+            && options.OrderBy(s => MathF.Abs(spotOf(s).X - here.X)).First() is var sameLane
+            && MathF.Abs(spotOf(sameLane).X - here.X) < LaneChangeYalms)
+            return sameLane;
+
         var side = chooseSide(options);
         return options.FirstOrDefault(s => s.Side == side) ?? options[0];
+    }
+
+    /// <summary>
+    /// Where the space you are on stands, when <paramref name="move"/> is a fork (so you are on one of its lanes): the
+    /// one of its spaces nearest you across. Null for a move with a single space, or the start.
+    /// </summary>
+    private static Vector3? LaneSpace(IReadOnlyList<CrucibleStage> route, Vector3 player, int move)
+    {
+        var spaces = route.Where(s => s.Move == move && s.At != null).ToList();
+        return spaces.Count < 2 ? null : spaces.OrderBy(s => MathF.Abs(s.At!.Value.X - player.X)).First().At;
     }
 
     /// <summary>You are on the board's strip, not in a battle arena (those sit hundreds of yalms away).</summary>
@@ -97,15 +120,30 @@ public static class CrucibleWalkPlan
     /// <summary>The key of one fork in <c>CrucibleFlippedForks</c>: "board:move".</summary>
     public static string ForkKey(int board, int move) => $"{board}:{move}";
 
-    /// <summary>
-    /// Forks known to sit the other way round from the game data's left/right. Board 1 move 3: the walker aimed for the
-    /// treasure at x −695 and the campsite opened (Korha, 2026-10-27, fork log); its battle forks matched.
-    /// </summary>
-    public static readonly IReadOnlySet<string> KnownFlippedForks = new HashSet<string> { "1:3" };
+    /// <summary>Whether a fork was learned in play to sit the other way round from the game data's left/right.</summary>
+    public static bool IsForkFlipped(string key, ICollection<string>? learned) => learned?.Contains(key) == true;
 
-    /// <summary>Whether a fork is the other way round: known, toggled by what was learned in play.</summary>
-    public static bool IsForkFlipped(string key, ICollection<string>? learned) =>
-        KnownFlippedForks.Contains(key) != (learned?.Contains(key) == true);
+    /// <summary>Lanes are this far apart (x −705 / −695 on every board); a target this far across is on the other lane.</summary>
+    public const float LaneChangeYalms = 3f;
+
+    /// <summary>
+    /// Where to walk on the way to <paramref name="to"/>: when it is on the other lane, first across to that lane halfway
+    /// down. Only from a single (middle) space into a fork — a fork's lanes never cross (Board 1 move 3, 2026-10-27: from
+    /// 2L the walker aimed for the treasure at 3R and entered the campsite at 3L, because the right lane was closed;
+    /// <see cref="Next"/> now keeps to the lane inside a branch).
+    /// </summary>
+    public static Vector3 LaneWaypoint(Vector3 from, Vector3 to)
+        => MathF.Abs(to.X - from.X) >= LaneChangeYalms
+            ? new Vector3(to.X, to.Y, from.Z + ((to.Z - from.Z) / 2f))
+            : to;
+
+    /// <summary>
+    /// A wrong space only says the fork is the other way round when it opened where we were aiming — nearer the spot we
+    /// walked to than its sibling's. Opening on the way there is crossing the sibling's space, not a flipped fork.
+    /// </summary>
+    public static bool OpenedAtTarget(Vector3 player, Vector3 targetSpot, Vector3 siblingSpot)
+        => Vector2.Distance(new Vector2(player.X, player.Z), new Vector2(targetSpot.X, targetSpot.Z))
+           < Vector2.Distance(new Vector2(player.X, player.Z), new Vector2(siblingSpot.X, siblingSpot.Z));
 
     /// <summary>
     /// Which space type a screen that just opened belongs to: a campsite (the team screen without the battle list), a

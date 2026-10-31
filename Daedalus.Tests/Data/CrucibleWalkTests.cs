@@ -96,6 +96,58 @@ public class CrucibleWalkTests
         Assert.Equal(P(-695, -16.5), right.At);
     }
 
+    /// <summary>
+    /// Board 2, 2026-10-30 (Legendary): 3R taken, then the treasure at 4L asked for — the left lane is closed once the
+    /// right is taken, so the walker stood still. Inside a branch the next fork keeps to our lane, whatever is asked.
+    /// </summary>
+    [Fact]
+    public void InsideABranchTheNextForkKeepsToOurLane()
+    {
+        var onRight = CrucibleWalkPlan.Next(Board2(), P(-695, -25.5), _ => 1)!;
+        Assert.Equal((4, 2), (onRight.Move, onRight.Side));
+        var onLeft = CrucibleWalkPlan.Next(Board2(), P(-705, -25.5), _ => 2)!;
+        Assert.Equal((4, 1), (onLeft.Move, onLeft.Side));
+    }
+
+    /// <summary>Board 1, 2026-10-28: from 2L the treasure at 3R was asked for, and the campsite at 3L opened. Twice.</summary>
+    [Fact]
+    public void Board1KeepsTheLeftLaneFrom2LTo3L()
+    {
+        var next = CrucibleWalkPlan.Next(Board1(), P(-705, -16.5), _ => 2)!;
+        Assert.Equal((3, 1), (next.Move, next.Side));
+    }
+
+    /// <summary>After a single space the lanes are open again: the chosen side is taken.</summary>
+    [Fact]
+    public void AfterASingleSpaceTheChoiceIsFree()
+    {
+        var right = CrucibleWalkPlan.Next(Board2(), P(-700, -60), _ => 2)!; // move 7, the elite; next is the fork at 8
+        Assert.Equal((8, 2), (right.Move, right.Side));
+        var left = CrucibleWalkPlan.Next(Board2(), P(-700, -60), _ => 1)!;
+        Assert.Equal((8, 1), (left.Move, left.Side));
+    }
+
+    /// <summary>A fork walked to its sibling's spot (learned flipped) keeps to the lane by where it is walked to.</summary>
+    [Fact]
+    public void AFlippedForkKeepsToTheLaneByItsWalkedSpot()
+    {
+        var route = Board2();
+        Vector3 Swapped(CrucibleStage s) =>
+            s.Move == 4 ? route.First(o => o.Move == 4 && o.Side != s.Side).At!.Value : s.At!.Value;
+        var next = CrucibleWalkPlan.Next(route, P(-695, -25.5), _ => 2, Swapped)!;
+        Assert.Equal((4, 1), (next.Move, next.Side)); // labelled left, walked to the right-hand spot
+        Assert.Equal(-695f, Swapped(next).X);
+    }
+
+    /// <summary>The fork choice is not even asked for inside a branch.</summary>
+    [Fact]
+    public void InsideABranchTheSideIsNotAskedFor()
+    {
+        var asked = false;
+        CrucibleWalkPlan.Next(Board2(), P(-695, -25.5), _ => { asked = true; return 1; });
+        Assert.False(asked);
+    }
+
     [Fact]
     public void OnTheBossThereIsNothingLeftToWalkTo()
         => Assert.Null(CrucibleWalkPlan.Next(Board1(), P(-700, -75), _ => 1));
