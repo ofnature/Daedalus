@@ -35,4 +35,23 @@ public sealed class FightTargetHintsTests
         Assert.Null(FightTargetHints.FirstPreferred<string>(null, id => $"enemy{id}"));
         Assert.Null(FightTargetHints.FirstPreferred<string>([], id => $"enemy{id}"));
     }
+
+    private const ulong Drake = 0x4000_1234, Barbmole = 0x4000_1235;
+
+    /// <summary>Drake Piece, 2026-10-31: dropped at Blaze Spikes, targeted again once the reflect wears off.</summary>
+    [Fact]
+    public void ShouldRestore_ADroppedTargetComesBackOnceNoLongerForbidden()
+    {
+        Assert.False(FightTargetHints.ShouldRestore(0, Drake, [Drake]));
+        Assert.True(FightTargetHints.ShouldRestore(0, Drake, []));
+        Assert.True(FightTargetHints.ShouldRestore(0, Drake, null));
+    }
+
+    [Fact]
+    public void ShouldRestore_SomethingTargetedSince_IsLeftAlone()
+        => Assert.False(FightTargetHints.ShouldRestore(Barbmole, Drake, []));
+
+    [Fact]
+    public void ShouldRestore_NothingDropped_IsNothingToRestore()
+        => Assert.False(FightTargetHints.ShouldRestore(0, 0, []));
 }

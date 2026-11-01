@@ -244,4 +244,13 @@ public class CrucibleRouteTests
         Assert.Equal(CrucibleStageType.Campsite, CrucibleWalkPlan.OpenedSpace(false, false, true, false));
         Assert.Null(CrucibleWalkPlan.OpenedSpace(false, false, true, true)); // the horn screen before a battle
     }
+
+    /// <summary>The Master's Boards' Legendary elites (2026-10-31 research), checked against BNpcName; Board 2's Taurus stays out.</summary>
+    [Fact]
+    public void MastersBoardElitesAreOnTheLegendaryRoute()
+    {
+        foreach (var nameId in new uint[] { 14572, 14617, 14633, 14663, 14688 })
+            Assert.Contains(nameId, CrucibleRoutePlan.LegendaryElites);
+        Assert.DoesNotContain(14546u, CrucibleRoutePlan.LegendaryElites); // taurus piece
+    }
 }

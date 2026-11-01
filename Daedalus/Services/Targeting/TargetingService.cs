@@ -1059,6 +1059,62 @@ public sealed class TargetingService : ITargetingService
     /// <inheritdoc />
     public ulong GetGameHardTargetId() => _targetManager.Target?.GameObjectId ?? 0;
 
+    /// <summary>How far to look for an enemy to swap to when the hard target becomes forbidden.</summary>
+    private const float ForbiddenSwapRangeYalms = 25f;
+
+    private ulong _droppedForbiddenId;
+
+    /// <summary>
+    /// Every frame, in combat: a hard target the boss engine forbids is swapped for an allowed enemy, or dropped when
+    /// there is none (auto-attacks follow the hard target, and actions alone skipping it left them landing on a
+    /// reflecting Drake — Korha 2026-10-31). A dropped target is put back once the engine allows it again and nothing
+    /// else has been targeted. Returns a line to log when it changed the target.
+    /// </summary>
+    public string? GuardForbiddenHardTarget(IPlayerCharacter? player, bool inCombat)
+    {
+        if (player == null || !inCombat)
+        {
+            _droppedForbiddenId = 0;
+            return null;
+        }
+
+        RefreshFightHints();
+        var hardId = _targetManager.Target?.GameObjectId ?? 0;
+        if (FightTargetHints.IsForbidden(hardId, _forbiddenByFight))
+        {
+            // Actions already skip it; auto-attacks follow the hard target, so it has to go. Another enemy if there
+            // is one, else no target until the fight lets it be hit again.
+            var strategy = _configuration.Targeting.EnemyStrategy is EnemyTargetingStrategy.CurrentTarget or EnemyTargetingStrategy.FocusTarget
+                ? EnemyTargetingStrategy.LowestHp
+                : _configuration.Targeting.EnemyStrategy;
+            var name = _targetManager.Target?.Name.TextValue;
+            _droppedForbiddenId = hardId;
+            if (FindEnemy(strategy, ForbiddenSwapRangeYalms, player) is { } allowed && allowed.GameObjectId != hardId)
+            {
+                SetGameHardTarget(allowed);
+                return $"{name} is forbidden by the boss engine: switched to {allowed.Name.TextValue}.";
+            }
+
+            ManualControlGrace.RecordOwnWrite(0);
+            _targetManager.Target = null;
+            return $"{name} is forbidden by the boss engine: target dropped so auto-attacks stop.";
+        }
+
+        if (FightTargetHints.ShouldRestore(hardId, _droppedForbiddenId, _forbiddenByFight))
+        {
+            var back = ResolveEnemyById(_droppedForbiddenId);
+            _droppedForbiddenId = 0;
+            if (back == null)
+                return null;
+            SetGameHardTarget(back);
+            return $"{back.Name.TextValue} is no longer forbidden: targeted again.";
+        }
+
+        if (hardId != 0)
+            _droppedForbiddenId = 0;
+        return null;
+    }
+
     /// <inheritdoc />
     public ulong SwapHardTargetForSubmit(ulong gameObjectId)
     {
@@ -1382,6 +1438,10 @@ public sealed class TargetingService : ITargetingService
     /// </summary>
     private IEnumerable<IBattleNpc> GetActionCandidates(IPlayerCharacter player)
     {
+        // The fight's "never attack" list applies here too: these scans do not go through IsStillValid. Field
+        // 2026-10-31 (Korha, Drake Piece, LowestHp): Minerva forbade the Drake behind Blaze Spikes and the scan
+        // kept picking it — every weaponskill reflected, and she died.
+        RefreshFightHints();
         foreach (var obj in _objectTable)
         {
             if (obj.ObjectKind != ObjectKind.BattleNpc) continue;
@@ -1395,6 +1455,7 @@ public sealed class TargetingService : ITargetingService
             // preferred the 60k-HP ally over 130k mobs, and the rotation stalled spamming
             // "Invalid target." at a friendly until the real mobs dropped below her HP.
             if (!EnemyAttackability.IsPlayerAttackable(npc)) continue;
+            if (FightTargetHints.IsForbidden(npc.GameObjectId, _forbiddenByFight)) continue;
             if (_configuration.Targeting.EnableInvulnerabilityFiltering &&
                 HasInvulnerabilityStatus(npc))
                 continue;
@@ -1533,8 +1594,9 @@ public sealed class TargetingService : ITargetingService
             if (targetId is 0 or 0xE0000000)
                 continue;
 
+            // IsStillValid as well: the tank may be hitting something the fight forbids.
             var target = _objectTable.SearchById(targetId);
-            if (target is IBattleNpc enemy && IsValidEnemy(enemy, maxRange, player))
+            if (target is IBattleNpc enemy && IsStillValid(enemy) && IsValidEnemy(enemy, maxRange, player))
                 return enemy;
         }
 

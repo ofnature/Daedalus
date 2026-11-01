@@ -42,7 +42,7 @@ namespace Daedalus;
 
 public sealed class Plugin : IDalamudPlugin
 {
-    public const string PluginVersion = "0.1.113";
+    public const string PluginVersion = "0.1.114";
     private const string CommandName = "/daedalus";
 
     /// <summary>LAN relay channel for Necromancer Deep Freeze "heal me to full" announcements.</summary>
@@ -1325,13 +1325,23 @@ public sealed class Plugin : IDalamudPlugin
             m => log.Info(m), id => crucibleTracker.Index.BeastGear.Contains(id), id => crucibleTracker.Index.ItemName(id),
             id => crucibleTracker.Index.ItemEffect(id), id => crucibleTracker.Index.CrucibleItems.Contains(id));
         this.crucibleLoop = new Daedalus.Services.Beastmaster.CrucibleLoop(m => log.Info(m));
-        // The Bestiary shows TRUE ranks (team screens sync them to the board), so its reading overwrites — and can
-        // repair a rank a synced screen once lowered.
-        this.crucibleBestiaryScanner = new Daedalus.Services.Beastmaster.CrucibleBestiaryScanner(m => log.Info(m), (no, rank) =>
+        // The Bestiary's rank is synced to the board too (a Sync-10 board showed everyone at 10 and overwrote Cu Sith's
+        // 19, Korha 2026-10-31), but its EXP is true: the rank only rises, and EXP falling is a rank-up.
+        this.crucibleBestiaryScanner = new Daedalus.Services.Beastmaster.CrucibleBestiaryScanner(m => log.Info(m), (no, rank, exp) =>
         {
-            if (configuration.Beastmaster.CrucibleRanks.TryGetValue(no, out var known) && known == rank)
+            var bst = configuration.Beastmaster;
+            int? knownRank = bst.CrucibleRanks.TryGetValue(no, out var r) ? r : null;
+            int? knownExp = bst.CrucibleExp.TryGetValue(no, out var e) ? e : null;
+            var (newRank, newExp) = Daedalus.Data.CrucibleBestiaryDetail.Merge(knownRank, knownExp, rank, exp);
+            if (newRank == knownRank && newExp == knownExp)
                 return;
-            configuration.Beastmaster.CrucibleRanks[no] = rank;
+            if (knownRank is { } before && newRank > before && rank <= before)
+                log.Info($"Crucible: {Daedalus.Data.BstFamiliars.ByBestiaryNo((uint)no)?.Name ?? $"#{no}"} ranked up to {newRank} (EXP {knownExp} -> {exp}).");
+            bst.CrucibleRanks[no] = newRank;
+            if (newExp is { } kept)
+                bst.CrucibleExp[no] = kept;
+            else
+                bst.CrucibleExp.Remove(no);
             QueueCrucibleRanksSave();
         });
         this.crucibleWalker = new Daedalus.Services.Beastmaster.CrucibleWalker(crucibleTracker.Index, movementArbiter, m => log.Info(m),
@@ -2527,6 +2537,13 @@ public sealed class Plugin : IDalamudPlugin
                 chatGui.Print("Daedalus: training dummy targeted during automated combat — target dropped, rotation stopped.");
                 log.Warning("External-combat override aborted: training dummy (NameId {0}) was targeted.", autoTarget.NameId);
             }
+
+            // A hard target the boss engine forbids (a reflect, an invulnerable phase) still takes auto-attacks even
+            // though every action skips it: swap it, or drop it until the engine lets it be hit again.
+            if (targetingService.GuardForbiddenHardTarget(
+                    configuration.EffectiveEnabled ? objectTable.LocalPlayer : null,
+                    condition[Dalamud.Game.ClientState.Conditions.ConditionFlag.InCombat]) is { } forbiddenLine)
+                log.Info($"Targeting: {forbiddenLine}");
 
             // Manual-click detection: a hard-target change no Daedalus writer registered is the
             // USER clicking something — movement pulses hold for the grace window so we don't

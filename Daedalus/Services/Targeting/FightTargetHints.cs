@@ -21,6 +21,15 @@ public static class FightTargetHints
         return false;
     }
 
+    /// <summary>
+    /// The hard target to put back once the engine stops forbidding it: the one dropped for being forbidden
+    /// (<paramref name="droppedId"/>), when nothing has been targeted since (<paramref name="hardId"/> 0) and it is
+    /// no longer on the list. Field 2026-10-31 (Korha, Drake Piece): a reflecting enemy left as the hard target kept
+    /// eating auto-attacks; dropped, it has to come back when the reflect ends or auto-attacks never resume.
+    /// </summary>
+    public static bool ShouldRestore(ulong hardId, ulong droppedId, ulong[]? forbidden)
+        => hardId == 0 && droppedId != 0 && !IsForbidden(droppedId, forbidden);
+
     /// <summary>The first priority id that <paramref name="resolve"/> turns into a usable target, in the engine's order.</summary>
     public static T? FirstPreferred<T>(ulong[]? priority, Func<ulong, T?> resolve) where T : class
     {

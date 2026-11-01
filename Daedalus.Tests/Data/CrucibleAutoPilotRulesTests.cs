@@ -385,19 +385,44 @@ public class CrucibleAutoPilotRulesTests
         Assert.Equal(0, CrucibleAutoPilotRules.PickTreasureAvoidingGear([1, 37, 0, 0], IsGear, Of));   // only gear: the Belt
     }
 
-    /// <summary>
-    /// Legendary takes beast gear only where holding 10 pieces pays (Walking Armory: 0 on Board 1, 500 on Board 2, as
-    /// the client's XBMContent rows say); on Board 1 none, for Nameday Attire.
-    /// </summary>
+    /// <summary>Legendary takes no beast gear on any board (Nameday Attire): no run reached Walking Armory's ten from free loot.</summary>
     [Fact]
-    public void LegendaryTakesGearOnlyWhereWalkingArmoryPays()
+    public void LegendaryTakesNoGear()
+        => Assert.False(CrucibleAutoPilotRules.LegendaryTakesGear);
+
+    /// <summary>Legendary drinks at 20% while Economic Ethos holds, at 45% once an item has been used.</summary>
+    [Fact]
+    public void LegendaryDrinksEarlierOnceEthosIsGone()
     {
-        var bonuses1 = new int[33];
-        var bonuses2 = new int[33];
-        bonuses1[(int)CrucibleBonus.NamedayAttire] = bonuses2[(int)CrucibleBonus.NamedayAttire] = 750;
-        bonuses2[(int)CrucibleBonus.WalkingArmory] = 500;
-        Assert.False(CrucibleAutoPilotRules.LegendaryTakesGear(new CrucibleBoard(1, 1088, 1339, "First", 30, [6], bonuses1)));
-        Assert.True(CrucibleAutoPilotRules.LegendaryTakesGear(new CrucibleBoard(2, 1089, 1340, "Second", 40, [13], bonuses2)));
+        Assert.Equal(CrucibleAutoPilotRules.LegendaryPotionAtHpPct, CrucibleAutoPilotRules.LegendaryDrinkAtHpPct(itemUsedOnBoard: false));
+        Assert.Equal(0.45f, CrucibleAutoPilotRules.LegendaryDrinkAtHpPct(itemUsedOnBoard: true));
+        uint[] held = [243139];
+        Assert.Equal(-1, CrucibleAutoPilotRules.PickPotion(held, 0.40f, CrucibleAutoPilotRules.LegendaryDrinkAtHpPct(false)));
+        Assert.Equal(0, CrucibleAutoPilotRules.PickPotion(held, 0.40f, CrucibleAutoPilotRules.LegendaryDrinkAtHpPct(true)));
+    }
+
+    /// <summary>The final boss top-off: Legendary, Ethos gone, not while ten held items still pay Habitual Hoarder.</summary>
+    [Fact]
+    public void TheFinalBossTopOffWaitsForEthosAndHoarder()
+    {
+        Assert.True(CrucibleAutoPilotRules.TopsOffForTheEnd(true, finalBoss: true, itemUsedOnBoard: true, hoarderPays: true, itemsHeld: 8));
+        Assert.True(CrucibleAutoPilotRules.TopsOffForTheEnd(true, true, true, hoarderPays: false, itemsHeld: 10));
+        Assert.False(CrucibleAutoPilotRules.TopsOffForTheEnd(true, true, true, hoarderPays: true, itemsHeld: 10));
+        Assert.False(CrucibleAutoPilotRules.TopsOffForTheEnd(true, true, itemUsedOnBoard: false, false, 5));
+        Assert.False(CrucibleAutoPilotRules.TopsOffForTheEnd(true, finalBoss: false, true, false, 5));
+        Assert.False(CrucibleAutoPilotRules.TopsOffForTheEnd(legendary: false, true, true, false, 5));
+    }
+
+    /// <summary>Top-off picks the strongest potion that does not overheal: G4 (50%) at 45%, G3 (36%) at 60%, none at 90%.</summary>
+    [Fact]
+    public void TopOffNeverOverheals()
+    {
+        uint[] held = [243137, 243138, 243139]; // G2 23%, G3 36%, G4 50%
+        Assert.Equal(2, CrucibleAutoPilotRules.PickTopOff(held, 0.45f));
+        Assert.Equal(1, CrucibleAutoPilotRules.PickTopOff(held, 0.60f));
+        Assert.Equal(0, CrucibleAutoPilotRules.PickTopOff(held, 0.75f));
+        Assert.Equal(-1, CrucibleAutoPilotRules.PickTopOff(held, 0.90f));
+        Assert.Equal(-1, CrucibleAutoPilotRules.PickTopOff(held, 0f));
     }
 
     /// <summary>Spoils: gear first, then Crucible items (never feed), only while fewer than ten items are held.</summary>

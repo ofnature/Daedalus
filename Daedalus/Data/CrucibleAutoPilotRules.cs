@@ -206,6 +206,43 @@ public static class CrucibleAutoPilotRules
     public const float LegendaryPotionAtHpPct = 0.20f;
 
     /// <summary>
+    /// Legendary once an item has been used on the board (Economic Ethos already lost): drink at about half, as the
+    /// guides do (docs/crucible-legendary-strats.md §9.4) — another potion costs nothing more.
+    /// </summary>
+    public const float LegendaryAfterEthosPotionAtHpPct = 0.45f;
+
+    /// <summary>The Legendary drinking line: last resort while Economic Ethos holds, about half once it is gone.</summary>
+    public static float LegendaryDrinkAtHpPct(bool itemUsedOnBoard) =>
+        itemUsedOnBoard ? LegendaryAfterEthosPotionAtHpPct : LegendaryPotionAtHpPct;
+
+    /// <summary>
+    /// Whether to top HP up at the final boss: the remaining-HP share is only scored at the end and low HP scores 0
+    /// (docs/crucible-legendary-strats.md §1.3, §9.3). Legendary, once Economic Ethos is gone, and not while holding the
+    /// ten items Habitual Hoarder still pays for.
+    /// </summary>
+    public static bool TopsOffForTheEnd(bool legendary, bool finalBoss, bool itemUsedOnBoard, bool hoarderPays, int itemsHeld) =>
+        legendary && finalBoss && itemUsedOnBoard && !(hoarderPays && itemsHeld >= MaxCrucibleItemsHeld);
+
+    /// <summary>The HUD slot of the strongest potion that would not overheal, or -1.</summary>
+    public static int PickTopOff(IReadOnlyList<uint> heldItemIds, float selfHpPct)
+    {
+        if (selfHpPct <= 0f)
+            return -1;
+        var best = -1;
+        var bestPct = 0;
+        for (var slot = 0; slot < heldItemIds.Count; slot++)
+        {
+            if (PotionRestorePct.TryGetValue(heldItemIds[slot], out var pct) && pct > bestPct && selfHpPct + (pct / 100f) <= 1f)
+            {
+                best = slot;
+                bestPct = pct;
+            }
+        }
+
+        return best;
+    }
+
+    /// <summary>
     /// The HUD slot of the potion to drink, or -1: at or below <paramref name="atHpPct"/> (default
     /// <see cref="PotionAtHpPct"/>), the held potion that restores the most (the first such slot on a tie). Only beast
     /// potions and crucible ash count.
@@ -568,11 +605,11 @@ public static class CrucibleAutoPilotRules
     }
 
     /// <summary>
-    /// For Legendary, whether to take beast gear on this board: where holding 10 pieces pays (Walking Armory, Boards 2/3
-    /// and up) the gear is taken, as the Legendary runs found do (Meoni's series, Merton9999 on the forum) — it also keeps
-    /// the three beasts alive; where it pays nothing (Board 1) none is taken, for Nameday Attire.
+    /// Legendary takes no beast gear on any board, for Nameday Attire (750). Walking Armory (500) needs ten pieces at the
+    /// end, which no run in the 2026-10-31 research reached from free loot (every one that got it bought gear), so taking
+    /// gear on Board 2 and up mostly lost Nameday for nothing (docs/crucible-legendary-strats.md §9.1).
     /// </summary>
-    public static bool LegendaryTakesGear(CrucibleBoard board) => board.BonusValue(CrucibleBonus.WalkingArmory) > 0;
+    public static bool LegendaryTakesGear => false;
 
     /// <summary>The coffer's close button ([0], then Yes to "Close the coffer without receiving any items?"; recording 2026-10-27).</summary>
     public const int TreasureCloseEvent = 0;

@@ -11,7 +11,8 @@ namespace Daedalus.Services.Beastmaster;
 /// <summary>
 /// Walks the Crucible board from space to space — the board is walked, not clicked, and a fork is just which way you
 /// go. Positions come from the board's layout (<see cref="CrucibleBoardLayout"/>); the next space and the fork side
-/// from <see cref="CrucibleWalkPlan"/> and <see cref="CrucibleRoutePlan.SuggestedSide"/>. It moves only on the strip,
+/// from <see cref="CrucibleWalkPlan"/> and <see cref="CrucibleRoutePlan.SuggestedSide"/> — along the board's map where
+/// it was read (every board; the Second Master's Board cannot be walked without it), else a row north at a time. It moves only on the strip,
 /// out of combat, with no board screen open, and pauses after reaching a space so its screen can open. Movement goes
 /// through the <see cref="IMovementArbiter"/> (vnavmesh), so it yields to the boss engine like every other move.
 /// </summary>
@@ -37,7 +38,9 @@ public sealed class CrucibleWalker
     private readonly Action<string> _log;
     private readonly HashSet<int> _flipped = new();
     private CrucibleStage? _target;
-    private int _lastMove = -1;
+    private int _lastMove = -1; // the move reached (no map) or the space's node (map): a change is an arrival
+    private CrucibleStage? _reached;
+    private int _reachedBoard = -1;
     private DateTime _holdUntilUtc;
     private DateTime _nextMoveUtc;
     private DateTime _progressUtc;
@@ -93,8 +96,18 @@ public sealed class CrucibleWalker
         {
             Halt();
             if (board == null)
+            {
                 _lastMove = -1;
+                _reached = null;
+            }
+
             return;
+        }
+
+        if (board.Index != _reachedBoard)
+        {
+            _reachedBoard = board.Index;
+            _reached = null;
         }
 
         var now = DateTime.UtcNow;
@@ -120,7 +133,10 @@ public sealed class CrucibleWalker
         }
 
         // Reaching a space: give its screen time to open before moving on.
-        var move = CrucibleWalkPlan.CurrentMove(route, position);
+        var mapped = CrucibleWalkPlan.HasMap(route);
+        if (mapped)
+            _reached = CrucibleWalkPlan.CurrentSpace(route, position, _reached);
+        var move = mapped ? _reached?.Node ?? 0 : CrucibleWalkPlan.CurrentMove(route, position);
         if (move != _lastMove)
         {
             _lastMove = move;
@@ -131,12 +147,16 @@ public sealed class CrucibleWalker
         if (now < _holdUntilUtc)
             return;
 
-        var next = CrucibleWalkPlan.Next(route, position, fork =>
+        int ChooseSide(IReadOnlyList<CrucibleStage> fork)
         {
-            var side = CrucibleRoutePlan.SuggestedSide(_index, board, fork, isCaptured, legendary);
+            var side = CrucibleRoutePlan.SuggestedSide(_index, board, fork, isCaptured, legendary, route);
             LogFork(fork, side, legendary, _flipped.Contains(board.Index) != ForkFlipped(board, fork[0].Move));
             return side;
-        }, stage => TargetPosition(board, route, stage));
+        }
+
+        var next = mapped
+            ? CrucibleWalkPlan.NextOnMap(route, _reached, ChooseSide)
+            : CrucibleWalkPlan.Next(route, position, ChooseSide, stage => TargetPosition(board, route, stage));
         if (next == null)
         {
             Halt();
@@ -193,8 +213,9 @@ public sealed class CrucibleWalker
         // (its AI holds position on the board, which as a MaxMelee move refused every step — field 2026-10-25, the
         // player walked the whole board by hand) but never through real zone or damage danger. BossMod defers to a
         // running vnav path.
-        // Across to the target's lane first when it is on the other one, so this lane's next space is not walked into.
-        var result = _move.PathfindAndMoveCloseTo(CrucibleWalkPlan.LaneWaypoint(position, at), 0.3f, MovementIntent.PositionalArc);
+        // Without the map: across to the target's lane first when it is on the other one, so this lane's next space is
+        // not walked into. With it, straight along the path the board draws (it passes no other space).
+        var result = _move.PathfindAndMoveCloseTo(mapped ? at : CrucibleWalkPlan.LaneWaypoint(position, at), 0.3f, MovementIntent.PositionalArc);
         if (result != _lastResult)
         {
             var snapshot = _move.Snapshot;

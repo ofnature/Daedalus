@@ -3,6 +3,45 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.114 — 2026-10-31
+
+### Beastmaster — the Crucible (Legendary)
+- **No beast gear on any board.** Taking gear from Board 2 on aimed at Walking Armory (500, ten pieces at the end),
+  which no Legendary run reached from loot alone, and gave up Nameday Attire (750) every time. Legendary now keeps
+  Nameday Attire everywhere.
+- **The Master's Boards' elites are on the route.** The Golem on the First Master's Board (without it the board is
+  only 50 points over Legendary), and the Mindflayer, Chimera and King Ahriman on the Second.
+- **Potions once an item is used anyway.** Legendary still drinks only at 20% while Economic Ethos holds; once an
+  item has been used on the board, it drinks at 45%.
+- **HP topped up for the end.** The share of your remaining HP is scored only when the board ends, and low HP scores
+  nothing. At the final boss, once Economic Ethos is gone, Legendary drinks potions that won't overheal to keep HP
+  high — unless you hold the ten items Habitual Hoarder still pays for.
+
+### Targeting — enemies the boss engine forbids
+- **Lowest HP, Highest HP and Nearest no longer pick a forbidden enemy.** These picks skipped the boss engine's
+  "never attack" list, so Beastmaster kept hitting the Drake Piece through Blaze Spikes and died to the reflect. Tank
+  Assist no longer follows a tank onto a forbidden enemy either.
+- **Auto-attacks stop too.** A forbidden hard target is swapped for another enemy, or dropped when there is none, and
+  targeted again once the engine allows it.
+
+### Beastmaster — the Crucible (walking the board)
+- **The Second Master's Board is walked.** It is laid out as a grid, not a straight strip, so the walker could not place
+  its spaces and left it to you. Every board is now walked along the game's own map of it: where each space is and which
+  spaces it leads to.
+- **Legendary looks down the lane.** At a fork, an elite worth Legendary points further down only one lane now counts
+  for that lane: the Chimera on the Second Master's Board sits behind a random space the walker used to pass up for
+  the shop.
+
+### Beastmaster — the Crucible (beast ranks)
+- **Ranks no longer drop to the board's sync.** The Master's Bestiary shows ranks synced to the board you're on, the
+  same as the team screens, and reading it there knocked true ranks down (a rank-19 Cu Sith saved as 10). A reading
+  now only ever raises a rank.
+- **Ranks keep counting past the board's cap.** The Bestiary's EXP is never synced, so EXP going down between readings
+  counts as a rank-up, and a beast showing EXP "-/-" is rank 25. Hovering a beast in the Bestiary, or Read ranks, keeps
+  it current; read from a Master's Board to see the true ranks.
+
+<!-- LATEST-END -->
+
 ## v0.1.113 — 2026-10-31
 
 ### Beastmaster — the Crucible
@@ -12,8 +51,6 @@ All notable changes to Daedalus will be documented in this file.
 - **Thief's Eye and Merchant's Eye actually go off.** An Eye pressed in the middle of an action is refused by the
   game ("Cannot execute at this time."), and it was counted as used anyway. An Eye now counts only once it has left
   your items, and is pressed again — up to three times a battle — when it didn't go off.
-
-<!-- LATEST-END -->
 
 ## v0.1.112 — 2026-10-31
 

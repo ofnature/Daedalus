@@ -9,11 +9,55 @@ namespace Daedalus.Data;
 /// Puts each space of a board on the ground. Every board's layout (its territory's <c>planmap.lgb</c>, layer
 /// <c>LVD_ROUTE_*</c>) holds one player pop point per space, and all five boards are laid out the same way: a strip
 /// at x ≈ −700 walked north, move 1 at z = −9, each move one row further north, a fork's spaces side by side in its
-/// row. Checked against the route for all five boards (12/13/16/14/25 points, forks where the stage rows put them).
+/// row. That holds for boards 1-4; the Second Master's Board (25 points) is a grid whose moves step sideways, so the
+/// board's own map (<see cref="CrucibleMapRow"/>) places the spaces when there is one, and the strip is the fallback.
 /// Pure.
 /// </summary>
 public static class CrucibleBoardLayout
 {
+    /// <summary>
+    /// The route with each space's position, from the board's map: its grid columns are the points' distinct x values
+    /// west to east, its grid rows their distinct z values south to north. Falls back to <see cref="Place(IReadOnlyList{CrucibleStage}, IReadOnlyList{Vector3})"/>
+    /// when there is no map or it does not land every space on a point.
+    /// </summary>
+    public static IReadOnlyList<CrucibleStage> Place(
+        IReadOnlyList<CrucibleStage> route, IReadOnlyList<Vector3> points, IReadOnlyList<CrucibleMapRow>? map)
+    {
+        var cells = map?.Where(m => m.Kind == 1).GroupBy(m => m.Node).ToDictionary(g => g.Key, g => (g.First().X, g.First().Y));
+        if (cells == null || route.Count == 0 || points.Count != route.Count || route.Any(s => !cells.ContainsKey(s.Node)))
+            return Place(route, points);
+
+        static List<float> Distinct(IEnumerable<float> values)
+        {
+            var list = new List<float>();
+            foreach (var v in values.OrderBy(v => v))
+                if (list.Count == 0 || v - list[^1] >= RowTolerance)
+                    list.Add(v);
+            return list;
+        }
+
+        var columns = route.Select(s => cells[s.Node].X).Distinct().OrderBy(x => x).ToList();
+        var rows = route.Select(s => cells[s.Node].Y).Distinct().OrderByDescending(y => y).ToList();
+        var xs = Distinct(points.Select(p => p.X));
+        var zs = Distinct(points.Select(p => p.Z));
+        zs.Reverse(); // south (largest z) first, like the grid rows
+        if (columns.Count != xs.Count || rows.Count != zs.Count)
+            return Place(route, points);
+
+        var placed = new List<CrucibleStage>(route.Count);
+        foreach (var stage in route)
+        {
+            var (x, y) = cells[stage.Node];
+            var want = new Vector2(xs[columns.IndexOf(x)], zs[rows.IndexOf(y)]);
+            var point = points.OrderBy(p => Vector2.Distance(new Vector2(p.X, p.Z), want)).First();
+            if (Vector2.Distance(new Vector2(point.X, point.Z), want) >= RowTolerance)
+                return Place(route, points);
+            placed.Add(stage with { At = point });
+        }
+
+        return placed.Select(s => s.At).Distinct().Count() == placed.Count ? placed : Place(route, points);
+    }
+
     /// <summary>Points closer than this along the walk belong to one row (one move).</summary>
     private const float RowTolerance = 1f;
 
@@ -56,15 +100,83 @@ public static class CrucibleBoardLayout
 /// <summary>Where to walk next on a board. Pure.</summary>
 public static class CrucibleWalkPlan
 {
+    /// <summary>Whether every space knows where it leads (the board's map was read).</summary>
+    public static bool HasMap(IReadOnlyList<CrucibleStage> route) => route.Count > 0 && route.All(s => s.Next != null);
+
+    /// <summary>Within this of a space's spot (across the ground) you are standing on it.</summary>
+    public const float OnSpaceYalms = 1.5f;
+
+    /// <summary>
+    /// The space you are on, on a mapped board: the one within <see cref="OnSpaceYalms"/>; between spaces, the last one
+    /// reached (<paramref name="lastReached"/>); with none reached yet (a reload mid-board), the nearest one — unless you
+    /// are south of every space, at the start (null).
+    /// </summary>
+    public static CrucibleStage? CurrentSpace(IReadOnlyList<CrucibleStage> route, Vector3 player, CrucibleStage? lastReached)
+    {
+        var placed = route.Where(s => s.At != null).ToList();
+        if (placed.Count == 0)
+            return null;
+        float Across(CrucibleStage s) => Vector2.Distance(new Vector2(s.At!.Value.X, s.At.Value.Z), new Vector2(player.X, player.Z));
+        var nearest = placed.OrderBy(Across).First();
+        if (Across(nearest) <= OnSpaceYalms)
+            return nearest;
+        if (lastReached != null)
+            return lastReached;
+        return player.Z > placed.Max(s => s.At!.Value.Z) + ReachedYalms ? null : nearest;
+    }
+
+    /// <summary>
+    /// The space to walk to next on a mapped board: the only one <paramref name="from"/> leads to, or the side
+    /// <paramref name="chooseSide"/> picks among them (1-based place on their move). From the start (null), the first move.
+    /// Null when the board is done.
+    /// </summary>
+    public static CrucibleStage? NextOnMap(
+        IReadOnlyList<CrucibleStage> route, CrucibleStage? from, Func<IReadOnlyList<CrucibleStage>, int> chooseSide)
+    {
+        var options = from == null
+            ? route.Where(s => s.Move == route.Min(r => r.Move)).ToList()
+            : route.Where(s => from.Next?.Contains(s.Node) == true).ToList();
+        options = options.Where(s => s.At != null).ToList();
+        if (options.Count <= 1)
+            return options.FirstOrDefault();
+
+        var side = chooseSide(options);
+        return options.FirstOrDefault(s => s.Side == side) ?? options[0];
+    }
+
+    /// <summary>Every space that can still be walked from <paramref name="from"/> on, itself included (empty without a map).</summary>
+    public static IReadOnlyList<CrucibleStage> Reachable(IReadOnlyList<CrucibleStage> route, CrucibleStage from)
+    {
+        if (from.Next == null)
+            return [];
+        var byNode = route.ToDictionary(s => s.Node);
+        var seen = new HashSet<int> { from.Node };
+        var queue = new Queue<CrucibleStage>([from]);
+        var reached = new List<CrucibleStage>();
+        while (queue.Count > 0)
+        {
+            var stage = queue.Dequeue();
+            reached.Add(stage);
+            foreach (var next in stage.Next ?? [])
+                if (seen.Add(next) && byNode.TryGetValue(next, out var to))
+                    queue.Enqueue(to);
+        }
+
+        return reached;
+    }
+
     /// <summary>A space counts as reached once you are this close to its row (or past it).</summary>
     public const float ReachedYalms = 1f;
 
     /// <summary>
     /// The last move you have reached: the furthest row at or behind you (the walk runs north, towards −z). 0 at the
     /// start. Works from position alone, so it picks up after a battle, a reload or a hand-walked stretch.
+    /// <para>On a mapped board, the move of <see cref="CurrentSpace"/>: there a row is not a move.</para>
     /// </summary>
     public static int CurrentMove(IReadOnlyList<CrucibleStage> route, Vector3 player) =>
-        route.Where(s => s.At is { } at && at.Z >= player.Z - ReachedYalms).Select(s => s.Move).DefaultIfEmpty(0).Max();
+        HasMap(route)
+            ? CurrentSpace(route, player, null)?.Move ?? 0
+            : route.Where(s => s.At is { } at && at.Z >= player.Z - ReachedYalms).Select(s => s.Move).DefaultIfEmpty(0).Max();
 
     /// <summary>
     /// The space to walk to next: the only one on the next move, or at a fork the side <paramref name="chooseSide"/>

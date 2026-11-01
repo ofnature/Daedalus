@@ -44,6 +44,8 @@ public sealed unsafe class CrucibleAutoPilot
     private int _shopPendingHeld;
     private DateTime _shopPendingUtc;
     private bool _boughtOnBoard;
+    private bool _itemUsedOnBoard;
+    private bool _hoarderPays;
     private readonly HashSet<int> _treasureTakenRows = new();
     private DateTime _treasureSinceUtc;
     private DateTime _resultSentUtc;
@@ -115,7 +117,7 @@ public sealed unsafe class CrucibleAutoPilot
     {
         _usePotionsNow = usePotions;
         _selfHpPct = selfHpPct;
-        // Legendary: gear only where holding it pays (Walking Armory); elsewhere none, for Nameday Attire.
+        // Legendary: no gear, for Nameday Attire (CrucibleAutoPilotRules.LegendaryTakesGear).
         // Once gear has been taken on this board (a coffer offering only gear), Nameday Attire is gone: avoiding gear
         // after that only throws away the better offer (Korha 2026-10-27: a Reraiser over Heavy Axe).
         if (board?.Index != _boardIndex)
@@ -123,10 +125,12 @@ public sealed unsafe class CrucibleAutoPilot
             _boardIndex = board?.Index ?? 0;
             _gearTakenOnBoard = false;
             _boughtOnBoard = false;
+            _itemUsedOnBoard = false;
         }
 
-        _legendaryNoGear = legendary && board != null && !CrucibleAutoPilotRules.LegendaryTakesGear(board) && !_gearTakenOnBoard;
+        _legendaryNoGear = legendary && board != null && !CrucibleAutoPilotRules.LegendaryTakesGear && !_gearTakenOnBoard;
         _legendary = legendary;
+        _hoarderPays = board != null && board.BonusValue(CrucibleBonus.HabitualHoarder) > 0;
         takeItems = legendary ? !_legendaryNoGear : takeItems;
         _takeGearNow = takeItems;
         _takePotionsNow = takePotions;
@@ -576,7 +580,8 @@ public sealed unsafe class CrucibleAutoPilot
             if (outcome == true)
             {
                 _log("Crucible: drank a potion (HP " + (_pressedPotionHpPct * 100f).ToString("0") + "%)."
-                     + (_legendary ? " Legendary last resort: Economic Ethos is given up to stay alive." : ""));
+                     + (_legendary && !_itemUsedOnBoard ? " Legendary last resort: Economic Ethos is given up to stay alive." : ""));
+                _itemUsedOnBoard = true;
                 _nextPotionUtc = now + TimeSpan.FromSeconds(4); // one drink at a time; HP shows the effect first
             }
             else if (outcome == false)
@@ -603,9 +608,14 @@ public sealed unsafe class CrucibleAutoPilot
         var usable = new List<bool>(10);
         for (var slot = 0; slot < 10; slot++)
             usable.Add(HudFlag(hud, CrucibleAutoPilotRules.HudItemUsableIndex(slot)));
+        var drinkable = CrucibleAutoPilotRules.UsableOnly(held, usable);
         var pick = CrucibleAutoPilotRules.PickPotion(
-            CrucibleAutoPilotRules.UsableOnly(held, usable), _selfHpPct,
-            _legendary ? CrucibleAutoPilotRules.LegendaryPotionAtHpPct : CrucibleAutoPilotRules.PotionAtHpPct);
+            drinkable, _selfHpPct,
+            _legendary ? CrucibleAutoPilotRules.LegendaryDrinkAtHpPct(_itemUsedOnBoard) : CrucibleAutoPilotRules.PotionAtHpPct);
+        // Legendary at the final boss, Economic Ethos already gone: keep HP topped up for the remaining-HP share.
+        if (pick < 0 && CrucibleAutoPilotRules.TopsOffForTheEnd(
+                _legendary, CrucibleTracker.Current.Enemy?.IsFinalBoss == true, _itemUsedOnBoard, _hoarderPays, held.Count(id => id != 0)))
+            pick = CrucibleAutoPilotRules.PickTopOff(drinkable, _selfHpPct);
         if (pick < 0)
             return false;
 
@@ -632,6 +642,7 @@ public sealed unsafe class CrucibleAutoPilot
             if (Text(menu, 8) == "Use")
             {
                 FireMixed(menu, 0, 0, 0u, null, null);
+                _itemUsedOnBoard = true;
                 _log("Crucible: Siren — the adds are bunched; using a Fang on them"
                      + (_legendary ? " (Economic Ethos is given up)." : "."));
                 _nextFangUtc = now + TimeSpan.FromSeconds(3);
@@ -732,6 +743,7 @@ public sealed unsafe class CrucibleAutoPilot
             if (outcome == true)
             {
                 _eyesUsed.Add(_eyePressed);
+                _itemUsedOnBoard = true;
                 _log($"Crucible: used {name} for this battle.");
             }
             else if (tries >= CrucibleAutoPilotRules.EyeMaxTries)

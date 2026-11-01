@@ -162,8 +162,8 @@ public sealed class CrucibleTeamWindow : Window
         changed |= ImGui.RadioButton("Legendary##crucibleGoal", ref goal, (int)CrucibleTeamGoal.Legendary);
         if (ImGui.IsItemHovered())
             ImGui.SetTooltip("Score for Legendary rank: a team of only three beasts of ONE kin (Beast Squad III + Kin Gambit,\n"
-                             + "5,000 points). The autopilot never rests at a campsite and never buys; it takes no beast gear on\n"
-                             + "Board 1 (Nameday Attire) and all of it from Board 2 on (Walking Armory, and it keeps the beasts alive).\n"
+                             + "5,000 points). The autopilot never rests at a campsite and buys only what finishes Habitual Hoarder;\n"
+                             + "it takes no beast gear (Nameday Attire) and goes for the elites a Legendary route needs.\n"
                              + "The walker avoids campsite sides at forks. Keep every familiar from falling (it retreats them).\n\n"
                              + "NOT a guarantee: there is RNG at work. Coffers that offer only beast gear, random spaces that turn\n"
                              + "into campsites, and every Damage Down / Vulnerability Up you take decide the bonuses, and the three\n"
@@ -370,8 +370,10 @@ public sealed class CrucibleTeamWindow : Window
             if (scanning)
                 ImGui.EndDisabled();
             if (ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenDisabled))
-                ImGui.SetTooltip("Opens the Master's Bestiary and reads every beast's true rank (team screens show ranks\n"
-                                 + "synced to the board — Board 1 shows everyone at 5 or under). Clicking a beast there reads it too.");
+                ImGui.SetTooltip("Opens the Master's Bestiary and reads every beast's rank and EXP. Clicking a beast there reads it too.\n"
+                                 + "Ranks show synced to the board you're on (Board 1 shows everyone at 5 or under), so a reading\n"
+                                 + "only ever raises a rank, and EXP going down counts as a rank-up. Read from a Master's Board\n"
+                                 + "for the true ranks.");
             ImGui.SameLine();
             ImGui.TextColored(DaedalusTheme.TextSecondary, bestiary.Status.Length > 0
                 ? bestiary.Status
@@ -619,7 +621,8 @@ public sealed class CrucibleTeamWindow : Window
             ImGui.SetTooltip("At 40% HP or less, drink the strongest held beast potion or crucible ash. It opens the item from the\n"
                              + "board HUD and picks Use. With the autopilot on, shops are bought out of healing items, up to ten held.\n"
                              + "Legendary: only as a last resort, at 20% HP or less. It costs Economic Ethos (750), but dying ends the\n"
-                             + "run with no bonuses at all. Legendary shops buy no potions: only the cheapest items that make ten held\n"
+                             + "run with no bonuses at all. Once an item has been used anyway, it drinks at 45%, and at the final boss it\n"
+                             + "keeps HP topped up (the remaining-HP share scores only at the end). Legendary shops buy no potions: only the cheapest items that make ten held\n"
                              + "for Habitual Hoarder, at the last shop, when that pays more than Coin Clutcher (and Rolling in Riches).");
 
         ImGui.SameLine();

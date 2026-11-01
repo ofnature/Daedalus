@@ -146,6 +146,9 @@ public sealed class BeastmasterConfig
     /// <summary>Beast ranks as last seen on Team Composition or the horn screen (Bestiary number → rank).</summary>
     public Dictionary<int, int> CrucibleRanks { get; set; } = [];
 
+    /// <summary>Beast EXP toward the next rank as the Master's Bestiary last showed it (Bestiary number → EXP); a drop is a rank-up.</summary>
+    public Dictionary<int, int> CrucibleExp { get; set; } = [];
+
     /// <summary>
     /// Step through the board's screens: start each battle once the horns are set, take the spoils' tokens, the first
     /// treasure, leave shops, rest the most hurt beast at campsites, close the result. Off by default.

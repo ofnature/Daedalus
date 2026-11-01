@@ -61,6 +61,12 @@ public static class CrucibleSheetReader
             foreach (var board in excel.GetSubrowSheet<RawSubrow>(name: "XBMContentStageEvent"))
                 stageRows[board.RowId] = board.Select(r => new CrucibleStageRow(r.ReadInt8Column(0), r.ReadUInt8Column(1), r.ReadInt8Column(2))).ToList();
 
+            // The board as the game draws it: where each space sits and where it leads (CrucibleMapRow).
+            var maps = new Dictionary<uint, List<CrucibleMapRow>>();
+            foreach (var board in excel.GetSubrowSheet<RawSubrow>(name: "XBMContentStageEventMap"))
+                maps[board.RowId] = board.Select(r => new CrucibleMapRow(
+                    r.ReadUInt8Column(0), r.ReadUInt8Column(1), r.ReadUInt8Column(2), r.ReadUInt8Column(3), r.ReadUInt8Column(4))).ToList();
+
             var randomOptions = new Dictionary<uint, IReadOnlyList<(byte Type, int Index)>>();
             foreach (var pool in excel.GetSubrowSheet<RawSubrow>(name: "XBMRandomStageEvent"))
                 randomOptions[pool.RowId] = pool.Select(r => (r.ReadUInt8Column(0), (int)r.ReadInt8Column(1))).ToList();
@@ -79,11 +85,12 @@ public static class CrucibleSheetReader
                     continue;
                 var bonuses = Enumerable.Range(4, 33).Select(c => (int)row.ReadUInt16Column(c)).ToList();
                 var rawBattles = battlesByBoard.GetValueOrDefault(row.RowId) ?? [];
+                var map = maps.GetValueOrDefault(row.RowId);
                 var route = CrucibleBoardLayout.Place(
                     CrucibleRouteBuilder.Build(
                         stageRows.GetValueOrDefault(row.RowId) ?? [], rawBattles,
-                        randomByBoard.GetValueOrDefault(row.RowId) ?? []),
-                    RoutePoints(data, cfc.TerritoryType.ValueNullable?.Bg.ExtractText(), log));
+                        randomByBoard.GetValueOrDefault(row.RowId) ?? [], map),
+                    RoutePoints(data, cfc.TerritoryType.ValueNullable?.Bg.ExtractText(), log), map);
                 boards.Add(new CrucibleBoard(
                     (int)row.RowId, cfcId, cfc.TerritoryType.RowId, cfc.Name.ExtractText(), cfc.ClassJobLevelRequired,
                     rawBattles.Where(b => b != 0).ToList(), bonuses, route, row.ReadUInt8Column(1), row.ReadUInt8Column(3)));

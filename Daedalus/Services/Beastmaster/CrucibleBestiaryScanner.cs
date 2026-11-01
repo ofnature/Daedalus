@@ -5,9 +5,9 @@ using static Daedalus.Services.Beastmaster.CrucibleAddons;
 namespace Daedalus.Services.Beastmaster;
 
 /// <summary>
-/// Reads true beast ranks from the Master's Bestiary detail panel (<see cref="CrucibleBestiaryDetail"/>): whenever the
-/// panel shows a beast, and — on request — by clicking through both Bestiary pages beast by beast. Team screens only
-/// show ranks synced to their board; this is the source that can also correct a rank downwards.
+/// Reads beast ranks and EXP from the Master's Bestiary detail panel (<see cref="CrucibleBestiaryDetail"/>): whenever
+/// the panel shows a beast, and — on request — by clicking through both Bestiary pages beast by beast. Its rank is synced
+/// to the board like the team screens, but its EXP is true (see <see cref="CrucibleBestiaryDetail.Merge"/>).
 /// </summary>
 public sealed unsafe class CrucibleBestiaryScanner
 {
@@ -15,8 +15,8 @@ public sealed unsafe class CrucibleBestiaryScanner
     private static readonly TimeSpan GiveUpAfter = TimeSpan.FromSeconds(10);
 
     private readonly Action<string> _log;
-    private readonly Action<int, int> _rankRead;
-    private (int PetId, int Rank, int Exp)? _lastRead;
+    private readonly Action<int, int, int?> _rankRead;
+    private (int PetId, int Rank, int? Exp)? _lastRead;
     private bool _scanning;
     private bool _openedBestiary;
     private int _page;
@@ -26,8 +26,8 @@ public sealed unsafe class CrucibleBestiaryScanner
     private DateTime _nextStepUtc;
     private DateTime _startedUtc;
 
-    /// <param name="rankRead">Called with (Bestiary number, true rank) for each beast the panel shows.</param>
-    public CrucibleBestiaryScanner(Action<string> log, Action<int, int> rankRead)
+    /// <param name="rankRead">Called with (Bestiary number, rank as shown, EXP — null when none or rank 25) for each beast the panel shows.</param>
+    public CrucibleBestiaryScanner(Action<string> log, Action<int, int, int?> rankRead)
     {
         _log = log;
         _rankRead = rankRead;
@@ -83,8 +83,8 @@ public sealed unsafe class CrucibleBestiaryScanner
 
         _lastRead = beast;
         _read++;
-        _rankRead(beast.PetId, beast.Rank);
-        _log($"Crucible: Bestiary — {BstFamiliars.ByBestiaryNo((uint)beast.PetId)?.Name ?? $"#{beast.PetId}"} rank {beast.Rank} ({beast.Exp}/100 EXP)");
+        _rankRead(beast.PetId, beast.Rank, beast.Exp);
+        _log($"Crucible: Bestiary — {BstFamiliars.ByBestiaryNo((uint)beast.PetId)?.Name ?? $"#{beast.PetId}"} rank {beast.Rank} ({(beast.Exp is { } exp ? $"{exp}/100" : "-/-")} EXP)");
     }
 
     private void Scan()
