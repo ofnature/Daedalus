@@ -160,6 +160,13 @@ public static class FFXIVConstants
     /// the boss engine turns it onto a direction that stays on the floor (Minerva, Siren / Voidmancer, 2026-10-27: a
     /// march walked Korha off the edge). Nothing of ours may turn the character meanwhile — treated like a gaze.
     /// </summary>
+    /// <summary>
+    /// Enemies (BNpcName) never to attack, though they are targetable hostiles. Crucible Third Board: the Zu's eggs
+    /// (14575, 14576) — each one broken before it hatches buffs the Zu for good (Korha 2026-10-31: a Shieldsplitter went
+    /// into an egg and the run died at the Zu).
+    /// </summary>
+    public static readonly HashSet<uint> NeverAttackNameIds = new() { 14575, 14576 };
+
     public static readonly HashSet<uint> MarchFacingStatusIds = new() { 1257, 2161, 2162, 2163, 2164 };
 
     /// <summary>Status IDs that force the player into involuntary directional movement.</summary>

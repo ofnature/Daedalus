@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+using System.Linq;
 using Daedalus.Data;
 
 namespace Daedalus.Rotation.ArtemisCore.Helpers;
@@ -375,12 +377,27 @@ public static class ArtemisCooldownRules
     public const float ZuReleaseAtHpPct = 0.15f;
 
     /// <summary>
-    /// Hold Tempered Release at the Zu: every egg it breaks makes the Zu stronger, and a release can be an AoE (Ponzi's
-    /// Third Board guide: "not going to use behemoth meteor unless it's about to kill the zoo"). Parting Blow waits on an
-    /// owed release, so it is held too. Not when the familiar is falling — its retreat comes first.
+    /// Hold Tempered Release while the Zu lives above <see cref="ZuReleaseAtHpPct"/>: every egg it breaks makes the Zu
+    /// stronger, and a release can be an AoE (Ponzi's Third Board guide: "not going to use behemoth meteor unless it's
+    /// about to kill the zoo"). Parting Blow waits on an owed release, so it is held too. Whatever is targeted: with the
+    /// hold keyed on the target, a release went out at a hatched Pullet beside the eggs (Korha 2026-10-31). Not when
+    /// the familiar is falling — its retreat comes first. <paramref name="zuHpPct"/> is null when no Zu is in the fight.
     /// </summary>
-    public static bool HoldReleaseAtZu(bool onBoard, uint targetNameId, float targetHpPct, bool familiarFalling)
-        => onBoard && targetNameId == ZuNameId && targetHpPct > ZuReleaseAtHpPct && !familiarFalling;
+    public static bool HoldReleaseAtZu(bool onBoard, float? zuHpPct, bool familiarFalling)
+        => onBoard && zuHpPct is > ZuReleaseAtHpPct && !familiarFalling;
+
+    /// <summary>Shield Charge hits everything within this of its target (Action sheet: circle, effect range 6).</summary>
+    public const float ShieldChargeSplashYalms = 6f;
+
+    /// <summary>Added to a splash radius for an egg's own size and a step of drift.</summary>
+    public const float EggMarginYalms = 1f;
+
+    /// <summary>
+    /// Whether a splash of <paramref name="radius"/> at <paramref name="at"/> would catch a Zu egg. A Shield Charge at a
+    /// hatched Cockerel broke the two eggs beside it (Korha 2026-10-31).
+    /// </summary>
+    public static bool SplashBreaksEgg(IReadOnlyList<System.Numerics.Vector2> eggs, System.Numerics.Vector2 at, float radius)
+        => eggs.Any(e => System.Numerics.Vector2.Distance(e, at) <= radius + EggMarginYalms);
 
     /// <summary>Shared tanking: the beastmaster takes the enemy only while at or above this much HP…</summary>
     public const float SharedTankSelfFloorPct = 0.50f;

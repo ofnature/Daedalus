@@ -685,21 +685,48 @@ public class CrucibleTests
 
     [Fact]
     public void ZuHealthyHoldsTheRelease() =>
-        Assert.True(ArtemisCooldownRules.HoldReleaseAtZu(onBoard: true, ArtemisCooldownRules.ZuNameId, 0.60f, familiarFalling: false));
+        Assert.True(ArtemisCooldownRules.HoldReleaseAtZu(onBoard: true, zuHpPct: 0.60f, familiarFalling: false));
 
     [Fact]
     public void ZuNearlyDeadLetsTheReleaseFinishIt() =>
-        Assert.False(ArtemisCooldownRules.HoldReleaseAtZu(true, ArtemisCooldownRules.ZuNameId, ArtemisCooldownRules.ZuReleaseAtHpPct, false));
+        Assert.False(ArtemisCooldownRules.HoldReleaseAtZu(true, ArtemisCooldownRules.ZuReleaseAtHpPct, false));
 
     [Fact]
     public void ZuHoldGivesWayToAFallingFamiliar() =>
-        Assert.False(ArtemisCooldownRules.HoldReleaseAtZu(true, ArtemisCooldownRules.ZuNameId, 0.60f, familiarFalling: true));
+        Assert.False(ArtemisCooldownRules.HoldReleaseAtZu(true, 0.60f, familiarFalling: true));
 
+    /// <summary>No Zu in the fight (the catoblepas side, another board): nothing held.</summary>
     [Fact]
     public void ZuHoldIsOnlyForTheZu()
     {
-        Assert.False(ArtemisCooldownRules.HoldReleaseAtZu(true, 14577, 0.60f, false)); // catoblepas
-        Assert.False(ArtemisCooldownRules.HoldReleaseAtZu(onBoard: false, ArtemisCooldownRules.ZuNameId, 0.60f, false));
+        Assert.False(ArtemisCooldownRules.HoldReleaseAtZu(true, zuHpPct: null, false));
+        Assert.False(ArtemisCooldownRules.HoldReleaseAtZu(onBoard: false, 0.60f, false));
+    }
+
+    /// <summary>Korha 2026-10-31: the release went out at a hatched Pullet — the hold reads the Zu, not the target.</summary>
+    [Fact]
+    public void ZuHoldAppliesWhileAnAddIsTargeted() =>
+        Assert.True(ArtemisCooldownRules.HoldReleaseAtZu(true, zuHpPct: 0.45f, familiarFalling: false));
+
+    /// <summary>The recording's Shield Charge at the Cockerel (128, -412) caught eggs at (128, -406) and (134, -412).</summary>
+    [Fact]
+    public void ShieldChargeSplashCatchesTheEggsBeside()
+    {
+        System.Numerics.Vector2[] eggs = [new(128f, -406f), new(134f, -412f)];
+        Assert.True(ArtemisCooldownRules.SplashBreaksEgg(eggs, new(128f, -412f), ArtemisCooldownRules.ShieldChargeSplashYalms));
+        Assert.False(ArtemisCooldownRules.SplashBreaksEgg(eggs, new(120f, -426.9f), ArtemisCooldownRules.ShieldChargeSplashYalms)); // the Zu, centre
+        Assert.False(ArtemisCooldownRules.SplashBreaksEgg([], new(128f, -412f), ArtemisCooldownRules.ShieldChargeSplashYalms));
+    }
+
+    /// <summary>The eggs (BNpcName 14575, 14576) are never attacked; the Zu (14572) and its hatchlings are.</summary>
+    [Fact]
+    public void ZuEggsAreNeverAttacked()
+    {
+        Assert.Contains(14575u, FFXIVConstants.NeverAttackNameIds);
+        Assert.Contains(14576u, FFXIVConstants.NeverAttackNameIds);
+        Assert.DoesNotContain(ArtemisCooldownRules.ZuNameId, FFXIVConstants.NeverAttackNameIds);
+        Assert.DoesNotContain(14573u, FFXIVConstants.NeverAttackNameIds); // cockerel piece
+        Assert.DoesNotContain(14574u, FFXIVConstants.NeverAttackNameIds); // pullet piece
     }
 
     /// <summary>Lingering Vantage (Status sheet, 2026-10-31): "Next Parting Blow will deal increased damage".</summary>

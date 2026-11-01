@@ -75,6 +75,9 @@ public static class EnemyAttackability
         if (!target.IsTargetable || target.IsDead)
             return false;
 
+        if (FFXIVConstants.NeverAttackNameIds.Contains(npc.NameId))
+            return false;
+
         return CanUseDamageActionOnTarget(target);
     }
 

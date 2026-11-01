@@ -106,8 +106,7 @@ public sealed class DamageModule : IArtemisModule
 
         _releaseOwed = false;
         PushFamiliarOrders(context, scheduler, targetId, level, trickHandledByPairing: paired || window,
-            targetHpPct: target.MaxHp > 0 ? (float)target.CurrentHp / target.MaxHp : 1f,
-            targetNameId: (target as Dalamud.Game.ClientState.Objects.Types.IBattleNpc)?.NameId ?? 0);
+            targetHpPct: target.MaxHp > 0 ? (float)target.CurrentHp / target.MaxHp : 1f);
 
         var edgeDistance = System.Numerics.Vector3.Distance(player.Position, target.Position)
                            - target.HitboxRadius - player.HitboxRadius;
@@ -296,6 +295,24 @@ public sealed class DamageModule : IArtemisModule
         }
 
         return true;
+    }
+
+    /// <summary>The live Zu's HP (fraction of max) and where its unbroken eggs sit; null HP when no Zu is in the fight.</summary>
+    private static float? ReadZu(IArtemisContext context, out List<System.Numerics.Vector2> eggs)
+    {
+        float? zuHpPct = null;
+        eggs = new List<System.Numerics.Vector2>();
+        foreach (var obj in context.ObjectTable)
+        {
+            if (obj is not Dalamud.Game.ClientState.Objects.Types.IBattleNpc npc || npc.IsDead || npc.CurrentHp == 0)
+                continue;
+            if (npc.NameId == ArtemisCooldownRules.ZuNameId && npc.IsTargetable && npc.MaxHp > 0)
+                zuHpPct = (float)npc.CurrentHp / npc.MaxHp; // the targetable one: like the Siren, it has invisible helpers
+            else if (FFXIVConstants.NeverAttackNameIds.Contains(npc.NameId))
+                eggs.Add(new System.Numerics.Vector2(npc.Position.X, npc.Position.Z));
+        }
+
+        return zuHpPct;
     }
 
     /// <summary>The Siren (the targetable one), whether a Crawling Piece lives, and where her adds stand; null when she is not here.</summary>
@@ -606,7 +623,16 @@ public sealed class DamageModule : IArtemisModule
         var charge = ArtemisCooldownRules.DecideShieldCharge(
             cfg.EnableShieldCharge, cfg.EnableShieldChargeGapClose, CanFire(svc, level, BSTActions.ShieldCharge, targetId),
             (int)svc.GetCurrentCharges(BSTActions.ShieldCharge.ActionId), edgeDistance, BSTActions.ShieldCharge.Range, dashSafe);
-        if (charge != ShieldChargeUse.None && TryGate(BSTActions.ShieldCharge.ActionId))
+        var eggInSplash = charge != ShieldChargeUse.None && target != null
+            && Daedalus.Services.Beastmaster.CrucibleTracker.Current.OnBoard
+            && ReadZu(context, out var eggs) != null
+            && ArtemisCooldownRules.SplashBreaksEgg(eggs, new System.Numerics.Vector2(target.Position.X, target.Position.Z),
+                ArtemisCooldownRules.ShieldChargeSplashYalms);
+        if (eggInSplash)
+        {
+            context.Debug.DamageState = "Shield Charge held: a Zu egg is in its splash";
+        }
+        else if (charge != ShieldChargeUse.None && TryGate(BSTActions.ShieldCharge.ActionId))
         {
             scheduler.PushOgcd(ArtemisAbilities.ShieldCharge, targetId, priority: charge == ShieldChargeUse.GapClose ? 4 : 22,
                 onDispatched: _ => context.Debug.PlannedAction = charge == ShieldChargeUse.GapClose
@@ -971,7 +997,7 @@ public sealed class DamageModule : IArtemisModule
     /// </summary>
     private void PushFamiliarOrders(
         IArtemisContext context, RotationScheduler scheduler, ulong targetId, byte level,
-        bool trickHandledByPairing, float targetHpPct = 1f, uint targetNameId = 0)
+        bool trickHandledByPairing, float targetHpPct = 1f)
     {
         if (!context.HasFamiliar)
         {
@@ -1011,7 +1037,7 @@ public sealed class DamageModule : IArtemisModule
         var stingFinisher = Daedalus.Services.Beastmaster.CrucibleTracker.Current.OnBoard
                             && targetHpPct > 0f && targetHpPct <= FinalStingAtTargetHpPct;
         var zuHold = ArtemisCooldownRules.HoldReleaseAtZu(
-            Daedalus.Services.Beastmaster.CrucibleTracker.Current.OnBoard, targetNameId, targetHpPct, falling);
+            Daedalus.Services.Beastmaster.CrucibleTracker.Current.OnBoard, ReadZu(context, out _), falling);
         if (zuHold && releaseReady)
             context.Debug.InstinctState = "Zu: release held (it breaks eggs) until the Zu is nearly dead";
         var release = !zuHold && ShouldTemperedRelease(

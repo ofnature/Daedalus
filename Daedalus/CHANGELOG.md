@@ -3,6 +3,17 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.112 — 2026-10-31
+
+### Beastmaster — the Crucible
+- **The Zu's eggs are left alone.** Every egg broken before it hatches makes the Zu stronger, and a run died there
+  after three were broken: a weaponskill went straight into an egg, Shield Charge (it hits everything within 6
+  yalms of its target) broke the two beside a hatched Cockerel, and Tempered Release went out at a Pullet. Eggs are
+  now never attacked, Shield Charge waits while an egg is in its splash, and Tempered Release and Parting Blow wait
+  until the Zu itself is at 15% or less, whatever you are hitting. A beast about to fall still retreats.
+
+<!-- LATEST-END -->
+
 ## v0.1.111 — 2026-10-31
 
 ### Beastmaster — the Crucible
@@ -17,8 +28,6 @@ All notable changes to Daedalus will be documented in this file.
 - **Thief's Eye and Merchant's Eye are used in battle (Level and Clear).** At the start of each battle except the
   final boss, a held Thief's Eye (loot ×3) and Merchant's Eye (tokens ×2) are used, once each, for that battle's
   spoils. Legendary keeps them (using an item costs Economic Ethos).
-
-<!-- LATEST-END -->
 
 ## v0.1.110 — 2026-10-31
 
