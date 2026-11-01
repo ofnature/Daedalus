@@ -650,6 +650,16 @@ public class CrucibleAutoPilotRulesTests
         Assert.False(CrucibleAutoPilotRules.ShouldUseEyes(legendary: false, null));
     }
 
+    /// <summary>Korha 2026-10-31 19:33: "Cannot execute at this time." — the Eye stayed on the HUD, so it is not counted and is pressed again.</summary>
+    [Fact]
+    public void ARefusedEyeIsPressedAgain()
+    {
+        Assert.Null(CrucibleAutoPilotRules.PotionOutcome(heldWhenPressed: 1, heldNow: 1, secondsSincePress: 0.5));
+        Assert.False(CrucibleAutoPilotRules.PotionOutcome(1, 1, CrucibleAutoPilotRules.PotionConfirmSeconds));
+        Assert.True(CrucibleAutoPilotRules.PotionOutcome(1, 0, 0.5));
+        Assert.True(CrucibleAutoPilotRules.EyeMaxTries >= 2);
+    }
+
     /// <summary>Each Eye once a battle: Thief's (243160) and Merchant's (243161), whichever slot they sit in.</summary>
     [Fact]
     public void EachEyeOnceABattle()

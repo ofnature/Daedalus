@@ -718,6 +718,34 @@ public class CrucibleTests
         Assert.False(ArtemisCooldownRules.SplashBreaksEgg([], new(128f, -412f), ArtemisCooldownRules.ShieldChargeSplashYalms));
     }
 
+    /// <summary>Replay 19:19, 96.9 s: you and the Zu at (130.3, -412.4), eggs at (134, -412) and (132, -408) — held.</summary>
+    [Fact]
+    public void ShieldChargeAtTheZuBesideEggsIsHeld()
+    {
+        System.Numerics.Vector2[] eggs = [new(134f, -412f), new(132f, -408f)];
+        Assert.True(ArtemisCooldownRules.ShieldChargeBreaksEgg(eggs, new(130.26f, -412.39f), 3.6f, new(130.27f, -412.39f), 0.5f));
+    }
+
+    /// <summary>Replay 19:19, 0.3 s before the charge: the Zu still at (119.2, -415.2) mid-dash, you beside the eggs — held.</summary>
+    [Fact]
+    public void ShieldChargeIsHeldWhenYouStandBesideEggs()
+    {
+        System.Numerics.Vector2[] eggs = [new(134f, -412f), new(132f, -408f)];
+        Assert.True(ArtemisCooldownRules.ShieldChargeBreaksEgg(eggs, new(119.19f, -415.2f), 3.6f, new(130.19f, -412.38f), 0.5f));
+        Assert.True(ArtemisCooldownRules.ShieldChargeBreaksEgg(eggs, new(113.1f, -416.8f), 3.6f, new(130.19f, -412.38f), 0.5f));
+    }
+
+    /// <summary>A gap close lands at the target's edge on your side: an egg 6 yalms past that edge breaks, one across the Zu does not.</summary>
+    [Fact]
+    public void ShieldChargeSplashIsWhereYouLand()
+    {
+        var zu = new System.Numerics.Vector2(120f, -420f);
+        var you = new System.Numerics.Vector2(120f, -400f); // 20 y north; landing at (120, -415.9)
+        Assert.True(ArtemisCooldownRules.ShieldChargeBreaksEgg([new(120f, -410f)], zu, 3.6f, you, 0.5f));
+        Assert.False(ArtemisCooldownRules.ShieldChargeBreaksEgg([new(120f, -434f)], zu, 3.6f, you, 0.5f));
+        Assert.False(ArtemisCooldownRules.ShieldChargeBreaksEgg([], zu, 3.6f, you, 0.5f));
+    }
+
     /// <summary>The eggs (BNpcName 14575, 14576) are never attacked; the Zu (14572) and its hatchlings are.</summary>
     [Fact]
     public void ZuEggsAreNeverAttacked()

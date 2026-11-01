@@ -399,6 +399,28 @@ public static class ArtemisCooldownRules
     public static bool SplashBreaksEgg(IReadOnlyList<System.Numerics.Vector2> eggs, System.Numerics.Vector2 at, float radius)
         => eggs.Any(e => System.Numerics.Vector2.Distance(e, at) <= radius + EggMarginYalms);
 
+    /// <summary>
+    /// Whether a Shield Charge at this target would catch an egg. Its 6-yalm splash is centred where you land (Minerva
+    /// session, from Korha's replays): at the target's edge on your side, or where you stand when already that close.
+    /// Where you stand now is always checked too: the Zu dashes, and in the 19:19 replay it crossed onto Korha in 0.3 s
+    /// just as the charge went off, so the splash broke the two eggs beside her while the Zu had been read 17 yalms
+    /// away. The target's own centre is checked as well.
+    /// </summary>
+    public static bool ShieldChargeBreaksEgg(
+        IReadOnlyList<System.Numerics.Vector2> eggs, System.Numerics.Vector2 target, float targetHitbox,
+        System.Numerics.Vector2 player, float playerHitbox)
+    {
+        if (eggs.Count == 0)
+            return false;
+        var reach = targetHitbox + playerHitbox;
+        var away = player - target;
+        var landing = away.Length() <= reach || away == System.Numerics.Vector2.Zero
+            ? player
+            : target + (System.Numerics.Vector2.Normalize(away) * reach);
+        return SplashBreaksEgg(eggs, landing, ShieldChargeSplashYalms) || SplashBreaksEgg(eggs, player, ShieldChargeSplashYalms)
+               || SplashBreaksEgg(eggs, target, ShieldChargeSplashYalms);
+    }
+
     /// <summary>Shared tanking: the beastmaster takes the enemy only while at or above this much HP…</summary>
     public const float SharedTankSelfFloorPct = 0.50f;
 

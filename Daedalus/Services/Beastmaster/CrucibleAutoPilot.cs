@@ -67,8 +67,11 @@ public sealed unsafe class CrucibleAutoPilot
     private DateTime _eyeMenuUntilUtc;
     private DateTime _nextEyeUtc;
     private uint _eyePressed;
+    private int _eyePressedHeld;
+    private DateTime _eyePressedUtc;
     private int _eyeBattle;
     private readonly HashSet<uint> _eyesUsed = new();
+    private readonly Dictionary<uint, int> _eyeTries = new();
 
     // A pressed potion not yet seen leaving the HUD: which item, how many were held, when "Use" was pressed.
     private uint _pressedPotionId;
@@ -678,10 +681,12 @@ public sealed unsafe class CrucibleAutoPilot
             if (Text(menu, 8) == "Use")
             {
                 FireMixed(menu, 0, 0, 0u, null, null);
-                _eyesUsed.Add(_eyePressed);
-                _log($"Crucible: used {(_eyePressed == CrucibleAutoPilotRules.EyeItemIds[0] ? "Thief's Eye (loot ×3)" : "Merchant's Eye (tokens ×2)")} for this battle.");
-                _nextEyeUtc = now + TimeSpan.FromSeconds(2);
+                _eyePressedUtc = now; // counted once it leaves the HUD: "Cannot execute at this time." mid-action (2026-10-31)
                 Done(now, "Using an Eye.");
+            }
+            else
+            {
+                _eyePressed = 0;
             }
 
             return true;
@@ -694,6 +699,7 @@ public sealed unsafe class CrucibleAutoPilot
         {
             _eyeBattle = fighting.Battle;
             _eyesUsed.Clear();
+            _eyeTries.Clear();
         }
 
         var player = FFXIVClientStructs.FFXIV.Client.Game.Control.Control.GetLocalPlayer();
@@ -714,11 +720,43 @@ public sealed unsafe class CrucibleAutoPilot
             usable.Add(HudFlag(hud, CrucibleAutoPilotRules.HudItemUsableIndex(slot)));
         }
 
+        // A pressed Eye: used once it leaves the HUD; pressed again (up to EyeMaxTries a battle) when it did not go off.
+        if (_eyePressed != 0 && _eyePressedUtc != default)
+        {
+            var outcome = CrucibleAutoPilotRules.PotionOutcome(
+                _eyePressedHeld, CrucibleAutoPilotRules.CountHeld(held, _eyePressed), (now - _eyePressedUtc).TotalSeconds);
+            if (outcome == null)
+                return true;
+            var name = _eyePressed == CrucibleAutoPilotRules.EyeItemIds[0] ? "Thief's Eye (loot ×3)" : "Merchant's Eye (tokens ×2)";
+            var tries = _eyeTries[_eyePressed] = _eyeTries.GetValueOrDefault(_eyePressed) + 1;
+            if (outcome == true)
+            {
+                _eyesUsed.Add(_eyePressed);
+                _log($"Crucible: used {name} for this battle.");
+            }
+            else if (tries >= CrucibleAutoPilotRules.EyeMaxTries)
+            {
+                _eyesUsed.Add(_eyePressed);
+                _log($"Crucible: {name} did not go off after {tries} tries — leaving it for the next battle.");
+            }
+            else
+            {
+                _log($"Crucible: {name} did not go off (try {tries}/{CrucibleAutoPilotRules.EyeMaxTries}) — trying again.");
+            }
+
+            _eyePressed = 0;
+            _eyePressedUtc = default;
+            _nextEyeUtc = now + TimeSpan.FromSeconds(1);
+            return true;
+        }
+
         var pick = CrucibleAutoPilotRules.PickEye(CrucibleAutoPilotRules.UsableOnly(held, usable), _eyesUsed);
         if (pick < 0)
             return false;
 
         _eyePressed = held[pick];
+        _eyePressedHeld = CrucibleAutoPilotRules.CountHeld(held, held[pick]);
+        _eyePressedUtc = default; // set when "Use" is pressed
         _nextEyeUtc = now + TimeSpan.FromSeconds(1.5); // the menu did not open: try again soon
         _eyeMenuUntilUtc = now + TimeSpan.FromSeconds(2);
         FireMixed(hud, CrucibleAutoPilotRules.HudItemSlotEvent, pick, null);

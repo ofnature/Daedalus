@@ -3,6 +3,18 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.113 — 2026-10-31
+
+### Beastmaster — the Crucible
+- **Shield Charge really waits for the Zu's eggs now.** Its splash lands where you end up, and the Zu dashes: in a
+  run on 0.1.112 the Zu crossed onto you just as the charge went off and two eggs beside you broke, because only
+  the spot around the Zu was checked. Where you stand, where you would land and the Zu itself are all checked now.
+- **Thief's Eye and Merchant's Eye actually go off.** An Eye pressed in the middle of an action is refused by the
+  game ("Cannot execute at this time."), and it was counted as used anyway. An Eye now counts only once it has left
+  your items, and is pressed again — up to three times a battle — when it didn't go off.
+
+<!-- LATEST-END -->
+
 ## v0.1.112 — 2026-10-31
 
 ### Beastmaster — the Crucible
@@ -11,8 +23,6 @@ All notable changes to Daedalus will be documented in this file.
   yalms of its target) broke the two beside a hatched Cockerel, and Tempered Release went out at a Pullet. Eggs are
   now never attacked, Shield Charge waits while an egg is in its splash, and Tempered Release and Parting Blow wait
   until the Zu itself is at 15% or less, whatever you are hitting. A beast about to fall still retreats.
-
-<!-- LATEST-END -->
 
 ## v0.1.111 — 2026-10-31
 

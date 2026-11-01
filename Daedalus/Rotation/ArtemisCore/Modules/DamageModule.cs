@@ -297,6 +297,31 @@ public sealed class DamageModule : IArtemisModule
         return true;
     }
 
+    private bool _eggHoldLogged;
+
+    /// <summary>One debug-log line each time Shield Charge starts being held for an egg.</summary>
+    private void LogEggHold(bool held)
+    {
+        if (held == _eggHoldLogged)
+            return;
+        _eggHoldLogged = held;
+        if (held)
+            Daedalus.Rotation.Base.RotationServices.DebugLog?.Log(
+                Daedalus.Services.Debug.DebugLogCategory.Action, Daedalus.Services.Debug.DebugLogSeverity.Info,
+                "[Crucible] Shield Charge held: a Zu egg is in its splash");
+    }
+
+    private static Dalamud.Game.ClientState.Objects.Types.IGameObject? FindObject(IArtemisContext context, ulong id)
+    {
+        foreach (var obj in context.ObjectTable)
+        {
+            if (obj.GameObjectId == id)
+                return obj;
+        }
+
+        return null;
+    }
+
     /// <summary>The live Zu's HP (fraction of max) and where its unbroken eggs sit; null HP when no Zu is in the fight.</summary>
     private static float? ReadZu(IArtemisContext context, out List<System.Numerics.Vector2> eggs)
     {
@@ -623,11 +648,16 @@ public sealed class DamageModule : IArtemisModule
         var charge = ArtemisCooldownRules.DecideShieldCharge(
             cfg.EnableShieldCharge, cfg.EnableShieldChargeGapClose, CanFire(svc, level, BSTActions.ShieldCharge, targetId),
             (int)svc.GetCurrentCharges(BSTActions.ShieldCharge.ActionId), edgeDistance, BSTActions.ShieldCharge.Range, dashSafe);
-        var eggInSplash = charge != ShieldChargeUse.None && target != null
+        // The charge goes at targetId, which need not be the hard target read above (a null there let it through
+        // and broke two eggs, Korha 2026-10-31 19:20): find that object itself.
+        var chargeTarget = charge == ShieldChargeUse.None ? null : FindObject(context, targetId);
+        var eggInSplash = chargeTarget != null
             && Daedalus.Services.Beastmaster.CrucibleTracker.Current.OnBoard
             && ReadZu(context, out var eggs) != null
-            && ArtemisCooldownRules.SplashBreaksEgg(eggs, new System.Numerics.Vector2(target.Position.X, target.Position.Z),
-                ArtemisCooldownRules.ShieldChargeSplashYalms);
+            && ArtemisCooldownRules.ShieldChargeBreaksEgg(eggs,
+                new System.Numerics.Vector2(chargeTarget.Position.X, chargeTarget.Position.Z), chargeTarget.HitboxRadius,
+                new System.Numerics.Vector2(player.Position.X, player.Position.Z), player.HitboxRadius);
+        LogEggHold(eggInSplash);
         if (eggInSplash)
         {
             context.Debug.DamageState = "Shield Charge held: a Zu egg is in its splash";

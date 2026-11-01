@@ -333,6 +333,9 @@ public static class CrucibleAutoPilotRules
     public static bool ShouldUseEyes(bool legendary, CrucibleEnemy? fighting) =>
         !legendary && fighting is { IsFinalBoss: false };
 
+    /// <summary>Presses of one Eye a battle before it is left for the next (the game refuses one mid-action).</summary>
+    public const int EyeMaxTries = 3;
+
     /// <summary>The HUD slot of a held Eye not yet used this battle, or -1.</summary>
     public static int PickEye(IReadOnlyList<uint> heldItemIds, IReadOnlySet<uint> usedThisBattle)
     {
