@@ -62,6 +62,11 @@ public sealed class DamageModule : IArtemisModule
             return;
         }
 
+        // Before the melee target: Parting Blow reaches 25 yalms, and the boss engine often has us out of melee just
+        // when the adds bunch (Korha 2026-11-01 00:33: four Seedlings bunched on the familiar for 4 s, Korha 6-11 yalms
+        // off, no Smash Axe target, so nothing past here ran and the Blow never went).
+        PushPartingBlows(context, scheduler);
+
         var player = context.Player;
         var target = context.TargetingService.FindEnemyForAction(
             context.Configuration.Targeting.EnemyStrategy,
@@ -119,6 +124,47 @@ public sealed class DamageModule : IArtemisModule
     }
 
     /// <summary>
+    /// The Crucible's Parting Blows that do not need a melee target, on every goal: the bunched adds of the Siren, the
+    /// Morbol (Seedling poison outlives them) and the Ogre (wisps during Burning Ward), and sending the familiar away
+    /// from a cast that kills it (<see cref="ArtemisCooldownRules.SendFamiliarAwayCastIds"/>).
+    /// </summary>
+    private void PushPartingBlows(IArtemisContext context, RotationScheduler scheduler)
+    {
+        if (!Daedalus.Services.Beastmaster.CrucibleTracker.Current.OnBoard)
+            return;
+
+        var familiarOut = context.HasFamiliar
+                          || Daedalus.Services.Beastmaster.FamiliarLookup.Find(context.ObjectTable, context.Player) != null;
+        if (FindCasting(context, ArtemisCooldownRules.SendFamiliarAwayCastIds) is { } caster)
+        {
+            if (familiarOut && CanFire(context.ActionService, context.Player.Level, BSTActions.PartingBlow, caster.GameObjectId)
+                && TryGate(BSTActions.PartingBlow.ActionId))
+            {
+                var cast = caster.CastActionId;
+                scheduler.PushOgcd(ArtemisAbilities.PartingBlowRetreat, caster.GameObjectId, priority: 1, onDispatched: _ =>
+                {
+                    context.Debug.PlannedAction = "Parting Blow (send the familiar away from the cast)";
+                    Daedalus.Rotation.Base.RotationServices.DebugLog?.Log(
+                        Daedalus.Services.Debug.DebugLogCategory.Action, Daedalus.Services.Debug.DebugLogSeverity.Info,
+                        $"[Crucible] {caster.Name.TextValue} casts {cast}: Parting Blow sends the familiar away");
+                });
+            }
+
+            return;
+        }
+
+        // The Siren's adds wear the familiars down fast (user, 2026-10-31: a roommate kept dying there).
+        if (FindSiren(context, out _, out var sirenAdds) is { } siren)
+            KillBunchedAdds(context, scheduler, siren, sirenAdds, familiarOut, "Siren");
+        // The Morbol's Seedling Pieces poison whatever they hit, stacking, and it outlives them (user, 2026-10-31).
+        if (familiarOut && FindMorbol(context, out var seedlings) is { } morbol)
+            TryPartingBlowOnBunched(context, scheduler, seedlings, morbol, "Morbol: the seedlings are bunched");
+        // The Ogre's wisp waves march to the centre during Burning Ward and blow up there (14 deaths in 17 Ogre fights).
+        if (FindAdds(context, ArtemisCooldownRules.OgrePieceNameId, WispNameIds, out var wisps) is { } ogre)
+            KillBunchedAdds(context, scheduler, ogre, wisps, familiarOut, "Ogre");
+    }
+
+    /// <summary>
     /// The Crucible's two duty actions, which decide who takes the hits: the familiar tanks — Snarl on cooldown, its
     /// Cover takes all the beastmaster's damage — and Challenge only rescues a familiar about to fall.
     /// Only on a Crucible board, and only while the duty has them on its bar. Rules in <see cref="ArtemisCooldownRules"/>.
@@ -150,37 +196,11 @@ public sealed class DamageModule : IArtemisModule
         var legendary = cfg.CrucibleGoal == CrucibleTeamGoal.Legendary;
         if (legendary && PushSirenOrders(context, scheduler, cfg, familiar, familiarOut, familiarHpPct, selfHpPct))
             return;
-        // Every goal clears the Siren's adds in one hit: on a Level or Clear run they wear the familiars down fast
-        // (user, 2026-10-31: a roommate kept dying there), and no bonus is at stake. The usual rules go on as well.
-        if (!legendary && FindSiren(context, out _, out var sirenAdds) is { } levelSiren)
-            KillBunchedAdds(context, scheduler, levelSiren, sirenAdds, familiarOut, "Siren");
-        // Every goal: the Morbol's Seedling Pieces poison whatever they hit (stacking, and it outlives them), so one
-        // Parting Blow takes the wave once it has bunched (user, 2026-10-31). The usual rules go on as well.
-        if (familiarOut && FindMorbol(context, out var seedlings) is { } morbol)
-            TryPartingBlowOnBunched(context, scheduler, seedlings, morbol, "Morbol: the seedlings are bunched");
-        // Every goal: the Ogre's wisp waves march to the centre during Burning Ward and blow up there, stacking a
-        // vulnerability (14 deaths in 17 recorded Ogre fights). They bunch on the way: Parting Blow, or a Fang.
-        if (FindAdds(context, ArtemisCooldownRules.OgrePieceNameId, WispNameIds, out var wisps) is { } ogre)
-            KillBunchedAdds(context, scheduler, ogre, wisps, familiarOut, "Ogre");
-
-        // A cast the familiar must not be out for: send it away with Parting Blow, and no Snarl until it is done.
+        // A cast the familiar must not be out for (PushPartingBlows sends it away): no Snarl until it is done.
         if (FindCasting(context, ArtemisCooldownRules.SendFamiliarAwayCastIds) is { } caster)
         {
             LogSnarlState($"{caster.Name.TextValue} casts {caster.CastActionId} — the familiar is sent away, no Snarl",
                 familiarHpPct, selfHpPct);
-            if (familiarOut && CanFire(svc, context.Player.Level, BSTActions.PartingBlow, caster.GameObjectId)
-                && TryGate(BSTActions.PartingBlow.ActionId))
-            {
-                var cast = caster.CastActionId;
-                scheduler.PushOgcd(ArtemisAbilities.PartingBlowRetreat, caster.GameObjectId, priority: 1, onDispatched: _ =>
-                {
-                    context.Debug.PlannedAction = "Parting Blow (send the familiar away from the cast)";
-                    Daedalus.Rotation.Base.RotationServices.DebugLog?.Log(
-                        Daedalus.Services.Debug.DebugLogCategory.Action, Daedalus.Services.Debug.DebugLogSeverity.Info,
-                        $"[Crucible] {caster.Name.TextValue} casts {cast}: Parting Blow sends the familiar away");
-                });
-            }
-
             return;
         }
 
@@ -291,7 +311,6 @@ public sealed class DamageModule : IArtemisModule
         if (FindSiren(context, out var crawlerAlive, out var adds) is not { } siren)
             return false;
 
-        KillBunchedAdds(context, scheduler, siren, adds, familiarOut, "Siren");
         if (selfHpPct <= ArtemisCooldownRules.SelfCriticalHpPct)
             return false;
 

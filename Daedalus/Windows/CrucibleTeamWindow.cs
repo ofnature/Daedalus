@@ -70,9 +70,37 @@ public sealed class CrucibleTeamWindow : Window
         DrawAutoPilot();
         DrawGoal();
         DrawBonuses();
+        if (CrucibleTracker.Current.Board == null)
+            DrawReadRanks();
         var screen = CrucibleRosterLoader.ScreenBoard();
         if (CrucibleTracker.Current.Board == null && _index.Boards.FirstOrDefault(b => b.Index == screen) is { } board)
             DrawStart(board);
+    }
+
+    /// <summary>Read ranks: the Master's Bestiary scan, with its status. Off a board only.</summary>
+    private void DrawReadRanks()
+    {
+        if (_bestiary() is { } bestiary)
+        {
+            // Read once: clicking starts the scan mid-frame, and re-reading Scanning then ended a disabled block that
+            // was never begun (ImGui assert, Korha 2026-10-27).
+            var scanning = bestiary.Scanning;
+            if (scanning)
+                ImGui.BeginDisabled();
+            if (ImGui.SmallButton("Read ranks##crucibleReadRanks"))
+                bestiary.StartScan();
+            if (scanning)
+                ImGui.EndDisabled();
+            if (ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenDisabled))
+                ImGui.SetTooltip("Opens the Master's Bestiary and reads every beast's rank and EXP. Clicking a beast there reads it too.\n"
+                                 + "Ranks show synced to the board you're on (Board 1 shows everyone at 5 or under), so a reading\n"
+                                 + "only ever raises a rank, and EXP going down counts as a rank-up. Read from a Master's Board\n"
+                                 + "for the true ranks.");
+            ImGui.SameLine();
+            ImGui.TextColored(DaedalusTheme.TextSecondary, bestiary.Status.Length > 0
+                ? bestiary.Status
+                : "? = rank not seen yet (counted as 1).");
+        }
     }
 
     /// <summary>
@@ -358,27 +386,7 @@ public sealed class CrucibleTeamWindow : Window
                                  + (core.Contains(no) ? " · core" : ""));
         }
 
-        if (_bestiary() is { } bestiary)
-        {
-            // Read once: clicking starts the scan mid-frame, and re-reading Scanning then ended a disabled block that
-            // was never begun (ImGui assert, Korha 2026-10-27).
-            var scanning = bestiary.Scanning;
-            if (scanning)
-                ImGui.BeginDisabled();
-            if (ImGui.SmallButton("Read ranks##crucibleReadRanks"))
-                bestiary.StartScan();
-            if (scanning)
-                ImGui.EndDisabled();
-            if (ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenDisabled))
-                ImGui.SetTooltip("Opens the Master's Bestiary and reads every beast's rank and EXP. Clicking a beast there reads it too.\n"
-                                 + "Ranks show synced to the board you're on (Board 1 shows everyone at 5 or under), so a reading\n"
-                                 + "only ever raises a rank, and EXP going down counts as a rank-up. Read from a Master's Board\n"
-                                 + "for the true ranks.");
-            ImGui.SameLine();
-            ImGui.TextColored(DaedalusTheme.TextSecondary, bestiary.Status.Length > 0
-                ? bestiary.Status
-                : "? = rank not seen yet (counted as 1).");
-        }
+        DrawReadRanks();
 
         var changes = CrucibleLevelPlan.Changes(current, roster);
         if (loader is not { CompositionOpen: true })

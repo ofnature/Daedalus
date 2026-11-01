@@ -22,7 +22,8 @@ public sealed unsafe class CrucibleBestiaryScanner
     private int _page;
     private int _slot;
     private bool _pageShown;
-    private int _read;
+    private bool _lastClicked;
+    private readonly System.Collections.Generic.HashSet<int> _seen = [];
     private DateTime _nextStepUtc;
     private DateTime _startedUtc;
 
@@ -46,7 +47,9 @@ public sealed unsafe class CrucibleBestiaryScanner
         _page = 0;
         _slot = 0;
         _pageShown = false;
-        _read = 0;
+        _lastClicked = false;
+        _seen.Clear();
+        _lastRead = null;
         _startedUtc = DateTime.UtcNow;
         _nextStepUtc = DateTime.UtcNow;
         Status = "Reading ranks…";
@@ -82,7 +85,8 @@ public sealed unsafe class CrucibleBestiaryScanner
             return;
 
         _lastRead = beast;
-        _read++;
+        if (_scanning)
+            _seen.Add(beast.PetId);
         _rankRead(beast.PetId, beast.Rank, beast.Exp);
         _log($"Crucible: Bestiary — {BstFamiliars.ByBestiaryNo((uint)beast.PetId)?.Name ?? $"#{beast.PetId}"} rank {beast.Rank} ({(beast.Exp is { } exp ? $"{exp}/100" : "-/-")} EXP)");
     }
@@ -92,6 +96,13 @@ public sealed unsafe class CrucibleBestiaryScanner
         var now = DateTime.UtcNow;
         if (now < _nextStepUtc)
             return;
+
+        // One step after the last click, so its panel is read (and counted) before the total is posted.
+        if (_lastClicked)
+        {
+            Finish($"Read the Bestiary: {_seen.Count} beasts.");
+            return;
+        }
 
         var notebook = Visible(CrucibleBestiaryDetail.Notebook);
         if (notebook == null)
@@ -128,10 +139,7 @@ public sealed unsafe class CrucibleBestiaryScanner
         _slot = 0;
         _pageShown = false;
         if (++_page >= 2)
-        {
-            _nextStepUtc = now + StepEvery; // let the last panel be read
-            Finish($"Read the Bestiary: {_read} beasts.");
-        }
+            _lastClicked = true;
     }
 
     private void Finish(string status)

@@ -3,6 +3,18 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.116 — 2026-11-01
+
+### Beastmaster — the Crucible
+- **Parting Blow no longer waits for a melee target.** Clearing the Seedlings, the Siren's adds and the Ogre's wisps,
+  and sending the familiar away from a deadly cast, only ran while you were in melee range of something. When the
+  boss engine had you dodging, the Seedlings sat bunched on the familiar for seconds and the Blow never went.
+- **Read ranks is back in the Crucible dock tab** whenever you're off a board, not only in the full team window.
+- Read ranks counted one beast short: it posted the total just before the last beast's panel came up (that beast
+  was still read and saved).
+
+<!-- LATEST-END -->
+
 ## v0.1.115 — 2026-11-01
 
 ### Beastmaster — the Crucible (shops)
@@ -27,8 +39,6 @@ All notable changes to Daedalus will be documented in this file.
   so it no longer leads with Damselfly into poison-immune bosses like the Gargoyle.
 - **Safer forks.** The Arch Demon over the Piscodemon on the First Board; on the Second Master's Board the Chimera over
   the Sphinx and King Ahriman over the Behemoth, and never a lane that can only lead into the Drake.
-
-<!-- LATEST-END -->
 
 ## v0.1.114 — 2026-10-31
 
