@@ -783,4 +783,48 @@ public class CrucibleTests
         Assert.Equal(14586u, ArtemisCooldownRules.CrawlingPieceNameId);
         Assert.Equal(14583u, ArtemisCooldownRules.SirenNameId);
     }
+
+    // --- boss research 2026-11-01 ---
+
+    /// <summary>Burning Ward comes at 52 s in every recorded Ogre fight: Final Sting goes in the 8 s before it.</summary>
+    [Theory]
+    [InlineData(true, 43.9, false)]
+    [InlineData(true, 44.0, true)]
+    [InlineData(true, 51.9, true)]
+    [InlineData(true, 52.0, false)]
+    [InlineData(false, 48.0, false)]
+    public void FinalStingGoesJustBeforeTheOgresWard(bool ogreFight, double secondsIn, bool sting)
+        => Assert.Equal(sting, ArtemisCooldownRules.StingBeforeOgreWard(ogreFight, secondsIn));
+
+    /// <summary>Curtains for Rank 5, Molten Metal and Beastly Aura send the familiar away; a Thunderbolt does not.</summary>
+    [Fact]
+    public void TheFamiliarIsSentAwayFromTheCastsThatKillIt()
+    {
+        Assert.Contains(49429u, ArtemisCooldownRules.SendFamiliarAwayCastIds);
+        Assert.Contains(49465u, ArtemisCooldownRules.SendFamiliarAwayCastIds);
+        Assert.Contains(48607u, ArtemisCooldownRules.SendFamiliarAwayCastIds);
+        Assert.DoesNotContain(48620u, ArtemisCooldownRules.SendFamiliarAwayCastIds);
+    }
+
+    /// <summary>Parting Blow's 8 yalms (plus the egg margin) round its target break an egg; a little further does not.</summary>
+    [Fact]
+    public void PartingBlowNearAnEggIsHeld()
+    {
+        System.Numerics.Vector2[] eggs = [new(108.5f, -400f)];
+        Assert.True(ArtemisCooldownRules.PartingBlowBreaksEgg(eggs, new(100f, -400f)));
+        Assert.False(ArtemisCooldownRules.PartingBlowBreaksEgg(eggs, new(99f, -400f)));
+        Assert.False(ArtemisCooldownRules.PartingBlowBreaksEgg([], new(100f, -400f)));
+    }
+
+    /// <summary>The resist row reads true = immune: the Ogre (row 16) takes Blind and Poison only.</summary>
+    [Fact]
+    public void AnEnemyTakesWhatItsResistRowLeavesOpen()
+    {
+        var ogre = new CrucibleEnemy(14538, "ogre piece", 5, false, CrucibleElement.Wind, [4, 3, 4, 2, 4], [],
+            [true, true, true, true, false, false, true, true, true, true, true]);
+        Assert.True(ogre.TakesStatus(CrucibleStatus.Poison));
+        Assert.True(ogre.TakesStatus(CrucibleStatus.Blind));
+        Assert.False(ogre.TakesStatus(CrucibleStatus.Stun));
+        Assert.Null(new CrucibleEnemy(1, "x", 1, false, CrucibleElement.None, [1, 1, 1, 1, 1], []).TakesStatus(CrucibleStatus.Poison));
+    }
 }

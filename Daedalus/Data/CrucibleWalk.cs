@@ -144,6 +144,40 @@ public static class CrucibleWalkPlan
         return options.FirstOrDefault(s => s.Side == side) ?? options[0];
     }
 
+    /// <summary>
+    /// The spaces every walk from <paramref name="from"/> to the end passes through, itself included: a fight there
+    /// cannot be routed round once <paramref name="from"/> is taken (Second Master's 3M treasure leads only into the
+    /// Drake at 4M). Just <paramref name="from"/> without a map.
+    /// </summary>
+    public static IReadOnlyList<CrucibleStage> Unavoidable(IReadOnlyList<CrucibleStage> route, CrucibleStage from)
+    {
+        var reach = Reachable(route, from);
+        if (reach.Count == 0)
+            return [from];
+        var byNode = route.ToDictionary(s => s.Node);
+
+        bool ReachesEndAvoiding(int avoid)
+        {
+            if (from.Node == avoid)
+                return false;
+            var seen = new HashSet<int> { from.Node };
+            var queue = new Queue<CrucibleStage>([from]);
+            while (queue.Count > 0)
+            {
+                var stage = queue.Dequeue();
+                if (stage.Next is { Count: 0 })
+                    return true;
+                foreach (var next in stage.Next ?? [])
+                    if (next != avoid && seen.Add(next) && byNode.TryGetValue(next, out var to))
+                        queue.Enqueue(to);
+            }
+
+            return false;
+        }
+
+        return reach.Where(s => !ReachesEndAvoiding(s.Node)).ToList();
+    }
+
     /// <summary>Every space that can still be walked from <paramref name="from"/> on, itself included (empty without a map).</summary>
     public static IReadOnlyList<CrucibleStage> Reachable(IReadOnlyList<CrucibleStage> route, CrucibleStage from)
     {

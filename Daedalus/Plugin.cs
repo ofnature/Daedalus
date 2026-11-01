@@ -42,7 +42,7 @@ namespace Daedalus;
 
 public sealed class Plugin : IDalamudPlugin
 {
-    public const string PluginVersion = "0.1.114";
+    public const string PluginVersion = "0.1.115";
     private const string CommandName = "/daedalus";
 
     /// <summary>LAN relay channel for Necromancer Deep Freeze "heal me to full" announcements.</summary>
@@ -1305,7 +1305,7 @@ public sealed class Plugin : IDalamudPlugin
                 configuration.Beastmaster.CrucibleGoal,
                 configuration.Beastmaster.CrucibleHornPicks.TryGetValue(Daedalus.Data.CrucibleHornPlan.PickKey(board, battle), out var picks) ? picks : null,
                 CrucibleCarryTeam(board),
-                crucibleTracker.Index.EnemiesInBattle(battle).FirstOrDefault()?.Name),
+                crucibleTracker.Index.EnemiesInBattle(battle).FirstOrDefault()),
             no => configuration.Beastmaster.CrucibleRanks.TryGetValue(no, out var known) ? known : 0);
         this.crucibleWindow = new CrucibleWindow(
             crucibleTracker.Index, no => crucibleBestiary.IsPetUnlocked((uint)no), () => crucibleHornSetter.Status)

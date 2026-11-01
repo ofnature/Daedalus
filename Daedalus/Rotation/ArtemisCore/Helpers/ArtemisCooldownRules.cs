@@ -353,6 +353,47 @@ public static class ArtemisCooldownRules
     public const uint SirenNameId = 14583, CrawlingPieceNameId = 14586, SirenSummonActionId = 48567;
 
     /// <summary>
+    /// First Master's Board's Morbol Piece and its Seedling Pieces (BNpcName rows). Seedlings come in waves (4 at ~6 s,
+    /// 6 at ~58 s, 6 at ~126 s; Minerva replays 2026-10-31), 1,294 HP each, and every hit of theirs stacks Poison (5141)
+    /// that outlives them — it killed the familiar ~20 s after the last of the first wave died.
+    /// </summary>
+    public const uint MorbolPieceNameId = 14599, SeedlingPieceNameId = 14600;
+
+    /// <summary>First Board's Ogre Piece and its Wisp / Great Wisp Pieces (BNpcName rows).</summary>
+    public const uint OgrePieceNameId = 14538, WispPieceNameId = 14539, GreatWispPieceNameId = 14748;
+
+    /// <summary>
+    /// The Ogre's Burning Ward (46918) begins 52-55 s into every recorded fight, whatever its HP (21-79%; Minerva replays
+    /// 2026-10-22..28): the Ogre goes untargetable and the wisps march. Final Sting goes in the window before it (Meoni:
+    /// "fire it before a dangerous phase (Ogre's ward)") rather than waiting for 30% — the ward is where runs end.
+    /// </summary>
+    public const double OgreWardAtSeconds = 52, StingBeforeWardSeconds = 8;
+
+    /// <summary>Whether Final Sting should go now in the Ogre fight: in the seconds before Burning Ward.</summary>
+    public static bool StingBeforeOgreWard(bool ogreFight, double secondsIn)
+        => ogreFight && secondsIn >= OgreWardAtSeconds - StingBeforeWardSeconds && secondsIn < OgreWardAtSeconds;
+
+    /// <summary>
+    /// Casts the familiar must not be out for (research 2026-11-01): King Ahriman's Curtains for Rank 5 (49428/49429)
+    /// kills a rank-25 familiar outright; Guttler's Molten Metal (49465-49468) and Beastly Aura (48607, 49452/49453)
+    /// kill a familiar that Covers them (16 Guttler fights: 4.7 familiars lost a fight). Parting Blow sends it away
+    /// (which also ends Cover), and no Snarl goes out while one is cast.
+    /// </summary>
+    public static readonly IReadOnlySet<uint> SendFamiliarAwayCastIds = new HashSet<uint>
+    {
+        49428, 49429,               // Curtains for Rank 5
+        49465, 49466, 49467, 49468, // Molten Metal
+        48607, 49452, 49453,        // Beastly Aura
+    };
+
+    /// <summary>Parting Blow hits 8 yalms round its target.</summary>
+    public const float PartingBlowSplashYalms = 8f;
+
+    /// <summary>Whether a Parting Blow at <paramref name="target"/> would catch a Zu egg (it breaks them like Shield Charge).</summary>
+    public static bool PartingBlowBreaksEgg(IReadOnlyList<System.Numerics.Vector2> eggs, System.Numerics.Vector2 target)
+        => SplashBreaksEgg(eggs, target, PartingBlowSplashYalms);
+
+    /// <summary>
     /// The Siren on Legendary (user 2026-10-30): the familiar holds her from the moment she casts Summon until every
     /// Crawling Piece is dead; the beastmaster holds her the rest of the time. A crawler goes for whoever holds the Siren
     /// and binds on contact — Bind and Damage Down, which cost Unbeastable on the beastmaster (Minerva replay, Korha

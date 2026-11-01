@@ -163,7 +163,7 @@ public class CrucibleLevelingTests
     /// <summary>Its horns keep the board team's order: Cu Sith starts, Coeurl debuffs, Behemoth finishes.</summary>
     [Fact]
     public void ThirdBoardHornsKeepTheGuideOrder()
-        => Assert.Equal([1, 33, 50], CrucibleLevelPlan.HornChoice(CrucibleTeamGoal.Legendary, null, [1, 33, 50], "siren piece"));
+        => Assert.Equal([1, 33, 50], CrucibleLevelPlan.HornChoice(CrucibleTeamGoal.Legendary, null, [1, 33, 50], Lead("siren piece")));
 
     /// <summary>Board 1 syncs everyone to 5, so every kin ties: the Bug team wins the tie (Korha 2026-10-27 got beastkin).</summary>
     [Fact]
@@ -186,9 +186,9 @@ public class CrucibleLevelingTests
     public void BugTeamHornOrderFollowsPoisonImmunity()
     {
         int[] team = [44, 16, 10];
-        Assert.Equal([44, 16, 10], CrucibleLevelPlan.HornChoice(CrucibleTeamGoal.Legendary, null, team, "arch demon piece"));
-        Assert.Equal([16, 10, 44], CrucibleLevelPlan.HornChoice(CrucibleTeamGoal.Legendary, null, team, "Pas de Seul"));
-        Assert.Equal([16, 10, 44], CrucibleLevelPlan.HornChoice(CrucibleTeamGoal.Legendary, null, team, "bone knight"));
+        Assert.Equal([44, 16, 10], CrucibleLevelPlan.HornChoice(CrucibleTeamGoal.Legendary, null, team, Lead("arch demon piece")));
+        Assert.Equal([16, 10, 44], CrucibleLevelPlan.HornChoice(CrucibleTeamGoal.Legendary, null, team, Lead("Pas de Seul")));
+        Assert.Equal([16, 10, 44], CrucibleLevelPlan.HornChoice(CrucibleTeamGoal.Legendary, null, team, Lead("bone knight")));
         Assert.Equal([44, 16, 10], CrucibleLevelPlan.HornChoice(CrucibleTeamGoal.Legendary, null, team, null));
     }
 
@@ -196,8 +196,8 @@ public class CrucibleLevelingTests
     [Fact]
     public void HornOrderLeavesPlayerPicksAndOtherTeamsAlone()
     {
-        Assert.Equal([10, 44, 16], CrucibleLevelPlan.HornChoice(CrucibleTeamGoal.Legendary, [10, 44, 16], [44, 16, 10], "Pas de Seul"));
-        Assert.Equal([30, 26, 5], CrucibleLevelPlan.HornChoice(CrucibleTeamGoal.Legendary, null, [30, 26, 5], "Pas de Seul"));
+        Assert.Equal([10, 44, 16], CrucibleLevelPlan.HornChoice(CrucibleTeamGoal.Legendary, [10, 44, 16], [44, 16, 10], Lead("Pas de Seul")));
+        Assert.Equal([30, 26, 5], CrucibleLevelPlan.HornChoice(CrucibleTeamGoal.Legendary, null, [30, 26, 5], Lead("Pas de Seul")));
     }
 
     /// <summary>The board's rank sync caps what a rank is worth: at a cap of 5 Wespe's 25 counts as 5.</summary>
@@ -217,5 +217,22 @@ public class CrucibleLevelingTests
         Assert.Equal(poisonFirst, CrucibleLevelPlan.HornChoice(CrucibleTeamGoal.Legendary, [30, 0, 0], team));
         Assert.Equal([16, 0, 0], CrucibleLevelPlan.HornChoice(CrucibleTeamGoal.Legendary, [16, 0, 0], team));
         Assert.Equal(poisonFirst, CrucibleLevelPlan.HornChoice(CrucibleTeamGoal.Legendary, null, team));
+    }
+
+    private static CrucibleEnemy Lead(string name, bool? takesPoison = null) => new(
+        0, name, 0, false, CrucibleElement.None, [1, 1, 1, 1, 1], [],
+        takesPoison is { } t ? [true, true, true, true, true, !t, true, true, true, true, true] : null);
+
+    /// <summary>
+    /// The resist row decides when it was read: the Gargoyle is immune (the name list missed it, so Damselfly led into
+    /// it), and an enemy the list calls immune but whose row takes poison gets the poison lead.
+    /// </summary>
+    [Fact]
+    public void TheResistRowDecidesPoisonImmunity()
+    {
+        int[] team = [44, 16, 10];
+        Assert.Equal([16, 10, 44], CrucibleLevelPlan.HornChoice(CrucibleTeamGoal.Legendary, null, team, Lead("gargoyle piece", takesPoison: false)));
+        Assert.Equal([44, 16, 10], CrucibleLevelPlan.HornChoice(CrucibleTeamGoal.Legendary, null, team, Lead("golem piece", takesPoison: true)));
+        Assert.Equal([16, 10, 44], CrucibleLevelPlan.HornChoice(CrucibleTeamGoal.Legendary, null, team, Lead("golem piece")));
     }
 }

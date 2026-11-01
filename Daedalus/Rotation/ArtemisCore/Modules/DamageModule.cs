@@ -43,9 +43,13 @@ public sealed class DamageModule : IArtemisModule
     {
         if (!context.InCombat)
         {
+            _combatSinceUtc = default;
             context.Debug.DamageState = "Not in combat";
             return;
         }
+
+        if (_combatSinceUtc == default)
+            _combatSinceUtc = DateTime.UtcNow;
         if (context.TargetingService.IsDamageTargetingPaused())
         {
             context.Debug.DamageState = "Paused (no target)";
@@ -149,7 +153,36 @@ public sealed class DamageModule : IArtemisModule
         // Every goal clears the Siren's adds in one hit: on a Level or Clear run they wear the familiars down fast
         // (user, 2026-10-31: a roommate kept dying there), and no bonus is at stake. The usual rules go on as well.
         if (!legendary && FindSiren(context, out _, out var sirenAdds) is { } levelSiren)
-            KillSirenAdds(context, scheduler, levelSiren, sirenAdds, familiarOut);
+            KillBunchedAdds(context, scheduler, levelSiren, sirenAdds, familiarOut, "Siren");
+        // Every goal: the Morbol's Seedling Pieces poison whatever they hit (stacking, and it outlives them), so one
+        // Parting Blow takes the wave once it has bunched (user, 2026-10-31). The usual rules go on as well.
+        if (familiarOut && FindMorbol(context, out var seedlings) is { } morbol)
+            TryPartingBlowOnBunched(context, scheduler, seedlings, morbol, "Morbol: the seedlings are bunched");
+        // Every goal: the Ogre's wisp waves march to the centre during Burning Ward and blow up there, stacking a
+        // vulnerability (14 deaths in 17 recorded Ogre fights). They bunch on the way: Parting Blow, or a Fang.
+        if (FindAdds(context, ArtemisCooldownRules.OgrePieceNameId, WispNameIds, out var wisps) is { } ogre)
+            KillBunchedAdds(context, scheduler, ogre, wisps, familiarOut, "Ogre");
+
+        // A cast the familiar must not be out for: send it away with Parting Blow, and no Snarl until it is done.
+        if (FindCasting(context, ArtemisCooldownRules.SendFamiliarAwayCastIds) is { } caster)
+        {
+            LogSnarlState($"{caster.Name.TextValue} casts {caster.CastActionId} — the familiar is sent away, no Snarl",
+                familiarHpPct, selfHpPct);
+            if (familiarOut && CanFire(svc, context.Player.Level, BSTActions.PartingBlow, caster.GameObjectId)
+                && TryGate(BSTActions.PartingBlow.ActionId))
+            {
+                var cast = caster.CastActionId;
+                scheduler.PushOgcd(ArtemisAbilities.PartingBlowRetreat, caster.GameObjectId, priority: 1, onDispatched: _ =>
+                {
+                    context.Debug.PlannedAction = "Parting Blow (send the familiar away from the cast)";
+                    Daedalus.Rotation.Base.RotationServices.DebugLog?.Log(
+                        Daedalus.Services.Debug.DebugLogCategory.Action, Daedalus.Services.Debug.DebugLogSeverity.Info,
+                        $"[Crucible] {caster.Name.TextValue} casts {cast}: Parting Blow sends the familiar away");
+                });
+            }
+
+            return;
+        }
 
         // Legendary, shared tanking: whoever has more HP to spare holds the enemy. The beastmaster's turn is handled here;
         // the familiar's turn is the usual path below (Snarl onto it).
@@ -258,7 +291,7 @@ public sealed class DamageModule : IArtemisModule
         if (FindSiren(context, out var crawlerAlive, out var adds) is not { } siren)
             return false;
 
-        KillSirenAdds(context, scheduler, siren, adds, familiarOut);
+        KillBunchedAdds(context, scheduler, siren, adds, familiarOut, "Siren");
         if (selfHpPct <= ArtemisCooldownRules.SelfCriticalHpPct)
             return false;
 
@@ -298,6 +331,7 @@ public sealed class DamageModule : IArtemisModule
     }
 
     private bool _eggHoldLogged;
+    private DateTime _combatSinceUtc;
 
     /// <summary>One debug-log line each time Shield Charge starts being held for an egg.</summary>
     private void LogEggHold(bool held)
@@ -340,6 +374,100 @@ public sealed class DamageModule : IArtemisModule
         return zuHpPct;
     }
 
+    /// <summary>
+    /// Parting Blow (8 yalms round its target) on <paramref name="adds"/> once they have bunched: aimed at an add or
+    /// <paramref name="boss"/> that has every add within <see cref="CrucibleAutoPilotRules.PartingBlowReachYalms"/>, and
+    /// only with two or more up. Nothing until then — they bunch on the familiar and the beastmaster as they close in.
+    /// </summary>
+    private void TryPartingBlowOnBunched(
+        IArtemisContext context, RotationScheduler scheduler, List<(ulong Id, System.Numerics.Vector2 At)> adds,
+        Dalamud.Game.ClientState.Objects.Types.IBattleNpc boss, string why)
+    {
+        var svc = context.ActionService;
+        var level = context.Player.Level;
+        var candidates = new List<(ulong Id, System.Numerics.Vector2 At)>(adds);
+        if (boss.IsTargetable)
+            candidates.Add((boss.GameObjectId, new System.Numerics.Vector2(boss.Position.X, boss.Position.Z)));
+        var blowAim = CrucibleAutoPilotRules.FangAim(
+            adds, candidates, context.TargetingService.GetGameHardTargetId(), CrucibleAutoPilotRules.PartingBlowReachYalms);
+        if (blowAim == 0 || !CanFire(svc, level, BSTActions.PartingBlow, blowAim) || !TryGate(BSTActions.PartingBlow.ActionId))
+            return;
+
+        var count = adds.Count;
+        var who = why.Split(':')[0];
+        scheduler.PushOgcd(ArtemisAbilities.PartingBlow, blowAim, priority: 2, onDispatched: _ =>
+        {
+            context.Debug.PlannedAction = $"Parting Blow ({why})";
+            Daedalus.Rotation.Base.RotationServices.DebugLog?.Log(
+                Daedalus.Services.Debug.DebugLogCategory.Action, Daedalus.Services.Debug.DebugLogSeverity.Info,
+                $"[Crucible] {who}: Parting Blow on {count} bunched adds");
+        });
+    }
+
+    /// <summary>The Morbol Piece and where its Seedling Pieces stand; null when it is not in the fight.</summary>
+    private static Dalamud.Game.ClientState.Objects.Types.IBattleNpc? FindMorbol(
+        IArtemisContext context, out List<(ulong Id, System.Numerics.Vector2 At)> seedlings)
+    {
+        Dalamud.Game.ClientState.Objects.Types.IBattleNpc? morbol = null;
+        seedlings = new List<(ulong Id, System.Numerics.Vector2 At)>();
+        foreach (var obj in context.ObjectTable)
+        {
+            if (obj is not Dalamud.Game.ClientState.Objects.Types.IBattleNpc npc || npc.IsDead || npc.CurrentHp == 0)
+                continue;
+            if (npc.NameId == ArtemisCooldownRules.MorbolPieceNameId && npc.IsTargetable)
+                morbol = npc;
+            else if (npc.NameId == ArtemisCooldownRules.SeedlingPieceNameId && npc.IsTargetable)
+                seedlings.Add((npc.GameObjectId, new System.Numerics.Vector2(npc.Position.X, npc.Position.Z)));
+        }
+
+        return morbol;
+    }
+
+    private static readonly uint[] WispNameIds = [ArtemisCooldownRules.WispPieceNameId, ArtemisCooldownRules.GreatWispPieceNameId];
+
+    /// <summary>The live enemy <paramref name="bossNameId"/> (targetable or not) and where its adds stand; null when it is not in the fight.</summary>
+    private static Dalamud.Game.ClientState.Objects.Types.IBattleNpc? FindAdds(
+        IArtemisContext context, uint bossNameId, uint[] addNameIds, out List<(ulong Id, System.Numerics.Vector2 At)> adds)
+    {
+        Dalamud.Game.ClientState.Objects.Types.IBattleNpc? boss = null;
+        adds = new List<(ulong Id, System.Numerics.Vector2 At)>();
+        foreach (var obj in context.ObjectTable)
+        {
+            if (obj is not Dalamud.Game.ClientState.Objects.Types.IBattleNpc npc || npc.IsDead || npc.CurrentHp == 0)
+                continue;
+            if (npc.NameId == bossNameId && (boss == null || npc.MaxHp > boss.MaxHp))
+                boss = npc;
+            else if (Array.IndexOf(addNameIds, npc.NameId) >= 0 && npc.IsTargetable)
+                adds.Add((npc.GameObjectId, new System.Numerics.Vector2(npc.Position.X, npc.Position.Z)));
+        }
+
+        return boss;
+    }
+
+    /// <summary>An enemy casting one of <paramref name="actionIds"/>, or null.</summary>
+    private static Dalamud.Game.ClientState.Objects.Types.IBattleNpc? FindCasting(IArtemisContext context, IReadOnlySet<uint> actionIds)
+    {
+        foreach (var obj in context.ObjectTable)
+        {
+            if (obj is Dalamud.Game.ClientState.Objects.Types.IBattleNpc { IsDead: false, IsCasting: true } npc
+                && actionIds.Contains(npc.CastActionId))
+                return npc;
+        }
+
+        return null;
+    }
+
+    /// <summary>Whether a Parting Blow at this target would break a Zu egg (only while the Zu is in the fight).</summary>
+    private bool PartingBlowBreaksZuEgg(IArtemisContext context, ulong targetId)
+    {
+        if (ReadZu(context, out var eggs) == null || eggs.Count == 0 || FindObject(context, targetId) is not { } target)
+            return false;
+        var held = ArtemisCooldownRules.PartingBlowBreaksEgg(eggs, new System.Numerics.Vector2(target.Position.X, target.Position.Z));
+        if (held)
+            LogEggHold(true);
+        return held;
+    }
+
     /// <summary>The Siren (the targetable one), whether a Crawling Piece lives, and where her adds stand; null when she is not here.</summary>
     private static Dalamud.Game.ClientState.Objects.Types.IBattleNpc? FindSiren(
         IArtemisContext context, out bool crawlerAlive, out List<(ulong Id, System.Numerics.Vector2 At)> adds)
@@ -368,16 +496,17 @@ public sealed class DamageModule : IArtemisModule
     /// them all and tell the autopilot a Fang can go
     /// (<see cref="Daedalus.Services.Beastmaster.CrucibleHints.FangTargetId"/>). Every goal: on Legendary the Fang costs
     /// Economic Ethos and is worth it for no crawler on the beastmaster (the user's call); elsewhere it is free.
+    /// <para>The Ogre's wisps get the same (<paramref name="who"/> names the fight in the logs). An untargetable
+    /// <paramref name="siren"/> (the Ogre during Burning Ward) is never the aim.</para>
     /// </summary>
-    private void KillSirenAdds(
+    private void KillBunchedAdds(
         IArtemisContext context, RotationScheduler scheduler, Dalamud.Game.ClientState.Objects.Types.IBattleNpc siren,
-        List<(ulong Id, System.Numerics.Vector2 At)> adds, bool familiarOut)
+        List<(ulong Id, System.Numerics.Vector2 At)> adds, bool familiarOut, string who)
     {
         var hard = context.TargetingService.GetGameHardTargetId();
-        var candidates = new List<(ulong Id, System.Numerics.Vector2 At)>(adds)
-        {
-            (siren.GameObjectId, new System.Numerics.Vector2(siren.Position.X, siren.Position.Z)),
-        };
+        var candidates = new List<(ulong Id, System.Numerics.Vector2 At)>(adds);
+        if (siren.IsTargetable)
+            candidates.Add((siren.GameObjectId, new System.Numerics.Vector2(siren.Position.X, siren.Position.Z)));
         Daedalus.Services.Beastmaster.CrucibleHints.FangAimUtc = DateTime.UtcNow;
         Daedalus.Services.Beastmaster.CrucibleHints.FangTargetId = 0;
 
@@ -394,7 +523,7 @@ public sealed class DamageModule : IArtemisModule
             foreach (var status in context.Player.StatusList)
                 hasVantage |= status.StatusId == ArtemisCooldownRules.LingeringVantageStatusId;
             var selfHpPct = context.Player.MaxHp > 0 ? (float)context.Player.CurrentHp / context.Player.MaxHp : 1f;
-            if (!hasVantage && adds.Count > 0
+            if (!hasVantage && adds.Count > 0 && siren.IsTargetable
                 && ShouldTemperedRelease(
                     context.Configuration.Beastmaster.EnableTemperedRelease,
                     CanFire(svc, level, BSTActions.TemperedRelease, siren.GameObjectId), context.FamiliarBeast?.BestiaryNo,
@@ -403,25 +532,13 @@ public sealed class DamageModule : IArtemisModule
                 if (TryGate(BSTActions.TemperedRelease.ActionId))
                 {
                     scheduler.PushOgcd(ArtemisAbilities.TemperedRelease, siren.GameObjectId, priority: 2, onDispatched: _ =>
-                        context.Debug.PlannedAction = "Tempered Release (Siren: Lingering Vantage for the Parting Blow)");
+                        context.Debug.PlannedAction = $"Tempered Release ({who}: Lingering Vantage for the Parting Blow)");
                 }
 
                 return;
             }
 
-            var blowAim = CrucibleAutoPilotRules.FangAim(adds, candidates, hard, CrucibleAutoPilotRules.PartingBlowReachYalms);
-            if (blowAim != 0 && CanFire(svc, level, BSTActions.PartingBlow, blowAim) && TryGate(BSTActions.PartingBlow.ActionId))
-            {
-                var count = adds.Count;
-                scheduler.PushOgcd(ArtemisAbilities.PartingBlow, blowAim, priority: 2, onDispatched: _ =>
-                {
-                    context.Debug.PlannedAction = "Parting Blow (Siren: the adds are bunched)";
-                    Daedalus.Rotation.Base.RotationServices.DebugLog?.Log(
-                        Daedalus.Services.Debug.DebugLogCategory.Action, Daedalus.Services.Debug.DebugLogSeverity.Info,
-                        $"[Crucible] Siren: Parting Blow on {count} bunched adds");
-                });
-            }
-
+            TryPartingBlowOnBunched(context, scheduler, adds, siren, $"{who}: the adds are bunched");
             return; // a ready Parting Blow is worth waiting for: no Fang while it can still do the job
         }
 
@@ -1065,7 +1182,10 @@ public sealed class DamageModule : IArtemisModule
 
         var releaseReady = CanFire(svc, level, BSTActions.TemperedRelease, targetId);
         var stingFinisher = Daedalus.Services.Beastmaster.CrucibleTracker.Current.OnBoard
-                            && targetHpPct > 0f && targetHpPct <= FinalStingAtTargetHpPct;
+                            && ((targetHpPct > 0f && targetHpPct <= FinalStingAtTargetHpPct)
+                                || ArtemisCooldownRules.StingBeforeOgreWard(
+                                    FindAdds(context, ArtemisCooldownRules.OgrePieceNameId, WispNameIds, out _) != null,
+                                    (DateTime.UtcNow - _combatSinceUtc).TotalSeconds));
         var zuHold = ArtemisCooldownRules.HoldReleaseAtZu(
             Daedalus.Services.Beastmaster.CrucibleTracker.Current.OnBoard, ReadZu(context, out _), falling);
         if (zuHold && releaseReady)
@@ -1091,7 +1211,8 @@ public sealed class DamageModule : IArtemisModule
         // Not straight after a Trick: the familiar is slow to act, and retreating it now loses the Trick (RSR 8f258dbc).
         // The falling retreat is exempt — it saves the familiar.
         var trickInFlight = !falling && svc.WasLastOgcd(BSTActions.Trick.ActionId);
-        if (!releaseOwed && partingBlowAllowed && !trickInFlight && CanFire(svc, level, BSTActions.PartingBlow, targetId))
+        if (!releaseOwed && partingBlowAllowed && !trickInFlight && CanFire(svc, level, BSTActions.PartingBlow, targetId)
+            && !PartingBlowBreaksZuEgg(context, targetId))
         {
             var line = _fallingLine;
             scheduler.PushOgcd(falling ? ArtemisAbilities.PartingBlowRetreat : ArtemisAbilities.PartingBlow, targetId,

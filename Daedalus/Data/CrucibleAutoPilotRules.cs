@@ -370,6 +370,58 @@ public static class CrucibleAutoPilotRules
     public static bool ShouldUseEyes(bool legendary, CrucibleEnemy? fighting) =>
         !legendary && fighting is { IsFinalBoss: false };
 
+    /// <summary>
+    /// The resistance serums (XBMItem rows, best first) for a board's final boss (research 2026-11-01): Guttler and Lauda
+    /// paralyse (Thunderbolt) — G2 Antiparalysis lasts 300 s, the whole fight, for you and the familiar; Borgny's
+    /// Toxicosis is answered only by poison resistance (cleansing does not remove it). G2 covers "self and nearby
+    /// allies", G1 only one; the Swiftness potion adds poison resistance for the battle. Empty elsewhere.
+    /// </summary>
+    public static IReadOnlyList<int> BossSerumRows(int board) => board switch
+    {
+        3 or 5 => [89, 88],     // G2, G1 Antiparalysis Soul Serum
+        4 => [87, 86, 114],     // G2, G1 Antipoison Soul Serum; Potion of Breathtaking Swiftness
+        _ => [],
+    };
+
+    /// <summary>Whether to drink the boss's resistance serum now: not Legendary (it costs Economic Ethos), at the final boss.</summary>
+    public static bool ShouldUseBossSerum(bool legendary, bool useItems, CrucibleEnemy? fighting) =>
+        !legendary && useItems && fighting is { IsFinalBoss: true };
+
+    /// <summary>The HUD slot of the best held serum for this board's final boss (held ids are HUD icon ids), or -1.</summary>
+    public static int PickBossSerum(IReadOnlyList<uint> heldItemIds, int board, IReadOnlySet<uint> usedThisBattle)
+    {
+        if (usedThisBattle.Any(id => BossSerumRows(board).Contains((int)id - CrucibleItemIconOffset)))
+            return -1; // one serum a fight
+        foreach (var row in BossSerumRows(board))
+        {
+            for (var slot = 0; slot < heldItemIds.Count; slot++)
+            {
+                if (heldItemIds[slot] == (uint)(row + CrucibleItemIconOffset))
+                    return slot;
+            }
+        }
+
+        return -1;
+    }
+
+    /// <summary>
+    /// The shop row of the serum to buy for this board's final boss: the best one affordable, when none is held yet
+    /// (held as XBMItem rows) and an item slot is free; -1 otherwise.
+    /// </summary>
+    public static int ShopBuyForBossSerum(IReadOnlyList<CrucibleShopOffer> offers, int tokens, IReadOnlyCollection<int> heldRows, int board)
+    {
+        var wanted = BossSerumRows(board);
+        if (wanted.Count == 0 || heldRows.Count >= MaxCrucibleItemsHeld || heldRows.Any(wanted.Contains))
+            return -1;
+        foreach (var row in wanted)
+        {
+            if (offers.FirstOrDefault(o => o.ItemId == row && !o.Sold && o.Price <= tokens) is { ItemId: > 0 } offer)
+                return offer.Row;
+        }
+
+        return -1;
+    }
+
     /// <summary>Presses of one Eye a battle before it is left for the next (the game refuses one mid-action).</summary>
     public const int EyeMaxTries = 3;
 
@@ -416,6 +468,35 @@ public static class CrucibleAutoPilotRules
                      .OrderByDescending(o => ShopRestorePct(o.ItemId)).ThenBy(o => o.Price))
         {
             if (itemsHeld + buys.Count >= MaxCrucibleItemsHeld)
+                break;
+            if (offer.Price > tokens)
+                continue;
+            tokens -= offer.Price;
+            buys.Add(offer.Row);
+        }
+
+        return buys;
+    }
+
+    /// <summary>
+    /// The beast gear to buy with the tokens left after the potions (any goal but Legendary, with "take beast gear" on):
+    /// the best by <see cref="TreasureScore"/> first, cheaper first on a tie, while it is affordable and fewer than ten
+    /// pieces are held. Gear that scores nothing or less (a chance to Stun yourself) is never bought. Rows in buying
+    /// order. Field 2026-10-31 (Korha, Level): every shop was left with its gear unbought — only potions were planned.
+    /// </summary>
+    /// <param name="gearHeld">Pieces held now; null when unknown (the game refuses an eleventh, and the buy times out).</param>
+    public static IReadOnlyList<int> ShopBuysForGear(
+        IReadOnlyList<CrucibleShopOffer> offers, int tokens, int? gearHeld, Func<int, bool> isGear,
+        Func<int, string?> effectOf, IReadOnlyCollection<string>? wantedResistances = null)
+    {
+        var buys = new List<int>();
+        foreach (var (offer, _) in offers
+                     .Where(o => !o.Sold && isGear(o.ItemId))
+                     .Select(o => (Offer: o, Score: TreasureScore(effectOf(o.ItemId), wantedResistances)))
+                     .Where(x => x.Score > 0)
+                     .OrderByDescending(x => x.Score).ThenBy(x => x.Offer.Price))
+        {
+            if ((gearHeld ?? 0) + buys.Count >= HeldGearMaxRows)
                 break;
             if (offer.Price > tokens)
                 continue;

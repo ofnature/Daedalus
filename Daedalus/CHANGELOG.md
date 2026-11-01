@@ -3,6 +3,33 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.115 — 2026-11-01
+
+### Beastmaster — the Crucible (shops)
+- **Shops buy beast gear.** With "Take beast gear" on (any goal but Legendary), the tokens the potions leave go on
+  the shop's most useful gear, up to ten pieces held. Before, the shop bought potions only and left the gear.
+
+### Beastmaster — the Crucible (Morbol Piece)
+- **Parting Blow clears the Seedlings.** Every Seedling Piece hit stacks Poison, and the poison outlives them: it
+  killed familiars well after the wave was dead. Like the Siren's adds, each wave now takes one Parting Blow as soon
+  as it is bunched, on every goal.
+
+### Beastmaster — the Crucible (bosses)
+- **The Ogre's wisps.** Burning Ward always comes about 52 s in, so Final Sting now goes in the seconds before it
+  instead of waiting for the Ogre to be low, and the wisp waves get Parting Blow (or a Fang) once they bunch.
+- **Familiars sent away from what kills them.** King Ahriman's Curtains for Rank 5, and Guttler's Molten Metal and
+  Beastly Aura, now get a Parting Blow that sends the familiar away (ending Cover), and no Snarl goes out during them.
+- **Zu eggs are safe from Parting Blow too.** It splashes 8 yalms round its target and broke eggs like Shield Charge.
+- **A serum for the final boss.** With "Use potions" on (not Legendary), shops on the Third and both Master's Boards
+  buy one resistance serum for the board's boss — Antiparalysis for Guttler and Lauda, Antipoison for Borgny — and it
+  is drunk as the boss fight starts.
+- **Poison where it lands.** The Bug team's horn order now reads which enemies poison works on from the game's data,
+  so it no longer leads with Damselfly into poison-immune bosses like the Gargoyle.
+- **Safer forks.** The Arch Demon over the Piscodemon on the First Board; on the Second Master's Board the Chimera over
+  the Sphinx and King Ahriman over the Behemoth, and never a lane that can only lead into the Drake.
+
+<!-- LATEST-END -->
+
 ## v0.1.114 — 2026-10-31
 
 ### Beastmaster — the Crucible (Legendary)
@@ -39,8 +66,6 @@ All notable changes to Daedalus will be documented in this file.
 - **Ranks keep counting past the board's cap.** The Bestiary's EXP is never synced, so EXP going down between readings
   counts as a rank-up, and a beast showing EXP "-/-" is rank 25. Hovering a beast in the Bestiary, or Read ranks, keeps
   it current; read from a Master's Board to see the true ranks.
-
-<!-- LATEST-END -->
 
 ## v0.1.113 — 2026-10-31
 

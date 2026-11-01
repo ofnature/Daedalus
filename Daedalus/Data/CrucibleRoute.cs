@@ -185,7 +185,42 @@ public static class CrucibleRoutePlan
             _ => 0,
         };
 
-        return fork.OrderByDescending(s => Rank(s) + (200 * OnlyThisLane(s))).ThenBy(s => s.Side).First().Side;
+        // A fight to route round counts for every lane that cannot avoid it any more (with the map), not only on the fork;
+        // a fight to route towards only on the fork itself — it must never pull a run past a campsite into an extra fight.
+        int Bias(CrucibleStage s) => FightBias(index, s)
+            + (route != null && CrucibleWalkPlan.HasMap(route)
+                ? CrucibleWalkPlan.Unavoidable(route, s).Where(u => u != s).Sum(u => Math.Min(0, FightBias(index, u)))
+                : 0);
+
+        return fork.OrderByDescending(s => Rank(s) + (200 * OnlyThisLane(s)) + Bias(s)).ThenBy(s => s.Side).First().Side;
+    }
+
+    /// <summary>
+    /// Fights to route towards (+) or round (−), by the lead enemy's BNpcName (boss research 2026-11-01,
+    /// docs/crucible-boss-playbook.md): the Arch Demon over the Piscodemon (its Clear Mind can only be dispelled, and
+    /// nothing here dispels); the Chimera over the Sphinx's riddles; King Ahriman over 13L's Behemoth (an immune boss and
+    /// a rock-and-tower puzzle); never the Drake (Blaze Spikes reflect, Bleeding moles: "costly").
+    /// </summary>
+    public static readonly IReadOnlyDictionary<uint, int> FightBiasByLead = new Dictionary<uint, int>
+    {
+        [14533] = 30,   // arch demon piece (First Board 2L)
+        [14663] = 60,   // chimera piece (Second Master's 9L)
+        [14665] = -40,  // sphinx piece (Second Master's 9R)
+        [14688] = 60,   // king ahriman piece (Second Master's 13R)
+        [14684] = -40,  // behemoth piece (Second Master's 13L, a random)
+        [14651] = -100, // drake piece (Second Master's 4M)
+    };
+
+    /// <summary>A space's <see cref="FightBiasByLead"/>: its battle's, or for a random space the worst of what it can be.</summary>
+    public static int FightBias(CrucibleIndex index, CrucibleStage stage)
+    {
+        int Of(int battle) => index.EnemiesInBattle(battle).FirstOrDefault() is { } lead
+            ? FightBiasByLead.GetValueOrDefault(lead.NameId)
+            : 0;
+        if (stage.IsBattle)
+            return Of(stage.Battle);
+        var options = stage.Options.Where(o => o.Battle != 0).Select(o => Of(o.Battle)).ToList();
+        return options.Count == 0 ? 0 : options.Min();
     }
 
     /// <summary>

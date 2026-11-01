@@ -138,7 +138,7 @@ public class CrucibleBoardMapTests
 
     private static CrucibleIndex Index(CrucibleBoard board) => new(
         [board],
-        [Enemy(14633, 33), Enemy(14663, 39), Enemy(14665, 40), Enemy(14688, 44), Enemy(14617, 28), Enemy(14618, 29)]);
+        [Enemy(14633, 33), Enemy(14663, 39), Enemy(14665, 40), Enemy(14688, 44), Enemy(14617, 28), Enemy(14618, 29), Enemy(14651, 36), Enemy(14684, 43)]);
 
     private static CrucibleBoard Board(int index, IReadOnlyList<CrucibleStage> route, int[] battles)
         => new(index, 0, 0, $"Board {index}", 50, battles.Where(b => b != 0).ToList(), null, route);
@@ -221,5 +221,40 @@ public class CrucibleBoardMapTests
         Assert.Contains(walked, s => s.Battle == 39);
         Assert.Contains(walked, s => s.Battle == 44);
         Assert.Equal(CrucibleStageType.Boss, walked[^1].Type);
+    }
+
+    /// <summary>Clear at move 9: the Chimera's elite over the Sphinx's riddles (an enemy, which Clear otherwise ranks higher).</summary>
+    [Fact]
+    public void ClearTakesTheChimeraOverTheSphinx()
+    {
+        var route = Board5();
+        var board = Board(5, route, Battles5);
+        var nine = route.Where(s => s.Move == 9).ToList();
+        Assert.Equal(1, CrucibleRoutePlan.SuggestedSide(Index(board), board, nine, _ => true, route: route));
+    }
+
+    /// <summary>
+    /// A Clear run of the Second Master's Board (research 2026-11-01): the Chimera over the Sphinx, never the Drake, and
+    /// at move 12 the campsite, whose lane goes straight to the boss — neither King Ahriman nor the Behemoth random.
+    /// </summary>
+    [Fact]
+    public void ClearWalksTheSecondMastersBoardRoundItsHardFights()
+    {
+        var route = Board5();
+        var board = Board(5, route, Battles5);
+        var index = Index(board);
+        CrucibleStage? at = null;
+        var walked = new List<CrucibleStage>();
+        while (CrucibleWalkPlan.NextOnMap(route, at, fork => CrucibleRoutePlan.SuggestedSide(index, board, fork, _ => true, route: route)) is { } next)
+        {
+            walked.Add(next);
+            at = next;
+        }
+
+        Assert.Contains(walked, s => s.Battle == 39);      // Chimera
+        Assert.DoesNotContain(walked, s => s.Battle == 40); // Sphinx
+        Assert.DoesNotContain(walked, s => s.Battle == 36); // Drake
+        Assert.Contains(walked, s => s.Move == 12 && s.Type == CrucibleStageType.Campsite);
+        Assert.DoesNotContain(walked, s => s.Move == 13);
     }
 }

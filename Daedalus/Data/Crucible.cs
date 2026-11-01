@@ -37,9 +37,24 @@ public sealed record CrucibleMove(uint ActionId, string Name, string Target, str
 /// piercing, the boss the community "Bug team" is built for).
 /// </param>
 /// <param name="Ratings">Five 1-5 ratings the game shows for the enemy. Their labels are not in the data.</param>
+/// <param name="Resists">
+/// The enemy's BNpcResist row (XBMBattleDetail column 9): true = immune, in <see cref="CrucibleStatus"/> order. Matches
+/// the wiki's per-enemy "vulnerable to" lists exactly (checked on six pieces, 2026-11-01). Null when unread.
+/// </param>
 public sealed record CrucibleEnemy(
     uint NameId, string Name, int Battle, bool IsFinalBoss, CrucibleElement Weakness, byte[] Ratings,
-    IReadOnlyList<CrucibleMove> Moves);
+    IReadOnlyList<CrucibleMove> Moves, IReadOnlyList<bool>? Resists = null)
+{
+    /// <summary>Whether the status lands on it; null when its resist row was not read.</summary>
+    public bool? TakesStatus(CrucibleStatus status)
+        => Resists is { } r && (int)status < r.Count ? !r[(int)status] : null;
+}
+
+/// <summary>The status columns of BNpcResist, in order.</summary>
+public enum CrucibleStatus
+{
+    Slow, Petrification, Paralysis, Interruption, Blind, Poison, Stun, Sleep, Bind, Heavy, FlatDamage,
+}
 
 /// <summary>One Crucible board (an XBMContent row with a duty).</summary>
 /// <param name="Battles">The board's battle pool (XBMContentBattle). The first is its final boss.</param>

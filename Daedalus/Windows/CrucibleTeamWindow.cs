@@ -485,7 +485,7 @@ public sealed class CrucibleTeamWindow : Window
                 no => config.CrucibleRanks.GetValueOrDefault(no, 1), board.RankCap, board.Index)
             : CoreTeam();
         var horns = CrucibleHornPlan.Pick(_index, board, battle, pool, CrucibleLevelPlan.HornChoice(config.CrucibleGoal, chosen, carry,
-            _index.EnemiesInBattle(battle).FirstOrDefault()?.Name));
+            _index.EnemiesInBattle(battle).FirstOrDefault()));
         ImGui.TextColored(DaedalusTheme.TextSecondary, "Horns:");
         ImGui.SameLine();
         ImGui.Text(horns.Count == 0 ? "nobody left standing" : string.Join(" > ", horns.Select(p => Name(pool[p].PetId))));
@@ -579,7 +579,7 @@ public sealed class CrucibleTeamWindow : Window
 
         if (ImGui.IsItemHovered())
             ImGui.SetTooltip("Steps through the board: starts each battle once the horns are set, takes the spoils' tokens,\n"
-                             + "the first treasure, buys at shops (see Use potions; Legendary: only to finish Habitual Hoarder at the\n"
+                             + "the first treasure, buys at shops (see Use potions and Take beast gear; Legendary: only to finish Habitual Hoarder at the\n"
                              + "last shop), rests the most hurt beast at a campsite and\n"
                              + "closes the result. Walking the board (and so the forks) and any prompt it did not raise stay yours.\n"
                              + "Needs \"Set the Battlehorns before each battle\" on.");
@@ -593,8 +593,9 @@ public sealed class CrucibleTeamWindow : Window
         }
 
         if (ImGui.IsItemHovered())
-            ImGui.SetTooltip("Also take beast gear from the spoils (every piece offered).\n"
-                             + "It helps you survive; it costs the Nameday Attire bonus.");
+            ImGui.SetTooltip("Also take beast gear from the spoils (every piece offered), and buy it at shops with the tokens\n"
+                             + "the potions leave: the most useful pieces first, up to ten held.\n"
+                             + "It helps you survive; it costs the Nameday Attire bonus. Legendary never buys gear.");
 
         ImGui.SameLine();
         var potions = config.CrucibleLootTakePotions;

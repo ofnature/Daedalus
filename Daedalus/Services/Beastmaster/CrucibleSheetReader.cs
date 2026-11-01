@@ -36,6 +36,9 @@ public static class CrucibleSheetReader
             var targets = excel.GetSheet<RawRow>(name: "XBMActionTarget").ToDictionary(r => r.RowId, r => Text(r, 0));
             var shapes = excel.GetSheet<RawRow>(name: "XBMActionEffectType").ToDictionary(r => r.RowId, r => Text(r, 0));
             var moveRows = excel.GetSheet<RawRow>(name: "XBMBattleDetailAction").ToDictionary(r => r.RowId);
+            // Which statuses each enemy shrugs off (true = immune), by BNpcResist row.
+            var resists = excel.GetSheet<RawRow>(name: "BNpcResist")
+                .ToDictionary(r => r.RowId, r => (IReadOnlyList<bool>)Enumerable.Range(0, 11).Select(r.ReadBoolColumn).ToArray());
 
             CrucibleMove? Move(ushort id)
             {
@@ -115,7 +118,7 @@ public static class CrucibleSheetReader
                         finals.Contains((int)row.RowId),
                         element <= (byte)CrucibleElement.Slashing ? (CrucibleElement)element : CrucibleElement.None,
                         [row.ReadUInt8Column(1), row.ReadUInt8Column(2), row.ReadUInt8Column(3), row.ReadUInt8Column(4), row.ReadUInt8Column(5)],
-                        moves));
+                        moves, resists.GetValueOrDefault(row.ReadUInt16Column(9))));
                 }
             }
 

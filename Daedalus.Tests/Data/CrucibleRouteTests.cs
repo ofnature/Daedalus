@@ -96,14 +96,17 @@ public class CrucibleRouteTests
         Assert.Equal(2, CrucibleRoutePlan.SuggestedSide(Index, Board1Board, Fork(7), _ => true)); // 7R campsite
     }
 
-    /// <summary>Between two battles, the one your beasts cover: with a lightning beast and no slashing one, the arch demon.</summary>
+    /// <summary>
+    /// Fork 2 is the arch demon either way now: covered (a lightning beast), or not (only a slashing beast, which covers
+    /// the piscodemon) — the piscodemon's Clear Mind can only be dispelled, and nothing here dispels (research 2026-11-01).
+    /// </summary>
     [Fact]
-    public void BetweenTwoBattlesTheCoveredOneIsSuggested()
+    public void FirstBoardForkTwoIsTheArchDemon()
     {
         var onlyCoblyn = new HashSet<int> { 7 }; // Coblyn: lightning
         Assert.Equal(1, CrucibleRoutePlan.SuggestedSide(Index, Board1Board, Fork(2), onlyCoblyn.Contains)); // arch demon
         var onlyMantis = new HashSet<int> { 16 }; // Mantis: slashing
-        Assert.Equal(2, CrucibleRoutePlan.SuggestedSide(Index, Board1Board, Fork(2), onlyMantis.Contains)); // piscodemon
+        Assert.Equal(1, CrucibleRoutePlan.SuggestedSide(Index, Board1Board, Fork(2), onlyMantis.Contains)); // still the arch demon
     }
 
     [Fact]

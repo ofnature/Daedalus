@@ -319,8 +319,8 @@ public sealed unsafe class CrucibleAutoPilot
     }
 
     /// <summary>
-    /// The shop: once it has settled, plan the purchases (<see cref="CrucibleAutoPilotRules.ShopBuysForPotions"/>, or on
-    /// Legendary <see cref="CrucibleAutoPilotRules.ShopBuysForHoarder"/>), buy them one at a time — each must show up
+    /// The shop: once it has settled, plan the purchases (<see cref="CrucibleAutoPilotRules.ShopBuysForPotions"/> then
+    /// <see cref="CrucibleAutoPilotRules.ShopBuysForGear"/>, or on Legendary <see cref="CrucibleAutoPilotRules.ShopBuysForHoarder"/>), buy them one at a time — each must show up
     /// (the row sold, or one more item held) before the next — then leave.
     /// </summary>
     private void Shop(DateTime now, AtkUnitBase* shop, CrucibleBoard board)
@@ -362,11 +362,38 @@ public sealed unsafe class CrucibleAutoPilot
                     ? CrucibleAutoPilotRules.ShopBuysForPotions(offers, tokens, held, _isCrucibleItem,
                         wantFang: board.Index == CrucibleAutoPilotRules.SirenBoardIndex && !fangHeld)
                     : [];
+            if (!_legendary && _usePotionsNow)
+            {
+                // The final boss's resistance serum first (it needs a slot the potions might take).
+                var heldRows = new List<int>();
+                for (var k = 0; k < CrucibleAutoPilotRules.MaxCrucibleItemsHeld; k++)
+                {
+                    if ((int)Number(shop, CrucibleAutoPilotRules.ShopHeldItemRowIndex(k)) is var heldRow and > 0)
+                        heldRows.Add(heldRow);
+                }
+
+                if (CrucibleAutoPilotRules.ShopBuyForBossSerum(offers, tokens, heldRows, board.Index) is var serumRow and >= 0)
+                {
+                    var serumPrice = offers.First(o => o.Row == serumRow).Price;
+                    plan = new[] { serumRow }.Concat(CrucibleAutoPilotRules.ShopBuysForPotions(offers, tokens - serumPrice, held + 1,
+                        _isCrucibleItem, wantFang: board.Index == CrucibleAutoPilotRules.SirenBoardIndex && !fangHeld)).ToList();
+                }
+            }
+
+            if (!_legendary && _takeGearNow)
+            {
+                // Gear with what the potions leave (the shop only offers each piece once).
+                var left = tokens - plan.Sum(r => offers.First(o => o.Row == r).Price);
+                plan = plan.Concat(CrucibleAutoPilotRules.ShopBuysForGear(
+                    offers, left, HudGearHeld(), _isBeastGear, _itemEffect, CrucibleAutoPilotRules.WantedResistances(board.Index))).ToList();
+            }
+
             _shopPlan = new Queue<int>(plan);
             var stock = string.Join(", ", offers.Select(o => $"{_itemName(o.ItemId)} {o.Price}{(o.Sold ? " (sold)" : "")}"));
             _log($"Crucible: shop — {tokens:N0} tokens, {held} item(s) held; {stock}. "
                  + (plan.Count == 0
-                     ? "Buying nothing" + (_legendary ? " (Legendary: only the last shop's items that finish Habitual Hoarder are worth Coin Clutcher)." : _usePotionsNow ? "." : " (potions are off).")
+                     ? "Buying nothing" + (_legendary ? " (Legendary: only the last shop's items that finish Habitual Hoarder are worth Coin Clutcher)."
+                         : _usePotionsNow || _takeGearNow ? "." : " (potions and gear are off).")
                      : "Buying " + string.Join(", ", plan.Select(r => _itemName(offers.First(o => o.Row == r).ItemId)))
                        + (_legendary ? " to hold ten for Habitual Hoarder (Coin Clutcher is given up)." : ".")));
         }
@@ -410,6 +437,22 @@ public sealed unsafe class CrucibleAutoPilot
             Fire(shop, CrucibleAutoPilotRules.ShopLeaveEvent);
             Done(now, "Leaving the shop.");
         }
+    }
+
+    /// <summary>Beast gear held, off the board HUD (ten slots); null when the HUD is not up.</summary>
+    private static int? HudGearHeld()
+    {
+        var hud = CrucibleAddons.Visible("XBMContentsMainHUD");
+        if (hud == null)
+            return null;
+        var gear = 0;
+        for (var slot = 0; slot < CrucibleAutoPilotRules.HudGearSlots; slot++)
+        {
+            if (CrucibleAddons.Bool(hud, CrucibleAutoPilotRules.HudGearHeldIndex(slot)) || Number(hud, CrucibleAutoPilotRules.HudGearHeldIndex(slot)) != 0)
+                gear++;
+        }
+
+        return gear;
     }
 
     /// <summary>Whether a shop space lies ahead on the route (by where the player stands); true when that is unknown.</summary>
@@ -643,10 +686,10 @@ public sealed unsafe class CrucibleAutoPilot
             {
                 FireMixed(menu, 0, 0, 0u, null, null);
                 _itemUsedOnBoard = true;
-                _log("Crucible: Siren — the adds are bunched; using a Fang on them"
+                _log("Crucible: the adds are bunched; using a Fang on them"
                      + (_legendary ? " (Economic Ethos is given up)." : "."));
                 _nextFangUtc = now + TimeSpan.FromSeconds(3);
-                Done(now, "Using a Fang on the Siren's adds.");
+                Done(now, "Using a Fang on the bunched adds.");
             }
 
             return true;
@@ -704,7 +747,9 @@ public sealed unsafe class CrucibleAutoPilot
         }
 
         var fighting = CrucibleTracker.Current.Enemy;
-        if (!CrucibleAutoPilotRules.ShouldUseEyes(_legendary, fighting))
+        var eyes = CrucibleAutoPilotRules.ShouldUseEyes(_legendary, fighting);
+        var serum = CrucibleAutoPilotRules.ShouldUseBossSerum(_legendary, _usePotionsNow, fighting);
+        if (!eyes && !serum)
             return false;
         if (fighting!.Battle != _eyeBattle)
         {
@@ -738,7 +783,9 @@ public sealed unsafe class CrucibleAutoPilot
                 _eyePressedHeld, CrucibleAutoPilotRules.CountHeld(held, _eyePressed), (now - _eyePressedUtc).TotalSeconds);
             if (outcome == null)
                 return true;
-            var name = _eyePressed == CrucibleAutoPilotRules.EyeItemIds[0] ? "Thief's Eye (loot ×3)" : "Merchant's Eye (tokens ×2)";
+            var name = _eyePressed == CrucibleAutoPilotRules.EyeItemIds[0] ? "Thief's Eye (loot ×3)"
+                : _eyePressed == CrucibleAutoPilotRules.EyeItemIds[1] ? "Merchant's Eye (tokens ×2)"
+                : _itemName((int)_eyePressed - CrucibleAutoPilotRules.CrucibleItemIconOffset) + " (for the boss)";
             var tries = _eyeTries[_eyePressed] = _eyeTries.GetValueOrDefault(_eyePressed) + 1;
             if (outcome == true)
             {
@@ -762,7 +809,10 @@ public sealed unsafe class CrucibleAutoPilot
             return true;
         }
 
-        var pick = CrucibleAutoPilotRules.PickEye(CrucibleAutoPilotRules.UsableOnly(held, usable), _eyesUsed);
+        var usableHeld = CrucibleAutoPilotRules.UsableOnly(held, usable);
+        var pick = eyes ? CrucibleAutoPilotRules.PickEye(usableHeld, _eyesUsed) : -1;
+        if (pick < 0 && serum)
+            pick = CrucibleAutoPilotRules.PickBossSerum(usableHeld, CrucibleTracker.Current.Board?.Index ?? 0, _eyesUsed);
         if (pick < 0)
             return false;
 

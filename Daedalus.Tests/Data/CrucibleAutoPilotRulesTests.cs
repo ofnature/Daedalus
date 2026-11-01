@@ -591,6 +591,19 @@ public class CrucibleAutoPilotRulesTests
         Assert.Equal(0ul, CrucibleAutoPilotRules.FangAim(adds, adds, hardTarget: 1, CrucibleAutoPilotRules.PartingBlowReachYalms));
     }
 
+    /// <summary>
+    /// Morbol Piece, first wave as it spawns (Minerva replay 2026-10-31 23:32): four Seedlings on an arc in front of the
+    /// Morbol. The Morbol (12y off) catches none, but the westernmost Seedling has the other three within 7y.
+    /// </summary>
+    [Fact]
+    public void TheMorbolsFirstSeedlingWaveIsBunchedAsItSpawns()
+    {
+        (ulong, System.Numerics.Vector2)[] seedlings =
+            [At(1, 117.172f, -422.828f), At(2, 116f, -420f), At(3, 120f, -416f), At(4, 117.172f, -417.172f)];
+        (ulong, System.Numerics.Vector2)[] candidates = [.. seedlings, At(9, 120f, -428f)];
+        Assert.Equal(2ul, CrucibleAutoPilotRules.FangAim(seedlings, candidates, hardTarget: 9, CrucibleAutoPilotRules.PartingBlowReachYalms));
+    }
+
     /// <summary>The replay's second Summon: five adds within a few yalms of the familiar — one Parting Blow takes them all.</summary>
     [Fact]
     public void PartingBlowCatchesABunchOnTheFamiliar()
@@ -650,6 +663,47 @@ public class CrucibleAutoPilotRulesTests
         Assert.Equal([3], CrucibleAutoPilotRules.ShopBuysForPotions(offers, tokens: 1000, itemsHeld: 9, IsItem));
         Assert.Equal([2], CrucibleAutoPilotRules.ShopBuysForPotions(offers, tokens: 100, itemsHeld: 0, IsItem));
         Assert.Empty(CrucibleAutoPilotRules.ShopBuysForPotions(offers, tokens: 1000, itemsHeld: 10, IsItem));
+    }
+
+    // --- buying gear (Korha 2026-10-31: every shop was left with its gear unbought) ---
+
+    private static readonly System.Collections.Generic.Dictionary<int, string> GearEffects = new()
+        { [1] = Belt, [2] = IceShield, [3] = RingOfCuring, [4] = ThunderAxe };
+
+    private static bool IsShopGear(int id) => GearEffects.ContainsKey(id);
+
+    /// <summary>Most useful first (Ice Shield 45, Ring of Curing 30, Belt 20); never an item, nothing sold.</summary>
+    [Fact]
+    public void GearIsBoughtMostUsefulFirst()
+    {
+        CrucibleShopOffer[] offers = [Offer(0, 1, 300), Offer(1, 2, 500), Offer(2, 3, 400), Offer(3, 79, 158), Offer(4, 2, 100, sold: true)];
+        Assert.Equal([1, 2, 0], CrucibleAutoPilotRules.ShopBuysForGear(offers, 1500, 0, IsShopGear, GearEffects.GetValueOrDefault));
+    }
+
+    /// <summary>What the tokens cannot cover is skipped for the next piece down.</summary>
+    [Fact]
+    public void GearSkipsWhatItCannotAfford()
+    {
+        CrucibleShopOffer[] offers = [Offer(0, 1, 300), Offer(1, 2, 900), Offer(2, 3, 400)];
+        Assert.Equal([2, 0], CrucibleAutoPilotRules.ShopBuysForGear(offers, 800, 0, IsShopGear, GearEffects.GetValueOrDefault));
+    }
+
+    [Fact]
+    public void GearStopsAtTenHeld()
+    {
+        CrucibleShopOffer[] offers = [Offer(0, 1, 300), Offer(1, 2, 500), Offer(2, 3, 400)];
+        Assert.Equal([1], CrucibleAutoPilotRules.ShopBuysForGear(offers, 1500, 9, IsShopGear, GearEffects.GetValueOrDefault));
+        Assert.Empty(CrucibleAutoPilotRules.ShopBuysForGear(offers, 1500, 10, IsShopGear, GearEffects.GetValueOrDefault));
+        Assert.Equal(3, CrucibleAutoPilotRules.ShopBuysForGear(offers, 1500, null, IsShopGear, GearEffects.GetValueOrDefault).Count);
+    }
+
+    /// <summary>Gear that scores nothing or less (more damage taken, unknown text) is not worth tokens.</summary>
+    [Fact]
+    public void GearThatHurtsIsNeverBought()
+    {
+        CrucibleShopOffer[] offers = [Offer(0, 5, 100)];
+        Assert.Empty(CrucibleAutoPilotRules.ShopBuysForGear(offers, 1500, 0, _ => true, _ => "Damage Taken +10%"));
+        Assert.Empty(CrucibleAutoPilotRules.ShopBuysForGear(offers, 1500, 0, _ => true, _ => null));
     }
 
     /// <summary>Third Board, no Fang held: the strongest affordable Fang first (Fire 128 over Ice 129 over Vampiric 134), then potions.</summary>
@@ -745,5 +799,45 @@ public class CrucibleAutoPilotRulesTests
         Assert.True(CrucibleAutoPilotRules.ShopAhead([], 11));
         Assert.True(CrucibleAutoPilotRules.ShopAhead(
             [new(4, 0, CrucibleStageType.Shop, 0, []), new(6, 0, CrucibleStageType.Random, 0, [new(CrucibleStageType.Shop, 0)])], 4));
+    }
+
+    // --- the final boss's resistance serum (research 2026-11-01) ---
+
+    /// <summary>Guttler's board: G2 Antiparalysis over G1; nothing on Board 1 or 2.</summary>
+    [Fact]
+    public void TheBossSerumIsTheBoardsResistance()
+    {
+        Assert.Equal([89, 88], CrucibleAutoPilotRules.BossSerumRows(3));
+        Assert.Equal(87, CrucibleAutoPilotRules.BossSerumRows(4)[0]);
+        Assert.Empty(CrucibleAutoPilotRules.BossSerumRows(1));
+    }
+
+    [Fact]
+    public void TheBestHeldSerumIsPickedOnceAFight()
+    {
+        uint g1 = 88 + CrucibleAutoPilotRules.CrucibleItemIconOffset, g2 = 89 + CrucibleAutoPilotRules.CrucibleItemIconOffset;
+        Assert.Equal(2, CrucibleAutoPilotRules.PickBossSerum([243136, g1, g2], 3, new System.Collections.Generic.HashSet<uint>()));
+        Assert.Equal(-1, CrucibleAutoPilotRules.PickBossSerum([243136, g1, g2], 3, new System.Collections.Generic.HashSet<uint> { g2 }));
+        Assert.Equal(-1, CrucibleAutoPilotRules.PickBossSerum([g1, g2], 2, new System.Collections.Generic.HashSet<uint>()));
+    }
+
+    [Fact]
+    public void OneSerumIsBoughtForTheBossWhenNoneIsHeld()
+    {
+        CrucibleShopOffer[] offers = [Offer(0, 88, 100), Offer(1, 89, 300), Offer(2, 79, 158)];
+        Assert.Equal(1, CrucibleAutoPilotRules.ShopBuyForBossSerum(offers, 1000, [], 3));
+        Assert.Equal(0, CrucibleAutoPilotRules.ShopBuyForBossSerum(offers, 200, [], 3));   // G2 too dear: G1
+        Assert.Equal(-1, CrucibleAutoPilotRules.ShopBuyForBossSerum(offers, 1000, [88], 3)); // one held already
+        Assert.Equal(-1, CrucibleAutoPilotRules.ShopBuyForBossSerum(offers, 1000, [], 1));    // no boss serum on Board 1
+    }
+
+    [Fact]
+    public void TheSerumGoesAtTheFinalBossOffLegendary()
+    {
+        var boss = new CrucibleEnemy(14592, "Guttler the Gutter", 1, true, CrucibleElement.None, [5, 5, 5, 5, 5], []);
+        Assert.True(CrucibleAutoPilotRules.ShouldUseBossSerum(false, true, boss));
+        Assert.False(CrucibleAutoPilotRules.ShouldUseBossSerum(true, true, boss));
+        Assert.False(CrucibleAutoPilotRules.ShouldUseBossSerum(false, false, boss));
+        Assert.False(CrucibleAutoPilotRules.ShouldUseBossSerum(false, true, boss with { IsFinalBoss = false }));
     }
 }

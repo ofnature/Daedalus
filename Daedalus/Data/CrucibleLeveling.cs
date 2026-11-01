@@ -81,15 +81,15 @@ public static class CrucibleLevelPlan
     /// three-beast team, and a per-battle pick outside it is ignored (the roster holds only those three).
     /// </summary>
     /// <para>Legendary with no pick of the player's: the core in <see cref="LegendaryHornOrder"/> for the battle's lead
-    /// enemy (<paramref name="leadEnemyName"/>).</para>
+    /// enemy — poison-immune by its resist row (<paramref name="lead"/>), or by name when the row was not read.</para>
     public static IReadOnlyList<int>? HornChoice(
-        CrucibleTeamGoal goal, IReadOnlyList<int>? perBattle, IReadOnlyList<int> core, string? leadEnemyName = null)
+        CrucibleTeamGoal goal, IReadOnlyList<int>? perBattle, IReadOnlyList<int> core, CrucibleEnemy? lead = null)
     {
         var picked = perBattle != null && perBattle.Any(no => no != 0);
         if (goal == CrucibleTeamGoal.Legendary)
             return picked && perBattle!.Where(no => no != 0).All(core.Contains)
                 ? perBattle
-                : LegendaryHornOrder(core, IsPoisonImmune(leadEnemyName));
+                : LegendaryHornOrder(core, IsPoisonImmune(lead));
         if (picked)
             return perBattle;
         return goal == CrucibleTeamGoal.Level ? core : null;
@@ -128,6 +128,13 @@ public static class CrucibleLevelPlan
     /// </summary>
     public static readonly IReadOnlyList<string> PoisonImmuneLeads =
         ["bone knight", "bone bishop", "banemite", "pas de seul", "voidmancer", "golem", "borgny"];
+
+    /// <summary>
+    /// Whether poison does not land on this lead enemy: its resist row when read (the game's own data — the Taurus,
+    /// Voidmancer, Gargoyle and Chimera are immune too, which the name list missed), else <see cref="PoisonImmuneLeads"/>.
+    /// </summary>
+    public static bool IsPoisonImmune(CrucibleEnemy? lead)
+        => lead?.TakesStatus(CrucibleStatus.Poison) is { } takes ? !takes : IsPoisonImmune(lead?.Name);
 
     /// <summary>Whether poison does not land on this lead enemy (<see cref="PoisonImmuneLeads"/>).</summary>
     public static bool IsPoisonImmune(string? leadEnemyName)
