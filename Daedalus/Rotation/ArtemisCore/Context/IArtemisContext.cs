@@ -32,6 +32,12 @@ public interface IArtemisContext : IMeleeDpsRotationContext
     bool NoReplacementHorn => false;
 
     /// <summary>
+    /// A Wespe sits in a ready Battlehorn other than the one out: its Final Sting is still to come. See
+    /// <see cref="Helpers.ArtemisFamiliarKeeper.WespeWaiting"/>.
+    /// </summary>
+    bool WespeWaiting => false;
+
+    /// <summary>
     /// The job gauge this frame — TP, familiar TP, the instinct diamonds, what is lit on the Compass.
     /// Null when it could not be read; callers then fall back to inference.
     /// </summary>

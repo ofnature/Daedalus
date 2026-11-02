@@ -63,6 +63,24 @@ public static class ArtemisFamiliarKeeper
     }
 
     /// <summary>
+    /// True when the roster is known and a Wespe sits in a ready horn other than the out one (<paramref name="outSlot"/>):
+    /// its Final Sting is still to come, so the beasts ahead of it are cycled out (Release, then Parting Blow) to bring
+    /// it. <paramref name="beasts"/> are the horns' Bestiary numbers.
+    /// </summary>
+    public static bool WespeWaiting(bool rosterKnown, int outSlot, ReadOnlySpan<uint> beasts, ReadOnlySpan<bool> usable)
+    {
+        if (!rosterKnown)
+            return false;
+        for (var i = 0; i < beasts.Length && i < usable.Length; i++)
+        {
+            if (i != outSlot && usable[i] && beasts[i] == Daedalus.Rotation.ArtemisCore.Modules.DamageModule.WespeBestiaryNo)
+                return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
     /// True when the roster is known and no horn but the out beast's own (<paramref name="outSlot"/>) is ready: a
     /// retreat now would leave the beastmaster with no familiar until a horn comes back. In combat a horn's cooldown
     /// starts when its beast retreats; Korha 2026-10-27 (Board 1 boss): three falling retreats in 40s put all three

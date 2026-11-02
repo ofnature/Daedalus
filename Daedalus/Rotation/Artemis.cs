@@ -232,7 +232,8 @@ public sealed class Artemis : BaseMeleeDpsRotation<IArtemisContext, IArtemisModu
             trickPairing: _pairing,
             activeBattlehornRow: _battlehorns.Active?.PactNameId ?? 0,
             gauge: _gaugeReader.TryRead(),
-            noReplacementHorn: NoReplacementHorn(player));
+            noReplacementHorn: NoReplacementHorn(player),
+            wespeWaiting: WespeWaiting(player));
 
     /// <summary>
     /// Whether no horn but the out beast's own is ready (see ArtemisFamiliarKeeper.NoReplacementHorn). Read from the
@@ -251,6 +252,23 @@ public sealed class Artemis : BaseMeleeDpsRotation<IArtemisContext, IArtemisModu
         }
 
         return ArtemisFamiliarKeeper.NoReplacementHorn(_battlehorns.IsPopulatedFromGame, _lastOutHorn, usable);
+    }
+
+    /// <summary>A Wespe waits in a ready horn other than the out one (see ArtemisFamiliarKeeper.WespeWaiting).</summary>
+    private bool WespeWaiting(IPlayerCharacter player)
+    {
+        System.Span<bool> usable = stackalloc bool[ArtemisBattlehornState.SlotCount];
+        System.Span<uint> beasts = stackalloc uint[ArtemisBattlehornState.SlotCount];
+        for (var i = 0; i < usable.Length; i++)
+        {
+            var horn = BSTActions.Battlehorns[i];
+            beasts[i] = _battlehorns[i].PactNameId;
+            usable[i] = !_battlehorns[i].IsEmpty
+                && ActionAvailability.MeetsLevelAndLearned(player.Level, ActionService, horn)
+                && ActionService.IsActionReady(horn.ActionId);
+        }
+
+        return ArtemisFamiliarKeeper.WespeWaiting(_battlehorns.IsPopulatedFromGame, _lastOutHorn, beasts, usable);
     }
 
     /// <inheritdoc />

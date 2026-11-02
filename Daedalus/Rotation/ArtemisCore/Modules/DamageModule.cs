@@ -442,7 +442,7 @@ public sealed class DamageModule : IArtemisModule
 
         var count = adds.Count;
         var who = why.Split(':')[0];
-        scheduler.PushOgcd(ArtemisAbilities.PartingBlow, blowAim, priority: 2, onDispatched: _ =>
+        scheduler.PushOgcd(ArtemisAbilities.CruciblePartingBlow, blowAim, priority: 2, onDispatched: _ =>
         {
             context.Debug.PlannedAction = $"Parting Blow ({why})";
             Daedalus.Rotation.Base.RotationServices.DebugLog?.Log(
@@ -1328,7 +1328,11 @@ public sealed class DamageModule : IArtemisModule
                            Daedalus.Services.Beastmaster.CrucibleHints.SecondsUntilTankbuster, _fallingLine,
                            RaidwideIn(context)),
             familiarHpPct);
-        var partingBlowAllowed = ArtemisCooldownRules.AllowsPartingBlow(cfg.EnablePartingBlow, falling);
+        var cycleToWespe = ArtemisCooldownRules.CyclesToWespe(
+            Daedalus.Services.Beastmaster.CrucibleTracker.Current.OnBoard, context.WespeWaiting,
+            context.FamiliarBeast?.BestiaryNo == WespeBestiaryNo, !context.NoReplacementHorn, RaidwideIn(context),
+            Daedalus.Services.Beastmaster.CrucibleHints.SecondsUntilTankbuster);
+        var partingBlowAllowed = ArtemisCooldownRules.AllowsPartingBlow(cfg.EnablePartingBlow, falling) || cycleToWespe;
 
         var releaseReady = CanFire(svc, level, BSTActions.TemperedRelease, targetId);
         var stingFinisher = Daedalus.Services.Beastmaster.CrucibleTracker.Current.OnBoard
@@ -1365,17 +1369,27 @@ public sealed class DamageModule : IArtemisModule
             && !PartingBlowBreaksZuEgg(context, targetId))
         {
             var line = _fallingLine;
-            scheduler.PushOgcd(falling ? ArtemisAbilities.PartingBlowRetreat : ArtemisAbilities.PartingBlow, targetId,
+            var outBeast = context.FamiliarBeast?.Name ?? "familiar";
+            scheduler.PushOgcd(
+                falling ? ArtemisAbilities.PartingBlowRetreat
+                : cycleToWespe ? ArtemisAbilities.CruciblePartingBlow
+                : ArtemisAbilities.PartingBlow, targetId,
                 priority: falling ? 5 : 15,
                 onDispatched: _ =>
                 {
                     context.Debug.PlannedAction = falling
                         ? "Parting Blow (familiar falling — retreat it)"
-                        : BSTActions.PartingBlow.Name;
+                        : cycleToWespe
+                            ? "Parting Blow (next horn — bringing the Wespe for Final Sting)"
+                            : BSTActions.PartingBlow.Name;
                     if (falling)
                         Daedalus.Rotation.Base.RotationServices.DebugLog?.Log(
                             Daedalus.Services.Debug.DebugLogCategory.Action, Daedalus.Services.Debug.DebugLogSeverity.Info,
                             $"[Crucible] Parting Blow: familiar at {familiarHpPct:P0} (falling line {line:P0}), retreated");
+                    else if (cycleToWespe)
+                        Daedalus.Rotation.Base.RotationServices.DebugLog?.Log(
+                            Daedalus.Services.Debug.DebugLogCategory.Action, Daedalus.Services.Debug.DebugLogSeverity.Info,
+                            $"[Crucible] Parting Blow: {outBeast}'s release is spent — next horn, towards the Wespe's Final Sting");
                 });
         }
 

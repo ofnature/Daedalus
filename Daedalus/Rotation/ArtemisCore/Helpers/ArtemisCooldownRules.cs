@@ -295,6 +295,18 @@ public static class ArtemisCooldownRules
     /// <summary>Parting Blow (and Wespe's Final Sting, the same trade) when chosen, or when the familiar is falling.</summary>
     public static bool AllowsPartingBlow(bool enabled, bool familiarFalling) => enabled || familiarFalling;
 
+    /// <summary>
+    /// On a board, Parting Blow the familiar out (its Tempered Release spent — the caller waits for that) to bring the
+    /// next horn, until the Wespe is out: the guides' Release, Parting, next (Meoni, Ponzi's Worm → Mantis → Wespe).
+    /// Without it a familiar that never falls stays the whole fight and the Wespe never comes out to sting (user,
+    /// 2026-11-01). Never with no other horn ready, and never with a raidwide, tankbuster or wisp explosion due.
+    /// </summary>
+    public static bool CyclesToWespe(
+        bool onBoard, bool wespeWaiting, bool wespeOut, bool replacementReady, float secondsUntilRaidwide,
+        float secondsUntilTankbuster)
+        => onBoard && wespeWaiting && !wespeOut && replacementReady
+           && secondsUntilRaidwide > RaidwideLeadSeconds && secondsUntilTankbuster > TankbusterLeadSeconds;
+
     /// <summary>Challenge only to save a familiar this low…</summary>
     public const float ChallengeFamiliarBelowHpPct = 0.25f;
 

@@ -3,6 +3,18 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.119 — 2026-11-01
+
+### Beastmaster — the Crucible
+- **The Wespe now comes out for Final Sting.** A familiar that never fell stayed out the whole fight, so the Wespe
+  behind it was never summoned. Now, while a Wespe waits in a ready horn, each beast ahead of it uses its special and
+  then Parting Blow to bring the next horn (the guides' Release → Parting → next), and the Wespe stings at 30% or
+  before the Ogre's ward. Never with no other horn ready, nor with a raidwide, tankbuster or wisp explosion due.
+- Fixed: the Crucible's own Parting Blows (the Siren's adds, the Morbol's Seedlings, the Treant's slugs) were
+  dropped unless the general "Parting Blow" option was on. They now follow the Crucible Parting Blow option.
+
+<!-- LATEST-END -->
+
 ## v0.1.118 — 2026-11-01
 
 ### Beastmaster — the Crucible (Legendary)
@@ -15,7 +27,7 @@ All notable changes to Daedalus will be documented in this file.
 - **No potions on First Board Legendary runs**, not even the last-resort one at 20% HP: a potion costs Economic Ethos,
   and the First Board has no other bonuses to make up for it. The other boards keep the last-resort drink.
 
-<!-- LATEST-END -->
+
 
 ## v0.1.117 — 2026-11-01
 

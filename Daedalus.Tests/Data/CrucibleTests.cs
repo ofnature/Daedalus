@@ -869,4 +869,48 @@ public class CrucibleTests
         Assert.False(ArtemisCooldownRules.ShouldSnarlBoneKnight(true, true, familiarOut: false, 0f, false));
         Assert.False(ArtemisCooldownRules.ShouldSnarlBoneKnight(true, ready: false, true, 0.9f, false));
     }
+
+    /// <summary>
+    /// The beasts ahead of a waiting Wespe are cycled out (Release, then Parting Blow) so it comes out to sting — not once
+    /// it is out, not with no other horn ready, not off a board.
+    /// </summary>
+    [Fact]
+    public void BeastsAheadOfAWaitingWespeAreCycledOut()
+    {
+        Assert.True(ArtemisCooldownRules.CyclesToWespe(true, true, false, true, float.MaxValue, float.MaxValue));
+        Assert.False(ArtemisCooldownRules.CyclesToWespe(true, true, wespeOut: true, true, float.MaxValue, float.MaxValue));
+        Assert.False(ArtemisCooldownRules.CyclesToWespe(true, true, false, replacementReady: false, float.MaxValue, float.MaxValue));
+        Assert.False(ArtemisCooldownRules.CyclesToWespe(onBoard: false, true, false, true, float.MaxValue, float.MaxValue));
+        Assert.False(ArtemisCooldownRules.CyclesToWespe(true, wespeWaiting: false, false, true, float.MaxValue, float.MaxValue));
+    }
+
+    /// <summary>No cycling with a raidwide, wisp explosion or tankbuster due: the familiar out takes it.</summary>
+    [Fact]
+    public void NoCycleWithAHitDue()
+    {
+        Assert.False(ArtemisCooldownRules.CyclesToWespe(true, true, false, true, secondsUntilRaidwide: 6f, float.MaxValue));
+        Assert.False(ArtemisCooldownRules.CyclesToWespe(true, true, false, true, float.MaxValue, secondsUntilTankbuster: 3f));
+    }
+
+    /// <summary>A Wespe waits in a ready horn other than the out one; its own horn out, on cooldown, or unread is no wait.</summary>
+    [Fact]
+    public void AWespeWaitsOnlyInAnotherReadyHorn()
+    {
+        uint[] bugs = [44, 16, 10]; // Damselfly, Mantis, Wespe
+        Assert.True(Daedalus.Rotation.ArtemisCore.Helpers.ArtemisFamiliarKeeper.WespeWaiting(true, 0, bugs, [false, true, true]));
+        Assert.False(Daedalus.Rotation.ArtemisCore.Helpers.ArtemisFamiliarKeeper.WespeWaiting(true, 2, bugs, [true, true, true]));
+        Assert.False(Daedalus.Rotation.ArtemisCore.Helpers.ArtemisFamiliarKeeper.WespeWaiting(true, 0, bugs, [false, true, false]));
+        Assert.False(Daedalus.Rotation.ArtemisCore.Helpers.ArtemisFamiliarKeeper.WespeWaiting(false, 0, bugs, [true, true, true]));
+        Assert.False(Daedalus.Rotation.ArtemisCore.Helpers.ArtemisFamiliarKeeper.WespeWaiting(true, 0, [44u, 16u, 1u], [true, true, true]));
+    }
+
+    /// <summary>The Crucible's own Parting Blows sit behind the Crucible toggle, not the opt-in Parting Blow one.</summary>
+    [Fact]
+    public void CrucibleBlowsDoNotNeedTheOptInPartingBlowSetting()
+    {
+        var cfg = new Daedalus.Configuration();
+        cfg.Beastmaster.EnablePartingBlow = false;
+        Assert.True(Daedalus.Rotation.ArtemisCore.Abilities.ArtemisAbilities.CruciblePartingBlow.Toggle!(cfg));
+        Assert.False(Daedalus.Rotation.ArtemisCore.Abilities.ArtemisAbilities.PartingBlow.Toggle!(cfg));
+    }
 }

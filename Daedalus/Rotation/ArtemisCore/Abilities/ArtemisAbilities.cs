@@ -40,6 +40,13 @@ public static class ArtemisAbilities
     /// </summary>
     public static readonly AbilityBehavior PartingBlowRetreat = new()
         { Action = BSTActions.PartingBlow, Toggle = cfg => cfg.Beastmaster.CruciblePartingBlowWhenFalling };
+    /// <summary>
+    /// The same Parting Blow, sent by the Crucible's own rules: bunched adds (the Siren's, the Morbol's Seedlings, the
+    /// Treant's slugs) and the cycle that brings the Wespe out for Final Sting. Behind the Crucible toggle too: under
+    /// EnablePartingBlow (off by default) the scheduler dropped them (found 2026-11-01).
+    /// </summary>
+    public static readonly AbilityBehavior CruciblePartingBlow = new()
+        { Action = BSTActions.PartingBlow, Toggle = cfg => cfg.Beastmaster.CruciblePartingBlowWhenFalling };
     public static readonly AbilityBehavior TemperedRelease = new()
         { Action = BSTActions.TemperedRelease, Toggle = cfg => cfg.Beastmaster.EnableTemperedRelease };
 
