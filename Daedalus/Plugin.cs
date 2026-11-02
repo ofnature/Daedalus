@@ -42,7 +42,7 @@ namespace Daedalus;
 
 public sealed class Plugin : IDalamudPlugin
 {
-    public const string PluginVersion = "0.1.116";
+    public const string PluginVersion = "0.1.117";
     private const string CommandName = "/daedalus";
 
     /// <summary>LAN relay channel for Necromancer Deep Freeze "heal me to full" announcements.</summary>
@@ -235,6 +235,7 @@ public sealed class Plugin : IDalamudPlugin
     private readonly Daedalus.Services.Consumables.PhoenixDownService phoenixDownService;
     private readonly Daedalus.Services.Interaction.MechanicInteractService mechanicInteractService;
     private readonly Daedalus.Services.Movement.DodgeSprintService dodgeSprintService;
+    private readonly Daedalus.Services.Eureka.EurekaService eurekaService;
     private readonly Daedalus.Services.Pull.BossPullService bossPullService;
     private readonly Daedalus.Services.Consumables.EtherService etherService;
 
@@ -893,6 +894,14 @@ public sealed class Plugin : IDalamudPlugin
                 vNavService, bossModSafetyService);
         Daedalus.Rotation.Base.RotationServices.BozjaLayer = bozjaLayer;
 
+        // Eureka Logos Actions: the same layer over the Logos list, with its own settings.
+        Daedalus.Rotation.Base.RotationServices.LogosLayer = new Daedalus.Rotation.Phantom.BozjaActionLayer(
+            actionService, jobGauges, configuration, phantomJobService, timelineService, errorMetricsService, log,
+            partyCoordinationService, Daedalus.Data.LogosActionData.All, () => configuration.Eureka.Logos, "Eureka");
+
+        // Eureka: the Magia Board (the game's /magiaauto) and elemental levels.
+        this.eurekaService = new Daedalus.Services.Eureka.EurekaService(configuration, clientState, condition, objectTable, log);
+
         // Consumable service: inventory probing + recast cooldown + ShouldUseTinctureNow gate.
         // Per-fight inventory-empty warning routed through chatGui.
         this.consumableService = new Daedalus.Services.Consumables.ConsumableService(
@@ -1204,6 +1213,7 @@ public sealed class Plugin : IDalamudPlugin
             pluginInterface.SavePluginConfig(configuration);
 
         this.dockLayout = new Daedalus.Windows.Dock.DockLayoutShare(pluginInterface, "Daedalus", order: 10);
+        var eurekaDockSection = new Daedalus.Windows.Config.Shared.EurekaSection(configuration, SaveConfiguration, phantomJobService);
         this.edgeDockWindow = new Daedalus.Windows.Dock.EdgeDockWindow(
         [
             // Fixed width because the main body sizes its buttons off the space left.
@@ -1222,6 +1232,10 @@ public sealed class Plugin : IDalamudPlugin
                           || clientState.TerritoryType == Daedalus.Data.CrucibleLoopRules.LaudaTerritoryId
                           || configuration.Beastmaster.CrucibleLoopRuns > 0),
                 () => crucibleTeamWindow?.DrawControls()), // built further down; the tab only draws after that
+            // Eureka: the readout, Magia Board, Farm level limit and slotted Logos toggles. Sizes to its content.
+            new Daedalus.Windows.Dock.EdgeDockWindow.Tab("eureka", "Eureka",
+                () => configuration.EdgeDockEurekaTab && eurekaService.InEureka,
+                () => eurekaDockSection.DrawDock()),
             // Fixed width: the Party Coordination body right-aligns its controls off the window's width.
             new Daedalus.Windows.Dock.EdgeDockWindow.Tab("party", "Party",
                 () => configuration.EdgeDockPartyTab && lanPartyWindow != null
@@ -1233,6 +1247,7 @@ public sealed class Plugin : IDalamudPlugin
             "occult" => (configuration.EdgeDockOccultEdge, configuration.EdgeDockOccultAlong),
             "party" => (configuration.EdgeDockPartyEdge, configuration.EdgeDockPartyAlong),
             "crucible" => (configuration.EdgeDockCrucibleEdge, configuration.EdgeDockCrucibleAlong),
+            "eureka" => (configuration.EdgeDockEurekaEdge, configuration.EdgeDockEurekaAlong),
             _ => (configuration.EdgeDockMainEdge, configuration.EdgeDockMainAlong),
         },
         (id, edge, along) =>
@@ -1242,6 +1257,7 @@ public sealed class Plugin : IDalamudPlugin
                 case "occult": (configuration.EdgeDockOccultEdge, configuration.EdgeDockOccultAlong) = (edge, along); break;
                 case "party": (configuration.EdgeDockPartyEdge, configuration.EdgeDockPartyAlong) = (edge, along); break;
                 case "crucible": (configuration.EdgeDockCrucibleEdge, configuration.EdgeDockCrucibleAlong) = (edge, along); break;
+                case "eureka": (configuration.EdgeDockEurekaEdge, configuration.EdgeDockEurekaAlong) = (edge, along); break;
                 default: (configuration.EdgeDockMainEdge, configuration.EdgeDockMainAlong) = (edge, along); break;
             }
 
@@ -2352,6 +2368,8 @@ public sealed class Plugin : IDalamudPlugin
                 mechanicInteractService.Update(objectTable.LocalPlayer);
                 dodgeSprintService.Update(objectTable.LocalPlayer);
                 bossPullService.Update(objectTable.LocalPlayer);
+                eurekaService.Update(objectTable.LocalPlayer,
+                    objectTable.LocalPlayer is { } me && Daedalus.Data.JobRegistry.IsTank(me.ClassJob.RowId));
             }
 
             // Enforce the party target mode (Focus / Split / Kill Adds) after the bus pump so mode

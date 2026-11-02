@@ -504,6 +504,10 @@ public sealed class TargetingService : ITargetingService
             if (!nameIds.Contains(enemy.NameId))
                 continue;
 
+            // Eureka: never go looking for a fight far above our elemental level (no levels outside Eureka).
+            if (Daedalus.Services.Eureka.EurekaService.TooHighToPull(enemy, player, _configuration.Eureka))
+                continue;
+
             if (anchor.HasValue && Vector3.DistanceSquared(anchor.Value, enemy.Position) > anchorRadiusSq)
                 continue;
 

@@ -359,6 +359,13 @@ public static class ArtemisCooldownRules
     /// </summary>
     public const uint MorbolPieceNameId = 14599, SeedlingPieceNameId = 14600;
 
+    /// <summary>
+    /// First Master's Board's Treant Piece and its Slug Pieces (BNpcName rows). Six slugs per wave (~18.6 s and
+    /// ~140 s), spread over ~20 yalms; they hold ~5 s, then crawl in and are within a Fang's reach by ~+7 s. Left
+    /// alone they lived 30+ s and threw up to 79 autos (Minerva replays 2026-10-31/11-01, 12 fights).
+    /// </summary>
+    public const uint TreantPieceNameId = 14618, SlugPieceNameId = 14619;
+
     /// <summary>First Board's Ogre Piece and its Wisp / Great Wisp Pieces (BNpcName rows).</summary>
     public const uint OgrePieceNameId = 14538, WispPieceNameId = 14539, GreatWispPieceNameId = 14748;
 

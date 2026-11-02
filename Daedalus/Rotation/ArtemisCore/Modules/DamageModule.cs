@@ -162,6 +162,11 @@ public sealed class DamageModule : IArtemisModule
         // The Ogre's wisp waves march to the centre during Burning Ward and blow up there (14 deaths in 17 Ogre fights).
         if (FindAdds(context, ArtemisCooldownRules.OgrePieceNameId, WispNameIds, out var wisps) is { } ogre)
             KillBunchedAdds(context, scheduler, ogre, wisps, familiarOut, "Ogre");
+        // The Treant's Slug Pieces, six at a time, crawl in on us (user, 2026-11-01: Fang them while levelling or
+        // clearing). Not on Legendary, where the Fang would cost Economic Ethos.
+        if (context.Configuration.Beastmaster.CrucibleGoal != CrucibleTeamGoal.Legendary
+            && FindAdds(context, ArtemisCooldownRules.TreantPieceNameId, SlugNameIds, out var slugs) is { } treant)
+            KillBunchedAdds(context, scheduler, treant, slugs, familiarOut, "Treant");
     }
 
     /// <summary>
@@ -443,6 +448,7 @@ public sealed class DamageModule : IArtemisModule
     }
 
     private static readonly uint[] WispNameIds = [ArtemisCooldownRules.WispPieceNameId, ArtemisCooldownRules.GreatWispPieceNameId];
+    private static readonly uint[] SlugNameIds = [ArtemisCooldownRules.SlugPieceNameId];
 
     /// <summary>The live enemy <paramref name="bossNameId"/> (targetable or not) and where its adds stand; null when it is not in the fight.</summary>
     private static Dalamud.Game.ClientState.Objects.Types.IBattleNpc? FindAdds(

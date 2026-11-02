@@ -23,6 +23,9 @@ namespace Daedalus.Rotation.Phantom;
 /// self buffs in the weave slots the job leaves; Lost Focus only on a GCD the job leaves free.
 /// Inert unless one of them is set to a duty action slot, which only happens in Bozjan content (BMR's
 /// Bozja module gates the same way), so no territory list is needed.
+/// <para>A second instance runs Eureka's Logos Actions (<see cref="LogosActionData"/>, <c>Configuration.Eureka.Logos</c>):
+/// they sit in the same duty slots and want the same raises, cures and party buffs, plus their own stances,
+/// Feint L and Bloodbath L.</para>
 /// </summary>
 public sealed class BozjaActionLayer
 {
@@ -37,6 +40,9 @@ public sealed class BozjaActionLayer
     private readonly RotationScheduler _scheduler;
     private readonly IPluginLog _log;
 
+    private readonly IReadOnlyList<LostActionDef> _actions;
+    private readonly Func<Config.BozjaConfig> _config;
+    private readonly string _label;
     private readonly Dictionary<uint, AbilityBehavior> _behaviorCache = [];
     private readonly Dictionary<(ulong Target, uint Action), DateTime> _recentCasts = [];
     private readonly List<LostActionDef> _slotted = [];
@@ -52,8 +58,14 @@ public sealed class BozjaActionLayer
         ITimelineService? timelineService,
         IErrorMetricsService? errorMetrics,
         IPluginLog log,
-        IPartyCoordinationService? partyCoordination = null)
+        IPartyCoordinationService? partyCoordination = null,
+        IReadOnlyList<LostActionDef>? actions = null,
+        Func<Config.BozjaConfig>? config = null,
+        string label = "Bozja")
     {
+        _actions = actions ?? BozjaActionData.All;
+        _config = config ?? (() => configuration.Bozja);
+        _label = label;
         _actionService = actionService;
         _configuration = configuration;
         _dutyState = dutyState;
@@ -78,7 +90,7 @@ public sealed class BozjaActionLayer
         }
         catch (Exception ex)
         {
-            _log.Warning(ex, "BozjaActionLayer: pre-modules failed");
+            _log.Warning(ex, $"{_label} duty-action layer: pre-modules failed");
         }
     }
 
@@ -125,19 +137,19 @@ public sealed class BozjaActionLayer
         }
         catch (Exception ex)
         {
-            _log.Warning(ex, "BozjaActionLayer: post-modules failed");
+            _log.Warning(ex, $"{_label} duty-action layer: post-modules failed");
         }
     }
 
     private void PreModulesCore(IRotationContext ctx, bool isMoving, bool inCombat)
     {
-        var cfg = _configuration.Bozja;
+        var cfg = _config();
         if (!cfg.EnableLostActions)
             return;
 
         var slots = _dutyState.GetDutySlotIds();
         _slotted.Clear();
-        foreach (var def in BozjaActionData.All)
+        foreach (var def in _actions)
         {
             if (Array.IndexOf(slots, def.ActionId) >= 0 && cfg.IsEnabled(def))
                 _slotted.Add(def);
@@ -206,6 +218,23 @@ public sealed class BozjaActionLayer
                 case LostRole.AoeDot:
                     if (inCombat && EnemyTarget(ctx) is { } dotTarget && InRange(ctx, dotTarget, def.Radius)
                         && RemainingOn(dotTarget, BozjaActionData.LostFlareStarStatusId) is null)
+                        Push(ctx, def, 0);
+                    break;
+                case LostRole.Stance:
+                    if (!RecentlyUsed(def) && !HasAny(ctx.Player, def.Provides))
+                        Push(ctx, def, 0);
+                    break;
+                case LostRole.EvasionDown:
+                    if (inCombat && EnemyTarget(ctx) is { } feintTarget && InRange(ctx, feintTarget, def.Range)
+                        && !RecentlyCastAt(feintTarget.GameObjectId, def)
+                        && Daedalus.Services.Eureka.EurekaRules.WantsFeint(
+                            Daedalus.Services.Eureka.EurekaService.Foray(feintTarget)?.Element,
+                            RemainingOn(feintTarget, def.Provides[0])))
+                        Push(ctx, def, feintTarget.GameObjectId);
+                    break;
+                case LostRole.LowHpSelf:
+                    if (inCombat && !RecentlyUsed(def)
+                        && Daedalus.Services.Eureka.EurekaRules.WantsBloodbath(HpPct(ctx.Player), HasAny(ctx.Player, def.Provides)))
                         Push(ctx, def, 0);
                     break;
             }
@@ -460,7 +489,7 @@ public sealed class BozjaActionLayer
             Daedalus.Rotation.Base.RotationServices.DebugLog?.Log(
                 Daedalus.Services.Debug.DebugLogCategory.Action,
                 Daedalus.Services.Debug.DebugLogSeverity.Info,
-                $"Bozja: {def.Name} on {who}");
+                $"{_label}: {def.Name} on {who}");
         };
 
         if (def.IsGcd)
@@ -470,15 +499,38 @@ public sealed class BozjaActionLayer
         return true;
     }
 
-    private static int IndexOf(LostActionDef def)
+    private int IndexOf(LostActionDef def)
     {
-        for (var i = 0; i < BozjaActionData.All.Count; i++)
+        for (var i = 0; i < _actions.Count; i++)
         {
-            if (ReferenceEquals(BozjaActionData.All[i], def))
+            if (ReferenceEquals(_actions[i], def))
                 return i;
         }
 
-        return BozjaActionData.All.Count;
+        return _actions.Count;
+    }
+
+    /// <summary>The definition for an action id in this layer's list, or null.</summary>
+    private LostActionDef? Find(uint actionId)
+    {
+        foreach (var def in _actions)
+        {
+            if (def.ActionId == actionId)
+                return def;
+        }
+
+        return null;
+    }
+
+    private static bool HasAny(IBattleChara chara, uint[] statusIds)
+    {
+        foreach (var id in statusIds)
+        {
+            if (RemainingOn(chara, id) is not null)
+                return true;
+        }
+
+        return false;
     }
 
     /// <summary>
@@ -533,7 +585,7 @@ public sealed class BozjaActionLayer
     /// Every toon sees the same missing buff or corpse on the same frame, so without this they all start
     /// on the same person.
     /// </summary>
-    private static bool SomeoneElseIsCasting(IRotationContext ctx, ulong targetId, LostActionDef def)
+    private bool SomeoneElseIsCasting(IRotationContext ctx, ulong targetId, LostActionDef def)
     {
         foreach (var member in ctx.PartyList)
         {
@@ -541,7 +593,7 @@ public sealed class BozjaActionLayer
                 && caster.GameObjectId != ctx.Player.GameObjectId
                 && caster.IsCasting
                 && caster.CastTargetObjectId == targetId
-                && BozjaActionData.Find(caster.CastActionId) is { } casting
+                && Find(caster.CastActionId) is { } casting
                 && SharesPurpose(casting, def))
                 return true;
         }
@@ -569,7 +621,7 @@ public sealed class BozjaActionLayer
     {
         foreach (var (target, actionId) in _recentCasts.Keys)
         {
-            if (target == targetId && BozjaActionData.Find(actionId) is { } sent && SharesPurpose(sent, def))
+            if (target == targetId && Find(actionId) is { } sent && SharesPurpose(sent, def))
                 return true;
         }
 

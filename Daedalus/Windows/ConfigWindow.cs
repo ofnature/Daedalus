@@ -78,6 +78,7 @@ public sealed class ConfigWindow : Window
     private readonly OccultSection occultSection;
     private readonly VariantSection variantSection;
     private readonly BozjaSection bozjaSection;
+    private readonly EurekaSection eurekaSection;
     private readonly DebugDisplaySection debugDisplaySection;
 
     public ConfigWindow(Configuration configuration, Action saveConfiguration, UpdateCheckerService updateCheckerService, ITextureProvider textureProvider, Daedalus.Services.Content.IDutyContentService? dutyContentService = null, Daedalus.Services.Plugins.PluginStatusService? pluginStatusService = null, Daedalus.Services.Occult.PhantomJobService? phantomJobService = null)
@@ -130,6 +131,7 @@ public sealed class ConfigWindow : Window
         occultSection = new OccultSection(configuration, saveConfiguration, phantomJobService);
         variantSection = new VariantSection(configuration, saveConfiguration, phantomJobService);
         bozjaSection = new BozjaSection(configuration, saveConfiguration, phantomJobService);
+        eurekaSection = new EurekaSection(configuration, saveConfiguration, phantomJobService);
         debugDisplaySection = new DebugDisplaySection(configuration, saveConfiguration);
 
         Size = new Vector2(650, 700);
@@ -298,6 +300,10 @@ public sealed class ConfigWindow : Window
 
             case ConfigSection.Bozja:
                 bozjaSection.Draw();
+                break;
+
+            case ConfigSection.Eureka:
+                eurekaSection.Draw();
                 break;
 
             case ConfigSection.HealerShared:

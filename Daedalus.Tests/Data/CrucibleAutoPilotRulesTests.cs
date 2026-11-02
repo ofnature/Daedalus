@@ -717,6 +717,56 @@ public class CrucibleAutoPilotRulesTests
         Assert.Empty(CrucibleAutoPilotRules.ShopBuysForPotions(offers, 1000, 10, IsItem, wantFang: true));
     }
 
+    /// <summary>
+    /// A Treant slug wave as recorded (Korha 2026-11-01 05:05): spawned spread over ~20 yalms no Fang catches, then
+    /// crawled in to within 8 yalms of one slug, which the Fang aims at.
+    /// </summary>
+    [Fact]
+    public void TheTreantSlugsGetAFangOnceTheyHaveCrawledIn()
+    {
+        (ulong, System.Numerics.Vector2)[] spawned =
+        [
+            At(1, 126.9f, -416f), At(2, 120f, -428f), At(3, 135.5f, -415.9f),
+            At(4, 104.5f, -424.1f), At(5, 133.9f, -428f), At(6, 104f, -420f),
+        ];
+        Assert.Equal(0ul, CrucibleAutoPilotRules.FangAim(spawned, spawned, hardTarget: 1));
+
+        (ulong, System.Numerics.Vector2)[] crawledIn =
+        [
+            At(1, 120f, -424f), At(2, 121f, -426f), At(3, 124f, -421f),
+            At(4, 115f, -423f), At(5, 126f, -427f),
+        ];
+        Assert.Equal(1ul, CrucibleAutoPilotRules.FangAim(crawledIn, crawledIn, hardTarget: 1));
+    }
+
+    /// <summary>The last slug alive is not worth a Fang.</summary>
+    [Fact]
+    public void ALoneTreantSlugGetsNoFang()
+    {
+        (ulong, System.Numerics.Vector2)[] last = [At(1, 120f, -424f)];
+        Assert.Equal(0ul, CrucibleAutoPilotRules.FangAim(last, last, hardTarget: 1));
+    }
+
+    /// <summary>
+    /// Slugs bunched to 8 yalms (Korha 2026-11-01 05:05, where they stalled there): a Fang reaches them all, a Parting
+    /// Blow's 7 does not, so a ready Blow keeps waiting for them to close in.
+    /// </summary>
+    [Fact]
+    public void SlugsAtEightYalmsAreAFangsNotAPartingBlows()
+    {
+        (ulong, System.Numerics.Vector2)[] slugs = [At(1, 120f, -424f), At(2, 128f, -424f), At(3, 112f, -424f)];
+        Assert.Equal(1ul, CrucibleAutoPilotRules.FangAim(slugs, slugs, hardTarget: 1));
+        Assert.Equal(0ul, CrucibleAutoPilotRules.FangAim(slugs, slugs, hardTarget: 1, CrucibleAutoPilotRules.PartingBlowReachYalms));
+    }
+
+    /// <summary>The Treant and its slugs, as the Minerva replays name them (BNpcName 14618 / 14619).</summary>
+    [Fact]
+    public void TreantAndSlugNameIds()
+    {
+        Assert.Equal(14618u, Daedalus.Rotation.ArtemisCore.Helpers.ArtemisCooldownRules.TreantPieceNameId);
+        Assert.Equal(14619u, Daedalus.Rotation.ArtemisCore.Helpers.ArtemisCooldownRules.SlugPieceNameId);
+    }
+
     /// <summary>The Eyes: Clear and Level only, never in the final boss's battle (its win ends the board), nothing out of battle.</summary>
     [Fact]
     public void EyesAreForBattlesThatPaySpoils()

@@ -3,6 +3,28 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.117 — 2026-11-01
+
+### Beastmaster — the Crucible
+- **The Treant's slugs are cleared in one hit** on Clear and Level runs: once the six Slug Pieces have crawled in
+  and bunched, Parting Blow takes them if it is ready, otherwise the autopilot throws your Fang (the one the first
+  enemy always drops). Not on Legendary, where using the Fang costs Economic Ethos.
+
+### Eureka — new
+- **Magia Board kept turned for you.** On entering Eureka, Daedalus sets the game's own auto-turn: Attack (the
+  element that beats your target), Defense, or the default, Attack with tanks switching to Defense while enemies
+  are on them. It only changes when it has to, since every turn costs Magia Aether. Settings ▸ Eureka.
+- **Logos Actions are used**, like Bozja's Lost Actions: whatever you have slotted. Raise L, Cure L / II / III,
+  Protect L, Shell L and Bravery L on you and the party, your Wisdom and Spirit of the Remembered kept up (a second
+  Wisdom never replaces the first), Feint L on Wind enemies, Bloodbath L below 50% HP. Each can be turned off.
+- **Elemental level guard:** Farm mode no longer goes after enemies more than 3 elemental levels above you
+  (adjustable). The Eureka settings page shows your elemental level, Magia Aether, magicite and your target's
+  element and level.
+- **Eureka tab on the edge dock** while you are in Eureka: the readout, the Magia Board mode, the Farm level limit
+  and toggles for your slotted Logos Actions. It can be turned off in Settings ▸ General with the other tabs.
+
+<!-- LATEST-END -->
+
 ## v0.1.116 — 2026-11-01
 
 ### Beastmaster — the Crucible
@@ -12,8 +34,6 @@ All notable changes to Daedalus will be documented in this file.
 - **Read ranks is back in the Crucible dock tab** whenever you're off a board, not only in the full team window.
 - Read ranks counted one beast short: it posted the total just before the last beast's panel came up (that beast
   was still read and saved).
-
-<!-- LATEST-END -->
 
 ## v0.1.115 — 2026-11-01
 

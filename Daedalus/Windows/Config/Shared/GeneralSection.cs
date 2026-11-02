@@ -705,6 +705,23 @@ public sealed class GeneralSection
                     ConfigUIHelpers.EndIndent();
                 }
 
+                ConfigUIHelpers.Toggle("Eureka tab", () => this.config.EdgeDockEurekaTab, v => this.config.EdgeDockEurekaTab = v,
+                    "In Eureka, adds a \"Eureka\" tab: your elemental level and target, the Magia Board mode, the Farm level "
+                    + "limit and the slotted Logos Actions. Everything else is in Settings ▸ Eureka.", this.save);
+
+                if (this.config.EdgeDockEurekaTab)
+                {
+                    ConfigUIHelpers.BeginIndent();
+                    var eurekaEdge = this.config.EdgeDockEurekaEdge;
+                    if (ConfigUIHelpers.EnumCombo("Eureka tab edge", ref eurekaEdge, null, () => { }))
+                    {
+                        this.config.EdgeDockEurekaEdge = eurekaEdge;
+                        this.save();
+                    }
+
+                    ConfigUIHelpers.EndIndent();
+                }
+
                 if (ImGui.Button("Reset tab positions##edgedock"))
                 {
                     this.config.ResetEdgeDockPlacement();

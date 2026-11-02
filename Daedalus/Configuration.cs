@@ -131,6 +131,15 @@ public sealed class Configuration : IPluginConfiguration
     /// <summary>Where along its edge the Crucible tab sits: its centre as a fraction of the edge (0.5 = the middle).</summary>
     public float EdgeDockCrucibleAlong { get; set; } = 0.5f;
 
+    /// <summary>Add a "Eureka" tab to the edge dock while in Eureka: the readout, Magia Board, level guard and Logos toggles.</summary>
+    public bool EdgeDockEurekaTab { get; set; } = true;
+
+    /// <summary>Which screen edge the edge dock's Eureka tab is pinned to. Dragging the tab changes it.</summary>
+    public Daedalus.Windows.Dock.DockEdge EdgeDockEurekaEdge { get; set; } = Daedalus.Windows.Dock.DockEdge.Left;
+
+    /// <summary>Where along its edge the Eureka tab sits: its centre as a fraction of the edge (0.5 = the middle).</summary>
+    public float EdgeDockEurekaAlong { get; set; } = 0.5f;
+
     /// <summary>Every tab back to the left edge, in the middle.</summary>
     public void ResetEdgeDockPlacement()
     {
@@ -138,10 +147,12 @@ public sealed class Configuration : IPluginConfiguration
         EdgeDockOccultEdge = Daedalus.Windows.Dock.DockEdge.Left;
         EdgeDockPartyEdge = Daedalus.Windows.Dock.DockEdge.Left;
         EdgeDockCrucibleEdge = Daedalus.Windows.Dock.DockEdge.Left;
+        EdgeDockEurekaEdge = Daedalus.Windows.Dock.DockEdge.Left;
         EdgeDockMainAlong = 0.5f;
         EdgeDockOccultAlong = 0.5f;
         EdgeDockPartyAlong = 0.5f;
         EdgeDockCrucibleAlong = 0.5f;
+        EdgeDockEurekaAlong = 0.5f;
     }
 
     /// <summary>Carries the old Right edge setting over to <see cref="EdgeDockMainEdge"/>. True if it changed anything.</summary>
@@ -328,6 +339,9 @@ public sealed class Configuration : IPluginConfiguration
     // Bozja Lost Actions
     public BozjaConfig Bozja { get; set; } = new();
 
+    // Eureka: Logos Actions, the Magia Board, the elemental level guard
+    public EurekaConfig Eureka { get; set; } = new();
+
     // Role-specific configuration - Tanks
     public TankConfig Tank { get; set; } = new();
 
@@ -386,6 +400,9 @@ public sealed class Configuration : IPluginConfiguration
         var edgeDockCrucibleTab = EdgeDockCrucibleTab;
         var edgeDockCrucibleEdge = EdgeDockCrucibleEdge;
         var edgeDockCrucibleAlong = EdgeDockCrucibleAlong;
+        var edgeDockEurekaTab = EdgeDockEurekaTab;
+        var edgeDockEurekaEdge = EdgeDockEurekaEdge;
+        var edgeDockEurekaAlong = EdgeDockEurekaAlong;
 
         // Reset general behavior
         EnableOnAutoAttack = false;
@@ -466,6 +483,9 @@ public sealed class Configuration : IPluginConfiguration
         EdgeDockCrucibleTab = edgeDockCrucibleTab;
         EdgeDockCrucibleEdge = edgeDockCrucibleEdge;
         EdgeDockCrucibleAlong = edgeDockCrucibleAlong;
+        EdgeDockEurekaTab = edgeDockEurekaTab;
+        EdgeDockEurekaEdge = edgeDockEurekaEdge;
+        EdgeDockEurekaAlong = edgeDockEurekaAlong;
     }
 }
 

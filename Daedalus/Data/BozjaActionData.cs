@@ -33,6 +33,15 @@ public enum LostRole : byte
     SelfBuff,
     /// <summary>Lost Focus: a self buff on the GCD, used only when the job leaves the GCD free.</summary>
     FreeGcdSelfBuff,
+    /// <summary>
+    /// Eureka's Wisdoms and Spirit of the Remembered: a self buff with no timer, put up whenever it is missing, in or
+    /// out of combat (few uses, so only when absent — never on a timer).
+    /// </summary>
+    Stance,
+    /// <summary>Feint L: Evasion Down on a Wind-aligned enemy (they evade a lot), kept up in combat.</summary>
+    EvasionDown,
+    /// <summary>Bloodbath L: a drain buff on ourselves, only when our HP is low in combat.</summary>
+    LowHpSelf,
 }
 
 /// <summary>

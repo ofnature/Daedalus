@@ -46,6 +46,12 @@ public static class RotationServices
     public static Daedalus.Rotation.Phantom.BozjaActionLayer? BozjaLayer { get; set; }
 
     /// <summary>
+    /// Eureka Logos Action layer — a second <see cref="Daedalus.Rotation.Phantom.BozjaActionLayer"/> over the Logos
+    /// list; inert unless a Logos Action is slotted.
+    /// </summary>
+    public static Daedalus.Rotation.Phantom.BozjaActionLayer? LogosLayer { get; set; }
+
+    /// <summary>
     /// Role-play quest battles (you play Y'shtola, Alphinaud, Hien...): presses what the boss engine names for that
     /// character, and takes the frame from the job's modules while it does. Inert outside such a fight.
     /// </summary>

@@ -1,0 +1,152 @@
+using System;
+using Dalamud.Game.ClientState.Conditions;
+using Dalamud.Game.ClientState.Objects.SubKinds;
+using Dalamud.Game.ClientState.Objects.Types;
+using Dalamud.Plugin.Services;
+using Daedalus.Config;
+using FFXIVClientStructs.FFXIV.Client.Game.Character;
+using FFXIVClientStructs.FFXIV.Client.Game.InstanceContent;
+using FFXIVClientStructs.FFXIV.Client.System.String;
+using FFXIVClientStructs.FFXIV.Client.UI;
+
+namespace Daedalus.Services.Eureka;
+
+/// <summary>
+/// Eureka: reads elemental levels and elements (<c>BattleChara.GetForayInfo</c>, as BossMod does) and the Magia
+/// Board (<c>PublicContentEureka.GetState</c>), and keeps the board turned with the game's own /magiaauto, so the
+/// game does the element matching. Inert outside the four Eureka zones.
+/// </summary>
+public sealed unsafe class EurekaService
+{
+    private static readonly TimeSpan SendEvery = TimeSpan.FromSeconds(3);
+    private static readonly TimeSpan ScanEvery = TimeSpan.FromMilliseconds(500);
+
+    private readonly Configuration _configuration;
+    private readonly IClientState _clientState;
+    private readonly ICondition _condition;
+    private readonly IObjectTable _objectTable;
+    private readonly IPluginLog _log;
+
+    private string? _sentAuto;
+    private DateTime _nextSendUtc;
+    private DateTime _nextScanUtc;
+    private DateTime? _enemiesOnMeUtc;
+
+    /// <summary>The live instance, for the settings page's readout.</summary>
+    public static EurekaService? Current { get; private set; }
+
+    public EurekaService(Configuration configuration, IClientState clientState, ICondition condition, IObjectTable objectTable, IPluginLog log)
+    {
+        Current = this;
+        _configuration = configuration;
+        _clientState = clientState;
+        _condition = condition;
+        _objectTable = objectTable;
+        _log = log;
+    }
+
+    public bool InEureka => EurekaRules.IsEurekaTerritory(_clientState.TerritoryType);
+
+    public IPlayerCharacter? Player => _objectTable.LocalPlayer;
+
+    /// <summary>The /magiaauto setting last sent this visit, or null.</summary>
+    public string? MagiaAuto => _sentAuto;
+
+    /// <summary>An object's Eureka elemental level and element, or null when it has none (0/0 outside Eureka).</summary>
+    public static (byte Level, byte Element)? Foray(IGameObject? obj)
+    {
+        if (obj is not IBattleChara || obj.Address == IntPtr.Zero)
+            return null;
+        var info = ((BattleChara*)obj.Address)->GetForayInfo();
+        if (info == null || (info->Level == 0 && info->Element == 0))
+            return null;
+        return (info->Level, info->Element);
+    }
+
+    /// <summary>
+    /// Whether Farm mode should leave this enemy alone: more than the allowed levels above us. Never outside Eureka
+    /// (no levels to read there).
+    /// </summary>
+    public static bool TooHighToPull(IGameObject enemy, IPlayerCharacter player, EurekaConfig cfg)
+        => Foray(enemy) is { } them && Foray(player) is { } me
+           && EurekaRules.TooHighToPull(me.Level, them.Level, cfg.MaxLevelsAbove);
+
+    /// <summary>The Magia Board and elemental EXP, or null outside Eureka.</summary>
+    public (byte MagiaAether, byte Magicite, uint Exp, uint ExpNeeded, byte[] Placed)? Board()
+    {
+        if (!InEureka)
+            return null;
+        var state = PublicContentEureka.GetState();
+        if (state == null)
+            return null;
+        return (state->MagiaAether, state->Magicite, state->CurrentExperience, state->NeededExperience,
+            [state->Fire, state->Ice, state->Wind, state->Earth, state->Lightning, state->Water]);
+    }
+
+    /// <summary>Framework thread, every frame.</summary>
+    public void Update(IPlayerCharacter? player, bool isTank)
+    {
+        try
+        {
+            if (player == null || !InEureka || _condition[ConditionFlag.BetweenAreas] || _condition[ConditionFlag.OccupiedInCutSceneEvent])
+            {
+                if (!InEureka)
+                {
+                    _sentAuto = null;
+                    _enemiesOnMeUtc = null;
+                }
+
+                return;
+            }
+
+            var now = DateTime.UtcNow;
+            if (now >= _nextScanUtc)
+            {
+                _nextScanUtc = now + ScanEvery;
+                if (AnEnemyIsOn(player))
+                    _enemiesOnMeUtc = now;
+            }
+
+            var wanted = EurekaRules.WantedAuto(_configuration.Eureka.MagiaMode, isTank, _enemiesOnMeUtc, now);
+            if (wanted == null || wanted == _sentAuto || now < _nextSendUtc)
+                return;
+
+            _nextSendUtc = now + SendEvery;
+            if (!SendCommand($"/magiaauto {wanted}"))
+                return;
+            _sentAuto = wanted;
+            _log.Info($"Eureka: Magia Board set to auto {wanted}");
+            Daedalus.Rotation.Base.RotationServices.DebugLog?.Log(
+                Daedalus.Services.Debug.DebugLogCategory.Action, Daedalus.Services.Debug.DebugLogSeverity.Info,
+                $"[Eureka] Magia Board: /magiaauto {wanted}");
+        }
+        catch (Exception ex)
+        {
+            _log.Warning(ex, "EurekaService: update failed");
+        }
+    }
+
+    private bool AnEnemyIsOn(IPlayerCharacter player)
+    {
+        foreach (var obj in _objectTable)
+        {
+            if (obj is IBattleNpc { IsDead: false } npc && npc.TargetObjectId == player.GameObjectId
+                && npc.BattleNpcKind == Dalamud.Game.ClientState.Objects.Enums.BattleNpcSubKind.Combatant)
+                return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>A game text command (not a plugin one), as if typed in chat.</summary>
+    private static bool SendCommand(string text)
+    {
+        var ui = UIModule.Instance();
+        if (ui == null)
+            return false;
+        var str = Utf8String.FromString(text);
+        ui->ProcessChatBoxEntry(str, IntPtr.Zero, false);
+        str->Dtor(true);
+        return true;
+    }
+}

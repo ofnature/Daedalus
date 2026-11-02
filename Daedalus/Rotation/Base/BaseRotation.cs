@@ -335,6 +335,7 @@ public abstract class BaseRotation<TContext, TModule> : IRotation, IDisposable
         RotationServices.PhantomLayer?.ExecutePreModules(context, isMoving, inCombat);
         RotationServices.VariantLayer?.ExecutePreModules(context, isMoving, inCombat);
         RotationServices.BozjaLayer?.ExecutePreModules(context, isMoving, inCombat);
+        RotationServices.LogosLayer?.ExecutePreModules(context, isMoving, inCombat);
 
         // Execute modules in priority order
         ExecuteModules(context, isMoving, inCombat);
@@ -343,6 +344,7 @@ public abstract class BaseRotation<TContext, TModule> : IRotation, IDisposable
         RotationServices.PhantomLayer?.ExecutePostModules(context, isMoving, inCombat);
         RotationServices.VariantLayer?.ExecutePostModules(context, isMoving, inCombat);
         RotationServices.BozjaLayer?.ExecutePostModules(context, isMoving, inCombat);
+        RotationServices.LogosLayer?.ExecutePostModules(context, isMoving, inCombat);
     }
 
     /// <summary>
