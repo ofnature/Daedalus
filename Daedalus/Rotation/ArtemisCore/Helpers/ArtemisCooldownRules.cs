@@ -366,6 +366,49 @@ public static class ArtemisCooldownRules
     /// </summary>
     public const uint TreantPieceNameId = 14618, SlugPieceNameId = 14619;
 
+    /// <summary>
+    /// A wisp reaches the Ogre and blows up (Scorched Earth, the whole arena, a Vulnerability Up on whoever it hits) this
+    /// long after it appears, wherever it starts: 19.0-19.3 s (Minerva's OgrePiece notes; replays 2026-10-27/28: Great
+    /// Wisps at 56.7/72.7 s gone at 76.1/92.1 s).
+    /// </summary>
+    public const double WispWalkSeconds = 19.0;
+
+    /// <summary>The familiar's Cover on the beastmaster (from Snarl): it takes their damage, and their debuffs with it.</summary>
+    public const uint CoveredStatusId = 2413;
+
+    /// <summary>Seconds until the first of these wisps (seconds since each appeared) blows up; MaxValue with none.</summary>
+    public static float WispArrivalSeconds(IEnumerable<double> secondsSinceAppeared)
+    {
+        var soonest = float.MaxValue;
+        foreach (var age in secondsSinceAppeared)
+            soonest = System.Math.Min(soonest, (float)System.Math.Max(0.0, WispWalkSeconds - age));
+        return soonest;
+    }
+
+    /// <summary>
+    /// Snarl so the familiar's Cover is up when a wisp blows up: its Vulnerability Up then lands on the familiar, not the
+    /// beastmaster (17 Ogre fights: covered, 14 of 15 stacks went to the familiar; uncovered, 13 of 14 to the
+    /// beastmaster — and one on the beastmaster costs Unbeastable). Only within the raidwide lead, and only when the
+    /// Cover already up would not last until it lands.
+    /// </summary>
+    public static bool ShouldSnarlForWisp(
+        bool enabled, bool ready, bool familiarOut, float familiarHpPct, float wispIn, float coverLeft)
+        => enabled && ready && familiarOut && familiarHpPct > 0f
+           && wispIn <= RaidwideLeadSeconds && coverLeft < wispIn + 1f;
+
+    /// <summary>
+    /// First Board's Bone Knight (BNpcName), his Forward Guard cast and the Directional Parry it puts on him: it blocks
+    /// everything from the front and faces whoever holds him, but not the familiar's damage (Minerva's BoneBishop module).
+    /// </summary>
+    public const uint BoneKnightNameId = 14531, ForwardGuardCastId = 46864, ForwardGuardStatusId = 680;
+
+    /// <summary>
+    /// The Bone Knight's guard is up: Snarl at him unless he is already on the familiar, so he turns to it and the
+    /// beastmaster can hit his back.
+    /// </summary>
+    public static bool ShouldSnarlBoneKnight(bool enabled, bool ready, bool familiarOut, float familiarHpPct, bool knightOnFamiliar)
+        => enabled && ready && familiarOut && familiarHpPct > 0f && !knightOnFamiliar;
+
     /// <summary>First Board's Ogre Piece and its Wisp / Great Wisp Pieces (BNpcName rows).</summary>
     public const uint OgrePieceNameId = 14538, WispPieceNameId = 14539, GreatWispPieceNameId = 14748;
 

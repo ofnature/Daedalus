@@ -739,6 +739,16 @@ public class CrucibleAutoPilotRulesTests
         Assert.Equal(1ul, CrucibleAutoPilotRules.FangAim(crawledIn, crawledIn, hardTarget: 1));
     }
 
+    /// <summary>Legendary never drinks on the First Board (Economic Ethos, nothing to make up for it); elsewhere it may.</summary>
+    [Theory]
+    [InlineData(1, false)]
+    [InlineData(2, true)]
+    [InlineData(3, true)]
+    [InlineData(4, true)]
+    [InlineData(5, true)]
+    public void LegendaryDrinksOnEveryBoardButTheFirst(int board, bool mayDrink)
+        => Assert.Equal(mayDrink, CrucibleAutoPilotRules.LegendaryMayDrink(board));
+
     /// <summary>The last slug alive is not worth a Fang.</summary>
     [Fact]
     public void ALoneTreantSlugGetsNoFang()

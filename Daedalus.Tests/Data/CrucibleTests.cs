@@ -827,4 +827,46 @@ public class CrucibleTests
         Assert.False(ogre.TakesStatus(CrucibleStatus.Stun));
         Assert.Null(new CrucibleEnemy(1, "x", 1, false, CrucibleElement.None, [1, 1, 1, 1, 1], []).TakesStatus(CrucibleStatus.Poison));
     }
+
+    /// <summary>
+    /// A wisp blows up 19 s after it appears: the soonest one counts, a just-spawned wave is 19 s off, none is never.
+    /// </summary>
+    [Fact]
+    public void TheNextWispExplosionIsNineteenSecondsAfterItAppears()
+    {
+        Assert.Equal(19f, ArtemisCooldownRules.WispArrivalSeconds([0.0]), 3);
+        Assert.Equal(4f, ArtemisCooldownRules.WispArrivalSeconds([3.0, 15.0, 1.0]), 3);
+        Assert.Equal(0f, ArtemisCooldownRules.WispArrivalSeconds([25.0]), 3);
+        Assert.Equal(float.MaxValue, ArtemisCooldownRules.WispArrivalSeconds([]));
+    }
+
+    /// <summary>
+    /// Snarl so the familiar's Cover takes a wisp's Vulnerability Up: within 10 s of it, and only when the Cover up now
+    /// would run out before it lands (Snarl's Cover lasts 45 s, so one covers the whole ward).
+    /// </summary>
+    [Theory]
+    [InlineData(8f, 0f, true)]    // a wisp in 8 s, no Cover
+    [InlineData(8f, 5f, true)]    // the Cover ends first
+    [InlineData(8f, 30f, false)]  // already covered past it
+    [InlineData(15f, 0f, false)]  // too early: Snarl would be spent
+    public void SnarlForAWispOnlyWhenTheCoverWouldNotLast(float wispIn, float coverLeft, bool snarl)
+        => Assert.Equal(snarl, ArtemisCooldownRules.ShouldSnarlForWisp(true, true, true, 0.8f, wispIn, coverLeft));
+
+    [Fact]
+    public void NoWispSnarlWithoutAFamiliarOrWithSnarlOff()
+    {
+        Assert.False(ArtemisCooldownRules.ShouldSnarlForWisp(true, true, familiarOut: false, 0.8f, 5f, 0f));
+        Assert.False(ArtemisCooldownRules.ShouldSnarlForWisp(enabled: false, true, true, 0.8f, 5f, 0f));
+        Assert.False(ArtemisCooldownRules.ShouldSnarlForWisp(true, ready: false, true, 0.8f, 5f, 0f));
+    }
+
+    /// <summary>The Bone Knight's guard: Snarl at him so he faces the familiar — not when he already does.</summary>
+    [Fact]
+    public void SnarlTurnsAGuardedBoneKnightToTheFamiliar()
+    {
+        Assert.True(ArtemisCooldownRules.ShouldSnarlBoneKnight(true, true, true, 0.9f, knightOnFamiliar: false));
+        Assert.False(ArtemisCooldownRules.ShouldSnarlBoneKnight(true, true, true, 0.9f, knightOnFamiliar: true));
+        Assert.False(ArtemisCooldownRules.ShouldSnarlBoneKnight(true, true, familiarOut: false, 0f, false));
+        Assert.False(ArtemisCooldownRules.ShouldSnarlBoneKnight(true, ready: false, true, 0.9f, false));
+    }
 }

@@ -644,6 +644,8 @@ public sealed unsafe class CrucibleAutoPilot
 
         if (now < _nextPotionUtc)
             return false;
+        if (_legendary && !CrucibleAutoPilotRules.LegendaryMayDrink(_boardIndex))
+            return false; // First Board Legendary: never, not even the last resort (Economic Ethos)
         if (Visible("XBMContentsBooty") != null || Visible("XBMContentsTreasure") != null || Visible("XBMContentsItemShop") != null
             || Visible("XBMResult") != null || Visible("XBMPetParty") != null || Visible("SelectYesno") != null)
             return false;

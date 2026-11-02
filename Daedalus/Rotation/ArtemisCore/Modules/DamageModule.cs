@@ -66,6 +66,7 @@ public sealed class DamageModule : IArtemisModule
         // when the adds bunch (Korha 2026-11-01 00:33: four Seedlings bunched on the familiar for 4 s, Korha 6-11 yalms
         // off, no Smash Axe target, so nothing past here ran and the Blow never went).
         PushPartingBlows(context, scheduler);
+        PushBoneKnightGuard(context, scheduler);
 
         var player = context.Player;
         var target = context.TargetingService.FindEnemyForAction(
@@ -160,7 +161,10 @@ public sealed class DamageModule : IArtemisModule
         if (familiarOut && FindMorbol(context, out var seedlings) is { } morbol)
             TryPartingBlowOnBunched(context, scheduler, seedlings, morbol, "Morbol: the seedlings are bunched");
         // The Ogre's wisp waves march to the centre during Burning Ward and blow up there (14 deaths in 17 Ogre fights).
-        if (FindAdds(context, ArtemisCooldownRules.OgrePieceNameId, WispNameIds, out var wisps) is { } ogre)
+        // Not on Legendary: there the familiar stays out so its Cover takes their explosions (see RaidwideIn), and no
+        // items are used (user, 2026-11-01).
+        if (context.Configuration.Beastmaster.CrucibleGoal != CrucibleTeamGoal.Legendary
+            && FindAdds(context, ArtemisCooldownRules.OgrePieceNameId, WispNameIds, out var wisps) is { } ogre)
             KillBunchedAdds(context, scheduler, ogre, wisps, familiarOut, "Ogre");
         // The Treant's Slug Pieces, six at a time, crawl in on us (user, 2026-11-01: Fang them while levelling or
         // clearing). Not on Legendary, where the Fang would cost Economic Ethos.
@@ -201,6 +205,15 @@ public sealed class DamageModule : IArtemisModule
         var legendary = cfg.CrucibleGoal == CrucibleTeamGoal.Legendary;
         if (legendary && PushSirenOrders(context, scheduler, cfg, familiar, familiarOut, familiarHpPct, selfHpPct))
             return;
+        // Legendary, the Bone Knight's Forward Guard: the familiar holds him (PushBoneKnightGuard), so no Challenge to
+        // turn him back.
+        if (legendary && FindGuardedBoneKnight(context) != null)
+        {
+            LogSnarlState("the Bone Knight's Forward Guard is up — the familiar holds him so you can hit his back, no Challenge",
+                familiarHpPct, selfHpPct);
+            return;
+        }
+
         // A cast the familiar must not be out for (PushPartingBlows sends it away): no Snarl until it is done.
         if (FindCasting(context, ArtemisCooldownRules.SendFamiliarAwayCastIds) is { } caster)
         {
@@ -217,7 +230,7 @@ public sealed class DamageModule : IArtemisModule
             LogSnarlState($"you hold the enemy (shared tanking): you {selfHpPct:P0}, familiar {familiarHpPct:P0}",
                 familiarHpPct, selfHpPct);
             var busterSoon = Daedalus.Services.Beastmaster.CrucibleHints.SecondsUntilTankbuster;
-            var raidwideSoon = Daedalus.Services.Beastmaster.CrucibleHints.SecondsUntilRaidwide;
+            var raidwideSoon = RaidwideIn(context);
             if (ArtemisCooldownRules.ShouldSnarlWhileHoldingShared(
                     cfg.EnableSnarl, Ready(BSTActions.Snarl), familiarOut, familiarHpPct, _fallingLine, busterSoon, raidwideSoon)
                 && TryGate(BSTActions.Snarl.ActionId))
@@ -245,6 +258,16 @@ public sealed class DamageModule : IArtemisModule
         {
             LogSnarlState(selfHpPct <= ArtemisCooldownRules.SelfCriticalHpPct ? null : "the beastmaster tanks (Legendary)",
                 familiarHpPct, selfHpPct);
+            var wispIn = WispExplosionIn(context);
+            if (ArtemisCooldownRules.ShouldSnarlForWisp(
+                    cfg.EnableSnarl, Ready(BSTActions.Snarl), familiarOut, familiarHpPct, wispIn, CoverLeft(player))
+                && TryGate(BSTActions.Snarl.ActionId))
+            {
+                scheduler.PushOgcd(ArtemisAbilities.Snarl, targetId, priority: 3, onDispatched: _ =>
+                    context.Debug.PlannedAction = $"Snarl (a wisp blows up in {wispIn:0.0}s — Cover takes the Vulnerability Up)");
+                return;
+            }
+
             if (ArtemisCooldownRules.ShouldSnarlWhileTanking(
                     cfg.EnableSnarl, onBoardInBattle: true, Ready(BSTActions.Snarl), familiarOut, familiarHpPct, selfHpPct)
                 && TryGate(BSTActions.Snarl.ActionId))
@@ -270,11 +293,11 @@ public sealed class DamageModule : IArtemisModule
             ? "familiar out but not found in the object table — Snarl allowed"
             : ArtemisCooldownRules.SnarlHeldReason(cfg.EnableSnarl, familiarOut, familiarHpPct, selfHpPct, _fallingLine,
                 Daedalus.Services.Beastmaster.CrucibleHints.SecondsUntilTankbuster,
-                Daedalus.Services.Beastmaster.CrucibleHints.SecondsUntilRaidwide),
+                RaidwideIn(context)),
             familiarHpPct, selfHpPct);
 
         var busterIn = Daedalus.Services.Beastmaster.CrucibleHints.SecondsUntilTankbuster;
-        var raidwideIn = Daedalus.Services.Beastmaster.CrucibleHints.SecondsUntilRaidwide;
+        var raidwideIn = RaidwideIn(context);
         if (ArtemisCooldownRules.ShouldSnarl(
                 cfg.EnableSnarl, onBoardInBattle: true, Ready(BSTActions.Snarl), familiarOut, familiarHpPct, selfHpPct, busterIn,
                 _fallingLine, raidwideIn)
@@ -450,6 +473,108 @@ public sealed class DamageModule : IArtemisModule
     private static readonly uint[] WispNameIds = [ArtemisCooldownRules.WispPieceNameId, ArtemisCooldownRules.GreatWispPieceNameId];
     private static readonly uint[] SlugNameIds = [ArtemisCooldownRules.SlugPieceNameId];
 
+    private readonly Dictionary<ulong, DateTime> _wispSeenUtc = [];
+
+    /// <summary>The Bone Knight while his Forward Guard is up or being cast, else null.</summary>
+    private static Dalamud.Game.ClientState.Objects.Types.IBattleNpc? FindGuardedBoneKnight(IArtemisContext context)
+    {
+        foreach (var obj in context.ObjectTable)
+        {
+            if (obj is not Dalamud.Game.ClientState.Objects.Types.IBattleNpc { IsDead: false } npc
+                || npc.NameId != ArtemisCooldownRules.BoneKnightNameId)
+                continue;
+            if (npc.IsCasting && npc.CastActionId == ArtemisCooldownRules.ForwardGuardCastId)
+                return npc;
+            foreach (var status in npc.StatusList)
+            {
+                if (status.StatusId == ArtemisCooldownRules.ForwardGuardStatusId)
+                    return npc;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// The Bone Knight's Forward Guard blocks everything from the front and faces whoever holds him, but not the
+    /// familiar's damage: Snarl at him so he turns to the familiar, and the beastmaster (walked behind him by the boss
+    /// engine) hits his back (user, 2026-11-01). Legendary only; runs before the melee target is looked for.
+    /// </summary>
+    private void PushBoneKnightGuard(IArtemisContext context, RotationScheduler scheduler)
+    {
+        if (!Daedalus.Services.Beastmaster.CrucibleTracker.Current.OnBoard
+            || context.Configuration.Beastmaster.CrucibleGoal != CrucibleTeamGoal.Legendary
+            || FindGuardedBoneKnight(context) is not { } knight)
+            return;
+
+        var svc = context.ActionService;
+        var familiar = Daedalus.Services.Beastmaster.FamiliarLookup.Find(context.ObjectTable, context.Player);
+        var familiarOut = familiar != null || context.HasFamiliar;
+        var familiarHpPct = familiar is { MaxHp: > 0 } f ? (float)f.CurrentHp / f.MaxHp : familiarOut ? 1f : 0f;
+        var onFamiliar = familiar != null && knight.TargetObjectId == familiar.GameObjectId;
+        var ready = DutyActionBar.Contains(BSTActions.Snarl.ActionId)
+                    && svc.IsActionReady(BSTActions.Snarl.ActionId)
+                    && svc.GetActionStatusCode(BSTActions.Snarl.ActionId, knight.GameObjectId) == 0;
+        if (!ArtemisCooldownRules.ShouldSnarlBoneKnight(
+                context.Configuration.Beastmaster.EnableSnarl, ready, familiarOut, familiarHpPct, onFamiliar)
+            || !TryGate(BSTActions.Snarl.ActionId))
+            return;
+
+        scheduler.PushOgcd(ArtemisAbilities.Snarl, knight.GameObjectId, priority: 2, onDispatched: _ =>
+        {
+            context.Debug.PlannedAction = "Snarl (the Bone Knight's Forward Guard — he faces the familiar, you hit his back)";
+            Daedalus.Rotation.Base.RotationServices.DebugLog?.Log(
+                Daedalus.Services.Debug.DebugLogCategory.Action, Daedalus.Services.Debug.DebugLogSeverity.Info,
+                "[Crucible] Bone Knight's Forward Guard: Snarl so he faces the familiar");
+        });
+    }
+
+    /// <summary>
+    /// Seconds until the next Ogre wisp reaches the ward and blows up (<see cref="ArtemisCooldownRules.WispWalkSeconds"/>
+    /// after it appears), or <see cref="float.MaxValue"/> with none up. Its Scorched Earth gives whoever it hits a
+    /// Vulnerability Up — the familiar instead of the beastmaster when its Cover is up.
+    /// </summary>
+    private float WispExplosionIn(IArtemisContext context)
+    {
+        var now = DateTime.UtcNow;
+        if (FindAdds(context, ArtemisCooldownRules.OgrePieceNameId, WispNameIds, out var wisps) == null || wisps.Count == 0)
+        {
+            _wispSeenUtc.Clear();
+            return float.MaxValue;
+        }
+
+        var ages = new List<double>(wisps.Count);
+        foreach (var (id, _) in wisps)
+        {
+            if (!_wispSeenUtc.TryGetValue(id, out var seen))
+                _wispSeenUtc[id] = seen = now;
+            ages.Add((now - seen).TotalSeconds);
+        }
+
+        return ArtemisCooldownRules.WispArrivalSeconds(ages);
+    }
+
+    /// <summary>
+    /// The raidwide timer the Snarl rules use: the boss engine's, or on Legendary the next Ogre wisp explosion if sooner
+    /// (a Vulnerability Up on the beastmaster costs Unbeastable).
+    /// </summary>
+    private float RaidwideIn(IArtemisContext context)
+        => context.Configuration.Beastmaster.CrucibleGoal == CrucibleTeamGoal.Legendary
+            ? Math.Min(Daedalus.Services.Beastmaster.CrucibleHints.SecondsUntilRaidwide, WispExplosionIn(context))
+            : Daedalus.Services.Beastmaster.CrucibleHints.SecondsUntilRaidwide;
+
+    /// <summary>Seconds of Cover left on the beastmaster (0 when not covered).</summary>
+    private static float CoverLeft(Dalamud.Game.ClientState.Objects.Types.IBattleChara player)
+    {
+        foreach (var status in player.StatusList)
+        {
+            if (status.StatusId == ArtemisCooldownRules.CoveredStatusId)
+                return status.RemainingTime;
+        }
+
+        return 0f;
+    }
+
     /// <summary>The live enemy <paramref name="bossNameId"/> (targetable or not) and where its adds stand; null when it is not in the fight.</summary>
     private static Dalamud.Game.ClientState.Objects.Types.IBattleNpc? FindAdds(
         IArtemisContext context, uint bossNameId, uint[] addNameIds, out List<(ulong Id, System.Numerics.Vector2 At)> adds)
@@ -521,8 +646,8 @@ public sealed class DamageModule : IArtemisModule
     /// them all and tell the autopilot a Fang can go
     /// (<see cref="Daedalus.Services.Beastmaster.CrucibleHints.FangTargetId"/>). Every goal: on Legendary the Fang costs
     /// Economic Ethos and is worth it for no crawler on the beastmaster (the user's call); elsewhere it is free.
-    /// <para>The Ogre's wisps get the same (<paramref name="who"/> names the fight in the logs). An untargetable
-    /// <paramref name="siren"/> (the Ogre during Burning Ward) is never the aim.</para>
+    /// <para>The Ogre's wisps (not on Legendary) and the Treant's slugs get the same (<paramref name="who"/> names the
+    /// fight in the logs). An untargetable <paramref name="siren"/> (the Ogre during Burning Ward) is never the aim.</para>
     /// </summary>
     private void KillBunchedAdds(
         IArtemisContext context, RotationScheduler scheduler, Dalamud.Game.ClientState.Objects.Types.IBattleNpc siren,
@@ -1195,13 +1320,13 @@ public sealed class DamageModule : IArtemisModule
             cfg.CruciblePartingBlowWhenFalling, Daedalus.Services.Beastmaster.CrucibleTracker.Current.OnBoard, familiarHpPct,
             player.MaxHp > 0 ? (float)player.CurrentHp / player.MaxHp : 1f,
             Daedalus.Services.Beastmaster.CrucibleHints.SecondsUntilTankbuster, _fallingLine,
-            Daedalus.Services.Beastmaster.CrucibleHints.SecondsUntilRaidwide, replacementReady: !context.NoReplacementHorn);
+            RaidwideIn(context), replacementReady: !context.NoReplacementHorn);
         LogRetreatHeld(context.NoReplacementHorn
                        && ArtemisCooldownRules.IsFamiliarFalling(
                            cfg.CruciblePartingBlowWhenFalling, Daedalus.Services.Beastmaster.CrucibleTracker.Current.OnBoard,
                            familiarHpPct, player.MaxHp > 0 ? (float)player.CurrentHp / player.MaxHp : 1f,
                            Daedalus.Services.Beastmaster.CrucibleHints.SecondsUntilTankbuster, _fallingLine,
-                           Daedalus.Services.Beastmaster.CrucibleHints.SecondsUntilRaidwide),
+                           RaidwideIn(context)),
             familiarHpPct);
         var partingBlowAllowed = ArtemisCooldownRules.AllowsPartingBlow(cfg.EnablePartingBlow, falling);
 

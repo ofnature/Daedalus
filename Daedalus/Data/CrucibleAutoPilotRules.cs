@@ -211,6 +211,16 @@ public static class CrucibleAutoPilotRules
     /// </summary>
     public const float LegendaryAfterEthosPotionAtHpPct = 0.45f;
 
+    /// <summary>The First Board of the Unbroken (XBMContent index).</summary>
+    public const int FirstBoardIndex = 1;
+
+    /// <summary>
+    /// Whether a Legendary run may drink at all on this board. Not on the First Board: it has no Walking Armory,
+    /// Habitual Hoarder or Rolling in Riches to make up for Economic Ethos, so not even the last-resort potion (user,
+    /// 2026-11-01).
+    /// </summary>
+    public static bool LegendaryMayDrink(int boardIndex) => boardIndex != FirstBoardIndex;
+
     /// <summary>The Legendary drinking line: last resort while Economic Ethos holds, about half once it is gone.</summary>
     public static float LegendaryDrinkAtHpPct(bool itemUsedOnBoard) =>
         itemUsedOnBoard ? LegendaryAfterEthosPotionAtHpPct : LegendaryPotionAtHpPct;

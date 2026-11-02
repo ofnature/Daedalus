@@ -3,6 +3,20 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.118 — 2026-11-01
+
+### Beastmaster — the Crucible (Legendary)
+- **The Ogre's wisps no longer cost Unbeastable.** Each wisp that reaches the Ogre blows up across the whole arena and
+  gives a Vulnerability Up to whoever it hits — your familiar instead of you while its Cover is up. Daedalus now Snarls
+  in the last 10 seconds before each explosion (unless the Cover will still be up), in every tanking mode, and no
+  longer sends the familiar away with Parting Blow or uses a Fang on the wisps. Clear and Level runs are unchanged.
+- **Bone Knight's Forward Guard:** the familiar Snarls him so he turns to it, and Challenge is held until the guard
+  drops, so you can hit his back instead of his shield.
+- **No potions on First Board Legendary runs**, not even the last-resort one at 20% HP: a potion costs Economic Ethos,
+  and the First Board has no other bonuses to make up for it. The other boards keep the last-resort drink.
+
+<!-- LATEST-END -->
+
 ## v0.1.117 — 2026-11-01
 
 ### Beastmaster — the Crucible
@@ -23,7 +37,7 @@ All notable changes to Daedalus will be documented in this file.
 - **Eureka tab on the edge dock** while you are in Eureka: the readout, the Magia Board mode, the Farm level limit
   and toggles for your slotted Logos Actions. It can be turned off in Settings ▸ General with the other tabs.
 
-<!-- LATEST-END -->
+
 
 ## v0.1.116 — 2026-11-01
 
