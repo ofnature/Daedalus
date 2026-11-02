@@ -913,4 +913,72 @@ public class CrucibleTests
         Assert.True(Daedalus.Rotation.ArtemisCore.Abilities.ArtemisAbilities.CruciblePartingBlow.Toggle!(cfg));
         Assert.False(Daedalus.Rotation.ArtemisCore.Abilities.ArtemisAbilities.PartingBlow.Toggle!(cfg));
     }
+
+    /// <summary>A falling familiar is swapped out with a horn only when Parting Blow (its retreat) is not ready.</summary>
+    [Fact]
+    public void AFallingFamiliarIsSwappedOutOnlyWhenPartingBlowIsDown()
+    {
+        Assert.True(ArtemisCooldownRules.ShouldSwapOutFalling(familiarFalling: true, partingBlowReady: false));
+        Assert.False(ArtemisCooldownRules.ShouldSwapOutFalling(familiarFalling: true, partingBlowReady: true));
+        Assert.False(ArtemisCooldownRules.ShouldSwapOutFalling(familiarFalling: false, partingBlowReady: false));
+    }
+
+    /// <summary>The swap goes to the next ready horn after the out one, wrapping round, never the out one itself.</summary>
+    [Fact]
+    public void TheSwapHornIsTheNextReadyOneAfterTheOutBeast()
+    {
+        Assert.Equal(1, Daedalus.Rotation.ArtemisCore.Helpers.ArtemisFamiliarKeeper.PickSwapHorn(true, true, 10, 0, [true, true, true]));
+        Assert.Equal(2, Daedalus.Rotation.ArtemisCore.Helpers.ArtemisFamiliarKeeper.PickSwapHorn(true, true, 10, 0, [true, false, true]));
+        Assert.Equal(0, Daedalus.Rotation.ArtemisCore.Helpers.ArtemisFamiliarKeeper.PickSwapHorn(true, true, 10, 2, [true, false, true]));
+        Assert.Equal(-1, Daedalus.Rotation.ArtemisCore.Helpers.ArtemisFamiliarKeeper.PickSwapHorn(true, true, 10, 1, [false, true, false]));
+    }
+
+    /// <summary>No swap while moving (the horn is a cast), right after a try, or when not wanted.</summary>
+    [Fact]
+    public void NoSwapWhileMovingOrJustAfterATry()
+    {
+        Assert.Equal(-1, Daedalus.Rotation.ArtemisCore.Helpers.ArtemisFamiliarKeeper.PickSwapHorn(true, canAct: false, 10, 0, [true, true, true]));
+        Assert.Equal(-1, Daedalus.Rotation.ArtemisCore.Helpers.ArtemisFamiliarKeeper.PickSwapHorn(true, true, 1.0, 0, [true, true, true]));
+        Assert.Equal(-1, Daedalus.Rotation.ArtemisCore.Helpers.ArtemisFamiliarKeeper.PickSwapHorn(wanted: false, true, 10, 0, [true, true, true]));
+    }
+
+    /// <summary>On the First Board only the Ogre and the final boss get the Wespe's Final Sting; other boards, every fight.</summary>
+    [Theory]
+    [InlineData(1, true, false, true)]   // First Board, the Ogre
+    [InlineData(1, false, true, true)]   // First Board, the final boss
+    [InlineData(1, false, false, false)] // First Board, any other fight: normal play
+    [InlineData(3, false, false, true)]  // another board: unchanged
+    [InlineData(2, false, false, true)]
+    public void TheFirstBoardStingsOnlyTheOgreAndTheFinalBoss(int board, bool ogre, bool finalBoss, bool sting)
+        => Assert.Equal(sting, ArtemisCooldownRules.WespeStingFight(board, ogre, finalBoss));
+
+    /// <summary>
+    /// The Mantis holds its Soundwave while a Wespe waits in a sting fight, until the target is at 35% (the sting is at
+    /// 30%): the vulnerability (30 s) is then up when Final Sting lands.
+    /// </summary>
+    [Theory]
+    [InlineData(0.80f, false)]
+    [InlineData(0.36f, false)]
+    [InlineData(0.35f, true)]
+    [InlineData(0.20f, true)]
+    public void TheMantisHoldsItsSoundwaveForTheSting(float targetHp, bool releases)
+        => Assert.Equal(releases, ArtemisCooldownRules.MantisReleasesNow(true, true, false, targetHp, false, 10));
+
+    /// <summary>Against the Ogre the Mantis lets go 14 s before the ward (52 s), so the Wespe can sting before it.</summary>
+    [Theory]
+    [InlineData(30.0, false)]
+    [InlineData(38.0, true)]
+    [InlineData(51.0, true)]
+    [InlineData(60.0, false)] // after the ward: back to the HP line
+    public void AgainstTheOgreTheMantisLetsGoBeforeTheWard(double secondsIn, bool releases)
+        => Assert.Equal(releases, ArtemisCooldownRules.MantisReleasesNow(true, true, false, 0.9f, ogreFight: true, secondsIn));
+
+    /// <summary>No hold outside a sting fight, with no Wespe waiting, or when the Mantis is falling.</summary>
+    [Fact]
+    public void TheMantisDoesNotHoldWithoutAStingToCome()
+    {
+        Assert.True(ArtemisCooldownRules.MantisReleasesNow(stingFight: false, true, false, 0.9f, false, 10));
+        Assert.True(ArtemisCooldownRules.MantisReleasesNow(true, wespeWaiting: false, false, 0.9f, false, 10));
+        Assert.True(ArtemisCooldownRules.MantisReleasesNow(true, true, falling: true, 0.9f, false, 10));
+    }
 }

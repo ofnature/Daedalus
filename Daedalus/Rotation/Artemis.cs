@@ -70,6 +70,7 @@ public sealed class Artemis : BaseMeleeDpsRotation<IArtemisContext, IArtemisModu
     private readonly Daedalus.Services.Beastmaster.BattlehornReader _battlehornReader;
     private readonly Daedalus.Services.Beastmaster.BeastmasterGaugeReader _gaugeReader;
     private readonly CaptureModule _capture;
+    private readonly DamageModule _damage = new();
     private readonly ArtemisTrickPairing _pairing = new();
     private readonly ICombatEventService _combatEvents;
     private static readonly Daedalus.Services.Beastmaster.BattlehornGame HornGame = new();
@@ -143,7 +144,7 @@ public sealed class Artemis : BaseMeleeDpsRotation<IArtemisContext, IArtemisModu
 
         // Capture first: a missed capture window cannot be retried this pull, while a dropped
         // damage GCD costs only that GCD.
-        _modules = [_capture, new DamageModule()];
+        _modules = [_capture, _damage];
         _modules.Sort((a, b) => a.Priority.CompareTo(b.Priority));
     }
 
@@ -364,7 +365,7 @@ public sealed class Artemis : BaseMeleeDpsRotation<IArtemisContext, IArtemisModu
                 }
             }
 
-            return false;
+            return TrySwapOutFalling(context, isMoving, now);
         }
 
         if (_familiarGoneSinceUtc == System.DateTime.MinValue)
@@ -411,6 +412,44 @@ public sealed class Artemis : BaseMeleeDpsRotation<IArtemisContext, IArtemisModu
 
         _artemisDebugState.PlannedAction = chosen.Name;
         _artemisDebugState.DamageState = "No familiar — calling one back";
+        return true;
+    }
+
+    /// <summary>
+    /// A falling familiar whose Parting Blow is on cooldown (DamageModule.SwapOutWanted, from the last frame): blow the
+    /// next ready horn, which switches it out before it is knocked out. Returns true when a horn was sent.
+    /// </summary>
+    private bool TrySwapOutFalling(IArtemisContext context, bool isMoving, System.DateTime now)
+    {
+        if (!_damage.SwapOutWanted || !_battlehorns.IsPopulatedFromGame)
+            return false;
+
+        var player = context.Player;
+        System.Span<bool> usable = stackalloc bool[ArtemisBattlehornState.SlotCount];
+        for (var i = 0; i < usable.Length; i++)
+        {
+            var horn = BSTActions.Battlehorns[i];
+            usable[i] = !_battlehorns[i].IsEmpty
+                && ActionAvailability.MeetsLevelAndLearned(player.Level, ActionService, horn)
+                && ActionService.IsActionReady(horn.ActionId);
+        }
+
+        var canAct = !player.IsDead && player.CurrentHp > 0 && !isMoving && !player.IsCasting;
+        var slot = ArtemisFamiliarKeeper.PickSwapHorn(
+            true, canAct, (now - _lastHornTryUtc).TotalSeconds, _lastOutHorn, usable);
+        if (slot == ArtemisFamiliarKeeper.None)
+            return false;
+
+        _lastHornTryUtc = now;
+        var chosen = BSTActions.Battlehorns[slot];
+        if (!ActionService.ExecuteOgcd(chosen, player.GameObjectId))
+            return false;
+
+        var outName = context.FamiliarBeast?.Name ?? "the familiar";
+        _artemisDebugState.PlannedAction = $"{chosen.Name} (swap {outName} out — falling, Parting Blow on cooldown)";
+        RotationServices.DebugLog?.Log(
+            Daedalus.Services.Debug.DebugLogCategory.Action, Daedalus.Services.Debug.DebugLogSeverity.Info,
+            $"[Crucible] {outName} falling and Parting Blow on cooldown: {chosen.Name} swaps it out");
         return true;
     }
 

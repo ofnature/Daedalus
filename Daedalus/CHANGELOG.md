@@ -3,6 +3,21 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.120 — 2026-11-01
+
+### Beastmaster — the Crucible
+- **A falling familiar is swapped out even when Parting Blow is on cooldown.** Parting Blow is the usual way to pull a
+  familiar out before it is knocked out, but it has a 10 second cooldown — a second familiar dropping soon after one
+  was pulled out died waiting for it. Now, if Parting Blow is not ready, Daedalus blows the next ready horn, which
+  switches the falling familiar out.
+- **First Board: the Wespe's Final Sting only on the Ogre and the final boss.** Its other fights play normally — no
+  cycling the beasts to bring the Wespe out, and no sting. Other boards are unchanged.
+- **The Mantis saves its Soundwave for the sting.** In a Final Sting fight the Mantis holds its Eerie Soundwave (+10%
+  physical vulnerability, 30 s) until just before it swaps out for the Wespe — the target at 35%, or 14 seconds before
+  the Ogre's ward — so the Final Sting lands with the vulnerability up.
+
+<!-- LATEST-END -->
+
 ## v0.1.119 — 2026-11-01
 
 ### Beastmaster — the Crucible
@@ -13,7 +28,7 @@ All notable changes to Daedalus will be documented in this file.
 - Fixed: the Crucible's own Parting Blows (the Siren's adds, the Morbol's Seedlings, the Treant's slugs) were
   dropped unless the general "Parting Blow" option was on. They now follow the Crucible Parting Blow option.
 
-<!-- LATEST-END -->
+
 
 ## v0.1.118 — 2026-11-01
 

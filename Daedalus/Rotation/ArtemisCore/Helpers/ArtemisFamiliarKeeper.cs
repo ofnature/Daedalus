@@ -63,6 +63,27 @@ public static class ArtemisFamiliarKeeper
     }
 
     /// <summary>
+    /// The horn to blow to switch a falling familiar out (it is still out; blowing another horn swaps it), or
+    /// <see cref="None"/>: the next ready horn after the out one (<paramref name="outSlot"/>), in horn order. Used when
+    /// Parting Blow, the usual retreat, is on its 10 s cooldown (user, 2026-11-01: a familiar died waiting for it).
+    /// </summary>
+    public static int PickSwapHorn(bool wanted, bool canAct, double secondsSinceTry, int outSlot, ReadOnlySpan<bool> usable)
+    {
+        if (!wanted || !canAct || secondsSinceTry < RetrySeconds)
+            return None;
+
+        var start = outSlot >= 0 && outSlot < usable.Length ? outSlot + 1 : 0;
+        for (var i = 0; i < usable.Length; i++)
+        {
+            var slot = (start + i) % usable.Length;
+            if (slot != outSlot && usable[slot])
+                return slot;
+        }
+
+        return None;
+    }
+
+    /// <summary>
     /// True when the roster is known and a Wespe sits in a ready horn other than the out one (<paramref name="outSlot"/>):
     /// its Final Sting is still to come, so the beasts ahead of it are cycled out (Release, then Parting Blow) to bring
     /// it. <paramref name="beasts"/> are the horns' Bestiary numbers.

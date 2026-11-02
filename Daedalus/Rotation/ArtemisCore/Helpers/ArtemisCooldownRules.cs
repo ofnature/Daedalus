@@ -296,6 +296,19 @@ public static class ArtemisCooldownRules
     public static bool AllowsPartingBlow(bool enabled, bool familiarFalling) => enabled || familiarFalling;
 
     /// <summary>
+    /// Whether this fight gets the Wespe's Final Sting (and the cycle that brings the Wespe out). On the First Board only
+    /// the Ogre and the final boss do; its other fights play normally (user, 2026-11-01). Other boards: every fight.
+    /// </summary>
+    public static bool WespeStingFight(int boardIndex, bool ogreFight, bool finalBoss)
+        => boardIndex != Daedalus.Data.CrucibleAutoPilotRules.FirstBoardIndex || ogreFight || finalBoss;
+
+    /// <summary>
+    /// A falling familiar whose retreat (Parting Blow) is on cooldown is switched out with another horn instead, before
+    /// it is knocked out. <paramref name="familiarFalling"/> already requires a replacement horn to be ready.
+    /// </summary>
+    public static bool ShouldSwapOutFalling(bool familiarFalling, bool partingBlowReady) => familiarFalling && !partingBlowReady;
+
+    /// <summary>
     /// On a board, Parting Blow the familiar out (its Tempered Release spent — the caller waits for that) to bring the
     /// next horn, until the Wespe is out: the guides' Release, Parting, next (Meoni, Ponzi's Worm → Mantis → Wespe).
     /// Without it a familiar that never falls stays the whole fight and the Wespe never comes out to sting (user,
@@ -432,6 +445,30 @@ public static class ArtemisCooldownRules
     public const double OgreWardAtSeconds = 52, StingBeforeWardSeconds = 8;
 
     /// <summary>Whether Final Sting should go now in the Ogre fight: in the seconds before Burning Ward.</summary>
+    /// <summary>The Mantis (Bestiary 16): its Eerie Soundwave puts +10% physical vulnerability on the enemy for 30 s.</summary>
+    public const int MantisBestiaryNo = 16;
+
+    /// <summary>
+    /// The Mantis lets its Soundwave go at this target HP, a little above the sting's 30%, so the swap to the Wespe (the
+    /// Soundwave, Parting Blow, the horn) is done as the sting comes due.
+    /// </summary>
+    public const float MantisReleaseAtTargetHpPct = 0.35f;
+
+    /// <summary>Against the Ogre the Mantis lets go this long before the ward, so the Wespe is out for the sting window.</summary>
+    public const double MantisBeforeWardSeconds = 14;
+
+    /// <summary>
+    /// Whether the Mantis may use its Tempered Release now. In a sting fight with the Wespe still waiting it holds the
+    /// Soundwave until just before the swap, so Final Sting lands inside the 30 s vulnerability (user, 2026-11-01): the
+    /// target at <see cref="MantisReleaseAtTargetHpPct"/> or below, or the Ogre's ward
+    /// <see cref="MantisBeforeWardSeconds"/> away. A falling Mantis lets go at once rather than lose it.
+    /// </summary>
+    public static bool MantisReleasesNow(
+        bool stingFight, bool wespeWaiting, bool falling, float targetHpPct, bool ogreFight, double secondsIn)
+        => !stingFight || !wespeWaiting || falling
+           || (targetHpPct > 0f && targetHpPct <= MantisReleaseAtTargetHpPct)
+           || (ogreFight && secondsIn >= OgreWardAtSeconds - MantisBeforeWardSeconds && secondsIn < OgreWardAtSeconds);
+
     public static bool StingBeforeOgreWard(bool ogreFight, double secondsIn)
         => ogreFight && secondsIn >= OgreWardAtSeconds - StingBeforeWardSeconds && secondsIn < OgreWardAtSeconds;
 

@@ -41,6 +41,7 @@ public sealed class DamageModule : IArtemisModule
 
     public void CollectCandidates(IArtemisContext context, RotationScheduler scheduler, bool isMoving)
     {
+        SwapOutWanted = false; // set again below when the familiar orders run this frame
         if (!context.InCombat)
         {
             _combatSinceUtc = default;
@@ -1229,6 +1230,12 @@ public sealed class DamageModule : IArtemisModule
     /// <summary>When each of the other cooldowns was last offered — the same every-frame guard, per action.</summary>
     private readonly System.Collections.Generic.Dictionary<uint, DateTime> _lastTryUtc = [];
 
+    /// <summary>
+    /// The familiar is falling and Parting Blow is not ready: the job swaps it out with another horn (Artemis reads this
+    /// each frame). Recomputed every frame the familiar orders run; false otherwise.
+    /// </summary>
+    public bool SwapOutWanted { get; private set; }
+
     /// <summary>A Tempered Release is still owed this summon; Borrow and Parting Blow wait for it.</summary>
     private bool _releaseOwed;
 
@@ -1296,6 +1303,7 @@ public sealed class DamageModule : IArtemisModule
         IArtemisContext context, RotationScheduler scheduler, ulong targetId, byte level,
         bool trickHandledByPairing, float targetHpPct = 1f)
     {
+        SwapOutWanted = false;
         if (!context.HasFamiliar)
         {
             context.Debug.DamageState = "No familiar — combo chain only";
@@ -1328,23 +1336,39 @@ public sealed class DamageModule : IArtemisModule
                            Daedalus.Services.Beastmaster.CrucibleHints.SecondsUntilTankbuster, _fallingLine,
                            RaidwideIn(context)),
             familiarHpPct);
-        var cycleToWespe = ArtemisCooldownRules.CyclesToWespe(
+        var crucible = Daedalus.Services.Beastmaster.CrucibleTracker.Current;
+        var ogreFight = FindAdds(context, ArtemisCooldownRules.OgrePieceNameId, WispNameIds, out _) != null;
+        var stingFight = ArtemisCooldownRules.WespeStingFight(
+            crucible.Board?.Index ?? 0, ogreFight, crucible.Enemy?.IsFinalBoss == true);
+        var cycleToWespe = stingFight && ArtemisCooldownRules.CyclesToWespe(
             Daedalus.Services.Beastmaster.CrucibleTracker.Current.OnBoard, context.WespeWaiting,
             context.FamiliarBeast?.BestiaryNo == WespeBestiaryNo, !context.NoReplacementHorn, RaidwideIn(context),
             Daedalus.Services.Beastmaster.CrucibleHints.SecondsUntilTankbuster);
         var partingBlowAllowed = ArtemisCooldownRules.AllowsPartingBlow(cfg.EnablePartingBlow, falling) || cycleToWespe;
+        SwapOutWanted = cfg.CruciblePartingBlowWhenFalling
+                        && ArtemisCooldownRules.ShouldSwapOutFalling(falling, CanFire(svc, level, BSTActions.PartingBlow, targetId));
+        if (SwapOutWanted)
+            context.Debug.InstinctState = $"Familiar falling ({familiarHpPct:P0}) and Parting Blow not ready — swapping it out";
 
         var releaseReady = CanFire(svc, level, BSTActions.TemperedRelease, targetId);
-        var stingFinisher = Daedalus.Services.Beastmaster.CrucibleTracker.Current.OnBoard
+        var stingFinisher = Daedalus.Services.Beastmaster.CrucibleTracker.Current.OnBoard && stingFight
                             && ((targetHpPct > 0f && targetHpPct <= FinalStingAtTargetHpPct)
                                 || ArtemisCooldownRules.StingBeforeOgreWard(
-                                    FindAdds(context, ArtemisCooldownRules.OgrePieceNameId, WispNameIds, out _) != null,
+                                    ogreFight,
                                     (DateTime.UtcNow - _combatSinceUtc).TotalSeconds));
+        // The Mantis holds its Soundwave (+10% physical vulnerability, 30 s) until just before the swap to a waiting
+        // Wespe, so Final Sting lands inside it. While it holds, its release counts as owed: no Parting Blow yet.
+        var mantisHold = context.FamiliarBeast?.BestiaryNo == ArtemisCooldownRules.MantisBestiaryNo && releaseReady
+                         && !ArtemisCooldownRules.MantisReleasesNow(
+                             stingFight, context.WespeWaiting, falling, targetHpPct, ogreFight,
+                             (DateTime.UtcNow - _combatSinceUtc).TotalSeconds);
+        if (mantisHold)
+            context.Debug.InstinctState = "Mantis: Soundwave held for the Wespe's Final Sting";
         var zuHold = ArtemisCooldownRules.HoldReleaseAtZu(
             Daedalus.Services.Beastmaster.CrucibleTracker.Current.OnBoard, ReadZu(context, out _), falling);
         if (zuHold && releaseReady)
             context.Debug.InstinctState = "Zu: release held (it breaks eggs) until the Zu is nearly dead";
-        var release = !zuHold && ShouldTemperedRelease(
+        var release = !zuHold && !mantisHold && ShouldTemperedRelease(
             cfg.EnableTemperedRelease, releaseReady, context.FamiliarBeast?.BestiaryNo, partingBlowAllowed,
             player.MaxHp > 0 ? (float)player.CurrentHp / player.MaxHp : 1f,
             (DateTime.UtcNow - _lastReleaseTryUtc).TotalSeconds, stingFinisher);
@@ -1358,9 +1382,9 @@ public sealed class DamageModule : IArtemisModule
         // Parting Blow sends the familiar away and takes an unspent Tempered Release with it, so it waits
         // while a release is still owed (the release is also what grants Lingering Vantage, +500 on the Blow).
         var releaseOwed = cfg.EnableTemperedRelease && releaseReady
-            && (ShouldTemperedRelease(true, true, context.FamiliarBeast?.BestiaryNo, partingBlowAllowed,
+            && (mantisHold || ShouldTemperedRelease(true, true, context.FamiliarBeast?.BestiaryNo, partingBlowAllowed,
                     player.MaxHp > 0 ? (float)player.CurrentHp / player.MaxHp : 1f, double.MaxValue, stingFinisher)
-                || SavesFinalSting(Daedalus.Services.Beastmaster.CrucibleTracker.Current.OnBoard, context.FamiliarBeast?.BestiaryNo));
+                || (stingFight && SavesFinalSting(Daedalus.Services.Beastmaster.CrucibleTracker.Current.OnBoard, context.FamiliarBeast?.BestiaryNo)));
         _releaseOwed = releaseOwed;
         // Not straight after a Trick: the familiar is slow to act, and retreating it now loses the Trick (RSR 8f258dbc).
         // The falling retreat is exempt — it saves the familiar.
