@@ -133,6 +133,7 @@ public class CrucibleAutoPilotRulesTests
     private const string RingOfCuring = "Recovers 25% of maximum HP at the end of battles.";
     private const string ThunderAxe = "Damage Dealt +30%\n5% chance to inflict Stun on self upon suffering damage.\nDuration: 3s";
     private const string IceShield = "Damage Taken -30%\nSlow +10%\n30% chance to absorb ice damage as HP.";
+    private const string DemonicHelm = "Damage Dealt +20%\nTP Accumulation +20%\n1% chance to inflict Doom on self upon suffering damage.\nDuration: 2s";
 
     /// <summary>
     /// Field 2026-10-25 (Saar, the coffer the Minerva session reported): Genji Greatshield, Belt of Constitution and
@@ -899,5 +900,48 @@ public class CrucibleAutoPilotRulesTests
         Assert.False(CrucibleAutoPilotRules.ShouldUseBossSerum(true, true, boss));
         Assert.False(CrucibleAutoPilotRules.ShouldUseBossSerum(false, false, boss));
         Assert.False(CrucibleAutoPilotRules.ShouldUseBossSerum(false, true, boss with { IsFinalBoss = false }));
+    }
+
+    // --- Doom-on-self gear (the Demonic Helm): never taken, never bought (user 2026-11-03) ---
+
+    [Fact]
+    public void TheDemonicHelmIsDoomOnSelfAndOtherSelfEffectsAreNot()
+    {
+        Assert.True(CrucibleAutoPilotRules.InflictsDoomOnSelf(DemonicHelm));
+        Assert.False(CrucibleAutoPilotRules.InflictsDoomOnSelf(ThunderAxe));
+        Assert.False(CrucibleAutoPilotRules.InflictsDoomOnSelf("Maximum HP +10%\nDamage Taken -5%\nDoom Resistance +100%"));
+        Assert.False(CrucibleAutoPilotRules.InflictsDoomOnSelf(null));
+    }
+
+    [Fact]
+    public void DoomOnSelfGearIsNeverBought()
+    {
+        var effects = new System.Collections.Generic.Dictionary<int, string> { [1] = Belt, [5] = DemonicHelm };
+        CrucibleShopOffer[] offers = [Offer(0, 5, 100), Offer(1, 1, 300)];
+        Assert.Equal([1], CrucibleAutoPilotRules.ShopBuysForGear(offers, 5000, 0, effects.ContainsKey, effects.GetValueOrDefault));
+    }
+
+    [Fact]
+    public void ACofferNeverPicksDoomOnSelfGear()
+    {
+        Assert.Equal(1, CrucibleAutoPilotRules.PickTreasure([5, 6], id => id == 5 ? DemonicHelm : ThunderAxe));
+        Assert.Equal(-1, CrucibleAutoPilotRules.PickTreasure([5], _ => DemonicHelm));
+    }
+
+    [Fact]
+    public void ACofferOfOnlyDoomOnSelfGearIsClosed()
+    {
+        bool Doom(int id) => CrucibleAutoPilotRules.InflictsDoomOnSelf(id == 5 ? DemonicHelm : Belt);
+        Assert.True(CrucibleAutoPilotRules.CloseCofferForNameday([5, 0], Doom));
+        Assert.True(CrucibleAutoPilotRules.CloseCofferForNameday([1, 5], Doom, new System.Collections.Generic.HashSet<int> { 0 }));
+        Assert.False(CrucibleAutoPilotRules.CloseCofferForNameday([1, 5], Doom));
+    }
+
+    [Fact]
+    public void SpoilsLeaveDoomOnSelfGear()
+    {
+        bool TakeableGear(int id) => id is 1 or 5 && !CrucibleAutoPilotRules.InflictsDoomOnSelf(id == 5 ? DemonicHelm : Belt);
+        Assert.Equal(1, CrucibleAutoPilotRules.PickLoot([5, 1], TakeableGear, _ => false, takeGear: true, takeItems: false, itemsHeld: 0));
+        Assert.Equal(-1, CrucibleAutoPilotRules.PickLoot([5], TakeableGear, _ => false, takeGear: true, takeItems: true, itemsHeld: 0));
     }
 }

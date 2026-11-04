@@ -3,6 +3,15 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.122 — 2026-11-03
+
+### Beastmaster — the Crucible
+- **The Demonic Helm is never taken or bought.** It has a 1% chance on every hit you take to put a 2-second Doom on
+  you, which is a KO. Its +20% damage used to outscore that, so the shop bought it. Coffers, spoils and the shop now
+  pass it over, and a coffer offering nothing else is closed empty-handed.
+
+<!-- LATEST-END -->
+
 ## v0.1.121 — 2026-11-03
 
 ### Beastmaster — the Crucible
@@ -29,8 +38,6 @@ All notable changes to Daedalus will be documented in this file.
 - **Magia Board by job.** The default mode now keeps a tank on Defense and every other job on Attack, all the time.
   It used to switch a tank to Defense only while enemies were on it and back after each pull, spending Magia Aether
   on every turn. Each box in a party sets its own board from its own job.
-
-<!-- LATEST-END -->
 
 ## v0.1.120 — 2026-11-01
 

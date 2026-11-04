@@ -495,7 +495,7 @@ public sealed unsafe class CrucibleAutoPilot
         // A take that worked adds to what is held — gear or item (a taken offer stays listed).
         var held = gearHeld + itemsHeld;
         var pick = CrucibleAutoPilotRules.PickLoot(
-            offers, _isBeastGear, _isCrucibleItem, _takeGearNow, _takePotionsNow, itemsHeld, _lootTakenRows);
+            offers, id => _isBeastGear(id) && !CrucibleAutoPilotRules.InflictsDoomOnSelf(_itemEffect(id)), _isCrucibleItem, _takeGearNow, _takePotionsNow, itemsHeld, _lootTakenRows);
         var offeredText = names.Count == 0 ? "nothing" : string.Join(", ", names);
         var refused = _lootGearTakes > 0 && held <= _lootHeldBefore;
         if (CrucibleAutoPilotRules.LootGearDone(pick >= 0, _lootGearTakes, refused))
@@ -551,6 +551,19 @@ public sealed unsafe class CrucibleAutoPilot
             Expect("Close the coffer", now);
             Fire(treasure, CrucibleAutoPilotRules.TreasureCloseEvent);
             Done(now, "Legendary: closing a coffer of only beast gear.");
+            return;
+        }
+
+        // Every offer left can Doom the beastmaster: close the coffer rather than take one.
+        if (CrucibleAutoPilotRules.CloseCofferForNameday(
+                offers, id => CrucibleAutoPilotRules.InflictsDoomOnSelf(_itemEffect(id)), _treasureTakenRows))
+        {
+            _log("Crucible: treasure — every offer left can Doom you on a hit; closing the coffer.");
+            _treasureTakenRows.Add(-1); // judged once
+            _treasureSinceUtc = now;
+            Expect("Close the coffer", now);
+            Fire(treasure, CrucibleAutoPilotRules.TreasureCloseEvent);
+            Done(now, "Closing a coffer of only Doom-on-self gear.");
             return;
         }
 

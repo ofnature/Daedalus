@@ -619,6 +619,18 @@ public static class CrucibleAutoPilotRules
         new(@"Recovers (?<n>\d+)% of maximum HP at the end of battles", System.Text.RegularExpressions.RegexOptions.Compiled);
 
     /// <summary>
+    /// Gear that can Doom the beastmaster: the Demonic Helm, "1% chance to inflict Doom on self upon suffering damage.
+    /// Duration: 2s" — a 2 s Doom is a KO, and the roll comes on every hit taken. Never taken from a coffer or the
+    /// spoils and never bought (user 2026-11-03; Saar bought one for 1,321 tokens on 2026-11-02, as its +20% damage
+    /// outscored the old "on self" penalty).
+    /// </summary>
+    public static bool InflictsDoomOnSelf(string? effect)
+        => effect != null && effect.Contains("inflict Doom on self", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>What Doom-on-self gear scores: far below anything, so no pick or purchase ever lands on it.</summary>
+    public const float DoomOnSelfScore = -1000f;
+
+    /// <summary>
     /// How much a piece of beast gear is worth from a coffer, read from its effect text (XBMItem column 12, e.g.
     /// "Maximum HP +20%"): survival first (Max HP, damage taken down, HP back after battles, the revive), then damage.
     /// A chance to Stun, Doom or chain yourself costs points. Unknown text scores 0.
@@ -629,6 +641,8 @@ public static class CrucibleAutoPilotRules
     {
         if (string.IsNullOrEmpty(effect))
             return 0f;
+        if (InflictsDoomOnSelf(effect))
+            return DoomOnSelfScore;
 
         var score = 0f;
         foreach (var raw in effect.Split('\n', '\r'))
@@ -672,7 +686,7 @@ public static class CrucibleAutoPilotRules
 
     /// <summary>
     /// The coffer offer to pick: the best <see cref="TreasureScore"/> among offers not yet taken (the first on a tie),
-    /// or -1. A thief's knife yields two picks from one coffer; the window stays open for the second.
+    /// never one that can Doom the beastmaster (<see cref="InflictsDoomOnSelf"/>), or -1. A thief's knife yields two picks from one coffer; the window stays open for the second.
     /// </summary>
     public static int PickTreasure(
         IReadOnlyList<int> offers, Func<int, string?> effectOf, IReadOnlySet<int>? takenRows = null,
@@ -682,7 +696,7 @@ public static class CrucibleAutoPilotRules
         var bestScore = float.MinValue;
         for (var i = 0; i < offers.Count; i++)
         {
-            if (offers[i] == 0 || takenRows?.Contains(i) == true)
+            if (offers[i] == 0 || takenRows?.Contains(i) == true || InflictsDoomOnSelf(effectOf(offers[i])))
                 continue;
             var score = TreasureScore(effectOf(offers[i]), wantedResistances);
             if (score > bestScore)
