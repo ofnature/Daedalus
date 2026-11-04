@@ -78,6 +78,11 @@ public static class ArtemisAbilities
         Action = BSTActions.BeastModeAtEnemy, Toggle = cfg => cfg.Beastmaster.EnableBorrow,
         ReplacementBaseId = BSTActions.BeastMode.ActionId,
     };
+    public static readonly AbilityBehavior BeastModeRanged = new()
+    {
+        Action = BSTActions.BeastModeRanged, Toggle = cfg => cfg.Beastmaster.EnableBorrow,
+        ReplacementBaseId = BSTActions.BeastMode.ActionId,
+    };
 
     // --- capture ---
     public static readonly AbilityBehavior Capture = new()

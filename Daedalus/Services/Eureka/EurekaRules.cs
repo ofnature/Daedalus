@@ -19,20 +19,16 @@ public static class EurekaRules
 
     public static string ElementName(byte element) => element < ElementNames.Length ? ElementNames[element] : $"#{element}";
 
-    /// <summary>A tank holds defense this long after the last enemy left it, so a gap between pulls does not spin twice.</summary>
-    public const double TankDefenseHoldSeconds = 15.0;
-
     /// <summary>
-    /// The /magiaauto setting wanted now. <paramref name="enemiesOnMeUtc"/> is the last time an enemy targeted us
-    /// (null = never). Null result = leave the board alone.
+    /// The /magiaauto setting wanted now; null = leave the board alone. TankDefense goes by the job alone: a tank is
+    /// always on defense, everyone else on attack. (It used to put a tank on defense only while enemies were on it,
+    /// which turned the board at every pull and between them: eight turns in eleven minutes, Korha 2026-11-01.)
     /// </summary>
-    public static string? WantedAuto(EurekaMagiaMode mode, bool isTank, DateTime? enemiesOnMeUtc, DateTime now) => mode switch
+    public static string? WantedAuto(EurekaMagiaMode mode, bool isTank) => mode switch
     {
         EurekaMagiaMode.Attack => "attack",
         EurekaMagiaMode.Defense => "defense",
-        EurekaMagiaMode.TankDefense => isTank && enemiesOnMeUtc is { } at && (now - at).TotalSeconds < TankDefenseHoldSeconds
-            ? "defense"
-            : "attack",
+        EurekaMagiaMode.TankDefense => isTank ? "defense" : "attack",
         _ => null,
     };
 

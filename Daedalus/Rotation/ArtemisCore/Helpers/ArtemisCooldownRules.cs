@@ -292,8 +292,14 @@ public static class ArtemisCooldownRules
     /// </summary>
     public const float TankbusterLeadSeconds = 10f;
 
-    /// <summary>Parting Blow (and Wespe's Final Sting, the same trade) when chosen, or when the familiar is falling.</summary>
-    public static bool AllowsPartingBlow(bool enabled, bool familiarFalling) => enabled || familiarFalling;
+    /// <summary>
+    /// Parting Blow (and Wespe's Final Sting, the same trade) when chosen, or when the familiar is falling. The setting
+    /// counts off a board only: on one it fired the Blow on every cooldown and cycled the horns every 10 s, and let the
+    /// Wespe sting in every fight (roommate, 2026-11-02). The board's own Blows (falling, the Wespe cycle, bunched adds,
+    /// casts that kill the familiar) decide there.
+    /// </summary>
+    public static bool AllowsPartingBlow(bool enabled, bool familiarFalling, bool onBoard = false)
+        => (enabled && !onBoard) || familiarFalling;
 
     /// <summary>
     /// Whether this fight gets the Wespe's Final Sting (and the cycle that brings the Wespe out). On the First Board only
@@ -642,7 +648,8 @@ public static class ArtemisCooldownRules
     /// to press.
     /// </summary>
     public static BeastModeUse DecideBeastMode(
-        bool enabled, uint adjustedId, float selfHpPct, float edgeDistanceYalms, bool selfHasCleansableDebuff)
+        bool enabled, uint adjustedId, float selfHpPct, float edgeDistanceYalms, bool selfHasCleansableDebuff,
+        bool holdSoulCrush = false)
     {
         if (!enabled)
             return BeastModeUse.None;
@@ -660,17 +667,94 @@ public static class ArtemisCooldownRules
             BSTActions.SeedsowerId
                 => edgeDistanceYalms <= SeedsowerYalms ? BeastModeUse.Self : BeastModeUse.None,
 
-            // 300 potency in melee, 1,000 and 100 TP if it interrupts. Free damage either way.
+            // 300 potency in melee, 1,000 and 100 TP if it interrupts. Free damage either way — unless it is being
+            // kept for an interrupt (HoldsSoulCrush).
             BSTActions.SoulCrushId
-                => edgeDistanceYalms <= MeleeYalms ? BeastModeUse.Enemy : BeastModeUse.None,
+                => edgeDistanceYalms <= MeleeYalms && !holdSoulCrush ? BeastModeUse.Enemy : BeastModeUse.None,
 
             // A cleanse that pays 10% HP and 100 TP — but only when it actually removes something.
             BSTActions.ScouringAshId
                 => selfHasCleansableDebuff ? BeastModeUse.Self : BeastModeUse.None,
 
             // Cloud Skim is a dash in a chosen direction, and Quelling Wave is a 350-potency spell on the
-            // GCD that loses to the axe combo in melee. Neither is pressed.
+            // GCD that loses to the axe combo in melee. Neither is pressed here: Quelling Wave goes only at a
+            // buff to strip (PickDispelTarget).
             _ => BeastModeUse.None,
         };
+    }
+    /// <summary>An interruptible cast with less than this left is not worth a Borrow (BMRV uses the same).</summary>
+    public const float InterruptMinCastLeftSeconds = 0.5f;
+
+    /// <summary>Below this, the beastmaster's own HP comes first: a held Soul Crush / Quelling Wave may be borrowed over.</summary>
+    public const float KeepKinshipMinHpPct = 0.5f;
+
+    /// <summary>
+    /// An enemy cast Soul Crush should stop: one the boss engine flagged, or — on a board — any cast the game marks
+    /// interruptible with time left. Minerva doesn't flag Medusa's Lamias' Raise (49287), which Game8 and the
+    /// Second Master's Board replay both say is the fight's problem; the game's own flag catches it.
+    /// </summary>
+    public static bool IsInterruptCandidate(bool flaggedByEngine, bool onBoard, bool casting, bool interruptible, float castLeftSeconds)
+        => casting && (flaggedByEngine || (onBoard && interruptible && castLeftSeconds > InterruptMinCastLeftSeconds));
+
+    /// <summary>
+    /// Borrow right now, ahead of everything (a release still owed included), to get the one Kinship a pending job
+    /// needs: Soul Crush for a cast to interrupt with a Soulkin out, Quelling Wave for a buff to strip with a Wavekin out.
+    /// Nothing when the button already holds it. (BMRV does the same; fuurie's Drake clear borrows Quelling Wave for
+    /// the Blaze Spikes reflect.)
+    /// </summary>
+    public static bool ShouldBorrowForJob(
+        bool enabled, bool ready, BeastClassification? familiarKin, uint beastModeId, bool interruptPending, bool dispelPending)
+        => enabled && ready
+           && ((interruptPending && familiarKin == BeastClassification.Soulkin && beastModeId != BSTActions.SoulCrushId)
+               || (dispelPending && familiarKin == BeastClassification.Wavekin && beastModeId != BSTActions.QuellingWaveId));
+
+    /// <summary>
+    /// On a board, an unused Soul Crush or Quelling Wave stays on the button: an everyday Borrow from a familiar of
+    /// another kin would replace it, and the interrupt or dispel it was for would find nothing. Let go when the
+    /// beastmaster drops under half HP, or when the familiar out gives the same card back. A defensive skin (Beastskin,
+    /// Vileskin, Scaleskin) also wins as soon as the beastmaster needs one: under the skin line, or a tankbuster or
+    /// raidwide inside the lead time — the guides time Beastskin to the heavy hits.
+    /// </summary>
+    public static bool KeepsKinshipCard(
+        bool onBoard, uint beastModeId, BeastClassification? familiarKin, float selfHpPct, bool hitComing = false)
+    {
+        var defensiveKin = familiarKin is BeastClassification.Beastkin or BeastClassification.Vilekin
+            or BeastClassification.Scalekin;
+        if (defensiveKin && (hitComing || selfHpPct < SkinHpPct))
+            return false;
+
+        return onBoard && selfHpPct >= KeepKinshipMinHpPct
+               && ((beastModeId == BSTActions.SoulCrushId && familiarKin != BeastClassification.Soulkin)
+                   || (beastModeId == BSTActions.QuellingWaveId && familiarKin != BeastClassification.Wavekin));
+    }
+
+    /// <summary>
+    /// On a board, Soul Crush is not spent as plain damage (300) while it would leave nothing for the next interrupt
+    /// (1,000 and the interrupt itself): only when the familiar out is a Soulkin and Borrow is ready to give it back.
+    /// </summary>
+    public static bool HoldsSoulCrush(bool onBoard, bool borrowReady, BeastClassification? familiarKin)
+        => onBoard && !(borrowReady && familiarKin == BeastClassification.Soulkin);
+
+    /// <summary>
+    /// The enemy for Quelling Wave: the hard target if it carries a buff to strip, else the nearest that does. 0 when
+    /// none does. Reach is left to the game's action status.
+    /// </summary>
+    public static ulong PickDispelTarget(
+        ulong hardTargetId, System.Collections.Generic.IEnumerable<(ulong Id, float EdgeDistance)> buffed)
+    {
+        ulong best = 0;
+        var bestDistance = float.MaxValue;
+        foreach (var (id, distance) in buffed)
+        {
+            if (id == hardTargetId)
+                return id;
+            if (distance < bestDistance)
+            {
+                best = id;
+                bestDistance = distance;
+            }
+        }
+
+        return best;
     }
 }

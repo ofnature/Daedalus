@@ -595,6 +595,45 @@ public sealed class DamageModule : IArtemisModule
         return boss;
     }
 
+    /// <summary>
+    /// The enemies a Kinship has a job for: casting something to interrupt (flagged by the boss engine, or on a board
+    /// marked interruptible by the game), and — on a board — carrying a buff a dispel can strip.
+    /// </summary>
+    private static void ReadKinshipJobs(
+        IArtemisContext context, bool onBoard, List<(ulong, float, bool)> interrupts, List<(ulong, float)> buffed)
+    {
+        var flagged = Daedalus.Services.Beastmaster.CrucibleHints.TargetsToInterrupt;
+        if (!onBoard && flagged.Count == 0)
+            return;
+
+        var player = context.Player;
+        foreach (var obj in context.ObjectTable)
+        {
+            if (obj is not Dalamud.Game.ClientState.Objects.Types.IBattleNpc npc || npc.IsDead || npc.CurrentHp == 0
+                || !npc.IsTargetable || npc.SubKind != Daedalus.Compat.BattleNpcKinds.Combatant)
+                continue;
+
+            var edge = System.Numerics.Vector3.Distance(player.Position, npc.Position) - npc.HitboxRadius - player.HitboxRadius;
+            var isFlagged = false;
+            foreach (var id in flagged)
+                isFlagged |= id == npc.GameObjectId;
+            if (ArtemisCooldownRules.IsInterruptCandidate(
+                    isFlagged, onBoard, npc.IsCasting, npc.IsCastInterruptible, npc.TotalCastTime - npc.CurrentCastTime))
+                interrupts.Add((npc.GameObjectId, edge, true));
+
+            if (!onBoard)
+                continue;
+            foreach (var status in npc.StatusList)
+            {
+                if (status.StatusId != 0 && context.DebuffDetectionService.IsDispellableBuff(status.StatusId))
+                {
+                    buffed.Add((npc.GameObjectId, edge));
+                    break;
+                }
+            }
+        }
+    }
+
     /// <summary>An enemy casting one of <paramref name="actionIds"/>, or null.</summary>
     private static Dalamud.Game.ClientState.Objects.Types.IBattleNpc? FindCasting(IArtemisContext context, IReadOnlySet<uint> actionIds)
     {
@@ -854,36 +893,72 @@ public sealed class DamageModule : IArtemisModule
                 onDispatched: _ => context.Debug.PlannedAction = BSTActions.RallyingCheer.Name);
         }
 
-        if (ArtemisCooldownRules.ShouldBorrow(
-                cfg.EnableBorrow, CanFire(svc, level, BSTActions.Borrow, selfId), context.HasFamiliar, _releaseOwed)
+        // Beast Mode is whatever the Kinship has made of it; ask the game about THAT action, at the target
+        // it takes.
+        var onBoard = Daedalus.Services.Beastmaster.CrucibleTracker.Current.OnBoard;
+        var familiarKin = context.HasFamiliar ? context.FamiliarBeast?.Classification : null;
+        var modeId = svc.GetAdjustedActionId(BSTActions.BeastMode.ActionId);
+        var borrowReady = CanFire(svc, level, BSTActions.Borrow, selfId);
+
+        // Casts to interrupt and buffs to strip, read before anything spends the Borrow.
+        var interruptCandidates = new List<(ulong, float, bool)>();
+        var buffed = new List<(ulong, float)>();
+        ReadKinshipJobs(context, onBoard, interruptCandidates, buffed);
+
+        if (ArtemisCooldownRules.ShouldBorrowForJob(
+                cfg.EnableBorrow, borrowReady, familiarKin, modeId, interruptCandidates.Count > 0, buffed.Count > 0)
             && TryGate(BSTActions.Borrow.ActionId))
+        {
+            var job = interruptCandidates.Count > 0 && familiarKin == BeastClassification.Soulkin ? "Soul Crush" : "Quelling Wave";
+            scheduler.PushOgcd(ArtemisAbilities.Borrow, selfId, priority: 2, onDispatched: _ =>
+            {
+                context.Debug.PlannedAction = $"Borrow (for {job})";
+                Daedalus.Rotation.Base.RotationServices.DebugLog?.Log(
+                    Daedalus.Services.Debug.DebugLogCategory.Action, Daedalus.Services.Debug.DebugLogSeverity.Info,
+                    $"[BST] Borrow now: {job} is needed");
+            });
+        }
+        else if (ArtemisCooldownRules.ShouldBorrow(cfg.EnableBorrow, borrowReady, context.HasFamiliar, _releaseOwed)
+                 && !ArtemisCooldownRules.KeepsKinshipCard(onBoard, modeId, familiarKin, selfHpPct,
+                     hitComing: Daedalus.Services.Beastmaster.CrucibleHints.SecondsUntilTankbuster <= ArtemisCooldownRules.TankbusterLeadSeconds
+                                || Daedalus.Services.Beastmaster.CrucibleHints.SecondsUntilRaidwide <= ArtemisCooldownRules.RaidwideLeadSeconds)
+                 && TryGate(BSTActions.Borrow.ActionId))
         {
             scheduler.PushOgcd(ArtemisAbilities.Borrow, selfId, priority: 16,
                 onDispatched: _ => context.Debug.PlannedAction = BSTActions.Borrow.Name);
         }
 
-        // Beast Mode is whatever the Kinship has made of it; ask the game about THAT action, at the target
-        // it takes.
-        var modeId = svc.GetAdjustedActionId(BSTActions.BeastMode.ActionId);
         var use = ArtemisCooldownRules.DecideBeastMode(
             cfg.EnableBorrow, modeId, selfHpPct, edgeDistance,
             context.DebuffDetectionService.FindHighestPriorityDebuff(player).priority
-                != Daedalus.Services.Debuff.DebuffPriority.None);
-        // Soul Crush interrupts: aimed at a caster the boss engine says to stop, ahead of its free-damage use.
+                != Daedalus.Services.Debuff.DebuffPriority.None,
+            holdSoulCrush: ArtemisCooldownRules.HoldsSoulCrush(onBoard, borrowReady, familiarKin));
+
+        // Quelling Wave strips a buff (Drake's Blaze Spikes, Strix's Ultimate Focus, the toad's regen ...), at whoever
+        // carries one — even an enemy the boss engine says not to hit, which is usually why.
+        if (modeId == BSTActions.QuellingWaveId && cfg.EnableBorrow && buffed.Count > 0
+            && ActionAvailability.MeetsLevelAndLearned(level, svc, BSTActions.BeastMode))
+        {
+            var dispelId = ArtemisCooldownRules.PickDispelTarget(targetId, buffed);
+            if (dispelId != 0 && svc.GetActionStatusCode(modeId, dispelId) == 0 && TryGate(BSTActions.BeastMode.ActionId))
+            {
+                var buffedName = context.ObjectTable.SearchById(dispelId)?.Name.TextValue ?? "enemy";
+                scheduler.PushOgcd(ArtemisAbilities.BeastModeRanged, dispelId, priority: 3, onDispatched: _ =>
+                {
+                    context.Debug.PlannedAction = $"Quelling Wave (dispel {buffedName})";
+                    Daedalus.Rotation.Base.RotationServices.DebugLog?.Log(
+                        Daedalus.Services.Debug.DebugLogCategory.Action, Daedalus.Services.Debug.DebugLogSeverity.Info,
+                        $"[BST] Quelling Wave: dispelling {buffedName}");
+                });
+            }
+        }
+
+        // Soul Crush interrupts: aimed at a caster to stop, ahead of its free-damage use.
         if (modeId == BSTActions.SoulCrushId && cfg.EnableBorrow
             && ActionAvailability.MeetsLevelAndLearned(level, svc, BSTActions.BeastMode)
-            && Daedalus.Services.Beastmaster.CrucibleHints.TargetsToInterrupt.Count > 0)
+            && interruptCandidates.Count > 0)
         {
-            var candidates = new System.Collections.Generic.List<(ulong, float, bool)>();
-            foreach (var id in Daedalus.Services.Beastmaster.CrucibleHints.TargetsToInterrupt)
-            {
-                if (context.ObjectTable.SearchById(id) is Dalamud.Game.ClientState.Objects.Types.IBattleChara caster)
-                    candidates.Add((id,
-                        System.Numerics.Vector3.Distance(player.Position, caster.Position) - caster.HitboxRadius - player.HitboxRadius,
-                        caster.IsCasting));
-            }
-
-            var interruptId = ArtemisCooldownRules.PickInterruptTarget(candidates);
+            var interruptId = ArtemisCooldownRules.PickInterruptTarget(interruptCandidates);
             if (interruptId != 0 && svc.GetActionStatusCode(modeId, interruptId) == 0 && TryGate(BSTActions.BeastMode.ActionId))
             {
                 var casterName = context.ObjectTable.SearchById(interruptId)?.Name.TextValue ?? "enemy";
@@ -1344,7 +1419,8 @@ public sealed class DamageModule : IArtemisModule
             Daedalus.Services.Beastmaster.CrucibleTracker.Current.OnBoard, context.WespeWaiting,
             context.FamiliarBeast?.BestiaryNo == WespeBestiaryNo, !context.NoReplacementHorn, RaidwideIn(context),
             Daedalus.Services.Beastmaster.CrucibleHints.SecondsUntilTankbuster);
-        var partingBlowAllowed = ArtemisCooldownRules.AllowsPartingBlow(cfg.EnablePartingBlow, falling) || cycleToWespe;
+        var partingBlowAllowed = ArtemisCooldownRules.AllowsPartingBlow(cfg.EnablePartingBlow, falling, crucible.OnBoard)
+                                 || cycleToWespe;
         SwapOutWanted = cfg.CruciblePartingBlowWhenFalling
                         && ArtemisCooldownRules.ShouldSwapOutFalling(falling, CanFire(svc, level, BSTActions.PartingBlow, targetId));
         if (SwapOutWanted)
@@ -1360,7 +1436,7 @@ public sealed class DamageModule : IArtemisModule
         // Wespe, so Final Sting lands inside it. While it holds, its release counts as owed: no Parting Blow yet.
         var mantisHold = context.FamiliarBeast?.BestiaryNo == ArtemisCooldownRules.MantisBestiaryNo && releaseReady
                          && !ArtemisCooldownRules.MantisReleasesNow(
-                             stingFight, context.WespeWaiting, falling, targetHpPct, ogreFight,
+                             stingFight, context.WespeInRoster, falling, targetHpPct, ogreFight,
                              (DateTime.UtcNow - _combatSinceUtc).TotalSeconds);
         if (mantisHold)
             context.Debug.InstinctState = "Mantis: Soundwave held for the Wespe's Final Sting";
@@ -1375,6 +1451,12 @@ public sealed class DamageModule : IArtemisModule
         if (release)
         {
             _lastReleaseTryUtc = DateTime.UtcNow;
+            if (context.FamiliarBeast?.BestiaryNo == ArtemisCooldownRules.MantisBestiaryNo && crucible.OnBoard)
+                Daedalus.Rotation.Base.RotationServices.DebugLog?.Log(
+                    Daedalus.Services.Debug.DebugLogCategory.Action, Daedalus.Services.Debug.DebugLogSeverity.Info,
+                    $"[Crucible] Mantis Soundwave: sting fight {stingFight} ({crucible.Enemy?.Name ?? "no enemy"}), "
+                    + $"Wespe in horns {context.WespeInRoster}, Wespe ready {context.WespeWaiting}, target {targetHpPct:P0}, "
+                    + $"falling {falling}, {(DateTime.UtcNow - _combatSinceUtc).TotalSeconds:0}s in");
             scheduler.PushOgcd(ArtemisAbilities.TemperedRelease, targetId, priority: 12,
                 onDispatched: _ => context.Debug.PlannedAction = BSTActions.TemperedRelease.Name);
         }

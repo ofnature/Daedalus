@@ -9,7 +9,7 @@ public enum EurekaMagiaMode
     Attack,
     /// <summary>/magiaauto defense: the target's own element (less damage taken from it).</summary>
     Defense,
-    /// <summary>Attack, except a tank with enemies on it switches to defense until they are gone.</summary>
+    /// <summary>By job: defense on a tank, attack on everyone else.</summary>
     TankDefense,
 }
 

@@ -845,6 +845,22 @@ public sealed class TargetingService : ITargetingService
             return;
         }
 
+        // Medusa's Lamias: keep them even (see CombatRetargetPolicy.BalancePick). Minerva's module names no kill order.
+        if (Daedalus.Services.Beastmaster.CrucibleTracker.Current.OnBoard
+            && _targetManager.Target is IBattleNpc { NameId: CombatRetargetPolicy.LamiaPieceNameId, MaxHp: > 0, CurrentHp: > 0 } lamia)
+        {
+            var others = _objectTable.OfType<IBattleNpc>()
+                .Where(n => n.NameId == CombatRetargetPolicy.LamiaPieceNameId && n.GameObjectId != lamia.GameObjectId
+                            && n is { IsDead: false, IsTargetable: true, MaxHp: > 0, CurrentHp: > 0 })
+                .Select(n => (n.GameObjectId, (float)n.CurrentHp / n.MaxHp));
+            var fuller = CombatRetargetPolicy.BalancePick((float)lamia.CurrentHp / lamia.MaxHp, others);
+            if (fuller != 0 && TryResolveValidEnemyInRange(fuller, CombatRetargetMaxRangeY, player) is { } other)
+            {
+                SetGameHardTarget(other);
+                return;
+            }
+        }
+
         RefreshFightHints();
         if (_preferredByFight.Length == 0)
             return;

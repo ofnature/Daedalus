@@ -154,7 +154,8 @@ public sealed class BeastmasterSection
                 () => config.Beastmaster.EnablePartingBlow,
                 v => config.Beastmaster.EnablePartingBlow = v,
                 "1,000 potency to the target and everything within 8y — but your familiar RETREATS "
-                + "afterwards, so Trick stops until you summon again. Off by default.", save);
+                + "afterwards, so Trick stops until you summon again. Off by default. Not on a Crucible "
+                + "board: there the board logic picks its own Parting Blows.", save);
 
             ConfigUIHelpers.Toggle(
                 "Use Tempered Release",

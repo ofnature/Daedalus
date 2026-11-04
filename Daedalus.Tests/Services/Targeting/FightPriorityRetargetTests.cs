@@ -131,4 +131,24 @@ public class FightPriorityRetargetTests
     [Fact]
     public void OtherAddsAreNeverHeldOff() =>
         Assert.False(CombatRetargetPolicy.HoldOffCrawler(true, 14585, targetsPlayer: false, hasGrabbed: false)); // shambler
+
+    [Fact]
+    public void AMuchFullerLamiaIsTakenNext() =>
+        Assert.Equal(2UL, CombatRetargetPolicy.BalancePick(0.40f, [(2UL, 0.80f)]));
+
+    [Fact]
+    public void LamiasWithinTheGapAreLeftAlone() =>
+        Assert.Equal(0UL, CombatRetargetPolicy.BalancePick(0.40f, [(2UL, 0.49f)]));
+
+    [Fact]
+    public void TheFullestOfSeveralLamiasIsPicked() =>
+        Assert.Equal(3UL, CombatRetargetPolicy.BalancePick(0.20f, [(2UL, 0.50f), (3UL, 0.90f)]));
+
+    [Fact]
+    public void ADeadLamiaIsNeverPicked() =>
+        Assert.Equal(0UL, CombatRetargetPolicy.BalancePick(0.20f, [(2UL, 0f)]));
+
+    [Fact]
+    public void AFullerTargetNeverSwitchesToAnEmptierLamia() =>
+        Assert.Equal(0UL, CombatRetargetPolicy.BalancePick(0.90f, [(2UL, 0.30f)]));
 }

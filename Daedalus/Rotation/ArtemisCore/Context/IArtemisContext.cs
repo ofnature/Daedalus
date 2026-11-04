@@ -37,6 +37,9 @@ public interface IArtemisContext : IMeleeDpsRotationContext
     /// </summary>
     bool WespeWaiting => false;
 
+    /// <summary>A Wespe sits in a horn other than the out one, ready or not (the Mantis holds its Soundwave for it).</summary>
+    bool WespeInRoster => false;
+
     /// <summary>
     /// The job gauge this frame — TP, familiar TP, the instinct diamonds, what is lit on the Compass.
     /// Null when it could not be read; callers then fall back to inference.

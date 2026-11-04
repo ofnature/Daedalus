@@ -3,6 +3,35 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.121 — 2026-11-03
+
+### Beastmaster — the Crucible
+- Fixed: the Mantis could still use its Soundwave at a boss's pull. It only held while the Wespe's horn was ready,
+  and a Wespe pulled out in an earlier fight could still be cooling then. It now holds for a Wespe in any of the
+  horns; the swap itself still waits for the Wespe's horn. The debug log now says why each Mantis Soundwave went.
+- **Legendary attempts are recorded automatically.** With the goal on Legendary, the Crucible recording starts when you
+  are on a board and stops when you leave it (stopping it by hand keeps it off until the next board). "Auto
+  (Legendary)" next to Record turns it off, and the new **Folder** button opens the recordings folder.
+- Fixed: with **Use Parting Blow** on, the Crucible fired it on every cooldown — the beasts cycled out every 10 seconds
+  and the Wespe used its Final Sting in every fight. The setting now only applies off a board; on a board Parting Blow
+  is used only when the board needs it (a falling beast, the swap to the Wespe, bunched adds, a cast that would kill it).
+- **Medusa's Lamias are kept even.** A living Lamia raises a dead one, so while you are on a Lamia, Daedalus switches to
+  any other Lamia more than 10% fuller — they go down together, interrupt or not. It never pulls you off Medusa.
+- **Interrupts and dispels.** On a board, a cast the game marks interruptible (such as the Lamias' Raise) now gets
+  Soul Crush: with a Soulkin out, Borrow goes at once, and an unused Soul Crush is kept for the next interrupt instead
+  of being spent as damage. **Quelling Wave** is finally pressed: at any enemy carrying a buff it can strip (the
+  Drake's Blaze Spikes, the toad's regen, Strix's Ultimate Focus), with Borrow going at once when a Wavekin is out.
+- Fixed: a boss pull could open on the wrong horn. Daedalus remembered the horn of the last beast out in the
+  previous fight, but the horns are reordered for each battle, so Pas de Seul (after the Ogre) opened with
+  Damselfly's poison on a boss that resists it. Each board fight now opens on the First Battlehorn, as planned.
+
+### Eureka
+- **Magia Board by job.** The default mode now keeps a tank on Defense and every other job on Attack, all the time.
+  It used to switch a tank to Defense only while enemies were on it and back after each pull, spending Magia Aether
+  on every turn. Each box in a party sets its own board from its own job.
+
+<!-- LATEST-END -->
+
 ## v0.1.120 — 2026-11-01
 
 ### Beastmaster — the Crucible
@@ -16,7 +45,7 @@ All notable changes to Daedalus will be documented in this file.
   physical vulnerability, 30 s) until just before it swaps out for the Wespe — the target at 35%, or 14 seconds before
   the Ogre's ward — so the Final Sting lands with the vulnerability up.
 
-<!-- LATEST-END -->
+
 
 ## v0.1.119 — 2026-11-01
 

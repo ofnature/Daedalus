@@ -42,7 +42,7 @@ namespace Daedalus;
 
 public sealed class Plugin : IDalamudPlugin
 {
-    public const string PluginVersion = "0.1.120";
+    public const string PluginVersion = "0.1.121";
     private const string CommandName = "/daedalus";
 
     /// <summary>LAN relay channel for Necromancer Deep Freeze "heal me to full" announcements.</summary>
@@ -2574,6 +2574,10 @@ public sealed class Plugin : IDalamudPlugin
             // Which Crucible board and enemy, before any gate: the window shows it with the rotation off too, and
             // Artemis reads it this frame for Snarl / Challenge.
             crucibleTracker?.Update(clientState.TerritoryType, objectTable.LocalPlayer, targetManager.Target, objectTable);
+            crucibleRecorder?.AutoRecord(
+                configuration.Beastmaster.CrucibleAutoRecordLegendary
+                && configuration.Beastmaster.CrucibleGoal == Daedalus.Data.CrucibleTeamGoal.Legendary,
+                Daedalus.Services.Beastmaster.CrucibleTracker.Current.OnBoard);
             crucibleRecorder?.Update(clientState.TerritoryType, condition[Dalamud.Game.ClientState.Conditions.ConditionFlag.InCombat],
                 objectTable.LocalPlayer, objectTable);
             var crucibleRunning = !Daedalus.Services.Beastmaster.CrucibleHints.AutomationPaused;

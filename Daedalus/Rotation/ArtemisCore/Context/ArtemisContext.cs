@@ -77,6 +77,7 @@ public sealed class ArtemisContext : IArtemisContext
     public Daedalus.Data.BstFamiliar? FamiliarBeast { get; }
     public bool NoReplacementHorn { get; }
     public bool WespeWaiting { get; }
+    public bool WespeInRoster { get; }
     public ArtemisTrickPairing TrickPairing { get; }
     public ArtemisGauge? Gauge { get; }
 
@@ -118,8 +119,10 @@ public sealed class ArtemisContext : IArtemisContext
         uint activeBattlehornRow = 0,
         ArtemisGauge? gauge = null,
         bool noReplacementHorn = false,
-        bool wespeWaiting = false)
+        bool wespeWaiting = false,
+        bool wespeInRoster = false)
     {
+        WespeInRoster = wespeInRoster;
         Gauge = gauge;
         NoReplacementHorn = noReplacementHorn;
         WespeWaiting = wespeWaiting;

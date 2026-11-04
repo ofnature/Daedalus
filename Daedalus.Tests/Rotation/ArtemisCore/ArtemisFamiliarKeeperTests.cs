@@ -106,4 +106,27 @@ public class ArtemisFamiliarKeeperTests
     [Fact]
     public void AnUnreadRosterNeverHoldsTheRetreat()
         => Assert.False(ArtemisFamiliarKeeper.NoReplacementHorn(false, outSlot: 0, [false, false, false]));
+
+    // ── the horn last out, between Crucible fights (Pas de Seul opened on Damselfly, Korha 2026-11-01) ──
+
+    [Fact]
+    public void OnABoardTheLastHornIsForgottenBetweenFights()
+        => Assert.Equal(ArtemisFamiliarKeeper.None, ArtemisFamiliarKeeper.LastOutBetweenFights(2, onBoard: true, inCombat: false));
+
+    [Fact]
+    public void OnABoardTheLastHornIsKeptInAFight()
+        => Assert.Equal(2, ArtemisFamiliarKeeper.LastOutBetweenFights(2, onBoard: true, inCombat: true));
+
+    [Fact]
+    public void OffABoardTheLastHornIsKept()
+        => Assert.Equal(2, ArtemisFamiliarKeeper.LastOutBetweenFights(2, onBoard: false, inCombat: false));
+
+    [Fact]
+    public void ABoardFightAfterAThreeHornFightOpensOnTheFirstHorn()
+    {
+        // The Ogre fight ended with the Wespe out of the Third horn; the setter then put Damselfly there. The boss pull
+        // counts as combat before the game does, so only the between-fights reset stands between it and the Third horn.
+        var lastOut = ArtemisFamiliarKeeper.LastOutBetweenFights(2, onBoard: true, inCombat: false);
+        Assert.Equal(0, Pick(lastOut: lastOut));
+    }
 }

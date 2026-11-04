@@ -234,7 +234,8 @@ public sealed class Artemis : BaseMeleeDpsRotation<IArtemisContext, IArtemisModu
             activeBattlehornRow: _battlehorns.Active?.PactNameId ?? 0,
             gauge: _gaugeReader.TryRead(),
             noReplacementHorn: NoReplacementHorn(player),
-            wespeWaiting: WespeWaiting(player));
+            wespeWaiting: WespeWaiting(player),
+            wespeInRoster: WespeInRoster());
 
     /// <summary>
     /// Whether no horn but the out beast's own is ready (see ArtemisFamiliarKeeper.NoReplacementHorn). Read from the
@@ -253,6 +254,15 @@ public sealed class Artemis : BaseMeleeDpsRotation<IArtemisContext, IArtemisModu
         }
 
         return ArtemisFamiliarKeeper.NoReplacementHorn(_battlehorns.IsPopulatedFromGame, _lastOutHorn, usable);
+    }
+
+    /// <summary>A Wespe sits in a horn other than the out one, ready or not (see ArtemisFamiliarKeeper.WespeInRoster).</summary>
+    private bool WespeInRoster()
+    {
+        System.Span<uint> beasts = stackalloc uint[ArtemisBattlehornState.SlotCount];
+        for (var i = 0; i < beasts.Length; i++)
+            beasts[i] = _battlehorns[i].PactNameId;
+        return ArtemisFamiliarKeeper.WespeInRoster(_battlehorns.IsPopulatedFromGame, _lastOutHorn, beasts);
     }
 
     /// <summary>A Wespe waits in a ready horn other than the out one (see ArtemisFamiliarKeeper.WespeWaiting).</summary>
@@ -296,6 +306,8 @@ public sealed class Artemis : BaseMeleeDpsRotation<IArtemisContext, IArtemisModu
 
         // Drop the instinct chain the moment combat ends: the 7s window cannot survive a pull gap,
         // and a stale chain would send the picker after a combo that expired.
+        _lastOutHorn = ArtemisFamiliarKeeper.LastOutBetweenFights(
+            _lastOutHorn, Daedalus.Services.Beastmaster.CrucibleTracker.Current.OnBoard, inCombat);
         if (!inCombat)
         {
             _instinct.Reset();

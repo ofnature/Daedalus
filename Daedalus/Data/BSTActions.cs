@@ -548,12 +548,24 @@ public static class BSTActions
         RecastTime = 2.5f, Range = 3f,
     };
 
+    /// <summary>
+    /// The same button aimed at an enemy at range, for Quelling Wave. No range of its own: the game's action status
+    /// (asked before pushing) is what says the enemy is in reach.
+    /// </summary>
+    public static readonly ActionDefinition BeastModeRanged = new()
+    {
+        ActionId = 44886, Name = "Beast Mode", MinLevel = 22,
+        Category = ActionCategory.oGCD, TargetType = ActionTargetType.SingleEnemy,
+        EffectTypes = ActionEffectType.Damage,
+        RecastTime = 2.5f,
+    };
+
     // What Beast Mode becomes, one per Kinship (Action sheet, read 2026-10-11). None can sit on a hotbar.
     public const uint BeastskinId = 44896;    // Beastkin: -25% physical damage taken, +5% crit, 30s
     public const uint VileskinId = 44897;     // Vilekin: 100% block, 15s
     public const uint CloudSkimId = 44898;    // Cloudkin: a 10y dash
     public const uint SeedsowerId = 44899;    // Seedkin: -10% damage dealt and a DoT within 6y, 60s
-    public const uint QuellingWaveId = 44900; // Wavekin: 350-potency ranged spell (on the GCD)
+    public const uint QuellingWaveId = 44900; // Wavekin: 350-potency ranged spell (on the GCD) that strips a buff
     public const uint ScaleskinId = 44901;    // Scalekin: magic barrier, 8% of max HP
     public const uint SoulCrushId = 44902;    // Soulkin: 300 in melee and an interrupt
     public const uint ScouringAshId = 44903;  // Ashkin: cleanse, +10% HP when it removes something

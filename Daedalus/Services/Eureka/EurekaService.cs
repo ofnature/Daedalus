@@ -19,7 +19,6 @@ namespace Daedalus.Services.Eureka;
 public sealed unsafe class EurekaService
 {
     private static readonly TimeSpan SendEvery = TimeSpan.FromSeconds(3);
-    private static readonly TimeSpan ScanEvery = TimeSpan.FromMilliseconds(500);
 
     private readonly Configuration _configuration;
     private readonly IClientState _clientState;
@@ -29,8 +28,6 @@ public sealed unsafe class EurekaService
 
     private string? _sentAuto;
     private DateTime _nextSendUtc;
-    private DateTime _nextScanUtc;
-    private DateTime? _enemiesOnMeUtc;
 
     /// <summary>The live instance, for the settings page's readout.</summary>
     public static EurekaService? Current { get; private set; }
@@ -91,23 +88,13 @@ public sealed unsafe class EurekaService
             if (player == null || !InEureka || _condition[ConditionFlag.BetweenAreas] || _condition[ConditionFlag.OccupiedInCutSceneEvent])
             {
                 if (!InEureka)
-                {
                     _sentAuto = null;
-                    _enemiesOnMeUtc = null;
-                }
 
                 return;
             }
 
             var now = DateTime.UtcNow;
-            if (now >= _nextScanUtc)
-            {
-                _nextScanUtc = now + ScanEvery;
-                if (AnEnemyIsOn(player))
-                    _enemiesOnMeUtc = now;
-            }
-
-            var wanted = EurekaRules.WantedAuto(_configuration.Eureka.MagiaMode, isTank, _enemiesOnMeUtc, now);
+            var wanted = EurekaRules.WantedAuto(_configuration.Eureka.MagiaMode, isTank);
             if (wanted == null || wanted == _sentAuto || now < _nextSendUtc)
                 return;
 
@@ -124,18 +111,6 @@ public sealed unsafe class EurekaService
         {
             _log.Warning(ex, "EurekaService: update failed");
         }
-    }
-
-    private bool AnEnemyIsOn(IPlayerCharacter player)
-    {
-        foreach (var obj in _objectTable)
-        {
-            if (obj is IBattleNpc { IsDead: false } npc && npc.TargetObjectId == player.GameObjectId
-                && npc.BattleNpcKind == Dalamud.Game.ClientState.Objects.Enums.BattleNpcSubKind.Combatant)
-                return true;
-        }
-
-        return false;
     }
 
     /// <summary>A game text command (not a plugin one), as if typed in chat.</summary>

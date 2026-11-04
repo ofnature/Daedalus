@@ -13,6 +13,11 @@ public interface IDebuffDetectionService
     bool IsDispellable(uint statusId);
 
     /// <summary>
+    /// A beneficial status (StatusCategory 1) the game lets a dispel remove — an enemy buff for Quelling Wave.
+    /// </summary>
+    bool IsDispellableBuff(uint statusId) => false;
+
+    /// <summary>
     /// Gets the priority tier for a dispellable debuff.
     /// </summary>
     DebuffPriority GetDebuffPriority(uint statusId);

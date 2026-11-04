@@ -90,6 +90,16 @@ public sealed class DebuffDetectionService : IDebuffDetectionService
         return status.HasValue && status.Value.CanDispel;
     }
 
+    /// <inheritdoc />
+    public bool IsDispellableBuff(uint statusId)
+    {
+        if (_statusSheet == null)
+            return false;
+
+        var status = _statusSheet.GetRowOrDefault(statusId);
+        return status.HasValue && status.Value.CanDispel && status.Value.StatusCategory == 1;
+    }
+
     /// <summary>
     /// Gets the priority tier for a dispellable debuff.
     /// </summary>

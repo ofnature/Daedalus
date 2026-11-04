@@ -10,8 +10,6 @@ namespace Daedalus.Tests.Services.Eureka;
 /// <summary>Eureka: the zones, the Magia Board setting, Feint L, Bloodbath L, the level guard, and the Logos table.</summary>
 public class EurekaRulesTests
 {
-    private static readonly DateTime Now = new(2026, 11, 1, 12, 0, 0, DateTimeKind.Utc);
-
     [Theory]
     [InlineData(732u, true)]  // Anemos
     [InlineData(763u, true)]  // Pagos
@@ -25,24 +23,19 @@ public class EurekaRulesTests
     [Fact]
     public void FixedModesAlwaysAskForTheirSetting()
     {
-        Assert.Equal("attack", EurekaRules.WantedAuto(EurekaMagiaMode.Attack, isTank: true, Now, Now));
-        Assert.Equal("defense", EurekaRules.WantedAuto(EurekaMagiaMode.Defense, isTank: false, null, Now));
-        Assert.Null(EurekaRules.WantedAuto(EurekaMagiaMode.Off, isTank: true, Now, Now));
+        Assert.Equal("attack", EurekaRules.WantedAuto(EurekaMagiaMode.Attack, isTank: true));
+        Assert.Equal("defense", EurekaRules.WantedAuto(EurekaMagiaMode.Defense, isTank: false));
+        Assert.Null(EurekaRules.WantedAuto(EurekaMagiaMode.Off, isTank: true));
     }
 
-    /// <summary>A tank goes to defense while enemies are on it, and holds it 15 s after the last one left.</summary>
+    /// <summary>By job: a tank is on defense whether or not anything is on it yet (Korha 2026-11-03).</summary>
     [Fact]
-    public void ATankDefendsWhileTankingAndHoldsItThroughShortGaps()
-    {
-        Assert.Equal("attack", EurekaRules.WantedAuto(EurekaMagiaMode.TankDefense, isTank: true, null, Now));
-        Assert.Equal("defense", EurekaRules.WantedAuto(EurekaMagiaMode.TankDefense, isTank: true, Now, Now));
-        Assert.Equal("defense", EurekaRules.WantedAuto(EurekaMagiaMode.TankDefense, isTank: true, Now.AddSeconds(-14), Now));
-        Assert.Equal("attack", EurekaRules.WantedAuto(EurekaMagiaMode.TankDefense, isTank: true, Now.AddSeconds(-16), Now));
-    }
+    public void ATankIsAlwaysOnDefense()
+        => Assert.Equal("defense", EurekaRules.WantedAuto(EurekaMagiaMode.TankDefense, isTank: true));
 
     [Fact]
-    public void ADpsInTankModeStaysOnAttack()
-        => Assert.Equal("attack", EurekaRules.WantedAuto(EurekaMagiaMode.TankDefense, isTank: false, Now, Now));
+    public void EveryOtherJobIsOnAttack()
+        => Assert.Equal("attack", EurekaRules.WantedAuto(EurekaMagiaMode.TankDefense, isTank: false));
 
     /// <summary>Feint L: Wind enemies only, and only when Evasion Down is missing or nearly out.</summary>
     [Fact]

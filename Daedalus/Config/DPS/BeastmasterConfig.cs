@@ -30,7 +30,8 @@ public sealed class BeastmasterConfig
     /// <summary>
     /// Fire Parting Blow. Off by default: it deals 1,000 potency in 8y but the familiar RETREATS
     /// afterwards, which ends Trick until the player summons again. That is a trade the player
-    /// should opt into, not one the rotation should make unprompted.
+    /// should opt into, not one the rotation should make unprompted. Ignored on a Crucible board, where the board
+    /// logic chooses its own Blows (see ArtemisCooldownRules.AllowsPartingBlow).
     /// </summary>
     public bool EnablePartingBlow { get; set; }
 
@@ -97,6 +98,9 @@ public sealed class BeastmasterConfig
     /// out of reach for a whole fight.
     /// </summary>
     public bool CrucibleKeepInMelee { get; set; } = true;
+
+    /// <summary>Record every board run with the goal on Legendary (starts on the board, stops on leaving it).</summary>
+    public bool CrucibleAutoRecordLegendary { get; set; } = true;
 
     /// <summary>
     /// On a board, when the familiar drops under 20% HP: fire its Tempered Release if it is still owed, then Parting

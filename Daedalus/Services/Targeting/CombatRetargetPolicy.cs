@@ -132,6 +132,30 @@ internal static class CombatRetargetPolicy
         => legendaryOnBoard && nameId == Daedalus.Rotation.ArtemisCore.Helpers.ArtemisCooldownRules.CrawlingPieceNameId
            && !targetsPlayer && !hasGrabbed;
 
+    /// <summary>Second Master's Board, Medusa: the Lamia Piece. A living Lamia casts Raise (10 s) on a dead one.</summary>
+    public const uint LamiaPieceNameId = 14661;
+
+    /// <summary>Switch to another Lamia once it is this much fuller than the one being hit.</summary>
+    public const float BalanceHpGapPct = 0.10f;
+
+    /// <summary>
+    /// Keep the Lamias' HP even so they die together and neither is left alive to Raise the other (user, 2026-11-02:
+    /// "should just balance anyway", Soulkin interrupt or not). Only while a Lamia is the target, so Medusa is never
+    /// left for one. Returns the fullest other Lamia when it is more than <see cref="BalanceHpGapPct"/> fuller, else 0.
+    /// The gap is the hysteresis: the target only flips back once the first Lamia is the fuller by as much again.
+    /// </summary>
+    public static ulong BalancePick(float heldHpPct, System.Collections.Generic.IEnumerable<(ulong Id, float HpPct)> others)
+    {
+        var (best, bestPct) = (0UL, heldHpPct + BalanceHpGapPct);
+        foreach (var (id, pct) in others)
+        {
+            if (pct > 0f && pct > bestPct)
+                (best, bestPct) = (id, pct);
+        }
+
+        return best;
+    }
+
     /// <summary>The enemy to kill to break a status that lasts until its source dies, or 0.</summary>
     public static ulong SourceToKill(System.Collections.Generic.IEnumerable<(uint StatusId, ulong SourceId)> playerStatuses)
     {

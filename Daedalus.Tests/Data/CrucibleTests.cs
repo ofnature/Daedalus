@@ -410,6 +410,22 @@ public class CrucibleTests
         Assert.True(ArtemisCooldownRules.AllowsPartingBlow(enabled: true, familiarFalling: false));
     }
 
+    /// <summary>On a board the setting is ignored: it cycled the horns on every cooldown (roommate, 2026-11-02).</summary>
+    [Fact]
+    public void ThePartingBlowSettingDoesNotCountOnABoard()
+    {
+        Assert.False(ArtemisCooldownRules.AllowsPartingBlow(enabled: true, familiarFalling: false, onBoard: true));
+        Assert.True(ArtemisCooldownRules.AllowsPartingBlow(enabled: true, familiarFalling: false, onBoard: false));
+    }
+
+    /// <summary>A falling familiar still retreats on a board, setting on or off.</summary>
+    [Fact]
+    public void AFallingFamiliarStillRetreatsOnABoard()
+    {
+        Assert.True(ArtemisCooldownRules.AllowsPartingBlow(enabled: true, familiarFalling: true, onBoard: true));
+        Assert.True(ArtemisCooldownRules.AllowsPartingBlow(enabled: false, familiarFalling: true, onBoard: true));
+    }
+
     [Fact]
     public void TheDutyActionsAreTheGamesChallengeAndSnarl()
     {
@@ -980,5 +996,47 @@ public class CrucibleTests
         Assert.True(ArtemisCooldownRules.MantisReleasesNow(stingFight: false, true, false, 0.9f, false, 10));
         Assert.True(ArtemisCooldownRules.MantisReleasesNow(true, wespeWaiting: false, false, 0.9f, false, 10));
         Assert.True(ArtemisCooldownRules.MantisReleasesNow(true, true, falling: true, 0.9f, false, 10));
+    }
+
+    /// <summary>
+    /// The Mantis holds for a Wespe in any horn but the out one, ready or still cooling from an earlier fight — the
+    /// roommate's Mantis let go at a boss's pull when only a ready Wespe counted.
+    /// </summary>
+    [Fact]
+    public void TheMantisHoldsForAWespeInAnyOtherHornReadyOrNot()
+    {
+        uint[] bossOrder = [16, 10, 44]; // Mantis, Wespe, Damselfly
+        Assert.True(Daedalus.Rotation.ArtemisCore.Helpers.ArtemisFamiliarKeeper.WespeInRoster(true, 0, bossOrder));
+        Assert.False(Daedalus.Rotation.ArtemisCore.Helpers.ArtemisFamiliarKeeper.WespeInRoster(true, 1, bossOrder)); // the Wespe is out
+        Assert.False(Daedalus.Rotation.ArtemisCore.Helpers.ArtemisFamiliarKeeper.WespeInRoster(false, 0, bossOrder)); // roster unread
+        Assert.False(Daedalus.Rotation.ArtemisCore.Helpers.ArtemisFamiliarKeeper.WespeInRoster(true, 0, [16u, 44u, 28u])); // no Wespe
+    }
+
+    /// <summary>Auto-record starts once per board on a Legendary attempt, and only when nothing is recording.</summary>
+    [Fact]
+    public void AutoRecordStartsOncePerLegendaryBoard()
+    {
+        Assert.Equal(Daedalus.Services.Beastmaster.CrucibleRecorder.AutoStep.Start,
+            Daedalus.Services.Beastmaster.CrucibleRecorder.AutoRecordStep(true, true, false, false, false));
+        Assert.Equal(Daedalus.Services.Beastmaster.CrucibleRecorder.AutoStep.None, // not Legendary / option off
+            Daedalus.Services.Beastmaster.CrucibleRecorder.AutoRecordStep(false, true, false, false, false));
+        Assert.Equal(Daedalus.Services.Beastmaster.CrucibleRecorder.AutoStep.None, // already recording by hand
+            Daedalus.Services.Beastmaster.CrucibleRecorder.AutoRecordStep(true, true, true, false, false));
+    }
+
+    /// <summary>Stopped by hand mid-board: it stays stopped until the next board.</summary>
+    [Fact]
+    public void AutoRecordStoppedByHandStaysStoppedForTheBoard()
+        => Assert.Equal(Daedalus.Services.Beastmaster.CrucibleRecorder.AutoStep.None,
+            Daedalus.Services.Beastmaster.CrucibleRecorder.AutoRecordStep(true, true, false, startedThisBoard: true, false));
+
+    /// <summary>Leaving the board stops a recording auto-record started, never one started by hand.</summary>
+    [Fact]
+    public void LeavingTheBoardStopsOnlyAnAutoRecording()
+    {
+        Assert.Equal(Daedalus.Services.Beastmaster.CrucibleRecorder.AutoStep.Stop,
+            Daedalus.Services.Beastmaster.CrucibleRecorder.AutoRecordStep(true, false, true, true, autoRecording: true));
+        Assert.Equal(Daedalus.Services.Beastmaster.CrucibleRecorder.AutoStep.None,
+            Daedalus.Services.Beastmaster.CrucibleRecorder.AutoRecordStep(true, false, true, false, autoRecording: false));
     }
 }

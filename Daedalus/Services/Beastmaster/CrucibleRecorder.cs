@@ -125,6 +125,49 @@ public sealed unsafe class CrucibleRecorder : IDisposable
 
     public bool Recording => _file != null;
 
+    /// <summary>Where the recordings go (pluginConfigs\Daedalus\crucible-recordings).</summary>
+    public string Folder => _folder;
+
+    /// <summary>What <see cref="AutoRecord"/> does this frame.</summary>
+    public enum AutoStep { None, Start, Stop }
+
+    private bool _autoStartedThisBoard;
+    private bool _autoRecording;
+
+    /// <summary>
+    /// The auto-record rule: start once per board when wanted (a Legendary attempt with the option on) and not already
+    /// recording; stop on leaving the board, but only a recording it started itself. A recording stopped by hand mid-board
+    /// stays stopped until the next board.
+    /// </summary>
+    public static AutoStep AutoRecordStep(bool wanted, bool onBoard, bool recording, bool startedThisBoard, bool autoRecording)
+        => !onBoard
+            ? recording && autoRecording ? AutoStep.Stop : AutoStep.None
+            : wanted && !recording && !startedThisBoard ? AutoStep.Start : AutoStep.None;
+
+    /// <summary>Framework thread, every frame: start and stop the auto recording (see <see cref="AutoRecordStep"/>).</summary>
+    public void AutoRecord(bool wanted, bool onBoard)
+    {
+        switch (AutoRecordStep(wanted, onBoard, Recording, _autoStartedThisBoard, _autoRecording))
+        {
+            case AutoStep.Start:
+                _autoStartedThisBoard = true;
+                var started = Toggle();
+                _autoRecording = Recording;
+                _log("Crucible: auto-record (Legendary) — " + started);
+                break;
+            case AutoStep.Stop:
+                Stop();
+                _log("Crucible: auto-record stopped (left the board).");
+                break;
+        }
+
+        if (!onBoard)
+        {
+            _autoStartedThisBoard = false;
+            _autoRecording = false;
+        }
+    }
+
     /// <summary>Start, or stop if already recording. Returns what to tell the player.</summary>
     public string Toggle()
     {

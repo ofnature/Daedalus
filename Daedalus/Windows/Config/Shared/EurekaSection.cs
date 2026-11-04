@@ -19,7 +19,7 @@ public sealed class EurekaSection
     private static readonly Vector4 Amber = new(0.92f, 0.72f, 0.33f, 1f);
     private static readonly Vector4 Dim = new(0.54f, 0.54f, 0.58f, 1f);
 
-    private static readonly string[] MagiaLabels = ["Off (leave it to me)", "Attack", "Defense", "Attack; defense while tanking"];
+    private static readonly string[] MagiaLabels = ["Off (leave it to me)", "Attack", "Defense", "Defense on a tank, Attack otherwise"];
 
     private static readonly (string Title, LostRole[] Roles, string Help)[] Groups =
     [
@@ -62,9 +62,9 @@ public sealed class EurekaSection
         var mode = (int)cfg.MagiaMode;
         if (ConfigUIHelpers.StringCombo("Magia Board", ref mode, MagiaLabels,
                 "Uses the game's own /magiaauto, so the game picks the element for whatever you target. Attack: the "
-                + "element that beats it. Defense: its own element (less damage from it). The last option is Attack, "
-                + "but a tank with enemies on it goes to Defense and back 15 s after they are gone. Each turn costs "
-                + "Magia Aether, so the setting only changes when it has to.",
+                + "element that beats it. Defense: its own element (less damage from it). The last option goes by your job: Defense "
+                + "on a tank, Attack on any other job, so each box in a party sets its own. Each turn costs Magia "
+                + "Aether, so the setting only changes when it has to (a job change, or entering Eureka).",
                 () => { }))
         {
             cfg.MagiaMode = (EurekaMagiaMode)mode;
@@ -150,8 +150,8 @@ public sealed class EurekaSection
 
         if (ImGui.IsItemHovered())
             ImGui.SetTooltip("Uses the game's own /magiaauto: Attack = the element that beats your target, Defense = its own\n"
-                             + "element. The last option is Attack, but a tank with enemies on it goes to Defense until 15 s\n"
-                             + "after they are gone. Each turn costs Magia Aether, so it only changes when it has to.");
+                             + "element. The last option goes by your job: Defense on a tank, Attack on any other job.\n"
+                             + "Each turn costs Magia Aether, so it only changes when it has to.");
 
         var above = cfg.MaxLevelsAbove;
         ImGui.SetNextItemWidth(230f * scale);

@@ -557,6 +557,36 @@ public sealed class CrucibleTeamWindow : Window
                 ? "Recording the Crucible. Stop it after the run (or where something went wrong) and send it over.\n" + _recordStatus
                 : "Records the screens, clicks, your position and HP and your familiars' HP for a run — what is needed\n"
                   + "to see what went wrong. Same as /dae crucible record. Files go to pluginConfigs\\Daedalus\\crucible-recordings.");
+
+        ImGui.SameLine();
+        if (ImGui.Button("Folder##crucibleRecordFolder"))
+        {
+            try
+            {
+                System.IO.Directory.CreateDirectory(recorder.Folder);
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(recorder.Folder) { UseShellExecute = true });
+            }
+            catch (Exception ex)
+            {
+                _recordStatus = $"Could not open the folder: {ex.Message}";
+            }
+        }
+
+        if (ImGui.IsItemHovered())
+            ImGui.SetTooltip("Open the recordings folder:\n" + recorder.Folder);
+
+        ImGui.SameLine();
+        var config = _config();
+        var auto = config.CrucibleAutoRecordLegendary;
+        if (ImGui.Checkbox("Auto (Legendary)##crucibleAutoRecord", ref auto))
+        {
+            config.CrucibleAutoRecordLegendary = auto;
+            _save();
+        }
+
+        if (ImGui.IsItemHovered())
+            ImGui.SetTooltip("Record every board run with the goal on Legendary: it starts when you are on the board and stops\n"
+                             + "when you leave it. Stopping it by hand mid-run keeps it off until the next board.");
     }
 
     /// <summary>On a board: the autopilot switch and what it did last.</summary>

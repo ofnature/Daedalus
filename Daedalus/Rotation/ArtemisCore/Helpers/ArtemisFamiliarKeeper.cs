@@ -31,6 +31,15 @@ public static class ArtemisFamiliarKeeper
     public const double RefusedRetrySeconds = 15.0;
 
     /// <summary>
+    /// The horn last out, kept or forgotten: on a Crucible board it is forgotten between fights, because the horn
+    /// setter reorders the horns per battle and the next fight must open on the first one. Remembering it made the
+    /// Pas de Seul pull (a boss pull, which counts as combat before the game does) blow the Third Battlehorn — the
+    /// Wespe's in the Ogre fight, Damselfly's by then — and open with poison on a poison-immune boss (Korha 2026-11-01).
+    /// </summary>
+    public static int LastOutBetweenFights(int lastOutSlot, bool onBoard, bool inCombat)
+        => onBoard && !inCombat ? None : lastOutSlot;
+
+    /// <summary>
     /// The horn to blow, or <see cref="None"/>.
     /// </summary>
     /// <param name="enabled">The setting.</param>
@@ -81,6 +90,25 @@ public static class ArtemisFamiliarKeeper
         }
 
         return None;
+    }
+
+    /// <summary>
+    /// True when the roster is known and a Wespe sits in a horn other than the out one, ready or not: the Mantis holds
+    /// its Soundwave for it. Not "ready" (as <see cref="WespeWaiting"/>): a horn's cooldown starts when its beast
+    /// retreats, so a Wespe pulled out in an earlier fight could still be cooling at a boss's pull, and the Mantis let
+    /// go at once (roommate's run, 2026-11-01).
+    /// </summary>
+    public static bool WespeInRoster(bool rosterKnown, int outSlot, ReadOnlySpan<uint> beasts)
+    {
+        if (!rosterKnown)
+            return false;
+        for (var i = 0; i < beasts.Length; i++)
+        {
+            if (i != outSlot && beasts[i] == Daedalus.Rotation.ArtemisCore.Modules.DamageModule.WespeBestiaryNo)
+                return true;
+        }
+
+        return false;
     }
 
     /// <summary>
