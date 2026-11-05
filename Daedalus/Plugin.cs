@@ -42,7 +42,7 @@ namespace Daedalus;
 
 public sealed class Plugin : IDalamudPlugin
 {
-    public const string PluginVersion = "0.1.122";
+    public const string PluginVersion = "0.1.123";
     private const string CommandName = "/daedalus";
 
     /// <summary>LAN relay channel for Necromancer Deep Freeze "heal me to full" announcements.</summary>
@@ -900,7 +900,7 @@ public sealed class Plugin : IDalamudPlugin
             partyCoordinationService, Daedalus.Data.LogosActionData.All, () => configuration.Eureka.Logos, "Eureka");
 
         // Eureka: the Magia Board (the game's /magiaauto) and elemental levels.
-        this.eurekaService = new Daedalus.Services.Eureka.EurekaService(configuration, clientState, condition, objectTable, log);
+        this.eurekaService = new Daedalus.Services.Eureka.EurekaService(configuration, clientState, condition, objectTable, log, chatGui);
 
         // Consumable service: inventory probing + recast cooldown + ShouldUseTinctureNow gate.
         // Per-fight inventory-empty warning routed through chatGui.
@@ -2627,7 +2627,13 @@ public sealed class Plugin : IDalamudPlugin
                 crucibleLoop.Update(
                     crucibleRunning && configuration.Beastmaster.CrucibleAutoPilot, ref runsLeft, Daedalus.Services.Beastmaster.CrucibleTracker.Current.Board,
                     objectTable.LocalPlayer, objectTable, condition[Dalamud.Game.ClientState.Conditions.ConditionFlag.InCombat],
-                    crucibleRosterFor, crucibleRosterLoader);
+                    crucibleRosterFor, crucibleRosterLoader, configuration.Beastmaster.CrucibleDegree,
+                    configuration.Beastmaster is { CrucibleLoopUntilMaxRank: true, CrucibleGoal: Daedalus.Data.CrucibleTeamGoal.Level }
+                    && crucibleIsCaptured is { } isCaptured
+                        ? () => Daedalus.Data.CrucibleLoopRules.LevelingFinished(
+                            Daedalus.Data.BstFamiliars.All.Select(b => b.BestiaryNo).Where(isCaptured).ToList(),
+                            no => configuration.Beastmaster.CrucibleRanks.TryGetValue(no, out var rank) ? rank : null)
+                        : null);
                 if (runsLeft != configuration.Beastmaster.CrucibleLoopRuns)
                 {
                     configuration.Beastmaster.CrucibleLoopRuns = runsLeft;
@@ -2926,6 +2932,7 @@ public sealed class Plugin : IDalamudPlugin
         performanceTracker.Dispose();
         potTreasureHunt.Dispose(); // unhooks the chat handler
         treasuresightLog.Dispose();
+        eurekaService.Dispose();
         dpsMeterService.Dispose();
         drawingService.Dispose();
         localization.Dispose();

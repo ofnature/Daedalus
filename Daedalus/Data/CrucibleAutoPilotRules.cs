@@ -339,6 +339,32 @@ public static class CrucibleAutoPilotRules
     public const int ShopBuyEvent = 2;
     public const int ShopLeaveEvent = 0;
 
+    /// <summary>
+    /// Selling (recording 2026-11-04, Korha, Second Master's Board): [3, k] sells the held Crucible item in slot k,
+    /// [4, k] the beast gear in HUD gear slot k; each asks "Sell the … for N territory tokens?". Items sell for about
+    /// 45% of their price, gear for about 20%.
+    /// </summary>
+    public const int ShopSellItemEvent = 3;
+    public const int ShopSellGearEvent = 4;
+
+    /// <summary>
+    /// Temporal Sand's XBMItem row (the shop's held list and the director's inventory both read 138). Sold for 315
+    /// tokens at any shop outside Legendary (user 2026-11-04: sell rather than keep it as a retry).
+    /// </summary>
+    public const int TemporalSandRow = 138;
+
+    /// <summary>The held-item slot to sell at a shop (Temporal Sand), or -1. Slots are in the shop's held order; 0 = empty.</summary>
+    public static int ShopSellSlot(IReadOnlyList<int> heldRowsBySlot)
+    {
+        for (var k = 0; k < heldRowsBySlot.Count; k++)
+        {
+            if (heldRowsBySlot[k] == TemporalSandRow)
+                return k;
+        }
+
+        return -1;
+    }
+
     public static int ShopItemIdIndex(int row) => 4 + (LootRowStride * row);
 
     public static int ShopPriceIndex(int row) => ShopItemIdIndex(row) + 1;
@@ -384,10 +410,12 @@ public static class CrucibleAutoPilotRules
     /// The resistance serums (XBMItem rows, best first) for a board's final boss (research 2026-11-01): Guttler and Lauda
     /// paralyse (Thunderbolt) — G2 Antiparalysis lasts 300 s, the whole fight, for you and the familiar; Borgny's
     /// Toxicosis is answered only by poison resistance (cleansing does not remove it). G2 covers "self and nearby
-    /// allies", G1 only one; the Swiftness potion adds poison resistance for the battle. Empty elsewhere.
+    /// allies", G1 only one; the Swiftness potion adds poison resistance for the battle. Pas de Seul (First Board) puts
+    /// you to sleep with Nightmare: G2/G1 Antisleep. Empty elsewhere.
     /// </summary>
     public static IReadOnlyList<int> BossSerumRows(int board) => board switch
     {
+        1 => [95, 94],          // G2, G1 Antisleep Soul Serum
         3 or 5 => [89, 88],     // G2, G1 Antiparalysis Soul Serum
         4 => [87, 86, 114],     // G2, G1 Antipoison Soul Serum; Potion of Breathtaking Swiftness
         _ => [],
@@ -499,19 +527,25 @@ public static class CrucibleAutoPilotRules
         IReadOnlyList<CrucibleShopOffer> offers, int tokens, int? gearHeld, Func<int, bool> isGear,
         Func<int, string?> effectOf, IReadOnlyCollection<string>? wantedResistances = null)
     {
+        // Best first, re-scored after each buy: a resistance just bought stops counting for the next piece.
         var buys = new List<int>();
-        foreach (var (offer, _) in offers
-                     .Where(o => !o.Sold && isGear(o.ItemId))
-                     .Select(o => (Offer: o, Score: TreasureScore(effectOf(o.ItemId), wantedResistances)))
-                     .Where(x => x.Score > 0)
-                     .OrderByDescending(x => x.Score).ThenBy(x => x.Offer.Price))
+        var wanted = wantedResistances?.ToList() ?? [];
+        var left = offers.Where(o => !o.Sold && isGear(o.ItemId)).ToList();
+        while ((gearHeld ?? 0) + buys.Count < HeldGearMaxRows)
         {
-            if ((gearHeld ?? 0) + buys.Count >= HeldGearMaxRows)
+            var best = left
+                .Where(o => o.Price <= tokens)
+                .Select(o => (Offer: o, Score: TreasureScore(effectOf(o.ItemId), wanted)))
+                .Where(x => x.Score > 0)
+                .OrderByDescending(x => x.Score).ThenBy(x => x.Offer.Price)
+                .FirstOrDefault();
+            if (best.Offer.ItemId == 0)
                 break;
-            if (offer.Price > tokens)
-                continue;
-            tokens -= offer.Price;
-            buys.Add(offer.Row);
+            tokens -= best.Offer.Price;
+            buys.Add(best.Offer.Row);
+            left.Remove(best.Offer);
+            var covered = ResistancesOf(effectOf(best.Offer.ItemId)).ToHashSet(StringComparer.Ordinal);
+            wanted.RemoveAll(covered.Contains);
         }
 
         return buys;
@@ -604,10 +638,13 @@ public static class CrucibleAutoPilotRules
     /// The statuses each board's fights make worth resisting, by board (XBMContent row, = CrucibleBoard.Index). Research 2026-10-26
     /// (docs/crucible-boards-guide.md): Board 2's Taurus/Ahriman Doom; Board 3's Guttler Thunderbolt and Sahagin spikes
     /// (uncleansable Paralysis); First Master's Borgny (poison resistance "trivializes" it) and Morbol; Second Master's
-    /// Lauda (anti-paralysis "mandatory"), King Ahriman's Dirty Eye Doom, Medusa and Deepeye petrification.
+    /// Lauda (anti-paralysis "mandatory"), King Ahriman's Dirty Eye Doom, Medusa and Deepeye petrification. First
+    /// Board (2026-11-04, Third Degree research): Pas de Seul sleeps you (Nightmare — "anti-sleep before the fight") and
+    /// poisons (Angel Robe makes you immune) — Black Cowl and Angel Robe are the gear for them.
     /// </summary>
     public static IReadOnlyList<string> WantedResistances(int board) => board switch
     {
+        1 => ["Sleep", "Poison"],
         2 => ["Doom"],
         3 => ["Paralysis"],
         4 => ["Poison", "Paralysis"],
@@ -617,6 +654,29 @@ public static class CrucibleAutoPilotRules
 
     private static readonly System.Text.RegularExpressions.Regex RecoverAfterBattle =
         new(@"Recovers (?<n>\d+)% of maximum HP at the end of battles", System.Text.RegularExpressions.RegexOptions.Compiled);
+
+    /// <summary>The statuses a piece of gear resists ("Sleep" for "Sleep Resistance +100%"), from its effect text.</summary>
+    public static IEnumerable<string> ResistancesOf(string? effect)
+    {
+        if (string.IsNullOrEmpty(effect))
+            yield break;
+        foreach (var raw in effect.Split('\n', '\r'))
+        {
+            var m = TreasureStatLine.Match(raw.Trim());
+            if (m.Success && m.Groups["sign"].Value == "+" && m.Groups["stat"].Value.EndsWith(" Resistance", StringComparison.Ordinal))
+                yield return m.Groups["stat"].Value[..^" Resistance".Length];
+        }
+    }
+
+    /// <summary>
+    /// The board's wanted resistances (<see cref="WantedResistances"/>) that the held gear does not already give: a
+    /// second Sleep piece adds nothing, so it stops scoring as one.
+    /// </summary>
+    public static IReadOnlyList<string> WantedResistancesLeft(int board, IEnumerable<string?> heldGearEffects)
+    {
+        var held = heldGearEffects.SelectMany(ResistancesOf).ToHashSet(StringComparer.Ordinal);
+        return WantedResistances(board).Where(r => !held.Contains(r)).ToList();
+    }
 
     /// <summary>
     /// Gear that can Doom the beastmaster: the Demonic Helm, "1% chance to inflict Doom on self upon suffering damage.
@@ -759,6 +819,7 @@ public static class CrucibleAutoPilotRules
         "Choose the ",                    // treasure coffer
         "Conclude purchasing and leave",  // leaving the shop
         "Purchase the ",                  // buying a Crucible item, should the shop ask (never a feed: those are not bought)
+        "Sell the ",                      // selling: "Sell the pinch of temporal sand for 315 territory tokens?"
         "Rest ",                          // campsite: "Rest and recover 45%…" / "Rest alone while your familiars keep watch…"
         "Leave the campsite",             // campsite, Legendary: "Leave the campsite without resting? / You cannot return…"
         "Close the coffer",               // coffer, Legendary: "Close the coffer without receiving any items? / You cannot reopen…"

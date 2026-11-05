@@ -43,6 +43,15 @@ public sealed unsafe class CrucibleAutoPilot
     private int _shopPendingRow = -1;
     private int _shopPendingHeld;
     private DateTime _shopPendingUtc;
+    /// <summary>
+    /// The beast gear held (XBMItem rows), read off the board HUD whenever it is up and remembered while it is not —
+    /// the HUD closes while a shop, coffer or spoils window is open, which is where the gear is chosen.
+    /// </summary>
+    private readonly List<int> _heldGear = new();
+    private bool _heldGearKnown;
+    private int _shopSellSlot = -1;
+    private DateTime _shopSellUtc;
+    private bool _shopSellGaveUp;
     private bool _boughtOnBoard;
     private bool _itemUsedOnBoard;
     private bool _hoarderPays;
@@ -126,7 +135,11 @@ public sealed unsafe class CrucibleAutoPilot
             _gearTakenOnBoard = false;
             _boughtOnBoard = false;
             _itemUsedOnBoard = false;
+            _heldGear.Clear();
+            _heldGearKnown = false;
         }
+
+        ReadHeldGear();
 
         _legendaryNoGear = legendary && board != null && !CrucibleAutoPilotRules.LegendaryTakesGear && !_gearTakenOnBoard;
         _legendary = legendary;
@@ -250,7 +263,7 @@ public sealed unsafe class CrucibleAutoPilot
         var treasure = Visible("XBMContentsTreasure");
         if (treasure != null)
         {
-            TakeTreasure(now, treasure, CrucibleAutoPilotRules.WantedResistances(board.Index));
+            TakeTreasure(now, treasure, WantedResistancesLeft(board));
             return;
         }
 
@@ -268,6 +281,8 @@ public sealed unsafe class CrucibleAutoPilot
         _shopPlan = null;
         _shopPendingRow = -1;
         _shopSinceUtc = default;
+        _shopSellSlot = -1;
+        _shopSellGaveUp = false;
 
         var party = PartyAgent();
         var camp = party != null && party->Mode == 4 ? Visible("XBMPetParty") : null;
@@ -352,6 +367,36 @@ public sealed unsafe class CrucibleAutoPilot
             fangHeld |= CrucibleAutoPilotRules.FangItemIds.Contains((uint)(heldRow + CrucibleAutoPilotRules.CrucibleItemIconOffset));
         }
 
+        // Sell first, so the tokens it brings are there when the purchases are planned. Not on Legendary: its shops
+        // buy to hold ten items (Habitual Hoarder).
+        if (_shopPlan == null && !_legendary && !_shopSellGaveUp)
+        {
+            var bySlot = new List<int>(CrucibleAutoPilotRules.MaxCrucibleItemsHeld);
+            for (var k = 0; k < CrucibleAutoPilotRules.MaxCrucibleItemsHeld; k++)
+                bySlot.Add((int)Number(shop, CrucibleAutoPilotRules.ShopHeldItemRowIndex(k)));
+            var sell = CrucibleAutoPilotRules.ShopSellSlot(bySlot);
+            if (sell >= 0)
+            {
+                if (sell == _shopSellSlot && now - _shopSellUtc < ShopBuyTimeout)
+                    return; // waiting for it to go
+                if (sell == _shopSellSlot)
+                {
+                    _log($"Crucible: shop — selling {_itemName(bySlot[sell])} did not go through; buying without it.");
+                    _shopSellGaveUp = true;
+                }
+                else
+                {
+                    _shopSellSlot = sell;
+                    _shopSellUtc = now;
+                    _log($"Crucible: shop — selling {_itemName(bySlot[sell])} for tokens.");
+                    Expect("Sell the ", now);
+                    Fire(shop, CrucibleAutoPilotRules.ShopSellItemEvent, sell);
+                    Done(now, $"Selling {_itemName(bySlot[sell])}.");
+                    return;
+                }
+            }
+        }
+
         if (_shopPlan == null)
         {
             var plan = _legendary
@@ -385,7 +430,7 @@ public sealed unsafe class CrucibleAutoPilot
                 // Gear with what the potions leave (the shop only offers each piece once).
                 var left = tokens - plan.Sum(r => offers.First(o => o.Row == r).Price);
                 plan = plan.Concat(CrucibleAutoPilotRules.ShopBuysForGear(
-                    offers, left, HudGearHeld(), _isBeastGear, _itemEffect, CrucibleAutoPilotRules.WantedResistances(board.Index))).ToList();
+                    offers, left, GearHeld(), _isBeastGear, _itemEffect, WantedResistancesLeft(board))).ToList();
             }
 
             _shopPlan = new Queue<int>(plan);
@@ -439,21 +484,32 @@ public sealed unsafe class CrucibleAutoPilot
         }
     }
 
-    /// <summary>Beast gear held, off the board HUD (ten slots); null when the HUD is not up.</summary>
-    private static int? HudGearHeld()
+    /// <summary>
+    /// Refresh <see cref="_heldGear"/> from the board HUD when it is up: slot k owned at [60 + 5k], its XBMItem row at
+    /// [63 + 5k] (recording 2026-11-04).
+    /// </summary>
+    private void ReadHeldGear()
     {
         var hud = CrucibleAddons.Visible("XBMContentsMainHUD");
         if (hud == null)
-            return null;
-        var gear = 0;
+            return;
+        _heldGear.Clear();
         for (var slot = 0; slot < CrucibleAutoPilotRules.HudGearSlots; slot++)
         {
-            if (CrucibleAddons.Bool(hud, CrucibleAutoPilotRules.HudGearHeldIndex(slot)) || Number(hud, CrucibleAutoPilotRules.HudGearHeldIndex(slot)) != 0)
-                gear++;
+            var index = CrucibleAutoPilotRules.HudGearHeldIndex(slot);
+            if (CrucibleAddons.Bool(hud, index) || Number(hud, index) != 0)
+                _heldGear.Add((int)Number(hud, index + 3));
         }
 
-        return gear;
+        _heldGearKnown = true;
     }
+
+    /// <summary>Beast gear held (live off the HUD, else as last seen on this board); null before it has been seen.</summary>
+    private int? GearHeld() => _heldGearKnown ? _heldGear.Count : null;
+
+    /// <summary>The board's wanted resistances that the gear held does not already cover.</summary>
+    private IReadOnlyList<string> WantedResistancesLeft(CrucibleBoard board)
+        => CrucibleAutoPilotRules.WantedResistancesLeft(board.Index, _heldGear.Select(row => _itemEffect(row)));
 
     /// <summary>Whether a shop space lies ahead on the route (by where the player stands); true when that is unknown.</summary>
     private static bool ShopAhead(CrucibleBoard board)

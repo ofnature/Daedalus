@@ -197,6 +197,13 @@ public sealed class CrucibleTeamWindow : Window
                              + "into campsites, and every Damage Down / Vulnerability Up you take decide the bonuses, and the three\n"
                              + "beasts need ranks near the board's rank sync to survive it. On Board 1 the line is 17,500 and this\n"
                              + "plan scores about 17,300 + your HP share, so a single lost bonus can drop it to Apex.");
+        ImGui.SameLine();
+        DaedalusTheme.StatusIcon(Dalamud.Interface.FontAwesomeIcon.ExclamationTriangle, DaedalusTheme.StatusYellow);
+        if (ImGui.IsItemHovered())
+            ImGui.SetTooltip("Legendary is heavy RNG, not a guarantee. It reaches the line on bonuses alone, and a coffer of only\n"
+                             + "gear, a random campsite or one Damage Down can cost one.\n\n"
+                             + "A clear on Third Degree adds 9,000 points on top of the normal clear, which usually clears the\n"
+                             + "Legendary line with room to spare (about 21,000 on the First Board), even with a few pets lost.");
         if (changed)
         {
             config.CrucibleGoal = (CrucibleTeamGoal)goal;
@@ -689,6 +696,40 @@ public sealed class CrucibleTeamWindow : Window
             ImGui.SetTooltip("With the autopilot on: after a run, talk to Lauda (stand next to her), open the same board, set the\n"
                              + "team for your goal (Level re-picks the lowest ranks each time) and go in again. One run is taken\n"
                              + "off per board entered, so on a board this is the runs still to come after this one; 0 = no loop.");
+
+        if (config.CrucibleGoal == CrucibleTeamGoal.Level)
+        {
+            ImGui.SameLine();
+            var untilMax = config.CrucibleLoopUntilMaxRank;
+            if (ImGui.Checkbox("until all rank 25##crucibleUntilMax", ref untilMax))
+            {
+                config.CrucibleLoopUntilMaxRank = untilMax;
+                if (untilMax)
+                    config.CrucibleLoopRuns = 999;
+                _save();
+            }
+
+            if (ImGui.IsItemHovered())
+                ImGui.SetTooltip("Keep looping until every beast you have captured is rank 25, then stop at Lauda. Turning it on\n"
+                                 + "sets the runs to 999 so the count never runs out first. Ranks come off the team screens as you go\n"
+                                 + "(a rank never read counts as not done; Read ranks fills them in), so the last rank-up can take\n"
+                                 + "one extra run to notice.");
+        }
+
+        ImGui.SameLine();
+        var degree = config.CrucibleDegree + 1;
+        ImGui.SetNextItemWidth(120f * Dalamud.Interface.Utility.ImGuiHelpers.GlobalScale);
+        if (ImGui.Combo("Degree##crucibleDegree", ref degree, "As set in game\0Standard\0First Degree\0Second Degree\0Third Degree\0"))
+        {
+            config.CrucibleDegree = degree - 1;
+            _save();
+        }
+
+        if (ImGui.IsItemHovered())
+            ImGui.SetTooltip("The mode the loop and Start run enter on. Set on the board layout before the team; the game keeps\n"
+                             + "it until you change it. The degrees unlock after the Second Master's Board and Blazing Trails —\n"
+                             + "if this character can't pick the one chosen, the loop stops and says so.\n"
+                             + "As set in game: leave it alone.");
 
         if (config.CrucibleLoopRuns > 0)
         {

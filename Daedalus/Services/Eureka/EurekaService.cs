@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using Dalamud.Game.ClientState.Conditions;
 using Dalamud.Game.ClientState.Objects.SubKinds;
 using Dalamud.Game.ClientState.Objects.Types;
@@ -16,23 +16,29 @@ namespace Daedalus.Services.Eureka;
 /// Board (<c>PublicContentEureka.GetState</c>), and keeps the board turned with the game's own /magiaauto, so the
 /// game does the element matching. Inert outside the four Eureka zones.
 /// </summary>
-public sealed unsafe class EurekaService
+public sealed unsafe class EurekaService : IDisposable
 {
     private static readonly TimeSpan SendEvery = TimeSpan.FromSeconds(3);
+    private const int MaxRefusals = 5;
 
     private readonly Configuration _configuration;
     private readonly IClientState _clientState;
     private readonly ICondition _condition;
     private readonly IObjectTable _objectTable;
     private readonly IPluginLog _log;
+    private readonly IChatGui _chatGui;
 
     private string? _sentAuto;
     private DateTime _nextSendUtc;
+    private DateTime _arrivedUtc;
+    private volatile bool _refused;
+    private int _refusals;
 
     /// <summary>The live instance, for the settings page's readout.</summary>
     public static EurekaService? Current { get; private set; }
 
-    public EurekaService(Configuration configuration, IClientState clientState, ICondition condition, IObjectTable objectTable, IPluginLog log)
+    public EurekaService(
+        Configuration configuration, IClientState clientState, ICondition condition, IObjectTable objectTable, IPluginLog log, IChatGui chatGui)
     {
         Current = this;
         _configuration = configuration;
@@ -40,6 +46,24 @@ public sealed unsafe class EurekaService
         _condition = condition;
         _objectTable = objectTable;
         _log = log;
+        _chatGui = chatGui;
+        _chatGui.ChatMessage += OnChatMessage;
+    }
+
+    public void Dispose() => _chatGui.ChatMessage -= OnChatMessage;
+
+    /// <summary>The game refusing a /magiaauto: send it again later rather than think the board is set.</summary>
+    private void OnChatMessage(Dalamud.Game.Chat.IHandleableChatMessage message)
+    {
+        try
+        {
+            if (_sentAuto != null && EurekaRules.IsMagiaAutoRefused(message.Message.TextValue))
+                _refused = true;
+        }
+        catch (Exception ex)
+        {
+            _log.Warning(ex, "EurekaService: chat check failed");
+        }
     }
 
     public bool InEureka => EurekaRules.IsEurekaTerritory(_clientState.TerritoryType);
@@ -88,12 +112,33 @@ public sealed unsafe class EurekaService
             if (player == null || !InEureka || _condition[ConditionFlag.BetweenAreas] || _condition[ConditionFlag.OccupiedInCutSceneEvent])
             {
                 if (!InEureka)
+                {
                     _sentAuto = null;
+                    _refusals = 0;
+                }
+
+                _arrivedUtc = default;
 
                 return;
             }
 
             var now = DateTime.UtcNow;
+            if (_arrivedUtc == default)
+                _arrivedUtc = now;
+            if (now - _arrivedUtc < EurekaRules.SettleAfterArrival)
+                return;
+            if (_refused)
+            {
+                // A few tries per visit, so a board that stays locked does not fill the chat with errors.
+                _refused = false;
+                if (++_refusals <= MaxRefusals)
+                {
+                    _log.Info($"Eureka: the game refused /magiaauto {_sentAuto}; trying again shortly.");
+                    _sentAuto = null;
+                    _nextSendUtc = now + EurekaRules.RetryAfterRefusal;
+                }
+            }
+
             var wanted = EurekaRules.WantedAuto(_configuration.Eureka.MagiaMode, isTank);
             if (wanted == null || wanted == _sentAuto || now < _nextSendUtc)
                 return;

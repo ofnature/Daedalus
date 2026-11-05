@@ -183,6 +183,18 @@ public sealed class BeastmasterConfig
     public int CrucibleLoopRuns { get; set; }
 
     /// <summary>
+    /// Level goal: keep looping until every captured beast is rank 25 (ranks as read off the team and Bestiary screens),
+    /// then stop. Turning it on fills the run count; the run count still stops it first if lower.
+    /// </summary>
+    public bool CrucibleLoopUntilMaxRank { get; set; }
+
+    /// <summary>
+    /// The degree the loop and Start run enter a board on: -1 = as set in game (the default, untouched), 0 Standard,
+    /// 1-3 First-Third Degree. Set on the board layout before the team.
+    /// </summary>
+    public int CrucibleDegree { get; set; } = -1;
+
+    /// <summary>
     /// With the autopilot on, walk the board from space to space (vnavmesh), taking the suggested side at each fork.
     /// </summary>
     public bool CrucibleWalkBoard { get; set; } = true;

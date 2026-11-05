@@ -1,16 +1,40 @@
-# Changelog
+﻿# Changelog
 
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.123 — 2026-11-05
+
+### Beastmaster — the Crucible
+- **A warning icon beside the Legendary goal.** Hover it for why Legendary is heavy RNG and not a guarantee, and why a
+  Third Degree clear (+9,000 points) usually reaches the Legendary line anyway.
+- **Pick the degree.** A new Degree setting next to "runs to loop": Standard, First, Second or Third Degree. The loop
+  and Start run set it on the board layout before the team. "As set in game" (the default) leaves it alone. If the
+  character can't choose that degree, the loop stops and says so.
+- **Loop until every beast is rank 25.** With the Level goal, tick "until all rank 25" beside the run count and
+  the loop keeps going until every beast you have captured is rank 25, then stops at Lauda.
+- **Temporal Sand is sold.** At a shop the autopilot now sells any Temporal Sand you hold (315 tokens) before it
+  buys, so the tokens go toward potions and gear. Legendary runs keep it.
+- **Gear for the First Board's final boss.** Pas de Seul puts you to sleep and poisons you, so coffers and shops there
+  now favour the Black Cowl (sleep) and Angel Robe (poison), and the last shop buys an Antisleep serum for the fight.
+- **No doubled-up resistances.** On every board, once you hold a piece that resists a status, another piece for the
+  same status no longer scores as one.
+- Fixed: the shop could not see the beast gear you hold, so its "ten pieces at most" check counted none. It now
+  remembers your gear from the board screen.
+
+### Eureka
+- Fixed: the Magia Board was sometimes never set. Daedalus sent /magiaauto a second after zone-in, the game answered
+  "unavailable at this time", and it never tried again. It now waits a few seconds after arriving, and sends again if
+  the game refuses.
+
+<!-- LATEST-END -->
+
 ## v0.1.122 — 2026-11-03
 
 ### Beastmaster — the Crucible
 - **The Demonic Helm is never taken or bought.** It has a 1% chance on every hit you take to put a 2-second Doom on
   you, which is a KO. Its +20% damage used to outscore that, so the shop bought it. Coffers, spoils and the shop now
   pass it over, and a coffer offering nothing else is closed empty-handed.
-
-<!-- LATEST-END -->
 
 ## v0.1.121 — 2026-11-03
 

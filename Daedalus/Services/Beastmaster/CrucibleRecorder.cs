@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -483,14 +483,17 @@ public sealed unsafe class CrucibleRecorder : IDisposable
         return _callbackHook!.Original(unit, valueCount, values, close);
     }
 
+    /// <summary>Values written per window: enough for the whole shop (269, with the held gear past 200).</summary>
+    private const int MaxValuesLogged = 320;
+
     private static string DescribeValues(AtkValue* values, ushort count)
     {
         if (values == null || count == 0)
             return "[]";
-        var parts = new List<string>(Math.Min((int)count, 200));
-        for (var i = 0; i < count && i < 200; i++)
+        var parts = new List<string>(Math.Min((int)count, MaxValuesLogged));
+        for (var i = 0; i < count && i < MaxValuesLogged; i++)
             parts.Add($"{i}={Describe(values[i])}");
-        return "[" + string.Join(" | ", parts) + (count > 200 ? $" | …{count - 200} more" : "") + "]";
+        return "[" + string.Join(" | ", parts) + (count > MaxValuesLogged ? $" | …{count - MaxValuesLogged} more" : "") + "]";
     }
 
     private static string Describe(AtkValue value) => value.Type switch

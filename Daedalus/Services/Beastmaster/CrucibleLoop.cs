@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
@@ -25,6 +25,7 @@ public sealed unsafe class CrucibleLoop
 {
     private static readonly TimeSpan StepEvery = TimeSpan.FromMilliseconds(800);
     private static readonly TimeSpan SettleOutside = TimeSpan.FromSeconds(4);
+    private static readonly TimeSpan DegreeStepWait = TimeSpan.FromMilliseconds(1200);
 
     private readonly Action<string> _log;
     private DateTime _nextStepUtc;
@@ -34,6 +35,7 @@ public sealed unsafe class CrucibleLoop
     private bool _boardHighlighted;
     private bool _teamTried;
     private bool _entering;
+    private int _degreeSteps;
 
     /// <summary>
     /// The roster asked for on this entry, fixed at the first Load. The roster is worked out from beast ranks, and the
@@ -61,6 +63,7 @@ public sealed unsafe class CrucibleLoop
         _entering = true;
         _boardHighlighted = true;
         _teamTried = false;
+        _degreeSteps = 0;
         _teamWanted = null;
         _outsideSinceUtc = default;
         _nextStepUtc = default;
@@ -71,9 +74,12 @@ public sealed unsafe class CrucibleLoop
     /// <summary>Framework thread, every frame.</summary>
     /// <param name="runsLeft">Runs still to start; the loop decrements it on each board entered and stops at 0.</param>
     /// <param name="rosterFor">The team to bring onto a board (the goal's roster).</param>
+    /// <param name="wantedDegree">The degree to enter on (0 Standard … 3 Third), or -1 to leave the game's choice.</param>
+    /// <param name="finished">Asked before each new run: a stop message when the goal is met (every beast rank 25), else null.</param>
     public void Update(
         bool enabled, ref int runsLeft, CrucibleBoard? onBoard, IPlayerCharacter? player, IObjectTable objects, bool inCombat,
-        Func<CrucibleBoard, IReadOnlyList<int>> rosterFor, CrucibleRosterLoader? loader)
+        Func<CrucibleBoard, IReadOnlyList<int>> rosterFor, CrucibleRosterLoader? loader, int wantedDegree = CrucibleLoopRules.DegreeAsSet,
+        Func<string?>? finished = null)
     {
         var now = DateTime.UtcNow;
         if (onBoard != null)
@@ -114,7 +120,7 @@ public sealed unsafe class CrucibleLoop
 
         try
         {
-            Step(now, ref runsLeft, board, player, objects, rosterFor, loader);
+            Step(now, ref runsLeft, board, player, objects, rosterFor, loader, wantedDegree, finished);
         }
         catch (Exception ex)
         {
@@ -124,7 +130,7 @@ public sealed unsafe class CrucibleLoop
 
     private void Step(
         DateTime now, ref int runsLeft, CrucibleBoard board, IPlayerCharacter player, IObjectTable objects,
-        Func<CrucibleBoard, IReadOnlyList<int>> rosterFor, CrucibleRosterLoader? loader)
+        Func<CrucibleBoard, IReadOnlyList<int>> rosterFor, CrucibleRosterLoader? loader, int wantedDegree, Func<string?>? finished)
     {
         var yesNo = Visible("SelectYesno");
         if (yesNo != null)
@@ -155,6 +161,25 @@ public sealed unsafe class CrucibleLoop
         var layout = Visible("XBMStageDetailList");
         if (layout != null && _entering)
         {
+            // The degree first, then the team.
+            if (SelectedDegree() is { } degree)
+            {
+                switch (CrucibleLoopRules.NextDegreeAction(degree, wantedDegree, _degreeSteps))
+                {
+                    case CrucibleLoopRules.DegreeAction.StepUp or CrucibleLoopRules.DegreeAction.StepDown:
+                        _degreeSteps++;
+                        Fire(layout, degree < wantedDegree ? CrucibleLoopRules.DegreeStepEvent : CrucibleLoopRules.DegreeStepDownEvent);
+                        Progress(now, $"Setting {CrucibleLoopRules.DegreeName(wantedDegree)} (on {CrucibleLoopRules.DegreeName(degree)}).");
+                        _nextStepUtc = now + DegreeStepWait;
+                        return;
+                    case CrucibleLoopRules.DegreeAction.GiveUp:
+                        Stop(ref runsLeft, $"Loop stopped: could not set {CrucibleLoopRules.DegreeName(wantedDegree)} — still on "
+                                           + $"{CrucibleLoopRules.DegreeName(degree)}. Set it with the arrows beside Crucible Mode "
+                                           + "(a degree above Standard needs the Second Master's Board and Blazing Trails).");
+                        return;
+                }
+            }
+
             var wanted = (_teamWanted ?? rosterFor(board)).Where(p => loader?.Refused.Contains(p) != true).ToList();
             var changes = loader == null ? [] : CrucibleLevelPlan.Changes(loader.Team, wanted);
             if (loader is { Loading: true })
@@ -233,6 +258,13 @@ public sealed unsafe class CrucibleLoop
         if (_entering)
             return; // waiting for the next screen; the stuck timer covers a dead end
 
+        // The goal is met: stop here, before the next run, whatever the run count.
+        if (finished?.Invoke() is { } done)
+        {
+            Stop(ref runsLeft, done);
+            return;
+        }
+
         // Nothing open: talk to Lauda.
         var lauda = objects
             // Three Laudas stand on that spot (recordings 2026-10-24/25); only one is targetable — the one to talk to.
@@ -249,9 +281,18 @@ public sealed unsafe class CrucibleLoop
         _entering = true;
         _boardHighlighted = false;
         _teamTried = false;
+        _degreeSteps = 0;
         _teamWanted = null;
         TargetSystem.Instance()->InteractWithObject((GameObjectStruct*)lauda.Address, false);
         Progress(now, $"Talking to {CrucibleLoopRules.EntryNpc}.");
+    }
+
+    /// <summary>The degree the board layout is set to (0 Standard … 3 Third), or null when the agent is not there.</summary>
+    public static int? SelectedDegree()
+    {
+        var module = AgentModule.Instance();
+        var stage = module == null ? null : (AgentXBMStageDetailList*)module->GetAgentByInternalId(AgentId.XBMStageDetailList);
+        return stage == null ? null : (int)stage->SelectedRank;
     }
 
     private void Progress(DateTime now, string status)

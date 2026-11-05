@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using Daedalus.Data;
 using Xunit;
 
@@ -196,7 +196,7 @@ public class CrucibleAutoPilotRulesTests
     {
         Assert.Equal(10.5f + 35f, CrucibleAutoPilotRules.TreasureScore(AngelRobe, CrucibleAutoPilotRules.WantedResistances(4)), 3);
         Assert.Equal(10.5f, CrucibleAutoPilotRules.TreasureScore(AngelRobe, CrucibleAutoPilotRules.WantedResistances(3)), 3);
-        Assert.Empty(CrucibleAutoPilotRules.WantedResistances(1));
+        Assert.Empty(CrucibleAutoPilotRules.WantedResistances(0)); // unknown board (the First Board wants Sleep/Poison since 2026-11-04)
         Assert.Contains("Doom", CrucibleAutoPilotRules.WantedResistances(2));
         Assert.Contains("Doom", CrucibleAutoPilotRules.WantedResistances(5));
     }
@@ -870,7 +870,7 @@ public class CrucibleAutoPilotRulesTests
     {
         Assert.Equal([89, 88], CrucibleAutoPilotRules.BossSerumRows(3));
         Assert.Equal(87, CrucibleAutoPilotRules.BossSerumRows(4)[0]);
-        Assert.Empty(CrucibleAutoPilotRules.BossSerumRows(1));
+        Assert.Empty(CrucibleAutoPilotRules.BossSerumRows(2)); // the Second Board's boss needs none
     }
 
     [Fact]
@@ -900,6 +900,79 @@ public class CrucibleAutoPilotRulesTests
         Assert.False(CrucibleAutoPilotRules.ShouldUseBossSerum(true, true, boss));
         Assert.False(CrucibleAutoPilotRules.ShouldUseBossSerum(false, false, boss));
         Assert.False(CrucibleAutoPilotRules.ShouldUseBossSerum(false, true, boss with { IsFinalBoss = false }));
+    }
+
+    // --- Final-boss resistances (user 2026-11-04: "anti sleep, anti poison, things like that") ---
+
+    private const string BlackCowl = "Maximum HP +6%\nEvasion +8%\nSleep Resistance +100%";
+    private const string HerosCrown = "Maximum HP +30%\nDamage Dealt +18%\nGrants Excellence upon completing a combo with a beastmaster instinctual skill.";
+
+    [Fact]
+    public void TheFirstBoardWantsSleepAndPoisonResistanceForPasDeSeul()
+    {
+        Assert.Equal(["Sleep", "Poison"], CrucibleAutoPilotRules.WantedResistances(1));
+        Assert.Equal([95, 94], CrucibleAutoPilotRules.BossSerumRows(1)); // G2, G1 Antisleep
+    }
+
+    [Fact]
+    public void GearResistancesAreRead()
+    {
+        Assert.Equal(["Petrification", "Blind", "Paralysis"], CrucibleAutoPilotRules.ResistancesOf(CrimsonRibbon));
+        Assert.Equal(["Sleep"], CrucibleAutoPilotRules.ResistancesOf(BlackCowl));
+        Assert.Empty(CrucibleAutoPilotRules.ResistancesOf(HerosCrown));
+        Assert.Empty(CrucibleAutoPilotRules.ResistancesOf(null));
+    }
+
+    [Fact]
+    public void AResistanceAlreadyHeldIsNoLongerWanted()
+    {
+        Assert.Equal(["Poison"], CrucibleAutoPilotRules.WantedResistancesLeft(1, [BlackCowl, HerosCrown]));
+        Assert.Empty(CrucibleAutoPilotRules.WantedResistancesLeft(1, [BlackCowl, AngelRobe]));
+        Assert.Equal(["Sleep", "Poison"], CrucibleAutoPilotRules.WantedResistancesLeft(1, []));
+    }
+
+    [Fact]
+    public void TheFinalBossResistanceOutscoresAPlainStatPiece()
+    {
+        var wanted = CrucibleAutoPilotRules.WantedResistances(1);
+        Assert.True(CrucibleAutoPilotRules.TreasureScore(BlackCowl, wanted) > CrucibleAutoPilotRules.TreasureScore(HerosCrown, wanted));
+        Assert.True(CrucibleAutoPilotRules.TreasureScore(AngelRobe, wanted) > CrucibleAutoPilotRules.TreasureScore(HerosCrown, wanted));
+    }
+
+    [Fact]
+    public void TheShopBuysEachResistanceOnce()
+    {
+        // Two sleep pieces on offer: the second scores as plain stats once the first is bought.
+        var effects = new System.Collections.Generic.Dictionary<int, string>
+        {
+            [1] = BlackCowl, [2] = "Maximum HP +1%\nSleep Resistance +100%", [3] = AngelRobe,
+        };
+        CrucibleShopOffer[] offers = [Offer(0, 1, 100), Offer(1, 2, 100), Offer(2, 3, 100)];
+        var buys = CrucibleAutoPilotRules.ShopBuysForGear(offers, 200, 0, effects.ContainsKey, effects.GetValueOrDefault,
+            CrucibleAutoPilotRules.WantedResistances(1));
+        Assert.Equal([2, 0], buys); // Angel Robe, Black Cowl — not the second sleep piece
+    }
+
+    // --- Selling (recording 2026-11-04): Temporal Sand goes for 315 tokens (user: "sell") ---
+
+    [Fact]
+    public void TemporalSandIsSoldFromItsSlot()
+        => Assert.Equal(2, CrucibleAutoPilotRules.ShopSellSlot([78, 128, CrucibleAutoPilotRules.TemporalSandRow, 115, 0, 0, 0, 0, 0, 0]));
+
+    [Fact]
+    public void NothingIsSoldWithoutTemporalSand()
+    {
+        Assert.Equal(-1, CrucibleAutoPilotRules.ShopSellSlot([78, 128, 0, 115, 0, 0, 0, 0, 0, 0]));
+        Assert.Equal(-1, CrucibleAutoPilotRules.ShopSellSlot([]));
+    }
+
+    [Fact]
+    public void TheSellPromptIsConfirmedOnlyWhenWeSold()
+    {
+        const string prompt = "Sell the pinch of temporal sand for 315 territory tokens?";
+        Assert.True(CrucibleAutoPilotRules.ShouldConfirm(prompt, "Sell the "));
+        Assert.False(CrucibleAutoPilotRules.ShouldConfirm(prompt, "Purchase the "));
+        Assert.False(CrucibleAutoPilotRules.ShouldConfirm(prompt, null));
     }
 
     // --- Doom-on-self gear (the Demonic Helm): never taken, never bought (user 2026-11-03) ---

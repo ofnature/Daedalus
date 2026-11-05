@@ -20,6 +20,20 @@ public static class EurekaRules
     public static string ElementName(byte element) => element < ElementNames.Length ? ElementNames[element] : $"#{element}";
 
     /// <summary>
+    /// How long after arriving in Eureka before /magiaauto is sent: sent 1.2 s after zone-in, the game answered "The
+    /// command "/magiaauto defense" is unavailable at this time." (Korha 2026-11-04), and the board was never set.
+    /// </summary>
+    public static readonly TimeSpan SettleAfterArrival = TimeSpan.FromSeconds(8);
+
+    /// <summary>How long to wait before sending again after the game refused it.</summary>
+    public static readonly TimeSpan RetryAfterRefusal = TimeSpan.FromSeconds(10);
+
+    /// <summary>Whether a chat line is the game refusing a /magiaauto we sent.</summary>
+    public static bool IsMagiaAutoRefused(string? message)
+        => message != null && message.Contains("/magiaauto", StringComparison.OrdinalIgnoreCase)
+                           && message.Contains("unavailable", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
     /// The /magiaauto setting wanted now; null = leave the board alone. TankDefense goes by the job alone: a tank is
     /// always on defense, everyone else on attack. (It used to put a tank on defense only while enemies were on it,
     /// which turned the board at every pull and between them: eight turns in eleven minutes, Korha 2026-11-01.)

@@ -33,6 +33,19 @@ public class EurekaRulesTests
     public void ATankIsAlwaysOnDefense()
         => Assert.Equal("defense", EurekaRules.WantedAuto(EurekaMagiaMode.TankDefense, isTank: true));
 
+    [Theory]
+    [InlineData("The command \u201c/magiaauto defense\u201d is unavailable at this time.", true)]
+    [InlineData("The command \"/magiaauto attack\" is unavailable at this time.", true)]
+    [InlineData("Your item level has been synced to 300.", false)]
+    [InlineData("The command \"/sit\" is unavailable at this time.", false)]
+    [InlineData(null, false)]
+    public void TheGameRefusingMagiaAutoIsSpotted(string? message, bool refused)
+        => Assert.Equal(refused, EurekaRules.IsMagiaAutoRefused(message));
+
+    [Fact]
+    public void MagiaAutoWaitsPastTheZoneInSecond()
+        => Assert.True(EurekaRules.SettleAfterArrival.TotalSeconds > 1.2);
+
     [Fact]
     public void EveryOtherJobIsOnAttack()
         => Assert.Equal("attack", EurekaRules.WantedAuto(EurekaMagiaMode.TankDefense, isTank: false));
