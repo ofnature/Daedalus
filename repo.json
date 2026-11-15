@@ -319,5 +319,30 @@
     "DownloadLinkInstall": "https://github.com/ofnature/Hephaestus/releases/download/v0.1.0/Hephaestus.zip",
     "DownloadLinkTesting": "https://github.com/ofnature/Hephaestus/releases/download/v0.1.0/Hephaestus.zip",
     "DownloadLinkUpdate": "https://github.com/ofnature/Hephaestus/releases/download/v0.1.0/Hephaestus.zip"
+  },
+  {
+    "Author": "ofnature",
+    "Name": "Selene",
+    "InternalName": "Selene",
+    "Punchline": "Cosmic Exploration, at a person's pace.",
+    "Description": "Runs Cosmic Exploration missions in sessions that look like a person's: bursts of work, breaks, varied routes and spots. Hephaestus makes the crafts. Multibox-first.",
+    "ApplicableVersion": "any",
+    "CategoryTags": [
+      "utility"
+    ],
+    "Tags": [
+      "cosmic exploration",
+      "automation",
+      "multibox"
+    ],
+    "RepoUrl": "https://github.com/ofnature/Selene",
+    "AssemblyVersion": "0.1.0.0",
+    "DalamudApiLevel": 15,
+    "ImageUrls": [],
+    "IsHide": false,
+    "IsTestingExclusive": false,
+    "DownloadLinkInstall": "https://github.com/ofnature/Selene/releases/download/v0.1.0/Selene.zip",
+    "DownloadLinkTesting": "https://github.com/ofnature/Selene/releases/download/v0.1.0/Selene.zip",
+    "DownloadLinkUpdate": "https://github.com/ofnature/Selene/releases/download/v0.1.0/Selene.zip"
   }
 ]
