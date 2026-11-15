@@ -298,7 +298,7 @@
     "Name": "Hephaestus",
     "InternalName": "Hephaestus",
     "Punchline": "Live-adaptive crafting solver with unattended craft queues.",
-    "Description": "Crafting automation built around a live, adaptive solver: a Raphael baseline re-scored against the real craft state after every step. Craft queues, automatic material sourcing (inventory, FC chest, retainers, vendors), multibox-first.",
+    "Description": "Crafting automation built around a live, adaptive solver: a planned rotation re-scored against the real craft state after every step, with its own solver for expert recipes. Craft queues, automatic material sourcing (inventory, FC chest, retainers, vendors), multibox-first.",
     "ApplicableVersion": "any",
     "CategoryTags": [
       "utility"
@@ -312,6 +312,7 @@
     "RepoUrl": "https://github.com/ofnature/Hephaestus",
     "AssemblyVersion": "0.1.0.0",
     "DalamudApiLevel": 15,
+    "IconUrl": "https://raw.githubusercontent.com/ofnature/Hephaestus/main/images/icon.png",
     "ImageUrls": [],
     "IsHide": false,
     "IsTestingExclusive": false,
