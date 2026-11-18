@@ -3,6 +3,16 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.126 — 2026-11-17
+
+### Targeting
+- **AoE no longer goes to mobs nobody is fighting.** When a job picked where to aim an AoE (Astrologian's
+  Gravity, Pictomancer's AoE, and the cone and line attacks of every job), it looked at every enemy in range
+  and took the densest group, pulled or not. In open zones like Eureka that pulled fresh packs onto the
+  group. The aim and the enemy count now use only enemies already in your group's fight.
+
+<!-- LATEST-END -->
+
 ## v0.1.125 — 2026-11-17
 
 ### Party coordination
@@ -14,8 +24,6 @@ All notable changes to Daedalus will be documented in this file.
 - **Phantom Aim waits for your burst.** On Ranger, Phantom Aim went out whenever its recast ended. It now waits up
   to 30 seconds for your job's own burst cooldown (Samurai, Warrior, Ninja, Bard, Pictomancer, Summoner) so the
   two land together. Other jobs use it on cooldown as before.
-
-<!-- LATEST-END -->
 
 ## v0.1.124 — 2026-11-17
 

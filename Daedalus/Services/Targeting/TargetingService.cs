@@ -34,6 +34,7 @@ public sealed class TargetingService : ITargetingService
 
     // Reusable work list for AoE target methods (all called from game thread)
     private readonly List<IBattleNpc> _aoeWorkList = new();
+    private readonly List<AoEAnchorPolicy.Candidate> _aoeCandidates = new();
 
     // User-selected target sticky — GameObjectId only, re-resolved via ObjectTable.
     // Set exclusively from <see cref="ITargetManager.Target"/> (never from FindEnemy strategy picks)
@@ -759,50 +760,43 @@ public sealed class TargetingService : ITargetingService
         if (IsDamageTargetingPaused())
             return (null, 0);
 
-        IBattleNpc? bestTarget = null;
-        int bestHitCount = 0;
-
-        // Collect all valid enemies in reusable work list
+        // Every valid enemy goes in, marked ours or not: the policy leaves the others out of both the aim
+        // and the count.
         _aoeWorkList.Clear();
+        _aoeCandidates.Clear();
+        var engagedId = GetEngagedTargetIdForEnemyCount();
         foreach (var enemy in GetValidEnemies(maxRange, player))
         {
             _aoeWorkList.Add(enemy);
+            _aoeCandidates.Add(new AoEAnchorPolicy.Candidate(
+                enemy.GameObjectId, enemy.Position, ShouldIncludeEnemyForTargeting(enemy, engagedId, player)));
         }
 
-        if (_aoeWorkList.Count == 0)
-            return (null, 0);
-
-        // Early exit: if only 1 enemy, no need for O(n²) calculation
-        if (_aoeWorkList.Count == 1)
-            return (_aoeWorkList[0], 1);
-
-        // For each potential target, count how many enemies would be hit
-        var aoeRadiusSquared = aoeRadius * aoeRadius;
-        foreach (var potentialTarget in _aoeWorkList)
+        var (bestId, hits) = AoEAnchorPolicy.BestCircle(_aoeCandidates, aoeRadius);
+        foreach (var enemy in _aoeWorkList)
         {
-            int hitCount = 1; // Always hits the target itself
-
-            // Count other enemies within AoE radius of this target
-            foreach (var other in _aoeWorkList)
-            {
-                if (other.EntityId == potentialTarget.EntityId)
-                    continue;
-
-                var distSquared = Vector3.DistanceSquared(potentialTarget.Position, other.Position);
-                if (distSquared <= aoeRadiusSquared)
-                {
-                    hitCount++;
-                }
-            }
-
-            if (hitCount > bestHitCount)
-            {
-                bestHitCount = hitCount;
-                bestTarget = potentialTarget;
-            }
+            if (enemy.GameObjectId == bestId)
+                return (enemy, hits);
         }
 
-        return (bestTarget, bestHitCount);
+        return (null, 0);
+    }
+
+    /// <summary>
+    /// The enemies an AoE may be aimed at or credited with: the ones in OUR fight. Never an unpulled mob,
+    /// never a stranger's. These scans took every attackable hostile in range until 2026-11-17, when an
+    /// Astrologian and a Pictomancer in Eureka Pagos kept aiming their AoE at the densest cluster around,
+    /// pulled or not.
+    /// </summary>
+    private void FillAoEWorkListWithOurFight(float range, IPlayerCharacter player)
+    {
+        _aoeWorkList.Clear();
+        var engagedTargetId = GetEngagedTargetIdForEnemyCount();
+        foreach (var enemy in GetValidEnemies(range, player))
+        {
+            if (ShouldIncludeEnemyForTargeting(enemy, engagedTargetId, player))
+                _aoeWorkList.Add(enemy);
+        }
     }
 
     /// <inheritdoc />
@@ -1944,9 +1938,7 @@ public sealed class TargetingService : ITargetingService
 
         // Use the ability's effect range for candidate filtering, not the rotation's targeting range
         var candidateRange = MathF.Max(radius, maxRange);
-        _aoeWorkList.Clear();
-        foreach (var e in GetValidEnemies(candidateRange, player))
-            _aoeWorkList.Add(e);
+        FillAoEWorkListWithOurFight(candidateRange, player);
 
         if (_aoeWorkList.Count == 0) return (null, 0, 0f);
         if (_aoeWorkList.Count == 1)
@@ -2003,9 +1995,7 @@ public sealed class TargetingService : ITargetingService
 
         // Use the ability's effect range for candidate filtering, not the rotation's targeting range
         var candidateRange = MathF.Max(length, maxRange);
-        _aoeWorkList.Clear();
-        foreach (var e in GetValidEnemies(candidateRange, player))
-            _aoeWorkList.Add(e);
+        FillAoEWorkListWithOurFight(candidateRange, player);
 
         if (_aoeWorkList.Count == 0) return (null, 0, 0f);
         if (_aoeWorkList.Count == 1)
