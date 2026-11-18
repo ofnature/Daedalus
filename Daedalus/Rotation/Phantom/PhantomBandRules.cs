@@ -539,6 +539,37 @@ public static class PhantomBandRules
     /// With Predict ready and unused (the pull, or no target worth a prophecy) the plain rule applies.
     /// </para>
     /// </summary>
+    /// <summary>
+    /// Phantom Aim (Ranger: +50% critical and direct hit for 30 s, 120 s recast) waits for the job's own burst
+    /// cooldown when that is about to come round, so the 30 s land on the burst rather than wherever Aim's recast
+    /// happens to end (user, 2026-11-17). With the burst ready (0), or further off than Aim lasts, it goes out now:
+    /// ready means the job presses it next, and a long wait costs more Aim than the overlap gives back.
+    /// </summary>
+    public static bool HoldsAimForBurst(float burstCooldownSeconds)
+        => burstCooldownSeconds > 0f && burstCooldownSeconds <= AimWaitsForBurstSeconds;
+
+    /// <summary>Phantom Aim lasts 30 s: a burst further off than that is not worth waiting for.</summary>
+    public const float AimWaitsForBurstSeconds = 30f;
+
+    /// <summary>
+    /// The job's own burst cooldown that Phantom Aim is timed to, or 0 for a job with none listed (Aim then goes
+    /// out whenever it is ready, as before). The ids are the ones the rotations themselves press.
+    /// </summary>
+    public static uint AimBurstAction(uint jobId, int level)
+    {
+        var burst = jobId switch
+        {
+            Daedalus.Data.JobRegistry.Samurai => Daedalus.Data.SAMActions.Ikishoten,
+            Daedalus.Data.JobRegistry.Warrior => Daedalus.Data.WARActions.InnerRelease,
+            Daedalus.Data.JobRegistry.Ninja => Daedalus.Data.NINActions.KunaisBane,
+            Daedalus.Data.JobRegistry.Bard => Daedalus.Data.BRDActions.RagingStrikes,
+            Daedalus.Data.JobRegistry.Pictomancer => Daedalus.Data.PCTActions.StarryMuse,
+            Daedalus.Data.JobRegistry.Summoner => Daedalus.Data.SMNActions.SearingLight,
+            _ => null,
+        };
+        return burst != null && level >= burst.MinLevel ? burst.ActionId : 0u;
+    }
+
     public static bool ShouldRejuvenate(
         bool inCombat, bool alreadyUp, float selfHpPct, float partyLowestHpPct, bool timedForStarfall = false,
         float predictRecastSeconds = 0f)

@@ -42,7 +42,7 @@ namespace Daedalus;
 
 public sealed class Plugin : IDalamudPlugin
 {
-    public const string PluginVersion = "0.1.124";
+    public const string PluginVersion = "0.1.125";
     private const string CommandName = "/daedalus";
 
     /// <summary>LAN relay channel for Necromancer Deep Freeze "heal me to full" announcements.</summary>
@@ -205,6 +205,7 @@ public sealed class Plugin : IDalamudPlugin
     private readonly PluginRelayIpc pluginRelayIpc;
     private readonly Daedalus.Services.Party.PartyInviteAcceptService partyInviteAcceptService;
     private readonly Daedalus.Services.Party.LimitBreakService limitBreakService;
+    private readonly Daedalus.Services.Party.LevelSyncService levelSyncService;
     private readonly RsrCompatIpc rsrCompatIpc;
     private readonly AutomationBusyBridge[] automationBridges;
     private readonly QuestionableIpc questionableIpc;
@@ -1029,10 +1030,15 @@ public sealed class Plugin : IDalamudPlugin
             objectTable, partyList, TryRemoveMimicryByTargetlessCast, configuration, SaveConfiguration);
         Windows.Config.DPS.BlueMageSection.PartySizeSource = () => partyList.Length; // Solo-role lock
 
+        // Fleet FATE sync: every box in the group runs the game's own /levelsync on.
+        this.levelSyncService = new Daedalus.Services.Party.LevelSyncService(
+            Daedalus.Services.GameTextCommand.Send, line => log.Info(line));
+
         // Fleet limit-break call: every box hears it, only the toon whose role matches acts.
         this.limitBreakService = new Daedalus.Services.Party.LimitBreakService(objectTable, log);
         if (coordinationBus != null)
         {
+            coordinationBus.OnLevelSync += () => this.levelSyncService.Request();
             coordinationBus.OnLimitBreak += role => this.limitBreakService.Call(role);
             coordinationBus.OnLimitBreakFired += (role, who) => this.limitBreakService.NoteRemoteFire(role, who);
             coordinationBus.OnLimitBreakFailed += (role, who, why) =>
@@ -2364,6 +2370,7 @@ public sealed class Plugin : IDalamudPlugin
             // ages the roster. Framework thread only — the receive thread never touches game state.
             coordinationBus?.Update();
             limitBreakService.Update();
+            levelSyncService.Update();
             if (coordinationBus != null)
                 UpdateLanHealerDownDetector();
 

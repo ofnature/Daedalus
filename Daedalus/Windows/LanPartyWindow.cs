@@ -676,6 +676,8 @@ public sealed class LanPartyWindow : Window, IDisposable
             ImGui.SameLine();
         DrawOffTankPicker();
 
+        DrawFateSyncButton();
+        ImGui.SameLine();
         DrawSwapTanksButton();
 
         if (mode == PartyTargetMode.Focus)
@@ -737,6 +739,22 @@ public sealed class LanPartyWindow : Window, IDisposable
             ImGui.TextColored(_limitBreak.IsArmed ? Yellow : Dim, outcome);
         else
             ImGui.TextColored(Dim, "no call yet");
+    }
+
+    /// <summary>
+    /// Level-syncs every toon in the group to the FATE it is standing in (the game's /levelsync on). One press,
+    /// one try per toon: a toon that has not reached the FATE yet needs another press.
+    /// </summary>
+    private void DrawFateSyncButton()
+    {
+        if (ImGui.Button("FATE sync"))
+            _bus.BroadcastLevelSync();
+
+        if (ImGui.IsItemHovered())
+            ImGui.SetTooltip(
+                "Level-sync the whole group to the FATE each toon is in (the game's /levelsync on).\n"
+                + "Works for Eureka notorious monsters too. A toon outside the FATE's area is refused\n"
+                + "by the game — press again once it has arrived. Already-synced toons stay synced.");
     }
 
     /// <summary>

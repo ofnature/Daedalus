@@ -533,4 +533,50 @@ public class LanCoordinationTests
         bus.Update();
         Assert.Equal(1, activity);
     }
+
+    // ── FATE sync button (user, 2026-11-17) ──────────────────────────────────────────────
+
+    [Fact]
+    public void LevelSync_FromOurOwnGroup_IsRaised()
+    {
+        var bus = NewGroupedBus("Self@World", groupId: 7UL);
+        var calls = 0;
+        bus.OnLevelSync += () => calls++;
+        bus.InjectForTest(Remote("Other@World", LanMessageType.LevelSync, groupId: 7UL, ts: 1001));
+        bus.Update();
+        Assert.Equal(1, calls);
+    }
+
+    [Fact]
+    public void LevelSync_FromAnotherParty_IsIgnored()
+    {
+        var bus = NewGroupedBus("Self@World", groupId: 7UL);
+        var calls = 0;
+        bus.OnLevelSync += () => calls++;
+        bus.InjectForTest(Remote("Other@World", LanMessageType.LevelSync, groupId: 9UL, ts: 1002));
+        bus.Update();
+        Assert.Equal(0, calls);
+    }
+
+    [Fact]
+    public void LevelSync_RepeatedFrames_AreOneCall()
+    {
+        var bus = NewGroupedBus("Self@World", groupId: 7UL);
+        var calls = 0;
+        bus.OnLevelSync += () => calls++;
+        for (var i = 0; i < 3; i++)
+            bus.InjectForTest(Remote("Other@World", LanMessageType.LevelSync, groupId: 7UL, ts: 1003));
+        bus.Update();
+        Assert.Equal(1, calls);
+    }
+
+    [Fact]
+    public void BroadcastLevelSync_AppliesOnThePressingBoxToo()
+    {
+        var bus = NewBus();
+        var calls = 0;
+        bus.OnLevelSync += () => calls++;
+        bus.BroadcastLevelSync();
+        Assert.Equal(1, calls);
+    }
 }

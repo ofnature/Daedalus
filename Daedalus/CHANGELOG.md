@@ -3,6 +3,20 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.125 — 2026-11-17
+
+### Party coordination
+- **FATE sync button.** One press in the Party Coordination window level-syncs every toon in the group to the
+  FATE it is standing in, Eureka notorious monsters included. It uses the game's own level sync, so a toon that
+  has not reached the FATE yet is refused; press again once it has arrived.
+
+### Occult Crescent
+- **Phantom Aim waits for your burst.** On Ranger, Phantom Aim went out whenever its recast ended. It now waits up
+  to 30 seconds for your job's own burst cooldown (Samurai, Warrior, Ninja, Bard, Pictomancer, Summoner) so the
+  two land together. Other jobs use it on cooldown as before.
+
+<!-- LATEST-END -->
+
 ## v0.1.124 — 2026-11-17
 
 ### Eureka
@@ -207,8 +221,6 @@ All notable changes to Daedalus will be documented in this file.
   walk back into melee waited 3.75–6 s after every dodge, and up to 14 s passed without an attack in the Crucible.
   It now goes once BossMod has been still for a second. An AoE about to land still holds it, and BossMod moving
   again stops it at once.
-
-<!-- LATEST-END -->
 
 ## v0.1.123 — 2026-11-05
 

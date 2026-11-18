@@ -82,6 +82,10 @@ public enum LanMessageType
     /// <summary>Operator called a limit break for one role from the coordination window. Only the
     /// toon whose job matches the role acts on it. Party-group scoped — the LB bar is per party.</summary>
     LimitBreak = 20,
+
+    /// <summary>Operator asked every toon in the group to level-sync to the FATE it is in (the coordination
+    /// window's FATE sync button). No payload. Party-group scoped.</summary>
+    LevelSync = 21,
 }
 
 /// <summary>

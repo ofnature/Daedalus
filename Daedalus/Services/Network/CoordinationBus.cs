@@ -155,6 +155,9 @@ public sealed class CoordinationBus : IDisposable
     /// <summary>Operator called a limit break for a role — only matching toons act.</summary>
     public event System.Action<LimitBreakRole>? OnLimitBreak;
 
+    /// <summary>Operator asked the group to level-sync to the FATE each toon is in.</summary>
+    public event System.Action? OnLevelSync;
+
     /// <summary>A toon reported it actually fired the limit break.</summary>
     public event System.Action<LimitBreakRole, string /*character*/>? OnLimitBreakFired;
 
@@ -543,6 +546,12 @@ public sealed class CoordinationBus : IDisposable
                     OnLimitBreak?.Invoke(lb.Role);
                 break;
 
+            case LanMessageType.LevelSync:
+                // Group-scoped: a second party on the same LAN is in its own FATE, or none.
+                if (IsForLocalGroup(msg))
+                    OnLevelSync?.Invoke();
+                break;
+
             case LanMessageType.RescueNeeded:
                 if (!IsForLocalGroup(msg)) break;
                 var rescueNeeded = LanRescueNeededPayload.FromJson(msg.Payload);
@@ -789,6 +798,20 @@ public sealed class CoordinationBus : IDisposable
                 Type = LanMessageType.LimitBreak, Payload = payload, Timestamp = ts, PartyGroupId = group,
             });
         }
+    }
+
+    /// <summary>
+    /// Ask every toon in the group to level-sync to its FATE (×3, dedup) and apply locally — our own frames are
+    /// filtered on loopback.
+    /// </summary>
+    public void BroadcastLevelSync()
+    {
+        OnLevelSync?.Invoke();
+
+        var ts = DateTime.UtcNow.Ticks;
+        var group = LocalPartyGroupId;
+        for (var i = 0; i < 3; i++)
+            _lan.Send(new LanMessage { Type = LanMessageType.LevelSync, Timestamp = ts, PartyGroupId = group });
     }
 
     /// <summary>

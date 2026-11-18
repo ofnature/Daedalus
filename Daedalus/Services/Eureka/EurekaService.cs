@@ -6,8 +6,6 @@ using Dalamud.Plugin.Services;
 using Daedalus.Config;
 using FFXIVClientStructs.FFXIV.Client.Game.Character;
 using FFXIVClientStructs.FFXIV.Client.Game.InstanceContent;
-using FFXIVClientStructs.FFXIV.Client.System.String;
-using FFXIVClientStructs.FFXIV.Client.UI;
 
 namespace Daedalus.Services.Eureka;
 
@@ -153,7 +151,7 @@ public sealed unsafe class EurekaService : IDisposable
                 return;
 
             _nextSendUtc = now + SendEvery;
-            if (!SendCommand($"/magiaauto {wanted}"))
+            if (!GameTextCommand.Send($"/magiaauto {wanted}"))
                 return;
             _sentAuto = wanted;
             _log.Info($"Eureka: Magia Board set to auto {wanted}");
@@ -165,17 +163,5 @@ public sealed unsafe class EurekaService : IDisposable
         {
             _log.Warning(ex, "EurekaService: update failed");
         }
-    }
-
-    /// <summary>A game text command (not a plugin one), as if typed in chat.</summary>
-    private static bool SendCommand(string text)
-    {
-        var ui = UIModule.Instance();
-        if (ui == null)
-            return false;
-        var str = Utf8String.FromString(text);
-        ui->ProcessChatBoxEntry(str, IntPtr.Zero, false);
-        str->Dtor(true);
-        return true;
     }
 }

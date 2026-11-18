@@ -1049,7 +1049,13 @@ public sealed class PhantomActionLayer
                 TryPushBuff(ctx, 41619, job, level, PrioPartyBuff + 1); // Ringing Respite
                 break;
             case PhantomJob.Ranger:
-                TryPushBuff(ctx, 41599, job, level, PrioPartyBuff);     // Phantom Aim
+                // Phantom Aim: held for the job's own burst cooldown when that is about to come round.
+                var burst = PhantomBandRules.AimBurstAction(ctx.Player.ClassJob.RowId, ctx.Player.Level);
+                var burstIn = burst != 0 ? _actionService.GetCooldownRemaining(burst) : 0f;
+                if (PhantomBandRules.HoldsAimForBurst(burstIn))
+                    _pushHolds.Add($"Phantom Aim held — your burst is {burstIn:0}s away");
+                else
+                    TryPushBuff(ctx, 41599, job, level, PrioPartyBuff);
                 break;
             case PhantomJob.MysticKnight:
                 TryPushBuff(ctx, 46590, job, level, PrioPartyBuff);     // Magic Shell

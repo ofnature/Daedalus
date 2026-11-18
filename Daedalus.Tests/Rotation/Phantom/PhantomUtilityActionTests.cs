@@ -205,4 +205,36 @@ public class PhantomUtilityActionTests
         var def = PhantomActions.All.Single(a => a.ActionId == actionId);
         Assert.Equal((job, level), (def.Job, (int)def.RequiredLevel));
     }
+
+    // ── Phantom Aim is held for the job's own burst (user, 2026-11-17) ───────────────────
+
+    [Theory]
+    [InlineData(0f, false)]     // burst ready: Aim now, the job presses the burst next
+    [InlineData(3f, true)]      // about to come round: wait for it
+    [InlineData(30f, true)]
+    [InlineData(31f, false)]    // further off than Aim lasts: not worth the wait
+    [InlineData(118f, false)]   // the burst has just gone out: Aim covers it
+    public void AimWaitsOnlyForABurstThatIsClose(float burstCooldown, bool held)
+        => Assert.Equal(held, PhantomBandRules.HoldsAimForBurst(burstCooldown));
+
+    [Theory]
+    [InlineData(Daedalus.Data.JobRegistry.Samurai, 16482u)]      // Ikishoten
+    [InlineData(Daedalus.Data.JobRegistry.Warrior, 7389u)]       // Inner Release
+    [InlineData(Daedalus.Data.JobRegistry.Ninja, 36958u)]        // Kunai's Bane
+    [InlineData(Daedalus.Data.JobRegistry.Bard, 101u)]           // Raging Strikes
+    [InlineData(Daedalus.Data.JobRegistry.Pictomancer, 34675u)]  // Starry Muse
+    [InlineData(Daedalus.Data.JobRegistry.Summoner, 25801u)]     // Searing Light
+    public void AimIsTimedToTheJobsOwnBurstCooldown(uint jobId, uint burstAction)
+        => Assert.Equal(burstAction, PhantomBandRules.AimBurstAction(jobId, 100));
+
+    [Fact]
+    public void AJobWithNoBurstListedPressesAimWheneverItIsReady()
+    {
+        Assert.Equal(0u, PhantomBandRules.AimBurstAction(Daedalus.Data.JobRegistry.Sage, 100));
+        Assert.False(PhantomBandRules.HoldsAimForBurst(0f));
+    }
+
+    [Fact]
+    public void ABurstNotYetLearnedIsNotWaitedFor()
+        => Assert.Equal(0u, PhantomBandRules.AimBurstAction(Daedalus.Data.JobRegistry.Ninja, 91));
 }
