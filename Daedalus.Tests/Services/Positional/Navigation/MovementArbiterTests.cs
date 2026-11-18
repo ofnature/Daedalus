@@ -86,25 +86,136 @@ public class MovementArbiterTests
     {
         var arbiter = CreateArbiter();
 
-        // BMR AI has a nav target for one frame, then the raw signal drops (per-frame flicker).
+        // BMR re-steering every 0.3s (the follow micro-adjust flicker) never leaves a gap for a walk-in.
+        for (var i = 0; i < 6; i++)
+        {
+            _bossMod.Setup(x => x.IsBmrNavigating).Returns(true);
+            arbiter.BeginFrame();
+            _bossMod.Setup(x => x.IsBmrNavigating).Returns(false);
+            Advance(0.3);
+            arbiter.BeginFrame();
+            Assert.Equal(VNavMoveResult.Suppressed, arbiter.PathfindAndMoveCloseTo(DestA, 0.35f));
+            Assert.Equal(MovementSuppression.BmrNavigating, arbiter.Snapshot.Suppression);
+        }
+
+        // Cast-hold stays short: 0.3s after a nav frame casters are still held, past 0.75s they aren't.
+        Advance(0.5);
+        arbiter.BeginFrame();
+        Assert.False(arbiter.IsExternalMovementActive);
+    }
+
+    // ── Walk-in after a dodge (Crucible 2026-11-05: BMR follows nobody, so nobody walked back in) ──────
+
+    [Fact]
+    public void WalkIn_BmrQuietPastSettle_GrantedInsideStickyWindow()
+    {
+        var arbiter = CreateArbiter();
         _bossMod.Setup(x => x.IsBmrNavigating).Returns(true);
         arbiter.BeginFrame();
         _bossMod.Setup(x => x.IsBmrNavigating).Returns(false);
 
-        // 2s later, still inside the 3s sticky window → BMR owns movement.
-        Advance(2.0);
+        // 1.1s after BMR's last nav frame: still inside the 3s sticky, but BMR has stopped — walk back in.
+        Advance(1.1);
+        arbiter.BeginFrame();
+        Assert.Equal(VNavMoveResult.Queued, arbiter.PathfindAndMoveCloseTo(DestA, 0.35f));
+    }
+
+    [Fact]
+    public void WalkIn_BmrQuietUnderSettle_Denied()
+    {
+        var arbiter = CreateArbiter();
+        _bossMod.Setup(x => x.IsBmrNavigating).Returns(true);
+        arbiter.BeginFrame();
+        _bossMod.Setup(x => x.IsBmrNavigating).Returns(false);
+
+        Advance(0.8);
         arbiter.BeginFrame();
         Assert.Equal(VNavMoveResult.Suppressed, arbiter.PathfindAndMoveCloseTo(DestA, 0.35f));
         Assert.Equal(MovementSuppression.BmrNavigating, arbiter.Snapshot.Suppression);
+    }
 
-        // Cast-hold stays instantaneous: no nav target this frame → casters may hard-cast.
-        Assert.False(arbiter.IsExternalMovementActive);
-
-        // Sticky expired (3.5s) and the regrab cooldown (0.75s from the last sticky-danger frame) has
-        // passed → movement is ours again.
-        Advance(1.5);
+    [Fact]
+    public void WalkIn_GrantedInsideSticky_IsNotStoppedByTheStickyAlone()
+    {
+        var arbiter = CreateArbiter();
+        _bossMod.Setup(x => x.IsBmrNavigating).Returns(true);
+        arbiter.BeginFrame();
+        _bossMod.Setup(x => x.IsBmrNavigating).Returns(false);
+        Advance(1.1);
         arbiter.BeginFrame();
         Assert.Equal(VNavMoveResult.Queued, arbiter.PathfindAndMoveCloseTo(DestA, 0.35f));
+        _inner.Setup(x => x.IsPathRunning).Returns(true);
+
+        Advance(0.3);
+        arbiter.BeginFrame();
+        _inner.Verify(x => x.Stop(), Times.Never);
+    }
+
+    [Fact]
+    public void WalkIn_BmrSteersAgain_StopsThePathAndBacksOff()
+    {
+        var arbiter = CreateArbiter();
+        _bossMod.Setup(x => x.IsBmrNavigating).Returns(true);
+        arbiter.BeginFrame();
+        _bossMod.Setup(x => x.IsBmrNavigating).Returns(false);
+        Advance(1.1);
+        arbiter.BeginFrame();
+        Assert.Equal(VNavMoveResult.Queued, arbiter.PathfindAndMoveCloseTo(DestA, 0.35f));
+        _inner.Setup(x => x.IsPathRunning).Returns(true);
+
+        // The next dodge starts 0.5s into the walk: the path yields at once and the backoff doubles.
+        Advance(0.5);
+        _bossMod.Setup(x => x.IsBmrNavigating).Returns(true);
+        arbiter.BeginFrame();
+        _inner.Verify(x => x.Stop(), Times.Once);
+        _inner.Setup(x => x.IsPathRunning).Returns(false);
+        _bossMod.Setup(x => x.IsBmrNavigating).Returns(false);
+
+        Advance(1.1); // past the 1s settle, inside the escalated 1.5s
+        arbiter.BeginFrame();
+        Assert.Equal(VNavMoveResult.Suppressed, arbiter.PathfindAndMoveCloseTo(DestB, 0.35f));
+
+        Advance(0.5); // 1.6s quiet
+        arbiter.BeginFrame();
+        Assert.Equal(VNavMoveResult.Queued, arbiter.PathfindAndMoveCloseTo(DestB, 0.35f));
+    }
+
+    [Fact]
+    public void WalkIn_FlickeringReSteer_EscalatesOncePerGrant()
+    {
+        var arbiter = CreateArbiter();
+        arbiter.BeginFrame();
+        Assert.Equal(VNavMoveResult.Queued, arbiter.PathfindAndMoveCloseTo(DestA, 0.35f));
+
+        // Two raw onsets inside the 2s trigger: one escalation (0.75 → 1.5), not two (→ 3.0).
+        foreach (var _ in new[] { 1, 2 })
+        {
+            Advance(0.4);
+            _bossMod.Setup(x => x.IsBmrNavigating).Returns(true);
+            arbiter.BeginFrame();
+            Advance(0.1);
+            _bossMod.Setup(x => x.IsBmrNavigating).Returns(false);
+            arbiter.BeginFrame();
+        }
+
+        Advance(1.6);
+        arbiter.BeginFrame();
+        Assert.Equal(VNavMoveResult.Queued, arbiter.PathfindAndMoveCloseTo(DestB, 0.35f));
+    }
+
+    [Fact]
+    public void WalkIn_ZoneAboutToLandInsideTheSticky_Denied()
+    {
+        var arbiter = CreateArbiter();
+        _bossMod.Setup(x => x.IsBmrNavigating).Returns(true);
+        arbiter.BeginFrame();
+        _bossMod.Setup(x => x.IsBmrNavigating).Returns(false);
+        Advance(1.1);
+        _bossMod.Setup(x => x.ForbiddenZoneActivationInSeconds).Returns(1.0f);
+        arbiter.BeginFrame();
+
+        Assert.Equal(VNavMoveResult.Suppressed, arbiter.PathfindAndMoveCloseTo(DestA, 0.35f));
+        Assert.Equal(MovementSuppression.BmrDanger, arbiter.Snapshot.Suppression);
     }
 
     [Theory]

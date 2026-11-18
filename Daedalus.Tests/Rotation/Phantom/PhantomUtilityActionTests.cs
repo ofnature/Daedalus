@@ -33,6 +33,65 @@ public class PhantomUtilityActionTests
     public void Rejuvenation(bool inCombat, bool alreadyUp, float selfHp, float lowest, bool expected)
         => Assert.Equal(expected, PhantomBandRules.ShouldRejuvenate(inCombat, alreadyUp, selfHp, lowest));
 
+    // Timed for Starfall (user, 2026-11-16): pressed 12 s before Predict's recast ends, whoever is hurt or not.
+    [Theory]
+    [InlineData(12f, 1.00f, 1.00f, true)]   // Predict is 12 s away: now, nobody hurt
+    [InlineData(5f, 1.00f, 1.00f, true)]
+    [InlineData(40f, 0.50f, 0.50f, false)]  // Predict is far off: kept, even with people hurt
+    [InlineData(0f, 0.85f, 1.00f, true)]    // Predict ready and unused (the pull): the plain rule
+    [InlineData(0f, 1.00f, 1.00f, false)]
+    public void RejuvenationTimedForStarfall(float predictRecast, float selfHp, float lowest, bool expected)
+        => Assert.Equal(expected, PhantomBandRules.ShouldRejuvenate(
+            true, false, selfHp, lowest, timedForStarfall: true, predictRecastSeconds: predictRecast));
+
+    [Fact]
+    public void RejuvenationTimedForStarfallIsNeverDoubledNorPressedOutOfCombat()
+    {
+        Assert.False(PhantomBandRules.ShouldRejuvenate(true, alreadyUp: true, 1f, 1f, true, 5f));
+        Assert.False(PhantomBandRules.ShouldRejuvenate(inCombat: false, false, 1f, 1f, true, 5f));
+    }
+
+    [Fact]
+    public void WithStarfallOffThePredictRecastIsIgnored()
+        => Assert.True(PhantomBandRules.ShouldRejuvenate(true, false, 0.5f, 1f, timedForStarfall: false, predictRecastSeconds: 40f));
+
+    [Fact]
+    public void StarfallWaitsForTheHealToBeAboutToLand()
+    {
+        Assert.True(OracleCardPolicy.HoldsStarfallForRejuvenation(rejuvenationSecondsLeft: 6f, cardSecondsLeft: 5f));
+        Assert.False(OracleCardPolicy.HoldsStarfallForRejuvenation(4f, 5f));   // close enough: press
+        Assert.False(OracleCardPolicy.HoldsStarfallForRejuvenation(15f, 3f));  // the card is about to rotate away
+        Assert.False(OracleCardPolicy.HoldsStarfallForRejuvenation(0f, 5f));   // no Rejuvenation running
+    }
+
+    [Fact]
+    public void AHeldStarfallIsStillPlayedWhenItMustBe()
+    {
+        var cfg = new Daedalus.Config.PhantomConfig();
+        Assert.Equal(OracleDecision.Wait, OracleCardPolicy.Decide(
+            OracleCardPolicy.StarfallCard, cfg, lastCard: false, 1f, 1f, 1f, false, false,
+            rejuvenationSecondsLeft: 8f, cardSecondsLeft: 5f));
+        Assert.Equal(OracleDecision.PlayCard, OracleCardPolicy.Decide(
+            OracleCardPolicy.StarfallCard, cfg, lastCard: true, 1f, 1f, 1f, false, false,
+            rejuvenationSecondsLeft: 8f, cardSecondsLeft: 5f));
+        Assert.Equal(OracleDecision.PlayCard, OracleCardPolicy.Decide(
+            OracleCardPolicy.StarfallCard, cfg, lastCard: false, 1f, 1f, 1f, false, false,
+            rejuvenationSecondsLeft: 3f, cardSecondsLeft: 5f));
+    }
+
+    // ── The parser's phantom job tag ─────────────────────────────────────────────────────
+
+    [Fact]
+    public void ThePhantomTagIsTheJobAndItsLevel()
+    {
+        Assert.Equal("Oracle 4", Daedalus.Data.PhantomJobData.PhantomTag(
+            Daedalus.Data.PhantomJobData.ResolveActiveJob([(4368u, (byte)4)])));
+        Assert.Equal("Red Mage 5", Daedalus.Data.PhantomJobData.PhantomTag(
+            Daedalus.Data.PhantomJobData.ResolveActiveJob([(5334u, (byte)5)])));
+        Assert.Equal("", Daedalus.Data.PhantomJobData.PhantomTag(
+            Daedalus.Data.PhantomJobData.ResolveActiveJob([(48u, (byte)0)])));
+    }
+
     // ── Recuperation (Oracle): cleanses 20s after the cast ───────────────────────────────
 
     [Fact]

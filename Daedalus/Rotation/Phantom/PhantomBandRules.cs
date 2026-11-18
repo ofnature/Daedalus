@@ -531,9 +531,32 @@ public static class PhantomBandRules
     /// Phantom Rejuvenation (Oracle Lv4): 90,000 cure potency to the bearer and party within 30y, but only when
     /// the 20s effect runs out. An Ability on a 60s recast, so it costs nothing to start early — and it has to be
     /// started early, since it cannot answer an emergency. Any damage on anyone is reason enough.
+    /// <para>
+    /// With Starfall in play (<paramref name="timedForStarfall"/>; user, 2026-11-16) it is timed to the prophecy
+    /// instead: pressed when Predict has <see cref="RejuvenationBeforePredictSeconds"/> or less left on its recast, so
+    /// the heal lands a few seconds into the next prophecy — after a Starfall played off its first cards. Both recast
+    /// in 60 s, so it stays in step; while Predict's recast runs longer than that it is not spent on chip damage.
+    /// With Predict ready and unused (the pull, or no target worth a prophecy) the plain rule applies.
+    /// </para>
     /// </summary>
-    public static bool ShouldRejuvenate(bool inCombat, bool alreadyUp, float selfHpPct, float partyLowestHpPct)
-        => inCombat && !alreadyUp && (selfHpPct < RejuvenationHpPct || partyLowestHpPct < RejuvenationHpPct);
+    public static bool ShouldRejuvenate(
+        bool inCombat, bool alreadyUp, float selfHpPct, float partyLowestHpPct, bool timedForStarfall = false,
+        float predictRecastSeconds = 0f)
+    {
+        if (!inCombat || alreadyUp)
+            return false;
+        if (timedForStarfall && predictRecastSeconds > 0f)
+            return predictRecastSeconds <= RejuvenationBeforePredictSeconds;
+        return selfHpPct < RejuvenationHpPct || partyLowestHpPct < RejuvenationHpPct;
+    }
+
+    /// <summary>
+    /// Rejuvenation heals 20 s after the press. Korha's log of 2026-11-15: Predict comes round every 61-63 s, each
+    /// card is offered 3-5 s, and Starfall is played off the first card (or the second, after a Blessing nobody
+    /// needed) and resolves about a second after its press — 1 to 6 s into the prophecy. Pressed 12 s before
+    /// Predict's recast ends, the heal lands 5-7 s in.
+    /// </summary>
+    public const float RejuvenationBeforePredictSeconds = 12f;
 
     /// <summary>Recuperation cleanses when its 20s runs out, so a shorter debuff is gone before it does anything.</summary>
     public const float RecuperationDelaySeconds = 20f;

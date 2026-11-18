@@ -36,6 +36,8 @@ public sealed unsafe class CrucibleLoop
     private bool _teamTried;
     private bool _entering;
     private int _degreeSteps;
+    private int _foodTries;
+    private bool _foodMissingLogged;
 
     /// <summary>
     /// The roster asked for on this entry, fixed at the first Load. The roster is worked out from beast ranks, and the
@@ -76,14 +78,19 @@ public sealed unsafe class CrucibleLoop
     /// <param name="rosterFor">The team to bring onto a board (the goal's roster).</param>
     /// <param name="wantedDegree">The degree to enter on (0 Standard … 3 Third), or -1 to leave the game's choice.</param>
     /// <param name="finished">Asked before each new run: a stop message when the goal is met (every beast rank 25), else null.</param>
+    /// <param name="foodItemId">The meal to eat before each run when Well Fed is low (0 = none).</param>
     public void Update(
         bool enabled, ref int runsLeft, CrucibleBoard? onBoard, IPlayerCharacter? player, IObjectTable objects, bool inCombat,
         Func<CrucibleBoard, IReadOnlyList<int>> rosterFor, CrucibleRosterLoader? loader, int wantedDegree = CrucibleLoopRules.DegreeAsSet,
-        Func<string?>? finished = null)
+        Func<string?>? finished = null, uint foodItemId = 0)
     {
         var now = DateTime.UtcNow;
         if (onBoard != null)
         {
+            _foodTries = 0;
+            _foodMissingLogged = false;
+            if (!_wasOnBoard)
+                _log($"Crucible: {onBoard.Name} on {CrucibleLoopRules.DegreeName(SelectedDegree() ?? -1)}.");
             if (!_wasOnBoard && _entering && runsLeft > 0)
             {
                 runsLeft--;
@@ -103,13 +110,18 @@ public sealed unsafe class CrucibleLoop
             _outsideSinceUtc = now;
         }
 
+        // Food first, so the run starts Well Fed — with or without a loop to run (Start run begins from the layout).
+        var settled = _outsideSinceUtc == default || now - _outsideSinceUtc >= SettleOutside;
+        if (player != null && !inCombat && settled && TryEat(now, enabled, player, objects, foodItemId))
+            return;
+
         if (!enabled || runsLeft <= 0 || LastBoard is not { } board || player == null || inCombat)
         {
             _entering = false;
             return;
         }
 
-        if (now < _nextStepUtc || (_outsideSinceUtc != default && now - _outsideSinceUtc < SettleOutside))
+        if (now < _nextStepUtc || !settled)
             return;
 
         if (_entering && now - _lastProgressUtc > CrucibleLoopRules.StuckAfter)
@@ -120,7 +132,7 @@ public sealed unsafe class CrucibleLoop
 
         try
         {
-            Step(now, ref runsLeft, board, player, objects, rosterFor, loader, wantedDegree, finished);
+            Step(now, ref runsLeft, board, player, objects, rosterFor, loader, wantedDegree, finished, foodItemId);
         }
         catch (Exception ex)
         {
@@ -130,7 +142,8 @@ public sealed unsafe class CrucibleLoop
 
     private void Step(
         DateTime now, ref int runsLeft, CrucibleBoard board, IPlayerCharacter player, IObjectTable objects,
-        Func<CrucibleBoard, IReadOnlyList<int>> rosterFor, CrucibleRosterLoader? loader, int wantedDegree, Func<string?>? finished)
+        Func<CrucibleBoard, IReadOnlyList<int>> rosterFor, CrucibleRosterLoader? loader, int wantedDegree, Func<string?>? finished,
+        uint foodItemId)
     {
         var yesNo = Visible("SelectYesno");
         if (yesNo != null)
@@ -266,11 +279,7 @@ public sealed unsafe class CrucibleLoop
         }
 
         // Nothing open: talk to Lauda.
-        var lauda = objects
-            // Three Laudas stand on that spot (recordings 2026-10-24/25); only one is targetable — the one to talk to.
-            .Where(o => o.ObjectKind == ObjectKind.EventNpc && o.IsTargetable && o.Name.TextValue == CrucibleLoopRules.EntryNpc)
-            .OrderBy(o => Vector3.Distance(o.Position, player.Position))
-            .FirstOrDefault();
+        var lauda = FindLauda(objects, player);
         if (lauda == null || Vector3.Distance(lauda.Position, player.Position) > CrucibleLoopRules.TalkRange)
         {
             Status = $"Stand next to {CrucibleLoopRules.EntryNpc} to start the next run.";
@@ -285,6 +294,68 @@ public sealed unsafe class CrucibleLoop
         _teamWanted = null;
         TargetSystem.Instance()->InteractWithObject((GameObjectStruct*)lauda.Address, false);
         Progress(now, $"Talking to {CrucibleLoopRules.EntryNpc}.");
+    }
+
+    /// <summary>The Lauda to talk to, nearest first; null away from the lobby.</summary>
+    private static Dalamud.Game.ClientState.Objects.Types.IGameObject? FindLauda(IObjectTable objects, IPlayerCharacter player)
+        => objects
+            // Three Laudas stand on that spot (recordings 2026-10-24/25); only one is targetable — the one to talk to.
+            .Where(o => o.ObjectKind == ObjectKind.EventNpc && o.IsTargetable && o.Name.TextValue == CrucibleLoopRules.EntryNpc)
+            .OrderBy(o => Vector3.Distance(o.Position, player.Position))
+            .FirstOrDefault();
+
+    /// <summary>Lauda's screens, and the talk box: while one is open the game takes no item.</summary>
+    private static readonly string[] EntryScreens =
+        ["Talk", "SelectIconString", "SelectString", "XBMStageList", "XBMStageDetailList", "SelectYesno", "ContentsFinderConfirm"];
+
+    private DateTime _nextFoodUtc;
+
+    /// <summary>
+    /// Eat the chosen meal in the lobby when Well Fed is low (CrucibleLoopRules.EatsInLobbyNow / NextFood). True when
+    /// one was just eaten: nothing else is pressed for 3 s.
+    /// </summary>
+    private bool TryEat(DateTime now, bool enabled, IPlayerCharacter player, IObjectTable objects, uint foodItemId)
+    {
+        if (foodItemId == 0 || now < _nextFoodUtc)
+            return false;
+
+        _nextFoodUtc = now + TimeSpan.FromSeconds(1); // the lobby is looked for once a second, not every frame
+        var lauda = FindLauda(objects, player);
+        if (lauda == null)
+        {
+            // Away from the lobby: the next visit gets its tries back.
+            _foodTries = 0;
+            _foodMissingLogged = false;
+            return false;
+        }
+
+        var screenOpen = false;
+        foreach (var screen in EntryScreens)
+            screenOpen |= Visible(screen) != null;
+        if (!CrucibleLoopRules.EatsInLobbyNow(enabled, _entering, screenOpen, Vector3.Distance(lauda.Position, player.Position)))
+            return false;
+
+        var left = CrucibleFood.WellFedSecondsLeft(player);
+        var hq = CrucibleFood.Held(foodItemId, true);
+        var nq = CrucibleFood.Held(foodItemId, false);
+        switch (CrucibleLoopRules.NextFood(foodItemId, left, hq, nq, _foodTries))
+        {
+            case CrucibleLoopRules.FoodStep.EatHq or CrucibleLoopRules.FoodStep.EatNq:
+                _foodTries++;
+                CrucibleFood.Eat(foodItemId, CrucibleLoopRules.EatsHq(hq, nq, _foodTries));
+                Status = "Eating before the run.";
+                _log($"Crucible: eating before the run (Well Fed {left / 60f:0} min left, try {_foodTries}).");
+                _nextFoodUtc = now + TimeSpan.FromSeconds(3);
+                if (_nextStepUtc < _nextFoodUtc)
+                    _nextStepUtc = _nextFoodUtc;
+                return true;
+            case CrucibleLoopRules.FoodStep.NoneHeld when !_foodMissingLogged:
+                _foodMissingLogged = true;
+                _log("Crucible: the chosen food is not in your bags — this run goes in without it.");
+                break;
+        }
+
+        return false;
     }
 
     /// <summary>The degree the board layout is set to (0 Standard … 3 Third), or null when the agent is not there.</summary>

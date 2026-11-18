@@ -241,6 +241,10 @@ public static class PhantomJobData
         return false;
     }
 
+    /// <summary>The parser's row tag for a resolved phantom job: its name and level ("Oracle 4"), or empty for none.</summary>
+    public static string PhantomTag((PhantomJob Job, byte Level) active)
+        => active.Job == PhantomJob.None ? "" : $"{GetJobDisplayName(active.Job)} {active.Level}";
+
     public static (PhantomJob Job, byte Level) ResolveActiveJob(
         IEnumerable<(uint StatusId, byte Stacks)> playerStatuses)
     {

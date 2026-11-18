@@ -653,11 +653,11 @@ public sealed class DpsMeterService : IDpsMeterService, IDisposable
 
         var localPlayer = objectTable.LocalPlayer;
         if (localPlayer != null && casterId == localPlayer.EntityId)
-            return new CombatantIdentity(casterId, CombatantKind.Self, localPlayer.Name.TextValue, GetJobAbbrev(localPlayer));
+            return new CombatantIdentity(casterId, CombatantKind.Self, localPlayer.Name.TextValue, GetJobAbbrev(localPlayer), GetPhantomTag(localPlayer));
 
         var obj = objectTable.SearchById(casterId);
         if (obj is IPlayerCharacter player)
-            return new CombatantIdentity(casterId, CombatantKind.Player, player.Name.TextValue, GetJobAbbrev(player));
+            return new CombatantIdentity(casterId, CombatantKind.Player, player.Name.TextValue, GetJobAbbrev(player), GetPhantomTag(player));
 
         if (obj is IBattleNpc npc)
         {
@@ -689,6 +689,25 @@ public sealed class DpsMeterService : IDpsMeterService, IDisposable
     /// <summary>Same hostility test the targeting service uses: combatant subkind, or subkind 0.</summary>
     private static bool IsHostile(IBattleNpc npc)
         => (byte)npc.BattleNpcKind == Compat.BattleNpcKinds.Combatant || npc.SubKind == 0;
+
+    /// <summary>
+    /// A player's phantom job and level ("Oracle 4"): every phantom job is a permanent status whose stack count is
+    /// its level, readable on anyone in range, not only the party. Empty when they carry none.
+    /// </summary>
+    private static string GetPhantomTag(IBattleChara chara)
+    {
+        if (chara.StatusList == null)
+            return "";
+
+        var statuses = new List<(uint StatusId, byte Stacks)>();
+        foreach (var status in chara.StatusList)
+        {
+            if (status != null && status.StatusId != 0)
+                statuses.Add((status.StatusId, (byte)status.Param));
+        }
+
+        return Data.PhantomJobData.PhantomTag(Data.PhantomJobData.ResolveActiveJob(statuses));
+    }
 
     private static string GetJobAbbrev(IBattleChara chara)
     {

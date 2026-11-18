@@ -64,8 +64,33 @@ public sealed class TargetingService : ITargetingService
     /// <summary>The boss engine's "attack first" list, best first; Plugin wires it to the engine router.</summary>
     public Func<ulong[]>? PriorityTargets { get; set; }
 
+    /// <summary>The boss engine's running fight module; Plugin wires it to the engine router.</summary>
+    public Func<string>? FightModuleName { get; set; }
+
     private ulong[] _forbiddenByFight = [];
     private ulong[] _preferredByFight = [];
+    private string _fightModule = "";
+
+    /// <inheritdoc />
+    public string ActiveFightModule
+    {
+        get
+        {
+            RefreshFightHints();
+            return _fightModule;
+        }
+    }
+
+    /// <inheritdoc />
+    public ulong FirstFightPriority
+    {
+        get
+        {
+            RefreshFightHints();
+            return _preferredByFight.Length > 0 ? _preferredByFight[0] : 0;
+        }
+    }
+
     private readonly Stopwatch _fightHintsTimer = Stopwatch.StartNew();
 
     /// <summary>Both lists come over IPC and targeting asks many times a frame; ten reads a second is plenty.</summary>
@@ -75,7 +100,23 @@ public sealed class TargetingService : ITargetingService
             return;
         _fightHintsTimer.Restart();
         _forbiddenByFight = ForbiddenTargets?.Invoke() ?? [];
-        _preferredByFight = PriorityTargets?.Invoke() ?? [];
+        _preferredByFight = FightTargetHints.KillFirst(PriorityTargets?.Invoke() ?? [], LivingBoneBishop());
+        _fightModule = FightModuleName?.Invoke() ?? "";
+    }
+
+    /// <summary>The Bone Bishop while it stands, on a Crucible board; 0 otherwise.</summary>
+    private ulong LivingBoneBishop()
+    {
+        if (!Daedalus.Services.Beastmaster.CrucibleTracker.Current.OnBoard)
+            return 0;
+
+        foreach (var obj in _objectTable)
+        {
+            if (obj is IBattleNpc { NameId: FightTargetHints.BoneBishopNameId, IsDead: false, IsTargetable: true, CurrentHp: > 0 } bishop)
+                return bishop.GameObjectId;
+        }
+
+        return 0;
     }
 
     public TargetingService(

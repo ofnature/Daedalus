@@ -35,7 +35,14 @@ public sealed class CrucibleTracker
 
     private readonly CrucibleIndex _index;
 
-    public CrucibleTracker(CrucibleIndex index) => _index = index;
+    public CrucibleTracker(CrucibleIndex index)
+    {
+        _index = index;
+        CurrentIndex = index;
+    }
+
+    /// <summary>The boards and enemies read at load, for code without a tracker (the autopilot's shop picks).</summary>
+    public static CrucibleIndex CurrentIndex { get; private set; } = CrucibleIndex.Empty;
 
     /// <summary>This frame's snapshot. <see cref="CrucibleSnapshot.None"/> outside the Crucible.</summary>
     public static CrucibleSnapshot Current { get; private set; } = CrucibleSnapshot.None;

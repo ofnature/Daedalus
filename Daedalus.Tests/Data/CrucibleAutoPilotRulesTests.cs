@@ -225,6 +225,35 @@ public class CrucibleAutoPilotRulesTests
         Assert.Equal(CrucibleLootStep.Leave, CrucibleAutoPilotRules.NextLootStep(takeItems: false, gearDone: true, tokensTried: true));
     }
 
+    /// <summary>A Chemist's Satchel potion offers no tokens: the tokens step is skipped and the rest is left (Saar, 2026-11-07).</summary>
+    [Fact]
+    public void NoTokensOfferedSkipsTheTokensStep()
+    {
+        Assert.Equal(CrucibleLootStep.Leave, CrucibleAutoPilotRules.NextLootStep(false, true, tokensTried: false, tokensOffered: false));
+        Assert.Equal(CrucibleLootStep.Leave, CrucibleAutoPilotRules.NextLootStep(true, gearDone: true, false, tokensOffered: false));
+        Assert.Equal(CrucibleLootStep.TakeTokens, CrucibleAutoPilotRules.NextLootStep(true, gearDone: true, false, tokensOffered: true));
+    }
+
+    /// <summary>Gear is still taken first when no tokens are offered.</summary>
+    [Fact]
+    public void NoTokensOfferedStillTakesTheGear()
+        => Assert.Equal(CrucibleLootStep.TakeItem, CrucibleAutoPilotRules.NextLootStep(true, gearDone: false, false, tokensOffered: false));
+
+    /// <summary>"Take 0 territory tokens?" is answered No; a real token count is not.</summary>
+    [Fact]
+    public void OnlyTheZeroTokenPromptIsAnsweredNo()
+    {
+        Assert.True(CrucibleAutoPilotRules.IsEmptyTokenPrompt("Take 0 territory tokens?"));
+        Assert.False(CrucibleAutoPilotRules.IsEmptyTokenPrompt("Take 203 territory tokens?"));
+        Assert.False(CrucibleAutoPilotRules.IsEmptyTokenPrompt("Take the astral wristlet?"));
+        Assert.False(CrucibleAutoPilotRules.IsEmptyTokenPrompt("Some loot remains unclaimed. Leave it behind?"));
+    }
+
+    /// <summary>The tokens offered sit at value 4 of the spoils window (docs/crucible-screens.md).</summary>
+    [Fact]
+    public void TheTokensOfferedAreValueFour()
+        => Assert.Equal(4, CrucibleAutoPilotRules.LootTokensIndex);
+
     /// <summary>The take guard is a ceiling: one under it keeps going, at or past it stops.</summary>
     [Fact]
     public void TheGearGuardIsAtTheCap()
@@ -548,7 +577,7 @@ public class CrucibleAutoPilotRulesTests
 
     private static (ulong, System.Numerics.Vector2) At(ulong id, float x, float z) => (id, new System.Numerics.Vector2(x, z));
 
-    /// <summary>Fire (2,500) over ice (2,000) over Vampiric (1,500); potions are not Fangs.</summary>
+    /// <summary>Fire (2,500) over ice (2,000); potions are not Fangs, and the Vampiric Fang is held for healing.</summary>
     [Fact]
     public void PickFangTakesTheStrongest()
     {
@@ -556,6 +585,39 @@ public class CrucibleAutoPilotRulesTests
         Assert.Equal(0, CrucibleAutoPilotRules.PickFang([243189, 0, 243194]));
         Assert.Equal(-1, CrucibleAutoPilotRules.PickFang([243137, 243197, 0]));
     }
+
+    // --- the Vampiric Fang: held, the heal after the potions (user, 2026-11-07) ---
+
+    [Fact]
+    public void TheVampiricFangIsNeverSpentOnAdds()
+        => Assert.Equal(-1, CrucibleAutoPilotRules.PickFang([0, CrucibleAutoPilotRules.VampiricFangItemId]));
+
+    [Fact]
+    public void TheVampiricFangIsKeptAtTheShop()
+        => Assert.True(CrucibleAutoPilotRules.UsesItem(
+            (int)(CrucibleAutoPilotRules.VampiricFangItemId - CrucibleAutoPilotRules.CrucibleItemIconOffset), board: 1));
+
+    [Fact]
+    public void APotionComesBeforeTheVampiricFang()
+    {
+        uint[] held = [CrucibleAutoPilotRules.VampiricFangItemId, 243137];
+        var potion = CrucibleAutoPilotRules.PickPotion(held, 0.3f);
+        Assert.Equal(1, potion);
+        Assert.Equal(-1, CrucibleAutoPilotRules.PickVampiricFangHeal(held, 0.3f, 0.4f, potion, enemyTargeted: true));
+    }
+
+    [Fact]
+    public void WithNoPotionTheVampiricFangHealsBelowTheLine()
+    {
+        uint[] held = [0, CrucibleAutoPilotRules.VampiricFangItemId];
+        Assert.Equal(1, CrucibleAutoPilotRules.PickVampiricFangHeal(held, 0.3f, 0.4f, potionPick: -1, enemyTargeted: true));
+        Assert.Equal(-1, CrucibleAutoPilotRules.PickVampiricFangHeal(held, 0.5f, 0.4f, -1, true));
+    }
+
+    [Fact]
+    public void TheVampiricFangNeedsAnEnemyToHit()
+        => Assert.Equal(-1, CrucibleAutoPilotRules.PickVampiricFangHeal(
+            [CrucibleAutoPilotRules.VampiricFangItemId], 0.2f, 0.4f, -1, enemyTargeted: false));
 
     /// <summary>Summon's spawn (Minerva replay 2026-10-31): the crawler 21y from the far shambling — no Fang yet.</summary>
     [Fact]
@@ -740,16 +802,6 @@ public class CrucibleAutoPilotRulesTests
         Assert.Equal(1ul, CrucibleAutoPilotRules.FangAim(crawledIn, crawledIn, hardTarget: 1));
     }
 
-    /// <summary>Legendary never drinks on the First Board (Economic Ethos, nothing to make up for it); elsewhere it may.</summary>
-    [Theory]
-    [InlineData(1, false)]
-    [InlineData(2, true)]
-    [InlineData(3, true)]
-    [InlineData(4, true)]
-    [InlineData(5, true)]
-    public void LegendaryDrinksOnEveryBoardButTheFirst(int board, bool mayDrink)
-        => Assert.Equal(mayDrink, CrucibleAutoPilotRules.LegendaryMayDrink(board));
-
     /// <summary>The last slug alive is not worth a Fang.</summary>
     [Fact]
     public void ALoneTreantSlugGetsNoFang()
@@ -886,10 +938,10 @@ public class CrucibleAutoPilotRulesTests
     public void OneSerumIsBoughtForTheBossWhenNoneIsHeld()
     {
         CrucibleShopOffer[] offers = [Offer(0, 88, 100), Offer(1, 89, 300), Offer(2, 79, 158)];
-        Assert.Equal(1, CrucibleAutoPilotRules.ShopBuyForBossSerum(offers, 1000, [], 3));
-        Assert.Equal(0, CrucibleAutoPilotRules.ShopBuyForBossSerum(offers, 200, [], 3));   // G2 too dear: G1
-        Assert.Equal(-1, CrucibleAutoPilotRules.ShopBuyForBossSerum(offers, 1000, [88], 3)); // one held already
-        Assert.Equal(-1, CrucibleAutoPilotRules.ShopBuyForBossSerum(offers, 1000, [], 1));    // no boss serum on Board 1
+        Assert.Equal([1], CrucibleAutoPilotRules.ShopBuysForBossSerums(offers, 1000, [], 3));
+        Assert.Equal([0], CrucibleAutoPilotRules.ShopBuysForBossSerums(offers, 200, [], 3));   // G2 too dear: G1
+        Assert.Empty(CrucibleAutoPilotRules.ShopBuysForBossSerums(offers, 1000, [88], 3));     // one held already
+        Assert.Empty(CrucibleAutoPilotRules.ShopBuysForBossSerums(offers, 1000, [], 1));       // Board 1's serums aren't on offer
     }
 
     [Fact]
@@ -911,7 +963,7 @@ public class CrucibleAutoPilotRulesTests
     public void TheFirstBoardWantsSleepAndPoisonResistanceForPasDeSeul()
     {
         Assert.Equal(["Sleep", "Poison"], CrucibleAutoPilotRules.WantedResistances(1));
-        Assert.Equal([95, 94], CrucibleAutoPilotRules.BossSerumRows(1)); // G2, G1 Antisleep
+        Assert.Equal([95, 94, 87, 86], CrucibleAutoPilotRules.BossSerumRows(1)); // G2, G1 Antisleep; G2, G1 Antipoison
     }
 
     [Fact]
@@ -953,17 +1005,19 @@ public class CrucibleAutoPilotRulesTests
         Assert.Equal([2, 0], buys); // Angel Robe, Black Cowl — not the second sleep piece
     }
 
-    // --- Selling (recording 2026-11-04): Temporal Sand goes for 315 tokens (user: "sell") ---
+    // --- Selling (recording 2026-11-04): Temporal Sand goes for 315 tokens (user: "sell"); since 2026-11-06 every
+    // item nothing uses goes too ---
 
     [Fact]
     public void TemporalSandIsSoldFromItsSlot()
-        => Assert.Equal(2, CrucibleAutoPilotRules.ShopSellSlot([78, 128, CrucibleAutoPilotRules.TemporalSandRow, 115, 0, 0, 0, 0, 0, 0]));
+        => Assert.Equal(2, CrucibleAutoPilotRules.ShopSellSlot([78, 128, CrucibleAutoPilotRules.TemporalSandRow, 115, 0, 0, 0, 0, 0, 0], 1));
 
     [Fact]
-    public void NothingIsSoldWithoutTemporalSand()
+    public void AnItemNothingUsesIsSold()
     {
-        Assert.Equal(-1, CrucibleAutoPilotRules.ShopSellSlot([78, 128, 0, 115, 0, 0, 0, 0, 0, 0]));
-        Assert.Equal(-1, CrucibleAutoPilotRules.ShopSellSlot([]));
+        Assert.Equal(3, CrucibleAutoPilotRules.ShopSellSlot([78, 128, 0, 115, 0, 0, 0, 0, 0, 0], 1)); // Crucible Feather
+        Assert.Equal(-1, CrucibleAutoPilotRules.ShopSellSlot([78, 128, 0, 0, 0, 0, 0, 0, 0, 0], 1));
+        Assert.Equal(-1, CrucibleAutoPilotRules.ShopSellSlot([], 1));
     }
 
     [Fact]

@@ -27,6 +27,8 @@ public sealed class CrucibleTeamWindow : Window
     private readonly Func<CrucibleWalker?> _walker;
     private readonly Func<CrucibleBestiaryScanner?> _bestiary;
     private readonly Func<CrucibleRecorder?> _recorder;
+    private readonly Func<IReadOnlyList<(uint Id, string Name)>>? _meals;
+    private IReadOnlyList<(uint Id, string Name)> _mealsSeen = [];
     private string _recordStatus = "";
     private readonly Func<BeastmasterConfig> _config;
     private readonly Action _save;
@@ -35,11 +37,13 @@ public sealed class CrucibleTeamWindow : Window
     public CrucibleTeamWindow(
         CrucibleIndex index, Func<int, bool?> isCaptured, Func<CrucibleHornSetter?> setter, Func<CrucibleRosterLoader?> roster,
         Func<CrucibleAutoPilot?> autoPilot, Func<CrucibleLoop?> loop, Func<CrucibleWalker?> walker,
-        Func<CrucibleBestiaryScanner?> bestiary, Func<CrucibleRecorder?> recorder, Func<BeastmasterConfig> config, Action save)
+        Func<CrucibleBestiaryScanner?> bestiary, Func<CrucibleRecorder?> recorder, Func<BeastmasterConfig> config, Action save,
+        Func<IReadOnlyList<(uint Id, string Name)>>? meals = null)
         : base("Crucible team##DaedalusCrucibleTeam", ImGuiWindowFlags.AlwaysAutoResize | ImGuiWindowFlags.NoFocusOnAppearing)
     {
         _index = index;
         _isCaptured = isCaptured;
+        _meals = meals;
         _setter = setter;
         _roster = roster;
         _autoPilot = autoPilot;
@@ -69,7 +73,6 @@ public sealed class CrucibleTeamWindow : Window
     {
         DrawAutoPilot();
         DrawGoal();
-        DrawBonuses();
         if (CrucibleTracker.Current.Board == null)
             DrawReadRanks();
         var screen = CrucibleRosterLoader.ScreenBoard();
@@ -104,74 +107,9 @@ public sealed class CrucibleTeamWindow : Window
     }
 
     /// <summary>
-    /// The live bonus tracker (<see cref="CrucibleBonusWatcher"/>): the projection against the Legendary line, then every
-    /// bonus the board pays — what is lost shows the moment it happens. Shown on a board and after it, until the next one.
+    /// What the run is for (Clear / Level loop; Legendary / Third Degree are one attempt each). In the team window and the
+    /// edge tab.
     /// </summary>
-    private void DrawBonuses()
-    {
-        if (CrucibleBonusWatcher.Tracker is not { } tracker)
-            return;
-
-        var s = tracker.Snapshot();
-        if (!ImGui.CollapsingHeader($"Bonuses — {tracker.Board.Name}##crucibleBonuses", ImGuiTreeNodeFlags.DefaultOpen))
-            return;
-
-        if (s.Died)
-            ImGui.TextColored(DaedalusTheme.StatusRed, $"Died: no bonuses; {s.PerformanceSoFar:N0} so far.");
-        else
-        {
-            ImGui.Text($"Sure {s.ProjectedSure:N0}   If kept {s.ProjectedIfKept:N0}");
-            if (s.GapIfKept is { } gap)
-            {
-                ImGui.SameLine();
-                if (gap > 0)
-                    ImGui.TextColored(DaedalusTheme.StatusRed, $"{gap:N0} short of Legendary even if kept");
-                else if (s.GapSure is > 0)
-                    ImGui.TextColored(DaedalusTheme.StatusYellow, $"Legendary if kept ({-gap:N0} over)");
-                else
-                    ImGui.TextColored(DaedalusTheme.StatusGreen, "Legendary is sure");
-            }
-
-            if (ImGui.IsItemHovered())
-                ImGui.SetTooltip($"Line {s.LegendaryLine:N0}. Performance if finished {s.PerformanceIfFinished:N0} (the board's\n"
-                                 + "least-paying route), plus bonuses. Your remaining-HP share is NOT included, so the real\n"
-                                 + "score is that much higher. Sure = bonuses that can no longer be lost.");
-        }
-
-        if (!ImGui.BeginTable("##crucibleBonusLines", 3, ImGuiTableFlags.SizingFixedFit))
-            return;
-
-        foreach (var line in s.Lines)
-        {
-            ImGui.TableNextRow();
-            ImGui.TableNextColumn();
-            var color = line.State switch
-            {
-                CrucibleBonusState.Lost => DaedalusTheme.StatusRed,
-                CrucibleBonusState.Earned => DaedalusTheme.StatusGreen,
-                CrucibleBonusState.AtRisk => DaedalusTheme.StatusYellow,
-                CrucibleBonusState.NotTracked => DaedalusTheme.TextSecondary,
-                _ => DaedalusTheme.TextPrimary,
-            };
-            ImGui.TextColored(color, CrucibleResultRules.Label(line.Bonus));
-            ImGui.TableNextColumn();
-            ImGui.Text($"{line.Points:N0}");
-            ImGui.TableNextColumn();
-            var state = line.State switch
-            {
-                CrucibleBonusState.DecidedAtEnd => "at the end",
-                CrucibleBonusState.AtRisk => "at risk",
-                CrucibleBonusState.NotTracked => "not tracked",
-                _ => line.State.ToString().ToLowerInvariant(),
-            };
-            var why = line.Reason == CrucibleBonusReason.None ? "" : $" — {line.Reason}";
-            ImGui.TextColored(DaedalusTheme.TextSecondary, state + why);
-        }
-
-        ImGui.EndTable();
-    }
-
-    /// <summary>What the run is for (Clear / Level / Legendary), and for Legendary who tanks. In the team window and the edge tab.</summary>
     private void DrawGoal()
     {
         var config = _config();
@@ -192,7 +130,9 @@ public sealed class CrucibleTeamWindow : Window
             ImGui.SetTooltip("Score for Legendary rank: a team of only three beasts of ONE kin (Beast Squad III + Kin Gambit,\n"
                              + "5,000 points). The autopilot never rests at a campsite and buys only what finishes Habitual Hoarder;\n"
                              + "it takes no beast gear (Nameday Attire) and goes for the elites a Legendary route needs.\n"
-                             + "The walker avoids campsite sides at forks. Keep every familiar from falling (it retreats them).\n\n"
+                             + "The walker avoids campsite sides at forks. Keep every familiar from falling (it retreats them).\n"
+                             + "You tank (Challenge), as every Japanese Legendary clear does; on the Second Master's Board the\n"
+                             + "familiar takes the tankbusters. Pick the degree it enters on beside it.\n\n"
                              + "NOT a guarantee: there is RNG at work. Coffers that offer only beast gear, random spaces that turn\n"
                              + "into campsites, and every Damage Down / Vulnerability Up you take decide the bonuses, and the three\n"
                              + "beasts need ranks near the board's rank sync to survive it. On Board 1 the line is 17,500 and this\n"
@@ -204,33 +144,17 @@ public sealed class CrucibleTeamWindow : Window
                              + "gear, a random campsite or one Damage Down can cost one.\n\n"
                              + "A clear on Third Degree adds 9,000 points on top of the normal clear, which usually clears the\n"
                              + "Legendary line with room to spare (about 21,000 on the First Board), even with a few pets lost.");
+        ImGui.SameLine();
+        changed |= ImGui.RadioButton("Third Degree##crucibleGoal", ref goal, (int)CrucibleTeamGoal.ThirdDegree);
+        if (ImGui.IsItemHovered())
+            ImGui.SetTooltip("Clear the board on Third Degree, any score (all five boards = Unbroken Endgame, the Beastmaster's\n"
+                             + "Earrings). Survival only: the Third Degree teams, every item and piece of beast gear taken and used,\n"
+                             + "camps rested at; pets may fall. Always enters on Third Degree. One attempt: it never loops.");
         if (changed)
         {
             config.CrucibleGoal = (CrucibleTeamGoal)goal;
             _save();
         }
-
-        if (config.CrucibleGoal != CrucibleTeamGoal.Legendary)
-            return;
-
-        ImGui.SameLine();
-        var tank = config.CrucibleLegendarySharedTank ? 2 : config.CrucibleLegendaryBeastmasterTanks ? 1 : 0;
-        ImGui.SetNextItemWidth(110f * Dalamud.Interface.Utility.ImGuiHelpers.GlobalScale);
-        if (ImGui.Combo("Tank##crucibleLegendaryTank", ref tank, "Familiars\0You\0Shared\0"))
-        {
-            config.CrucibleLegendaryBeastmasterTanks = tank == 1;
-            config.CrucibleLegendarySharedTank = tank == 2;
-            _save();
-        }
-
-        if (ImGui.IsItemHovered())
-            ImGui.SetTooltip("Who holds the enemies on a Legendary run (nobody heals on one).\n"
-                             + "Familiars: Snarl on cooldown, the familiar tanks and covers you.\n"
-                             + "You: Challenge whenever an enemy is not on you, so the familiars end full for Selfless (+1,000);\n"
-                             + "  Snarl only covers you at 30% HP or less. Needs gear that can take the hits.\n"
-                             + "  (Damage Down / Vulnerability Up that land on you cost Unbeastable.)\n"
-                             + "Shared: the familiar tanks and covers you, so debuffs land on it (Unbeastable). You Challenge only\n"
-                             + "  to save a familiar about to fall (under 30%) while you are at 50%+, or when none is standing.");
     }
 
     public override void Draw()
@@ -374,7 +298,8 @@ public sealed class CrucibleTeamWindow : Window
         {
             CrucibleTeamGoal.Legendary => CrucibleLevelPlan.LegendaryTeam(config.CrucibleCoreTeam, captured, RankOf, board.RankCap, board.Index),
             CrucibleTeamGoal.Level => CrucibleLevelPlan.LevelRoster(core, captured, RankOf, cap),
-            _ => CrucibleLevelPlan.ClearRoster(_index, board, core, no => _isCaptured(no) == true),
+            _ => CrucibleLevelPlan.ClearRoster(_index, board, core, no => _isCaptured(no) == true,
+                CrucibleDegreeTeams.Roster(PlannedDegree(config), board.Index, no => _isCaptured(no) == true)),
         };
 
         var loader = _roster();
@@ -500,7 +425,7 @@ public sealed class CrucibleTeamWindow : Window
                 no => config.CrucibleRanks.GetValueOrDefault(no, 1), board.RankCap, board.Index)
             : CoreTeam();
         var horns = CrucibleHornPlan.Pick(_index, board, battle, pool, CrucibleLevelPlan.HornChoice(config.CrucibleGoal, chosen, carry,
-            _index.EnemiesInBattle(battle).FirstOrDefault()));
+            _index.EnemiesInBattle(battle).FirstOrDefault(), CrucibleDegreeTeams.For(PlannedDegree(config), battle)));
         ImGui.TextColored(DaedalusTheme.TextSecondary, "Horns:");
         ImGui.SameLine();
         ImGui.Text(horns.Count == 0 ? "nobody left standing" : string.Join(" > ", horns.Select(p => Name(pool[p].PetId))));
@@ -524,7 +449,7 @@ public sealed class CrucibleTeamWindow : Window
         {
             if (config.CrucibleLoopRuns < 1)
             {
-                config.CrucibleLoopRuns = 1;
+                config.CrucibleLoopRuns = CrucibleLoopRules.RunsForStart(config.CrucibleGoal, config.CrucibleLoopUntilMaxRank);
                 _save();
             }
 
@@ -629,44 +554,51 @@ public sealed class CrucibleTeamWindow : Window
                              + "closes the result. Walking the board (and so the forks) and any prompt it did not raise stay yours.\n"
                              + "Needs \"Set the Battlehorns before each battle\" on.");
 
+        // Third Degree takes and uses everything (survival is the goal), so these are fixed on there.
+        var thirdDegree = config.CrucibleGoal == CrucibleTeamGoal.ThirdDegree;
+        if (thirdDegree)
+            ImGui.BeginDisabled();
         ImGui.SameLine();
-        var items = config.CrucibleLootTakeItems;
+        var items = config.CrucibleLootTakeItems || thirdDegree;
         if (ImGui.Checkbox("Take beast gear##crucibleItems", ref items))
         {
             config.CrucibleLootTakeItems = items;
             _save();
         }
 
-        if (ImGui.IsItemHovered())
+        if (ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenDisabled))
             ImGui.SetTooltip("Also take beast gear from the spoils (every piece offered), and buy it at shops with the tokens\n"
                              + "the potions leave: the most useful pieces first, up to ten held.\n"
                              + "It helps you survive; it costs the Nameday Attire bonus. Legendary never buys gear.");
 
         ImGui.SameLine();
-        var potions = config.CrucibleLootTakePotions;
+        var potions = config.CrucibleLootTakePotions || thirdDegree;
         if (ImGui.Checkbox("Take potions##cruciblePotions", ref potions))
         {
             config.CrucibleLootTakePotions = potions;
             _save();
         }
 
-        if (ImGui.IsItemHovered())
+        if (ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenDisabled))
             ImGui.SetTooltip("Take Crucible items from the spoils — beast potions, crucible ash, reraisers, tomes and the like (never\n"
                              + "beast feed) — up to the ten the game holds. Holding them costs no bonus; only USING one costs Economic\n"
                              + "Ethos (750). Ending with ten pays Habitual Hoarder (1,000) from Board 2 on.");
 
         ImGui.SameLine();
-        var drink = config.CrucibleUsePotions;
+        var drink = config.CrucibleUsePotions || thirdDegree;
         if (ImGui.Checkbox("Use potions##crucibleUsePotions", ref drink))
         {
             config.CrucibleUsePotions = drink;
             _save();
         }
 
-        if (ImGui.IsItemHovered())
+        if (thirdDegree)
+            ImGui.EndDisabled();
+        if (ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenDisabled))
             ImGui.SetTooltip("At 40% HP or less, drink the strongest held beast potion or crucible ash. It opens the item from the\n"
                              + "board HUD and picks Use. With the autopilot on, shops are bought out of healing items, up to ten held.\n"
-                             + "Legendary: only as a last resort, at 20% HP or less. It costs Economic Ethos (750), but dying ends the\n"
+                             + "Legendary: only as a last resort, at 20% HP or less, on every board, and only when it can save the run\n"
+                             + "(a familiar is left, or the enemy dies before you would with it). It costs Economic Ethos (750), but dying ends the\n"
                              + "run with no bonuses at all. Once an item has been used anyway, it drinks at 45%, and at the final boss it\n"
                              + "keeps HP topped up (the remaining-HP share scores only at the end). Legendary shops buy no potions: only the cheapest items that make ten held\n"
                              + "for Habitual Hoarder, at the last shop, when that pays more than Coin Clutcher (and Rolling in Riches).");
@@ -683,19 +615,29 @@ public sealed class CrucibleTeamWindow : Window
             ImGui.SetTooltip("With the autopilot on, walk from space to space (vnavmesh), taking the suggested side at each\n"
                              + "fork (the arrows in the Crucible window's route). It waits while a screen is open or you are fighting.");
 
+        var oneShot = CrucibleLoopRules.IsOneShot(config.CrucibleGoal);
         ImGui.SameLine();
-        var runs = config.CrucibleLoopRuns;
-        ImGui.SetNextItemWidth(90f);
-        if (ImGui.InputInt("runs to loop##crucibleLoop", ref runs))
+        if (oneShot)
         {
-            config.CrucibleLoopRuns = Math.Clamp(runs, 0, 999);
-            _save();
+            ImGui.TextColored(DaedalusTheme.TextSecondary, "one attempt");
+            if (ImGui.IsItemHovered())
+                ImGui.SetTooltip("Legendary and Third Degree runs never loop: Start run goes in once and stops at Lauda after.");
         }
+        else
+        {
+            var runs = config.CrucibleLoopRuns;
+            ImGui.SetNextItemWidth(90f);
+            if (ImGui.InputInt("runs to loop##crucibleLoop", ref runs))
+            {
+                config.CrucibleLoopRuns = Math.Clamp(runs, 0, 999);
+                _save();
+            }
 
-        if (ImGui.IsItemHovered())
-            ImGui.SetTooltip("With the autopilot on: after a run, talk to Lauda (stand next to her), open the same board, set the\n"
-                             + "team for your goal (Level re-picks the lowest ranks each time) and go in again. One run is taken\n"
-                             + "off per board entered, so on a board this is the runs still to come after this one; 0 = no loop.");
+            if (ImGui.IsItemHovered())
+                ImGui.SetTooltip("With the autopilot on: after a run, talk to Lauda (stand next to her), open the same board, set the\n"
+                                 + "team for your goal (Level re-picks the lowest ranks each time) and go in again. One run is taken\n"
+                                 + "off per board entered, so on a board this is the runs still to come after this one; 0 = no loop.");
+        }
 
         if (config.CrucibleGoal == CrucibleTeamGoal.Level)
         {
@@ -705,7 +647,7 @@ public sealed class CrucibleTeamWindow : Window
             {
                 config.CrucibleLoopUntilMaxRank = untilMax;
                 if (untilMax)
-                    config.CrucibleLoopRuns = 999;
+                    config.CrucibleLoopRuns = CrucibleLoopRules.UntilMaxRankRuns;
                 _save();
             }
 
@@ -717,12 +659,19 @@ public sealed class CrucibleTeamWindow : Window
         }
 
         ImGui.SameLine();
-        var degree = config.CrucibleDegree + 1;
-        ImGui.SetNextItemWidth(120f * Dalamud.Interface.Utility.ImGuiHelpers.GlobalScale);
-        if (ImGui.Combo("Degree##crucibleDegree", ref degree, "As set in game\0Standard\0First Degree\0Second Degree\0Third Degree\0"))
+        if (config.CrucibleGoal == CrucibleTeamGoal.ThirdDegree)
         {
-            config.CrucibleDegree = degree - 1;
-            _save();
+            ImGui.TextColored(DaedalusTheme.AccentGold, "Third Degree");
+        }
+        else
+        {
+            var degree = config.CrucibleDegree + 1;
+            ImGui.SetNextItemWidth(120f * Dalamud.Interface.Utility.ImGuiHelpers.GlobalScale);
+            if (ImGui.Combo("Degree##crucibleDegree", ref degree, "As set in game\0Standard\0First Degree\0Second Degree\0Third Degree\0"))
+            {
+                config.CrucibleDegree = degree - 1;
+                _save();
+            }
         }
 
         if (ImGui.IsItemHovered())
@@ -730,6 +679,28 @@ public sealed class CrucibleTeamWindow : Window
                              + "it until you change it. The degrees unlock after the Second Master's Board and Blazing Trails —\n"
                              + "if this character can't pick the one chosen, the loop stops and says so.\n"
                              + "As set in game: leave it alone.");
+
+        if (_meals != null)
+        {
+            ImGui.SameLine();
+            DrawFood(config);
+        }
+
+        var plan = (int)config.CrucibleDegreePlan;
+        ImGui.SetNextItemWidth(230f * Dalamud.Interface.Utility.ImGuiHelpers.GlobalScale);
+        if (ImGui.Combo("Degree plan##crucibleDegreePlan", ref plan, "Wespe sting (fuurie's clear)\0Beasts take the busters (TPLemont's video)\0"))
+        {
+            config.CrucibleDegreePlan = (CrucibleDegreePlan)plan;
+            CrucibleDegreeTeams.Active = config.CrucibleDegreePlan;
+            _save();
+        }
+
+        if (ImGui.IsItemHovered())
+            ImGui.SetTooltip("Whose Third Degree clear the First Board follows on a degree: the teams, the fork and the Borrows.\n"
+                             + "Wespe sting: the Wespe opens every fight and stings; left fork (Arch Demon, campsite).\n"
+                             + "Beasts take the busters: no Wespe; a card is borrowed before every pull; a beast no later fight\n"
+                             + "needs takes each tankbuster; right fork (Piscodemon, treasure). Not yet tried in a run.\n"
+                             + "Change it before starting a run: the team is set from it.");
 
         if (config.CrucibleLoopRuns > 0)
         {
@@ -757,6 +728,10 @@ public sealed class CrucibleTeamWindow : Window
             ImGui.TextColored(DaedalusTheme.StatusGreen, "Loop: " + loop.Status);
     }
 
+    /// <summary>The degree the planned run goes in on: Third Degree for that goal, else the one set on the layout.</summary>
+    private static int PlannedDegree(BeastmasterConfig config) =>
+        config.CrucibleGoal == CrucibleTeamGoal.ThirdDegree ? 3 : Math.Max(0, CrucibleLoop.SelectedDegree() ?? 0);
+
     /// <summary>The core team as configured, Auto slots filled by rank.</summary>
     private IReadOnlyList<int> CoreTeam()
     {
@@ -767,6 +742,42 @@ public sealed class CrucibleTeamWindow : Window
 
     private static string Name(int petId) =>
         petId == 0 ? "—" : BstFamiliars.ByBestiaryNo((uint)petId)?.Name ?? $"#{petId}";
+
+    /// <summary>The loop's food: a meal from the bags (read when the list opens), or none.</summary>
+    private void DrawFood(BeastmasterConfig config)
+    {
+        ImGui.SetNextItemWidth(150f * Dalamud.Interface.Utility.ImGuiHelpers.GlobalScale);
+        var current = config.CrucibleFoodItemId == 0 ? "No food" : config.CrucibleFoodName;
+        if (ImGui.BeginCombo("Food##crucibleFood", current))
+        {
+            if (ImGui.IsWindowAppearing())
+                _mealsSeen = _meals?.Invoke() ?? [];
+            if (ImGui.Selectable("No food", config.CrucibleFoodItemId == 0))
+            {
+                config.CrucibleFoodItemId = 0;
+                config.CrucibleFoodName = "";
+                _save();
+            }
+
+            foreach (var (id, name) in _mealsSeen)
+            {
+                if (ImGui.Selectable($"{name}##food{id}", config.CrucibleFoodItemId == id))
+                {
+                    config.CrucibleFoodItemId = id;
+                    config.CrucibleFoodName = name;
+                    _save();
+                }
+            }
+
+            if (_mealsSeen.Count == 0)
+                ImGui.TextDisabled("No meals in your bags.");
+            ImGui.EndCombo();
+        }
+
+        if (ImGui.IsItemHovered())
+            ImGui.SetTooltip("The loop eats this before each run when Well Fed is missing or has under 25 minutes left (HQ first).\n"
+                             + "Lists the meals in your bags. Without one left, the run goes in without and the log says so.");
+    }
 
     private static string Capitalise(string name) =>
         name.Length == 0 ? name : char.ToUpperInvariant(name[0]) + name[1..];

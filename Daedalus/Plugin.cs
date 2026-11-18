@@ -42,7 +42,7 @@ namespace Daedalus;
 
 public sealed class Plugin : IDalamudPlugin
 {
-    public const string PluginVersion = "0.1.123";
+    public const string PluginVersion = "0.1.124";
     private const string CommandName = "/daedalus";
 
     /// <summary>LAN relay channel for Necromancer Deep Freeze "heal me to full" announcements.</summary>
@@ -464,6 +464,7 @@ public sealed class Plugin : IDalamudPlugin
         // the module raises them. Minerva publishes both lists; BossMod publishes neither, so under it these are empty.
         this.targetingService.ForbiddenTargets = () => this.bossModSafetyService.ForbiddenTargets;
         this.targetingService.PriorityTargets = () => this.bossModSafetyService.PriorityTargets;
+        this.targetingService.FightModuleName = () => this.bossModSafetyService.FightModuleName;
 
         this.movementArbiter = new MovementArbiter(
             vNavService, bossModSafetyService, () => configuration.Nav.YieldToBmrMovement,
@@ -1321,7 +1322,8 @@ public sealed class Plugin : IDalamudPlugin
                 configuration.Beastmaster.CrucibleGoal,
                 configuration.Beastmaster.CrucibleHornPicks.TryGetValue(Daedalus.Data.CrucibleHornPlan.PickKey(board, battle), out var picks) ? picks : null,
                 CrucibleCarryTeam(board),
-                crucibleTracker.Index.EnemiesInBattle(battle).FirstOrDefault()),
+                crucibleTracker.Index.EnemiesInBattle(battle).FirstOrDefault(),
+                Daedalus.Data.CrucibleDegreeTeams.For(Daedalus.Services.Beastmaster.CrucibleHints.Degree, battle)),
             no => configuration.Beastmaster.CrucibleRanks.TryGetValue(no, out var known) ? known : 0);
         this.crucibleWindow = new CrucibleWindow(
             crucibleTracker.Index, no => crucibleBestiary.IsPetUnlocked((uint)no), () => crucibleHornSetter.Status)
@@ -1374,7 +1376,10 @@ public sealed class Plugin : IDalamudPlugin
             var core = Daedalus.Data.CrucibleLevelPlan.Core(bst.CrucibleCoreTeam, captured, RankOf);
             return bst.CrucibleGoal == Daedalus.Data.CrucibleTeamGoal.Level
                 ? Daedalus.Data.CrucibleLevelPlan.LevelRoster(core, captured, RankOf, board.RosterCap > 0 ? board.RosterCap : 10)
-                : Daedalus.Data.CrucibleLevelPlan.ClearRoster(crucibleTracker.Index, board, core, no => captured.Contains(no));
+                : Daedalus.Data.CrucibleLevelPlan.ClearRoster(crucibleTracker.Index, board, core, no => captured.Contains(no),
+                    // The layout sets the degree before the team, so the agent already holds this run's.
+                    Daedalus.Data.CrucibleDegreeTeams.Roster(Daedalus.Services.Beastmaster.CrucibleLoop.SelectedDegree() ?? 0,
+                        board.Index, no => captured.Contains(no)));
         };
         // The live bonus tracker: English status names (it matches "Damage Down" / "Vulnerability Up"), and the roster
         // the board was entered with — the team the loader set, else the one the goal asks for.
@@ -1394,7 +1399,7 @@ public sealed class Plugin : IDalamudPlugin
         this.crucibleTeamWindow = new CrucibleTeamWindow(
             crucibleTracker.Index, no => crucibleBestiary.IsPetUnlocked((uint)no), () => crucibleHornSetter,
             () => crucibleRosterLoader, () => crucibleAutoPilot, () => crucibleLoop, () => crucibleWalker, () => crucibleBestiaryScanner, () => crucibleRecorder,
-            () => configuration.Beastmaster, SaveConfiguration);
+            () => configuration.Beastmaster, SaveConfiguration, () => Daedalus.Services.Beastmaster.CrucibleFood.MealsInBags(dataManager));
         this.crucibleRecorder = new Daedalus.Services.Beastmaster.CrucibleRecorder(
             gameInteropProvider, pluginInterface.ConfigDirectory.FullName, m => log.Info(m), combatEventService)
         {
@@ -1409,10 +1414,13 @@ public sealed class Plugin : IDalamudPlugin
         crucibleResultWatcher.ResultRead += result =>
         {
             crucibleBonusWatcher?.Finished();
+            // The remaining-HP points against max HP, to work out the game's formula (user, 2026-11-06).
+            log.Info($"Crucible: remaining HP {result.RemainingHp:N0} of {objectTable.LocalPlayer?.MaxHp ?? 0:N0} max"
+                     + $" scored {result.HpPoints:N0} ({result.Board}, {result.Mode}).");
+            // Only Legendary and Third Degree attempts (one-shot runs) get the result window (user, 2026-11-06).
             var goal = configuration.Beastmaster.CrucibleGoal;
-            if (goal is Daedalus.Data.CrucibleTeamGoal.Clear or Daedalus.Data.CrucibleTeamGoal.Legendary)
-                crucibleResultWindow.Show(result, Daedalus.Services.Beastmaster.CrucibleTracker.Current.Board,
-                    goal == Daedalus.Data.CrucibleTeamGoal.Legendary);
+            if (Daedalus.Data.CrucibleLoopRules.IsOneShot(goal))
+                crucibleResultWindow.Show(result, Daedalus.Services.Beastmaster.CrucibleTracker.Current.Board, legendary: true);
         };
         this.clientState.TerritoryChanged += OnCrucibleTerritoryChanged;
         OnCrucibleTerritoryChanged(clientState.TerritoryType); // plugin may load mid-board
@@ -2576,7 +2584,7 @@ public sealed class Plugin : IDalamudPlugin
             crucibleTracker?.Update(clientState.TerritoryType, objectTable.LocalPlayer, targetManager.Target, objectTable);
             crucibleRecorder?.AutoRecord(
                 configuration.Beastmaster.CrucibleAutoRecordLegendary
-                && configuration.Beastmaster.CrucibleGoal == Daedalus.Data.CrucibleTeamGoal.Legendary,
+                && Daedalus.Data.CrucibleLoopRules.IsOneShot(configuration.Beastmaster.CrucibleGoal),
                 Daedalus.Services.Beastmaster.CrucibleTracker.Current.OnBoard);
             crucibleRecorder?.Update(clientState.TerritoryType, condition[Dalamud.Game.ClientState.Conditions.ConditionFlag.InCombat],
                 objectTable.LocalPlayer, objectTable);
@@ -2592,20 +2600,30 @@ public sealed class Plugin : IDalamudPlugin
             FlushCrucibleRanksSave();
             Daedalus.Services.Beastmaster.CrucibleHints.SecondsUntilTankbuster =
                 Daedalus.Services.Beastmaster.CrucibleTracker.Current.OnBoard ? ReadSecondsUntilTankbuster() : float.MaxValue;
+            Daedalus.Services.Beastmaster.CrucibleHints.Degree = Daedalus.Services.Beastmaster.CrucibleTracker.Current.OnBoard
+                ? System.Math.Max(0, Daedalus.Services.Beastmaster.CrucibleLoop.SelectedDegree() ?? 0)
+                : 0;
+            Daedalus.Data.CrucibleDegreeTeams.Active = configuration.Beastmaster.CrucibleDegreePlan;
             Daedalus.Services.Beastmaster.CrucibleHints.SecondsUntilRaidwide =
                 Daedalus.Services.Beastmaster.CrucibleTracker.Current.OnBoard ? ReadSecondsUntilCoverableRaidwide() : float.MaxValue;
             Daedalus.Services.Beastmaster.CrucibleHints.TargetsToInterrupt =
                 Daedalus.Services.Beastmaster.CrucibleTracker.Current.OnBoard ? ReadTargetsToInterrupt() : [];
             crucibleBestiaryScanner?.Update();
+            var thirdDegreeRun = configuration.Beastmaster.CrucibleGoal == Daedalus.Data.CrucibleTeamGoal.ThirdDegree;
             crucibleAutoPilot?.Update(
                 crucibleRunning && configuration.Beastmaster.CrucibleAutoPilot
                 && Daedalus.Data.CrucibleHornPlan.ShouldSetHorns(configuration.Beastmaster.AutoCrucibleHorns, configuration.ExternalCombatOverrideSource),
-                Daedalus.Services.Beastmaster.CrucibleTracker.Current.Board, crucibleHornSetter, configuration.Beastmaster.CrucibleLootTakeItems,
+                Daedalus.Services.Beastmaster.CrucibleTracker.Current.Board, crucibleHornSetter,
+                // Third Degree takes and uses everything: survival is the only goal (user, 2026-11-06).
+                configuration.Beastmaster.CrucibleLootTakeItems || thirdDegreeRun,
                 objectTable.LocalPlayer is { MaxHp: > 0 } self ? (float)self.CurrentHp / self.MaxHp : 1f,
                 configuration.Beastmaster.CrucibleGoal == Daedalus.Data.CrucibleTeamGoal.Legendary,
                 // Legendary takes them too (holding is free) but drinks only as a last resort (user, 2026-10-27).
-                configuration.Beastmaster.CrucibleLootTakePotions,
-                configuration.Beastmaster.CrucibleUsePotions);
+                configuration.Beastmaster.CrucibleLootTakePotions || thirdDegreeRun,
+                configuration.Beastmaster.CrucibleUsePotions || thirdDegreeRun,
+                targetManager.Target is Dalamud.Game.ClientState.Objects.Types.IBattleChara { MaxHp: > 0 } foe
+                    ? (float)foe.CurrentHp / foe.MaxHp
+                    : null);
             if (crucibleWalker != null && crucibleIsCaptured != null)
             {
                 var busy = condition[Dalamud.Game.ClientState.Conditions.ConditionFlag.InCombat]
@@ -2623,18 +2641,24 @@ public sealed class Plugin : IDalamudPlugin
 
             if (crucibleLoop != null && crucibleRosterFor != null)
             {
-                var runsLeft = configuration.Beastmaster.CrucibleLoopRuns;
+                // Legendary and Third Degree are one attempt: never more than the run Start run begins. Only what the
+                // loop itself changes is saved, so looking at a one-shot goal never rewrites the saved count.
+                var runsPassed = Daedalus.Data.CrucibleLoopRules.RunsLeft(
+                    configuration.Beastmaster.CrucibleGoal, configuration.Beastmaster.CrucibleLoopRuns);
+                var runsLeft = runsPassed;
                 crucibleLoop.Update(
                     crucibleRunning && configuration.Beastmaster.CrucibleAutoPilot, ref runsLeft, Daedalus.Services.Beastmaster.CrucibleTracker.Current.Board,
                     objectTable.LocalPlayer, objectTable, condition[Dalamud.Game.ClientState.Conditions.ConditionFlag.InCombat],
-                    crucibleRosterFor, crucibleRosterLoader, configuration.Beastmaster.CrucibleDegree,
+                    crucibleRosterFor, crucibleRosterLoader,
+                    Daedalus.Data.CrucibleLoopRules.EnteredDegree(configuration.Beastmaster.CrucibleGoal, configuration.Beastmaster.CrucibleDegree),
                     configuration.Beastmaster is { CrucibleLoopUntilMaxRank: true, CrucibleGoal: Daedalus.Data.CrucibleTeamGoal.Level }
                     && crucibleIsCaptured is { } isCaptured
                         ? () => Daedalus.Data.CrucibleLoopRules.LevelingFinished(
                             Daedalus.Data.BstFamiliars.All.Select(b => b.BestiaryNo).Where(isCaptured).ToList(),
                             no => configuration.Beastmaster.CrucibleRanks.TryGetValue(no, out var rank) ? rank : null)
-                        : null);
-                if (runsLeft != configuration.Beastmaster.CrucibleLoopRuns)
+                        : null,
+                    configuration.Beastmaster.CrucibleFoodItemId);
+                if (runsLeft != runsPassed)
                 {
                     configuration.Beastmaster.CrucibleLoopRuns = runsLeft;
                     SaveConfiguration();

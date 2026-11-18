@@ -61,6 +61,31 @@ public static class CrucibleLoopRules
             ? "Loop finished: every beast is rank 25."
             : null;
 
+    /// <summary>
+    /// The degree a run is entered on (-1 = as set in game, 0 Standard, 1-3 the degrees): Third Degree runs always go in
+    /// on Third Degree; every other goal uses the one picked.
+    /// </summary>
+    public static int EnteredDegree(CrucibleTeamGoal goal, int picked) => goal == CrucibleTeamGoal.ThirdDegree ? 3 : picked;
+
+    /// <summary>
+    /// Legendary and Third Degree are one attempt each (user, 2026-11-06): never looped, so at most one run is left
+    /// (the one "Start run" begins).
+    /// </summary>
+    public static bool IsOneShot(CrucibleTeamGoal goal) => goal is CrucibleTeamGoal.Legendary or CrucibleTeamGoal.ThirdDegree;
+
+    /// <summary>The runs left, capped to the one run a one-shot goal allows.</summary>
+    public static int RunsLeft(CrucibleTeamGoal goal, int runs) => IsOneShot(goal) ? Math.Min(runs, 1) : runs;
+
+    /// <summary>The run count "until all rank 25" sets: high enough that the count never runs out first.</summary>
+    public const int UntilMaxRankRuns = 999;
+
+    /// <summary>
+    /// The runs Start run sets when none are left: Level with "until all rank 25" loops on (field 2026-11-06, Saar: the
+    /// box stayed ticked after the count reached 0, so Start run set 1 and every run stopped at Lauda), else one run.
+    /// </summary>
+    public static int RunsForStart(CrucibleTeamGoal goal, bool untilMaxRank)
+        => goal == CrucibleTeamGoal.Level && untilMaxRank ? UntilMaxRankRuns : 1;
+
     public static string DegreeName(int degree) => degree switch
     {
         0 => "Standard",
@@ -104,4 +129,53 @@ public static class CrucibleLoopRules
     /// </summary>
     public static bool IsEntryWarning(string prompt) =>
         prompt.StartsWith('※') && prompt.Contains("Proceed to challenge this board?", StringComparison.Ordinal);
+
+    /// <summary>Well Fed (Status row 48): the buff food gives.</summary>
+    public const uint WellFedStatusId = 48;
+
+    /// <summary>
+    /// Eat before a run when Well Fed has less than this left. One meal gives 30 minutes, so a fresh one isn't eaten
+    /// twice, and a board (a Third Degree one runs about 20 minutes) never starts on a buff about to run out.
+    /// </summary>
+    public const float FoodRefreshBelowSeconds = 25 * 60;
+
+    /// <summary>Tries before a run; past them the run goes in without (a meal the game won't let you eat).</summary>
+    public const int FoodTriesPerRun = 2;
+
+    /// <summary>Lauda within this far means the Crucible's lobby: where food is eaten.</summary>
+    public const float LobbyRange = 40f;
+
+    /// <summary>
+    /// Food is eaten standing in the lobby with none of Lauda's screens open, whoever starts the run. It used to be a
+    /// step of the loop's own walk to Lauda, which a run begun with Start run (from the open board layout) never
+    /// takes — and a Third Degree or Legendary attempt is always one such run: Korha's eight First Board runs of
+    /// 2026-11-15 all went in without Well Fed, the meal chosen and 138 in the bags.
+    /// </summary>
+    public static bool EatsInLobbyNow(bool enabled, bool entering, bool entryScreenOpen, float? yalmsToLauda)
+        => enabled && !entering && !entryScreenOpen && yalmsToLauda is { } yalms && yalms <= LobbyRange;
+
+    /// <summary>The first try eats the HQ meal when one is held; the second the NQ, unless only HQ is held.</summary>
+    public static bool EatsHq(int hqHeld, int nqHeld, int tryNumber)
+        => hqHeld > 0 && (tryNumber <= 1 || nqHeld <= 0);
+
+    /// <summary>What to do about food before talking to Lauda.</summary>
+    public enum FoodStep
+    {
+        None,
+        EatHq,
+        EatNq,
+
+        /// <summary>The chosen meal is not in the bags: go in without it.</summary>
+        NoneHeld,
+    }
+
+    /// <summary>Food before a run: the chosen meal (HQ first) when Well Fed is missing or running low.</summary>
+    public static FoodStep NextFood(uint foodItemId, float wellFedSecondsLeft, int hqHeld, int nqHeld, int triesThisRun)
+    {
+        if (foodItemId == 0 || wellFedSecondsLeft >= FoodRefreshBelowSeconds || triesThisRun >= FoodTriesPerRun)
+            return FoodStep.None;
+        if (hqHeld > 0)
+            return FoodStep.EatHq;
+        return nqHeld > 0 ? FoodStep.EatNq : FoodStep.NoneHeld;
+    }
 }

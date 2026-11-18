@@ -28,6 +28,21 @@ public static class EurekaRules
     /// <summary>How long to wait before sending again after the game refused it.</summary>
     public static readonly TimeSpan RetryAfterRefusal = TimeSpan.FromSeconds(10);
 
+    /// <summary>
+    /// The board as far as /magiaauto goes: how many magicite are owned and how many are placed. Turning the board
+    /// moves them between elements without changing either number, so this only changes when a magicite is gained
+    /// or the Magia Melder is used — and then /magiaauto is sent again. Two toons arriving in Anemos for the first
+    /// time (2026-11-16 20:05) were sent it 8 s in, before the opening quest had given them a board; the game took
+    /// it without a word, it was counted as set, and their boards never turned.
+    /// </summary>
+    public static int BoardSignature(byte magicite, System.Collections.Generic.IReadOnlyList<byte> placed)
+    {
+        var onBoard = 0;
+        foreach (var count in placed)
+            onBoard += count;
+        return magicite * 100 + onBoard;
+    }
+
     /// <summary>Whether a chat line is the game refusing a /magiaauto we sent.</summary>
     public static bool IsMagiaAutoRefused(string? message)
         => message != null && message.Contains("/magiaauto", StringComparison.OrdinalIgnoreCase)

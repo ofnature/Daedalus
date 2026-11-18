@@ -7,7 +7,8 @@ namespace Daedalus.Data;
 /// <summary>
 /// A board's result screen (<c>XBMResult</c>), read the moment it opens: the autopilot closes it within seconds.
 /// Layout from recordings (2026-10-27): [0] board, [1] mode, [2] performance (completion + spaces), [3] completion %,
-/// [4] completion points, [5]/[6] enemies "x n" / points, [7]/[8] elites, [9]/[10] bosses, [13] bonus total, [14] bonus
+/// [4] completion points, [5]/[6] enemies "x n" / points, [7]/[8] elites, [9]/[10] bosses, [11] remaining HP, [12] its
+/// points (0 under a floor that differs by board), [13] bonus total, [14] bonus
 /// count, bonus names at 15+i and points at 31+i, [58] remnant name, [63] remnant count, [68] TOTAL, [69] rank.
 /// </summary>
 public sealed record CrucibleRunResult(
@@ -27,7 +28,9 @@ public sealed record CrucibleRunResult(
     int BonusTotal,
     IReadOnlyList<(string Name, int Points)> Bonuses,
     int Remnants,
-    string RemnantName);
+    string RemnantName,
+    int RemainingHp = 0,
+    int HpPoints = 0);
 
 /// <summary>What the result window says about a run. Pure.</summary>
 public static class CrucibleResultRules

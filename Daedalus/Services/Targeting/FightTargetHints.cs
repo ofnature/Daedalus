@@ -30,6 +30,39 @@ public static class FightTargetHints
     public static bool ShouldRestore(ulong hardId, ulong droppedId, ulong[]? forbidden)
         => hardId == 0 && droppedId != 0 && !IsForbidden(droppedId, forbidden);
 
+    /// <summary>The Bone Bishop of the First Board's first battle (BNpcName).</summary>
+    public const uint BoneBishopNameId = 14532;
+
+    /// <summary>
+    /// The engine's priority list with <paramref name="firstId"/> put at its head (0: the list as it is). The Bone
+    /// Bishop dies before the Bone Knight (user, 2026-11-15, and every Third Degree source): the fight engine makes the
+    /// Knight its first priority whenever the beastmaster is behind his Forward Guard, and on 2026-11-15 the target
+    /// went Bishop, Knight, Bishop, Knight, Bishop, Knight, Bishop inside two minutes.
+    /// </summary>
+    public static ulong[] KillFirst(ulong[] priority, ulong firstId)
+    {
+        if (firstId == 0 || (priority.Length > 0 && priority[0] == firstId))
+            return priority;
+
+        var others = 0;
+        foreach (var id in priority)
+        {
+            if (id != firstId)
+                others++;
+        }
+
+        var ordered = new ulong[1 + others];
+        ordered[0] = firstId;
+        var at = 1;
+        foreach (var id in priority)
+        {
+            if (id != firstId)
+                ordered[at++] = id;
+        }
+
+        return ordered;
+    }
+
     /// <summary>The first priority id that <paramref name="resolve"/> turns into a usable target, in the engine's order.</summary>
     public static T? FirstPreferred<T>(ulong[]? priority, Func<ulong, T?> resolve) where T : class
     {

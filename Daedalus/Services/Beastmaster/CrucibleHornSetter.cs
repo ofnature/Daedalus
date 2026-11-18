@@ -63,6 +63,12 @@ public sealed unsafe class CrucibleHornSetter
         try
         {
             var party = ReadParty();
+            if (board == null)
+            {
+                CrucibleHints.BeastsNeededLater = [];
+                CrucibleHints.BeastsNeededLaterKnown = false;
+            }
+
             if (party == null || board == null)
             {
                 if (_screenOpen)
@@ -89,7 +95,8 @@ public sealed unsafe class CrucibleHornSetter
             if (battle == 0)
                 return;
 
-            var wanted = CrucibleHornPlan.Pick(_index, board, battle, team, _chosenFor(board, battle));
+            var chosen = _chosenFor(board, battle);
+            var wanted = CrucibleHornPlan.Pick(_index, board, battle, team, chosen);
             var toggles = CrucibleHornPlan.Toggles(selected, wanted);
             var key = $"{battle}:{string.Join(",", wanted)}";
             if (toggles.Count == 0)
@@ -105,6 +112,18 @@ public sealed unsafe class CrucibleHornSetter
                     _doneFor = key;
                     Status = $"Horns set for {Lineup(battle)}: {Names(team, wanted)}.";
                     _log("Crucible: " + Status);
+                    var neededLater = CrucibleDegreeTeams.NeededLater(CrucibleHints.Degree, board.Index, battle);
+                    CrucibleHints.BeastsNeededLater = neededLater;
+                    CrucibleHints.BeastsNeededLaterKnown = CrucibleHints.Degree > 0 && CrucibleDegreeTeams.For(CrucibleHints.Degree, battle) != null;
+                    // The debug log keeps this across sessions: which beasts went on the horns, what the plan was, and
+                    // why a planned beast was left off (the Wespe missing from three First Board fights, 2026-11-08,
+                    // could not be explained afterwards).
+                    Daedalus.Rotation.Base.RotationServices.DebugLog?.Log(
+                        Daedalus.Services.Debug.DebugLogCategory.Action, Daedalus.Services.Debug.DebugLogSeverity.Info,
+                        $"[Crucible] horns for battle {battle} ({Lineup(battle)}), board {board.Index}, degree {CrucibleHints.Degree}: "
+                        + $"{Names(team, wanted)} — {CrucibleHornPlan.PlanNote(team, chosen, wanted, NameOf)}. "
+                        + $"Team: {string.Join(", ", team.Select(m => $"{NameOf(m.PetId)} {(m.Alive ? m.Health.ToString("P0") : "down")}"))}. "
+                        + $"Needed in a later battle: {(neededLater.Count == 0 ? "none" : string.Join(", ", neededLater.Select(NameOf)))}");
                 }
                 return;
             }
@@ -190,6 +209,8 @@ public sealed unsafe class CrucibleHornSetter
 
     private string Lineup(int battle) =>
         _index.EnemiesInBattle(battle).FirstOrDefault()?.Name ?? $"battle {battle}";
+
+    private static string NameOf(int petId) => BstFamiliars.ByBestiaryNo((uint)petId)?.Name ?? $"#{petId}";
 
     private static string Names(IReadOnlyList<CrucibleTeamMember> team, IReadOnlyList<int> positions) =>
         string.Join(" > ", positions.Select(p => BstFamiliars.ByBestiaryNo((uint)team[p].PetId)?.Name ?? $"#{team[p].PetId}"));

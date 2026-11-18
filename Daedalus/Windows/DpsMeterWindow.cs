@@ -317,16 +317,6 @@ public sealed class DpsMeterWindow : Window
             dl.AddText(new Vector2(x, textY), ImGui.ColorConvertFloat4ToU32(nameColor), name);
             x += ImGui.CalcTextSize(name).X + 6f;
 
-            // Self-reporting Daedalus toons lose the HUMAN tag — the green dot says it all.
-            if (!borderless && stats.Kind != CombatantKind.Self
-                && !(stats.Kind == CombatantKind.Player && stats.IsSelfReported))
-            {
-                var tag = stats.Kind == CombatantKind.Support
-                    ? Loc.T(LocalizedStrings.Parser.TrustTag, "TRUST")
-                    : Loc.T(LocalizedStrings.Parser.HumanTag, "HUMAN");
-                dl.AddText(new Vector2(x, textY), ImGui.ColorConvertFloat4ToU32(DaedalusTheme.TextDisabled), tag);
-            }
-
             // Right side. On healing, overheal% takes the slot damage gives to share: when you
             // are healing, waste is the number worth watching.
             var rate = healing
@@ -337,6 +327,27 @@ public sealed class DpsMeterWindow : Window
                 : $"{encounter.GetDamageShare(stats) * 100f:F1}%";
             var trailingWidth = 42f;
             var rateWidth = ImGui.CalcTextSize(rate).X;
+            // Tags stop short of the numbers: a tag that would run into them is left out, not drawn over them.
+            var tagLimit = rowMax.X - trailingWidth - 8f - rateWidth - 6f;
+
+            // The phantom job they are on (Occult Crescent), ahead of the HUMAN tag.
+            if (!borderless && stats.PhantomTag.Length > 0 && x + ImGui.CalcTextSize(stats.PhantomTag).X <= tagLimit)
+            {
+                dl.AddText(new Vector2(x, textY), ImGui.ColorConvertFloat4ToU32(DaedalusTheme.TextSecondary), stats.PhantomTag);
+                x += ImGui.CalcTextSize(stats.PhantomTag).X + 6f;
+            }
+
+            // Self-reporting Daedalus toons lose the HUMAN tag — the green dot says it all.
+            if (!borderless && stats.Kind != CombatantKind.Self
+                && !(stats.Kind == CombatantKind.Player && stats.IsSelfReported))
+            {
+                var tag = stats.Kind == CombatantKind.Support
+                    ? Loc.T(LocalizedStrings.Parser.TrustTag, "TRUST")
+                    : Loc.T(LocalizedStrings.Parser.HumanTag, "HUMAN");
+                if (x + ImGui.CalcTextSize(tag).X <= tagLimit)
+                    dl.AddText(new Vector2(x, textY), ImGui.ColorConvertFloat4ToU32(DaedalusTheme.TextDisabled), tag);
+            }
+
             dl.AddText(new Vector2(rowMax.X - trailingWidth, textY), ImGui.ColorConvertFloat4ToU32(DaedalusTheme.TextSecondary), trailing);
             dl.AddText(new Vector2(rowMax.X - trailingWidth - 8f - rateWidth, textY), ImGui.ColorConvertFloat4ToU32(DaedalusTheme.TextPrimary), rate);
 

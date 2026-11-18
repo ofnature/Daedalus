@@ -8,6 +8,12 @@ namespace Daedalus.Services.Targeting;
 /// </summary>
 public interface ITargetingService
 {
+    /// <summary>The boss engine's first "attack first" enemy, or 0 when it names none.</summary>
+    ulong FirstFightPriority => 0;
+
+    /// <summary>The boss engine's running fight module (its type name), or empty.</summary>
+    string ActiveFightModule => "";
+
     /// <summary>
     /// Finds an enemy target using the specified strategy.
     /// </summary>

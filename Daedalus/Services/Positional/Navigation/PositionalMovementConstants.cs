@@ -141,6 +141,16 @@ public static class PositionalMovementConstants
     public const float BmrSteeringStickySeconds = 3f;
 
     /// <summary>
+    /// How long BMR's raw nav signal must stay quiet before a max-melee walk-in may go, sticky window or not
+    /// (the escalated regrab cooldown applies instead when longer). Well above the ~300ms flicker the sticky
+    /// bridges, so a BMR that is following the target and re-steering still owns movement. The sticky alone
+    /// assumed BMR walks the player back in after a dodge; with its AI following nobody (FollowTarget off,
+    /// solo) nothing did: Korha 2026-11-05 in the Crucible stood out of reach 3.75-6 s after every dodge, the
+    /// 3 s sticky plus the regrab cooldown counted from its end, up to 14 s without an attack.
+    /// </summary>
+    public const float BmrWalkInSettleSeconds = 1f;
+
+    /// <summary>
     /// Sticky window for the CAST-hold signal (IsExternalMovementActive) — much shorter than the
     /// movement-ownership sticky above: it only needs to bridge the raw IsBmrNavigating per-frame
     /// flicker (~300ms onset→clear cycles) so a hard cast can't queue into a false-flicker frame

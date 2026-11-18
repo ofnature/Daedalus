@@ -70,6 +70,30 @@ public static class OracleCardPolicy
     public static bool NeedsInvulnerabilityForFalsePrediction(bool hasFalsePrediction, bool hasInvulnerability)
         => hasFalsePrediction && !hasInvulnerability;
 
+    /// <summary>
+    /// A card chosen for play — or the Invulnerability that makes Starfall safe — takes the next weave slot ahead of
+    /// the job's own abilities. The cards are Abilities offered for 3-5 s each, and phantom abilities otherwise get
+    /// only the slots the job leaves over. Korha, Warrior, 2026-11-15 19:35: the prophecy opened into her burst,
+    /// she wove an ability of her own behind every weaponskill for 13 s (Onslaught, Inner Release, Rampart,
+    /// Bloodwhetting, Upheaval, Primal Wrath, Shake It Off), Judgment and then Cleansing — the last card — were
+    /// queued the whole time and never pressed, and the prophecy ended in a False Prediction.
+    /// </summary>
+    public static bool PreemptsJobWeaves(OracleDecision decision) => decision != OracleDecision.Wait;
+
+    /// <summary>Starfall is pressed once Phantom Rejuvenation has this much left or less: a GCD to get the press in, a second for it to resolve, and the heal follows.</summary>
+    public const float StarfallBeforeHealSeconds = 4f;
+
+    /// <summary>…but never held into the card's last seconds: a card that rotates away unplayed is gone.</summary>
+    public const float StarfallCardMarginSeconds = 3f;
+
+    /// <summary>
+    /// Starfall costs the Oracle most of their HP. With Phantom Rejuvenation ticking down (user, 2026-11-16: "have it
+    /// fire so ... the heal triggers from the buff right after"), Starfall waits until the heal is about to land, as
+    /// long as its card still has time. No Rejuvenation running: no wait.
+    /// </summary>
+    public static bool HoldsStarfallForRejuvenation(float rejuvenationSecondsLeft, float cardSecondsLeft)
+        => rejuvenationSecondsLeft > StarfallBeforeHealSeconds && cardSecondsLeft > StarfallCardMarginSeconds;
+
     public static OracleDecision Decide(
         uint cardActionId,
         PhantomConfig cfg,
@@ -79,7 +103,9 @@ public static class OracleCardPolicy
         float partyAvgHpPct,
         bool invulnBuffUp,
         bool invulnReady,
-        bool fightEnding = false)
+        bool fightEnding = false,
+        float rejuvenationSecondsLeft = 0f,
+        float cardSecondsLeft = float.MaxValue)
     {
         var mustCommit = lastCard || windowElapsedSeconds >= ForceCommitSeconds || fightEnding;
 
@@ -98,6 +124,8 @@ public static class OracleCardPolicy
                 return cfg.OracleUseBlessing && healNeeded ? OracleDecision.PlayCard : OracleDecision.Wait;
 
             case StarfallCard:
+                if (!mustCommit && HoldsStarfallForRejuvenation(rejuvenationSecondsLeft, cardSecondsLeft))
+                    return OracleDecision.Wait;
                 if (invulnBuffUp || selfHpPct > StarfallSafeHpPct)
                     return cfg.OracleUseStarfall || mustCommit ? OracleDecision.PlayCard : OracleDecision.Wait;
                 if (invulnReady && (mustCommit || (cfg.OracleUseStarfall && cfg.OracleSaveInvulnForStarfall)))

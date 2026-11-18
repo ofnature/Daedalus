@@ -86,6 +86,67 @@ public sealed class Artemis : BaseMeleeDpsRotation<IArtemisContext, IArtemisModu
     private System.DateTime _familiarGoneSinceUtc = System.DateTime.MinValue;
     private System.DateTime _lastHornTryUtc = System.DateTime.MinValue;
 
+    /// <summary>Horn presses the game refused, in a row. Reset when a familiar is out.</summary>
+    private int _hornRefusals;
+
+    /// <summary>The beast last seen out, for the log line when it goes.</summary>
+    private string _lastFamiliarName = "";
+
+    /// <summary>What the keeper and the pre-fight Borrow last logged they were waiting for, so each is logged once.</summary>
+    private string _hornWaitLogged = "", _preBorrowWaitLogged = "";
+
+    /// <summary>When the boss pull was first held back for the first beast and the pre-fight Borrow.</summary>
+    private System.DateTime _pullHoldSinceUtc = System.DateTime.MinValue;
+
+    /// <summary>The first beast is out and the pre-fight Borrow is done or cannot be: nothing left to wait for.</summary>
+    private bool _prePullSettled;
+
+    /// <summary>This pull's hold has been let go; not held again until a fight has been fought.</summary>
+    private bool _pullHoldReleased;
+
+    /// <inheritdoc />
+    protected override bool HoldsBossPull(IPlayerCharacter player)
+    {
+        if (_pullHoldReleased)
+            return false;
+
+        var now = System.DateTime.UtcNow;
+        var first = _pullHoldSinceUtc == System.DateTime.MinValue;
+        if (first)
+            _pullHoldSinceUtc = now;
+        var held = (now - _pullHoldSinceUtc).TotalSeconds;
+        var cfg = Configuration.Beastmaster;
+        var hold = ArtemisFamiliarKeeper.HoldsThePull(
+            Daedalus.Services.Beastmaster.CrucibleTracker.Current.OnBoard,
+            Daedalus.Services.Beastmaster.CrucibleHints.Degree > 0 || cfg.CrucibleGoal == CrucibleTeamGoal.Legendary,
+            cfg.KeepFamiliarOut, _prePullSettled, held);
+        if (hold)
+        {
+            // The boss engine walks the toon to the boss the moment it names it; the horn is a cast.
+            RotationServices.BossModSafety?.RequestHold(1d);
+            if (first)
+                RotationServices.DebugLog?.Log(
+                    Daedalus.Services.Debug.DebugLogCategory.Action, Daedalus.Services.Debug.DebugLogSeverity.Info,
+                    "[Crucible] pull held: the first beast and the Borrow go out first");
+            return true;
+        }
+
+        _pullHoldReleased = true;
+        if (!first)
+        {
+            RotationServices.BossModSafety?.RequestHold(0d);
+            RotationServices.DebugLog?.Log(
+                Daedalus.Services.Debug.DebugLogCategory.Action, Daedalus.Services.Debug.DebugLogSeverity.Info,
+                $"[Crucible] pull opened after {held:0.0}s ({(_prePullSettled ? "ready" : "out of time")}); horns: {HornNames()}");
+        }
+
+        return false;
+    }
+
+    // The pre-fight Borrow: when it was pressed, and whether it is given up on until the next fight.
+    private System.DateTime _preBorrowPressedUtc = System.DateTime.MinValue;
+    private bool _preBorrowGaveUp;
+
     public Artemis(
         IPluginLog log,
         IActionTracker actionTracker,
@@ -315,6 +376,13 @@ public sealed class Artemis : BaseMeleeDpsRotation<IArtemisContext, IArtemisModu
             _pairing.Reset();
         }
 
+        if (RotationServices.Condition?[Dalamud.Game.ClientState.Conditions.ConditionFlag.InCombat] == true)
+        {
+            _pullHoldSinceUtc = System.DateTime.MinValue;
+            _pullHoldReleased = false;
+            _prePullSettled = false;
+        }
+
         _playerEntityId = context.Player.EntityId;
         _familiarEntityId = context is ArtemisContext artemisContext ? artemisContext.FamiliarEntityId : 0;
         if (!context.HasFamiliar)
@@ -328,6 +396,10 @@ public sealed class Artemis : BaseMeleeDpsRotation<IArtemisContext, IArtemisModu
                 Daedalus.Services.Beastmaster.FamiliarLookup.HasOneWithNature(context.Player))
             + (context.FamiliarBeast is { } beast ? $" (Trick {beast.TrickAffinity})" : "")
             + (context.Gauge is { } gauge ? $" | {gauge.Describe()}" : " | gauge unreadable");
+
+        // On a board before the fight: Borrow a skin from a beast on the horns, then open on the first horn.
+        if (TryPreBorrow(context, isMoving, inCombat))
+            return;
 
         // No familiar, no Trick, no combos: call one back before anything else. The horn is a cast, so the
         // modules sit this frame out rather than queue a weaponskill on top of it.
@@ -355,6 +427,179 @@ public sealed class Artemis : BaseMeleeDpsRotation<IArtemisContext, IArtemisModu
     #endregion
 
     /// <summary>
+    /// The pre-fight Borrow on a Crucible board (user, 2026-11-08; fuurie / BMRV D3 clears, TPLemont): between fights,
+    /// call a Beastkin (else Vilekin) from the horns after the first, Borrow its skin, then call the first horn back so
+    /// the fight opens as planned. The card waits on Beast Mode (its 90 s is halted while a familiar is out) and
+    /// DamageModule keeps it until it is used. A horn swap out of combat costs no horn cooldown (fuurie still calls the
+    /// pre-borrowed Behemoth second, ~10 s into Pas de Seul). Returns true when something was sent this frame.
+    /// </summary>
+    private bool TryPreBorrow(IArtemisContext context, bool isMoving, bool inCombat)
+    {
+        if (inCombat)
+        {
+            _preBorrowGaveUp = false;
+            _preBorrowPressedUtc = System.DateTime.MinValue;
+            _preBorrowWaitLogged = "";
+            return false;
+        }
+
+        var player = context.Player;
+        var now = System.DateTime.UtcNow;
+        var cfg = Configuration.Beastmaster;
+        var wanted = Daedalus.Services.Beastmaster.CrucibleTracker.Current.OnBoard
+            && cfg.EnableBorrow && cfg.KeepFamiliarOut && _battlehorns.IsPopulatedFromGame
+            && ActionAvailability.MeetsLevelAndLearned(player.Level, ActionService, BSTActions.Borrow);
+        // The gap after a horn or a Borrow: nothing is pressed inside it, but what is already done is still read.
+        var gapOver = (now - _lastHornTryUtc).TotalSeconds >= ArtemisFamiliarKeeper.PreBorrowGapSeconds;
+        _prePullSettled = !wanted && context.HasFamiliar; // no Borrow to make: the first beast is all the pull waits for
+        if (!wanted || (context.HasFamiliar && context.FamiliarBeast == null))
+            return false; // a familiar not yet identified: its horn is unknown
+
+        // A card beast's battle (the Banemite's Geshunpest): Borrow is saved for it — pressed here, its 30 s recast
+        // would still be running when that beast comes out.
+        if (Daedalus.Services.Beastmaster.CrucibleTracker.Current.Enemy is { } foe
+            && CrucibleDegreeTeams.CardBeast(Daedalus.Services.Beastmaster.CrucibleHints.Degree, foe.Battle) is { } cardBeast)
+        {
+            _prePullSettled = context.HasFamiliar;
+            if (context.HasFamiliar)
+                LogPreBorrowWait($"no Borrow before this fight: it is kept for {BstFamiliars.ByBestiaryNo((uint)cardBeast)?.Name ?? "a beast"}'s card");
+            return false;
+        }
+
+        System.Span<BeastClassification> kins = stackalloc BeastClassification[ArtemisBattlehornState.SlotCount];
+        var outSlot = ArtemisFamiliarKeeper.None;
+        for (var i = 0; i < kins.Length; i++)
+        {
+            var no = _battlehorns[i].PactNameId;
+            kins[i] = _battlehorns[i].IsEmpty
+                ? BeastClassification.Unknown
+                : BstFamiliars.ByBestiaryNo(no)?.Classification ?? BeastClassification.Unknown;
+            if (context.FamiliarBeast is { } beast && (uint)beast.BestiaryNo == no)
+                outSlot = i;
+        }
+
+        // The plan's own pick for this battle (the video plan names one for every fight), else the kin rule.
+        var planBeast = Daedalus.Services.Beastmaster.CrucibleTracker.Current.Enemy is { } planFoe
+            ? CrucibleDegreeTeams.PreBorrowBeast(Daedalus.Services.Beastmaster.CrucibleHints.Degree, planFoe.Battle)
+            : null;
+        var planSlot = ArtemisFamiliarKeeper.None;
+        for (var i = 0; planBeast != null && i < kins.Length; i++)
+        {
+            if (!_battlehorns[i].IsEmpty && _battlehorns[i].PactNameId == (uint)planBeast.Value)
+                planSlot = i;
+        }
+
+        var preSlot = planSlot != ArtemisFamiliarKeeper.None ? planSlot : ArtemisFamiliarKeeper.PickPreBorrowSlot(kins);
+        if (preSlot == ArtemisFamiliarKeeper.None)
+        {
+            _prePullSettled = context.HasFamiliar;
+            if (context.HasFamiliar)
+                LogPreBorrowWait($"nothing to borrow: no Beastkin or Vilekin on the second or third horn ({HornNames()})");
+            return false;
+        }
+
+        var card = planSlot != ArtemisFamiliarKeeper.None
+            ? ArtemisCooldownRules.KinshipCard(kins[preSlot])
+            : ArtemisFamiliarKeeper.PreBorrowCard(kins[preSlot]);
+        var modeId = ActionService.GetAdjustedActionId(BSTActions.BeastMode.ActionId);
+        var cardHeld = ArtemisFamiliarKeeper.HoldsCardWorthKeeping(modeId);
+        if (cardHeld && modeId == card)
+            _damage.PreBorrowedCardId = card;
+
+        // A Borrow that did not take within a retry gap is not pressed again before this fight.
+        if (!cardHeld && _preBorrowPressedUtc != System.DateTime.MinValue
+            && (now - _preBorrowPressedUtc).TotalSeconds >= ArtemisFamiliarKeeper.RetrySeconds)
+        {
+            _preBorrowGaveUp = true;
+            _preBorrowPressedUtc = System.DateTime.MinValue;
+            RotationServices.DebugLog?.Log(
+                Daedalus.Services.Debug.DebugLogCategory.Action, Daedalus.Services.Debug.DebugLogSeverity.Warning,
+                "[Crucible] pre-borrow: Borrow did not take; opening without it");
+        }
+
+        var mounted = RotationServices.Condition?[
+            Dalamud.Game.ClientState.Conditions.ConditionFlag.Mounted] == true;
+        var pressable = ArtemisFamiliarKeeper.CanPressHornNow(
+            ActionService.AnimationLockRemaining, ActionService.SecondsSinceLastAction, ActionService.GcdRemaining);
+        var canAct = !player.IsDead && player.CurrentHp > 0 && !isMoving && !mounted && !player.IsCasting
+            && !HornGame.IsBestiaryOpen() && pressable;
+        // With no beast out the game refuses Borrow whatever its recast: then only the recast says whether the Borrow
+        // beast is worth calling — and it comes out first, with no detour through the first horn.
+        var borrowReady = context.HasFamiliar
+            ? ActionService.GetActionStatusCode(BSTActions.Borrow.ActionId, player.GameObjectId) == 0
+            : ActionService.IsActionReady(BSTActions.Borrow.ActionId);
+        var step = ArtemisFamiliarKeeper.NextPreBorrowStep(
+            true, canAct, preSlot, outSlot, cardHeld || _preBorrowGaveUp, borrowReady);
+        // The card is in hand (or the Borrow was given up) and the beast out is not the one it came from: ready.
+        // So is a Borrow still on its recast with none pressed: there is nothing to wait for but a beast.
+        var borrowOnRecast = _preBorrowPressedUtc == System.DateTime.MinValue
+                             && !ActionService.IsActionReady(BSTActions.Borrow.ActionId);
+        // Borrowed from the first horn itself, it is already the beast the fight opens on.
+        _prePullSettled = step == ArtemisFamiliarKeeper.PreBorrowStep.None && (cardHeld || _preBorrowGaveUp || borrowOnRecast)
+                          && context.HasFamiliar && (outSlot != preSlot || preSlot == 0);
+        if (!gapOver)
+            return false;
+        if (step == ArtemisFamiliarKeeper.PreBorrowStep.None && !cardHeld && !_preBorrowGaveUp)
+        {
+            LogPreBorrowWait(ArtemisFamiliarKeeper.HornWait(
+                    player.IsDead || player.CurrentHp == 0, isMoving, mounted, player.IsCasting, HornGame.IsBestiaryOpen(),
+                    pressable, anyHornReady: true) is { } why
+                ? $"waiting: {why}"
+                : outSlot == preSlot ? "waiting: Borrow is not ready" : "waiting: the horn is not ready");
+        }
+
+        var name = BstFamiliars.ByBestiaryNo(_battlehorns[preSlot].PactNameId)?.Name ?? "the beast";
+        var cardName = card == BSTActions.BeastskinId ? "Beastskin"
+            : card == BSTActions.VileskinId ? "Vileskin"
+            : card == BSTActions.ScaleskinId ? "Scaleskin"
+            : card == BSTActions.SoulCrushId ? "Soul Crush"
+            : card == BSTActions.QuellingWaveId ? "Quelling Wave"
+            : "card";
+        switch (step)
+        {
+            case ArtemisFamiliarKeeper.PreBorrowStep.SummonBeast:
+                return BlowHornForPreBorrow(player, preSlot, $"[Crucible] pre-borrow: calling {name} for its {cardName}", now);
+            case ArtemisFamiliarKeeper.PreBorrowStep.Borrow:
+                // Pressed and waiting for the card to show: not again (it is given up after a retry gap, above). The
+                // first horn follows as soon as the card is held, with no gap of its own.
+                if (_preBorrowPressedUtc != System.DateTime.MinValue)
+                    return false;
+                if (!ActionService.ExecuteOgcd(BSTActions.Borrow, player.GameObjectId))
+                    return false;
+                _preBorrowPressedUtc = now;
+                _damage.PreBorrowedCardId = card;
+                _artemisDebugState.PlannedAction = $"Borrow ({name}, before the fight)";
+                RotationServices.DebugLog?.Log(
+                    Daedalus.Services.Debug.DebugLogCategory.Action, Daedalus.Services.Debug.DebugLogSeverity.Info,
+                    $"[Crucible] pre-borrow: Borrow from {name} ({cardName})");
+                return true;
+            case ArtemisFamiliarKeeper.PreBorrowStep.SummonOpener:
+                return BlowHornForPreBorrow(player, 0, "[Crucible] pre-borrow: card held, calling the first horn back", now);
+            default:
+                return false;
+        }
+    }
+
+    /// <summary>Blow horn <paramref name="slot"/> for the pre-borrow when the game says it is ready.</summary>
+    private bool BlowHornForPreBorrow(IPlayerCharacter player, int slot, string log, System.DateTime now)
+    {
+        var horn = BSTActions.Battlehorns[slot];
+        if (!ActionAvailability.MeetsLevelAndLearned(player.Level, ActionService, horn)
+            || ActionService.GetActionStatusCode(horn.ActionId, player.GameObjectId) != 0)
+            return false;
+
+        _lastHornTryUtc = now;
+        if (!ActionService.ExecuteOgcd(horn, player.GameObjectId))
+            return false;
+
+        _artemisDebugState.PlannedAction = horn.Name;
+        _artemisDebugState.DamageState = "Pre-fight Borrow";
+        RotationServices.DebugLog?.Log(
+            Daedalus.Services.Debug.DebugLogCategory.Action, Daedalus.Services.Debug.DebugLogSeverity.Info, log);
+        return true;
+    }
+
+    /// <summary>
     /// Blow a Battlehorn when no familiar is out. Returns true when a horn was actually sent this frame.
     /// </summary>
     private bool TryKeepFamiliarOut(IArtemisContext context, bool isMoving)
@@ -364,6 +609,12 @@ public sealed class Artemis : BaseMeleeDpsRotation<IArtemisContext, IArtemisModu
 
         if (context.HasFamiliar)
         {
+            var nameNow = context.FamiliarBeast?.Name ?? "a familiar";
+            if (_familiarGoneSinceUtc != System.DateTime.MinValue && context.InCombat)
+                LogFamiliar($"{nameNow} is out after {(now - _familiarGoneSinceUtc).TotalSeconds:0.0}s with no familiar");
+            _lastFamiliarName = nameNow;
+            _hornRefusals = 0;
+            _hornWaitLogged = "";
             _familiarGoneSinceUtc = System.DateTime.MinValue;
 
             // Learn which horn this beast is on from the beast itself, so a death straight after a plugin
@@ -377,11 +628,22 @@ public sealed class Artemis : BaseMeleeDpsRotation<IArtemisContext, IArtemisModu
                 }
             }
 
-            return TrySwapOutFalling(context, isMoving, now);
+            return TrySwapOutFalling(context, isMoving, now) || TrySpareForBuster(context, isMoving, now);
         }
 
         if (_familiarGoneSinceUtc == System.DateTime.MinValue)
+        {
             _familiarGoneSinceUtc = now;
+            if (context.InCombat)
+                LogFamiliar($"{(_lastFamiliarName.Length > 0 ? _lastFamiliarName : "the familiar")} is gone; horns: {HornNames()}");
+        }
+
+        // The bomb push: no familiar until the worm is caught (it would push the bomb off line). From the last frame.
+        if (_damage.HoldsFamiliarForBombPush)
+        {
+            _artemisDebugState.DamageState = "Bomb push — no familiar until the worm is caught";
+            return false;
+        }
 
         System.Span<bool> usable = stackalloc bool[ArtemisBattlehornState.SlotCount];
         for (var i = 0; i < usable.Length; i++)
@@ -396,8 +658,19 @@ public sealed class Artemis : BaseMeleeDpsRotation<IArtemisContext, IArtemisModu
             Dalamud.Game.ClientState.Conditions.ConditionFlag.Mounted] == true;
         // Not with the Master's Bestiary open: reassigning a horn there dismisses the familiar on purpose,
         // and a horn blown in the middle of it would fight whoever is doing the assigning.
+        var pressable = ArtemisFamiliarKeeper.CanPressHornNow(
+            ActionService.AnimationLockRemaining, ActionService.SecondsSinceLastAction, ActionService.GcdRemaining);
         var canAct = !player.IsDead && player.CurrentHp > 0 && !isMoving && !mounted && !player.IsCasting
-            && !HornGame.IsBestiaryOpen();
+            && !HornGame.IsBestiaryOpen() && pressable;
+        if (context.InCombat && Configuration.Beastmaster.KeepFamiliarOut
+            && ArtemisFamiliarKeeper.HornWait(
+                player.IsDead || player.CurrentHp == 0, isMoving, mounted, player.IsCasting, HornGame.IsBestiaryOpen(),
+                pressable, AnyReady(usable)) is { } wait
+            && wait != _hornWaitLogged)
+        {
+            _hornWaitLogged = wait;
+            LogFamiliar($"no familiar for {(now - _familiarGoneSinceUtc).TotalSeconds:0.0}s, the horn waits: {wait}");
+        }
 
         var slot = ArtemisFamiliarKeeper.PickHorn(
             Configuration.Beastmaster.KeepFamiliarOut, context.HasFamiliar, canAct,
@@ -413,17 +686,26 @@ public sealed class Artemis : BaseMeleeDpsRotation<IArtemisContext, IArtemisModu
 
         _lastHornTryUtc = now;
         var chosen = BSTActions.Battlehorns[slot];
+        var gone = (now - _familiarGoneSinceUtc).TotalSeconds;
         if (!ActionService.ExecuteOgcd(chosen, player.GameObjectId))
         {
-            // The game said ready and then refused the press. Whatever the reason, it will not have changed
-            // in three seconds, and each refusal is an error toast — so back right off.
-            _lastHornTryUtc = now.AddSeconds(
-                ArtemisFamiliarKeeper.RefusedRetrySeconds - ArtemisFamiliarKeeper.RetrySeconds);
+            // The game said ready and then refused the press. Once is most likely a press that met another on its way
+            // out, so the usual gap; twice in a row is something the rule cannot see, and each refusal is an error
+            // toast — so back right off.
+            _hornRefusals++;
+            var backoff = ArtemisFamiliarKeeper.RefusedBackoffSeconds(_hornRefusals);
+            _lastHornTryUtc = now.AddSeconds(backoff - ArtemisFamiliarKeeper.RetrySeconds);
+            if (context.InCombat)
+                LogFamiliar($"{chosen.Name} ({HornName(slot)}) refused by the game, {gone:0.0}s with no familiar "
+                            + $"(lock {ActionService.AnimationLockRemaining:0.00}, GCD {ActionService.GcdRemaining:0.00}): "
+                            + $"next try in {backoff:0}s", warning: true);
             return false;
         }
 
         _artemisDebugState.PlannedAction = chosen.Name;
         _artemisDebugState.DamageState = "No familiar — calling one back";
+        if (context.InCombat)
+            LogFamiliar($"{chosen.Name} ({HornName(slot)}) pressed, {gone:0.0}s after the last one left");
         return true;
     }
 
@@ -446,7 +728,9 @@ public sealed class Artemis : BaseMeleeDpsRotation<IArtemisContext, IArtemisModu
                 && ActionService.IsActionReady(horn.ActionId);
         }
 
-        var canAct = !player.IsDead && player.CurrentHp > 0 && !isMoving && !player.IsCasting;
+        var pressable = ArtemisFamiliarKeeper.CanPressHornNow(
+            ActionService.AnimationLockRemaining, ActionService.SecondsSinceLastAction, ActionService.GcdRemaining);
+        var canAct = !player.IsDead && player.CurrentHp > 0 && !isMoving && !player.IsCasting && pressable;
         var slot = ArtemisFamiliarKeeper.PickSwapHorn(
             true, canAct, (now - _lastHornTryUtc).TotalSeconds, _lastOutHorn, usable);
         if (slot == ArtemisFamiliarKeeper.None)
@@ -454,15 +738,108 @@ public sealed class Artemis : BaseMeleeDpsRotation<IArtemisContext, IArtemisModu
 
         _lastHornTryUtc = now;
         var chosen = BSTActions.Battlehorns[slot];
-        if (!ActionService.ExecuteOgcd(chosen, player.GameObjectId))
-            return false;
-
         var outName = context.FamiliarBeast?.Name ?? "the familiar";
+        if (!ActionService.ExecuteOgcd(chosen, player.GameObjectId))
+        {
+            LogFamiliar($"{outName} falling: {chosen.Name} ({HornName(slot)}) refused by the game "
+                        + $"(lock {ActionService.AnimationLockRemaining:0.00}, GCD {ActionService.GcdRemaining:0.00})", warning: true);
+            return false;
+        }
+
         _artemisDebugState.PlannedAction = $"{chosen.Name} (swap {outName} out — falling, Parting Blow on cooldown)";
         RotationServices.DebugLog?.Log(
             Daedalus.Services.Debug.DebugLogCategory.Action, Daedalus.Services.Debug.DebugLogSeverity.Info,
-            $"[Crucible] {outName} falling and Parting Blow on cooldown: {chosen.Name} swaps it out");
+            $"[Crucible] {outName} falling and Parting Blow on cooldown: {chosen.Name} ({HornName(slot)}) swaps it out");
         return true;
+    }
+
+    private static bool AnyReady(System.ReadOnlySpan<bool> horns)
+    {
+        foreach (var ready in horns)
+        {
+            if (ready)
+                return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// A tankbuster is coming while the beast out is kept for a later battle and the beastmaster is hurt
+    /// (DamageModule.SpareForBusterWanted, from the last frame): blow the horn of a beast no later battle needs. It
+    /// swaps in, tanks as a beast that can be spent does, and is Snarled into the hit. Returns true when a horn was sent.
+    /// </summary>
+    private bool TrySpareForBuster(IArtemisContext context, bool isMoving, System.DateTime now)
+    {
+        if (!_damage.SpareForBusterWanted || !_battlehorns.IsPopulatedFromGame
+            || !Daedalus.Services.Beastmaster.CrucibleHints.BeastsNeededLaterKnown)
+            return false;
+
+        var player = context.Player;
+        var neededLater = Daedalus.Services.Beastmaster.CrucibleHints.BeastsNeededLater;
+        System.Span<bool> usable = stackalloc bool[ArtemisBattlehornState.SlotCount];
+        System.Span<bool> spare = stackalloc bool[ArtemisBattlehornState.SlotCount];
+        for (var i = 0; i < usable.Length; i++)
+        {
+            var horn = BSTActions.Battlehorns[i];
+            usable[i] = !_battlehorns[i].IsEmpty
+                && ActionAvailability.MeetsLevelAndLearned(player.Level, ActionService, horn)
+                && ActionService.IsActionReady(horn.ActionId);
+            spare[i] = !_battlehorns[i].IsEmpty
+                && !System.Linq.Enumerable.Contains(neededLater, (int)_battlehorns[i].PactNameId);
+        }
+
+        var pressable = ArtemisFamiliarKeeper.CanPressHornNow(
+            ActionService.AnimationLockRemaining, ActionService.SecondsSinceLastAction, ActionService.GcdRemaining);
+        var canAct = !player.IsDead && player.CurrentHp > 0 && !isMoving && !player.IsCasting && pressable;
+        var slot = ArtemisFamiliarKeeper.PickSpareHorn(
+            true, canAct, (now - _lastHornTryUtc).TotalSeconds, _lastOutHorn, usable, spare);
+        if (slot == ArtemisFamiliarKeeper.None)
+            return false;
+
+        _lastHornTryUtc = now;
+        var chosen = BSTActions.Battlehorns[slot];
+        var outName = context.FamiliarBeast?.Name ?? "the familiar";
+        var hp = player.MaxHp > 0 ? (float)player.CurrentHp / player.MaxHp : 0f;
+        if (!ActionService.ExecuteOgcd(chosen, player.GameObjectId))
+        {
+            LogFamiliar($"a tankbuster is coming: {chosen.Name} ({HornName(slot)}) refused by the game "
+                        + $"(lock {ActionService.AnimationLockRemaining:0.00}, GCD {ActionService.GcdRemaining:0.00})", warning: true);
+            return false;
+        }
+
+        _artemisDebugState.PlannedAction = $"{chosen.Name} ({HornName(slot)} takes the tankbuster — {outName} is kept)";
+        RotationServices.DebugLog?.Log(
+            Daedalus.Services.Debug.DebugLogCategory.Action, Daedalus.Services.Debug.DebugLogSeverity.Info,
+            $"[Crucible] a tankbuster is coming and you are at {hp:P0}: {chosen.Name} ({HornName(slot)}) comes out to take it, "
+            + $"{outName} is kept for a later battle");
+        return true;
+    }
+
+    /// <summary>The beast on a horn, by name.</summary>
+    private string HornName(int slot)
+        => _battlehorns[slot].IsEmpty ? "empty"
+            : BstFamiliars.ByBestiaryNo(_battlehorns[slot].PactNameId)?.Name ?? $"#{_battlehorns[slot].PactNameId}";
+
+    /// <summary>The three horns in order, for a log line.</summary>
+    private string HornNames()
+        => string.Join(" > ", System.Linq.Enumerable.Select(System.Linq.Enumerable.Range(0, ArtemisBattlehornState.SlotCount), HornName));
+
+    private static void LogFamiliar(string message, bool warning = false)
+        => RotationServices.DebugLog?.Log(
+            Daedalus.Services.Debug.DebugLogCategory.Action,
+            warning ? Daedalus.Services.Debug.DebugLogSeverity.Warning : Daedalus.Services.Debug.DebugLogSeverity.Info,
+            "[Familiar] " + message);
+
+    /// <summary>Why the pre-fight Borrow is not happening, once per reason between fights.</summary>
+    private void LogPreBorrowWait(string why)
+    {
+        if (why == _preBorrowWaitLogged)
+            return;
+        _preBorrowWaitLogged = why;
+        RotationServices.DebugLog?.Log(
+            Daedalus.Services.Debug.DebugLogCategory.Action, Daedalus.Services.Debug.DebugLogSeverity.Info,
+            "[Crucible] pre-borrow: " + why);
     }
 
     /// <summary>Battlehorn action ids, in slot order.</summary>

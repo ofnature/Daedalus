@@ -164,6 +164,29 @@ public sealed class MinervaSafetyService : IBossModSafetyService
 
     private ICallGateSubscriber<ulong[]>? _forbiddenTargets;
     private ICallGateSubscriber<ulong[]>? _priorityTargets;
+    private ICallGateSubscriber<bool>? _isConnected;
+    private ICallGateSubscriber<string>? _activeModule;
+
+    /// <summary>
+    /// The fight module Minerva is running (<c>Minerva.ActiveModule</c>, its type name), only while
+    /// <c>Minerva.IsConnected</c>; empty otherwise, or when Minerva is absent or throws.
+    /// </summary>
+    public string FightModuleName
+    {
+        get
+        {
+            if (!ReadBool(ref _isConnected, "Minerva.IsConnected"))
+                return "";
+            try
+            {
+                return (_activeModule ??= _pluginInterface.GetIpcSubscriber<string>("Minerva.ActiveModule")).InvokeFunc() ?? "";
+            }
+            catch
+            {
+                return "";
+            }
+        }
+    }
 
     private ICallGateSubscriber<ulong>? _interactTarget;
     private ICallGateSubscriber<bool>? _wantSprint;

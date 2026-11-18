@@ -21,8 +21,16 @@ public enum CrucibleTeamGoal
     /// and none of the things that cost a bonus: no beast gear, no rest, no shopping (but the last shop's items that make
     /// ten held for Habitual Hoarder, when that pays more than Coin Clutcher). Research 2026-10-27
     /// (docs/crucible-legendary.md): with no familiar falling that is ~17,300 + HP on Board 1 against a 17,500 line.
+    /// One run (never loops); entered on the degree picked for it.
     /// </summary>
     Legendary,
+
+    /// <summary>
+    /// Clear a board on Third Degree (user, 2026-11-06: all five boards on Third Degree = Unbroken Endgame, the
+    /// Beastmaster's Earrings; any score counts). Survival only: the Third Degree teams, every item and piece of gear
+    /// taken and used, camps rested at, pets may fall. One run (never loops), always entered on Third Degree.
+    /// </summary>
+    ThirdDegree,
 }
 
 /// <summary>The core team and the levelling roster. Pure.</summary>
@@ -64,12 +72,17 @@ public static class CrucibleLevelPlan
         return roster;
     }
 
-    /// <summary>The clearing roster: the core first, then <see cref="CrucibleHornPlan.Roster"/>'s coverage picks, up to the cap.</summary>
+    /// <summary>
+    /// The clearing roster: the core first, then <see cref="CrucibleHornPlan.Roster"/>'s coverage picks, up to the cap.
+    /// On a degree above Standard the documented clear's beasts (<paramref name="degreeTeam"/>,
+    /// <see cref="CrucibleDegreeTeams.Roster"/>) go ahead of both.
+    /// </summary>
     public static IReadOnlyList<int> ClearRoster(
-        CrucibleIndex index, CrucibleBoard board, IReadOnlyList<int> core, Func<int, bool> isCaptured)
+        CrucibleIndex index, CrucibleBoard board, IReadOnlyList<int> core, Func<int, bool> isCaptured,
+        IReadOnlyList<int>? degreeTeam = null)
     {
         var cap = board.RosterCap > 0 ? board.RosterCap : 10;
-        return core.Concat(CrucibleHornPlan.Roster(index, board, isCaptured).Select(b => b.BestiaryNo))
+        return (degreeTeam ?? []).Concat(core).Concat(CrucibleHornPlan.Roster(index, board, isCaptured).Select(b => b.BestiaryNo))
             .Distinct()
             .Take(cap)
             .ToList();
@@ -82,8 +95,11 @@ public static class CrucibleLevelPlan
     /// </summary>
     /// <para>Legendary with no pick of the player's: the core in <see cref="LegendaryHornOrder"/> for the battle's lead
     /// enemy — poison-immune by its resist row (<paramref name="lead"/>), or by name when the row was not read.</para>
+    /// <para>On a degree above Standard, <paramref name="degreeTeam"/> (<see cref="CrucibleDegreeTeams.For"/>) comes
+    /// after the player's picks and before the core: the documented clear's team for the battle.</para>
     public static IReadOnlyList<int>? HornChoice(
-        CrucibleTeamGoal goal, IReadOnlyList<int>? perBattle, IReadOnlyList<int> core, CrucibleEnemy? lead = null)
+        CrucibleTeamGoal goal, IReadOnlyList<int>? perBattle, IReadOnlyList<int> core, CrucibleEnemy? lead = null,
+        IReadOnlyList<int>? degreeTeam = null)
     {
         var picked = perBattle != null && perBattle.Any(no => no != 0);
         if (goal == CrucibleTeamGoal.Legendary)
@@ -92,6 +108,8 @@ public static class CrucibleLevelPlan
                 : LegendaryHornOrder(core, IsPoisonImmune(lead));
         if (picked)
             return perBattle;
+        if (degreeTeam is { Count: > 0 })
+            return degreeTeam;
         return goal == CrucibleTeamGoal.Level ? core : null;
     }
 

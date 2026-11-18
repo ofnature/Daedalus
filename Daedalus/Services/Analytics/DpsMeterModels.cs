@@ -22,7 +22,8 @@ public enum CombatantKind
 /// Resolved identity of a damage source. <see cref="Key"/> is the entity the damage is
 /// attributed to — for pets/summons this is the owner, so pet damage merges into the owner row.
 /// </summary>
-public readonly record struct CombatantIdentity(uint Key, CombatantKind Kind, string Name, string JobAbbrev);
+/// <param name="PhantomTag">The phantom job a player carries in the Occult Crescent, as shown on the row ("Oracle 4"); empty elsewhere.</param>
+public readonly record struct CombatantIdentity(uint Key, CombatantKind Kind, string Name, string JobAbbrev, string PhantomTag = "");
 
 /// <summary>A damage event resolved against the object table, ready for accumulation.</summary>
 public readonly record struct ResolvedDamage(CombatantIdentity Caster, string TargetName);
@@ -34,6 +35,9 @@ public sealed class CombatantStats
     public CombatantKind Kind { get; init; }
     public string Name { get; internal set; } = "";
     public string JobAbbrev { get; internal set; } = "";
+
+    /// <summary>The phantom job read off the player's status list when first seen this encounter ("Oracle 4"); empty outside the Occult Crescent.</summary>
+    public string PhantomTag { get; internal set; } = "";
 
     public long TotalDamage { get; internal set; }
     public int HitCount { get; internal set; }
@@ -160,6 +164,7 @@ public sealed class DpsEncounter
                 Kind = caster.Kind,
                 Name = caster.Name,
                 JobAbbrev = caster.JobAbbrev,
+                PhantomTag = caster.PhantomTag,
             };
             combatants[caster.Key] = stats;
         }
@@ -202,6 +207,7 @@ public sealed class DpsEncounter
                 Kind = caster.Kind,
                 Name = caster.Name,
                 JobAbbrev = caster.JobAbbrev,
+                PhantomTag = caster.PhantomTag,
             };
             combatants[caster.Key] = stats;
         }
@@ -302,6 +308,7 @@ public sealed class DpsEncounter
             Kind = caster.Kind,
             Name = caster.Name,
             JobAbbrev = caster.JobAbbrev,
+            PhantomTag = caster.PhantomTag,
         };
         combatants[caster.Key] = stats;
         return stats;

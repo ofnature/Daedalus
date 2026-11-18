@@ -156,6 +156,12 @@ public static class BSTActions
     /// <param name="MinLevel">Unlock level.</param>
     /// <param name="Archetype">Which kind of action this is.</param>
     /// <param name="Potency">Base potency; 0 where the sheet does not state one.</param>
+    /// <param name="UpgradedPotency">
+    /// Potency from <paramref name="UpgradeLevel"/> on; 0 when the action has one potency at every level. The tooltip
+    /// holds both behind a level check (<c>&lt;if([gnum72&gt;=38],160,100)&gt;</c>), which is why a text dump renders
+    /// it blank. Read through <see cref="PotencyAt"/>.
+    /// </param>
+    /// <param name="UpgradeLevel">The level <paramref name="UpgradedPotency"/> applies from.</param>
     /// <param name="ComboPotency">Potency when the combo condition is met; 0 if not a combo action.</param>
     /// <param name="Affinity">Instinct affinity for <see cref="BstArchetype.Instinctual"/>.</param>
     /// <param name="RecastSeconds">Recast from the sheet.</param>
@@ -185,7 +191,13 @@ public static class BSTActions
         int ComboTpGain = 0,
         float RangeYalms = 0f,
         float EffectRadiusYalms = 0f,
-        bool IndependentRecast = false);
+        bool IndependentRecast = false,
+        int UpgradedPotency = 0,
+        byte UpgradeLevel = 0)
+    {
+        /// <summary>The potency at <paramref name="level"/> (a synced level counts: the First Board is 30).</summary>
+        public int PotencyAt(byte level) => UpgradedPotency > 0 && level >= UpgradeLevel ? UpgradedPotency : Potency;
+    }
 
     /// <summary>The job's level cap.</summary>
     public const byte LevelCap = 50;
@@ -266,9 +278,10 @@ public static class BSTActions
     public static readonly IReadOnlyList<BstActionDef> All =
     [
         // ── the basic combo chain ─────────────────────────────────────────────────────────
-        // Potency 100 read off the in-game tooltip 2026-09-08; the sheet dump rendered it blank
-        // ("a potency of ."), so this is the tooltip's number, not the dump's.
-        new(44879, "Smash Axe", 1, BstArchetype.ComboWeaponskill, Potency: 100, RecastSeconds: 2.5f, RangeYalms: 3f),
+        // 100 below level 38, 160 from it: the tooltip is <if([gnum72>=38],160,100)> (ActionTransient macro,
+        // 2026-11-15), which is why the sheet dump rendered it blank. 3,300 recorded fights agree: its damage per
+        // potency is 1.59x the rest of the chain's on every board but the First (level 30).
+        new(44879, "Smash Axe", 1, BstArchetype.ComboWeaponskill, Potency: 100, RecastSeconds: 2.5f, RangeYalms: 3f, UpgradedPotency: 160, UpgradeLevel: 38),
         new(44883, "Axeblade Bite", 2, BstArchetype.ComboWeaponskill, Potency: 260, ComboPotency: 500, RecastSeconds: 2.5f, ComboTpGain: 13, RangeYalms: 3f),
         new(44885, "Shieldsplitter", 12, BstArchetype.ComboWeaponskill, Potency: 280, ComboPotency: 600, RecastSeconds: 2.5f, ComboTpGain: 15, RangeYalms: 3f),
 
@@ -300,7 +313,8 @@ public static class BSTActions
         // ── utility ──────────────────────────────────────────────────────────────────────
         // Gap closer: "Rushes forward and delivers an attack to target and all enemies nearby it."
         // Cannot be executed while bound.
-        new(44893, "Shield Charge", 24, BstArchetype.GapCloser, Potency: 220, RecastSeconds: 60f, RangeYalms: 20f, EffectRadiusYalms: 6f),
+        // 220 below level 38, 300 from it (same tooltip macro as Smash Axe). Three charges from level 36.
+        new(44893, "Shield Charge", 24, BstArchetype.GapCloser, Potency: 220, RecastSeconds: 60f, RangeYalms: 20f, EffectRadiusYalms: 6f, UpgradedPotency: 300, UpgradeLevel: 38),
         new(44905, "Rally", 28, BstArchetype.Rally, RecastSeconds: 120f),
         new(44904, "Rallying Cheer", 40, BstArchetype.Rally, RecastSeconds: 120f),
     ];
@@ -320,6 +334,19 @@ public static class BSTActions
         InstinctAffinity.Sunstrider => InstinctAffinity.Moonstalker,
         InstinctAffinity.Moonstalker => InstinctAffinity.Sunstrider,
 
+        _ => InstinctAffinity.None,
+    };
+
+    /// <summary>
+    /// The Heart whose clockwise neighbour is <paramref name="next"/>: a link of this colour sets <paramref name="next"/>
+    /// up to complete an intentional combo. None for anything but the four Hearts.
+    /// </summary>
+    public static InstinctAffinity PreviousInCycle(InstinctAffinity next) => next switch
+    {
+        InstinctAffinity.Rampant => InstinctAffinity.Volant,
+        InstinctAffinity.Durant => InstinctAffinity.Rampant,
+        InstinctAffinity.Eldritch => InstinctAffinity.Durant,
+        InstinctAffinity.Volant => InstinctAffinity.Eldritch,
         _ => InstinctAffinity.None,
     };
 

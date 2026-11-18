@@ -27,6 +27,8 @@ namespace Daedalus.Rotation.Phantom;
 public sealed class PhantomActionLayer
 {
     // Ascending scheduler priorities within the layer's own queues.
+    /// <summary>An Oracle card chosen for play: ahead of every other phantom ability, its offer lasts 3-5 s.</summary>
+    private const int PrioOracleCard = 5;
     private const int PrioEmergencySustain = 10;
     private const int PrioRaise = 15;
     private const int PrioSelfMit = 20;
@@ -84,6 +86,12 @@ public sealed class PhantomActionLayer
 
     /// <summary>When we last sent Occult Dispel at each enemy (entity id).</summary>
     private readonly Dictionary<uint, DateTime> _lastDispelAt = [];
+
+    /// <summary>An Oracle card (or Starfall's Invulnerability) is queued this frame: it takes the weave slot before the job's modules run.</summary>
+    private bool _oracleCardQueuedThisFrame;
+
+    /// <summary>The card whose "should be played but was not queued" line has been logged.</summary>
+    private uint _oracleCardRefusalLogged;
 
     /// <summary>Phantom Doom casts per enemy. It only has a chance to land, so a few tries, then no more.</summary>
     private readonly Dictionary<uint, int> _phantomDoomAttempts = [];
@@ -355,6 +363,7 @@ public sealed class PhantomActionLayer
         _scheduler.Reset();
         _dispatchedThisFrame = false;
         _raiseQueuedThisFrame = false;
+        _oracleCardQueuedThisFrame = false;
         _isMovingThisFrame = isMoving;
         _configThisFrame = cfg;
 
@@ -390,6 +399,11 @@ public sealed class PhantomActionLayer
             _scheduler.DispatchOgcd(ctx);
             ctx.TargetingService.RestoreHardTargetAfterSubmit(prevOgcd, _raiseTargetIdThisFrame);
         }
+
+        // The same pre-empt for an Oracle card chosen for play: its offer lasts 3-5 s, and a job in its burst
+        // leaves no weave slot over for that long (OracleCardPolicy.PreemptsJobWeaves).
+        if (_oracleCardQueuedThisFrame && !_raiseQueuedThisFrame && _actionService.CanExecuteOgcd)
+            _scheduler.DispatchOgcd(ctx);
 
         // GCD pre-empt: phantom GCDs (emergency heals first, then damage) claim the GCD
         // window before the job's filler. Big phantom cooldowns pace this to ~1 GCD per
@@ -1813,7 +1827,8 @@ public sealed class PhantomActionLayer
         var targetTtk = hasTarget ? TimeToKill?.GetTtkSeconds(enemy!) ?? float.MaxValue : float.MaxValue;
         var targetHpPct = hasTarget && enemy!.MaxHp > 0 ? (float)enemy.CurrentHp / enemy.MaxHp : 0f;
 
-        PushOracleUtilities(ctx, job, level, selfHpPct, inCombat, hasTarget ? enemy : null, targetTtk);
+        PushOracleUtilities(ctx, job, level, selfHpPct, inCombat, hasTarget ? enemy : null, targetTtk,
+            starfallInPlay: cfg.OracleUseStarfall);
 
         // Which card is the game currently offering? (Predict morphs the slot per card.)
         var activeCard =
@@ -1852,17 +1867,38 @@ public sealed class PhantomActionLayer
             ctx.PartyHealthMetrics.avgHpPercent,
             invulnBuffUp: _actionService.PlayerHasStatus(PhantomActions.StatusIds.Invulnerability),
             invulnReady: level >= 6 && _actionService.IsActionReady(41644),
-            fightEnding: OracleCardPolicy.FightEnding(inCombat, hasTarget, targetTtk));
+            fightEnding: OracleCardPolicy.FightEnding(inCombat, hasTarget, targetTtk),
+            rejuvenationSecondsLeft: StatusRemaining(ctx.Player, PhantomActions.StatusIds.PhantomRejuvenation),
+            cardSecondsLeft: activeCard == OracleCardPolicy.StarfallCard
+                ? StatusRemaining(ctx.Player, PhantomActions.StatusIds.PredictionOfStarfall)
+                : float.MaxValue);
 
+        var cardName = NameOf(activeCard);
         switch (decision)
         {
             case OracleDecision.PlayCard:
-                TryPush(ctx, activeCard, job, level, PrioDamage);
+                _oracleCardQueuedThisFrame = TryPush(ctx, activeCard, job, level, PrioOracleCard,
+                    onExtraDispatched: () => DebugLog?.Log(Daedalus.Services.Debug.DebugLogCategory.Action,
+                        Daedalus.Services.Debug.DebugLogSeverity.Info,
+                        $"Oracle: {cardName} played {elapsed:0.0}s into the prophecy"));
                 break;
             case OracleDecision.CastInvulnerability:
                 // Make Starfall safe first: Invulnerability on self, Starfall next window.
-                TryPush(ctx, 41644, job, level, PrioEmergencySustain);
+                _oracleCardQueuedThisFrame = TryPush(ctx, 41644, job, level, PrioOracleCard);
                 break;
+        }
+
+        // A card that should be played and has gone a second unpressed: say so once, with what refused it.
+        if (OracleCardPolicy.PreemptsJobWeaves(decision) && !_oracleCardQueuedThisFrame
+            && _oracleCardRefusalLogged != activeCard && _pushRejects.Count > 0)
+        {
+            _oracleCardRefusalLogged = activeCard;
+            DebugLog?.Log(Daedalus.Services.Debug.DebugLogCategory.Action, Daedalus.Services.Debug.DebugLogSeverity.Warning,
+                $"Oracle: {cardName} should be played but was not queued — {_pushRejects[^1]}");
+        }
+        else if (_oracleCardQueuedThisFrame || decision == OracleDecision.Wait)
+        {
+            _oracleCardRefusalLogged = 0;
         }
     }
 
@@ -1878,12 +1914,14 @@ public sealed class PhantomActionLayer
     /// </summary>
     private void PushOracleUtilities(
         IRotationContext ctx, PhantomJob job, byte level, float selfHpPct, bool inCombat,
-        IBattleChara? enemy, float enemyTtk)
+        IBattleChara? enemy, float enemyTtk, bool starfallInPlay = false)
     {
-        // Phantom Rejuvenation: on self, so the 30y heal is centred wherever the Oracle stands.
+        // Phantom Rejuvenation: on self, so the 30y heal is centred wherever the Oracle stands. With Starfall in
+        // play it goes out ahead of the next Predict, so the heal lands right after a Starfall.
         if (PhantomBandRules.ShouldRejuvenate(inCombat,
                 _actionService.PlayerHasStatus(PhantomActions.StatusIds.PhantomRejuvenation),
-                selfHpPct, ctx.PartyHealthMetrics.lowestHpPercent))
+                selfHpPct, ctx.PartyHealthMetrics.lowestHpPercent,
+                timedForStarfall: starfallInPlay, predictRecastSeconds: _actionService.GetCooldownRemaining(41636)))
         {
             TryPush(ctx, 41643, job, level, PrioEmergencySustain + 3, ctx.Player.GameObjectId);
         }

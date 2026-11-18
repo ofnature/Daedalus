@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Daedalus.Data;
@@ -156,6 +157,97 @@ public static class ArtemisCooldownRules
     public static InstinctAffinity AnswerFromGauge(ArtemisGauge gauge)
         => gauge.HasHeart ? BSTActions.NextInCycle(gauge.Affinity) : InstinctAffinity.None;
 
+    /// <summary>The Second Board's final boss: Loosefrox, the worm Chewchum, and the small bombs (BNpcBase ids).</summary>
+    public const uint LoosefroxBaseId = 0x4C65, ChewchumBaseId = 0x4C66, SmallBombBaseId = 0x4C69;
+
+    /// <summary>Loosefrox's Gobbieboom Barrage that drops the small bombs (3 s cast; the bombs appear ~4 s after it starts).</summary>
+    public const uint SmallBombBarrageCastId = 50446;
+
+    /// <summary>The hold keeps going this long after the Barrage cast ends, bridging the second before the bombs appear.</summary>
+    public const double BarrageBridgeSeconds = 3;
+
+    /// <summary>
+    /// The bomb push (user, 2026-11-07; TPLemontFFXIV's Second Board guide; Minerva builds the movement). A small bomb
+    /// knocked into the quicksand where Chewchum surfaces stuns it and leaves it open to damage. Every damaging hit
+    /// rolls a bomb 4 y straight away from whoever hit it, and the familiar follows whatever the beastmaster hits, so
+    /// from the Barrage cast (before the bombs exist, so Parting Blow can't scatter them) until no small bomb is
+    /// targetable or Minerva puts Chewchum first (a bomb was caught): the familiar is sent away and not called back, and
+    /// only the 1-2-3 combo goes out — the axes, Trick, Tempered Release, the cooldowns and the duty actions wait, the
+    /// chain saved for the worm. Which enemy the combo hits is Minerva's: a bomb first only while the beastmaster is
+    /// lined up, the bombs forbidden otherwise. Only while Minerva (connected) runs this fight's module, which carries the
+    /// push; under BossMod, or with no engine, the fight plays as before.
+    /// </summary>
+    public static bool HoldsForBombPush(
+        bool onBoard, string fightModule, double secondsSinceBarrageCast, bool smallBombsUp, bool wormFirst)
+        => onBoard && fightModule == MinervaLoosefroxModule && !wormFirst
+           && (smallBombsUp || secondsSinceBarrageCast <= BarrageBridgeSeconds);
+
+    /// <summary>Minerva's module for this fight, by type name (the port's own spelling).</summary>
+    public const string MinervaLoosefroxModule = "LooserfroxInkyjots";
+
+    /// <summary>
+    /// A link held for its partner (the axe for the Trick, or the Trick for the axe) goes out anyway once the live
+    /// chain has this little left of its 7 s, rather than let it lapse. Field guides chain two of your own skills in a
+    /// row routinely (TPLemontFFXIV: "your blue → Rally → your yellow"); holding the axe up to
+    /// <see cref="ArtemisTrickPairing.MaxHoldForTrickSeconds"/> dropped the chain instead. Pressing late rather than at
+    /// once is the guides' "wait until the last moment": the familiar may still reach its Trick meanwhile.
+    /// </summary>
+    public const float ChainSaveSeconds = 2f;
+
+    /// <summary>The live chain is about to lapse: a held link should go out now.</summary>
+    public static bool SavesChain(bool chainLive, float secondsLeft) => chainLive && secondsLeft <= ChainSaveSeconds;
+
+    /// <summary>
+    /// The colour of your link that keeps a live chain going. With a Heart lit (the last link was instinctual) its
+    /// clockwise neighbour completes an intentional combo. With none (the last link was intentional, or unknown) the
+    /// next link is instinctual whatever its colour, so take the one just before the familiar's Trick colour: the
+    /// Trick after it is then intentional. Otherwise any ready axe. None when no axe is ready.
+    /// </summary>
+    public static InstinctAffinity ExtensionAffinity(
+        InstinctAffinity litHeart, InstinctAffinity petTrick, Func<InstinctAffinity, bool> ready)
+    {
+        var preferred = IsHeart(litHeart) ? BSTActions.NextInCycle(litHeart) : BSTActions.PreviousInCycle(petTrick);
+        if (preferred != InstinctAffinity.None && ready(preferred))
+            return preferred;
+
+        foreach (var affinity in HeartOrder)
+            if (ready(affinity))
+                return affinity;
+        return InstinctAffinity.None;
+    }
+
+    /// <summary>
+    /// The familiar's Trick would complete an intentional combo right now: the lit Heart is the one just before its
+    /// colour. Then it goes at once, without waiting for an axe to pair with — it is a link of the chain in its own
+    /// right, and the familiar finishing a combo banks Natural Instinct for Rallying Cheer.
+    /// </summary>
+    public static bool TrickWouldBeIntentional(InstinctAffinity litHeart, InstinctAffinity petTrick)
+        => IsHeart(litHeart) && petTrick != InstinctAffinity.None && BSTActions.NextInCycle(litHeart) == petTrick;
+
+    /// <summary>
+    /// The level 50 infinity line (TPLemontFFXIV, every board guide): with two of your diamonds and a pet charge,
+    /// answer the familiar's Trick with the colour just BEFORE it (instinctual — your third diamond), Rallying Cheer,
+    /// the same Trick again (now intentional — it lights the half), Rally, then the other half's skill. One more link
+    /// than Trick → clockwise axe → Rally, so the finisher lands on a longer chain. Needs Rally and Rallying Cheer
+    /// both ready, and the pet charge, which is what makes Cheer's refill reach a Trick (30 + 70).
+    /// </summary>
+    public static bool UsesInfinityLine(byte level, ArtemisGauge gauge, bool rallyReady, bool cheerReady)
+        => level >= UpgradeLevel && gauge.MasteredInstinct == MaxMastered - 1 && gauge.NaturalInstinct >= 1
+           && rallyReady && cheerReady;
+
+    /// <summary>
+    /// On the infinity line Rallying Cheer is kept for its one moment — after your answer, to pay for the second Trick
+    /// — rather than spent the first time the familiar's TP dips.
+    /// </summary>
+    public static bool HoldsCheerForInfinityLine(bool lineActive, InstinctAffinity litHeart, InstinctAffinity petTrick)
+        => lineActive && !TrickWouldBeIntentional(litHeart, petTrick);
+
+    private static bool IsHeart(InstinctAffinity a)
+        => a is InstinctAffinity.Volant or InstinctAffinity.Rampant or InstinctAffinity.Durant or InstinctAffinity.Eldritch;
+
+    private static readonly InstinctAffinity[] HeartOrder =
+        [InstinctAffinity.Volant, InstinctAffinity.Rampant, InstinctAffinity.Durant, InstinctAffinity.Eldritch];
+
     /// <summary>
     /// Has the Compass moved since Trick was sent? That is the familiar's skill landing, seen directly —
     /// what the action-effect hook and the 1.5s fallback were both standing in for.
@@ -221,6 +313,16 @@ public static class ArtemisCooldownRules
     public const float FamiliarFallingHpPct = 0.20f;
 
     /// <summary>
+    /// The falling line's floor on a degree above Standard. Korha 2026-11-05, Third Board on Third Degree, the
+    /// Cavalier Piece: Chimera went from 17% to 0 in 3 s and Drake from 18% to 0 in 2 s, both after Parting Blow was
+    /// sent at the 20% line — the blow had not landed and retreated them before they fell.
+    /// </summary>
+    public const float DegreeFallingHpPct = 0.35f;
+
+    /// <summary>The falling line's floor for the board's degree (0 Standard, 1-3 First-Third Degree).</summary>
+    public static float FallingFloor(int degree) => degree > 0 ? DegreeFallingHpPct : FamiliarFallingHpPct;
+
+    /// <summary>
     /// Crucible: the familiar is about to fall — its Tempered Release, then Parting Blow, before it does. A fallen
     /// familiar takes its unspent release with it, and Parting Blow (1,000 potency) RETREATS the familiar rather
     /// than letting it be knocked out, so it keeps its last HP for later. Field 2026-10-25: familiars tanked until
@@ -281,8 +383,8 @@ public static class ArtemisCooldownRules
     /// Lakhamu Piece and its Golem Pieces): two of three familiars went from over 20% to 0 in one hit, the third
     /// from 16% to 0 in 3 s.
     /// </summary>
-    public static float FallingLine(float biggestRecentHitPct, float lossPerSecond)
-        => System.Math.Min(FallingLineMax, System.Math.Max(FamiliarFallingHpPct,
+    public static float FallingLine(float biggestRecentHitPct, float lossPerSecond, float floor = FamiliarFallingHpPct)
+        => System.Math.Min(FallingLineMax, System.Math.Max(floor,
             System.Math.Max(biggestRecentHitPct * FallingHitMargin, lossPerSecond * FallingLeadSeconds)));
 
     /// <summary>
@@ -303,10 +405,24 @@ public static class ArtemisCooldownRules
 
     /// <summary>
     /// Whether this fight gets the Wespe's Final Sting (and the cycle that brings the Wespe out). On the First Board only
-    /// the Ogre and the final boss do; its other fights play normally (user, 2026-11-01). Other boards: every fight.
+    /// the Ogre and the final boss do; its other fights play normally (user, 2026-11-01). Other boards: every fight. On
+    /// a degree above Standard every fight does: the documented clears lead every fight with the Wespe and sting.
     /// </summary>
-    public static bool WespeStingFight(int boardIndex, bool ogreFight, bool finalBoss)
-        => boardIndex != Daedalus.Data.CrucibleAutoPilotRules.FirstBoardIndex || ogreFight || finalBoss;
+    public static bool WespeStingFight(int boardIndex, bool ogreFight, bool finalBoss, int degree = 0)
+        => degree > 0 || boardIndex != Daedalus.Data.CrucibleAutoPilotRules.FirstBoardIndex || ogreFight || finalBoss;
+
+    /// <summary>
+    /// On a degree above Standard Final Sting goes as soon as the Wespe is out, not at the 30% kill line: the documented
+    /// clears sting at once and bring the Wespe back whenever its horn returns (fuurie's D3 clears, BMRV's plans).
+    /// </summary>
+    public static bool StingsAtOnce(int degree) => degree > 0;
+
+    /// <summary>
+    /// In the Bone Knight fight a Wespe whose horn has come back is brought out again only once his Forward Guard has
+    /// been seen: its second sting is for the Knight (fuurie: "guard drops, chain, Parting Blow, Wespe sting"). Every
+    /// other fight: whenever the Wespe is waiting.
+    /// </summary>
+    public static bool CyclesToWespeInKnightFight(bool knightFight, bool guardSeen) => !knightFight || guardSeen;
 
     /// <summary>
     /// A falling familiar whose retreat (Parting Blow) is on cooldown is switched out with another horn instead, before
@@ -440,6 +556,46 @@ public static class ArtemisCooldownRules
     public static bool ShouldSnarlBoneKnight(bool enabled, bool ready, bool familiarOut, float familiarHpPct, bool knightOnFamiliar)
         => enabled && ready && familiarOut && familiarHpPct > 0f && !knightOnFamiliar;
 
+    /// <summary>First Board's final boss Pas de Seul and the succubus mage / knight it brings (BNpcName rows).</summary>
+    public const uint PasDeSeulNameId = 14541, SuccubusMageNameId = 14542, SuccubusKnightNameId = 14543;
+
+    /// <summary>
+    /// Pas de Seul on a degree: from the pull until her succubi have come and died (they come once, about 49 s in), the
+    /// beast out is kept as one a later battle needs — the beastmaster takes every hit, the tankbuster included (user,
+    /// 2026-11-15, after fuurie's clear: "the player takes every hit" so the Behemoth's Meteor is there for them).
+    /// Korha, that day: the Behemoth tanked, took the first Cold Caress (369 of 667), was retreated at 28% and its
+    /// Meteor went on Pas de Seul alone 8 s before the succubi came; no beast was out for 29 s and then 23 s, and she
+    /// died with Pas de Seul at 30%.
+    /// </summary>
+    public static bool KeepsBeastForSuccubi(int degree, bool pasDeSeulFight, bool succubiSeen, int succubiUp)
+        => degree > 0 && pasDeSeulFight && !(succubiSeen && succubiUp == 0);
+
+    /// <summary>
+    /// A tankbuster cast at the beastmaster is hers to answer with an item (a Tome of the Impervious, a Crucible
+    /// Tannin) only when nothing else takes it: no Cover on her, and no beast out that can be spent, which is Snarled
+    /// into the hit. Korha, 2026-11-15 18:22: the Banemite's first Deadly Thrust was cast at her while the Ice Golem's
+    /// Cover was up; the Golem took the 450 and her Tannin was spent for nothing — it had worn off 15 s before the
+    /// second Thrust, which was hers (466).
+    /// </summary>
+    public static bool BusterIsTheBeastmasters(bool castAtBeastmaster, float coverLeft, bool beastOut, bool beastOutIsKept)
+        => castAtBeastmaster && coverLeft <= 0f && (!beastOut || beastOutIsKept);
+
+    /// <summary>
+    /// Hold the Behemoth's Meteor for the succubi: until they have come, then until they have closed in
+    /// (<see cref="MitelingsBunchedYalms"/>) or <see cref="MeteorWaitsForMitelingsSeconds"/> has passed. Not when the
+    /// familiar is falling (its retreat comes first).
+    /// </summary>
+    public static bool HoldMeteorForSuccubi(
+        int degree, int? bestiaryNo, bool pasDeSeulFight, bool succubiSeen, int succubiUp, bool succubiBunched,
+        double secondsSinceSuccubiUp, bool familiarFalling)
+    {
+        if (degree <= 0 || !pasDeSeulFight || bestiaryNo != BehemothBestiaryNo || familiarFalling)
+            return false;
+        if (succubiUp > 0)
+            return !succubiBunched && secondsSinceSuccubiUp < MeteorWaitsForMitelingsSeconds;
+        return !succubiSeen;
+    }
+
     /// <summary>First Board's Ogre Piece and its Wisp / Great Wisp Pieces (BNpcName rows).</summary>
     public const uint OgrePieceNameId = 14538, WispPieceNameId = 14539, GreatWispPieceNameId = 14748;
 
@@ -477,6 +633,33 @@ public static class ArtemisCooldownRules
 
     public static bool StingBeforeOgreWard(bool ogreFight, double secondsIn)
         => ogreFight && secondsIn >= OgreWardAtSeconds - StingBeforeWardSeconds && secondsIn < OgreWardAtSeconds;
+
+    /// <summary>
+    /// On a degree, the Ogre fight keeps a familiar for the wisps: its Parting Blow is what kills the Great Wisp before
+    /// it reaches the Ogre, and its whole-arena blast (about 330 on D3) is otherwise unavoidable. Korha 2026-11-07:
+    /// two horns Parting-Blowed to bring the Wespe, the Wespe's Final Sting at 50 s, nothing out when the wisps came,
+    /// both Great Wisps blew, dead. Until the wisp phase is over: no Parting Blow to cycle to the Wespe.
+    /// </summary>
+    public static bool OgreKeepsFamiliarForWisps(bool ogreFight, int degree, bool wispPhaseOver)
+        => ogreFight && degree > 0 && !wispPhaseOver;
+
+    /// <summary>…and the Wespe's Final Sting (it dies with it) waits while no other horn could come out after it.</summary>
+    public static bool OgreHoldsStingForWisps(bool ogreFight, int degree, bool wispPhaseOver, bool replacementReady)
+        => OgreKeepsFamiliarForWisps(ogreFight, degree, wispPhaseOver) && !replacementReady;
+
+    /// <summary>Parting Blow's damage as measured on D3 (Minerva, 2026-11-07): 674 plain, 1,109 with Lingering Vantage.</summary>
+    public const uint PartingBlowDamage = 650, PartingBlowVantageDamage = 1050;
+
+    /// <summary>
+    /// Parting Blow the Great Wisp (user, 2026-11-07: "kill it before it reaches the boss"; TPLemont: Parting Blow the
+    /// Megalocrab just before the Great Wisp reaches the centre) once the Blow would finish it — the axes chip it down
+    /// on its walk. Never a Blow that cannot kill it: that spends the familiar whose Cover could take the blast (Minerva
+    /// counts the blast down as a raidwide since 2026-11-07).
+    /// </summary>
+    public static bool ShouldPartingBlowGreatWisp(
+        bool onBoard, bool familiarOut, bool blowReady, uint greatWispHp, bool hasVantage)
+        => onBoard && familiarOut && blowReady && greatWispHp > 0
+           && greatWispHp <= (hasVantage ? PartingBlowVantageDamage : PartingBlowDamage);
 
     /// <summary>
     /// Casts the familiar must not be out for (research 2026-11-01): King Ahriman's Curtains for Rank 5 (49428/49429)
@@ -532,6 +715,158 @@ public static class ArtemisCooldownRules
     public static bool HoldReleaseAtZu(bool onBoard, float? zuHpPct, bool familiarFalling)
         => onBoard && zuHpPct is > ZuReleaseAtHpPct && !familiarFalling;
 
+    /// <summary>Banemite Piece (First Board battle 4) and its Miteling Piece adds.</summary>
+    public const uint BanemitePieceNameId = 14536, MitelingPieceNameId = 14537;
+
+    /// <summary>Behemoth (bestiary 50): its Tempered Release is Meteor, a big AoE that one-shots adds.</summary>
+    public const int BehemothBestiaryNo = 50;
+
+    /// <summary>
+    /// The Mitelings come on a timer, not at an HP mark: three at 56 s into the fight, three more at 113 s (17 Minerva
+    /// replays of the Banemite, 2026-10-22 to 11-05; the first wave came at 8% to 62% Banemite HP, always at 55-57 s).
+    /// </summary>
+    public const double MitelingFirstWaveSeconds = 56, MitelingWaveEverySeconds = 57;
+
+    /// <summary>
+    /// Meteor always waits for the first wave (it came in 16 of the 17 fights); a later wave only when it is due within
+    /// this long, since most fights end before it. Otherwise Meteor goes at the Banemite.
+    /// </summary>
+    public const double MeteorHoldsForWaveSeconds = 30;
+
+    /// <summary>
+    /// Once a wave is up, Meteor waits this long at most for the Mitelings to gather. A Miteling stands where it
+    /// appeared for 4.9 s before it moves and is within 10 yalms of the Banemite 6 s after it became targetable (median;
+    /// 7 s at the ninetieth percentile; 8 of 89 never come that close — they cast from range). At 6 s Meteor went out
+    /// as they set off: 10 to 21 yalms away, one in three out of its 20-yalm reach (user, 2026-11-15: "need to wait for
+    /// the adds to gather"; four Banemite fights that day).
+    /// </summary>
+    public const double MeteorWaitsForMitelingsSeconds = 9;
+
+    /// <summary>...or until every Miteling is this close to the Meteor's target.</summary>
+    public const float MitelingsBunchedYalms = 10f;
+
+    /// <summary>At or below this the Banemite is nearly dead: Meteor finishes it instead of waiting.</summary>
+    public const float MeteorAtBanemiteHpPct = 0.15f;
+
+    /// <summary>Seconds until the next Miteling wave, <paramref name="secondsIn"/> seconds into the Banemite fight.</summary>
+    public static double SecondsToNextMitelingWave(double secondsIn)
+        => secondsIn < MitelingFirstWaveSeconds
+            ? MitelingFirstWaveSeconds - secondsIn
+            : MitelingWaveEverySeconds - ((secondsIn - MitelingFirstWaveSeconds) % MitelingWaveEverySeconds);
+
+    /// <summary>
+    /// Hold the Behemoth's Meteor for the Mitelings (user, 2026-11-06: Meteor kills them faster; fuurie's Third Degree
+    /// clear puts Meteor on the Mitelings). With none up it waits for the first wave, or a later one due within
+    /// <see cref="MeteorHoldsForWaveSeconds"/>; with a wave up, until they have bunched or
+    /// <see cref="MeteorWaitsForMitelingsSeconds"/> has passed. Not when the Banemite is nearly dead, and not when the
+    /// familiar is falling (its retreat comes first). Parting Blow waits on the owed release, so the Behemoth stays out.
+    /// <paramref name="banemiteHpPct"/> is null when no Banemite is in the fight.
+    /// </summary>
+    public const int ZizBestiaryNo = 21;
+
+    /// <summary>
+    /// Beasts whose Tempered Release is kept for the Banemite's Mitelings: the Behemoth's Meteor (fuurie) and the Ziz's
+    /// petrifying cone (TPLemont: "Ziz Tempered Release petrifies the adds").
+    /// </summary>
+    public static bool ReleaseIsForAdds(int? bestiaryNo) => bestiaryNo is BehemothBestiaryNo or ZizBestiaryNo;
+
+    /// <summary>
+    /// A beast the plan keeps for a later battle and has no more use for in this one (CrucibleDegreeTeams.LeavesAtOnce)
+    /// is sent off with Parting Blow as soon as its release is spent — the caller waits for that — once a fight, and
+    /// only with another horn ready to follow it. TPLemont: "Parting Blow the Uragnite at once, summon Flying Trap".
+    /// </summary>
+    public static bool LeavesNow(bool onBoard, bool planSaysLeave, bool alreadyLeftThisFight, bool replacementReady)
+        => onBoard && planSaysLeave && !alreadyLeftThisFight && replacementReady;
+
+    /// <summary>
+    /// The battle's tankbuster beast (CrucibleDegreeTeams.BusterBeast) is not retreated, however low, until the
+    /// tankbusters it is there for have all been cast and the last one has landed. TPLemont at the Banemite: the Ziz
+    /// is kept alive for the second Deadly Thrust and Snarls into it.
+    /// </summary>
+    public static bool HoldsBusterBeast(int? busterBeastNo, int? familiarNo, int bustersCast, int bustersWanted, bool busterCasting)
+        => busterBeastNo is { } no && familiarNo == no && (bustersCast < bustersWanted || busterCasting);
+
+    /// <summary>
+    /// While the tankbuster beast is held and low, the beastmaster takes the enemy off it (Challenge also ends its
+    /// Cover): the video's "Challenge when the Ziz gets low". Not with the tankbuster on its way — then it Snarls.
+    /// </summary>
+    public static bool ChallengesForBusterBeast(
+        bool enabled, bool ready, bool heldForBuster, bool enemyOnFamiliar, float familiarHpPct, float fallingLine,
+        float selfHpPct, float secondsUntilTankbuster)
+        => enabled && ready && heldForBuster && enemyOnFamiliar && familiarHpPct < fallingLine
+           && selfHpPct > SelfCriticalHpPct && secondsUntilTankbuster > TankbusterLeadSeconds;
+
+    public static bool HoldMeteorForMitelings(
+        bool onBoard, int? bestiaryNo, float? banemiteHpPct, int mitelingsUp, bool mitelingsBunched,
+        double secondsSinceMitelingsUp, double secondsIn, bool familiarFalling)
+    {
+        if (!onBoard || !ReleaseIsForAdds(bestiaryNo) || banemiteHpPct is not > MeteorAtBanemiteHpPct || familiarFalling)
+            return false;
+        if (mitelingsUp > 0)
+            return !mitelingsBunched && secondsSinceMitelingsUp < MeteorWaitsForMitelingsSeconds;
+        return secondsIn < MitelingFirstWaveSeconds || SecondsToNextMitelingWave(secondsIn) <= MeteorHoldsForWaveSeconds;
+    }
+
+    /// <summary>Ymir Piece, its shell and the Sahagin Piece (Third Board battle 15).</summary>
+    public const uint YmirPieceNameId = 14569, YmirShellNameId = 14570, SahaginPieceNameId = 14571;
+
+    /// <summary>Vulnerability Down: on the Ymir while it sits in a shell (BossMod's YmirPiece module; 23 replays).</summary>
+    public const uint YmirShelledStatusId = 2198;
+
+    /// <summary>Diremite (bestiary 8): its Tempered Release binds for 30 s. Ice Golem (47): Soul Crush to borrow.</summary>
+    public const int DiremiteBestiaryNo = 8, IceGolemBestiaryNo = 47;
+
+    /// <summary>What the familiar's Tempered Release does in the Ymir fight (<see cref="YmirReleasePlan"/>).</summary>
+    public enum YmirRelease
+    {
+        /// <summary>As anywhere else.</summary>
+        Normal,
+        /// <summary>Held, and owed: Parting Blow waits for it.</summary>
+        Hold,
+        /// <summary>Never pressed, and not owed: Parting Blow does not wait for it.</summary>
+        Never,
+        /// <summary>At the Ymir's shell.</summary>
+        AtShell,
+        /// <summary>At the Ymir itself.</summary>
+        AtYmir,
+    }
+
+    /// <summary>
+    /// Ymir Plan A on a degree (user, 2026-11-06; fuurie's Third Degree clear, fuminpapa, BMRV): the Wespe's Final Sting
+    /// goes at the shell; the Ice Golem's release is never pressed (fuurie: pressing it by habit loses the plan; BMRV:
+    /// "without Tempered Release"); the Diremite's release, a 30 s Bind, waits for the shell to break and then goes at
+    /// the Ymir, which cannot crawl back into a shell while bound.
+    /// </summary>
+    public static YmirRelease YmirReleasePlan(int? bestiaryNo, bool shelled) => bestiaryNo switch
+    {
+        Daedalus.Rotation.ArtemisCore.Modules.DamageModule.WespeBestiaryNo => shelled ? YmirRelease.AtShell : YmirRelease.Normal,
+        IceGolemBestiaryNo => YmirRelease.Never,
+        DiremiteBestiaryNo => shelled ? YmirRelease.Hold : YmirRelease.AtYmir,
+        _ => YmirRelease.Normal,
+    };
+
+    /// <summary>
+    /// The Ice Golem's Parting Blow goes at the Ymir as soon as its shell breaks (fuurie, fuminpapa), so the Diremite
+    /// comes out to bind it. Until then the Ice Golem stays out holding the Sahagin, unless it is falling.
+    /// </summary>
+    public static bool YmirPartingBlowNow(int? bestiaryNo, bool shelled) => bestiaryNo == IceGolemBestiaryNo && !shelled;
+
+    /// <summary>The Ice Golem's Parting Blow waits while the Ymir is shelled; a falling Ice Golem still retreats.</summary>
+    public static bool YmirHoldsPartingBlow(int? bestiaryNo, bool shelled, bool falling)
+        => bestiaryNo == IceGolemBestiaryNo && shelled && !falling;
+
+    /// <summary>
+    /// No instinct chain on the shell: it breaks without it, and the chain goes into the bound Ymir (fuurie, fuminpapa).
+    /// </summary>
+    public static bool HoldsInstinctsAtYmirShell(bool ymirFight, bool shelled) => ymirFight && shelled;
+
+    /// <summary>
+    /// In the Ymir fight the familiar holds the Sahagin, never the Ymir (its Head Snatch is a front cone, so the
+    /// beastmaster keeps it facing away from the familiar): Snarl goes at the Sahagin whenever it is not on the familiar.
+    /// </summary>
+    public static bool SnarlsTheSahagin(bool enabled, bool familiarOut, bool sahaginOnFamiliar, bool snarlReady)
+        => enabled && familiarOut && !sahaginOnFamiliar && snarlReady;
+
     /// <summary>Shield Charge hits everything within this of its target (Action sheet: circle, effect range 6).</summary>
     public const float ShieldChargeSplashYalms = 6f;
 
@@ -567,35 +902,100 @@ public static class ArtemisCooldownRules
                || SplashBreaksEgg(eggs, target, ShieldChargeSplashYalms);
     }
 
-    /// <summary>Shared tanking: the beastmaster takes the enemy only while at or above this much HP…</summary>
-    public const float SharedTankSelfFloorPct = 0.50f;
-
-    /// <summary>…and only off a familiar this low: one that is about to fall.</summary>
-    public const float SharedTakeOverFamiliarBelowPct = 0.30f;
+    /// <summary>The Second Master's Board (XBMContent index).</summary>
+    public const int SecondMastersBoardIndex = 5;
 
     /// <summary>
-    /// Shared tanking (Legendary, user 2026-10-27): the FAMILIAR holds the enemy by default — its Cover takes what lands
-    /// on the beastmaster, Damage Down / Vulnerability Up included, and those cost Unbeastable (1,250) the moment the
-    /// beastmaster wears one (user: "the vuln stacks need a pet to tank them"; field 2026-10-27: Korha's debuffs came
-    /// from Death Throes, Burst, Dark Orb, Arm of Purgatory, Buffet…). The beastmaster takes over only to save a familiar
-    /// about to fall (below <see cref="SharedTakeOverFamiliarBelowPct"/>, so No Beast Left Behind holds) while at or above
-    /// <see cref="SharedTankSelfFloorPct"/>, or when no familiar is standing (the only choice). Never critical.
+    /// Legendary: the beastmaster tanks on every board, as every Japanese Legendary clear does (research 2026-11-06,
+    /// docs/crucible-research/jp-legendary-tanking.md) — Challenge keeps the enemy on you, Unbeastable is kept by dodging,
+    /// and the familiars stay full. The one exception is the Second Master's Board, where the familiar takes the
+    /// tankbusters (Lauda's Thunderbolt, Flauros's Erratic Blaster, Mindflayer's Void Paralyze III): Snarl it in as one
+    /// comes, and no Challenge until it has landed.
     /// </summary>
-    public static bool BeastmasterHoldsShared(float selfHpPct, bool familiarOut, float familiarHpPct)
-        => selfHpPct > SelfCriticalHpPct
-           && (!familiarOut || familiarHpPct <= 0f
-               || (selfHpPct >= SharedTankSelfFloorPct && familiarHpPct < SharedTakeOverFamiliarBelowPct));
+    public static bool LegendaryFamiliarTakesBuster(int boardIndex, float secondsUntilTankbuster)
+        => boardIndex == SecondMastersBoardIndex && secondsUntilTankbuster <= TankbusterLeadSeconds;
+
+    /// <summary>Legendary: Snarl the familiar into a tankbuster it should take — out and above the falling line.</summary>
+    public static bool ShouldSnarlForLegendaryBuster(bool enabled, bool ready, bool hasFamiliar, float familiarHpPct, float fallingLine)
+        => enabled && ready && hasFamiliar && familiarHpPct >= fallingLine;
 
     /// <summary>
-    /// Shared tanking while the beastmaster holds: Snarl (Cover moves the beastmaster's damage onto the familiar) only
-    /// for a tankbuster or raidwide on its way, onto a familiar above the falling line. Critical never applies here:
-    /// <see cref="BeastmasterHoldsShared"/> hands the enemy back first.
+    /// A degree with counter armor held (Briar Armor, user 2026-11-06): the beastmaster takes most of the hits, since every
+    /// physical hit taken deals damage back on top of the axe. The familiar only covers a critical beastmaster.
     /// </summary>
-    public static bool ShouldSnarlWhileHoldingShared(
-        bool enabled, bool ready, bool hasFamiliar, float familiarHpPct, float fallingLine,
-        float secondsUntilTankbuster, float secondsUntilRaidwide)
-        => enabled && ready && hasFamiliar && familiarHpPct >= fallingLine
-           && (secondsUntilTankbuster <= TankbusterLeadSeconds || secondsUntilRaidwide <= RaidwideLeadSeconds);
+    public static bool BeastmasterTanksForCounterArmor(int degree, bool counterArmorHeld) => degree > 0 && counterArmorHeld;
+
+    /// <summary>
+    /// A degree (user, 2026-11-06): a tankbuster kills a familiar outright on the early boards, and the trick of recalling
+    /// it just before the hit lands was fixed, so the beastmaster takes every tankbuster — no Snarl to hand one (or a
+    /// raidwide) to the familiar, and Challenge takes the enemy back when it is on the familiar. Only a critical
+    /// beastmaster still gets covered.
+    /// </summary>
+    public static bool BeastmasterTakesTheBuster(int degree, float secondsUntilTankbuster)
+        => degree > 0 && secondsUntilTankbuster <= TankbusterLeadSeconds;
+
+    /// <summary>
+    /// A degree (user, 2026-11-15, after TPLemont's and fuurie's Third Degree clears): the beastmaster holds the enemy
+    /// while the beast out is one a later battle of the board needs, so it stays whole — HP carries over between a
+    /// board's battles. A beast no later battle needs does the tanking and takes the tankbusters, down to the falling
+    /// line ("use two pets' HP to the last drop", fuurie; TPLemont sacrifices the Flying Trap and the Ziz to the
+    /// Banemite's Deadly Thrusts). With the beastmaster tanking every beast (Korha's second run of 2026-11-15) she was
+    /// at 28% a minute into each fight; with every beast tanking (the first run) all three ended each fight at 3-33%
+    /// and the plan's beasts were worn out after one battle.
+    /// </summary>
+    public static bool BeastmasterTanksOnDegree(int degree, bool beastNeededLater) => degree > 0 && beastNeededLater;
+
+    /// <summary>
+    /// "We take tank busters unless the pet is not needed later" (user, 2026-11-15). On Third Degree Deadly Thrust
+    /// hits a familiar for about 440, 60-81% of its HP, and the beastmaster for 31% of theirs. So the familiar takes
+    /// one only when no later battle of the board plans to use it (<paramref name="neededLater"/>) and another horn is
+    /// ready to follow it.
+    /// </summary>
+    public static bool FamiliarTakesTheBusterOnDegree(
+        bool snarlEnabled, bool familiarOut, float familiarHpPct, bool neededLater, bool anotherHornReady)
+        => snarlEnabled && familiarOut && familiarHpPct > 0f && !neededLater && anotherHornReady;
+
+    /// <summary>
+    /// Enemy casts that leave a debuff on whoever they hit and are not tankbusters: the familiar takes them (user,
+    /// 2026-11-15: "pets take vuln stack and debuffs"). From 3,338 recordings (burn-reference/bst-sandbox/debuff-hits.txt):
+    /// the Arch Demon's Dismember (46879, 4.2 s cast, Damage Down every time). The Great Wisp's Scorched Earth has no
+    /// cast bar and goes by <see cref="ShouldSnarlForWisp"/>; Pas de Seul's Cold Caress and Beguiling Mist are left to
+    /// the beastmaster, who carries the resist gear and serums for them.
+    /// </summary>
+    public static readonly IReadOnlySet<uint> FamiliarTakesCastIds = new HashSet<uint> { 46879 };
+
+    /// <summary>At or below this HP a tankbuster is not the beastmaster's to take while a beast that can be spent can still come out.</summary>
+    public const float SpareForBusterBelowHpPct = 0.75f;
+
+    /// <summary>
+    /// A tankbuster is coming, the beast out is one a later battle needs, and the beastmaster cannot afford the hit:
+    /// bring out a beast that can be spent to take it, dying if it must (TPLemont's Third Degree Banemite: "keep it
+    /// alive until the next tankbuster, then the Ziz Snarls into it"). Korha, 2026-11-15: at 52% she took the second
+    /// Deadly Thrust herself for the Behemoth's sake (453, then Poison) and died with the Banemite at 8%, while the
+    /// Ice Golem, which no later battle needs, sat on its horn.
+    /// </summary>
+    public static bool WantsSpareForBuster(int degree, bool busterSoon, bool beastOutIsKept, float selfHpPct)
+        => degree > 0 && busterSoon && beastOutIsKept && selfHpPct <= SpareForBusterBelowHpPct;
+
+    /// <summary>Snarl so the familiar is the one a debuff cast lands on: out, above the falling line, and not already holding the caster.</summary>
+    public static bool ShouldSnarlForDebuffCast(
+        bool enabled, bool ready, bool familiarOut, float familiarHpPct, float fallingLine, bool casterOnFamiliar)
+        => enabled && ready && familiarOut && familiarHpPct >= fallingLine && !casterOnFamiliar;
+
+    /// <summary>
+    /// Two or more enemies: "pet takes one while you take the rest" (user, 2026-11-15). Snarl one that is on the
+    /// beastmaster and is not the target, while the familiar holds none and is above the falling line.
+    /// </summary>
+    public static bool ShouldSnarlToHoldOne(
+        bool enabled, bool ready, bool familiarOut, float familiarHpPct, float fallingLine, bool familiarHoldsOne, bool anotherOnBeastmaster)
+        => enabled && ready && familiarOut && familiarHpPct >= fallingLine && !familiarHoldsOne && anotherOnBeastmaster;
+
+    /// <summary>
+    /// The beastmaster tanks, but Snarl's Cover (the familiar takes all their damage, up to 45 s) is still up with
+    /// nothing left for it to take: Challenge ends it, so the familiar stops bleeding for hits it was not sent in for.
+    /// </summary>
+    public static bool CoverNoLongerWanted(float coverLeft, float wispIn, bool debuffCastGoing, float selfHpPct)
+        => coverLeft > 0f && wispIn > WispWalkSeconds && !debuffCastGoing && selfHpPct > SelfCriticalHpPct;
 
     /// <summary>Legendary with the beastmaster tanking: Snarl only to save a critical beastmaster (Selfless is spent then).</summary>
     public static bool ShouldSnarlWhileTanking(
@@ -649,15 +1049,17 @@ public static class ArtemisCooldownRules
     /// </summary>
     public static BeastModeUse DecideBeastMode(
         bool enabled, uint adjustedId, float selfHpPct, float edgeDistanceYalms, bool selfHasCleansableDebuff,
-        bool holdSoulCrush = false)
+        bool holdSoulCrush = false, bool coveredOnBoard = false)
     {
         if (!enabled)
             return BeastModeUse.None;
 
         return adjustedId switch
         {
-            // +5% critical hit rate for 30s is damage; the 25% physical mitigation comes with it.
-            BSTActions.BeastskinId => BeastModeUse.Self,
+            // +5% critical hit rate for 30s is damage; the 25% physical mitigation comes with it. On a board it waits
+            // out a Cover: while a beast takes the hits the 25% protects nobody (it went out at 3-32 s in every
+            // recorded Third Degree fight, mostly under a Cover).
+            BSTActions.BeastskinId => coveredOnBoard ? BeastModeUse.None : BeastModeUse.Self,
 
             // Pure defence: a full block for 15s, or a magic barrier. For when something is hitting us.
             BSTActions.VileskinId or BSTActions.ScaleskinId
@@ -718,6 +1120,11 @@ public static class ArtemisCooldownRules
     public static bool KeepsKinshipCard(
         bool onBoard, uint beastModeId, BeastClassification? familiarKin, float selfHpPct, bool hitComing = false)
     {
+        // Scouring Ash is borrowed for a debuff still to come (the Banemite's second Deadly Thrust): no skin replaces
+        // it, whatever is about to hit. Only an Ashkin, which gives the same card back, may be borrowed from.
+        if (onBoard && beastModeId == BSTActions.ScouringAshId && familiarKin != BeastClassification.Ashkin)
+            return true;
+
         var defensiveKin = familiarKin is BeastClassification.Beastkin or BeastClassification.Vilekin
             or BeastClassification.Scalekin;
         if (defensiveKin && (hitComing || selfHpPct < SkinHpPct))
@@ -727,6 +1134,39 @@ public static class ArtemisCooldownRules
                && ((beastModeId == BSTActions.SoulCrushId && familiarKin != BeastClassification.Soulkin)
                    || (beastModeId == BSTActions.QuellingWaveId && familiarKin != BeastClassification.Wavekin));
     }
+
+    /// <summary>The Beast Mode action a familiar's Kinship gives; 0 for an unknown kin.</summary>
+    public static uint KinshipCard(BeastClassification? kin) => kin switch
+    {
+        BeastClassification.Beastkin => BSTActions.BeastskinId,
+        BeastClassification.Vilekin => BSTActions.VileskinId,
+        BeastClassification.Seedkin => BSTActions.SeedsowerId,
+        BeastClassification.Wavekin => BSTActions.QuellingWaveId,
+        BeastClassification.Scalekin => BSTActions.ScaleskinId,
+        BeastClassification.Soulkin => BSTActions.SoulCrushId,
+        BeastClassification.Ashkin => BSTActions.ScouringAshId,
+        _ => 0,
+    };
+
+    /// <summary>
+    /// The familiar out is the battle's card beast (CrucibleDegreeTeams.CardBeast) and its card is not on the button
+    /// yet: its summon goes on Borrow, and its Tempered Release is not pressed — the game allows one of the two a
+    /// summon. Korha's 28 recorded fights of 2026-11-15: every Kinship sat in the slot One with Nature had held, and
+    /// the Megalocrab, borrowed from at the Ogre, never released in the 57 s it stayed out.
+    /// </summary>
+    public static bool BorrowsInPlaceOfRelease(
+        bool enabled, int? cardBeastNo, int? familiarNo, BeastClassification? familiarKin, uint beastModeId)
+        => enabled && cardBeastNo is { } no && familiarNo == no
+           && KinshipCard(familiarKin) is var card && card != 0 && beastModeId != card;
+
+    /// <summary>
+    /// The card borrowed before the fight stays on Beast Mode until it is used: an everyday Borrow from the familiar out
+    /// would replace a Vileskin before the hit it is for (Beastskin goes out at the pull anyway). A Beastkin out may
+    /// replace it: its Beastskin is the better card. Borrows for an interrupt or a dispel still go.
+    /// </summary>
+    public static bool KeepsPreBorrowedCard(bool onBoard, uint beastModeId, uint preBorrowedCardId, BeastClassification? familiarKin)
+        => onBoard && preBorrowedCardId != 0 && beastModeId == preBorrowedCardId
+           && familiarKin != BeastClassification.Beastkin;
 
     /// <summary>
     /// On a board, Soul Crush is not spent as plain damage (300) while it would leave nothing for the next interrupt
@@ -757,4 +1197,20 @@ public static class ArtemisCooldownRules
 
         return best;
     }
+
+    /// <summary>
+    /// The Ogre fight on a board wants Quelling Wave on the button for its small wisps: one Wave kills one, on Third
+    /// Degree too (TPLemont's D3 guide, user 2026-11-07). Borrowed whenever a Wavekin (the Megalocrab) is out, and
+    /// then kept by <see cref="KeepsKinshipCard"/> after it leaves.
+    /// </summary>
+    public static bool WantsQuellingWaveForWisps(bool onBoard, bool ogreFight) => onBoard && ogreFight;
+
+    /// <summary>
+    /// The small wisp to Quelling Wave: the hard target if it is one, else the nearest. 0 off a board, without the
+    /// Wave on the button, or with none up. The Great Wisp is not here: it takes several, and the axes win in melee.
+    /// </summary>
+    public static ulong PickWispForQuellingWave(
+        bool onBoard, uint beastModeId, ulong hardTargetId,
+        System.Collections.Generic.IEnumerable<(ulong Id, float EdgeDistance)> smallWisps)
+        => onBoard && beastModeId == BSTActions.QuellingWaveId ? PickDispelTarget(hardTargetId, smallWisps) : 0;
 }

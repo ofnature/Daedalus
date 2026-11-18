@@ -99,7 +99,11 @@ public sealed class BossHandlingRouter : IBossModSafetyService
 
     public ulong[] PriorityTargets => Active.PriorityTargets;
 
+    public string FightModuleName => Active.FightModuleName;
+
     public ulong PullTargetId => Active.PullTargetId;
+
+    public bool RequestHold(double seconds) => Active.RequestHold(seconds);
 
     public Daedalus.Rotation.Roleplay.RoleplayRequest[] RoleplayActions => Active.RoleplayActions;
 }

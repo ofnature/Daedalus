@@ -149,7 +149,13 @@ public sealed class CrucibleWalker
 
         int ChooseSide(IReadOnlyList<CrucibleStage> fork)
         {
-            var side = CrucibleRoutePlan.SuggestedSide(_index, board, fork, isCaptured, legendary, route);
+            // A degree plan with a team for one side's battle only (the video plan's Piscodemon) goes that way.
+            var planned = fork.All(s => s.IsBattle)
+                ? CrucibleDegreeTeams.PlannedBattle(CrucibleHints.Degree, fork.Select(s => s.Battle).ToList())
+                : null;
+            var side = planned is { } battle
+                ? fork.First(s => s.Battle == battle).Side
+                : CrucibleRoutePlan.SuggestedSide(_index, board, fork, isCaptured, legendary, route);
             LogFork(fork, side, legendary, _flipped.Contains(board.Index) != ForkFlipped(board, fork[0].Move));
             return side;
         }

@@ -54,4 +54,28 @@ public sealed class FightTargetHintsTests
     [Fact]
     public void ShouldRestore_NothingDropped_IsNothingToRestore()
         => Assert.False(FightTargetHints.ShouldRestore(0, 0, []));
+
+    /// <summary>
+    /// The Bone Bishop dies before the Bone Knight (user, 2026-11-15). The engine names the Knight first whenever the
+    /// beastmaster is behind his Forward Guard, and the target went back and forth seven times in two minutes.
+    /// </summary>
+    [Fact]
+    public void KillFirst_PutsTheBishopAheadOfTheEnginesKnight()
+    {
+        const ulong Bishop = 0x40000010, Knight = 0x40000011;
+        Assert.Equal(new[] { Bishop, Knight }, FightTargetHints.KillFirst([Knight], Bishop));
+        Assert.Equal(new[] { Bishop, Knight }, FightTargetHints.KillFirst([Knight, Bishop], Bishop));
+        Assert.Equal(new[] { Bishop }, FightTargetHints.KillFirst([], Bishop));
+    }
+
+    [Fact]
+    public void KillFirst_LeavesTheListAloneWhenThereIsNoBishop()
+    {
+        ulong[] engine = [0x40000011, 0x40000012];
+        Assert.Same(engine, FightTargetHints.KillFirst(engine, 0));
+        Assert.Same(engine, FightTargetHints.KillFirst(engine, engine[0]));
+    }
+
+    [Fact]
+    public void TheBishopsNameIdIsTheFirstBoardsBoneBishop() => Assert.Equal(14532u, FightTargetHints.BoneBishopNameId);
 }

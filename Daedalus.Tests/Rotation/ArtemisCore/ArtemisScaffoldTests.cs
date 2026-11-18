@@ -46,6 +46,15 @@ public sealed class ArtemisScaffoldTests
         Assert.Equal(100, BSTActions.ById(44879)!.Value.Potency);  // Smash Axe
         Assert.Equal(220, BSTActions.ById(44893)!.Value.Potency);  // Shield Charge
 
+        // Both rendered blank because the tooltip holds two potencies behind a level check: from level 38 they are
+        // 160 and 300. The First Board syncs to 30, the Second to 40.
+        Assert.Equal(100, BSTActions.ById(44879)!.Value.PotencyAt(37));
+        Assert.Equal(160, BSTActions.ById(44879)!.Value.PotencyAt(38));
+        Assert.Equal(220, BSTActions.ById(44893)!.Value.PotencyAt(30));
+        Assert.Equal(300, BSTActions.ById(44893)!.Value.PotencyAt(40));
+        Assert.Equal(500, BSTActions.ById(44883)!.Value.ComboPotency);            // no level check on the rest
+        Assert.Equal(260, BSTActions.ById(44883)!.Value.PotencyAt(50));
+
         // Shield Charge is a 20y forward rush with a 6y burst — a DASH, so it must be classified
         // as one or it bypasses the leap safety every other gap closer goes through.
         var charge = BSTActions.ById(44893)!.Value;

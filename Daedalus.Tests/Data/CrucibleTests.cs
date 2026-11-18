@@ -653,32 +653,6 @@ public class CrucibleTests
         Assert.False(ArtemisCooldownRules.IsFamiliarFalling(true, true, 0.1f, 0.6f, replacementReady: false));
     }
 
-    /// <summary>Shared tanking: the familiar holds; the beastmaster (50%+) takes over only from a familiar about to fall.</summary>
-    [Fact]
-    public void SharedTankingGivesTheEnemyToWhoeverHasMoreHp()
-    {
-        Assert.True(ArtemisCooldownRules.BeastmasterHoldsShared(0.58f, familiarOut: true, familiarHpPct: 0.19f)); // Korha vs buffalo
-        Assert.False(ArtemisCooldownRules.BeastmasterHoldsShared(0.90f, true, 0.55f));  // a healthy familiar keeps it (Cover = no debuffs on you)
-        Assert.False(ArtemisCooldownRules.BeastmasterHoldsShared(0.90f, true, 0.30f));  // at the take-over line it still holds
-        Assert.False(ArtemisCooldownRules.BeastmasterHoldsShared(0.45f, true, 0.10f));  // under the 50% floor
-        Assert.True(ArtemisCooldownRules.BeastmasterHoldsShared(0.45f, familiarOut: false, familiarHpPct: 0f)); // nobody else
-        Assert.False(ArtemisCooldownRules.BeastmasterHoldsShared(0.25f, false, 0f));     // critical: never
-    }
-
-    /// <summary>While the beastmaster holds, Snarl only hands a tankbuster or raidwide to a familiar above the line.</summary>
-    [Fact]
-    public void SharedTankingSnarlsOnlyForBustersAndRaidwides()
-    {
-        var line = ArtemisCooldownRules.FamiliarFallingHpPct;
-        Assert.False(ArtemisCooldownRules.ShouldSnarlWhileHoldingShared(true, true, true, 0.8f, line, float.MaxValue, float.MaxValue));
-        Assert.True(ArtemisCooldownRules.ShouldSnarlWhileHoldingShared(true, true, true, 0.8f, line, 5f, float.MaxValue));
-        Assert.True(ArtemisCooldownRules.ShouldSnarlWhileHoldingShared(true, true, true, 0.8f, line, float.MaxValue, 5f));
-        Assert.False(ArtemisCooldownRules.ShouldSnarlWhileHoldingShared(true, true, true, 0.1f, line, 5f, float.MaxValue));
-    }
-
-    [Fact]
-    public void SharedTankingIsOffByDefault() => Assert.False(new Daedalus.Config.DPS.BeastmasterConfig().CrucibleLegendarySharedTank);
-
     // --- the Siren on Legendary (user 2026-10-30): familiar through Summon and the crawler, beastmaster otherwise ---
 
     [Fact]

@@ -52,6 +52,36 @@ public static class CrucibleHornPlan
     }
 
     /// <summary>
+    /// How the horns set for a battle compare with the plan for it (<paramref name="chosen"/>: the player's picks, the
+    /// degree's team or the levelling core, Bestiary numbers), for the log: "as planned", the same beasts in another
+    /// order, or each planned beast that is not on a horn and why — not on the team, down, or worn (a worn beast gives
+    /// way to a healthy one, see <see cref="Pick"/>). HP carries over between a board's battles, so a team that was
+    /// right for the first battle is often not the one that reaches the fourth.
+    /// </summary>
+    public static string PlanNote(
+        IReadOnlyList<CrucibleTeamMember> team, IReadOnlyList<int>? chosen, IReadOnlyList<int> wanted, Func<int, string> nameOf)
+    {
+        var planned = (chosen ?? []).Where(no => no != 0).Take(3).ToList();
+        if (planned.Count == 0)
+            return "no plan for this battle (picked by weakness)";
+
+        var onHorns = wanted.Select(p => team[p].PetId).ToList();
+        var plan = string.Join(" > ", planned.Select(nameOf));
+        var missing = new List<string>();
+        foreach (var no in planned.Where(no => !onHorns.Contains(no)))
+        {
+            var at = Enumerable.Range(0, team.Count).FirstOrDefault(i => team[i].PetId == no, -1);
+            missing.Add(at < 0 ? $"{nameOf(no)} is not on the team"
+                : !team[at].Alive ? $"{nameOf(no)} is down"
+                : $"{nameOf(no)} is worn ({team[at].Health:P0})");
+        }
+
+        if (missing.Count > 0)
+            return $"plan {plan}; {string.Join("; ", missing)}";
+        return onHorns.SequenceEqual(planned) ? "as planned" : $"the plan's beasts in another order (plan {plan}; healthy ones go first)";
+    }
+
+    /// <summary>
     /// Up to three living team members for this battle, in horn order: the final boss gets the community team if it
     /// is all on the team and alive; otherwise the lead enemy's weakness first, then the rest of the lineup's, then
     /// any living member to fill the horns (a horn left empty is a beast lost). Among equals the strongest goes first:

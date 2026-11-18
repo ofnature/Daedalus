@@ -86,4 +86,29 @@ public class OracleCardPolicyTests
         // 30s prophecy — committing at 20s leaves 10s to actually land the action.
         Assert.True(OracleCardPolicy.ForceCommitSeconds <= 25f);
     }
+
+    // ── A card to play goes ahead of the job's own weaves (False Prediction, Korha 2026-11-15 19:35) ──
+
+    [Fact]
+    public void ACardChosenForPlayTakesTheWeaveSlotBeforeTheJob()
+        => Assert.True(OracleCardPolicy.PreemptsJobWeaves(OracleDecision.PlayCard));
+
+    [Fact]
+    public void SoDoesTheInvulnerabilityThatMakesStarfallSafe()
+        => Assert.True(OracleCardPolicy.PreemptsJobWeaves(OracleDecision.CastInvulnerability));
+
+    [Fact]
+    public void ACardBeingWaitedOutTakesNothingFromTheJob()
+        => Assert.False(OracleCardPolicy.PreemptsJobWeaves(OracleDecision.Wait));
+
+    /// <summary>The recorded prophecy: Cleansing was the last card, 11 s in, with the Warrior weaving her burst.</summary>
+    [Fact]
+    public void TheLastCardOfTheRecordedProphecyIsOneThatPreempts()
+    {
+        var decision = OracleCardPolicy.Decide(
+            OracleCardPolicy.CleansingCard, new Daedalus.Config.PhantomConfig(), lastCard: true, windowElapsedSeconds: 11f,
+            selfHpPct: 0.6f, partyAvgHpPct: 0.9f, invulnBuffUp: false, invulnReady: false);
+        Assert.Equal(OracleDecision.PlayCard, decision);
+        Assert.True(OracleCardPolicy.PreemptsJobWeaves(decision));
+    }
 }

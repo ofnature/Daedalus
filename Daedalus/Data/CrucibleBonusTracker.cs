@@ -267,6 +267,9 @@ public sealed class CrucibleBonusTracker
     private readonly BeastClassification? _kin;
 
     private int _knockOuts;
+
+    /// <summary>Familiars knocked out on this board so far.</summary>
+    public int KnockOuts => _knockOuts;
     private bool _debuffed;
     private bool _rested;
     private int _feeds;

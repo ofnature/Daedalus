@@ -3,6 +3,213 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.124 — 2026-11-17
+
+### Eureka
+- **The Magia Board turns on a brand-new character too.** The auto-turn was set once, a few seconds after arriving,
+  which on a first visit is before the opening quest hands over the board, so it never took. It is now set again
+  after every cutscene and zone change, and whenever you gain or place a magicite.
+
+### Beastmaster — combo chains
+- **A chain is no longer dropped while one half waits for the other.** With your axe ready but the beast's Trick not
+  (or the other way round), the ready one was held for up to 12 seconds, longer than a chain's 7. Now it goes out
+  with about 2 seconds left, so the chain carries on.
+- **Intentional and instinctual links alternate.** Two intentional combos can't come back to back, so after one the
+  next link no longer chases the clockwise colour. It takes the colour just before the beast's Trick colour, so the
+  Trick after it completes the next intentional combo. A Trick that would complete an intentional combo now goes at
+  once instead of waiting for an axe to pair with.
+- **Level 50 infinity combo on a longer chain.** With two of your diamonds, a beast charge, and Rally and Rallying
+  Cheer both ready, the infinity combo now goes beast → you → Rallying Cheer → beast → Rally → finisher, as the
+  Third Degree guides play it. Rallying Cheer is kept for that moment instead of being spent the first time the
+  beast's TP runs low.
+- **Rally, Tempered Release and the other off-GCD buttons no longer miss their moment.** Only one of them fits
+  between two weaponskills, in a half-second gap, and a button tried outside that gap was then left alone for two
+  seconds, usually until the gap had passed again. Rally landed about 4 seconds after the axe it should follow, and
+  the next axe made the 7-second chain only one time in ten. Now they go out in the very next gap, so Rally's axe
+  lands inside the chain as one more combo.
+
+### Beastmaster — familiars
+- **The next beast comes out sooner after one leaves.** A Battlehorn pressed while a weaponskill was already queued,
+  or a moment after another button, was refused by the game, and each refusal then meant a 15-second wait before the
+  next try, sometimes twice in a row. The horn now waits the fraction of a second until the game will take it, and a
+  single refusal is retried after 3 seconds. The same timing applies to the swap for a falling beast and to the
+  Borrow before a Crucible fight.
+- **The debug log now says what the beasts are doing.** Each Crucible battle logs which beasts went on the horns,
+  what the plan was, and why a planned beast was left off (down, worn, or not on the team). In a fight it logs a
+  beast leaving, what a wanted horn is waiting for, each horn pressed or refused, and how long there was no beast
+  out. The Borrow before a fight logs why it is waiting or was skipped.
+
+### Beastmaster — the Crucible
+- **On a degree, the beasts a later battle needs are kept whole.** A beast's HP carries over between a board's
+  battles, and beasts that tanked every fight were worn out by the second battle.
+  - **A beast no later battle needs does the tanking.** It Snarls, covers you, and takes the tankbusters, down to
+    the line where it is pulled back.
+  - **While the beast out is one a later battle needs, you hold the enemy.** Challenge keeps it on you, and that
+    beast takes no tankbuster and does not cover you even when you are critical.
+  - **A tankbuster you can't afford goes to a spare beast.** With a kept beast out and you at 75% HP or less, the
+    horn of a beast no later battle needs is blown, and that beast takes the hit, even if it falls to it.
+  - **The Ogre's wisps:** the beasts stay out until the Ogre is active, each swapped out before it falls. Parting
+    Blow is no longer spent on the small wisps there.
+- **A potion is kept when a campsite follows the battle.** The camp heals 90% anyway, so in that battle a potion is
+  only drunk at 20% HP or less, and once the battle is won nothing is drunk on the way to the camp. On the First
+  Board that keeps one for the Banemite, where the second Deadly Thrust was killing you with nothing left to drink.
+- **Pas de Seul on a degree: you take every hit until the succubi are dead.** The beast out is kept out of the
+  tanking, the first Cold Caress included, and the Behemoth's Meteor waits for the succubi to come and close in.
+  Before, the Behemoth tanked, was sent away hurt, and its Meteor was gone before they arrived.
+- **An item for a tankbuster cast at you (First Board).** When the Banemite casts Deadly Thrust at you, a held Tome
+  of the Impervious is used: its Blink cancels the hit and the poison. With no Tome, or against Pas de Seul's Cold
+  Caress and Blood Sword (magic, which Blink does not stop), a held Crucible Tannin is used instead (20% less
+  damage for 60 s). The Tannin is no longer sold at the shop.
+- **The Banemite's poison is cleansed (First Board, degrees).** The poison after Deadly Thrust costs more HP than
+  the hit itself. The Geshunpest and the Ice Golem trade battles: the Ice Golem fights the Arch Demon, the
+  Geshunpest the Banemite. There its Scouring Ash is borrowed in place of its release and kept until you are
+  poisoned: it removes the poison and heals 10%. Nothing is borrowed before that fight.
+- **Phantom Oracle: a card is no longer starved by your own burst.** A card chosen for play now takes the next
+  weave slot ahead of your job's abilities. Before, cards only got the slots the job left over, and a job
+  weaving something behind every weaponskill (a Warrior in Inner Release) could let all four cards go by and
+  end the prophecy in a False Prediction.
+- **Phantom Oracle: Rejuvenation is timed for Starfall.** With Starfall turned on, Phantom Rejuvenation is pressed
+  about 12 seconds before Predict comes back, so its heal lands a few seconds into the prophecy, and Starfall is
+  held a moment so the heal follows it. It is no longer spent on chip damage between prophecies. With Starfall
+  turned off it works as before (anyone under 90% HP).
+- **The parser shows each player's phantom job** in the Occult Crescent, with its level, next to their name.
+- **A second Third Degree plan for the First Board (Crucible Team window, "Degree plan").** The default stays
+  "Wespe sting". "Beasts take the busters" follows a video guide instead: its own ten beasts and no Wespe, the
+  right fork (Piscodemon, then a treasure), a card borrowed before every pull, and a beast no later fight needs
+  taking each tankbuster — at the Banemite the Flying Trap takes the first Deadly Thrust and the Ziz is kept out
+  for the second. Not yet tried in a run. Choose it before starting a run: the team is set from it.
+- **Food is eaten before every Crucible run.** The chosen meal was only eaten when the loop walked to Lauda by
+  itself, so a run begun with Start run (every Third Degree and Legendary attempt) went in without it. It is now
+  eaten as you stand near Lauda with none of her windows open, when Well Fed has under 25 minutes left.
+- **Beastskin waits while a beast is covering you** on a board, so its 25% protection is on you when you are hit.
+- **The Crucible Antidote on the First Board.** It is kept instead of sold, bought at a shop when no gear answers
+  poison, and used when you are poisoned at 60% HP or less: it cures the poison and heals 25%.
+- **The Behemoth's Meteor waits for the Mitelings to gather.** They stand still for about 5 seconds after they
+  appear, and Meteor went out just as they set off, with some still out of its reach. It now waits until all of
+  them are within 10 yalms, or 9 seconds at most.
+- **The Bone Knight and Bishop fight opens on the Wespe.** It stings the Bishop at once and leaves at full HP, as in
+  the documented Third Degree clears; the Mandragora and the Opo-opo then tank. Held back to tank the Knight, the
+  Wespe ended that fight at about 30% and missed every battle after it.
+- **Poisoned and hurt, the Antipoison Soul Serum is drunk in any battle.** It was kept for the final boss, even
+  while the Banemite's Deadly Thrust poison was killing you.
+- **A degree or Legendary pull waits for the first beast and the Borrow.** The fight used to open about 5 seconds
+  after the horns were set, with you already walking to the boss, so the Borrow before the fight never happened and
+  every fight began with no beast out. Now you stand still until the Borrow is done and the first beast is out,
+  then open. The Borrow beast is called first, so this takes about 6 seconds; after 15 it opens regardless.
+- **The Bone Bishop dies first, then the Bone Knight.** While the Bishop stands he is the target. Before, the target
+  switched to the Knight whenever you were behind his Forward Guard, and went back and forth all fight.
+- **Degree runs collect gear from the Third Degree gear list, in its order.** Coffers and shops both follow it.
+  - **1 elemental axe.** It adds flat damage to every auto-attack whatever the colour, and the Ogre needs it. A second
+    axe is never taken, since only one works. When two are offered, the one matching the next fight's weakness wins
+    (water before the Ogre).
+  - **1–2 crit pieces:** Beast Earring, Beast Mask, Beastly Knife, Silver Specs.
+  - **1–2 special effects:** Briar Armor, Wind Shield, Mirage Vest.
+  - **5–6 HP pieces.** Max HP comes first, then cuts to the final boss's kind of damage: magic on the First Board
+    and First Master's Board, physical on the Second and Third Boards. Damage Taken down counts everywhere.
+  - **1 paralysis/poison resist** if the board needs one (Angel Robe, Crimson Ribbon).
+  - Pure damage gear (Heavy Axe, Green Beret's damage) is no longer chased. The Beret still counts for its HP.
+- **Crimson Ribbon turns soul serums into heals.** While you hold the Ribbon, every soul serum heals 50% HP.
+  - Serums are drunk at the potion line, alongside potions; the bigger heal goes first.
+  - They're no longer sold, and the shop buys them as heals.
+  - The final boss's own serums (antisleep and antipoison on the First Board) are saved for that fight unless
+    nothing else can heal you.
+  - On degree runs the Ribbon takes the resist slot on any board.
+- **A skin is borrowed before each board fight.** Between fights, a Beastkin from your horns (else a Vilekin) is
+  called out, borrowed from, and swapped back to your first horn. Every fight then opens with Beastskin or Vileskin
+  ready, the way the Third Degree clears do it. A borrowed Vileskin is kept for the moment you need it, not replaced
+  by the next Borrow.
+- **No more getting stuck on "Take 0 territory tokens?"** A Chemist's Satchel potion at a campsite offers no tokens,
+  so the autopilot no longer tries to take them, and answers No if the prompt comes up anyway.
+- **The Vampiric Fang is kept for healing.** It's no longer thrown at bunched adds or sold at the shop. When you're
+  under the potion line with no potion left, it's used on your target instead and heals you from the damage.
+- **Quelling Wave kills the Ogre's small wisps.** In the First Board's Ogre fight, Quelling Wave is borrowed from the
+  Megalocrab and kept on the button, then fired at each small wisp from range — one Wave kills one, on Third Degree
+  too — instead of chasing them with the axes before they reach the centre.
+- **The Great Wisp is killed before it reaches the Ogre.** Its blast hits the whole arena, so your beast's Parting
+  Blow goes at it as soon as the Blow would finish it, never sooner. If it can't, the beast stays out to Cover the
+  blast instead. On Third Degree the
+  Ogre fight now keeps a beast out for this: no Parting Blow to bring the Wespe out early, and the Wespe's Final
+  Sting waits if no other beast could follow it, until the wisps are gone.
+- **The bomb push on the Second Board's final boss.** Knocking one of Loosefrox's small bombs into the quicksand
+  where the worm surfaces stuns it and leaves it open to damage. As Loosefrox starts casting the small bombs, your
+  beast is sent away with Parting Blow and isn't called back until a bomb is caught or the bombs are gone, because
+  it attacks whatever you hit and would push the bomb off line. Meanwhile only your 1-2-3 combo goes out, on whatever
+  Minerva picks (the bomb while you're lined up behind it), and your axes and combo chain are saved for the worm.
+  You take Loosefrox's hits yourself for those ~20 seconds. Needs Minerva's matching update; without it the fight
+  plays as before.
+- **A Third Degree mode.** "Run for" now has Third Degree beside Clear, Level and Legendary: it always enters on
+  Third Degree and plays only to survive (all five boards cleared on Third Degree earns the Beastmaster's Earrings,
+  at any score). It uses the Third Degree teams and takes and uses every item and piece of beast gear.
+- **Legendary and Third Degree are one attempt each.** Start run goes in once; they never loop. Legendary enters on
+  the degree you pick.
+- **The live bonus list is gone from the Crucible team window.** The result window still opens at the end of a
+  Legendary or Third Degree run (no longer after Clear runs), and the log now records your remaining HP, your max HP
+  and the points it scored.
+- **On Legendary you tank.** Every Japanese Legendary clear has the beastmaster hold the enemy (Challenge) and keep
+  Unbeastable by dodging, so the "Tank" choice is gone: Legendary always has you tank. Snarl now only goes for a wisp
+  about to blow, when you're critical, or on the Second Master's Board, where the familiar takes the tankbusters.
+- **"Until all rank 25" keeps looping after Start run.** Once the run count had reached 0 (for example after "Stop
+  loop"), the box stayed ticked but Start run set just one run, so the loop stopped at Lauda after every board. With
+  Level and "until all rank 25" ticked, Start run now loops on.
+- **Legendary drinks to save the run on every board.** The last-resort potion at 20% HP now also goes on the First
+  Board (it never did), since dying scores no bonuses at all. It is skipped only when it can't save the run: no beast
+  is left to fight and the enemy would outlast you even with the potion.
+- **Third Degree teams for the First Board.** On any degree above Standard, the Clear and Level goals bring the team
+  documented Third Degree clears use for each First Board fight (the Wespe first, for example with Behemoth and
+  Colibri for Pas de Seul; the Bone Knight fight is Mandragora, Wespe, Opo-opo), and put those ten beasts on the
+  roster. Your own
+  horn picks for a battle still come first, and a beast you haven't captured is filled in as before.
+- **Beasts are pulled out earlier on a degree.** Above Standard a beast is sent back at 35% HP instead of 20%: on
+  Third Degree they were dropping from under 20% to 0 before Parting Blow could land.
+- **The Wespe stings in every fight on a degree, and at once.** Above Standard, Final Sting goes as soon as the
+  Wespe is out instead of waiting for the enemy to reach 30%, and the Wespe comes back whenever its horn is ready, as
+  the documented clears play it. Standard keeps the old timing.
+- **A Bone Knight plan on a degree.** The fight opens on the Mandragora to burst the Bishop and hit the Knight. At
+  his first Forward Guard the Wespe comes out and is Snarled onto him, holding him while you hit his back, until he
+  is down to 35%. Then Challenge takes him back and the Wespe's Final Sting goes at him from behind, and the next
+  beast comes out. The guard Snarl now also goes on every degree as the cast starts (it was Legendary only).
+- **Shopping on a degree.** The gear for the final boss's statuses goes first (for Pas de Seul: the Angel Robe and
+  anti-sleep gear). At the last shop before the boss, a serum is bought for each of those statuses the gear didn't
+  cover. Next come the axes and damage gear: the elemental axe the final boss is weak to first (any elemental axe
+  still adds damage, so one is bought either way), the Heavy Axe and Thunder Axe once their downside is covered,
+  and Briar Armor. On the Second and Third Boards and the Master's Boards, gear to finish holding ten pieces (Walking
+  Armory) comes next, the cheapest first; the last shop only buys for it when it can reach ten. Then potions, then
+  every other piece of gear whose downside you have a counter for: the Demonic Helm with Soulreaper's Armor, Genji
+  Armor with Mystic Boots, and so on. Gear with an uncountered downside (Flame Knife, Ice Shield, Wind Mask…) is
+  left.
+- **Coffers on a degree** take gear over items: the final boss's resistances first, then an axe or damage gear,
+  then the rest.
+- **No serum for a status your gear already blocks.** At the final boss a held serum is only drunk for a status
+  none of your gear resists.
+- **With Briar Armor you take the hits on a degree.** Briar Armor hits back every time you take physical damage, so
+  Challenge keeps the enemy on you. The beast only covers you when you're critical.
+- **You take the tankbusters on a degree.** A tankbuster kills a beast outright on a degree, and recalling it just
+  before the hit no longer saves it, so Snarl no longer hands a tankbuster or raidwide to the beast. If the enemy is
+  on the beast when a tankbuster is coming, Challenge takes it back. Only when you're critical does the beast still
+  cover you. Standard is unchanged.
+- **Items Daedalus doesn't use are sold** at every shop off Legendary: the tomes, Temporal Sand, kits, reraisers
+  and the like. Potions, Eyes, Fangs and the board's boss serums are kept. Celestial Sand is now used like a Fang.
+  Several items can be sold in one shop visit.
+- **The Fang clears Pas de Seul's succubi** once they bunch, as it already did for the Ogre's wisps.
+- **The Behemoth saves its Meteor for the Banemite's Mitelings.** They come on a timer (about 56 s into the fight,
+  then again at about 113 s), so it waits for the first wave, and for the second when it's due within 30 s, then goes
+  once they close in. A nearly dead Banemite or a falling Behemoth gets the Meteor at once.
+- **A plan for the Ymir on a degree** (Third Board): Wespe, Ice Golem, Diremite. The Wespe stings the shell, the
+  familiar holds the Sahagin while you break the shell, Soul Crush is borrowed from the Ice Golem and kept for
+  Dreadwash, and your instinct skills are saved for the Ymir. When the shell breaks, the Ice Golem's Parting Blow
+  hits the Ymir and the Diremite's release binds it for 30 seconds.
+- **Food before each run.** A new Food setting beside Degree: the loop eats the meal you pick (HQ first) before
+  talking to Lauda when Well Fed is missing or has under 25 minutes left.
+- The log now says which degree a board was entered on.
+
+### Movement
+- **Melee walk back in sooner after a BossMod dodge.** With BossMod's AI dodging but not following the target, the
+  walk back into melee waited 3.75–6 s after every dodge, and up to 14 s passed without an attack in the Crucible.
+  It now goes once BossMod has been still for a second. An AoE about to land still holds it, and BossMod moving
+  again stops it at once.
+
+<!-- LATEST-END -->
+
 ## v0.1.123 — 2026-11-05
 
 ### Beastmaster — the Crucible
@@ -26,8 +233,6 @@ All notable changes to Daedalus will be documented in this file.
 - Fixed: the Magia Board was sometimes never set. Daedalus sent /magiaauto a second after zone-in, the game answered
   "unavailable at this time", and it never tried again. It now waits a few seconds after arriving, and sends again if
   the game refuses.
-
-<!-- LATEST-END -->
 
 ## v0.1.122 — 2026-11-03
 

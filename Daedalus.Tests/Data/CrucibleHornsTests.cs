@@ -497,6 +497,14 @@ public class CrucibleHornsTests
         Assert.Contains(7, roster); // Coblyn, from the coverage picks
     }
 
+    /// <summary>On a degree the documented clear's beasts go ahead of the core, and the cap still holds.</summary>
+    [Fact]
+    public void OnADegreeTheDocumentedTeamLeadsTheRoster()
+    {
+        var roster = CrucibleLevelPlan.ClearRoster(Index, Board with { RosterCap = 5 }, [26, 5, 44], AllCaptured.Contains, [10, 16]);
+        Assert.Equal([10, 16, 26, 5, 44], roster);
+    }
+
     [Fact]
     public void TheClearRosterRespectsTheCap()
     {

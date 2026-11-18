@@ -52,9 +52,19 @@ public interface IBossModSafetyService
     /// invulnerability phase. Empty when the engine has no opinion.</summary>
     ulong[] PriorityTargets => [];
 
+    /// <summary>The fight module the engine is running, by its type name (Minerva's <c>Minerva.ActiveModule</c> while
+    /// connected); empty when none, and always empty under BossMod.</summary>
+    string FightModuleName => "";
+
     /// <summary>The boss this toon has to pull because nobody else will (Minerva's <c>Minerva.Hints.PullTarget</c>):
     /// a boss fight not started, no other player in the party. 0 for none, and always 0 under BossMod.</summary>
     ulong PullTargetId => 0;
+
+    /// <summary>
+    /// Ask the boss engine to stop steering for uptime for this many seconds (Minerva's <c>Minerva.RequestHold</c>;
+    /// danger still moves the character; 0 releases). False when the engine has no such thing.
+    /// </summary>
+    bool RequestHold(double seconds) => false;
 
     /// <summary>What the character you are playing in a quest battle should use now, best first (Minerva's
     /// <c>Minerva.Hints.RoleplayActions</c>). Empty outside such a fight, and always empty under BossMod.</summary>

@@ -29,6 +29,7 @@ public sealed unsafe class EurekaService : IDisposable
     private readonly IChatGui _chatGui;
 
     private string? _sentAuto;
+    private int _boardSignature = -1;
     private DateTime _nextSendUtc;
     private DateTime _arrivedUtc;
     private volatile bool _refused;
@@ -112,11 +113,11 @@ public sealed unsafe class EurekaService : IDisposable
             if (player == null || !InEureka || _condition[ConditionFlag.BetweenAreas] || _condition[ConditionFlag.OccupiedInCutSceneEvent])
             {
                 if (!InEureka)
-                {
-                    _sentAuto = null;
                     _refusals = 0;
-                }
 
+                // A zone change or a cutscene: what was sent before it may not have taken (the opening quest's
+                // cutscenes are where a new toon gets its board), so it goes out again once things settle.
+                _sentAuto = null;
                 _arrivedUtc = default;
 
                 return;
@@ -137,6 +138,14 @@ public sealed unsafe class EurekaService : IDisposable
                     _sentAuto = null;
                     _nextSendUtc = now + EurekaRules.RetryAfterRefusal;
                 }
+            }
+
+            // A magicite gained or placed: the board is not the one /magiaauto was sent for.
+            var signature = Board() is { } board ? EurekaRules.BoardSignature(board.Magicite, board.Placed) : -1;
+            if (signature != _boardSignature)
+            {
+                _boardSignature = signature;
+                _sentAuto = null;
             }
 
             var wanted = EurekaRules.WantedAuto(_configuration.Eureka.MagiaMode, isTank);

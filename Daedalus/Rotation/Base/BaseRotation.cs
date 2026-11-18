@@ -276,7 +276,8 @@ public abstract class BaseRotation<TContext, TModule> : IRotation, IDisposable
             && Daedalus.Services.Pull.BossPullPolicy.Opens(
                 Configuration.Nav.PullWhenNobodyElseWill,
                 RotationServices.BossModSafety?.PullTargetId ?? 0,
-                pullTarget.GameObjectId))
+                pullTarget.GameObjectId)
+            && !HoldsBossPull(player))
         {
             inCombat = true;
             bossPull = true;
@@ -389,6 +390,12 @@ public abstract class BaseRotation<TContext, TModule> : IRotation, IDisposable
     /// <summary>
     /// Updates combat state tracking.
     /// </summary>
+    /// <summary>
+    /// A boss pull the boss engine has asked for (BossPullPolicy) is not opened yet: the job has something to do first,
+    /// standing still, that cannot be done once the fight is on. Asked every frame the pull is on offer.
+    /// </summary>
+    protected virtual bool HoldsBossPull(IPlayerCharacter player) => false;
+
     protected virtual void UpdateCombatState(bool inCombat)
     {
         if (inCombat)

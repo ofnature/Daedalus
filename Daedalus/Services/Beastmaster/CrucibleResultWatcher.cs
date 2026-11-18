@@ -48,7 +48,8 @@ public sealed unsafe class CrucibleResultWatcher
             Text(screen, 7), (int)Number(screen, 8),
             Text(screen, 9), (int)Number(screen, 10),
             (int)Number(screen, 13), bonuses,
-            (int)Number(screen, 63), Text(screen, 58));
+            (int)Number(screen, 63), Text(screen, 58),
+            (int)Number(screen, 11), (int)Number(screen, 12));
         ResultRead?.Invoke(Last);
     }
 }

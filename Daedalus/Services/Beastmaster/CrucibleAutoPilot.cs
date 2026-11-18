@@ -49,7 +49,7 @@ public sealed unsafe class CrucibleAutoPilot
     /// </summary>
     private readonly List<int> _heldGear = new();
     private bool _heldGearKnown;
-    private int _shopSellSlot = -1;
+    private int _shopSellHeld = -1;
     private DateTime _shopSellUtc;
     private bool _shopSellGaveUp;
     private bool _boughtOnBoard;
@@ -61,6 +61,24 @@ public sealed unsafe class CrucibleAutoPilot
     private DateTime _campSinceUtc;
     private DateTime _lootSinceUtc;
     private float _selfHpPct = 1f;
+
+    /// <summary>The battle in which "keeping the potion for the campsite" was last logged, so it is said once a battle.</summary>
+    private int _potionKeptForCampBattle;
+
+    /// <summary>The battle of the last enemy seen on this board: the one being fought, or the one just won.</summary>
+    private int _lastBattle;
+
+    /// <summary>A live enemy is the hard target (its HP was passed in): what the Vampiric Fang heal hits.</summary>
+    private bool _enemyTargeted;
+
+    // HP samples for the Legendary "can a potion save the run" check: the beastmaster's and the hard target's.
+    private readonly List<(double Seconds, float Pct)> _selfSamples = new();
+    private readonly List<(double Seconds, float Pct)> _enemySamples = new();
+    private DateTime _nextHpSampleUtc;
+    private bool _potionHopelessLogged;
+    private IReadOnlyList<CrucibleTeamMember>? _teamSeen;
+    private int _knockOutsAtTeam;
+    private int _teamAlive;
     private bool _legendary;
     private bool _legendaryNoGear;
     private bool _gearTakenOnBoard;
@@ -81,6 +99,9 @@ public sealed unsafe class CrucibleAutoPilot
     private int _eyePressedHeld;
     private DateTime _eyePressedUtc;
     private int _eyeBattle;
+
+    /// <summary>Why the item being pressed is used, for its log line.</summary>
+    private string _eyePressedWhy = "";
     private readonly HashSet<uint> _eyesUsed = new();
     private readonly Dictionary<uint, int> _eyeTries = new();
 
@@ -120,12 +141,16 @@ public sealed unsafe class CrucibleAutoPilot
     /// Armory) and refused elsewhere (Nameday Attire: none from the spoils, a coffer's non-gear offer over gear).
     /// </param>
     /// <param name="takePotions">Also take Crucible items from the spoils (potions, ash, reraisers…; never feed), up to ten.</param>
+    /// <param name="enemyHpPct">The hard target's HP (0-1), or null: with the beastmaster's, it tells whether a
+    /// Legendary potion can still save the run (<see cref="CrucibleAutoPilotRules.PotionCanSaveRun"/>).</param>
     public void Update(
         bool enabled, CrucibleBoard? board, CrucibleHornSetter? horns, bool takeItems, float selfHpPct = 1f, bool legendary = false,
-        bool takePotions = false, bool usePotions = false)
+        bool takePotions = false, bool usePotions = false, float? enemyHpPct = null)
     {
         _usePotionsNow = usePotions;
         _selfHpPct = selfHpPct;
+        _enemyTargeted = enemyHpPct is > 0f;
+        SampleHp(selfHpPct, enemyHpPct, horns);
         // Legendary: no gear, for Nameday Attire (CrucibleAutoPilotRules.LegendaryTakesGear).
         // Once gear has been taken on this board (a coffer offering only gear), Nameday Attire is gone: avoiding gear
         // after that only throws away the better offer (Korha 2026-10-27: a Reraiser over Heavy Axe).
@@ -135,8 +160,11 @@ public sealed unsafe class CrucibleAutoPilot
             _gearTakenOnBoard = false;
             _boughtOnBoard = false;
             _itemUsedOnBoard = false;
+            _lastBattle = 0;
+            _potionKeptForCampBattle = 0;
             _heldGear.Clear();
             _heldGearKnown = false;
+            CrucibleHints.CounterArmorHeld = false;
         }
 
         ReadHeldGear();
@@ -177,7 +205,13 @@ public sealed unsafe class CrucibleAutoPilot
         if (yesNo != null)
         {
             var prompt = Text(yesNo, 0);
-            if (now < _expectUntilUtc && CrucibleAutoPilotRules.ShouldConfirm(prompt, _expectPrompt))
+            if (CrucibleAutoPilotRules.IsEmptyTokenPrompt(prompt))
+            {
+                Fire(yesNo, 1);
+                _expectPrompt = null;
+                Done(now, "No: nothing to take in tokens.");
+            }
+            else if (now < _expectUntilUtc && CrucibleAutoPilotRules.ShouldConfirm(prompt, _expectPrompt))
             {
                 Fire(yesNo, 0);
                 _expectPrompt = null;
@@ -234,7 +268,8 @@ public sealed unsafe class CrucibleAutoPilot
             if (now - _lootSinceUtc < LootSettle || loot->AtkValuesCount <= CrucibleAutoPilotRules.LootItemIdIndex(CrucibleAutoPilotRules.LootMaxRows - 1))
                 return;
 
-            switch (CrucibleAutoPilotRules.NextLootStep(takeItems, _lootGearDone, _lootTokensTried))
+            switch (CrucibleAutoPilotRules.NextLootStep(
+                        takeItems, _lootGearDone, _lootTokensTried, Number(loot, CrucibleAutoPilotRules.LootTokensIndex) > 0))
             {
                 case CrucibleLootStep.TakeItem:
                     TakeGear(now, loot);
@@ -263,7 +298,7 @@ public sealed unsafe class CrucibleAutoPilot
         var treasure = Visible("XBMContentsTreasure");
         if (treasure != null)
         {
-            TakeTreasure(now, treasure, WantedResistancesLeft(board));
+            TakeTreasure(now, treasure, board, WantedResistancesLeft(board));
             return;
         }
 
@@ -281,7 +316,7 @@ public sealed unsafe class CrucibleAutoPilot
         _shopPlan = null;
         _shopPendingRow = -1;
         _shopSinceUtc = default;
-        _shopSellSlot = -1;
+        _shopSellHeld = -1;
         _shopSellGaveUp = false;
 
         var party = PartyAgent();
@@ -367,26 +402,28 @@ public sealed unsafe class CrucibleAutoPilot
             fangHeld |= CrucibleAutoPilotRules.FangItemIds.Contains((uint)(heldRow + CrucibleAutoPilotRules.CrucibleItemIconOffset));
         }
 
-        // Sell first, so the tokens it brings are there when the purchases are planned. Not on Legendary: its shops
-        // buy to hold ten items (Habitual Hoarder).
+        // Sell first, so the tokens it brings are there when the purchases are planned: every held item Daedalus has no
+        // use for (UsesItem), one at a time. Not on Legendary: its shops buy to hold ten items (Habitual Hoarder).
         if (_shopPlan == null && !_legendary && !_shopSellGaveUp)
         {
             var bySlot = new List<int>(CrucibleAutoPilotRules.MaxCrucibleItemsHeld);
             for (var k = 0; k < CrucibleAutoPilotRules.MaxCrucibleItemsHeld; k++)
                 bySlot.Add((int)Number(shop, CrucibleAutoPilotRules.ShopHeldItemRowIndex(k)));
-            var sell = CrucibleAutoPilotRules.ShopSellSlot(bySlot);
+            var sell = CrucibleAutoPilotRules.ShopSellSlot(bySlot, board.Index, RibbonHeld());
             if (sell >= 0)
             {
-                if (sell == _shopSellSlot && now - _shopSellUtc < ShopBuyTimeout)
-                    return; // waiting for it to go
-                if (sell == _shopSellSlot)
+                // The last sale is done once one item fewer is held; until then wait for it.
+                var pendingSale = _shopSellHeld >= 0 && held >= _shopSellHeld;
+                if (pendingSale && now - _shopSellUtc < ShopBuyTimeout)
+                    return;
+                if (pendingSale)
                 {
                     _log($"Crucible: shop — selling {_itemName(bySlot[sell])} did not go through; buying without it.");
                     _shopSellGaveUp = true;
                 }
                 else
                 {
-                    _shopSellSlot = sell;
+                    _shopSellHeld = held;
                     _shopSellUtc = now;
                     _log($"Crucible: shop — selling {_itemName(bySlot[sell])} for tokens.");
                     Expect("Sell the ", now);
@@ -407,31 +444,8 @@ public sealed unsafe class CrucibleAutoPilot
                     ? CrucibleAutoPilotRules.ShopBuysForPotions(offers, tokens, held, _isCrucibleItem,
                         wantFang: board.Index == CrucibleAutoPilotRules.SirenBoardIndex && !fangHeld)
                     : [];
-            if (!_legendary && _usePotionsNow)
-            {
-                // The final boss's resistance serum first (it needs a slot the potions might take).
-                var heldRows = new List<int>();
-                for (var k = 0; k < CrucibleAutoPilotRules.MaxCrucibleItemsHeld; k++)
-                {
-                    if ((int)Number(shop, CrucibleAutoPilotRules.ShopHeldItemRowIndex(k)) is var heldRow and > 0)
-                        heldRows.Add(heldRow);
-                }
-
-                if (CrucibleAutoPilotRules.ShopBuyForBossSerum(offers, tokens, heldRows, board.Index) is var serumRow and >= 0)
-                {
-                    var serumPrice = offers.First(o => o.Row == serumRow).Price;
-                    plan = new[] { serumRow }.Concat(CrucibleAutoPilotRules.ShopBuysForPotions(offers, tokens - serumPrice, held + 1,
-                        _isCrucibleItem, wantFang: board.Index == CrucibleAutoPilotRules.SirenBoardIndex && !fangHeld)).ToList();
-                }
-            }
-
-            if (!_legendary && _takeGearNow)
-            {
-                // Gear with what the potions leave (the shop only offers each piece once).
-                var left = tokens - plan.Sum(r => offers.First(o => o.Row == r).Price);
-                plan = plan.Concat(CrucibleAutoPilotRules.ShopBuysForGear(
-                    offers, left, GearHeld(), _isBeastGear, _itemEffect, WantedResistancesLeft(board))).ToList();
-            }
+            if (!_legendary)
+                plan = PlanShop(offers, tokens, held, fangHeld, board, shop);
 
             _shopPlan = new Queue<int>(plan);
             var stock = string.Join(", ", offers.Select(o => $"{_itemName(o.ItemId)} {o.Price}{(o.Sold ? " (sold)" : "")}"));
@@ -485,6 +499,71 @@ public sealed unsafe class CrucibleAutoPilot
     }
 
     /// <summary>
+    /// Any goal but Legendary: what to buy, in order. On Standard the boss serum, then potions, then gear that scores.
+    /// On a degree (user, 2026-11-06 / 11-08): TPLemont's gear list (one axe, 1-2 crit, 1-2 special effects, 5-6 HP
+    /// stacking, one paralysis/poison resist), then at the last shop a serum for each status that gear left uncovered,
+    /// then potions, then every piece of gear whose downsides are countered. Fangs are not bought: every board gives one.
+    /// </summary>
+    private List<int> PlanShop(IReadOnlyList<CrucibleShopOffer> offers, int tokens, int held, bool fangHeld, CrucibleBoard board, AtkUnitBase* shop)
+    {
+        var degree = CrucibleHints.Degree > 0;
+        var plan = new List<int>();
+        int Left() => tokens - plan.Sum(r => offers.First(o => o.Row == r).Price);
+        IReadOnlyList<CrucibleShopOffer> Unplanned() => offers.Where(o => !plan.Contains(o.Row)).ToList();
+        var ownedEffects = _heldGear.Select(row => _itemEffect(row)).ToList();
+        int? GearCount() => GearHeld() is { } g ? g + plan.Count(r => _isBeastGear(offers.First(o => o.Row == r).ItemId)) : null;
+        IReadOnlyList<string?> GearEffects() => ownedEffects
+            .Concat(plan.Select(r => offers.First(o => o.Row == r).ItemId).Where(_isBeastGear).Select(id => _itemEffect(id)))
+            .ToList();
+
+        // On a degree, TPLemont's D3 gear list (user, 2026-11-08): one axe, 1-2 crit, 1-2 special effects, 5-6 HP
+        // stacking, one paralysis/poison resist.
+        if (degree && _takeGearNow)
+            plan.AddRange(CrucibleAutoPilotRules.ShopBuysForDegreeGear(offers, tokens, GearHeld(), _isBeastGear, _itemEffect,
+                ownedEffects, AxeElementWanted(board), CrucibleAutoPilotRules.FinalBossDamage(board.Index),
+                CrucibleAutoPilotRules.WantedResistances(board.Index)));
+
+        // An unknown route counts as last.
+        var lastShop = board.Route.Count == 0 || !ShopAhead(board);
+
+        // Ten pieces of gear before the potions where the board pays Walking Armory (user, 2026-11-06).
+        if (WantsTenGear(board))
+            plan.AddRange(CrucibleAutoPilotRules.ShopBuysForGearCount(Unplanned(), Left(), GearCount(), _isBeastGear,
+                _itemEffect, GearEffects(), lastShop));
+
+        if (_usePotionsNow)
+        {
+            // The final boss's resistance serums before the potions (they need slots the potions might take). On a degree
+            // only at the last shop, once the gear has had its chance to cover them.
+            var heldRows = new List<int>();
+            for (var k = 0; k < CrucibleAutoPilotRules.MaxCrucibleItemsHeld; k++)
+            {
+                if ((int)Number(shop, CrucibleAutoPilotRules.ShopHeldItemRowIndex(k)) is var heldRow and > 0)
+                    heldRows.Add(heldRow);
+            }
+
+            var serums = !degree || lastShop
+                ? CrucibleAutoPilotRules.ShopBuysForBossSerums(Unplanned(), Left(), heldRows, board.Index,
+                    GearEffects().SelectMany(CrucibleAutoPilotRules.ResistancesOf).ToList())
+                : [];
+            plan.AddRange(serums);
+            // First Board: an Antidote for the poison (Deadly Thrust, Cold Caress) before the potions — it cures and heals 25%.
+            var antidote = CrucibleAutoPilotRules.ShopBuysForAntidote(Unplanned(), Left(), held + serums.Count, board.Index,
+                GearEffects().SelectMany(CrucibleAutoPilotRules.ResistancesOf).ToList());
+            plan.AddRange(antidote);
+            held += antidote.Count;
+            plan.AddRange(CrucibleAutoPilotRules.ShopBuysForPotions(Unplanned(), Left(), held + serums.Count, _isCrucibleItem,
+                wantFang: board.Index == CrucibleAutoPilotRules.SirenBoardIndex && !fangHeld, ribbonHeld: RibbonHeld()));
+        }
+
+        // Gear with what is left (the shop only offers each piece once).
+        if (_takeGearNow)
+            plan.AddRange(CrucibleAutoPilotRules.ShopBuysForGear(Unplanned(), Left(), GearCount(), _isBeastGear, _itemEffect,
+                CrucibleAutoPilotRules.WantedResistancesLeft(board.Index, GearEffects()), anyGear: degree, GearEffects()));
+        return plan;
+    }
+
+    /// <summary>
     /// Refresh <see cref="_heldGear"/> from the board HUD when it is up: slot k owned at [60 + 5k], its XBMItem row at
     /// [63 + 5k] (recording 2026-11-04).
     /// </summary>
@@ -502,10 +581,88 @@ public sealed unsafe class CrucibleAutoPilot
         }
 
         _heldGearKnown = true;
+        CrucibleHints.CounterArmorHeld = _heldGear.Any(row => CrucibleAutoPilotRules.CountersPhysicalHits(_itemEffect(row)));
     }
 
     /// <summary>Beast gear held (live off the HUD, else as last seen on this board); null before it has been seen.</summary>
     private int? GearHeld() => _heldGearKnown ? _heldGear.Count : null;
+
+    /// <summary>The board's final boss's weakness (its axe), or None when unread.</summary>
+    /// <summary>The element an axe should carry: the next battle ahead weak to one, else the final boss's weakness.</summary>
+    private static CrucibleElement AxeElementWanted(CrucibleBoard board)
+    {
+        var player = FFXIVClientStructs.FFXIV.Client.Game.Control.Control.GetLocalPlayer();
+        var move = 0;
+        if (player != null)
+        {
+            System.Numerics.Vector3 at = player->Position;
+            move = CrucibleWalkPlan.CurrentMove(board.Route, at);
+        }
+
+        return CrucibleAutoPilotRules.AxeElementAhead(board.Route, move,
+            battle => CrucibleTracker.CurrentIndex.EnemiesInBattle(battle).FirstOrDefault()?.Weakness ?? CrucibleElement.None,
+            FinalBossWeakness(board));
+    }
+
+    /// <summary>The Crimson Ribbon is among the gear held: soul serums are 50% heals.</summary>
+    private bool RibbonHeld() => _heldGear.Contains(CrucibleAutoPilotRules.CrimsonRibbonRow);
+
+    private static CrucibleElement FinalBossWeakness(CrucibleBoard board) =>
+        CrucibleTracker.CurrentIndex.EnemiesInBattle(board.FinalBattle).FirstOrDefault()?.Weakness ?? CrucibleElement.None;
+
+    /// <summary>The statuses the gear held resists.</summary>
+    private IReadOnlyList<string> HeldResistances() =>
+        _heldGear.SelectMany(row => CrucibleAutoPilotRules.ResistancesOf(_itemEffect(row))).Distinct().ToList();
+
+    /// <summary>
+    /// Samples the beastmaster's and the hard target's HP twice a second for the potion check, and notes the team the
+    /// horn screen last listed (each battle) with the knock-outs counted so far.
+    /// </summary>
+    private void SampleHp(float selfPct, float? enemyPct, CrucibleHornSetter? horns)
+    {
+        if (horns is { LastTeam: var team } && !ReferenceEquals(team, _teamSeen))
+        {
+            _teamSeen = team;
+            _teamAlive = team.Count(m => m.Alive);
+            _knockOutsAtTeam = CrucibleBonusWatcher.Tracker?.KnockOuts ?? 0;
+            _potionHopelessLogged = false;
+        }
+
+        var now = DateTime.UtcNow;
+        if (now < _nextHpSampleUtc)
+            return;
+        _nextHpSampleUtc = now + TimeSpan.FromSeconds(0.5);
+        var t = (now - DateTime.UnixEpoch).TotalSeconds;
+        Add(_selfSamples, selfPct);
+        if (enemyPct is { } e)
+        {
+            // A new target (its HP jumps up) starts a new rate.
+            if (_enemySamples.Count > 0 && e > _enemySamples[^1].Pct + 0.05f)
+                _enemySamples.Clear();
+            Add(_enemySamples, e);
+        }
+        else
+        {
+            _enemySamples.Clear();
+        }
+
+        void Add(List<(double Seconds, float Pct)> list, float pct)
+        {
+            list.Add((t, pct));
+            list.RemoveAll(s => t - s.Seconds > CrucibleAutoPilotRules.HpRateWindowSeconds);
+        }
+    }
+
+    /// <summary>The familiars still able to fight: alive on the last horn screen, less those knocked out since.</summary>
+    private int FamiliarsLeft() =>
+        Math.Max(0, _teamAlive - ((CrucibleBonusWatcher.Tracker?.KnockOuts ?? 0) - _knockOutsAtTeam));
+
+    /// <summary>
+    /// A degree run taking gear on a board that pays Walking Armory (the First Board does not), still short of ten pieces.
+    /// </summary>
+    private bool WantsTenGear(CrucibleBoard board) =>
+        CrucibleHints.Degree > 0 && _takeGearNow && board.BonusValue(CrucibleBonus.WalkingArmory) > 0
+        && GearHeld() is < CrucibleAutoPilotRules.HeldGearMaxRows;
 
     /// <summary>The board's wanted resistances that the gear held does not already cover.</summary>
     private IReadOnlyList<string> WantedResistancesLeft(CrucibleBoard board)
@@ -586,7 +743,7 @@ public sealed unsafe class CrucibleAutoPilot
     /// for a thief's knife's second pick (field 2026-10-25, Saar: slot 1 "Acquired", the loop sat on the other three)
     /// — the next best, once the window has settled after each pick.
     /// </summary>
-    private void TakeTreasure(DateTime now, AtkUnitBase* treasure, IReadOnlyList<string> wanted)
+    private void TakeTreasure(DateTime now, AtkUnitBase* treasure, CrucibleBoard board, IReadOnlyList<string> wanted)
     {
         if (_treasureSinceUtc == default)
             _treasureSinceUtc = now;
@@ -625,7 +782,11 @@ public sealed unsafe class CrucibleAutoPilot
 
         var pick = _legendaryNoGear
             ? CrucibleAutoPilotRules.PickTreasureAvoidingGear(offers, _isBeastGear, _itemEffect, _treasureTakenRows, wanted)
-            : CrucibleAutoPilotRules.PickTreasure(offers, _itemEffect, _treasureTakenRows, wanted);
+            : CrucibleHints.Degree > 0
+                ? CrucibleAutoPilotRules.PickTreasureOnDegree(offers, _isBeastGear, _itemEffect,
+                    _heldGear.Select(row => _itemEffect(row)).ToList(), AxeElementWanted(board), _treasureTakenRows, wanted,
+                    CrucibleAutoPilotRules.FinalBossDamage(board.Index))
+                : CrucibleAutoPilotRules.PickTreasure(offers, _itemEffect, _treasureTakenRows, wanted);
         if (pick >= 0 && _isBeastGear(offers[pick]))
             _gearTakenOnBoard = true;
         if (_legendaryNoGear && pick >= 0 && _isBeastGear(offers[pick]))
@@ -691,7 +852,11 @@ public sealed unsafe class CrucibleAutoPilot
                 _pressedPotionHeld, CrucibleAutoPilotRules.CountHeld(held, _pressedPotionId), (now - _pressedPotionUtc).TotalSeconds);
             if (outcome == true)
             {
-                _log("Crucible: drank a potion (HP " + (_pressedPotionHpPct * 100f).ToString("0") + "%)."
+                _log((_pressedPotionId == CrucibleAutoPilotRules.VampiricFangItemId
+                         ? "Crucible: used the Vampiric Fang to heal (HP "
+                         : CrucibleAutoPilotRules.IsSoulSerumRow((int)_pressedPotionId - CrucibleAutoPilotRules.CrucibleItemIconOffset)
+                             ? "Crucible: drank a soul serum to heal, Crimson Ribbon (HP "
+                             : "Crucible: drank a potion (HP ") + (_pressedPotionHpPct * 100f).ToString("0") + "%)."
                      + (_legendary && !_itemUsedOnBoard ? " Legendary last resort: Economic Ethos is given up to stay alive." : ""));
                 _itemUsedOnBoard = true;
                 _nextPotionUtc = now + TimeSpan.FromSeconds(4); // one drink at a time; HP shows the effect first
@@ -713,8 +878,6 @@ public sealed unsafe class CrucibleAutoPilot
 
         if (now < _nextPotionUtc)
             return false;
-        if (_legendary && !CrucibleAutoPilotRules.LegendaryMayDrink(_boardIndex))
-            return false; // First Board Legendary: never, not even the last resort (Economic Ethos)
         if (Visible("XBMContentsBooty") != null || Visible("XBMContentsTreasure") != null || Visible("XBMContentsItemShop") != null
             || Visible("XBMResult") != null || Visible("XBMPetParty") != null || Visible("SelectYesno") != null)
             return false;
@@ -723,15 +886,54 @@ public sealed unsafe class CrucibleAutoPilot
         for (var slot = 0; slot < 10; slot++)
             usable.Add(HudFlag(hud, CrucibleAutoPilotRules.HudItemUsableIndex(slot)));
         var drinkable = CrucibleAutoPilotRules.UsableOnly(held, usable);
-        var pick = CrucibleAutoPilotRules.PickPotion(
-            drinkable, _selfHpPct,
-            _legendary ? CrucibleAutoPilotRules.LegendaryDrinkAtHpPct(_itemUsedOnBoard) : CrucibleAutoPilotRules.PotionAtHpPct);
+        var drinkLine = _legendary ? CrucibleAutoPilotRules.LegendaryDrinkAtHpPct(_itemUsedOnBoard) : CrucibleAutoPilotRules.PotionAtHpPct;
+        // A campsite after this battle heals 90% anyway: the potion waits for a battle that has none.
+        // Its enemy dead, the battle just fought still counts until the next one's enemy is there: on the way to the
+        // camp nothing is drunk.
+        if (CrucibleTracker.Current.Enemy is { } enemyNow)
+            _lastBattle = enemyNow.Battle;
+        var battleNow = _lastBattle;
+        // "Fighting" from the moment the battle's enemy is there, the wait before the pull included: Korha stood in
+        // front of the Ogre at 35% and nothing was drunk, because out of combat read as "on the way to the camp"
+        // (2026-11-15 18:25; critical five seconds into the fight). Only a dead enemy means the battle is won.
+        var fightingNow = CrucibleTracker.Current.Enemy != null;
+        // The battle won, a campsite on a fork counts too: off Legendary the walk always takes it (after the Ogre:
+        // treasure | campsite, and a potion went at 14% a second after the walk chose the camp).
+        var campNext = CrucibleTracker.Current.Board is { } boardNow
+                       && CrucibleAutoPilotRules.CampAfterBattle(boardNow.Route, battleNow, campWinsFork: !fightingNow && !_legendary);
+        var usualLine = drinkLine;
+        drinkLine = CrucibleAutoPilotRules.DrinkLine(drinkLine, campNext, fightingNow);
+        if (campNext && _selfHpPct > drinkLine && _selfHpPct <= usualLine && _potionKeptForCampBattle != battleNow)
+        {
+            _potionKeptForCampBattle = battleNow;
+            _log($"Crucible: keeping the potion (HP {_selfHpPct:P0}) — a campsite follows this battle; "
+                 + (drinkLine > 0f ? $"drunk only at {drinkLine:P0}." : "nothing is drunk on the way to it."));
+        }
+        // With the Crimson Ribbon every soul serum heals 50%; the final boss's own serums wait for that fight.
+        var pick = CrucibleAutoPilotRules.PickPotion(drinkable, _selfHpPct, drinkLine, RibbonHeld(),
+            CrucibleTracker.Current.Enemy?.IsFinalBoss == true ? null : CrucibleAutoPilotRules.BossSerumRows(_boardIndex));
+        // No potion left: the held Vampiric Fang heals instead, at whatever is targeted.
+        if (pick < 0)
+            pick = CrucibleAutoPilotRules.PickVampiricFangHeal(drinkable, _selfHpPct, drinkLine, pick, _enemyTargeted);
         // Legendary at the final boss, Economic Ethos already gone: keep HP topped up for the remaining-HP share.
         if (pick < 0 && CrucibleAutoPilotRules.TopsOffForTheEnd(
                 _legendary, CrucibleTracker.Current.Enemy?.IsFinalBoss == true, _itemUsedOnBoard, _hoarderPays, held.Count(id => id != 0)))
             pick = CrucibleAutoPilotRules.PickTopOff(drinkable, _selfHpPct);
         if (pick < 0)
             return false;
+
+        // Legendary's last resort only when it can save the run: a potion that only delays the death is not worth it.
+        if (_legendary && !_itemUsedOnBoard
+            && !CrucibleAutoPilotRules.PotionCanSaveRun(FamiliarsLeft(), _selfHpPct,
+                CrucibleAutoPilotRules.PotionRestorePct.GetValueOrDefault(drinkable[pick]) / 100f,
+                CrucibleAutoPilotRules.HpLossPerSecond(_selfSamples), _enemySamples.Count > 0 ? _enemySamples[^1].Pct : null,
+                CrucibleAutoPilotRules.HpLossPerSecond(_enemySamples)))
+        {
+            if (!_potionHopelessLogged)
+                _log($"Crucible: no potion — no familiar left and the enemy would outlast you even with it (HP {_selfHpPct:P0}).");
+            _potionHopelessLogged = true;
+            return false;
+        }
 
         _pressedPotionId = held[pick];
         _pressedPotionHeld = CrucibleAutoPilotRules.CountHeld(held, held[pick]);
@@ -820,7 +1022,14 @@ public sealed unsafe class CrucibleAutoPilot
         var fighting = CrucibleTracker.Current.Enemy;
         var eyes = CrucibleAutoPilotRules.ShouldUseEyes(_legendary, fighting);
         var serum = CrucibleAutoPilotRules.ShouldUseBossSerum(_legendary, _usePotionsNow, fighting);
-        if (!eyes && !serum)
+        // Poisoned and hurt in any battle: the Antipoison serum goes now, not kept for the final boss.
+        var self = FFXIVClientStructs.FFXIV.Client.Game.Control.Control.GetLocalPlayer();
+        var poisoned = self != null && self->GetStatusManager()->HasStatus(CrucibleAutoPilotRules.CruciblePoisonStatusId);
+        var cure = fighting != null && CrucibleAutoPilotRules.ShouldCurePoison(_legendary, _usePotionsNow, poisoned, _selfHpPct);
+        // A tankbuster is being cast at the beastmaster: a Tome of the Impervious (Blink) or a Crucible Tannin.
+        var busterCast = CrucibleHints.BusterCastNow(now);
+        var guard = fighting != null && CrucibleAutoPilotRules.ShouldGuardBuster(_legendary, _usePotionsNow, busterCast);
+        if (!eyes && !serum && !cure && !guard)
             return false;
         if (fighting!.Battle != _eyeBattle)
         {
@@ -856,7 +1065,7 @@ public sealed unsafe class CrucibleAutoPilot
                 return true;
             var name = _eyePressed == CrucibleAutoPilotRules.EyeItemIds[0] ? "Thief's Eye (loot ×3)"
                 : _eyePressed == CrucibleAutoPilotRules.EyeItemIds[1] ? "Merchant's Eye (tokens ×2)"
-                : _itemName((int)_eyePressed - CrucibleAutoPilotRules.CrucibleItemIconOffset) + " (for the boss)";
+                : _itemName((int)_eyePressed - CrucibleAutoPilotRules.CrucibleItemIconOffset) + _eyePressedWhy;
             var tries = _eyeTries[_eyePressed] = _eyeTries.GetValueOrDefault(_eyePressed) + 1;
             if (outcome == true)
             {
@@ -881,11 +1090,36 @@ public sealed unsafe class CrucibleAutoPilot
         }
 
         var usableHeld = CrucibleAutoPilotRules.UsableOnly(held, usable);
-        var pick = eyes ? CrucibleAutoPilotRules.PickEye(usableHeld, _eyesUsed) : -1;
+        // The tankbuster first: its cast is under five seconds.
+        var pick = guard ? CrucibleAutoPilotRules.PickBusterGuard(usableHeld, busterCast) : -1;
+        if (pick >= 0 && _eyesUsed.Contains(held[pick]))
+            pick = -1; // one already went this battle
+        var why = " (a tankbuster is being cast at you)";
+        if (pick < 0 && eyes)
+        {
+            pick = CrucibleAutoPilotRules.PickEye(usableHeld, _eyesUsed);
+            why = "";
+        }
+
         if (pick < 0 && serum)
-            pick = CrucibleAutoPilotRules.PickBossSerum(usableHeld, CrucibleTracker.Current.Board?.Index ?? 0, _eyesUsed);
+        {
+            pick = CrucibleAutoPilotRules.PickBossSerum(usableHeld, CrucibleTracker.Current.Board?.Index ?? 0, _eyesUsed,
+                HeldResistances());
+            why = " (for the boss)";
+        }
+
+        if (pick < 0 && cure)
+        {
+            pick = CrucibleAutoPilotRules.PickAntipoison(usableHeld);
+            if (pick >= 0 && _eyesUsed.Contains(held[pick]))
+                pick = -1; // one already went this battle and did not take: not a second
+            why = " (poisoned)";
+        }
+
         if (pick < 0)
             return false;
+
+        _eyePressedWhy = why;
 
         _eyePressed = held[pick];
         _eyePressedHeld = CrucibleAutoPilotRules.CountHeld(held, held[pick]);

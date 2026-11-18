@@ -15,6 +15,18 @@ public static class CrucibleHints
     public static float SecondsUntilTankbuster { get; set; } = float.MaxValue;
 
     /// <summary>
+    /// The board's degree (0 Standard, 1-3 First-Third Degree) while on a board, else 0: the layout agent's choice,
+    /// which the game keeps. Written by the plugin each frame.
+    /// </summary>
+    public static int Degree { get; set; }
+
+    /// <summary>
+    /// The beastmaster holds gear that hits back when struck (Briar Armor): on a degree Artemis then has the beastmaster
+    /// take the hits (user, 2026-11-06). Written by the autopilot from the board HUD; false off a board.
+    /// </summary>
+    public static bool CounterArmorHeld { get; set; }
+
+    /// <summary>
     /// The player paused the Crucible automation (autopilot, walker, loop, horn setter) — to do something by hand, e.g.
     /// record using a potion or feeding (user, 2026-10-27). Combat is untouched. Not saved: a reload starts unpaused.
     /// </summary>
@@ -26,6 +38,31 @@ public static class CrucibleHints
     /// ("Minerva.Hints.SecondsUntilRaidwide" + "NextRaidwideActionId") or BossMod's raidwide forecast.
     /// </summary>
     public static float SecondsUntilRaidwide { get; set; } = float.MaxValue;
+
+    /// <summary>
+    /// The beasts a later battle of this board still plans to use (<c>CrucibleDegreeTeams.NeededLater</c>), written by
+    /// the horn setter when it sets the horns for a battle. Empty off a degree or with no plan: every beast is then
+    /// treated as needed.
+    /// </summary>
+    public static System.Collections.Generic.IReadOnlyCollection<int> BeastsNeededLater { get; set; } = [];
+
+    /// <summary>True once the horn setter has written <see cref="BeastsNeededLater"/> for the battle being fought.</summary>
+    public static bool BeastsNeededLaterKnown { get; set; }
+
+    /// <summary>
+    /// The tankbuster an enemy is casting at the beastmaster right now (its action id, one of
+    /// <c>CrucibleAutoPilotRules.TankbusterCastIds</c>), 0 when none: the autopilot answers it with a held Tome of the
+    /// Impervious or Crucible Tannin. Written by Artemis each frame in a battle; only trusted while
+    /// <see cref="BusterCastUtc"/> is fresh.
+    /// </summary>
+    public static uint BusterCastOnMe { get; set; }
+
+    /// <summary>When <see cref="BusterCastOnMe"/> was last written.</summary>
+    public static System.DateTime BusterCastUtc { get; set; }
+
+    /// <summary>The tankbuster being cast at the beastmaster now, or 0.</summary>
+    public static uint BusterCastNow(System.DateTime now)
+        => (now - BusterCastUtc).TotalSeconds < 1.0 ? BusterCastOnMe : 0;
 
     /// <summary>
     /// Enemies casting something that should be interrupted, from Minerva's "Minerva.Hints.TargetsToInterrupt"

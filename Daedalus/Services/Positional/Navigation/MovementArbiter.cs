@@ -23,6 +23,8 @@ public sealed class MovementArbiter : IMovementArbiter
     private bool _dangerLastFrame;
     private bool _steeringThisFrame;
     private bool _realDangerThisFrame;
+    private bool _rawDangerLastFrame;
+    private bool _escalatedSinceGrant;
     private int _zonesThisFrame;
     private DateTime _lastNavigatingUtc = DateTime.MinValue;
     private DateTime _lastDangerUtc = DateTime.MinValue;
@@ -98,20 +100,26 @@ public sealed class MovementArbiter : IMovementArbiter
         _dangerThisFrame = bmrSteering || _realDangerThisFrame;
         _zonesThisFrame = zones;
 
+        // Danger onset right after we granted a path = we regrabbed inside a multi-effect sequence and froze
+        // BMR's next dodge. Back off harder before the next grab. Keyed on the RAW signals (BMR actually
+        // steering, or zone/damage imminent): a walk-in may now be granted inside the sticky window, where the
+        // sticky-inclusive danger has no new onset. Once per grant, so a flickering re-steer escalates once.
+        var rawDanger = navigating || _realDangerThisFrame;
+        if (rawDanger && !_rawDangerLastFrame && !_escalatedSinceGrant
+            && _lastQueuedUtc > DateTime.MinValue
+            && (now - _lastQueuedUtc).TotalSeconds < PositionalMovementConstants.BmrRegrabBackoffTriggerSeconds)
+        {
+            _regrabCooldownSeconds = Math.Min(
+                _regrabCooldownSeconds * 2f,
+                PositionalMovementConstants.BmrRegrabCooldownMaxSeconds);
+            _escalatedSinceGrant = true;
+            LogNav($"regrab backoff escalated to {_regrabCooldownSeconds:0.00}s (grant interrupted by danger)");
+        }
+
+        _rawDangerLastFrame = rawDanger;
+
         if (_dangerThisFrame)
         {
-            // Danger onset right after we granted a path = we regrabbed inside a multi-effect sequence
-            // and froze BMR's next dodge. Back off harder before the next grab.
-            if (!_dangerLastFrame
-                && _lastQueuedUtc > DateTime.MinValue
-                && (now - _lastQueuedUtc).TotalSeconds < PositionalMovementConstants.BmrRegrabBackoffTriggerSeconds)
-            {
-                _regrabCooldownSeconds = Math.Min(
-                    _regrabCooldownSeconds * 2f,
-                    PositionalMovementConstants.BmrRegrabCooldownMaxSeconds);
-                LogNav($"regrab backoff escalated to {_regrabCooldownSeconds:0.00}s (grant interrupted by danger)");
-            }
-
             if (!_dangerLastFrame)
                 LogNav($"yielding to BossMod (steering {bmrSteering}, zones {zones}, damage {FormatIn(nextDamageIn)}, zone-in {FormatIn(forbiddenIn)})");
 
@@ -125,10 +133,11 @@ public sealed class MovementArbiter : IMovementArbiter
             // carve-out and BMR isn't dodging anything. Steering with forbidden zones live IS a
             // dodge in progress (field report 2026-07-26: a NIN arc path fought the dodge — the
             // toon got 75% out of the AoE, stuttered against the vNav pull-back, and ate it), and
-            // real danger still aborts instantly.
+            // real danger still aborts instantly. A walk-in stops the moment BMR steers again; it was only
+            // granted once BMR had been quiet past the settle, so the sticky alone doesn't stop it.
             if (_weIssuedActivePath && _inner.IsPathRunning
-                && (_realDangerThisFrame || _lastGrantIntent == MovementIntent.MaxMelee
-                    || (bmrSteering && zones > 0)))
+                && (_realDangerThisFrame
+                    || (_lastGrantIntent == MovementIntent.MaxMelee ? navigating : bmrSteering && zones > 0)))
             {
                 LogNav("stopped owned vNav path for BMR dodge");
                 Stop();
@@ -212,6 +221,9 @@ public sealed class MovementArbiter : IMovementArbiter
     {
         var now = _utcNow();
 
+        if (intent == MovementIntent.MaxMelee)
+            return WalkInGate(now) ?? Churn(destination, now);
+
         if (_dangerThisFrame)
         {
             // Arc carve-out: steering-only danger doesn't block a positional hop (BMR keeps range,
@@ -230,12 +242,42 @@ public sealed class MovementArbiter : IMovementArbiter
 
         // Regrab: arcs reference the REAL-danger clock — steering refreshes _lastDangerUtc every frame,
         // which would otherwise permanently cooldown-block arcs whenever BMR AI is active.
-        var regrabReference = intent == MovementIntent.PositionalArc ? _lastRealDangerUtc : _lastDangerUtc;
         if (_bossMod.IsAvailable && _yieldEnabled()
-            && regrabReference > DateTime.MinValue
-            && (now - regrabReference).TotalSeconds < _regrabCooldownSeconds)
+            && _lastRealDangerUtc > DateTime.MinValue
+            && (now - _lastRealDangerUtc).TotalSeconds < _regrabCooldownSeconds)
             return MovementSuppression.RegrabCooldown;
 
+        return Churn(destination, now);
+    }
+
+    /// <summary>
+    /// The yield for a max-melee walk-in: never through real danger, and not until BMR's raw nav signal has
+    /// been quiet for <see cref="PositionalMovementConstants.BmrWalkInSettleSeconds"/> (or the escalated
+    /// regrab cooldown) — the sticky window itself doesn't hold it, since a BMR following nobody never walks
+    /// the player back in. Then the regrab cooldown off the real-danger clock.
+    /// </summary>
+    private MovementSuppression? WalkInGate(DateTime now)
+    {
+        if (_realDangerThisFrame)
+            return MovementSuppression.BmrDanger;
+
+        if (!_bossMod.IsAvailable || !_yieldEnabled())
+            return null;
+
+        var settle = Math.Max(_regrabCooldownSeconds, PositionalMovementConstants.BmrWalkInSettleSeconds);
+        if (_lastNavigatingUtc > DateTime.MinValue && (now - _lastNavigatingUtc).TotalSeconds < settle)
+            return _steeringThisFrame ? MovementSuppression.BmrNavigating : MovementSuppression.RegrabCooldown;
+
+        if (_lastRealDangerUtc > DateTime.MinValue
+            && (now - _lastRealDangerUtc).TotalSeconds < _regrabCooldownSeconds)
+            return MovementSuppression.RegrabCooldown;
+
+        return null;
+    }
+
+    /// <summary>The churn rules, BMR present or not.</summary>
+    private MovementSuppression? Churn(Vector3 destination, DateTime now)
+    {
         if (_lastQueuedUtc > DateTime.MinValue
             && (now - _lastQueuedUtc).TotalSeconds < PositionalMovementConstants.MinRepathIntervalSeconds)
             return MovementSuppression.RepathInterval;
@@ -274,6 +316,7 @@ public sealed class MovementArbiter : IMovementArbiter
             _lastDestination = destination;
             _weIssuedActivePath = true;
             _lastGrantIntent = intent;
+            _escalatedSinceGrant = false;
             Snapshot = Snapshot with
             {
                 Owner = MovementOwner.Daedalus,

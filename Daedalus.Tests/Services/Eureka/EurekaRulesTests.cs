@@ -115,4 +115,30 @@ public class EurekaRulesTests
     [Fact]
     public void SacrificeLIsOffUnlessChosen()
         => Assert.False(LogosActionData.All.Single(d => d.Name == "Sacrifice L").DefaultEnabled);
+
+    // ── /magiaauto is sent again when the board changes (two new toons, 2026-11-16: sent before they had one) ──
+
+    [Fact]
+    public void TurningTheBoardDoesNotChangeItsSignature()
+        => Assert.Equal(
+            EurekaRules.BoardSignature(3, [1, 0, 2, 0, 0, 0]),
+            EurekaRules.BoardSignature(3, [0, 1, 0, 2, 0, 0]));
+
+    [Fact]
+    public void TheFirstMagiciteChangesIt()
+        => Assert.NotEqual(
+            EurekaRules.BoardSignature(0, [0, 0, 0, 0, 0, 0]),
+            EurekaRules.BoardSignature(1, [0, 0, 0, 0, 0, 0]));
+
+    [Fact]
+    public void PlacingAMagiciteChangesIt()
+        => Assert.NotEqual(
+            EurekaRules.BoardSignature(1, [0, 0, 0, 0, 0, 0]),
+            EurekaRules.BoardSignature(1, [1, 0, 0, 0, 0, 0]));
+
+    [Fact]
+    public void OwnedAndPlacedAreNotMixedUp()
+        => Assert.NotEqual(
+            EurekaRules.BoardSignature(2, [1, 0, 0, 0, 0, 0]),
+            EurekaRules.BoardSignature(1, [1, 1, 0, 0, 0, 0]));
 }

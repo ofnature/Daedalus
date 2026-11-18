@@ -42,6 +42,17 @@ public sealed class ArtemisInstinctTracker
     private InstinctAffinity _last = InstinctAffinity.None;
     private DateTime _lastUtc = DateTime.MinValue;
     private int _chainLength;
+    private bool _lastIntentional;
+
+    /// <summary>
+    /// The last link completed an intentional combo. The next link then cannot be intentional, whatever its colour:
+    /// the game lights a half instead of a Heart, and a chain alternates intentional and instinctual links
+    /// (TPLemontFFXIV's combo guide: "you can never perform two intentional combos back to back").
+    /// </summary>
+    public bool LastWasIntentional => IsWindowOpen && _lastIntentional;
+
+    /// <summary>Seconds left on the chain's 7 s window; 0 when no chain is running.</summary>
+    public float SecondsLeft => IsWindowOpen ? WindowSeconds - SecondsSinceLast : 0f;
 
     /// <summary>
     /// The affinity last spent, or None — which means either no chain is running, or the chain is
@@ -70,9 +81,10 @@ public sealed class ArtemisInstinctTracker
 
     /// <summary>
     /// The affinity that would score an intentional combo next — the clockwise neighbour on the
-    /// Compass. None when no chain is running, or when the last link's affinity is unknown.
+    /// Compass. None when no chain is running, when the last link's affinity is unknown, or when the last link was
+    /// itself intentional (two can't come back to back).
     /// </summary>
-    public InstinctAffinity PreferredNext => IsWindowOpen && _last != InstinctAffinity.None
+    public InstinctAffinity PreferredNext => IsWindowOpen && _last != InstinctAffinity.None && !_lastIntentional
         ? BSTActions.NextInCycle(_last)
         : InstinctAffinity.None;
 
@@ -100,8 +112,10 @@ public sealed class ArtemisInstinctTracker
         if (affinity == InstinctAffinity.None)
             return;
 
+        var intentional = WouldBeIntentional(affinity);
         Advance();
         _last = affinity;
+        _lastIntentional = intentional;
     }
 
     /// <summary>
@@ -114,6 +128,7 @@ public sealed class ArtemisInstinctTracker
     {
         Advance();
         _last = InstinctAffinity.None;
+        _lastIntentional = false;
     }
 
     private void Advance()
@@ -128,6 +143,7 @@ public sealed class ArtemisInstinctTracker
         _last = InstinctAffinity.None;
         _lastUtc = DateTime.MinValue;
         _chainLength = 0;
+        _lastIntentional = false;
     }
 
     /// <summary>

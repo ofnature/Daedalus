@@ -124,20 +124,6 @@ public sealed class BeastmasterConfig
     public Daedalus.Data.CrucibleTeamGoal CrucibleGoal { get; set; } = Daedalus.Data.CrucibleTeamGoal.Clear;
 
     /// <summary>
-    /// Legendary goal only: the beastmaster tanks (Challenge whenever the enemy is not on you) so the familiars finish at
-    /// full HP for Selfless (+1,000), as Meoni's Legendary series does. Snarl then only saves a beastmaster at 30% HP or
-    /// less. Off by default: at low ranks the familiar tanking is what keeps the beastmaster alive.
-    /// </summary>
-    public bool CrucibleLegendaryBeastmasterTanks { get; set; } = false;
-
-    /// <summary>
-    /// Legendary goal only: shared tanking — whoever has more HP to spare holds the enemy (the beastmaster Challenges
-    /// while at 50%+ and healthier than the familiar; the familiar is Snarled back in otherwise). Overrides
-    /// <see cref="CrucibleLegendaryBeastmasterTanks"/> when on.
-    /// </summary>
-    public bool CrucibleLegendarySharedTank { get; set; } = false;
-
-    /// <summary>
     /// Forks learned to sit the other way round from the game data's left/right ("board:move"): a space of the sibling's
     /// type opened right where the walker aimed. A fresh key (the old "CrucibleFlippedForks" learned Board 1 move 3 from
     /// a lane-crossing mistake, 2026-10-27). Empty by default: a list default with items would be appended to on load.
@@ -193,6 +179,20 @@ public sealed class BeastmasterConfig
     /// 1-3 First-Third Degree. Set on the board layout before the team.
     /// </summary>
     public int CrucibleDegree { get; set; } = -1;
+
+    /// <summary>
+    /// Whose Third Degree clear the degree teams, route and Borrows follow: fuurie's (the Wespe's sting opens every
+    /// fight; the default) or TPLemont's video guide. Copied to <c>CrucibleDegreeTeams.Active</c> every frame.
+    /// </summary>
+    public Daedalus.Data.CrucibleDegreePlan CrucibleDegreePlan { get; set; } = Daedalus.Data.CrucibleDegreePlan.Fuurie;
+
+    /// <summary>
+    /// The meal the loop eats before each run when Well Fed is missing or under 25 minutes (HQ first); 0 = none.
+    /// <see cref="CrucibleFoodName"/> is its name, for the setting while none are left in the bags.
+    /// </summary>
+    public uint CrucibleFoodItemId { get; set; }
+
+    public string CrucibleFoodName { get; set; } = "";
 
     /// <summary>
     /// With the autopilot on, walk the board from space to space (vnavmesh), taking the suggested side at each fork.
