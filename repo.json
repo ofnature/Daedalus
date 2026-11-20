@@ -344,5 +344,31 @@
     "DownloadLinkInstall": "https://github.com/ofnature/Selene/releases/download/v0.1.0/Selene.zip",
     "DownloadLinkTesting": "https://github.com/ofnature/Selene/releases/download/v0.1.0/Selene.zip",
     "DownloadLinkUpdate": "https://github.com/ofnature/Selene/releases/download/v0.1.0/Selene.zip"
+  },
+  {
+    "Author": "ofnature",
+    "Name": "Orion",
+    "InternalName": "Orion",
+    "Punchline": "Farms overworld mobs and works through the hunt log.",
+    "Description": "Kills the mobs you name around the spots you place until the bag holds what you asked for, or until a hunt log entry is filled. Orion picks the targets and does the travelling; Daedalus does the fighting. Companion to Daedalus.",
+    "ApplicableVersion": "any",
+    "CategoryTags": [
+      "utility"
+    ],
+    "Tags": [
+      "farming",
+      "hunt log",
+      "automation",
+      "multibox"
+    ],
+    "RepoUrl": "https://github.com/ofnature/Orion",
+    "AssemblyVersion": "0.1.0.0",
+    "DalamudApiLevel": 15,
+    "ImageUrls": [],
+    "IsHide": false,
+    "IsTestingExclusive": false,
+    "DownloadLinkInstall": "https://github.com/ofnature/Orion/releases/download/v0.1.0/Orion.zip",
+    "DownloadLinkTesting": "https://github.com/ofnature/Orion/releases/download/v0.1.0/Orion.zip",
+    "DownloadLinkUpdate": "https://github.com/ofnature/Orion/releases/download/v0.1.0/Orion.zip"
   }
 ]
