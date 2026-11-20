@@ -1165,7 +1165,8 @@ public sealed class Plugin : IDalamudPlugin
         // reason: it owns the quest and the walk, and hands quest combat to us. Parcae (overworld
         // FATE farming) is the same contract again: it picks the FATE, travels, holds the target,
         // and we fight it. Demeter (gathering) too: it owns the node circuit and waits while we kill
-        // whatever attacks on the way.
+        // whatever attacks on the way. Orion (mob farming and hunt logs, a copy of the farm mode
+        // here) picks the mob and walks to it, and we kill it.
         this.automationBridges =
         [
             new AutomationBusyBridge(pluginInterface, configuration, log, "Henchman", "Henchman.IsBusy", busyGateValue: true),
@@ -1174,6 +1175,7 @@ public sealed class Plugin : IDalamudPlugin
             new AutomationBusyBridge(pluginInterface, configuration, log, "Odysseus", "Odysseus.IsBusy", busyGateValue: true),
             new AutomationBusyBridge(pluginInterface, configuration, log, "Parcae", "Parcae.IsBusy", busyGateValue: true),
             new AutomationBusyBridge(pluginInterface, configuration, log, "Demeter", "Demeter.IsBusy", busyGateValue: true),
+            new AutomationBusyBridge(pluginInterface, configuration, log, "Orion", "Orion.IsBusy", busyGateValue: true),
         ];
         foreach (var bridge in this.automationBridges)
         {
