@@ -3,6 +3,15 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.128 — 2026-11-19
+
+### Automation — Daedalus fights for Orion
+- **Orion can hand its kills to Daedalus.** Orion is the new mob-farming and hunt-log plugin: it picks the
+  mob and travels to it, and Daedalus does the fighting while an Orion run is going, the same way it does
+  for Parcae, Odysseus and Demeter. Orion needs this version of Daedalus to fight at all.
+
+<!-- LATEST-END -->
+
 ## v0.1.127 — 2026-11-19
 
 ### Occult Crescent
@@ -11,8 +20,6 @@ All notable changes to Daedalus will be documented in this file.
   target. The game refused each one with "Invalid target" and the refused step held up your job's own
   attacks, often for 15 seconds or more after every Dance. Steps now go to your current enemy, and Dance is
   only pressed when there is one.
-
-<!-- LATEST-END -->
 
 ## v0.1.126 — 2026-11-17
 
