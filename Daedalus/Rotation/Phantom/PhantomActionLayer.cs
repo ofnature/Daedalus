@@ -1992,22 +1992,29 @@ public sealed class PhantomActionLayer
         if (!inCombat)
             return;
 
-        // Steps morph off Dance; each is proc-gated by its status (scheduler enforces).
-        TryPushProc(ctx, 46599, job, level, PrioDamage, PhantomActions.StatusIds.PoisedToSwordDance);
-        TryPushProc(ctx, 46600, job, level, PrioDamage + 1, PhantomActions.StatusIds.TemptedToTango);
-        TryPushProc(ctx, 46601, job, level, PrioDamage + 2, PhantomActions.StatusIds.Jitterbugged);
-        TryPushProc(ctx, 46602, job, level, PrioDamage + 3, PhantomActions.StatusIds.WillingToWaltz);
+        var enemy = ctx.TargetingService.GetUserEnemyTarget() ?? ctx.Player.TargetObject as IBattleChara;
+        var enemyAlive = enemy is { IsDead: false };
+
+        // Steps morph off Dance; each is proc-gated by its status (scheduler enforces). Every step is a
+        // weaponskill ON AN ENEMY (30y). They were pushed with no target, which is "yourself": the game
+        // answered "Invalid target" and the refused step sat on the GCD ahead of the job's own attacks
+        // until the proc ran out (Korha, Warrior, Arbatel, 2026-11-19: 13-25s of nothing after every Dance).
+        for (var i = 0; i < PhantomBandRules.DanceSteps.Length; i++)
+        {
+            var (stepId, procId) = PhantomBandRules.DanceSteps[i];
+            if (PhantomBandRules.ShouldDanceStep(_actionService.PlayerHasStatus(procId), enemyAlive))
+                TryPush(ctx, stepId, job, level, PrioDamage + i, enemy!.GameObjectId, enemy);
+        }
 
         // No proc up → open the chain (Dance is the party buff/opener in the buff band).
         var anyProc = _actionService.PlayerHasStatus(PhantomActions.StatusIds.PoisedToSwordDance)
             || _actionService.PlayerHasStatus(PhantomActions.StatusIds.TemptedToTango)
             || _actionService.PlayerHasStatus(PhantomActions.StatusIds.Jitterbugged)
             || _actionService.PlayerHasStatus(PhantomActions.StatusIds.WillingToWaltz);
-        if (!anyProc)
+        if (PhantomBandRules.ShouldOpenDance(anyProc, enemyAlive))
             TryPush(ctx, 46598, job, level, PrioPartyBuff);
 
         // Mesmerize: +5% damage taken on the target for 100s (and 40% off its damage for the first 4s).
-        var enemy = ctx.TargetingService.GetUserEnemyTarget() ?? ctx.Player.TargetObject as IBattleChara;
         if (enemy is { IsDead: false }
             && PhantomBandRules.ShouldMesmerize(
                 inCombat,
@@ -2036,12 +2043,6 @@ public sealed class PhantomActionLayer
         var suspendWanted = inCombat ? cfg.GeomancerSuspendInCombat : cfg.GeomancerSuspendOutOfCombat;
         if (suspendWanted && ctx.Player.TargetObject is IBattleChara { IsDead: false } target)
             TryPush(ctx, 41620, job, level, PrioPartyBuff + 5, target.GameObjectId, target); // Suspend
-    }
-
-    private void TryPushProc(IRotationContext ctx, uint actionId, PhantomJob job, byte level, int priority, uint procStatusId)
-    {
-        if (_actionService.PlayerHasStatus(procStatusId))
-            TryPush(ctx, actionId, job, level, priority);
     }
 
     /// <summary>

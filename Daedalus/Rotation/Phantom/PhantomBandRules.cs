@@ -668,6 +668,24 @@ public static class PhantomBandRules
            && !targetHasSilverSickness
            && targetTtkSeconds >= MesmerizeMinTtkSeconds;
 
+    /// <summary>
+    /// The four steps Dance turns into, each with the status that allows it. All four are weaponskills on an
+    /// enemy within 30y (game data, 2026-11-19), not self-cast.
+    /// </summary>
+    public static readonly (uint ActionId, uint ProcStatusId)[] DanceSteps =
+    [
+        (46599, Daedalus.Data.PhantomActions.StatusIds.PoisedToSwordDance),
+        (46600, Daedalus.Data.PhantomActions.StatusIds.TemptedToTango),
+        (46601, Daedalus.Data.PhantomActions.StatusIds.Jitterbugged),
+        (46602, Daedalus.Data.PhantomActions.StatusIds.WillingToWaltz),
+    ];
+
+    /// <summary>A dance step is pressed only at a living enemy; without one it is refused and blocks the GCD.</summary>
+    public static bool ShouldDanceStep(bool hasProc, bool enemyAlive) => hasProc && enemyAlive;
+
+    /// <summary>Dance opens the chain when no step is waiting, and only with an enemy to spend the step on.</summary>
+    public static bool ShouldOpenDance(bool anyProc, bool enemyAlive) => !anyProc && enemyAlive;
+
     /// <summary>Occult Mage Masher lasts 60s; not worth it on a target dying sooner than this.</summary>
     public const float MageMasherMinTtkSeconds = 10f;
 

@@ -40,6 +40,45 @@ public class PhantomDancerTests
     public void Mesmerize_NotOutOfCombat()
         => Assert.False(PhantomBandRules.ShouldMesmerize(inCombat: false, false, false, 120f));
 
+    /// <summary>
+    /// Field 2026-11-19 (Korha, Warrior, Arbatel): every step went out with no target, the game said
+    /// "Invalid target", and the refused step held the GCD for 13-25s after each Dance.
+    /// </summary>
+    [Fact]
+    public void AStep_NeedsALivingEnemy()
+        => Assert.False(PhantomBandRules.ShouldDanceStep(hasProc: true, enemyAlive: false));
+
+    [Fact]
+    public void AStep_GoesOutAtTheEnemyOnceItsProcIsUp()
+        => Assert.True(PhantomBandRules.ShouldDanceStep(hasProc: true, enemyAlive: true));
+
+    [Fact]
+    public void AStep_NotWithoutItsProc()
+        => Assert.False(PhantomBandRules.ShouldDanceStep(hasProc: false, enemyAlive: true));
+
+    [Fact]
+    public void Dance_OpensOnlyWithAnEnemyToSpendTheStepOn()
+    {
+        Assert.True(PhantomBandRules.ShouldOpenDance(anyProc: false, enemyAlive: true));
+        Assert.False(PhantomBandRules.ShouldOpenDance(anyProc: false, enemyAlive: false));
+    }
+
+    [Fact]
+    public void Dance_NotWhileAStepIsStillWaiting()
+        => Assert.False(PhantomBandRules.ShouldOpenDance(anyProc: true, enemyAlive: true));
+
+    [Fact]
+    public void TheFourStepsAreTheCatalogsProcActions()
+    {
+        var catalog = PhantomActions.All
+            .Where(a => a.Job == PhantomJob.Dancer && a.RequiresProc)
+            .Select(a => a.ActionId)
+            .OrderBy(id => id);
+
+        Assert.Equal(catalog, PhantomBandRules.DanceSteps.Select(s => s.ActionId).OrderBy(id => id));
+        Assert.Equal(4, PhantomBandRules.DanceSteps.Select(s => s.ProcStatusId).Distinct().Count());
+    }
+
     [Fact]
     public void TheStatusIdsAreTheGames()
     {

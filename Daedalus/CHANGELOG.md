@@ -3,6 +3,17 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.127 — 2026-11-19
+
+### Occult Crescent
+- **Phantom Dancer no longer freezes your rotation after Dance.** The four dance steps (Phantom Sword Dance,
+  Tempting Tango, Jitterbug, Mystery Waltz) are attacks on an enemy, but they were being pressed with no
+  target. The game refused each one with "Invalid target" and the refused step held up your job's own
+  attacks, often for 15 seconds or more after every Dance. Steps now go to your current enemy, and Dance is
+  only pressed when there is one.
+
+<!-- LATEST-END -->
+
 ## v0.1.126 — 2026-11-17
 
 ### Targeting
@@ -11,7 +22,6 @@ All notable changes to Daedalus will be documented in this file.
   and took the densest group, pulled or not. In open zones like Eureka that pulled fresh packs onto the
   group. The aim and the enemy count now use only enemies already in your group's fight.
 
-<!-- LATEST-END -->
 
 ## v0.1.125 — 2026-11-17
 
