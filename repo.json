@@ -362,14 +362,14 @@
       "multibox"
     ],
     "RepoUrl": "https://github.com/ofnature/Orion",
-    "AssemblyVersion": "0.1.3.0",
+    "AssemblyVersion": "0.1.4.0",
     "DalamudApiLevel": 15,
     "IconUrl": "https://raw.githubusercontent.com/ofnature/Orion/main/images/icon.png",
     "ImageUrls": [],
     "IsHide": false,
     "IsTestingExclusive": false,
-    "DownloadLinkInstall": "https://github.com/ofnature/Orion/releases/download/v0.1.3/Orion.zip",
-    "DownloadLinkTesting": "https://github.com/ofnature/Orion/releases/download/v0.1.3/Orion.zip",
-    "DownloadLinkUpdate": "https://github.com/ofnature/Orion/releases/download/v0.1.3/Orion.zip"
+    "DownloadLinkInstall": "https://github.com/ofnature/Orion/releases/download/v0.1.4/Orion.zip",
+    "DownloadLinkTesting": "https://github.com/ofnature/Orion/releases/download/v0.1.4/Orion.zip",
+    "DownloadLinkUpdate": "https://github.com/ofnature/Orion/releases/download/v0.1.4/Orion.zip"
   }
 ]
