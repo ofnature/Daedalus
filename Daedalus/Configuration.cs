@@ -140,6 +140,15 @@ public sealed class Configuration : IPluginConfiguration
     /// <summary>Where along its edge the Eureka tab sits: its centre as a fraction of the edge (0.5 = the middle).</summary>
     public float EdgeDockEurekaAlong { get; set; } = 0.5f;
 
+    /// <summary>Add a "Parser" tab to the edge dock that pops out the Parser (the DPS meter).</summary>
+    public bool EdgeDockParserTab { get; set; } = false;
+
+    /// <summary>Which screen edge the edge dock's Parser tab is pinned to. Dragging the tab changes it.</summary>
+    public Daedalus.Windows.Dock.DockEdge EdgeDockParserEdge { get; set; } = Daedalus.Windows.Dock.DockEdge.Left;
+
+    /// <summary>Where along its edge the Parser tab sits: its centre as a fraction of the edge (0.5 = the middle).</summary>
+    public float EdgeDockParserAlong { get; set; } = 0.5f;
+
     /// <summary>Every tab back to the left edge, in the middle.</summary>
     public void ResetEdgeDockPlacement()
     {
@@ -148,11 +157,13 @@ public sealed class Configuration : IPluginConfiguration
         EdgeDockPartyEdge = Daedalus.Windows.Dock.DockEdge.Left;
         EdgeDockCrucibleEdge = Daedalus.Windows.Dock.DockEdge.Left;
         EdgeDockEurekaEdge = Daedalus.Windows.Dock.DockEdge.Left;
+        EdgeDockParserEdge = Daedalus.Windows.Dock.DockEdge.Left;
         EdgeDockMainAlong = 0.5f;
         EdgeDockOccultAlong = 0.5f;
         EdgeDockPartyAlong = 0.5f;
         EdgeDockCrucibleAlong = 0.5f;
         EdgeDockEurekaAlong = 0.5f;
+        EdgeDockParserAlong = 0.5f;
     }
 
     /// <summary>Carries the old Right edge setting over to <see cref="EdgeDockMainEdge"/>. True if it changed anything.</summary>
@@ -403,6 +414,9 @@ public sealed class Configuration : IPluginConfiguration
         var edgeDockEurekaTab = EdgeDockEurekaTab;
         var edgeDockEurekaEdge = EdgeDockEurekaEdge;
         var edgeDockEurekaAlong = EdgeDockEurekaAlong;
+        var edgeDockParserTab = EdgeDockParserTab;
+        var edgeDockParserEdge = EdgeDockParserEdge;
+        var edgeDockParserAlong = EdgeDockParserAlong;
 
         // Reset general behavior
         EnableOnAutoAttack = false;
@@ -486,6 +500,9 @@ public sealed class Configuration : IPluginConfiguration
         EdgeDockEurekaTab = edgeDockEurekaTab;
         EdgeDockEurekaEdge = edgeDockEurekaEdge;
         EdgeDockEurekaAlong = edgeDockEurekaAlong;
+        EdgeDockParserTab = edgeDockParserTab;
+        EdgeDockParserEdge = edgeDockParserEdge;
+        EdgeDockParserAlong = edgeDockParserAlong;
     }
 }
 

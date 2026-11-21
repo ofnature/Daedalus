@@ -174,4 +174,56 @@ public class EdgeDockTests
         var left = DockMath.PanelPlacement(DockEdge.Left, new Vector2(0f, 1000f), new Vector2(34f, 90f), panel, WorkPos, WorkSize, 6f);
         Assert.Equal(1080f - 200f - 4f, left.Pos.Y);
     }
+
+    // ── the Parser tab's settings ──────────────────────────────────────────────────────
+
+    [Fact]
+    public void TheParserTabIsOffUntilAskedFor()
+    {
+        var config = new Configuration();
+
+        Assert.False(config.EdgeDockParserTab);
+        Assert.Equal(DockEdge.Left, config.EdgeDockParserEdge);
+        Assert.Equal(0.5f, config.EdgeDockParserAlong);
+    }
+
+    [Fact]
+    public void ResettingTabPositionsMovesTheParserTabBack()
+    {
+        var config = new Configuration { EdgeDockParserEdge = DockEdge.Bottom, EdgeDockParserAlong = 0.9f };
+
+        config.ResetEdgeDockPlacement();
+
+        Assert.Equal(DockEdge.Left, config.EdgeDockParserEdge);
+        Assert.Equal(0.5f, config.EdgeDockParserAlong);
+    }
+
+    /// <summary>Resetting positions is not turning tabs off.</summary>
+    [Fact]
+    public void ResettingTabPositionsKeepsTheParserTabOn()
+    {
+        var config = new Configuration { EdgeDockParserTab = true };
+
+        config.ResetEdgeDockPlacement();
+
+        Assert.True(config.EdgeDockParserTab);
+    }
+
+    /// <summary>"Reset all settings" is about the rotation; where the dock's tabs sit is the user's screen layout.</summary>
+    [Fact]
+    public void ResetToDefaultsKeepsTheParserTabAndWhereItSits()
+    {
+        var config = new Configuration
+        {
+            EdgeDockParserTab = true,
+            EdgeDockParserEdge = DockEdge.Right,
+            EdgeDockParserAlong = 0.25f,
+        };
+
+        config.ResetToDefaults();
+
+        Assert.True(config.EdgeDockParserTab);
+        Assert.Equal(DockEdge.Right, config.EdgeDockParserEdge);
+        Assert.Equal(0.25f, config.EdgeDockParserAlong);
+    }
 }

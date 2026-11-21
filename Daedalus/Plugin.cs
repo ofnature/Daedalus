@@ -42,7 +42,7 @@ namespace Daedalus;
 
 public sealed class Plugin : IDalamudPlugin
 {
-    public const string PluginVersion = "0.1.128";
+    public const string PluginVersion = "0.1.129";
     private const string CommandName = "/daedalus";
 
     /// <summary>LAN relay channel for Necromancer Deep Freeze "heal me to full" announcements.</summary>
@@ -1250,6 +1250,10 @@ public sealed class Plugin : IDalamudPlugin
                 () => configuration.EdgeDockPartyTab && lanPartyWindow != null
                       && configuration.PartyCoordination.LanCoordinatorEnabled,
                 () => lanPartyWindow?.Draw(), 680f), // 560 cut off the off-tank picker, the burst column and the footer
+            // Fixed width (the Parser window's own default): its bars fill whatever width they are given.
+            new Daedalus.Windows.Dock.EdgeDockWindow.Tab("parser", "Parser",
+                () => configuration.EdgeDockParserTab,
+                () => dpsMeterWindow.Draw(), 360f),
         ],
         id => id switch
         {
@@ -1257,6 +1261,7 @@ public sealed class Plugin : IDalamudPlugin
             "party" => (configuration.EdgeDockPartyEdge, configuration.EdgeDockPartyAlong),
             "crucible" => (configuration.EdgeDockCrucibleEdge, configuration.EdgeDockCrucibleAlong),
             "eureka" => (configuration.EdgeDockEurekaEdge, configuration.EdgeDockEurekaAlong),
+            "parser" => (configuration.EdgeDockParserEdge, configuration.EdgeDockParserAlong),
             _ => (configuration.EdgeDockMainEdge, configuration.EdgeDockMainAlong),
         },
         (id, edge, along) =>
@@ -1267,6 +1272,7 @@ public sealed class Plugin : IDalamudPlugin
                 case "party": (configuration.EdgeDockPartyEdge, configuration.EdgeDockPartyAlong) = (edge, along); break;
                 case "crucible": (configuration.EdgeDockCrucibleEdge, configuration.EdgeDockCrucibleAlong) = (edge, along); break;
                 case "eureka": (configuration.EdgeDockEurekaEdge, configuration.EdgeDockEurekaAlong) = (edge, along); break;
+                case "parser": (configuration.EdgeDockParserEdge, configuration.EdgeDockParserAlong) = (edge, along); break;
                 default: (configuration.EdgeDockMainEdge, configuration.EdgeDockMainAlong) = (edge, along); break;
             }
 

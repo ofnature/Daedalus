@@ -3,6 +3,15 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.129 — 2026-11-21
+
+### Interface
+- **Parser tab on the edge dock.** Settings ▸ General ▸ Edge dock has a new "Parser tab" switch. It adds a
+  "Parser" tab that pops out the DPS meter when you point at it; click the tab to pin it open, drag it to any
+  screen edge. The ordinary Parser window still opens from the main window.
+
+<!-- LATEST-END -->
+
 ## v0.1.128 — 2026-11-19
 
 ### Automation — Daedalus fights for Orion
@@ -10,7 +19,6 @@ All notable changes to Daedalus will be documented in this file.
   mob and travels to it, and Daedalus does the fighting while an Orion run is going, the same way it does
   for Parcae, Odysseus and Demeter. Orion needs this version of Daedalus to fight at all.
 
-<!-- LATEST-END -->
 
 ## v0.1.127 — 2026-11-19
 

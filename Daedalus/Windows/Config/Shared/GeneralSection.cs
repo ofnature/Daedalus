@@ -722,6 +722,23 @@ public sealed class GeneralSection
                     ConfigUIHelpers.EndIndent();
                 }
 
+                ConfigUIHelpers.Toggle("Parser tab", () => this.config.EdgeDockParserTab, v => this.config.EdgeDockParserTab = v,
+                    "Adds a \"Parser\" tab that pops out the Parser (the DPS meter). Click the tab to pin it open. "
+                    + "The ordinary window still opens from the main window.", this.save);
+
+                if (this.config.EdgeDockParserTab)
+                {
+                    ConfigUIHelpers.BeginIndent();
+                    var parserEdge = this.config.EdgeDockParserEdge;
+                    if (ConfigUIHelpers.EnumCombo("Parser tab edge", ref parserEdge, null, () => { }))
+                    {
+                        this.config.EdgeDockParserEdge = parserEdge;
+                        this.save();
+                    }
+
+                    ConfigUIHelpers.EndIndent();
+                }
+
                 if (ImGui.Button("Reset tab positions##edgedock"))
                 {
                     this.config.ResetEdgeDockPlacement();
