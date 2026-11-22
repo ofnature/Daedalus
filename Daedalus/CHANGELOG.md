@@ -3,14 +3,23 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.130 — 2026-11-21
+
+### Deep dungeons — transformations
+- **A pomander's transformation now attacks.** Turned into a bomb or a mudball in Pilgrim's Traverse (or a
+  manticore, succubus, kuribu or dreadnaught in the older deep dungeons), the character used to stand in the pack
+  doing nothing: the game refuses every job action while transformed. The form's own action is now pressed
+  instead — Big Burst once an enemy is in its blast, Rocky Roll at the target, and so on — and the job's rotation
+  picks up again when the transformation ends.
+
+<!-- LATEST-END -->
+
 ## v0.1.129 — 2026-11-21
 
 ### Interface
 - **Parser tab on the edge dock.** Settings ▸ General ▸ Edge dock has a new "Parser tab" switch. It adds a
   "Parser" tab that pops out the DPS meter when you point at it; click the tab to pin it open, drag it to any
   screen edge. The ordinary Parser window still opens from the main window.
-
-<!-- LATEST-END -->
 
 ## v0.1.128 — 2026-11-19
 

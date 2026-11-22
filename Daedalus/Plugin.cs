@@ -42,7 +42,7 @@ namespace Daedalus;
 
 public sealed class Plugin : IDalamudPlugin
 {
-    public const string PluginVersion = "0.1.129";
+    public const string PluginVersion = "0.1.130";
     private const string CommandName = "/daedalus";
 
     /// <summary>LAN relay channel for Necromancer Deep Freeze "heal me to full" announcements.</summary>
@@ -883,6 +883,10 @@ public sealed class Plugin : IDalamudPlugin
             actionService, jobGauges, configuration, phantomJobService, timelineService, errorMetricsService, log,
             () => configuration.Nav.PlayRoleplayKits && configuration.BossHandling == Daedalus.Config.BossHandling.Minerva,
             () => this.minervaSafetyService.RoleplayActions);
+
+        // Deep-dungeon transformations: a pomander's form has one action and the job's are refused; this presses it.
+        Daedalus.Rotation.Base.RotationServices.TransformLayer = new Daedalus.Rotation.Transform.TransformActionLayer(
+            actionService, jobGauges, configuration, timelineService, errorMetricsService, log);
 
         // Bozja Lost Actions: the set RSR's Bozja rotation uses — raises, heals, barriers, party buffs,
         // forges, AoE damage and combat self buffs. Lost Seraph Strike leaps onto its target, so it gets the

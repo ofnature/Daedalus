@@ -57,6 +57,12 @@ public static class RotationServices
     /// </summary>
     public static Daedalus.Rotation.Roleplay.RoleplayActionLayer? RoleplayLayer { get; set; }
 
+    /// <summary>
+    /// Deep-dungeon transformations (a pomander's manticore, bomb, mudball...): presses the one action the form has,
+    /// and takes the frame from the job's modules while the character is transformed. Inert otherwise.
+    /// </summary>
+    public static Daedalus.Rotation.Transform.TransformActionLayer? TransformLayer { get; set; }
+
     /// <summary>A role-play kit is being played; the job's own movement stands down.</summary>
     public static bool RoleplayActive => RoleplayLayer?.Active == true;
 

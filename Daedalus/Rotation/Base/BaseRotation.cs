@@ -323,6 +323,11 @@ public abstract class BaseRotation<TContext, TModule> : IRotation, IDisposable
             return;
         }
 
+        // Transformed by a deep-dungeon pomander: the game refuses every job action and the bar holds one. The layer
+        // presses it and the job's modules stand down for the frame.
+        if (RotationServices.TransformLayer?.Execute(context, isMoving, inCombat) == true)
+            return;
+
         // Playing someone else in a quest battle (Y'shtola in The Will of the Moon): the job's actions are gone from the
         // bar, and the boss engine's module names what that character should press. The layer presses it and the job's
         // modules stand down for the frame.
