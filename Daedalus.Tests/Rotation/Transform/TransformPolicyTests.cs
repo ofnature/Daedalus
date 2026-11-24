@@ -13,7 +13,7 @@ public sealed class TransformPolicyTests
     private static TransformAction BigBurst() => TransformPolicy.ActionFor(TransformForm.Bomb)!.Value;
 
     private static TransformFacts InThePack() => new(
-        InCombat: true, EnemyAlive: true, DistanceToEnemy: 4f, EnemyHitbox: 2f, IsMoving: false, Ready: true);
+        InCombat: true, UsersTarget: false, EnemyAlive: true, DistanceToEnemy: 4f, EnemyHitbox: 2f, IsMoving: false, Ready: true);
 
     [Theory]
     [InlineData(565u, true)]   // Palace of the Dead, Eureka Orthos
@@ -61,8 +61,26 @@ public sealed class TransformPolicyTests
         => Assert.Null(TransformPolicy.Reject(BigBurst(), InThePack()));
 
     [Fact]
-    public void OutOfCombat_Waits()
+    public void OutOfCombat_AnEnemyThePlayerDidNotTarget_IsLeftAlone()
         => Assert.Equal("not in combat", TransformPolicy.Reject(BigBurst(), InThePack() with { InCombat = false }));
+
+    // A pomander transforms the whole party, so nobody else will start the fight (2026-11-23: every transformation
+    // on two characters was spent waiting for combat).
+    [Fact]
+    public void OutOfCombat_ThePlayersTarget_IsAttacked()
+        => Assert.Null(TransformPolicy.Reject(BigBurst(), InThePack() with { InCombat = false, UsersTarget = true }));
+
+    [Fact]
+    public void OutOfCombat_ThePlayersTargetOutOfReach_Waits()
+        => Assert.Equal("enemy out of reach", TransformPolicy.Reject(
+            BigBurst(), InThePack() with { InCombat = false, UsersTarget = true, DistanceToEnemy = 30f }));
+
+    [Fact]
+    public void OutOfCombat_TheMudball_RollsAtThePlayersTarget()
+    {
+        var roll = TransformPolicy.ActionFor(TransformForm.Mudball)!.Value;
+        Assert.Null(TransformPolicy.Reject(roll, InThePack() with { InCombat = false, UsersTarget = true, DistanceToEnemy = 20f }));
+    }
 
     [Fact]
     public void NoLivingEnemy_Waits()

@@ -38,9 +38,12 @@ public enum TransformAim
 /// </summary>
 public readonly record struct TransformAction(uint ActionId, string Name, TransformAim Aim, float Reach, float CastTime);
 
-/// <summary>What <see cref="TransformPolicy.Reject"/> is told about this frame.</summary>
+/// <summary>
+/// What <see cref="TransformPolicy.Reject"/> is told about this frame. <paramref name="UsersTarget"/>: the enemy is
+/// the one the player has targeted, not one the layer picked.
+/// </summary>
 public readonly record struct TransformFacts(
-    bool InCombat, bool EnemyAlive, float DistanceToEnemy, float EnemyHitbox, bool IsMoving, bool Ready);
+    bool InCombat, bool UsersTarget, bool EnemyAlive, float DistanceToEnemy, float EnemyHitbox, bool IsMoving, bool Ready);
 
 /// <summary>
 /// Transformed by a deep-dungeon pomander (Palace of the Dead's manticore, succubus and kuribu, Eureka Orthos's
@@ -80,13 +83,16 @@ public static class TransformPolicy
     };
 
     /// <summary>
-    /// Why the action is not pressed this frame, or null to press it. Only in a fight, at a living enemy that the
-    /// action will reach, standing still when it has a cast, and off its recast. An enemy-aimed action's range is
-    /// left to the scheduler, which measures it the way the game does.
+    /// Why the action is not pressed this frame, or null to press it. At a living enemy that the action will reach,
+    /// standing still when it has a cast, and off its recast. An enemy-aimed action's range is left to the scheduler,
+    /// which measures it the way the game does.
+    /// <para>The player's own target is attacked out of combat too: a whole party is transformed at once, so if every
+    /// character waited for the fight nobody would start it (Pilgrim's Traverse, 2026-11-23: eight transformations
+    /// across two characters, every one spent on "not in combat").</para>
     /// </summary>
     public static string? Reject(in TransformAction action, in TransformFacts facts)
     {
-        if (!facts.InCombat)
+        if (!facts.InCombat && !facts.UsersTarget)
             return "not in combat";
         if (!facts.EnemyAlive)
             return "no enemy";

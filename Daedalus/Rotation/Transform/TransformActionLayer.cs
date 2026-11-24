@@ -64,12 +64,17 @@ public sealed class TransformActionLayer
             if (action is not { } act)
                 return true;
 
-            var enemy = ctx.TargetingService.GetUserEnemyTarget() ?? ctx.Player.TargetObject as IBattleChara;
+            // the player's target first; in a fight a character with none (a follower) takes the one its job would
+            var targeted = ctx.TargetingService.GetUserEnemyTarget() ?? ctx.TargetingService.GetRawEnemyHardTarget();
+            var enemy = targeted ?? (inCombat
+                ? ctx.TargetingService.FindEnemy(ctx.Configuration.Targeting.EnemyStrategy, act.Reach, ctx.Player)
+                : null);
             var alive = enemy is { IsDead: false };
             var toEnemy = alive ? enemy!.Position - ctx.Player.Position : default;
             toEnemy.Y = 0f;
             var facts = new TransformFacts(
                 inCombat,
+                targeted != null,
                 alive,
                 toEnemy.Length(),
                 alive ? enemy!.HitboxRadius : 0f,
@@ -95,11 +100,10 @@ public sealed class TransformActionLayer
                     _scheduler.PushGcd(behavior, ctx.Player.GameObjectId, 0);
                     break;
                 case TransformAim.Forward:
-                    // the dash runs its full length whatever is in the way: not off a ledge or into a telegraph
-                    var ahead = toEnemy.LengthSquared() > 0.01f ? Vector3.Normalize(toEnemy) : Vector3.Zero;
-                    var landing = ctx.Player.Position + ahead * act.Reach;
+                    // Floor is asked for at the enemy, telegraphs along the whole dash. Asking for floor at the end
+                    // of the dash refused every roll indoors, where that point is behind the wall that stops it.
                     if (!TargetedDashGuard.IsTargetedDashSafe(
-                            ctx.Player.Position, landing, act.Reach, RotationServices.VNav, RotationServices.BossModSafety))
+                            ctx.Player.Position, enemy!.Position, act.Reach, RotationServices.VNav, RotationServices.BossModSafety))
                     {
                         Waiting(act, "the dash would land somewhere unsafe");
                         return true;

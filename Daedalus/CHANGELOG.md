@@ -3,6 +3,18 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.131 — 2026-11-23
+
+### Deep dungeons — transformations
+- **A transformed character starts the fight.** v0.1.130's transformation actions never fired in practice: they
+  waited to be in combat, and a pomander transforms the whole party, so nobody was left to start one. The form's
+  action is now used on your target as soon as it is in reach, in or out of combat. A character with no target
+  of its own (one following you) joins in on the enemy its job would have picked once the fight is on.
+- **The mudball rolls indoors.** Rocky Roll was refused in most rooms because the end of its 25-yalm dash is
+  behind a wall; it now checks the ground at the enemy instead.
+
+<!-- LATEST-END -->
+
 ## v0.1.130 — 2026-11-21
 
 ### Deep dungeons — transformations
@@ -11,8 +23,6 @@ All notable changes to Daedalus will be documented in this file.
   doing nothing: the game refuses every job action while transformed. The form's own action is now pressed
   instead — Big Burst once an enemy is in its blast, Rocky Roll at the target, and so on — and the job's rotation
   picks up again when the transformation ends.
-
-<!-- LATEST-END -->
 
 ## v0.1.129 — 2026-11-21
 
