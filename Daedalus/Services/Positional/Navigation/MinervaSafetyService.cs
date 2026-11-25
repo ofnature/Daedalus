@@ -57,6 +57,17 @@ public sealed class MinervaSafetyService : IBossModSafetyService
     }
 
     /// <summary>
+    /// A per-frame reader of Minerva's <c>minerva.MustNotAct</c> flag: true while any action would punish.
+    /// Minerva raises it before the status is on the character -- Pyretic is decided when the cast goes off and
+    /// shows half a second later, and an action in that half second kills.
+    /// </summary>
+    public Func<bool> MustNotActReader()
+    {
+        var flag = _pluginInterface.GetOrCreateData<bool[]>("minerva.MustNotAct", () => new[] { false });
+        return () => flag.Length != 0 && flag[0];
+    }
+
+    /// <summary>
     /// Minerva has no "next damage" gate. The nearest honest equivalent is the lead time before
     /// acting is punished, which is what the rotation actually does with this number.
     /// </summary>

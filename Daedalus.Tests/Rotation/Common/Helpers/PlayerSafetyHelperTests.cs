@@ -53,6 +53,26 @@ public class PlayerSafetyHelperTests
     }
 
     [Fact]
+    public void IsStandStillPunisherActive_ExternalSource_CountsWithoutAStatus()
+    {
+        try
+        {
+            PlayerSafetyHelper.ExternalStandStill = () => true;
+            Assert.True(PlayerSafetyHelper.IsStandStillPunisherActive(null));
+
+            PlayerSafetyHelper.ExternalStandStill = () => false;
+            Assert.False(PlayerSafetyHelper.IsStandStillPunisherActive(null));
+
+            PlayerSafetyHelper.ExternalStandStill = () => throw new System.InvalidOperationException();
+            Assert.False(PlayerSafetyHelper.IsStandStillPunisherActive(null));
+        }
+        finally
+        {
+            PlayerSafetyHelper.ExternalStandStill = null;
+        }
+    }
+
+    [Fact]
     public void IsForcedMovementStatusId_BoundariesAroundForwardMarch()
     {
         // Sanity: status IDs adjacent to Forward March (1140) must not leak in.

@@ -3,6 +3,18 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.132 — 2026-11-24
+
+### Safety — stand-still mechanics
+- **Everything stops before Pyretic lands, not after.** The pause for "any action kills you" debuffs only began
+  once the debuff was on the character, and the game shows it about half a second after it has been decided. An
+  attack pressed in that half second was fatal: Invoked Succubus's Passions' Heat (Pilgrim's Traverse 81-90) killed
+  four characters in three casts that way. With Minerva as the boss engine, the pause now starts when Minerva says
+  the mechanic is about to land, and still holds for as long as the debuff lasts. Needs Minerva's matching update,
+  which also walks the rest of the party out of the circle.
+
+<!-- LATEST-END -->
+
 ## v0.1.131 — 2026-11-23
 
 ### Deep dungeons — transformations
@@ -12,8 +24,6 @@ All notable changes to Daedalus will be documented in this file.
   of its own (one following you) joins in on the enemy its job would have picked once the fight is on.
 - **The mudball rolls indoors.** Rocky Roll was refused in most rooms because the end of its 25-yalm dash is
   behind a wall; it now checks the ground at the enemy instead.
-
-<!-- LATEST-END -->
 
 ## v0.1.130 — 2026-11-21
 

@@ -42,7 +42,7 @@ namespace Daedalus;
 
 public sealed class Plugin : IDalamudPlugin
 {
-    public const string PluginVersion = "0.1.131";
+    public const string PluginVersion = "0.1.132";
     private const string CommandName = "/daedalus";
 
     /// <summary>LAN relay channel for Necromancer Deep Freeze "heal me to full" announcements.</summary>
@@ -449,6 +449,8 @@ public sealed class Plugin : IDalamudPlugin
         // Minerva knows which casts are gazes; the look-away latch (EnsureAutoFaceTarget) and the pre-face
         // retry both ask PlayerSafetyHelper, so they learn it from here without either being changed.
         Daedalus.Rotation.Common.Helpers.PlayerSafetyHelper.ExternalLookAway = minervaEngine.MustNotTurnReader();
+        // And which mechanics punish any action, before the status that says so is on the character.
+        Daedalus.Rotation.Common.Helpers.PlayerSafetyHelper.ExternalStandStill = minervaEngine.MustNotActReader();
         this.bossModSafetyService = new BossHandlingRouter(
             bossModEngine, minervaEngine, () => configuration.BossHandling, () => configuration.MovementPolling);
         // Onslaught during a dodge dashes the character back into the AOE; the router says who is steering.
@@ -2912,6 +2914,7 @@ public sealed class Plugin : IDalamudPlugin
         Daedalus.Rotation.Common.Helpers.TankSwapDebuffWatch.Shutdown();
         Daedalus.Rotation.Common.Helpers.MechanicCastGate.CastSpotSafety = null;
         Daedalus.Rotation.Common.Helpers.PlayerSafetyHelper.ExternalLookAway = null;
+        Daedalus.Rotation.Common.Helpers.PlayerSafetyHelper.ExternalStandStill = null;
 
         // Restore the player's original Auto-face setting if we overrode it.
         if (_originalAutoFaceTarget.HasValue)

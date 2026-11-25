@@ -138,11 +138,34 @@ public static class PlayerSafetyHelper
         FFXIVConstants.StandStillPunisherStatusIds.Contains(statusId);
 
     /// <summary>
-    /// Returns true if the player has a Pyretic-style "any action kills you" debuff active.
+    /// A second opinion on "any action kills you", from a mechanics engine that knows the fight: Minerva's
+    /// <c>minerva.MustNotAct</c> flag. It is up before the status is. Invoked Succubus, Pilgrim's Traverse,
+    /// 2026-11-24: Passions' Heat gave Pyretic to four toons in three casts and each died within 0.55s, on an
+    /// action pressed after the cast went off and before the status showed. Null when no engine is wired; a
+    /// source that throws counts as "no", the same fail-open as the rest of this class.
+    /// </summary>
+    public static System.Func<bool>? ExternalStandStill { get; set; }
+
+    /// <summary>
+    /// Returns true if the player has a Pyretic-style "any action kills you" debuff active, or
+    /// <see cref="ExternalStandStill"/> says one is about to land.
     /// Used to halt all rotation/healing module execution until the debuff resolves.
     /// </summary>
     public static bool IsStandStillPunisherActive(IBattleChara? player)
     {
+        if (ExternalStandStill is { } external)
+        {
+            try
+            {
+                if (external())
+                    return true;
+            }
+            catch
+            {
+                // an engine that cannot answer is not a stand-still
+            }
+        }
+
         if (player?.StatusList == null)
             return false;
 
