@@ -101,26 +101,32 @@ public static class FFXIVConstants
         1,     // Petrification
         4,     // Bind (rooted — can still cast but movement-gated jobs lose uptime)
         149,   // Deep Freeze
+        2656,  // Stun (the boss-applied one: P2S, Cloud of Darkness, the Crucible's Corpse Flower)
         // Transcendent: post-raise damage immunity, NOT an action lock -- the character can act,
         // and acting is what ends it. Listed here because the downtime while we deliberately hold
         // actions through it is explained, not unexplained. See PostReviveInvulnerabilityStatusIds.
-        2656,  // Transcendent
-        3581,  // Willful (duty support auto-revive, actions locked ~7s)
+        418,   // Transcendent
     };
 
     /// <summary>
     /// "Just brought back from the dead and not yet hit by anything" — the marker the revive hold keys
-    /// on. Transcendent is the normal raise; Willful is duty support's auto-revive.
+    /// on: Transcendent, "Recently resurrected and temporarily invulnerable to most damage. Status ends
+    /// upon execution of an action."
     /// <para>
-    /// Transcendent does NOT prevent acting: it grants damage immunity for 10s that lasts until the
-    /// character acts. It appears in <see cref="IncapacitationStatusIds"/> above for downtime
-    /// accounting, which is a separate question from whether an action is possible.
+    /// It does NOT prevent acting: it grants damage immunity for 10s that lasts until the character
+    /// acts. It appears in <see cref="IncapacitationStatusIds"/> above for downtime accounting, which
+    /// is a separate question from whether an action is possible.
+    /// </para>
+    /// <para>
+    /// Row 418, checked 2026-11-25 against XIVAPI and BossMod's recorded status enums. This set held
+    /// 2656 and 3581 until then, labelled Transcendent and Willful: 2656 is a Stun and 3581 is P12S's
+    /// Umbralstrong Soul, so the hold never saw a real raise. (Status 2648 is also named Transcendent,
+    /// "Recently resurrected." with no immunity; Willful is 2954 and is worn before a death, not after.)
     /// </para>
     /// </summary>
     public static readonly HashSet<uint> PostReviveInvulnerabilityStatusIds = new()
     {
-        2656,  // Transcendent
-        3581,  // Willful
+        418,   // Transcendent
     };
 
     // Enemy invulnerability status IDs — enemy cannot take damage.

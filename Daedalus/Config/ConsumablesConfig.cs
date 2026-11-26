@@ -54,4 +54,17 @@ public sealed class ConsumablesConfig
 
     /// <summary>Warn in chat when the ether stock thins out (see EtherPolicy.RunningLowCount).</summary>
     public bool WarnOnLowEthers { get; set; } = true;
+
+    /// <summary>
+    /// In a deep dungeon, drink that dungeon's regen potion (Sustaining / Empyrean / Orthos / Pilgrim's) when HP
+    /// drops below <see cref="DeepDungeonPotionHpThreshold"/> in a fight. Default OFF, like every other item use.
+    /// </summary>
+    public bool EnableDeepDungeonPotions { get; set; } = false;
+
+    private float _deepDungeonPotionHpThreshold = 0.5f;
+    public float DeepDungeonPotionHpThreshold
+    {
+        get => _deepDungeonPotionHpThreshold;
+        set => _deepDungeonPotionHpThreshold = System.Math.Clamp(value, 0f, 1f);
+    }
 }

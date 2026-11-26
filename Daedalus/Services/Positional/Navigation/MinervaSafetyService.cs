@@ -29,6 +29,7 @@ public sealed class MinervaSafetyService : IBossModSafetyService
     private ICallGateSubscriber<float>? _maxCastTime;
     private ICallGateSubscriber<float>? _secondsUntilMustNotAct;
     private ICallGateSubscriber<float>? _secondsUntilMustNotMove;
+    private ICallGateSubscriber<float>? _secondsUntilRaidwide;
     private ICallGateSubscriber<bool>? _isSteering;
     private ICallGateSubscriber<int, double, bool>? _requestPositional;
     private ICallGateSubscriber<double, bool>? _requestHold;
@@ -72,6 +73,10 @@ public sealed class MinervaSafetyService : IBossModSafetyService
     /// acting is punished, which is what the rotation actually does with this number.
     /// </summary>
     public float NextDamageInSeconds => ReadSeconds(EnsureSecondsUntilMustNotAct());
+
+    /// <summary>Seconds until the next raidwide the module has announced (<c>Minerva.Hints.SecondsUntilRaidwide</c>).</summary>
+    public float NextRaidwideInSeconds
+        => ReadSeconds(Ensure(ref _secondsUntilRaidwide, "Minerva.Hints.SecondsUntilRaidwide"));
 
     /// <summary>Lead time before movement is punished — Minerva's analogue of a zone activating.</summary>
     public float ForbiddenZoneActivationInSeconds => ReadSeconds(EnsureSecondsUntilMustNotMove());

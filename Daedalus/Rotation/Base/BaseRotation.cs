@@ -14,6 +14,7 @@ using Daedalus.Services.Action;
 using Daedalus.Services.Cache;
 using Daedalus.Services.Combat;
 using Daedalus.Services.Debuff;
+using Daedalus.Services.Debug;
 using Daedalus.Services.Prediction;
 using Daedalus.Services.Resource;
 using Daedalus.Services.Stats;
@@ -236,10 +237,14 @@ public abstract class BaseRotation<TContext, TModule> : IRotation, IDisposable
         // Minerva/BossMod steer from their own plugin and keep working, so the character is walked
         // clear while immune. RSR does the same thing (RSCommands_Actions, a flat refusal while the
         // buff is up). Placed after the bookkeeping above so GCD and movement state stay fresh.
+        var raiseImmune = HasPostReviveInvulnerability(player);
         ReviveGrace.NoteFrame(
-            HasPostReviveInvulnerability(player),
+            raiseImmune,
             IsClearOfDangerAfterRaise(player, isMoving),
-            Configuration.ReviveHoldSeconds);
+            Configuration.ReviveHoldMinSeconds,
+            Configuration.ReviveHoldSeconds,
+            raiseImmune ? RotationServices.BossModSafety?.NextRaidwideInSeconds ?? float.MaxValue : float.MaxValue);
+        LogReviveHold(ReviveGrace.IsActive);
         if (ReviveGrace.IsActive)
             return;
 
@@ -426,10 +431,32 @@ public abstract class BaseRotation<TContext, TModule> : IRotation, IDisposable
     /// </summary>
     private const float ClearOfDangerLookaheadSeconds = 1.5f;
 
+    private DateTime? _reviveHoldSinceUtc;
+
+    /// <summary>One debug-log line when the revive hold starts and one when it ends, with how long and why.</summary>
+    private void LogReviveHold(bool holding)
+    {
+        if (holding == (_reviveHoldSinceUtc != null))
+            return;
+
+        if (holding)
+        {
+            _reviveHoldSinceUtc = FrameTimestamp;
+            RotationServices.DebugLog?.Log(DebugLogCategory.General, DebugLogSeverity.Info,
+                "Revive hold: back up — holding attacks");
+            return;
+        }
+
+        var held = (FrameTimestamp - _reviveHoldSinceUtc!.Value).TotalSeconds;
+        _reviveHoldSinceUtc = null;
+        RotationServices.DebugLog?.Log(DebugLogCategory.General, DebugLogSeverity.Info,
+            $"Revive hold: over after {held:F1}s — ended by {ReviveGrace.EndedBy}");
+    }
+
     /// <summary>
-    /// Has the character just been raised and not yet spent its damage immunity? Transcendent on a
-    /// normal raise, Willful on duty support's auto-revive. Note this is NOT an action lock — the
-    /// character can act perfectly well, and acting is precisely what ends the immunity.
+    /// Has the character just been raised and not yet spent its damage immunity (Transcendent)? Note
+    /// this is NOT an action lock — the character can act perfectly well, and acting is precisely what
+    /// ends the immunity.
     /// </summary>
     protected static bool HasPostReviveInvulnerability(IPlayerCharacter player)
     {

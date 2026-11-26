@@ -293,6 +293,13 @@ public sealed class Configuration : IPluginConfiguration
     public float ReviveHoldSeconds { get; set; } = 10f;
 
     /// <summary>
+    /// How long, at least, to wait after standing up before attacking, in seconds — however clear things
+    /// look. Time for the dodge to start and for a healer to act while the character is still immune.
+    /// Never longer than <see cref="ReviveHoldSeconds"/>.
+    /// </summary>
+    public float ReviveHoldMinSeconds { get; set; } = 2f;
+
+    /// <summary>
     /// Suppress the forced auto-face setting while a nearby enemy is casting a look-away/gaze action
     /// (<see cref="Daedalus.Data.FFXIVConstants.GazeCastActionIds"/>), so the bot's casts don't turn the
     /// character into the gaze. Default true. (Gaze action list is curated/seeded as encountered.)
@@ -422,6 +429,7 @@ public sealed class Configuration : IPluginConfiguration
         EnableOnAutoAttack = false;
         EnableOnPartyInCombat = true;
         ReviveHoldSeconds = 10f;
+        ReviveHoldMinSeconds = 2f;
         MovementTolerance = 0.1f;
 
         // Reset master toggles

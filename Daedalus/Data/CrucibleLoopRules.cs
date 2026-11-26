@@ -86,6 +86,15 @@ public static class CrucibleLoopRules
     public static int RunsForStart(CrucibleTeamGoal goal, bool untilMaxRank)
         => goal == CrucibleTeamGoal.Level && untilMaxRank ? UntilMaxRankRuns : 1;
 
+    /// <summary>The degree a result screen's mode names ("Standard", "First Degree"…); 0 for anything else.</summary>
+    public static int DegreeOfMode(string mode) => mode.Trim() switch
+    {
+        "First Degree" => 1,
+        "Second Degree" => 2,
+        "Third Degree" => 3,
+        _ => 0,
+    };
+
     public static string DegreeName(int degree) => degree switch
     {
         0 => "Standard",

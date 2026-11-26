@@ -44,6 +44,11 @@ public interface IBossModSafetyService
     /// <summary><c>BossMod.AI.NaviTargetPos</c> — where BMR AI is steering to; null when idle or unavailable. Observability only.</summary>
     Vector3? BmrNaviTarget { get; }
 
+    /// <summary>Seconds until the next raidwide the fight module has announced (Minerva's
+    /// <c>Minerva.Hints.SecondsUntilRaidwide</c>). <see cref="float.MaxValue"/> when none is coming or the engine
+    /// does not say, and always under BossMod.</summary>
+    float NextRaidwideInSeconds => float.MaxValue;
+
     /// <summary>Enemies the fight says never to attack: a phase-invulnerable boss, a decoy, the wrong
     /// half of a two-floor boss. Empty when the engine has no opinion (BossMod publishes none).</summary>
     ulong[] ForbiddenTargets => [];

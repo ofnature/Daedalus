@@ -619,6 +619,17 @@ public sealed class GeneralSection
                 + "you are clear — standing still, nothing steering you, safe ground — so this is only the "
                 + "cap for when that never happens. 0 disables the hold.");
 
+            var reviveHoldMin = this.config.ReviveHoldMinSeconds;
+            if (ImGui.SliderFloat("Wait at least", ref reviveHoldMin, 0f, 10f, "%.1fs"))
+            {
+                this.config.ReviveHoldMinSeconds = reviveHoldMin;
+                this.save();
+            }
+            ImGui.TextDisabled(
+                "The shortest wait after standing up, however clear things look: time for the dodge to "
+                + "start and for a healer to reach you while you are still immune. Never longer than the "
+                + "cap above.");
+
             ConfigUIHelpers.EndIndent();
         }
     }

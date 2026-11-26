@@ -3,6 +3,41 @@
 All notable changes to Daedalus will be documented in this file.
 
 <!-- LATEST-START -->
+## v0.1.133 — 2026-11-26
+
+### After a raise
+- **The wait before attacking now actually happens.** A raised character is immune to damage until it uses
+  something, and Daedalus is meant to hold its attacks so that immunity lasts while you are walked clear. It was
+  watching for the wrong status, so the hold never started: characters attacked the moment they stood up and often
+  died again. Fixed, and the hold now starts from the moment you stand up rather than from when the status is read.
+- **New "Wait at least" setting** (General, under "Hold attacks after being raised"), 2 seconds to start: the
+  shortest wait after standing up, however clear things look — time for a healer to reach you while you are still
+  immune. The existing slider stays the longest it will ever wait.
+- **A raidwide on the way is waited out.** With Minerva as the boss engine, a raised character that is otherwise
+  clear keeps holding while a raidwide is due inside the wait, so the immunity takes the hit instead of a
+  character on raise HP.
+- The deep dungeon potion also waits while the raise immunity is up, since drinking would end it.
+
+### Deep dungeons — potions
+- **The dungeon's own potion on low HP.** New setting under Consumables, off by default: in a fight in a deep
+  dungeon, a character whose HP drops below the threshold you set (50% to start) drinks that dungeon's regen
+  potion — Sustaining in Palace of the Dead, Empyrean in Heaven-on-High, Orthos in Eureka Orthos, Pilgrim's in
+  Pilgrim's Traverse. It waits while the regen from an earlier potion is still running, and on floors where
+  items are sealed.
+
+### Beastmaster — the Crucible
+- **A Legendary run spends its spare points on staying alive.** Until now a Legendary run never rested and drank
+  only at 20% HP, whatever the score looked like. It now works out what a finished run can count on, and when that
+  is comfortably over the Legendary line it rests at a campsite (below 60% HP) and drinks at about half HP. On
+  Standard with three beasts nothing changes: that score has no points to spare. On a degree, whose bonus is paid
+  just for finishing, it does.
+- **The degree bonus is counted.** The Crucible tab's projected score left the First, Second and Third Degree
+  bonuses out; they are now included once the board's degree is known.
+- **Every run is written down.** Each board result goes into a ledger, and after every run the log says how often
+  runs made that way (same board, degree and team size) have reached Legendary and where the others ended.
+
+<!-- LATEST-END -->
+
 ## v0.1.132 — 2026-11-24
 
 ### Safety — stand-still mechanics
@@ -12,8 +47,6 @@ All notable changes to Daedalus will be documented in this file.
   four characters in three casts that way. With Minerva as the boss engine, the pause now starts when Minerva says
   the mechanic is about to land, and still holds for as long as the debuff lasts. Needs Minerva's matching update,
   which also walks the rest of the party out of the circle.
-
-<!-- LATEST-END -->
 
 ## v0.1.131 — 2026-11-23
 

@@ -89,6 +89,8 @@ public sealed class BossHandlingRouter : IBossModSafetyService
 
     public int ForbiddenZonesCount => Active.ForbiddenZonesCount;
 
+    public float NextRaidwideInSeconds => Active.NextRaidwideInSeconds;
+
     /// <summary>Movement read: goes to the polled plugin (<see cref="Mover"/>), not the mechanics engine.</summary>
     public bool IsBmrNavigating => Mover?.IsBmrNavigating ?? false;
 

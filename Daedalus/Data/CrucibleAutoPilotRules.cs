@@ -304,6 +304,16 @@ public static class CrucibleAutoPilotRules
         return (float)Math.Max(0, (samples[0].Pct - samples[^1].Pct) / span);
     }
 
+    /// <summary>Legendary rests at a campsite only below this HP: above it the 1,000 for Sleepless Survival buys little.</summary>
+    public const float LegendaryRestAtHpPct = 0.60f;
+
+    /// <summary>
+    /// Whether a Legendary run rests at a campsite: the score can pay for Sleepless Survival, or it is already gone
+    /// (<see cref="CrucibleScoreBudget.Affords"/>), and the beastmaster is hurt enough to need it.
+    /// </summary>
+    public static bool LegendaryRests(bool scoreAffordsRest, float selfHpPct) =>
+        scoreAffordsRest && selfHpPct < LegendaryRestAtHpPct;
+
     /// <summary>The Legendary drinking line: last resort while Economic Ethos holds, about half once it is gone.</summary>
     public static float LegendaryDrinkAtHpPct(bool itemUsedOnBoard) =>
         itemUsedOnBoard ? LegendaryAfterEthosPotionAtHpPct : LegendaryPotionAtHpPct;

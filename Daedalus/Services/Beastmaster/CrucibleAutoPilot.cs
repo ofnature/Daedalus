@@ -81,6 +81,12 @@ public sealed unsafe class CrucibleAutoPilot
     private int _teamAlive;
     private bool _legendary;
     private bool _legendaryNoGear;
+
+    // Legendary: whether the score can pay for a first item / a rest (CrucibleScoreBudget), read once a second.
+    private bool _affordsItem, _affordsRest;
+    private int _budgetMargin;
+    private DateTime _nextBudgetUtc;
+    private bool _legendaryRestLogged;
     private bool _gearTakenOnBoard;
     private int _boardIndex;
 
@@ -171,6 +177,7 @@ public sealed unsafe class CrucibleAutoPilot
 
         _legendaryNoGear = legendary && board != null && !CrucibleAutoPilotRules.LegendaryTakesGear && !_gearTakenOnBoard;
         _legendary = legendary;
+        ReadBudget(legendary && board != null);
         _hoarderPays = board != null && board.BonusValue(CrucibleBonus.HabitualHoarder) > 0;
         takeItems = legendary ? !_legendaryNoGear : takeItems;
         _takeGearNow = takeItems;
@@ -326,7 +333,7 @@ public sealed unsafe class CrucibleAutoPilot
             // The selection flickers to the whole team as the screen opens: let it settle first.
             if (_campSinceUtc == default)
                 _campSinceUtc = now;
-            if (_legendary)
+            if (_legendary && !CrucibleAutoPilotRules.LegendaryRests(_affordsRest, _selfHpPct))
             {
                 // Resting at all costs Sleepless Survival (1,000): Leave — the camp window's [4], then Yes to "Leave the
                 // campsite without resting?" (recorded by hand on Korha, 2026-10-27).
@@ -343,11 +350,18 @@ public sealed unsafe class CrucibleAutoPilot
             }
 
             if (!_restTried && now - _campSinceUtc > CampSettle)
+            {
+                if (_legendary && !_legendaryRestLogged)
+                    _log($"Crucible: Legendary — resting (HP {_selfHpPct:P0}): the score can pay for it ({_budgetMargin:N0} over the line before).");
+                _legendaryRestLogged = true;
                 Rest(now, party, camp);
+            }
+
             return;
         }
 
         _restTried = false;
+        _legendaryRestLogged = false;
         _campSinceUtc = default;
 
         // The battle screen: start once the horns are set for it and have stood a moment.
@@ -810,6 +824,25 @@ public sealed unsafe class CrucibleAutoPilot
         Done(now, $"Choosing {name}.");
     }
 
+    /// <summary>Legendary: what the score can pay for, from the live bonus tracker. Nothing off Legendary or with no tracker.</summary>
+    private void ReadBudget(bool legendary)
+    {
+        if (!legendary || CrucibleBonusWatcher.Tracker is not { } tracker)
+        {
+            _affordsItem = _affordsRest = false;
+            return;
+        }
+
+        var now = DateTime.UtcNow;
+        if (now < _nextBudgetUtc)
+            return;
+        _nextBudgetUtc = now + TimeSpan.FromSeconds(1);
+        var run = tracker.Snapshot();
+        _affordsItem = CrucibleScoreBudget.Affords(run, CrucibleBonus.EconomicEthos);
+        _affordsRest = CrucibleScoreBudget.Affords(run, CrucibleBonus.SleeplessSurvival);
+        _budgetMargin = CrucibleScoreBudget.Margin(run);
+    }
+
     /// <summary>
     /// At <see cref="CrucibleAutoPilotRules.PotionAtHpPct"/> or less (Legendary: the last-resort
     /// <see cref="CrucibleAutoPilotRules.LegendaryPotionAtHpPct"/>), drink the strongest held potion — click its HUD slot, then "Use" on the menu that opens (only a menu we opened, within two seconds).
@@ -857,7 +890,9 @@ public sealed unsafe class CrucibleAutoPilot
                          : CrucibleAutoPilotRules.IsSoulSerumRow((int)_pressedPotionId - CrucibleAutoPilotRules.CrucibleItemIconOffset)
                              ? "Crucible: drank a soul serum to heal, Crimson Ribbon (HP "
                              : "Crucible: drank a potion (HP ") + (_pressedPotionHpPct * 100f).ToString("0") + "%)."
-                     + (_legendary && !_itemUsedOnBoard ? " Legendary last resort: Economic Ethos is given up to stay alive." : ""));
+                     + (!_legendary || _itemUsedOnBoard ? ""
+                         : _affordsItem ? $" Legendary: the score can pay for Economic Ethos ({_budgetMargin:N0} over the line before)."
+                         : " Legendary last resort: Economic Ethos is given up to stay alive."));
                 _itemUsedOnBoard = true;
                 _nextPotionUtc = now + TimeSpan.FromSeconds(4); // one drink at a time; HP shows the effect first
             }
@@ -886,7 +921,9 @@ public sealed unsafe class CrucibleAutoPilot
         for (var slot = 0; slot < 10; slot++)
             usable.Add(HudFlag(hud, CrucibleAutoPilotRules.HudItemUsableIndex(slot)));
         var drinkable = CrucibleAutoPilotRules.UsableOnly(held, usable);
-        var drinkLine = _legendary ? CrucibleAutoPilotRules.LegendaryDrinkAtHpPct(_itemUsedOnBoard) : CrucibleAutoPilotRules.PotionAtHpPct;
+        var drinkLine = _legendary
+            ? CrucibleAutoPilotRules.LegendaryDrinkAtHpPct(_itemUsedOnBoard || _affordsItem)
+            : CrucibleAutoPilotRules.PotionAtHpPct;
         // A campsite after this battle heals 90% anyway: the potion waits for a battle that has none.
         // Its enemy dead, the battle just fought still counts until the next one's enemy is there: on the way to the
         // camp nothing is drunk.
@@ -923,7 +960,7 @@ public sealed unsafe class CrucibleAutoPilot
             return false;
 
         // Legendary's last resort only when it can save the run: a potion that only delays the death is not worth it.
-        if (_legendary && !_itemUsedOnBoard
+        if (_legendary && !_itemUsedOnBoard && !_affordsItem
             && !CrucibleAutoPilotRules.PotionCanSaveRun(FamiliarsLeft(), _selfHpPct,
                 CrucibleAutoPilotRules.PotionRestorePct.GetValueOrDefault(drinkable[pick]) / 100f,
                 CrucibleAutoPilotRules.HpLossPerSecond(_selfSamples), _enemySamples.Count > 0 ? _enemySamples[^1].Pct : null,

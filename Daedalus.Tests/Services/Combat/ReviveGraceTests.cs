@@ -19,6 +19,7 @@ namespace Daedalus.Tests.Services.Combat;
 public sealed class ReviveGraceTests
 {
     private const double Cap = 10;
+    private const double Floor = 0.5;
     private DateTime _now = new(2026, 9, 19, 12, 0, 0, DateTimeKind.Utc);
     private readonly ReviveGraceTracker _grace;
 
@@ -35,7 +36,7 @@ public sealed class ReviveGraceTests
     [Fact]
     public void HoldsOnTheVeryFirstFrameBack()
     {
-        _grace.NoteFrame(postReviveInvulnerable: true, clearOfDanger: false, Cap);
+        _grace.NoteFrame(postReviveInvulnerable: true, clearOfDanger: false, Floor, Cap);
         Assert.True(_grace.IsActive);
     }
 
@@ -47,9 +48,9 @@ public sealed class ReviveGraceTests
     [InlineData(9.5)]
     public void HeldForAsLongAsTheDangerLasts(double elapsed)
     {
-        _grace.NoteFrame(postReviveInvulnerable: true, clearOfDanger: false, Cap);
+        _grace.NoteFrame(postReviveInvulnerable: true, clearOfDanger: false, Floor, Cap);
         Advance(elapsed);
-        _grace.NoteFrame(postReviveInvulnerable: true, clearOfDanger: false, Cap);
+        _grace.NoteFrame(postReviveInvulnerable: true, clearOfDanger: false, Floor, Cap);
 
         Assert.True(_grace.IsActive);
     }
@@ -63,9 +64,9 @@ public sealed class ReviveGraceTests
     [Fact]
     public void TheBuffEndingReleasesTheHoldWithNoTrailingDelay()
     {
-        _grace.NoteFrame(postReviveInvulnerable: true, clearOfDanger: false, Cap);
+        _grace.NoteFrame(postReviveInvulnerable: true, clearOfDanger: false, Floor, Cap);
         Advance(3);
-        _grace.NoteFrame(postReviveInvulnerable: false, clearOfDanger: true, Cap);
+        _grace.NoteFrame(postReviveInvulnerable: false, clearOfDanger: true, Floor, Cap);
 
         Assert.False(_grace.IsActive);
         Assert.Equal(0d, _grace.RemainingSeconds);
@@ -78,9 +79,9 @@ public sealed class ReviveGraceTests
     [Fact]
     public void AManualActionHandsControlStraightBack()
     {
-        _grace.NoteFrame(postReviveInvulnerable: true, clearOfDanger: false, Cap);
+        _grace.NoteFrame(postReviveInvulnerable: true, clearOfDanger: false, Floor, Cap);
         Advance(0.5);
-        _grace.NoteFrame(postReviveInvulnerable: false, clearOfDanger: true, Cap);   // buff consumed by the player's action
+        _grace.NoteFrame(postReviveInvulnerable: false, clearOfDanger: true, Floor, Cap);   // buff consumed by the player's action
 
         Assert.False(_grace.IsActive);
     }
@@ -96,9 +97,9 @@ public sealed class ReviveGraceTests
     [Fact]
     public void ReleasesAsSoonAsTheCharacterIsClear()
     {
-        _grace.NoteFrame(postReviveInvulnerable: true, clearOfDanger: false, Cap);
-        Advance(ReviveGraceTracker.MinHoldSeconds);
-        _grace.NoteFrame(postReviveInvulnerable: true, clearOfDanger: true, Cap);
+        _grace.NoteFrame(postReviveInvulnerable: true, clearOfDanger: false, Floor, Cap);
+        Advance(Floor);
+        _grace.NoteFrame(postReviveInvulnerable: true, clearOfDanger: true, Floor, Cap);
 
         Assert.False(_grace.IsActive);
         Assert.Equal(0d, _grace.RemainingSeconds);
@@ -112,20 +113,20 @@ public sealed class ReviveGraceTests
     [Fact]
     public void DoesNotReleaseOnTheFirstFrameEvenIfNothingLooksWrong()
     {
-        _grace.NoteFrame(postReviveInvulnerable: true, clearOfDanger: true, Cap);
+        _grace.NoteFrame(postReviveInvulnerable: true, clearOfDanger: true, Floor, Cap);
         Assert.True(_grace.IsActive);
     }
 
     [Theory]
     [InlineData(0d, true)]
-    [InlineData(ReviveGraceTracker.MinHoldSeconds - 0.05, true)]
-    [InlineData(ReviveGraceTracker.MinHoldSeconds, false)]
+    [InlineData(Floor - 0.05, true)]
+    [InlineData(Floor, false)]
     [InlineData(2d, false)]
     public void TheFloorHasToPassBeforeClearCounts(double elapsed, bool stillHeld)
     {
-        _grace.NoteFrame(postReviveInvulnerable: true, clearOfDanger: true, Cap);
+        _grace.NoteFrame(postReviveInvulnerable: true, clearOfDanger: true, Floor, Cap);
         Advance(elapsed);
-        _grace.NoteFrame(postReviveInvulnerable: true, clearOfDanger: true, Cap);
+        _grace.NoteFrame(postReviveInvulnerable: true, clearOfDanger: true, Floor, Cap);
 
         Assert.Equal(stillHeld, _grace.IsActive);
     }
@@ -137,12 +138,12 @@ public sealed class ReviveGraceTests
     [Fact]
     public void HoldsAgainIfDangerReturnsWhileStillImmune()
     {
-        _grace.NoteFrame(postReviveInvulnerable: true, clearOfDanger: false, Cap);
+        _grace.NoteFrame(postReviveInvulnerable: true, clearOfDanger: false, Floor, Cap);
         Advance(1);
-        _grace.NoteFrame(postReviveInvulnerable: true, clearOfDanger: true, Cap);
+        _grace.NoteFrame(postReviveInvulnerable: true, clearOfDanger: true, Floor, Cap);
         Assert.False(_grace.IsActive);
 
-        _grace.NoteFrame(postReviveInvulnerable: true, clearOfDanger: false, Cap);
+        _grace.NoteFrame(postReviveInvulnerable: true, clearOfDanger: false, Floor, Cap);
         Assert.True(_grace.IsActive);
     }
 
@@ -153,9 +154,9 @@ public sealed class ReviveGraceTests
     [Fact]
     public void WithNoEngineToAskTheHoldIsJustTheFloor()
     {
-        _grace.NoteFrame(postReviveInvulnerable: true, clearOfDanger: true, Cap);
-        Advance(ReviveGraceTracker.MinHoldSeconds + 0.01);
-        _grace.NoteFrame(postReviveInvulnerable: true, clearOfDanger: true, Cap);
+        _grace.NoteFrame(postReviveInvulnerable: true, clearOfDanger: true, Floor, Cap);
+        Advance(Floor + 0.01);
+        _grace.NoteFrame(postReviveInvulnerable: true, clearOfDanger: true, Floor, Cap);
 
         Assert.False(_grace.IsActive);
     }
@@ -186,13 +187,13 @@ public sealed class ReviveGraceTests
     [Fact]
     public void TheCapBoundsTheHoldEvenIfTheBuffPersists()
     {
-        _grace.NoteFrame(postReviveInvulnerable: true, clearOfDanger: false, maxHoldSeconds: 3);
+        _grace.NoteFrame(postReviveInvulnerable: true, clearOfDanger: false, Floor, maxHoldSeconds: 3);
         Advance(2.9);
-        _grace.NoteFrame(postReviveInvulnerable: true, clearOfDanger: false, maxHoldSeconds: 3);
+        _grace.NoteFrame(postReviveInvulnerable: true, clearOfDanger: false, Floor, maxHoldSeconds: 3);
         Assert.True(_grace.IsActive);
 
         Advance(0.2);
-        _grace.NoteFrame(postReviveInvulnerable: true, clearOfDanger: false, maxHoldSeconds: 3);
+        _grace.NoteFrame(postReviveInvulnerable: true, clearOfDanger: false, Floor, maxHoldSeconds: 3);
         Assert.False(_grace.IsActive);
     }
 
@@ -205,7 +206,7 @@ public sealed class ReviveGraceTests
     {
         for (var i = 0; i < 40; i++)
         {
-            _grace.NoteFrame(postReviveInvulnerable: true, clearOfDanger: false, maxHoldSeconds: 2);
+            _grace.NoteFrame(postReviveInvulnerable: true, clearOfDanger: false, Floor, maxHoldSeconds: 2);
             Advance(0.1);
         }
 
@@ -215,11 +216,11 @@ public sealed class ReviveGraceTests
     [Fact]
     public void RemainingSecondsCountsTheHoldDown()
     {
-        _grace.NoteFrame(postReviveInvulnerable: true, clearOfDanger: false, Cap);
+        _grace.NoteFrame(postReviveInvulnerable: true, clearOfDanger: false, Floor, Cap);
         Assert.Equal(Cap, _grace.RemainingSeconds, precision: 3);
 
         Advance(4);
-        _grace.NoteFrame(postReviveInvulnerable: true, clearOfDanger: false, Cap);
+        _grace.NoteFrame(postReviveInvulnerable: true, clearOfDanger: false, Floor, Cap);
         Assert.Equal(Cap - 4, _grace.RemainingSeconds, precision: 3);
     }
 
@@ -231,7 +232,7 @@ public sealed class ReviveGraceTests
     {
         for (var i = 0; i < 100; i++)
         {
-            _grace.NoteFrame(postReviveInvulnerable: false, clearOfDanger: true, Cap);
+            _grace.NoteFrame(postReviveInvulnerable: false, clearOfDanger: true, Floor, Cap);
             Advance(0.1);
             Assert.False(_grace.IsActive);
         }
@@ -241,12 +242,12 @@ public sealed class ReviveGraceTests
     [Fact]
     public void ASecondRaiseGetsItsOwnWindow()
     {
-        _grace.NoteFrame(postReviveInvulnerable: true, clearOfDanger: false, maxHoldSeconds: 2);
+        _grace.NoteFrame(postReviveInvulnerable: true, clearOfDanger: false, Floor, maxHoldSeconds: 2);
         Advance(5);
-        _grace.NoteFrame(postReviveInvulnerable: false, clearOfDanger: false, maxHoldSeconds: 2);
+        _grace.NoteFrame(postReviveInvulnerable: false, clearOfDanger: false, Floor, maxHoldSeconds: 2);
         Assert.False(_grace.IsActive);
 
-        _grace.NoteFrame(postReviveInvulnerable: true, clearOfDanger: false, maxHoldSeconds: 2);
+        _grace.NoteFrame(postReviveInvulnerable: true, clearOfDanger: false, Floor, maxHoldSeconds: 2);
         Assert.True(_grace.IsActive);
     }
 
@@ -257,7 +258,7 @@ public sealed class ReviveGraceTests
     [InlineData(-1d)]
     public void ZeroOrLessDisablesTheHold(double maxHoldSeconds)
     {
-        _grace.NoteFrame(postReviveInvulnerable: true, clearOfDanger: false, maxHoldSeconds);
+        _grace.NoteFrame(postReviveInvulnerable: true, clearOfDanger: false, Floor, maxHoldSeconds);
         Assert.False(_grace.IsActive);
     }
 
@@ -265,10 +266,10 @@ public sealed class ReviveGraceTests
     [Fact]
     public void TurningItOffReleasesAHoldInProgress()
     {
-        _grace.NoteFrame(postReviveInvulnerable: true, clearOfDanger: false, Cap);
+        _grace.NoteFrame(postReviveInvulnerable: true, clearOfDanger: false, Floor, Cap);
         Assert.True(_grace.IsActive);
 
-        _grace.NoteFrame(postReviveInvulnerable: true, clearOfDanger: false, maxHoldSeconds: 0d);
+        _grace.NoteFrame(postReviveInvulnerable: true, clearOfDanger: false, Floor, maxHoldSeconds: 0d);
         Assert.False(_grace.IsActive);
     }
 
@@ -284,9 +285,21 @@ public sealed class ReviveGraceTests
         var source = File.ReadAllText(BaseRotationSourcePath());
 
         Assert.Matches(
-            @"ReviveGrace\.NoteFrame\(\s*HasPostReviveInvulnerability\(player\),\s*IsClearOfDangerAfterRaise\(player, isMoving\),\s*Configuration\.ReviveHoldSeconds\s*\)",
+            @"ReviveGrace\.NoteFrame\(\s*raiseImmune,\s*IsClearOfDangerAfterRaise\(player, isMoving\),\s*Configuration\.ReviveHoldMinSeconds,\s*Configuration\.ReviveHoldSeconds,\s*raiseImmune \? RotationServices\.BossModSafety\?\.NextRaidwideInSeconds \?\? float\.MaxValue : float\.MaxValue\)",
             source);
         Assert.Matches(@"if \(ReviveGrace\.IsActive\)\s*\r?\n\s*return;", source);
+    }
+
+    /// <summary>The floor is armed where the rotation is skipped for being dead, or the first frame back leaks.</summary>
+    [Fact]
+    public void TheDeathGateArmsTheFloor()
+    {
+        var plugin = Path.Combine(Path.GetDirectoryName(BaseRotationSourcePath())!, "..", "..", "Plugin.cs");
+        var source = File.ReadAllText(plugin);
+
+        Assert.Matches(
+            @"if \(localPlayer\.CurrentHp == 0\)\s*\{[^}]*ReviveGrace\.NoteDead\(configuration\.ReviveHoldMinSeconds, configuration\.ReviveHoldSeconds\);\s*return;",
+            source);
     }
 
     private static string BaseRotationSourcePath()
@@ -298,25 +311,168 @@ public sealed class ReviveGraceTests
         return Path.Combine(dir!.FullName, "Daedalus", "Rotation", "Base", "BaseRotation.cs");
     }
 
-    // ── the statuses it keys on ────────────────────────────────────────────────────────
+    // ── standing up ────────────────────────────────────────────────────────────────────
 
     /// <summary>
-    /// Transcendent is a normal raise; Willful is duty support's auto-revive. Both also appear in the
-    /// incapacitation set, which classifies GCD downtime — a separate question from whether an action is
-    /// possible, which for Transcendent it very much is.
+    /// THE 2026-11-24 field case: the attack went out on the frame the raise landed (Tomahawk at
+    /// 21:00:24.76, raised 21:00:24.76). The hold keyed on the buff alone, and never saw it. The death
+    /// gate now arms the floor, so the first frame up is held before any status has been read.
     /// </summary>
     [Fact]
-    public void TheRaiseMarkersAreTranscendentAndWillful()
+    public void TheFirstFrameUpIsHeldBeforeTheBuffIsRead()
     {
-        Assert.Equal(2, FFXIVConstants.PostReviveInvulnerabilityStatusIds.Count);
-        Assert.Contains(2656u, FFXIVConstants.PostReviveInvulnerabilityStatusIds);   // Transcendent
-        Assert.Contains(3581u, FFXIVConstants.PostReviveInvulnerabilityStatusIds);   // Willful
+        _grace.NoteDead(minHoldSeconds: 2, Cap);
+        Advance(0.016);
+        _grace.NoteFrame(postReviveInvulnerable: false, clearOfDanger: true, minHoldSeconds: 2, Cap);
 
-        foreach (var id in FFXIVConstants.PostReviveInvulnerabilityStatusIds)
-            Assert.Contains(id, FFXIVConstants.IncapacitationStatusIds);
+        Assert.True(_grace.IsActive);
+    }
 
-        // A stun is not a raise: it stops you acting, but there is no immunity to protect.
-        Assert.DoesNotContain(18u, FFXIVConstants.PostReviveInvulnerabilityStatusIds);
+    [Theory]
+    [InlineData(1.9, true)]
+    [InlineData(2.1, false)]
+    public void WithNoImmunityTheHoldIsJustTheFloor(double elapsed, bool stillHeld)
+    {
+        _grace.NoteDead(minHoldSeconds: 2, Cap);
+        Advance(elapsed);
+        _grace.NoteFrame(postReviveInvulnerable: false, clearOfDanger: true, minHoldSeconds: 2, Cap);
+
+        Assert.Equal(stillHeld, _grace.IsActive);
+        if (!stillHeld)
+            Assert.Equal("no immunity to keep", _grace.EndedBy);
+    }
+
+    /// <summary>The buff turning up a few frames after the HP is timed from standing up, not from when it was read.</summary>
+    [Fact]
+    public void ALateBuffIsTimedFromStandingUp()
+    {
+        _grace.NoteDead(minHoldSeconds: 2, Cap);
+        Advance(0.3);
+        _grace.NoteFrame(postReviveInvulnerable: true, clearOfDanger: true, minHoldSeconds: 2, Cap);
+        Assert.True(_grace.IsActive);
+
+        Advance(1.8); // 2.1s up, 1.8s since the buff was read
+        _grace.NoteFrame(postReviveInvulnerable: true, clearOfDanger: true, minHoldSeconds: 2, Cap);
+
+        Assert.False(_grace.IsActive);
+        Assert.Equal("standing clear", _grace.EndedBy);
+    }
+
+    /// <summary>Clear ground does not shorten the wait the player asked for.</summary>
+    [Theory]
+    [InlineData(3d, 2.9, true)]
+    [InlineData(3d, 3.0, false)]
+    [InlineData(0d, 0.0, false)]
+    public void ClearDoesNotCountBeforeTheFloorTheSettingAsksFor(double floor, double elapsed, bool stillHeld)
+    {
+        _grace.NoteFrame(postReviveInvulnerable: true, clearOfDanger: true, floor, Cap);
+        Advance(elapsed);
+        _grace.NoteFrame(postReviveInvulnerable: true, clearOfDanger: true, floor, Cap);
+
+        Assert.Equal(stillHeld, _grace.IsActive);
+    }
+
+    /// <summary>A floor set above the cap must not outlast it: the cap is the longest the character is ever held.</summary>
+    [Fact]
+    public void TheFloorIsNeverLongerThanTheCap()
+    {
+        _grace.NoteDead(minHoldSeconds: 8, maxHoldSeconds: 3);
+        Advance(0.1);
+        _grace.NoteFrame(postReviveInvulnerable: true, clearOfDanger: true, minHoldSeconds: 8, maxHoldSeconds: 3);
+        Assert.True(_grace.IsActive);
+
+        Advance(3);
+        _grace.NoteFrame(postReviveInvulnerable: true, clearOfDanger: true, minHoldSeconds: 8, maxHoldSeconds: 3);
+        Assert.False(_grace.IsActive);
+    }
+
+    /// <summary>The player acting during the floor spends the immunity: nothing is left to wait for.</summary>
+    [Fact]
+    public void ActingDuringTheFloorHandsControlBack()
+    {
+        _grace.NoteDead(minHoldSeconds: 2, Cap);
+        Advance(0.1);
+        _grace.NoteFrame(postReviveInvulnerable: true, clearOfDanger: false, minHoldSeconds: 2, Cap);
+        Advance(0.5);
+        _grace.NoteFrame(postReviveInvulnerable: false, clearOfDanger: true, minHoldSeconds: 2, Cap);
+
+        Assert.False(_grace.IsActive);
+        Assert.Equal("the immunity ending", _grace.EndedBy);
+    }
+
+    /// <summary>A death from before the rotation was switched off is not this raise's: the buff gets its own full window.</summary>
+    [Fact]
+    public void AnOldDeathDoesNotEatTheWindow()
+    {
+        _grace.NoteDead(minHoldSeconds: 2, Cap);
+        Advance(60);
+        _grace.NoteFrame(postReviveInvulnerable: true, clearOfDanger: false, minHoldSeconds: 2, Cap);
+
+        Assert.True(_grace.IsActive);
+        Assert.Equal(Cap, _grace.RemainingSeconds, precision: 3);
+    }
+
+    [Fact]
+    public void TurnedOffNothingIsArmedAtTheDeathGate()
+    {
+        _grace.NoteDead(minHoldSeconds: 2, maxHoldSeconds: 0);
+
+        Assert.False(_grace.IsActive);
+    }
+
+    // ── a raidwide on the way ──────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Safe ground does not help against a raidwide. One the boss engine says lands inside the window is
+    /// waited out under the immunity, then the fight is handed back.
+    /// </summary>
+    [Fact]
+    public void ARaidwideDueInsideTheWindowIsWaitedOut()
+    {
+        _grace.NoteFrame(postReviveInvulnerable: true, clearOfDanger: true, Floor, maxHoldSeconds: 5, secondsUntilRaidwide: 3);
+        Advance(2); // past the floor, standing clear, the raidwide 1s away
+        _grace.NoteFrame(postReviveInvulnerable: true, clearOfDanger: true, Floor, maxHoldSeconds: 5, secondsUntilRaidwide: 1);
+        Assert.True(_grace.IsActive);
+
+        Advance(1.1); // it has landed: the engine has nothing more to announce
+        _grace.NoteFrame(postReviveInvulnerable: true, clearOfDanger: true, Floor, maxHoldSeconds: 5);
+        Assert.False(_grace.IsActive);
+        Assert.Equal("standing clear", _grace.EndedBy);
+    }
+
+    /// <summary>One that lands after the cap is not waited for: the hold would end before it, for nothing.</summary>
+    [Theory]
+    [InlineData(2.9, true)]   // 2s in, lands at 4.9s of a 5s cap
+    [InlineData(3.1, false)]  // lands at 5.1s
+    [InlineData(30d, false)]
+    public void OnlyARaidwideThatLandsBeforeTheCapHolds(double secondsUntilRaidwide, bool stillHeld)
+    {
+        _grace.NoteFrame(postReviveInvulnerable: true, clearOfDanger: true, Floor, maxHoldSeconds: 5);
+        Advance(2);
+        _grace.NoteFrame(postReviveInvulnerable: true, clearOfDanger: true, Floor, maxHoldSeconds: 5, secondsUntilRaidwide);
+
+        Assert.Equal(stillHeld, _grace.IsActive);
+    }
+
+    // ── the status it keys on ──────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Transcendent is status 418 ("Recently resurrected and temporarily invulnerable to most damage.
+    /// Status ends upon execution of an action." — XIVAPI, and BossMod's recorded status enums). The set
+    /// held 2656 and 3581 until 2026-11-25: a boss Stun and P12S's Umbralstrong Soul, so the hold never
+    /// engaged on a real raise.
+    /// </summary>
+    [Fact]
+    public void TheRaiseMarkerIsTranscendent()
+    {
+        Assert.Equal([418u], FFXIVConstants.PostReviveInvulnerabilityStatusIds);
+
+        // Downtime while the hold waits is explained downtime.
+        Assert.Contains(418u, FFXIVConstants.IncapacitationStatusIds);
+
+        // 2656 is a Stun: it stops the character acting, but there is no immunity to protect. 3581 is neither.
+        Assert.Contains(2656u, FFXIVConstants.IncapacitationStatusIds);
+        Assert.DoesNotContain(3581u, FFXIVConstants.IncapacitationStatusIds);
     }
 }
 
@@ -330,7 +486,7 @@ public sealed class ReviveGraceStaticTests
     [Fact]
     public void TheStaticEntryPointDelegatesAndHoldsNothingWhenDisabled()
     {
-        ReviveGrace.NoteFrame(postReviveInvulnerable: true, clearOfDanger: false, maxHoldSeconds: 0d);
+        ReviveGrace.NoteFrame(postReviveInvulnerable: true, clearOfDanger: false, minHoldSeconds: 2d, maxHoldSeconds: 0d);
 
         Assert.False(ReviveGrace.IsActive);
         Assert.Equal(0d, ReviveGrace.RemainingSeconds);

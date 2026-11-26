@@ -85,6 +85,29 @@ public sealed class ConsumablesSection
         ImGui.Spacing();
 
         ConfigUIHelpers.Toggle(
+            "Auto-drink deep dungeon potions on low HP",
+            () => config.Consumables.EnableDeepDungeonPotions,
+            v => config.Consumables.EnableDeepDungeonPotions = v,
+            "In a deep dungeon, drinks that dungeon's own regen potion (Sustaining in Palace of the Dead, Empyrean in Heaven-on-High, Orthos in Eureka Orthos, Pilgrim's in Pilgrim's Traverse) when HP drops below the threshold below during a fight. Waits while a regen from an earlier potion is still running, and on floors with Item Penalty. Default off, like every other item use.",
+            save);
+
+        if (config.Consumables.EnableDeepDungeonPotions)
+        {
+            ConfigUIHelpers.BeginIndent();
+
+            config.Consumables.DeepDungeonPotionHpThreshold = ConfigUIHelpers.ThresholdSlider(
+                "Potion HP threshold",
+                config.Consumables.DeepDungeonPotionHpThreshold,
+                10f, 90f,
+                "Drink when HP falls below this. The potion is a 30-second regen, not a burst heal, so it helps most when drunk early.",
+                save);
+
+            ConfigUIHelpers.EndIndent();
+        }
+
+        ImGui.Spacing();
+
+        ConfigUIHelpers.Toggle(
             Loc.T(LocalizedStrings.Consumables.WarnOnEmptyInventory, "Warn when inventory is empty"),
             () => config.Consumables.WarnOnEmptyInventory,
             v => config.Consumables.WarnOnEmptyInventory = v,

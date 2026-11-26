@@ -101,6 +101,7 @@ public sealed unsafe class CrucibleBonusWatcher
         var tracker = Tracker;
         if (tracker == null)
             return;
+        tracker.SetDegree(CrucibleHints.Degree); // the layout agent's, read a frame or two after the board loads
 
         // New statuses on the beastmaster.
         var now = new HashSet<uint>();

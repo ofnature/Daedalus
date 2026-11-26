@@ -42,7 +42,7 @@ namespace Daedalus;
 
 public sealed class Plugin : IDalamudPlugin
 {
-    public const string PluginVersion = "0.1.132";
+    public const string PluginVersion = "0.1.133";
     private const string CommandName = "/daedalus";
 
     /// <summary>LAN relay channel for Necromancer Deep Freeze "heal me to full" announcements.</summary>
@@ -72,6 +72,7 @@ public sealed class Plugin : IDalamudPlugin
     private CrucibleTeamWindow? crucibleTeamWindow;
     private readonly CrucibleResultWindow crucibleResultWindow = new();
     private readonly Daedalus.Services.Beastmaster.CrucibleResultWatcher crucibleResultWatcher = new();
+    private Daedalus.Services.Beastmaster.CrucibleRunLedgerFile? crucibleRunLedger;
     private Daedalus.Services.Beastmaster.CrucibleRecorder? crucibleRecorder;
     private Daedalus.Services.Beastmaster.CrucibleHornSetter? crucibleHornSetter;
     private Daedalus.Services.Beastmaster.CrucibleRosterLoader? crucibleRosterLoader;
@@ -239,6 +240,7 @@ public sealed class Plugin : IDalamudPlugin
     private readonly Daedalus.Services.Eureka.EurekaService eurekaService;
     private readonly Daedalus.Services.Pull.BossPullService bossPullService;
     private readonly Daedalus.Services.Consumables.EtherService etherService;
+    private readonly Daedalus.Services.Consumables.DeepDungeonPotionService deepDungeonPotionService;
 
     // Error metrics
     private readonly ErrorMetricsService errorMetricsService;
@@ -987,6 +989,13 @@ public sealed class Plugin : IDalamudPlugin
             chatGui,
             log);
 
+        // The deep dungeon's own regen potion on low HP (Consumables ▸ EnableDeepDungeonPotions, default off).
+        this.deepDungeonPotionService = new Daedalus.Services.Consumables.DeepDungeonPotionService(
+            actionService,
+            inventoryProbe,
+            configuration,
+            log);
+
         // Smart AoE service (must be created before service container)
         this.aoeTracker = new AoETracker();
         this.smartAoEService = new SmartAoEService(targetingService, dataManager, aoeTracker, log);
@@ -1414,6 +1423,8 @@ public sealed class Plugin : IDalamudPlugin
             },
             board => crucibleRosterLoader is { Team.Count: > 0 } loaded ? loaded.Team : crucibleRosterFor(board),
             m => log.Info(m));
+        this.crucibleRunLedger = new Daedalus.Services.Beastmaster.CrucibleRunLedgerFile(
+            pluginInterface.ConfigDirectory.FullName, m => log.Info(m));
         crucibleAutoPilot.GearTaken += () => crucibleBonusWatcher.GearTaken();
         crucibleAutoPilot.Rested += () => crucibleBonusWatcher.Rested();
         this.crucibleTeamWindow = new CrucibleTeamWindow(
@@ -1434,6 +1445,22 @@ public sealed class Plugin : IDalamudPlugin
         crucibleResultWatcher.ResultRead += result =>
         {
             crucibleBonusWatcher?.Finished();
+            // Every run is written down, so how often a setup reaches Legendary is counted, not remembered (user,
+            // 2026-11-25: Legendary on more than four runs in five).
+            if (Daedalus.Services.Beastmaster.CrucibleBonusWatcher.Tracker is { } run && crucibleRunLedger != null)
+            {
+                crucibleRunLedger.Record(new Daedalus.Data.CrucibleLedgerEntry(
+                    System.DateTime.UtcNow, objectTable.LocalPlayer?.Name.TextValue ?? "",
+                    run.Board.Index, result.Board, result.Mode, Daedalus.Data.CrucibleLoopRules.DegreeOfMode(result.Mode),
+                    configuration.Beastmaster.CrucibleGoal.ToString(),
+                    crucibleRosterLoader is { Team.Count: > 0 } loaded ? loaded.Team : crucibleRosterFor?.Invoke(run.Board) ?? [],
+                    result.Total, result.Rank, Daedalus.Data.CrucibleResultRules.LegendaryLine(run.Board.Index),
+                    result.CompletionPct, result.Performance, result.BonusTotal,
+                    result.Bonuses.Select(b => $"{b.Name} {b.Points}").ToList(),
+                    result.RemainingHp, (int)(objectTable.LocalPlayer?.MaxHp ?? 0), result.HpPoints, run.KnockOuts,
+                    crucibleRunLedger.LastEnemy));
+            }
+
             // The remaining-HP points against max HP, to work out the game's formula (user, 2026-11-06).
             log.Info($"Crucible: remaining HP {result.RemainingHp:N0} of {objectTable.LocalPlayer?.MaxHp ?? 0:N0} max"
                      + $" scored {result.HpPoints:N0} ({result.Board}, {result.Mode}).");
@@ -2394,6 +2421,7 @@ public sealed class Plugin : IDalamudPlugin
             {
                 phoenixDownService.Update(objectTable.LocalPlayer, partyList);
                 etherService.Update(objectTable.LocalPlayer);
+                deepDungeonPotionService.Update(objectTable.LocalPlayer);
                 mechanicInteractService.Update(objectTable.LocalPlayer);
                 dodgeSprintService.Update(objectTable.LocalPlayer);
                 bossPullService.Update(objectTable.LocalPlayer);
@@ -2615,6 +2643,7 @@ public sealed class Plugin : IDalamudPlugin
                 && Daedalus.Data.CrucibleHornPlan.ShouldSetHorns(configuration.Beastmaster.AutoCrucibleHorns, configuration.ExternalCombatOverrideSource),
                 Daedalus.Services.Beastmaster.CrucibleTracker.Current.Board);
             crucibleRosterLoader?.Update();
+            crucibleRunLedger?.Update(Daedalus.Services.Beastmaster.CrucibleTracker.Current);
             crucibleResultWatcher.Update();
             crucibleBonusWatcher?.Update(
                 Daedalus.Services.Beastmaster.CrucibleTracker.Current.Board, objectTable.LocalPlayer, objectTable);
@@ -2698,7 +2727,11 @@ public sealed class Plugin : IDalamudPlugin
                 return;
 
             if (localPlayer.CurrentHp == 0)
+            {
+                // Arms the revive hold from the last frame down, so the first frame back up is already held.
+                Daedalus.Services.Combat.ReviveGrace.NoteDead(configuration.ReviveHoldMinSeconds, configuration.ReviveHoldSeconds);
                 return;
+            }
 
             // Update party coordination service (heartbeat, cleanup)
             partyCoordinationService?.Update(

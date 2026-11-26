@@ -285,6 +285,7 @@ public sealed class CrucibleBonusTracker
     private int _lastMove;
     private bool _died;
     private bool _finished;
+    private int _degree;
 
     /// <param name="rosterKins">The kin of each registered beast, one entry per beast. The roster cannot change mid-board.</param>
     public CrucibleBonusTracker(CrucibleBoard board, IEnumerable<BeastClassification> rosterKins)
@@ -299,6 +300,17 @@ public sealed class CrucibleBonusTracker
     public CrucibleBoard Board { get; }
 
     private bool Over => _died || _finished;
+
+    /// <summary>
+    /// The degree the board was entered on (0 Standard, 1-3). Its bonus is then paid for finishing, whatever happens;
+    /// unset, the degrees stay untracked. The layout agent reports it a frame or two after the board loads, so it is set
+    /// as read, not at the start; a later 0 (the agent gone for a frame) does not take it back.
+    /// </summary>
+    public void SetDegree(int degree)
+    {
+        if (degree > 0)
+            _degree = Math.Min(degree, 3);
+    }
 
     /// <summary>A familiar was knocked out. A retreat or Parting Blow is not a KO.</summary>
     public void FamiliarKnockedOut()
@@ -509,7 +521,12 @@ public sealed class CrucibleBonusTracker
             case CrucibleBonus.RollingInRiches:
                 return AtEnd(_heldTokens >= CrucibleBonusRules.RollingInRichesMinTokens, CrucibleBonusReason.NotEnoughHeld);
 
-            default: // Infinity and Beyond, the Degrees
+            case CrucibleBonus.FirstDegree or CrucibleBonus.SecondDegree or CrucibleBonus.ThirdDegree when _degree > 0:
+                return bonus == CrucibleBonus.FirstDegree + (_degree - 1)
+                    ? (CrucibleBonusState.Earned, ok)
+                    : (CrucibleBonusState.Lost, CrucibleBonusReason.OtherTier);
+
+            default: // Infinity and Beyond; the Degrees while the degree is not known
                 return (CrucibleBonusState.NotTracked, CrucibleBonusReason.OutOfScope);
         }
     }
