@@ -283,15 +283,15 @@
       "multibox"
     ],
     "RepoUrl": "https://github.com/ofnature/Demeter",
-    "AssemblyVersion": "0.1.12.0",
+    "AssemblyVersion": "0.1.13.0",
     "DalamudApiLevel": 15,
     "IconUrl": "https://raw.githubusercontent.com/ofnature/Demeter/main/images/icon.png",
     "ImageUrls": [],
     "IsHide": false,
     "IsTestingExclusive": false,
-    "DownloadLinkInstall": "https://github.com/ofnature/Demeter/releases/download/v0.1.12/Demeter.zip",
-    "DownloadLinkTesting": "https://github.com/ofnature/Demeter/releases/download/v0.1.12/Demeter.zip",
-    "DownloadLinkUpdate": "https://github.com/ofnature/Demeter/releases/download/v0.1.12/Demeter.zip"
+    "DownloadLinkInstall": "https://github.com/ofnature/Demeter/releases/download/v0.1.13/Demeter.zip",
+    "DownloadLinkTesting": "https://github.com/ofnature/Demeter/releases/download/v0.1.13/Demeter.zip",
+    "DownloadLinkUpdate": "https://github.com/ofnature/Demeter/releases/download/v0.1.13/Demeter.zip"
   },
   {
     "Author": "ofnature",
