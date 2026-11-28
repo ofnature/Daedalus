@@ -336,14 +336,14 @@
       "multibox"
     ],
     "RepoUrl": "https://github.com/ofnature/Selene",
-    "AssemblyVersion": "0.1.0.0",
+    "AssemblyVersion": "0.1.1.0",
     "DalamudApiLevel": 15,
     "ImageUrls": [],
     "IsHide": false,
     "IsTestingExclusive": false,
-    "DownloadLinkInstall": "https://github.com/ofnature/Selene/releases/download/v0.1.0/Selene.zip",
-    "DownloadLinkTesting": "https://github.com/ofnature/Selene/releases/download/v0.1.0/Selene.zip",
-    "DownloadLinkUpdate": "https://github.com/ofnature/Selene/releases/download/v0.1.0/Selene.zip"
+    "DownloadLinkInstall": "https://github.com/ofnature/Selene/releases/download/v0.1.1/Selene.zip",
+    "DownloadLinkTesting": "https://github.com/ofnature/Selene/releases/download/v0.1.1/Selene.zip",
+    "DownloadLinkUpdate": "https://github.com/ofnature/Selene/releases/download/v0.1.1/Selene.zip"
   },
   {
     "Author": "ofnature",
